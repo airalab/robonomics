@@ -1,0 +1,36 @@
+[package]
+name = "substrate-node-template"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
+
+[[bin]]
+name = "node"
+path = "src/main.rs"
+
+[dependencies]
+error-chain = "0.12"
+node-cli = { path = "cli" }
+futures = "0.1"
+ctrlc = { version = "3.0", features = ["termination"] }
+
+[build-dependencies]
+vergen = "2"
+
+[workspace]
+members = [
+	"cli",
+	"consensus",
+	"executor",
+	"network",
+	"primitives",
+	"runtime",
+	"service"
+]
+exclude = [
+	"runtime/wasm"
+]
+
+[profile.release]
+# Substrate runtime requires unwinding.
+panic = "unwind"

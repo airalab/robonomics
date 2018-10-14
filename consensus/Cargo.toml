@@ -1,0 +1,25 @@
+[package]
+name = "node-consensus"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+error-chain = "0.12"
+exit-future = "0.1"
+futures = "0.1.17"
+log = "0.4"
+node-primitives = { path = "../primitives" }
+node-runtime = { path = "../runtime" }
+parity-codec = "2.0"
+parking_lot = "0.4"
+rhododendron = "0.3"
+sr-primitives = { git = "https://github.com/paritytech/substrate" }
+srml-system = { git = "https://github.com/paritytech/substrate" }
+substrate-bft = { git = "https://github.com/paritytech/substrate" }
+substrate-client = { git = "https://github.com/paritytech/substrate" }
+substrate-primitives = { git = "https://github.com/paritytech/substrate" }
+substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }
+tokio = "0.1.7"
+
+[dev-dependencies]
+substrate-keyring = { git = "https://github.com/paritytech/substrate" }
