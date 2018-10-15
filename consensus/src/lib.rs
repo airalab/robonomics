@@ -481,9 +481,9 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 			let signature = self.local_key.sign(&payload.encode()).into();
 			next_index += 1;
 
-			let local_id = self.local_key.public().0.into();
+			let local_id: AccountId = self.local_key.public().0.into();
 			let extrinsic = UncheckedExtrinsic {
-				signature: Some((node_runtime::RawAddress::Id(local_id), signature, payload.0, Era::immortal())),
+				signature: Some((local_id.into(), signature, payload.0, Era::immortal())),
 				function: payload.1,
 			};
 			let uxt: <<C as AuthoringApi>::Block as BlockT>::Extrinsic = Decode::decode(&mut extrinsic.encode().as_slice()).expect("Encoded extrinsic is valid");
