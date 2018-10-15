@@ -58,7 +58,7 @@ extern crate sr_version as version;
 extern crate node_primitives;
 
 use rstd::prelude::*;
-use node_primitives::{AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, SessionKey, Signature, InherentData};
+use node_primitives::{AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, SessionKey, Signature, InherentData, Timestamp as TimestampType};
 use runtime_api::runtime::*;
 use runtime_primitives::ApplyResult;
 use runtime_primitives::transaction_validity::TransactionValidity;
@@ -77,7 +77,6 @@ pub use runtime_primitives::{Permill, Perbill};
 pub use timestamp::BlockPeriod;
 pub use srml_support::StorageValue;
 #[cfg(any(feature = "std", test))]
-pub use checked_block::CheckedBlock;
 
 const TIMESTAMP_SET_POSITION: u32 = 0;
 const NOTE_OFFLINE_POSITION: u32 = 1;
@@ -187,6 +186,55 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Index, Call>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
 
+
+//TODO: Move upstream into `BlockBuilder`.
+pub mod block_builder_ext {
+	#[cfg(feature = "std")]
+	extern crate substrate_client as client;
+	#[cfg(feature = "std")]
+	extern crate parity_codec;
+
+	use super::BlockT;
+	use rstd::borrow::Cow;
+	#[cfg(feature = "std")]
+	use substrate_primitives::Blake2Hasher;
+	#[cfg(feature = "std")]
+	use runtime_primitives::generic::BlockId;
+
+	#[derive(Encode, Decode, Debug)]
+	pub enum Error {
+		Generic(Cow<'static, str>),
+		TimestampInFuture(u64),
+	}
+
+	decl_apis! {
+		pub trait BlockBuilderExt<Block: BlockT> {
+			fn check_inherents<InherentData>(block: Block, data: InherentData) -> Result<(), Error>;
+		}
+	}
+
+	#[cfg(feature = "std")]
+	impl<B, E, Block> BlockBuilderExt<Block> for client::Client<B, E, Block> where
+		B: client::backend::Backend<Block, Blake2Hasher>,
+		E: client::CallExecutor<Block, Blake2Hasher>,
+		Block: BlockT,
+	{
+		type Error = client::error::Error;
+
+		fn check_inherents<InherentData: parity_codec::Encode + parity_codec::Decode>(
+			&self,
+			at: &BlockId<Block>,
+			block: &Block,
+			data: &InherentData
+		) -> Result<Result<(), Error>, Self::Error> {
+			self.call_api_at(at, "check_inherents", &(block, data))
+		}
+	}
+
+}
+use block_builder_ext::runtime::BlockBuilderExt;
+use block_builder_ext::Error as BBEError;
+
 impl_apis! {
 	impl Core<Block, SessionKey> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -236,34 +284,42 @@ impl_apis! {
 			inherent
 		}
 
-		fn check_inherents(block: Block, data: InherentData) -> Result<(), &'static str> {
+		fn random_seed() -> <Block as BlockT>::Hash {
+			System::random_seed()
+		}
+	}
+
+	impl BlockBuilderExt<Block, InherentData> for Runtime {
+		fn check_inherents(block: Block, data: InherentData) -> Result<(), BBEError> {
 			// TODO: v1: should be automatically gathered
 
 			// Timestamp module...
-			const MAX_TIMESTAMP_DRIFT: Timestamp = 60;
+			const MAX_TIMESTAMP_DRIFT: TimestampType = 60;
 			let xt = block.extrinsics.get(TIMESTAMP_SET_POSITION as usize)
-				.ok_or("No valid timestamp inherent in block")?;
-			let t = match (xt.is_signed(), xt.function) {
+				.ok_or_else(|| BBEError::Generic("No valid timestamp inherent in block".into()))?;
+			let t = match (xt.is_signed(), &xt.function) {
 				(false, Call::Timestamp(TimestampCall::set(t))) => t,
-				_ => bail!("No valid timestamp inherent in block"),
+				_ => return Err(BBEError::Generic("No valid timestamp inherent in block".into())),
 			};
-			if t > now + MAX_TIMESTAMP_DRIFT {
-				bail!("Timestamp in future")
+
+			if *t > data.timestamp + MAX_TIMESTAMP_DRIFT {
+				return Err(BBEError::TimestampInFuture(*t))
 			}
 
 			// Offline indices
 			let noted_offline =
-				self.inner.extrinsics.get(NOTE_OFFLINE_POSITION as usize).and_then(|xt| match xt.function {
+				block.extrinsics.get(NOTE_OFFLINE_POSITION as usize).and_then(|xt| match xt.function {
 					Call::Consensus(ConsensusCall::note_offline(ref x)) => Some(&x[..]),
 					_ => None,
 				}).unwrap_or(&[]);
-			for i in noted_offline {
-				if data.offline_indices.iter().find(i).is_none() {
-					bail!("Online node marked offline")
-				}
-			}
 
-			Ok(())
+			noted_offline.iter().try_for_each(|n|
+				if !data.offline_indices.contains(n) {
+					Err(BBEError::Generic("Online node marked offline".into()))
+				} else {
+					Ok(())
+				}
+			)
 		}
 	}
 

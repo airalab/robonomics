@@ -20,7 +20,7 @@ use super::MAX_TRANSACTIONS_SIZE;
 
 use codec::{Decode, Encode};
 use node_runtime::{Block as GenericBlock};
-use node_primitives::{Hash, BlockNumber, Timestamp};
+use node_primitives::{Hash, BlockNumber};
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, As};
 
 
@@ -52,7 +52,6 @@ error_chain! {
 /// upon any initial validity checks failing.
 pub fn evaluate_initial<Block: BlockT, Hash>(
 	proposal: &Block,
-	now: Timestamp,		// TODO: should be InherentData
 	parent_hash: &Hash,
 	parent_number: <<Block as BlockT>::Header as HeaderT>::Number,
 ) -> Result<()>
@@ -80,7 +79,7 @@ where
 		bail!(ErrorKind::WrongNumber(parent_number.as_() + 1, proposal.header.number));
 	}
 
-	// TODO: Should use 
+	// TODO: Should use
 
-	Ok(proposal)
+	Ok(())
 }

@@ -49,7 +49,7 @@ use client::{Client as SubstrateClient, CallExecutor};
 use client::runtime_api::{Core, BlockBuilder as BlockBuilderAPI, Miscellaneous, OldTxQueue};
 use codec::{Decode, Encode};
 use node_primitives::{AccountId, Timestamp, SessionKey, InherentData};
-use node_runtime::Runtime;
+use node_runtime::{block_builder_ext::{Error as BBEError, BlockBuilderExt}, Runtime};
 use primitives::{AuthorityId, ed25519, Blake2Hasher};
 use runtime_primitives::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, As, BlockNumberToHash};
 use runtime_primitives::generic::{BlockId, Era};
@@ -88,6 +88,7 @@ pub trait AuthoringApi:
 	Send
 	+ Sync
 	+ BlockBuilderAPI<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
+	+ BlockBuilderExt<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
 	+ Core<<Self as AuthoringApi>::Block, AuthorityId, Error=<Self as AuthoringApi>::Error>
 	+ Miscellaneous<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
 	+ OldTxQueue<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
@@ -347,7 +348,6 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 
 		assert!(evaluation::evaluate_initial(
 			&substrate_block,
-			timestamp,
 			&self.parent_hash,
 			self.parent_number,
 		).is_ok());
@@ -358,34 +358,49 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 	fn evaluate(&self, unchecked_proposal: &<C as AuthoringApi>::Block) -> Self::Evaluate {
 		debug!(target: "bft", "evaluating block on top of parent ({}, {:?})", self.parent_number, self.parent_hash);
 
-		let current_timestamp = current_timestamp();
-
 		// do initial serialization and structural integrity checks.
-		let maybe_proposal = evaluation::evaluate_initial(
+		match evaluation::evaluate_initial(
 			unchecked_proposal,
-			current_timestamp,
 			&self.parent_hash,
 			self.parent_number,
-		);
-
-		let proposal = match maybe_proposal {
+		) {
 			Ok(p) => p,
 			Err(e) => {
 				// TODO: these errors are easily re-checked in runtime.
-				debug!(target: "bft", "Invalid proposal: {:?}", e);
+				debug!(target: "bft", "Invalid proposal (initial evaluation failed): {:?}", e);
+				return Box::new(future::ok(false));
+			}
+		};
+
+		let current_timestamp = current_timestamp();
+		let inherent = InherentData::new(
+			current_timestamp,
+			self.offline.read().reports(&self.validators)
+		);
+		let proposed_timestamp = match self.client.check_inherents(
+			&self.parent_id,
+			&unchecked_proposal,
+			&inherent
+		) {
+			Ok(Ok(())) => None,
+			Ok(Err(BBEError::TimestampInFuture(timestamp))) => Some(timestamp),
+			Ok(Err(e)) => {
+				debug!(target: "bft", "Invalid proposal (check_inherents): {:?}", e);
+				return Box::new(future::ok(false));
+			},
+			Err(e) => {
+				debug!(target: "bft", "Could not call into runtime: {:?}", e);
 				return Box::new(future::ok(false));
 			}
 		};
 
 		let vote_delays = {
-			let now = Instant::now();
-
 			// the duration until the given timestamp is current
-			let proposed_timestamp = ::std::cmp::max(self.minimum_timestamp, proposal.timestamp());
+			let proposed_timestamp = ::std::cmp::max(self.minimum_timestamp, proposed_timestamp.unwrap_or(0));
 			let timestamp_delay = if proposed_timestamp > current_timestamp {
 				let delay_s = proposed_timestamp - current_timestamp;
 				debug!(target: "bft", "Delaying evaluation of proposal for {} seconds", delay_s);
-				Some(now + Duration::from_secs(delay_s))
+				Some(Instant::now() + Duration::from_secs(delay_s))
 			} else {
 				None
 			};
@@ -397,13 +412,6 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 				None => future::Either::B(future::ok(())),
 			}
 		};
-
-		// refuse to vote if this block says a validator is offline that we
-		// think isn't.
-		let offline = proposal.noted_offline();
-		if !self.offline.read().check_consistency(&self.validators[..], offline) {
-			return Box::new(futures::empty());
-		}
 
 		// evaluate whether the block is actually valid.
 		// TODO: is it better to delay this until the delays are finished?
