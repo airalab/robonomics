@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-//! The Substrate runtime. This can be compiled with ``#[no_std]`, ready for Wasm.
+//! The Substrate runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
@@ -57,22 +57,15 @@ extern crate srml_treasury as treasury;
 extern crate sr_version as version;
 extern crate node_primitives;
 
-#[cfg(feature = "std")]
-mod checked_block;
-
 use rstd::prelude::*;
-use substrate_primitives::u32_trait::{_2, _4};
-use node_primitives::{AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, SessionKey, Signature, InherentData};
+use node_primitives::{AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, SessionKey, Signature, InherentData, Timestamp as TimestampType};
 use runtime_api::runtime::*;
 use runtime_primitives::ApplyResult;
 use runtime_primitives::transaction_validity::TransactionValidity;
 use runtime_primitives::generic;
-use runtime_primitives::traits::{Convert, BlakeTwo256, DigestItem, Block as BlockT};
+use runtime_primitives::traits::{BlakeTwo256, DigestItem, Block as BlockT};
 use version::{RuntimeVersion, ApiId};
-use council::{motions as council_motions, voting as council_voting};
 #[cfg(feature = "std")]
-use council::seats as council_seats;
-#[cfg(any(feature = "std", test))]
 use version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
@@ -84,26 +77,30 @@ pub use runtime_primitives::{Permill, Perbill};
 pub use timestamp::BlockPeriod;
 pub use srml_support::StorageValue;
 #[cfg(any(feature = "std", test))]
-pub use checked_block::CheckedBlock;
 
 const TIMESTAMP_SET_POSITION: u32 = 0;
 const NOTE_OFFLINE_POSITION: u32 = 1;
 
-const INHERENT: ApiId = *b"inherent";
-const VALIDATX: ApiId = *b"validatx";
+const BLOCK_BUILDER: ApiId = *b"blkbuild";
+const TAGGED_TRANSACTION_QUEUE: ApiId = *b"validatx";
+const METADATA: ApiId = *b"metadata";
 
 /// Runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: ver_str!("node"),
-	impl_name: ver_str!("substrate-node"),
+	spec_name: ver_str!("template-node"),
+	impl_name: ver_str!("substrate-template-node"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
-	apis: apis_vec!([(INHERENT, 1), (VALIDATX, 1)]),
+	apis: apis_vec!([
+		(BLOCK_BUILDER, 1),
+		(TAGGED_TRANSACTION_QUEUE, 1),
+		(METADATA, 1)
+	]),
 };
 
 /// Native version.
-#[cfg(any(feature = "std", test))]
+#[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion {
 		runtime_version: VERSION,
@@ -124,19 +121,11 @@ impl system::Trait for Runtime {
 	type Log = Log;
 }
 
-impl balances::Trait for Runtime {
-	type Balance = Balance;
-	type AccountIndex = AccountIndex;
-	type OnFreeBalanceZero = (Staking, Contract);
-	type EnsureAccountLiquid = Staking;
-	type Event = Event;
-}
-
 impl consensus::Trait for Runtime {
 	const NOTE_OFFLINE_POSITION: u32 = NOTE_OFFLINE_POSITION;
 	type Log = Log;
 	type SessionKey = SessionKey;
-	type OnOfflineValidator = Staking;
+	type OnOfflineValidator = ();
 }
 
 impl timestamp::Trait for Runtime {
@@ -144,56 +133,15 @@ impl timestamp::Trait for Runtime {
 	type Moment = u64;
 }
 
-/// Session key conversion.
-pub struct SessionKeyConversion;
-impl Convert<AccountId, SessionKey> for SessionKeyConversion {
-	fn convert(a: AccountId) -> SessionKey {
-		a.0.into()
-	}
-}
-
-impl session::Trait for Runtime {
-	type ConvertAccountIdToSessionKey = SessionKeyConversion;
-	type OnSessionChange = Staking;
+impl balances::Trait for Runtime {
+	type Balance = Balance;
+	type AccountIndex = AccountIndex;
+	type OnFreeBalanceZero = ();
+	type EnsureAccountLiquid = ();
 	type Event = Event;
 }
 
-impl staking::Trait for Runtime {
-	type OnRewardMinted = Treasury;
-	type Event = Event;
-}
-
-impl democracy::Trait for Runtime {
-	type Proposal = Call;
-	type Event = Event;
-}
-
-impl council::Trait for Runtime {
-	type Event = Event;
-}
-
-impl council::voting::Trait for Runtime {
-	type Event = Event;
-}
-
-impl council::motions::Trait for Runtime {
-	type Origin = Origin;
-	type Proposal = Call;
-	type Event = Event;
-}
-
-impl treasury::Trait for Runtime {
-	type ApproveOrigin = council_motions::EnsureMembers<_4>;
-	type RejectOrigin = council_motions::EnsureMembers<_2>;
-	type Event = Event;
-}
-
-impl contract::Trait for Runtime {
-	type Gas = u64;
-	type DetermineContractAddress = contract::SimpleAddressDeterminator<Runtime>;
-	type Event = Event;
-}
-
+// TODO: v1: should be macro
 impl DigestItem for Log {
 	type Hash = Hash;
 	type AuthorityId = SessionKey;
@@ -219,22 +167,12 @@ construct_runtime!(
 		Consensus: consensus::{Module, Call, Storage, Config, Log(AuthoritiesChange)},
 		Balances: balances,
 		Timestamp: timestamp::{Module, Call, Storage, Config},
-		Session: session,
-		Staking: staking,
-		Democracy: democracy,
-		Council: council::{Module, Call, Storage, Event<T>},
-		CouncilVoting: council_voting,
-		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
-		CouncilSeats: council_seats::{Config},
-		Treasury: treasury,
-		Contract: contract::{Module, Call, Config, Event<T>},
 	}
 );
 
-/// The address format for describing accounts.
-pub use balances::address::Address as RawAddress;
-/// The address format for describing accounts.
-pub type Address = balances::Address<Runtime>;
+type Context = system::ChainContext<Runtime>;
+type Address = AccountId;
+
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
 /// Block type as expected by this runtime.
@@ -246,7 +184,56 @@ pub type UncheckedExtrinsic = generic::UncheckedMortalExtrinsic<Address, Index, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Index, Call>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = executive::Executive<Runtime, Block, balances::ChainContext<Runtime>, Balances, AllModules>;
+pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
+
+
+//TODO: Move upstream into `BlockBuilder`.
+pub mod block_builder_ext {
+	#[cfg(feature = "std")]
+	extern crate substrate_client as client;
+	#[cfg(feature = "std")]
+	extern crate parity_codec;
+
+	use super::BlockT;
+	use rstd::borrow::Cow;
+	#[cfg(feature = "std")]
+	use substrate_primitives::Blake2Hasher;
+	#[cfg(feature = "std")]
+	use runtime_primitives::generic::BlockId;
+
+	#[derive(Encode, Decode, Debug)]
+	pub enum Error {
+		Generic(Cow<'static, str>),
+		TimestampInFuture(u64),
+	}
+
+	decl_apis! {
+		pub trait BlockBuilderExt<Block: BlockT> {
+			fn check_inherents<InherentData>(block: Block, data: InherentData) -> Result<(), Error>;
+		}
+	}
+
+	#[cfg(feature = "std")]
+	impl<B, E, Block> BlockBuilderExt<Block> for client::Client<B, E, Block> where
+		B: client::backend::Backend<Block, Blake2Hasher>,
+		E: client::CallExecutor<Block, Blake2Hasher>,
+		Block: BlockT,
+	{
+		type Error = client::error::Error;
+
+		fn check_inherents<InherentData: parity_codec::Encode + parity_codec::Decode>(
+			&self,
+			at: &BlockId<Block>,
+			block: &Block,
+			data: &InherentData
+		) -> Result<Result<(), Error>, Self::Error> {
+			self.call_api_at(at, "check_inherents", &(block, data))
+		}
+	}
+
+}
+use block_builder_ext::runtime::BlockBuilderExt;
+use block_builder_ext::Error as BBEError;
 
 impl_apis! {
 	impl Core<Block, SessionKey> for Runtime {
@@ -283,6 +270,7 @@ impl_apis! {
 		}
 
 		fn inherent_extrinsics(data: InherentData) -> Vec<UncheckedExtrinsic> {
+			// TODO: v1: should be automatically gathered.
 			let mut inherent = vec![generic::UncheckedMortalExtrinsic::new_unsigned(
 				Call::Timestamp(TimestampCall::set(data.timestamp))
 			)];
@@ -301,33 +289,43 @@ impl_apis! {
 		}
 	}
 
-	impl OldTxQueue<AccountId, Index, Address, AccountId> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
-			System::account_nonce(&account)
-		}
+	impl BlockBuilderExt<Block, InherentData> for Runtime {
+		fn check_inherents(block: Block, data: InherentData) -> Result<(), BBEError> {
+			// TODO: v1: should be automatically gathered
 
-		fn lookup_address(address: Address) -> Option<AccountId> {
-			Balances::lookup_address(address)
+			// Timestamp module...
+			const MAX_TIMESTAMP_DRIFT: TimestampType = 60;
+			let xt = block.extrinsics.get(TIMESTAMP_SET_POSITION as usize)
+				.ok_or_else(|| BBEError::Generic("No valid timestamp inherent in block".into()))?;
+			let t = match (xt.is_signed(), &xt.function) {
+				(false, Call::Timestamp(TimestampCall::set(t))) => t,
+				_ => return Err(BBEError::Generic("No valid timestamp inherent in block".into())),
+			};
+
+			if *t > data.timestamp + MAX_TIMESTAMP_DRIFT {
+				return Err(BBEError::TimestampInFuture(*t))
+			}
+
+			// Offline indices
+			let noted_offline =
+				block.extrinsics.get(NOTE_OFFLINE_POSITION as usize).and_then(|xt| match xt.function {
+					Call::Consensus(ConsensusCall::note_offline(ref x)) => Some(&x[..]),
+					_ => None,
+				}).unwrap_or(&[]);
+
+			noted_offline.iter().try_for_each(|n|
+				if !data.offline_indices.contains(n) {
+					Err(BBEError::Generic("Online node marked offline".into()))
+				} else {
+					Ok(())
+				}
+			)
 		}
 	}
 
 	impl TaggedTransactionQueue<Block, TransactionValidity> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			Executive::validate_transaction(tx)
-		}
-	}
-
-	impl Miscellaneous<AccountId, u64> for Runtime {
-		fn validator_count() -> u32 {
-			Session::validator_count()
-		}
-
-		fn validators() -> Vec<AccountId> {
-			Session::validators()
-		}
-
-		fn timestamp() -> u64 {
-			Timestamp::get()
 		}
 	}
 }
