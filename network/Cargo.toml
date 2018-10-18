@@ -7,7 +7,6 @@ description = "Substrate node networking protocol"
 [dependencies]
 node-consensus = { path = "../consensus" }
 node-primitives = { path = "../primitives" }
-substrate-bft = { git = "https://github.com/paritytech/substrate" }
 substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
 futures = "0.1"

@@ -79,7 +79,5 @@ where
 		bail!(ErrorKind::WrongNumber(parent_number.as_() + 1, proposal.header.number));
 	}
 
-	// TODO: Should use
-
 	Ok(())
 }

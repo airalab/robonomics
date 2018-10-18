@@ -15,7 +15,6 @@ parking_lot = "0.4"
 rhododendron = "0.3"
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
 srml-system = { git = "https://github.com/paritytech/substrate" }
-substrate-bft = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
 substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }

@@ -16,6 +16,8 @@
 
 //! This service uses BFT consensus provided by the substrate.
 
+#![cfg(feature="rhd")]
+
 extern crate node_runtime;
 extern crate node_primitives;
 
@@ -48,8 +50,8 @@ use std::time::{self, Duration, Instant};
 use client::{Client as SubstrateClient, CallExecutor};
 use client::runtime_api::{Core, BlockBuilder as BlockBuilderAPI, Miscellaneous, OldTxQueue};
 use codec::{Decode, Encode};
-use node_primitives::{AccountId, Timestamp, SessionKey, InherentData};
-use node_runtime::{block_builder_ext::{Error as BBEError, BlockBuilderExt}, Runtime};
+use node_primitives::{AccountId, Timestamp, SessionKey};
+use node_runtime::{Runtime, InherentError, TimestampInherentError, InherentData};
 use primitives::{AuthorityId, ed25519, Blake2Hasher};
 use runtime_primitives::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, As, BlockNumberToHash};
 use runtime_primitives::generic::{BlockId, Era};
@@ -68,7 +70,6 @@ pub use service::Service;
 
 mod evaluation;
 mod error;
-mod offline_tracker;
 mod service;
 
 /// Shared offline validator tracker.
@@ -88,7 +89,6 @@ pub trait AuthoringApi:
 	Send
 	+ Sync
 	+ BlockBuilderAPI<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
-	+ BlockBuilderExt<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
 	+ Core<<Self as AuthoringApi>::Block, AuthorityId, Error=<Self as AuthoringApi>::Error>
 	+ Miscellaneous<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
 	+ OldTxQueue<<Self as AuthoringApi>::Block, Error=<Self as AuthoringApi>::Error>
@@ -135,9 +135,8 @@ impl<'a, B, E, Block> AuthoringApi for SubstrateClient<B, E, Block> where
 
 		let mut block_builder = self.new_block_at(at)?;
 		if runtime_version.has_api(*b"inherent", 1) {
-			for inherent in self.inherent_extrinsics(at, &inherent_data)? {
-				block_builder.push(inherent)?;
-			}
+			self.inherent_extrinsics(at, &inherent_data)?
+				.into_iter().try_for_each(|i| block_builder.push(i))?;
 		}
 
 		build_ctx(&mut block_builder);
@@ -315,10 +314,10 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 					let mut pending_size = 0;
 					for pending in pending_iterator {
 						// TODO [ToDr] Probably get rid of it, and validate in runtime.
-						let encoded_size = pending.data.raw.encode().len();
+						let encoded_size = pending.data.encode().len();
 						if pending_size + encoded_size >= MAX_TRANSACTIONS_SIZE { break }
 
-						match block_builder.push_extrinsic(pending.data.raw.clone()) {
+						match block_builder.push_extrinsic(pending.data.clone()) {
 							Ok(()) => {
 								pending_size += encoded_size;
 							}
@@ -383,7 +382,7 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 			&inherent
 		) {
 			Ok(Ok(())) => None,
-			Ok(Err(BBEError::TimestampInFuture(timestamp))) => Some(timestamp),
+			Ok(Err(InherentError::Timestamp(TimestampInherentError::TimestampInFuture(timestamp)))) => Some(timestamp),
 			Ok(Err(e)) => {
 				debug!(target: "bft", "Invalid proposal (check_inherents): {:?}", e);
 				return Box::new(future::ok(false));
@@ -489,9 +488,9 @@ impl<C, A> bft::Proposer<<C as AuthoringApi>::Block> for Proposer<C, A> where
 			let signature = self.local_key.sign(&payload.encode()).into();
 			next_index += 1;
 
-			let local_id: AccountId = self.local_key.public().0.into();
+			let local_id = self.local_key.public().0.into();
 			let extrinsic = UncheckedExtrinsic {
-				signature: Some((local_id.into(), signature, payload.0, Era::immortal())),
+				signature: Some((node_runtime::RawAddress::Id(local_id), signature, payload.0, Era::immortal())),
 				function: payload.1,
 			};
 			let uxt: <<C as AuthoringApi>::Block as BlockT>::Extrinsic = Decode::decode(&mut extrinsic.encode().as_slice()).expect("Encoded extrinsic is valid");

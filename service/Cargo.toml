@@ -28,7 +28,6 @@ tokio = "0.1.7"
 
 [dev-dependencies]
 substrate-service-test = { git = "https://github.com/paritytech/substrate" }
-substrate-bft = { git = "https://github.com/paritytech/substrate" }
 substrate-test-client = { git = "https://github.com/paritytech/substrate" }
 substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 rhododendron = "0.3"
