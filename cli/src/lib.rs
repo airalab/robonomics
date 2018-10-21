@@ -1,38 +1,33 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
-// This file is part of Substrate.
-
-// Substrate is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Substrate is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-
-//! Substrate CLI library.
+//! Substrate Node Template CLI library.
 
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
 extern crate tokio;
-
-extern crate substrate_cli as cli;
-extern crate node_service as service;
+extern crate hex_literal;
 extern crate exit_future;
-
 #[macro_use]
 extern crate log;
+extern crate substrate_cli as cli;
+extern crate substrate_primitives as primitives;
+extern crate substrate_consensus_aura as consensus;
+#[macro_use]
+extern crate substrate_network as network;
+#[macro_use]
+extern crate substrate_executor;
+#[macro_use]
+extern crate substrate_transaction_pool as transaction_pool;
+#[macro_use]
+extern crate substrate_service;
+extern crate node_runtime;
 
 pub use cli::error;
+mod chain_spec;
+mod service;
 
 use tokio::runtime::Runtime;
-pub use service::{Components as ServiceComponents, Service, CustomConfiguration, ServiceFactory};
 pub use cli::{VersionInfo, IntoExit};
+use substrate_service::{ServiceFactory, Roles as ServiceRoles};
 
 /// The chain specification option.
 #[derive(Clone, Debug)]
@@ -45,10 +40,10 @@ pub enum ChainSpec {
 
 /// Get a chain config from a spec setting.
 impl ChainSpec {
-	pub(crate) fn load(self) -> Result<service::ChainSpec, String> {
+	pub(crate) fn load(self) -> Result<chain_spec::ChainSpec, String> {
 		Ok(match self {
-			ChainSpec::Development => service::chain_spec::development_config(),
-			ChainSpec::LocalTestnet => service::chain_spec::local_testnet_config(),
+			ChainSpec::Development => chain_spec::development_config(),
+			ChainSpec::LocalTestnet => chain_spec::local_testnet_config(),
 		})
 	}
 
@@ -61,7 +56,7 @@ impl ChainSpec {
 	}
 }
 
-fn load_spec(id: &str) -> Result<Option<service::ChainSpec>, String> {
+fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
 	Ok(match ChainSpec::from(id) {
 		Some(spec) => Some(spec.load()?),
 		None => None,
@@ -74,19 +69,20 @@ pub fn run<I, T, E>(args: I, exit: E, version: cli::VersionInfo) -> error::Resul
 	T: Into<std::ffi::OsString> + Clone,
 	E: IntoExit,
 {
+	let version_info = version.clone();
 	match cli::prepare_execution::<service::Factory, _, _, _, _>(args, exit, version, load_spec, "substrate-node")? {
 		cli::Action::ExecutedInternally => (),
 		cli::Action::RunService((config, exit)) => {
-			info!("Template Node");
+			info!("{} ({})", version_info.description, version_info.executable_name);
 			info!("  version {}", config.full_version());
-			info!("  by Anonymous, 2018");
+			info!("  by {}, 2018", version_info.author);
 			info!("  powered by Substrate");
 			info!("Chain specification: {}", config.chain_spec.name());
 			info!("Node name: {}", config.name);
 			info!("Roles: {:?}", config.roles);
 			let mut runtime = Runtime::new()?;
 			let executor = runtime.executor();
-			match config.roles == service::Roles::LIGHT {
+			match config.roles == ServiceRoles::LIGHT {
 				true => run_until_exit(&mut runtime, service::Factory::new_light(config, executor)?, exit)?,
 				false => run_until_exit(&mut runtime, service::Factory::new_full(config, executor)?, exit)?,
 			}
@@ -101,7 +97,7 @@ fn run_until_exit<C, E>(
 	e: E,
 ) -> error::Result<()>
 	where
-		C: service::Components,
+		C: substrate_service::Components,
 		E: IntoExit,
 {
 	let (exit_send, exit) = exit_future::signal();

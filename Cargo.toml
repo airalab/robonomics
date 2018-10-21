@@ -20,12 +20,7 @@ vergen = "2"
 [workspace]
 members = [
 	"cli",
-	"consensus",
-	"executor",
-	"network",
-	"primitives",
-	"runtime",
-	"service"
+	"runtime"
 ]
 exclude = [
 	"runtime/wasm"

@@ -1,6 +1,6 @@
 name: substrate-node
-author: "Parity Team <admin@parity.io>"
-about: Substrate Node Rust Implementation
+author: "Anonymous <anon@ymous.com>"
+about: Substrate Node Template
 args:
   - log:
       short: l

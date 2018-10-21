@@ -1,28 +1,14 @@
-// Copyright 2018 Parity Technologies (UK) Ltd.
-// This file is part of Substrate.
-
-// Substrate is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Substrate is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-
 //! Substrate chain configurations.
 
 use primitives::{AuthorityId, ed25519};
-use node_primitives::AccountId;
-use node_runtime::{GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig};
-use service::ChainSpec;
+use node_runtime::{AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig};
+use substrate_service;
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+
+/// Specialised `ChainSpec`.
+pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
 
 fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<AccountId>) -> GenesisConfig {
 	GenesisConfig {
@@ -60,7 +46,7 @@ fn development_config_genesis() -> GenesisConfig {
 }
 
 /// Development config (single validator Alice)
-pub fn development_config() -> ChainSpec<GenesisConfig> {
+pub fn development_config() -> ChainSpec {
 	ChainSpec::from_genesis("Development", "development", development_config_genesis, vec![], None, None, None)
 }
 
@@ -85,11 +71,11 @@ fn local_testnet_genesis_instant() -> GenesisConfig {
 }
 
 /// Local testnet config (multivalidator Alice + Bob)
-pub fn local_testnet_config() -> ChainSpec<GenesisConfig> {
+pub fn local_testnet_config() -> ChainSpec {
 	ChainSpec::from_genesis("Local Testnet", "local_testnet", local_testnet_genesis, vec![], None, None, None)
 }
 
 /// Local testnet config (multivalidator Alice + Bob)
-pub fn integration_test_config() -> ChainSpec<GenesisConfig> {
+pub fn integration_test_config() -> ChainSpec {
 	ChainSpec::from_genesis("Integration Test", "test", local_testnet_genesis_instant, vec![], None, None, None)
 }
