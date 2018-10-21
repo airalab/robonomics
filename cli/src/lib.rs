@@ -4,7 +4,6 @@
 #![warn(unused_extern_crates)]
 
 extern crate tokio;
-extern crate hex_literal;
 extern crate exit_future;
 #[macro_use]
 extern crate log;
@@ -15,7 +14,6 @@ extern crate substrate_consensus_aura as consensus;
 extern crate substrate_network as network;
 #[macro_use]
 extern crate substrate_executor;
-#[macro_use]
 extern crate substrate_transaction_pool as transaction_pool;
 #[macro_use]
 extern crate substrate_service;
@@ -69,13 +67,16 @@ pub fn run<I, T, E>(args: I, exit: E, version: cli::VersionInfo) -> error::Resul
 	T: Into<std::ffi::OsString> + Clone,
 	E: IntoExit,
 {
-	let version_info = version.clone();
-	match cli::prepare_execution::<service::Factory, _, _, _, _>(args, exit, version, load_spec, "substrate-node")? {
+	let description = version.description.clone();
+	let executable_name = version.executable_name.clone();
+	let author = version.author.clone();
+
+	match cli::prepare_execution::<service::Factory, _, _, _, _>(args, exit, version, load_spec, &executable_name)? {
 		cli::Action::ExecutedInternally => (),
 		cli::Action::RunService((config, exit)) => {
-			info!("{} ({})", version_info.description, version_info.executable_name);
+			info!("{} ({})", description, executable_name);
 			info!("  version {}", config.full_version());
-			info!("  by {}, 2018", version_info.author);
+			info!("  by {}, 2018", author);
 			info!("  powered by Substrate");
 			info!("Chain specification: {}", config.chain_spec.name());
 			info!("Node name: {}", config.name);
