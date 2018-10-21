@@ -34,8 +34,8 @@ use primitives::AuthorityId;
 use runtime_primitives::{ApplyResult, transaction_validity::TransactionValidity,
 	Ed25519Signature, generic, traits::{self, BlakeTwo256, Block as BlockT}
 };
-use runtime_api::runtime::*;
-use version::{RuntimeVersion, ApiId};
+use runtime_api::{runtime::*, id::*};
+use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
 
@@ -85,10 +85,6 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 }
 
-const BLOCK_BUILDER: ApiId = *b"blkbuild";
-const TAGGED_TRANSACTION_QUEUE: ApiId = *b"validatx";
-const METADATA: ApiId = *b"metadata";
-
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: ver_str!("template-node"),
@@ -97,7 +93,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 1,
 	impl_version: 0,
 	apis: apis_vec!([
-		// compiles on stable but breaks on nightly for no apparently reason.
 		(BLOCK_BUILDER, 1),
 		(TAGGED_TRANSACTION_QUEUE, 1),
 		(METADATA, 1)
@@ -174,9 +169,9 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: system::{default, Log(ChangesTrieRoot)},
+		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
 		Balances: balances,
-		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 	}
 );
 
