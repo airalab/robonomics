@@ -19,16 +19,11 @@ substrate-primitives = { git = "https://github.com/paritytech/substrate", branch
 substrate-keyring = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 srml-balances = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 srml-consensus = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-contract = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-council = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-democracy = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 srml-executive = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 sr-primitives = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-session = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-staking = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 srml-system = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 srml-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
-srml-treasury = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
+srml-upgrade-key = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 substrate-client = { git = "https://github.com/paritytech/substrate", branch = "rh-aura", optional = true }
 sr-version = { git = "https://github.com/paritytech/substrate", branch = "rh-aura" }
 
@@ -43,16 +38,11 @@ std = [
 	"srml-support/std",
 	"srml-balances/std",
 	"srml-consensus/std",
-	"srml-contract/std",
-	"srml-council/std",
-	"srml-democracy/std",
 	"srml-executive/std",
 	"sr-primitives/std",
-	"srml-session/std",
-	"srml-staking/std",
 	"srml-system/std",
 	"srml-timestamp/std",
-	"srml-treasury/std",
+	"srml-upgrade-key/std",
 	"sr-version/std",
 	"serde_derive",
 	"serde/std",

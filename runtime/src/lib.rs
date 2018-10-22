@@ -26,6 +26,7 @@ extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
 extern crate srml_balances as balances;
+extern crate srml_upgrade_key as upgrade_key;
 
 use rstd::prelude::*;
 #[cfg(feature = "std")]
@@ -47,7 +48,7 @@ pub use timestamp::Call as TimestampCall;
 pub use balances::Call as BalancesCall;
 pub use runtime_primitives::{Permill, Perbill};
 pub use timestamp::BlockPeriod;
-pub use srml_support::StorageValue;
+pub use srml_support::{StorageValue, RuntimeMetadata};
 
 /// Alias to Ed25519 pubkey that identifies an account on the chain.
 pub type AccountId = primitives::H256;
@@ -163,6 +164,11 @@ impl balances::Trait for Runtime {
 	type Event = Event;
 }
 
+impl upgrade_key::Trait for Runtime {
+	/// The uniquitous event type.
+	type Event = Event;
+}
+
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId>) where
 		Block = Block,
@@ -172,12 +178,14 @@ construct_runtime!(
 		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
 		Balances: balances,
+		UpgradeKey: upgrade_key,
 	}
 );
 
-type Context = system::ChainContext<Runtime>;
-type Address = AccountId;
-
+/// The type used as a helper for interpreting the sender of transactions. 
+type Context = balances::ChainContext<Runtime>;
+/// The address format for describing accounts.
+type Address = balances::Address<Runtime>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
 /// Block type as expected by this runtime.
@@ -207,8 +215,8 @@ impl_apis! {
 		}
 	}
 
-	impl Metadata for Runtime {
-		fn metadata() -> Vec<u8> {
+	impl Metadata<RuntimeMetadata> for Runtime {
+		fn metadata() -> RuntimeMetadata {
 			Runtime::metadata()
 		}
 	}
