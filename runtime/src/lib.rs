@@ -17,6 +17,7 @@ extern crate sr_primitives as runtime_primitives;
 #[macro_use]
 extern crate serde_derive;
 extern crate substrate_primitives as primitives;
+extern crate parity_codec;
 #[macro_use]
 extern crate parity_codec_derive;
 #[macro_use]
