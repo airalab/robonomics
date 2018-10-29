@@ -1,6 +1,6 @@
-name: substrate-node
-author: "Anonymous <anon@ymous.com>"
-about: Substrate Node Template
+name: template-node
+author: "Anonymous"
+about: Template Node
 args:
   - log:
       short: l

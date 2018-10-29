@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [[bin]]
-name = "node"
+name = "template-node"
 path = "src/main.rs"
 
 [dependencies]
