@@ -32,7 +32,7 @@ fn run() -> cli::error::Result<()> {
 		commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
 		executable_name: "template-node",
-		author: "Anonymous <anon@ymous.com>",
+		author: "Anonymous",
 		description: "Template Node",
 	};
 	cli::run(::std::env::args(), cli::Exit, version)
