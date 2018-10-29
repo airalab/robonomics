@@ -12,9 +12,9 @@ safe-mix = { version = "1.0", default-features = false }
 parity-codec = "2.0"
 parity-codec-derive = "2.0"
 sr-api = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-std = { git = "https://github.com/paritytech/substrate",  }
-sr-io = { git = "https://github.com/paritytech/substrate",  }
-srml-support = { git = "https://github.com/paritytech/substrate", branch = "rmaster" }
+sr-std = { git = "https://github.com/paritytech/substrate" }
+sr-io = { git = "https://github.com/paritytech/substrate" }
+srml-support = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
 substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 srml-balances = { git = "https://github.com/paritytech/substrate" }
