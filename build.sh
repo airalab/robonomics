@@ -7,7 +7,7 @@ PROJECT_ROOT=`git rev-parse --show-toplevel`
 export CARGO_INCREMENTAL=0
 
 # Save current directory.
-pushd . -n
+pushd . >/dev/null
 
 cd $ROOT
 
@@ -22,4 +22,4 @@ do
 done
 
 # Restore initial directory.
-popd -n
+popd >/dev/null
