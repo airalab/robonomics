@@ -36,6 +36,7 @@ impl Alternative {
 				vec![],
 				None,
 				None,
+				None,
 				None
 			),
 			Alternative::LocalTestnet => ChainSpec::from_genesis(
@@ -55,6 +56,7 @@ impl Alternative {
 					ed25519::Pair::from_seed(b"Alice                           ").public().0.into()
 				),
 				vec![],
+				None,
 				None,
 				None,
 				None
