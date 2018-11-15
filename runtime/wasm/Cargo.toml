@@ -12,7 +12,7 @@ safe-mix = { version = "1.0", default-features = false}
 parity-codec-derive = { version = "^2.1" }
 parity-codec = { version = "^2.1", default-features = false }
 substrate-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-api = { git = "https://github.com/paritytech/substrate", default-features = false }
+substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 sr-std = { git = "https://github.com/paritytech/substrate", default-features = false }
 sr-io = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-support = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -31,7 +31,7 @@ std = [
 	"safe-mix/std",
 	"parity-codec/std",
 	"substrate-primitives/std",
-	"sr-api/std",
+	"substrate-client/std",
 	"sr-std/std",
 	"sr-io/std",
 	"srml-support/std",

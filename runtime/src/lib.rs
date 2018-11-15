@@ -8,7 +8,7 @@
 extern crate sr_std as rstd;
 extern crate sr_io as runtime_io;
 #[macro_use]
-extern crate sr_api as runtime_api;
+extern crate substrate_client as client;
 #[macro_use]
 extern crate srml_support;
 #[macro_use]
@@ -33,10 +33,11 @@ use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
 use primitives::AuthorityId;
+use primitives::OpaqueMetadata;
 use runtime_primitives::{ApplyResult, transaction_validity::TransactionValidity,
 	Ed25519Signature, generic, traits::{self, BlakeTwo256, Block as BlockT}
 };
-use runtime_api::{runtime::*, id::*};
+use client::{block_builder::api::runtime::*, runtime_api::{runtime::*, id::*}};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
@@ -201,8 +202,8 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
-impl_apis! {
-	impl Core<Block, AuthorityId> for Runtime {
+impl_runtime_apis! {
+	impl Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
 		}
@@ -214,19 +215,19 @@ impl_apis! {
 		fn execute_block(block: Block) {
 			Executive::execute_block(block)
 		}
+
+		fn initialise_block(header: <Block as BlockT>::Header) {
+			Executive::initialise_block(&header)
+		}
 	}
 
-	impl Metadata<RuntimeMetadata> for Runtime {
-		fn metadata() -> RuntimeMetadata {
-			Runtime::metadata()
+	impl Metadata for Runtime {
+		fn metadata() -> OpaqueMetadata {
+			Runtime::metadata().into()
 		}
 	}
 
 	impl BlockBuilder<Block, InherentData, UncheckedExtrinsic, InherentData, InherentError> for Runtime {
-		fn initialise_block(header: <Block as BlockT>::Header) {
-			Executive::initialise_block(&header)
-		}
-
 		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
 			Executive::apply_extrinsic(extrinsic)
 		}
@@ -248,7 +249,7 @@ impl_apis! {
 		}
 	}
 
-	impl TaggedTransactionQueue<Block, TransactionValidity> for Runtime {
+	impl TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			Executive::validate_transaction(tx)
 		}
