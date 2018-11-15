@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use transaction_pool::{self, txpool::{Pool as TransactionPool}};
-use template_node_runtime::{self, GenesisConfig, opaque::Block};
+use template_node_runtime::{self, GenesisConfig, opaque::Block, ClientWithApi};
 use substrate_service::{
 	FactoryFullConfiguration, LightComponents, FullComponents, FullBackend,
 	FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
@@ -33,6 +33,7 @@ construct_simple_service!(Service);
 construct_service_factory! {
 	struct Factory {
 		Block = Block,
+		RuntimeApi = ClientWithApi,
 		NetworkProtocol = NodeProtocol { |config| Ok(NodeProtocol::new()) },
 		RuntimeDispatch = Executor,
 		FullTransactionPoolApi = transaction_pool::ChainApi<FullBackend<Self>, FullExecutor<Self>, Block>
