@@ -12,6 +12,7 @@ extern crate log;
 extern crate substrate_cli;
 extern crate substrate_primitives as primitives;
 extern crate substrate_consensus_aura as consensus;
+extern crate substrate_client as client;
 #[macro_use]
 extern crate substrate_network as network;
 #[macro_use]

@@ -3,9 +3,10 @@ use std::cell::RefCell;
 use tokio::runtime::Runtime;
 pub use substrate_cli::{VersionInfo, IntoExit, error};
 use substrate_cli::{prepare_execution, Action, informant};
-use service::{Factory, Service};
+use service::Factory;
 use substrate_service::{Components, ServiceFactory, Roles as ServiceRoles};
 use chain_spec;
+use std::ops::Deref;
 
 /// Parse command line arguments into service configuration.
 pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()> where
@@ -45,12 +46,13 @@ fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
 	})
 }
 
-fn run_until_exit<C, E>(
+fn run_until_exit<T, C, E>(
 	runtime: &mut Runtime,
-	service: Service<C>,
+	service: T,
 	e: E,
 ) -> error::Result<()>
 	where
+		T: Deref<Target=substrate_service::Service<C>>,
 		C: Components,
 		E: IntoExit,
 {
