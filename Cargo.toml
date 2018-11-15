@@ -29,6 +29,7 @@ substrate-service = { git = "https://github.com/paritytech/substrate" }
 substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura = { git = "https://github.com/paritytech/substrate" }
+substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 template-node-runtime = { path = "runtime" }
 
 [build-dependencies]
