@@ -78,10 +78,12 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/template_node_runtime.compact.wasm").to_vec(),
 			authorities: initial_authorities.clone(),
+			_genesis_phantom_data: Default::default(),
 		}),
 		system: None,
 		timestamp: Some(TimestampConfig {
 			period: 5,					// 5 second block time.
+			_genesis_phantom_data: Default::default(),
 		}),
 		balances: Some(BalancesConfig {
 			transaction_base_fee: 1,
@@ -91,9 +93,11 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 			creation_fee: 0,
 			reclaim_rebate: 0,
 			balances: endowed_accounts.iter().map(|&k|(k, (1 << 60))).collect(),
+			_genesis_phantom_data: Default::default(),
 		}),
 		upgrade_key: Some(UpgradeKeyConfig {
 			key: upgrade_key,
+			_genesis_phantom_data: Default::default(),
 		}),
 	}
 }
