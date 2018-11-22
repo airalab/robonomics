@@ -1,12 +1,28 @@
+use service;
 use futures::{future, Future, sync::oneshot};
 use std::cell::RefCell;
 use tokio::runtime::Runtime;
 pub use substrate_cli::{VersionInfo, IntoExit, error};
-use substrate_cli::{prepare_execution, Action, informant};
-use service::Factory;
-use substrate_service::{Components, ServiceFactory, Roles as ServiceRoles};
+use substrate_cli::{Action, informant, parse_matches, execute_default, CoreParams};
+use substrate_service::{ServiceFactory, Roles as ServiceRoles};
 use chain_spec;
 use std::ops::Deref;
+use structopt::StructOpt;
+
+/// Extend params for Node
+#[derive(Debug, StructOpt)]
+pub struct NodeParams {
+	/// Should run as a GRANDPA authority node
+	#[structopt(long = "grandpa-authority", help = "Run Node as a GRANDPA authority, implies --validator")]
+	grandpa_authority: bool,
+
+	/// Should run as a GRANDPA authority node only
+	#[structopt(long = "grandpa-authority-only", help = "Run Node as a GRANDPA authority only, don't as a usual validator, implies --grandpa-authority")]
+	grandpa_authority_only: bool,
+
+	#[structopt(flatten)]
+	core: CoreParams
+}
 
 /// Parse command line arguments into service configuration.
 pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()> where
@@ -14,28 +30,52 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 	T: Into<std::ffi::OsString> + Clone,
 	E: IntoExit,
 {
-	let description = version.description.clone();
-	let executable_name = version.executable_name.clone();
-	let author = version.author.clone();
+	let full_version = substrate_service::config::full_version_from_strs(
+		version.version,
+		version.commit
+	);
 
-	match prepare_execution::<Factory, _, _, _, _>(args, exit, version, load_spec, &executable_name)? {
+	let matches = match NodeParams::clap()
+		.name(version.executable_name)
+		.author(version.author)
+		.about(version.description)
+		.version(&(full_version + "\n")[..])
+		.get_matches_from_safe(args) {
+			Ok(m) => m,
+			Err(e) => e.exit(),
+		};
+
+	let (spec, mut config) = parse_matches::<service::Factory, _>(load_spec, version, "substrate-node", &matches)?;
+
+	if matches.is_present("grandpa_authority_only") {
+		config.custom.grandpa_authority = true;
+		config.custom.grandpa_authority_only = true;
+		// Authority Setup is only called if validator is set as true
+		config.roles = ServiceRoles::AUTHORITY;
+	} else if matches.is_present("grandpa_authority") {
+		config.custom.grandpa_authority = true;
+		// Authority Setup is only called if validator is set as true
+		config.roles = ServiceRoles::AUTHORITY;
+	}
+
+	match execute_default::<service::Factory, _>(spec, exit, &matches)? {
 		Action::ExecutedInternally => (),
-		Action::RunService((config, exit)) => {
-			info!("{} ({})", description, executable_name);
+		Action::RunService(exit) => {
+			info!("Substrate Node");
 			info!("  version {}", config.full_version());
-			info!("  by {}, 2018", author);
-			info!("  powered by Substrate");
+			info!("  by Parity Technologies, 2017, 2018");
 			info!("Chain specification: {}", config.chain_spec.name());
 			info!("Node name: {}", config.name);
 			info!("Roles: {:?}", config.roles);
 			let mut runtime = Runtime::new()?;
 			let executor = runtime.executor();
 			match config.roles == ServiceRoles::LIGHT {
-				true => run_until_exit(&mut runtime, Factory::new_light(config, executor)?, exit)?,
-				false => run_until_exit(&mut runtime, Factory::new_full(config, executor)?, exit)?,
+				true => run_until_exit(&mut runtime, service::Factory::new_light(config, executor)?, exit)?,
+				false => run_until_exit(&mut runtime, service::Factory::new_full(config, executor)?, exit)?,
 			}
 		}
 	}
+
 	Ok(())
 }
 
@@ -53,7 +93,7 @@ fn run_until_exit<T, C, E>(
 ) -> error::Result<()>
 	where
 		T: Deref<Target=substrate_service::Service<C>>,
-		C: Components,
+		C: substrate_service::Components,
 		E: IntoExit,
 {
 	let (exit_send, exit) = exit_future::signal();

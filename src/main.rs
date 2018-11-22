@@ -18,9 +18,12 @@ extern crate substrate_network as network;
 #[macro_use]
 extern crate substrate_executor;
 extern crate substrate_transaction_pool as transaction_pool;
+extern crate substrate_finality_grandpa as grandpa;
 #[macro_use]
 extern crate substrate_service;
 extern crate template_node_runtime;
+#[macro_use]
+extern crate structopt;
 
 mod chain_spec;
 mod service;
