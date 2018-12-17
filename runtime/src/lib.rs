@@ -28,25 +28,31 @@ extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
 extern crate srml_balances as balances;
 extern crate srml_upgrade_key as upgrade_key;
+extern crate srml_aura as aura;
+extern crate srml_staking as staking;
+extern crate srml_treasury as treasury;
+extern crate srml_grandpa as grandpa;
+extern crate srml_session as session;
+extern crate srml_council as council;
+extern crate srml_democracy as democracy;
+extern crate substrate_consensus_aura_primitives as consensus_aura;
 
-#[cfg(feature = "std")]
-use parity_codec::{Encode, Decode};
+use council::motions as council_motions;
 use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
-use primitives::AuthorityId;
-use primitives::OpaqueMetadata;
-use runtime_primitives::{ApplyResult, transaction_validity::TransactionValidity,
-	Ed25519Signature, generic, traits::{self, BlakeTwo256, Block as BlockT}
+use primitives::{AuthorityId, OpaqueMetadata, u32_trait::{_2, _4}};
+use runtime_primitives::{
+	ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
+	traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent, DigestFor, Convert, NumberFor},
+	BasicInherentData, CheckInherentError
 };
-#[cfg(feature = "std")]
-use runtime_primitives::traits::ApiRef;
-use client::{block_builder::api::runtime::*, runtime_api::{runtime::*, id::*}};
-#[cfg(feature = "std")]
-use client::runtime_api::ApiExt;
+use client::{block_builder::api as block_builder_api, runtime_api};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
+use grandpa::fg_primitives::{self, ScheduledChange};
+use consensus_aura::api as aura_api;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
@@ -92,20 +98,18 @@ pub mod opaque {
 	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
+	/// Opaque session key type.
+	pub type SessionKey = AuthorityId;
 }
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: ver_str!("template-node"),
-	impl_name: ver_str!("template-node"),
+	spec_name: create_runtime_str!("template-node"),
+	impl_name: create_runtime_str!("template-node"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
-	apis: apis_vec!([
-		(BLOCK_BUILDER, 1),
-		(TAGGED_TRANSACTION_QUEUE, 1),
-		(METADATA, 1)
-	]),
+	apis: RUNTIME_API_VERSIONS,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -140,15 +144,60 @@ impl system::Trait for Runtime {
 	type Origin = Origin;
 }
 
+impl aura::Trait for Runtime {
+	type HandleReport = aura::StakingSlasher<Runtime>;
+}
+
+impl staking::Trait for Runtime {
+	type OnRewardMinted = Treasury;
+	type Event = Event;
+}
+
+impl council::Trait for Runtime {
+	type Event = Event;
+}
+
+impl council::motions::Trait for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+}
+
+impl democracy::Trait for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+}
+
 impl consensus::Trait for Runtime {
 	/// The position in the block's extrinsics that the note-offline inherent must be placed.
 	const NOTE_OFFLINE_POSITION: u32 = 1;
 	/// The identifier we use to refer to authorities.
 	type SessionKey = AuthorityId;
-	/// No action in case an authority was determined to be offline.
-	type OnOfflineValidator = ();
+	// The aura module handles offline-reports internally
+	// rather than using an explicit report system.
+	type InherentOfflineReport = ();
 	/// The ubiquitous log type.
 	type Log = Log;
+}
+
+impl treasury::Trait for Runtime {
+	type ApproveOrigin = council_motions::EnsureMembers<_4>;
+	type RejectOrigin = council_motions::EnsureMembers<_2>;
+	type Event = Event;
+}
+
+/// Session key conversion.
+pub struct SessionKeyConversion;
+impl Convert<AccountId, opaque::SessionKey> for SessionKeyConversion {
+	fn convert(a: AccountId) -> opaque::SessionKey {
+		a.to_fixed_bytes().into()
+	}
+}
+
+impl session::Trait for Runtime {
+	type ConvertAccountIdToSessionKey = SessionKeyConversion;
+	type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
+	type Event = Event;
 }
 
 impl timestamp::Trait for Runtime {
@@ -156,6 +205,7 @@ impl timestamp::Trait for Runtime {
 	const TIMESTAMP_SET_POSITION: u32 = 0;
 	/// A timestamp: seconds since the unix epoch.
 	type Moment = u64;
+	type OnTimestampSet = Aura;
 }
 
 impl balances::Trait for Runtime {
@@ -177,20 +227,35 @@ impl upgrade_key::Trait for Runtime {
 	type Event = Event;
 }
 
+impl grandpa::Trait for Runtime {
+	type SessionKey = opaque::SessionKey;
+	type Log = Log;
+	type Event = Event;
+}
+
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId>) where
 		Block = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+		NodeBlock = opaque::Block,
+		InherentData = BasicInherentData
 	{
 		System: system::{default, Log(ChangesTrieRoot)},
 		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
+		Aura: aura::{Module},
 		Balances: balances,
 		UpgradeKey: upgrade_key,
+		Staking: staking,
+		Treasury: treasury,
+		Session: session,
+		Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
+		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
+		Council: council::{Module, Call, Storage, Event<T>},
+		Democracy: democracy,
 	}
 );
 
-/// The type used as a helper for interpreting the sender of transactions. 
+/// The type used as a helper for interpreting the sender of transactions.
 type Context = balances::ChainContext<Runtime>;
 /// The address format for describing accounts.
 type Address = balances::Address<Runtime>;
@@ -207,159 +272,9 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
 
-#[cfg(feature = "std")]
-use opaque::Block as GBlock;
-
-#[cfg(feature = "std")]
-pub struct ClientWithApi {
-	call: ::std::ptr::NonNull<client::runtime_api::CallApiAt<GBlock>>,
-	commit_on_success: ::std::cell::RefCell<bool>,
-	initialised_block: ::std::cell::RefCell<Option<GBlockId>>,
-	changes: ::std::cell::RefCell<client::runtime_api::OverlayedChanges>,
-}
-
-#[cfg(feature = "std")]
-unsafe impl Send for ClientWithApi {}
-#[cfg(feature = "std")]
-unsafe impl Sync for ClientWithApi {}
-
-#[cfg(feature = "std")]
-impl ApiExt for ClientWithApi {
-	fn map_api_result<F: FnOnce(&Self) -> Result<R, E>, R, E>(&self, map_call: F) -> Result<R, E> {
-		*self.commit_on_success.borrow_mut() = false;
-		let res = map_call(self);
-		*self.commit_on_success.borrow_mut() = true;
-
-		self.commit_on_ok(&res);
-
-		res
-	}
-}
-
-#[cfg(feature = "std")]
-impl client::runtime_api::ConstructRuntimeApi<GBlock> for ClientWithApi {
-	fn construct_runtime_api<'a, T: client::runtime_api::CallApiAt<GBlock>>(call: &'a T) -> ApiRef<'a, Self> {
-		ClientWithApi {
-			call: unsafe {
-				::std::ptr::NonNull::new_unchecked(
-					::std::mem::transmute(
-						call as &client::runtime_api::CallApiAt<GBlock>
-					)
-				)
-			},
-			commit_on_success: true.into(),
-			initialised_block: None.into(),
-			changes: Default::default(),
-		}.into()
-	}
-}
-
-#[cfg(feature = "std")]
-impl ClientWithApi {
-	fn call_api_at<A: Encode, R: Decode>(
-		&self,
-		at: &GBlockId,
-		function: &'static str,
-		args: &A
-	) -> client::error::Result<R> {
-		let res = unsafe {
-			self.call.as_ref().call_api_at(
-				at,
-				function,
-				args.encode(),
-				&mut *self.changes.borrow_mut(),
-				&mut *self.initialised_block.borrow_mut()
-			).and_then(|r|
-				R::decode(&mut &r[..])
-					.ok_or_else(||
-						client::error::ErrorKind::CallResultDecode(function).into()
-					)
-			)
-		};
-
-		self.commit_on_ok(&res);
-		res
-	}
-
-	fn commit_on_ok<R, E>(&self, res: &Result<R, E>) {
-		if *self.commit_on_success.borrow() {
-			if res.is_err() {
-				self.changes.borrow_mut().discard_prospective();
-			} else {
-				self.changes.borrow_mut().commit_prospective();
-			}
-		}
-	}
-}
-
-#[cfg(feature = "std")]
-type GBlockId = generic::BlockId<GBlock>;
-
-#[cfg(feature = "std")]
-impl client::runtime_api::Core<GBlock> for ClientWithApi {
-	fn version(&self, at: &GBlockId) -> Result<RuntimeVersion, client::error::Error> {
-		self.call_api_at(at, "version", &())
-	}
-
-	fn authorities(&self, at: &GBlockId) -> Result<Vec<AuthorityId>, client::error::Error> {
-		self.call_api_at(at, "authorities", &())
-	}
-
-	fn execute_block(&self, at: &GBlockId, block: &GBlock) -> Result<(), client::error::Error> {
-		self.call_api_at(at, "execute_block", block)
-	}
-
-	fn initialise_block(&self, at: &GBlockId, header: &<GBlock as BlockT>::Header) -> Result<(), client::error::Error> {
-		self.call_api_at(at, "initialise_block", header)
-	}
-}
-
-#[cfg(feature = "std")]
-impl client::block_builder::api::BlockBuilder<GBlock> for ClientWithApi {
-	fn apply_extrinsic(&self, at: &GBlockId, extrinsic: &<GBlock as BlockT>::Extrinsic) -> Result<ApplyResult, client::error::Error> {
-		self.call_api_at(at, "apply_extrinsic", extrinsic)
-	}
-
-	fn finalise_block(&self, at: &GBlockId) -> Result<<GBlock as BlockT>::Header, client::error::Error> {
-		self.call_api_at(at, "finalise_block", &())
-	}
-
-	fn inherent_extrinsics<Inherent: Decode + Encode, Unchecked: Decode + Encode>(
-		&self, at: &GBlockId, inherent: &Inherent
-	) -> Result<Vec<Unchecked>, client::error::Error> {
-		self.call_api_at(at, "inherent_extrinsics", inherent)
-	}
-
-	fn check_inherents<Inherent: Decode + Encode, Error: Decode + Encode>(&self, at: &GBlockId, block: &GBlock, inherent: &Inherent) -> Result<Result<(), Error>, client::error::Error> {
-		self.call_api_at(at, "check_inherents", &(block, inherent))
-	}
-
-	fn random_seed(&self, at: &GBlockId) -> Result<<GBlock as BlockT>::Hash, client::error::Error> {
-		self.call_api_at(at, "random_seed", &())
-	}
-}
-
-#[cfg(feature = "std")]
-impl client::runtime_api::TaggedTransactionQueue<GBlock> for ClientWithApi {
-	fn validate_transaction(
-		&self,
-		at: &GBlockId,
-		utx: &<GBlock as BlockT>::Extrinsic
-	) -> Result<TransactionValidity, client::error::Error> {
-		self.call_api_at(at, "validate_transaction", utx)
-	}
-}
-
-#[cfg(feature = "std")]
-impl client::runtime_api::Metadata<GBlock> for ClientWithApi {
-	fn metadata(&self, at: &GBlockId) -> Result<OpaqueMetadata, client::error::Error> {
-		self.call_api_at(at, "metadata", &())
-	}
-}
-
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-	impl Core<Block> for Runtime {
+	impl runtime_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
 		}
@@ -377,13 +292,13 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl Metadata for Runtime {
+	impl runtime_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			Runtime::metadata().into()
 		}
 	}
 
-	impl BlockBuilder<Block, InherentData, UncheckedExtrinsic, InherentData, InherentError> for Runtime {
+	impl block_builder_api::BlockBuilder<Block, BasicInherentData> for Runtime {
 		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
 			Executive::apply_extrinsic(extrinsic)
 		}
@@ -392,12 +307,27 @@ impl_runtime_apis! {
 			Executive::finalise_block()
 		}
 
-		fn inherent_extrinsics(data: InherentData) -> Vec<UncheckedExtrinsic> {
-			data.create_inherent_extrinsics()
+		fn inherent_extrinsics(data: BasicInherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+			let mut inherent = Vec::new();
+
+			inherent.extend(
+				Timestamp::create_inherent_extrinsics(data.timestamp)
+					.into_iter()
+					.map(|v| (v.0, UncheckedExtrinsic::new_unsigned(Call::Timestamp(v.1))))
+			);
+
+			inherent.extend(
+				Consensus::create_inherent_extrinsics(data.consensus)
+					.into_iter()
+					.map(|v| (v.0, UncheckedExtrinsic::new_unsigned(Call::Consensus(v.1))))
+			);
+
+			inherent.as_mut_slice().sort_unstable_by_key(|v| v.0);
+			inherent.into_iter().map(|v| v.1).collect()
 		}
 
-		fn check_inherents(block: Block, data: InherentData) -> Result<(), InherentError> {
-			data.check_inherents(block)
+		fn check_inherents(block: Block, data: BasicInherentData) -> Result<(), CheckInherentError> {
+			Runtime::check_inherents(block, data)
 		}
 
 		fn random_seed() -> <Block as BlockT>::Hash {
@@ -405,9 +335,35 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl TaggedTransactionQueue<Block> for Runtime {
+	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			Executive::validate_transaction(tx)
+		}
+	}
+
+	impl fg_primitives::GrandpaApi<Block> for Runtime {
+		fn grandpa_pending_change(digest: DigestFor<Block>)
+			-> Option<ScheduledChange<NumberFor<Block>>>
+		{
+			for log in digest.logs.iter().filter_map(|l| match l {
+				Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
+				_=> None
+			}) {
+				if let Some(change) = Grandpa::scrape_digest_change(log) {
+					return Some(change);
+				}
+			}
+			None
+		}
+
+		fn grandpa_authorities() -> Vec<(opaque::SessionKey, u64)> {
+			Grandpa::grandpa_authorities()
+		}
+	}
+
+	impl aura_api::AuraApi<Block> for Runtime {
+		fn slot_duration() -> u64 {
+			Aura::slot_duration()
 		}
 	}
 }

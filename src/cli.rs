@@ -58,7 +58,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 		config.roles = ServiceRoles::AUTHORITY;
 	}
 
-	match execute_default::<service::Factory, _>(spec, exit, &matches)? {
+	match execute_default::<service::Factory, _>(spec, exit, &matches, &config)? {
 		Action::ExecutedInternally => (),
 		Action::RunService(exit) => {
 			info!("Substrate Node");
