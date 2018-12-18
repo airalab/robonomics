@@ -12,8 +12,6 @@ normal=$(tput sgr0)
 # Save current directory.
 pushd . >/dev/null
 
-cd $ROOT
-
 for SRC in runtime/wasm
 do
   echo "${bold}Building webassembly binary in $SRC...${normal}"
