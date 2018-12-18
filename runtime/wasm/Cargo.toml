@@ -1,7 +1,7 @@
 [package]
-name = "template-node-runtime"
-version = "0.9.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+name = "robonomics-node-runtime"
+version = "0.0.0"
+authors = ["Airalab <research@aira.life>"]
 
 [lib]
 crate-type = ["cdylib"]

@@ -21,7 +21,7 @@ extern crate substrate_transaction_pool as transaction_pool;
 extern crate substrate_finality_grandpa as grandpa;
 #[macro_use]
 extern crate substrate_service;
-extern crate template_node_runtime;
+extern crate robonomics_node_runtime;
 #[macro_use]
 extern crate structopt;
 
@@ -35,9 +35,9 @@ fn run() -> cli::error::Result<()> {
 	let version = VersionInfo {
 		commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
-		executable_name: "template-node",
-		author: "Anonymous",
-		description: "Template Node",
+		executable_name: "robonomics-node",
+		author: "Airalab <research@aira.life>",
+		description: "Robonomics Substrate Node",
 	};
 	cli::run(::std::env::args(), cli::Exit, version)
 }

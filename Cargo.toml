@@ -1,11 +1,11 @@
 [package]
-name = "template-node"
-version = "0.9.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+name = "robonomics-node"
+version = "0.0.0"
+authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 
 [[bin]]
-name = "template-node"
+name = "robonomics-node"
 path = "src/main.rs"
 
 [dependencies]
@@ -31,7 +31,7 @@ substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-finality-grandpa = { git = "https://github.com/paritytech/substrate" }
-template-node-runtime = { path = "runtime" }
+robonomics-node-runtime = { path = "runtime" }
 structopt = "0.2.13"
 
 [build-dependencies]

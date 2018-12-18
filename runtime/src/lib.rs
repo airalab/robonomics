@@ -29,6 +29,8 @@ extern crate srml_timestamp as timestamp;
 extern crate srml_balances as balances;
 extern crate srml_upgrade_key as upgrade_key;
 
+mod robonomics;
+
 #[cfg(feature = "std")]
 use parity_codec::{Encode, Decode};
 use rstd::prelude::*;
@@ -96,8 +98,8 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: ver_str!("template-node"),
-	impl_name: ver_str!("template-node"),
+	spec_name: ver_str!("robonomics"),
+	impl_name: ver_str!("robonomics-node"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
@@ -177,6 +179,11 @@ impl upgrade_key::Trait for Runtime {
 	type Event = Event;
 }
 
+impl robonomics::Trait for Runtime {
+	/// The uniquitous event type.
+    type Event = Event;
+}
+
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId>) where
 		Block = Block,
@@ -187,7 +194,8 @@ construct_runtime!(
 		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
 		Balances: balances,
 		UpgradeKey: upgrade_key,
-	}
+        Robonomics: robonomics,
+    }
 );
 
 /// The type used as a helper for interpreting the sender of transactions. 

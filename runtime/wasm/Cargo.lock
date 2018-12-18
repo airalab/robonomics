@@ -797,6 +797,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "robonomics-node-runtime"
+version = "0.0.0"
+dependencies = [
+ "integer-sqrt 0.1.0 (git+https://github.com/paritytech/integer-sqrt-rs.git)",
+ "parity-codec 2.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-codec-derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "safe-mix 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sr-io 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "sr-primitives 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "sr-std 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "sr-version 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-balances 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-consensus 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-executive 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-support 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-system 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-timestamp 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "srml-upgrade-key 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-client 0.1.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-primitives 0.1.0 (git+https://github.com/paritytech/substrate)",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1299,29 +1322,6 @@ dependencies = [
 name = "take_mut"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "template-node-runtime"
-version = "0.9.0"
-dependencies = [
- "integer-sqrt 0.1.0 (git+https://github.com/paritytech/integer-sqrt-rs.git)",
- "parity-codec 2.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-codec-derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "safe-mix 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sr-io 0.1.0 (git+https://github.com/paritytech/substrate)",
- "sr-primitives 0.1.0 (git+https://github.com/paritytech/substrate)",
- "sr-std 0.1.0 (git+https://github.com/paritytech/substrate)",
- "sr-version 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-balances 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-consensus 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-executive 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-support 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-system 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-timestamp 0.1.0 (git+https://github.com/paritytech/substrate)",
- "srml-upgrade-key 0.1.0 (git+https://github.com/paritytech/substrate)",
- "substrate-client 0.1.0 (git+https://github.com/paritytech/substrate)",
- "substrate-primitives 0.1.0 (git+https://github.com/paritytech/substrate)",
-]
 
 [[package]]
 name = "thread_local"

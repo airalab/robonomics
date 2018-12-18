@@ -1,3 +1,4 @@
-# Template Node
+Robonomics Substrate PoC
+========================
 
-A new SRML-based Substrate node, ready for hacking.
+SRML-based Robonomics Substrate node Proof of Concept.
