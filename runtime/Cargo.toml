@@ -19,13 +19,7 @@ substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 srml-balances = { git = "https://github.com/paritytech/substrate" }
 srml-consensus = { git = "https://github.com/paritytech/substrate" }
 srml-aura = { git = "https://github.com/paritytech/substrate" }
-srml-grandpa = { git = "https://github.com/paritytech/substrate" }
-srml-session = { git = "https://github.com/paritytech/substrate" }
-srml-treasury = { git = "https://github.com/paritytech/substrate" }
-srml-council = { git = "https://github.com/paritytech/substrate" }
-srml-staking = { git = "https://github.com/paritytech/substrate" }
 srml-executive = { git = "https://github.com/paritytech/substrate" }
-srml-democracy = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
 srml-system = { git = "https://github.com/paritytech/substrate" }
 srml-timestamp = { git = "https://github.com/paritytech/substrate" }
@@ -44,12 +38,6 @@ std = [
 	"sr-io/std",
 	"srml-support/std",
 	"srml-balances/std",
-	"srml-staking/std",
-	"srml-council/std",
-	"srml-grandpa/std",
-	"srml-democracy/std",
-	"srml-session/std",
-	"srml-treasury/std",
 	"srml-executive/std",
 	"srml-aura/std",
 	"sr-primitives/std",

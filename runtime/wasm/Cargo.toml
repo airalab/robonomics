@@ -16,16 +16,10 @@ substrate-client = { git = "https://github.com/paritytech/substrate", default-fe
 sr-std = { git = "https://github.com/paritytech/substrate", default-features = false }
 sr-io = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-staking = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-balances = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-consensus = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-executive = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-aura = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-grandpa = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-session = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-democracy = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-council = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-treasury = { git = "https://github.com/paritytech/substrate", default-features = false }
 sr-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -46,9 +40,7 @@ std = [
 	"srml-balances/std",
 	"srml-consensus/std",
 	"srml-executive/std",
-	"srml-council/std",
 	"srml-aura/std",
-	"srml-staking/std",
 	"sr-primitives/std",
 	"srml-system/std",
 	"srml-timestamp/std",

@@ -29,29 +29,21 @@ extern crate srml_timestamp as timestamp;
 extern crate srml_balances as balances;
 extern crate srml_upgrade_key as upgrade_key;
 extern crate srml_aura as aura;
-extern crate srml_staking as staking;
-extern crate srml_treasury as treasury;
-extern crate srml_grandpa as grandpa;
-extern crate srml_session as session;
-extern crate srml_council as council;
-extern crate srml_democracy as democracy;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
-use council::motions as council_motions;
 use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
-use primitives::{AuthorityId, OpaqueMetadata, u32_trait::{_2, _4}};
+use primitives::{AuthorityId, OpaqueMetadata};
 use runtime_primitives::{
 	ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-	traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent, DigestFor, Convert, NumberFor},
+	traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent},
 	BasicInherentData, CheckInherentError
 };
 use client::{block_builder::api as block_builder_api, runtime_api};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
-use grandpa::fg_primitives::{self, ScheduledChange};
 use consensus_aura::api as aura_api;
 
 // A few exports that help ease life for downstream crates.
@@ -145,27 +137,7 @@ impl system::Trait for Runtime {
 }
 
 impl aura::Trait for Runtime {
-	type HandleReport = aura::StakingSlasher<Runtime>;
-}
-
-impl staking::Trait for Runtime {
-	type OnRewardMinted = Treasury;
-	type Event = Event;
-}
-
-impl council::Trait for Runtime {
-	type Event = Event;
-}
-
-impl council::motions::Trait for Runtime {
-	type Origin = Origin;
-	type Proposal = Call;
-	type Event = Event;
-}
-
-impl democracy::Trait for Runtime {
-	type Proposal = Call;
-	type Event = Event;
+	type HandleReport = ();
 }
 
 impl consensus::Trait for Runtime {
@@ -178,26 +150,6 @@ impl consensus::Trait for Runtime {
 	type InherentOfflineReport = ();
 	/// The ubiquitous log type.
 	type Log = Log;
-}
-
-impl treasury::Trait for Runtime {
-	type ApproveOrigin = council_motions::EnsureMembers<_4>;
-	type RejectOrigin = council_motions::EnsureMembers<_2>;
-	type Event = Event;
-}
-
-/// Session key conversion.
-pub struct SessionKeyConversion;
-impl Convert<AccountId, opaque::SessionKey> for SessionKeyConversion {
-	fn convert(a: AccountId) -> opaque::SessionKey {
-		a.to_fixed_bytes().into()
-	}
-}
-
-impl session::Trait for Runtime {
-	type ConvertAccountIdToSessionKey = SessionKeyConversion;
-	type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
-	type Event = Event;
 }
 
 impl timestamp::Trait for Runtime {
@@ -227,12 +179,6 @@ impl upgrade_key::Trait for Runtime {
 	type Event = Event;
 }
 
-impl grandpa::Trait for Runtime {
-	type SessionKey = opaque::SessionKey;
-	type Log = Log;
-	type Event = Event;
-}
-
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId>) where
 		Block = Block,
@@ -245,13 +191,6 @@ construct_runtime!(
 		Aura: aura::{Module},
 		Balances: balances,
 		UpgradeKey: upgrade_key,
-		Staking: staking,
-		Treasury: treasury,
-		Session: session,
-		Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
-		CouncilMotions: council_motions::{Module, Call, Storage, Event<T>, Origin},
-		Council: council::{Module, Call, Storage, Event<T>},
-		Democracy: democracy,
 	}
 );
 
@@ -338,26 +277,6 @@ impl_runtime_apis! {
 	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
 			Executive::validate_transaction(tx)
-		}
-	}
-
-	impl fg_primitives::GrandpaApi<Block> for Runtime {
-		fn grandpa_pending_change(digest: DigestFor<Block>)
-			-> Option<ScheduledChange<NumberFor<Block>>>
-		{
-			for log in digest.logs.iter().filter_map(|l| match l {
-				Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
-				_=> None
-			}) {
-				if let Some(change) = Grandpa::scrape_digest_change(log) {
-					return Some(change);
-				}
-			}
-			None
-		}
-
-		fn grandpa_authorities() -> Vec<(opaque::SessionKey, u64)> {
-			Grandpa::grandpa_authorities()
 		}
 	}
 
