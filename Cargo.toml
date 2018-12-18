@@ -32,6 +32,7 @@ substrate-consensus-aura = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-finality-grandpa = { git = "https://github.com/paritytech/substrate" }
 template-node-runtime = { path = "runtime" }
+node-executor = { git = "https://github.com/paritytech/substrate" }
 structopt = "0.2.13"
 
 [build-dependencies]

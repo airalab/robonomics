@@ -45,20 +45,11 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 			Err(e) => e.exit(),
 		};
 
-	let (spec, mut config) = parse_matches::<service::Factory, _>(load_spec, version, "substrate-node", &matches)?;
+	let (spec, config) = parse_matches::<service::Factory, _>(
+		load_spec, version, "substrate-node", &matches
+	)?;
 
-	if matches.is_present("grandpa_authority_only") {
-		config.custom.grandpa_authority = true;
-		config.custom.grandpa_authority_only = true;
-		// Authority Setup is only called if validator is set as true
-		config.roles = ServiceRoles::AUTHORITY;
-	} else if matches.is_present("grandpa_authority") {
-		config.custom.grandpa_authority = true;
-		// Authority Setup is only called if validator is set as true
-		config.roles = ServiceRoles::AUTHORITY;
-	}
-
-	match execute_default::<service::Factory, _>(spec, exit, &matches)? {
+	match execute_default::<service::Factory, _>(spec, exit, &matches, &config)? {
 		Action::ExecutedInternally => (),
 		Action::RunService(exit) => {
 			info!("Substrate Node");
