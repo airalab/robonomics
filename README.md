@@ -1,4 +1,12 @@
-Robonomics Substrate PoC
-========================
+Robonomics on Substrate
+=======================
 
-SRML-based Robonomics Substrate node Proof of Concept.
+> Substrate SRML-based Robonomics node Proof of Concept.
+
+Run
+---
+
+```bash
+curl https://nixos.org/nix/install | sh
+nix-shell --run "cargo run --release -- --chain ./robonomics.json"
+```

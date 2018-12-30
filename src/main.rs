@@ -1,4 +1,4 @@
-//! Substrate Node Template CLI library.
+//! Robonomics Node CLI library.
 
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
@@ -18,12 +18,12 @@ extern crate substrate_network as network;
 #[macro_use]
 extern crate substrate_executor;
 extern crate substrate_transaction_pool as transaction_pool;
-extern crate substrate_finality_grandpa as grandpa;
 #[macro_use]
 extern crate substrate_service;
 extern crate robonomics_node_runtime;
-#[macro_use]
 extern crate structopt;
+extern crate node_executor;
+extern crate sr_primitives as runtime_primitives;
 
 mod chain_spec;
 mod service;
@@ -37,7 +37,7 @@ fn run() -> cli::error::Result<()> {
 		version: env!("CARGO_PKG_VERSION"),
 		executable_name: "robonomics-node",
 		author: "Airalab <research@aira.life>",
-		description: "Robonomics Substrate Node",
+		description: "Robonomics Node",
 	};
 	cli::run(::std::env::args(), cli::Exit, version)
 }

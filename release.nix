@@ -9,10 +9,7 @@ let
   rust = nightly.rust.override {
     targets = [ "wasm32-unknown-unknown" ];
   };
-  cargo = nightly.cargo;
-in
-  stdenv.mkDerivation {
-    name = "substrate-nix-shell";
-    buildInputs = [ rust cargo wasm-gc pkgconfig openssl clang ];
-    LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
-  }
+  rustPlatform = nixpkgs.makeRustPlatform { callPackage = nixpkgs.callPackage; rustc = rust; cargo = nightly.cargo; };
+in rec {
+  package = nixpkgs.callPackage ./. { inherit rustPlatform; };
+}

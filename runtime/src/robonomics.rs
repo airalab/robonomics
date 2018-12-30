@@ -43,7 +43,8 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        fn demand(
+        /// Send a demand message
+        pub fn demand(
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
@@ -65,7 +66,8 @@ decl_module! {
             Ok(())
         }
         
-        fn offer(
+        /// Send a offer message
+        pub fn offer(
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
@@ -87,7 +89,8 @@ decl_module! {
             Ok(())
         }
 
-        fn finalize(origin, _result: Vec<u8>) -> Result {
+        /// Finalize liability
+        pub fn finalize(origin, _result: Vec<u8>) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let _sender = ensure_signed(origin)?;
 
@@ -105,11 +108,12 @@ decl_storage! {
             map T::Hash => Option<Offer<T::Balance,T::AccountId>>;
 
         /// The (hashes of) active liabilities.
-        pub LiabilityCount get(liability_count) config(): u64;
+        pub LiabilityCount get(liability_count) config(): u64 = 0;
 
         /// Actual liability by id.
         pub LiabilityOf get(liability_of):
             map u64 => Option<Liability<T::Balance,T::AccountId>>;
+
     }
 }
 
@@ -139,6 +143,6 @@ impl<T: Trait> Module<T> {
 
         let liability = Liability { model, objective, cost, promisee, promisor };
         <LiabilityOf<T>>::insert(id, liability);
-        <LiabilityCount<T>>::put(id + 2);
+        <LiabilityCount<T>>::put(id + 1);
     }
 }

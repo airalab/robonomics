@@ -1,5 +1,7 @@
 use primitives::{AuthorityId, ed25519};
-use robonomics_node_runtime::{AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig, UpgradeKeyConfig, RobonomicsConfig};
+use robonomics_node_runtime::{
+    AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig, UpgradeKeyConfig
+};
 use substrate_service;
 
 // Note this is the URL for the telemetry server
@@ -25,7 +27,7 @@ impl Alternative {
 		Ok(match self {
 			Alternative::Development => ChainSpec::from_genesis(
 				"Development",
-				"development",
+				"dev",
 				|| testnet_genesis(vec![
 					ed25519::Pair::from_seed(b"Alice                           ").public().into(),
 				], vec![
@@ -78,12 +80,10 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 		consensus: Some(ConsensusConfig {
 			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_node_runtime.compact.wasm").to_vec(),
 			authorities: initial_authorities.clone(),
-			_genesis_phantom_data: Default::default(),
 		}),
 		system: None,
 		timestamp: Some(TimestampConfig {
 			period: 5,					// 5 second block time.
-			_genesis_phantom_data: Default::default(),
 		}),
 		balances: Some(BalancesConfig {
 			transaction_base_fee: 1,
@@ -93,15 +93,10 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 			creation_fee: 0,
 			reclaim_rebate: 0,
 			balances: endowed_accounts.iter().map(|&k|(k, (1 << 60))).collect(),
-			_genesis_phantom_data: Default::default(),
 		}),
 		upgrade_key: Some(UpgradeKeyConfig {
 			key: upgrade_key,
-			_genesis_phantom_data: Default::default(),
 		}),
-        robonomics: Some(RobonomicsConfig {
-			liability_count: 0,
-			_genesis_phantom_data: Default::default(),
-        }),
+        robonomics: None
 	}
 }
