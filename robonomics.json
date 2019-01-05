@@ -5,7 +5,7 @@
     "/ip6/fcaa:9c13:6ea4:4b92:8b9b:9:2390:52c1/tcp/30333/p2p/QmR3xGtxkinkM2w3Eso756wcRxoABuxwcr1v3UTxkJWnNU",
     "/ip4/164.132.111.49/tcp/30333/p2p/QmQRP7gjnDSwQm4ohy2XRNCwt6EbryR9rQtQFRNNuUX856"
   ],
-  "telemetryUrl": null,
+  "telemetryUrl": "wss://telemetry.polkadot.io/submit/",
   "protocolId": null,
   "consensusEngine": null,
   "properties": null,
