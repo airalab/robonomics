@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-node"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 
@@ -31,6 +31,7 @@ substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-finality-grandpa = { git = "https://github.com/paritytech/substrate" }
+substrate-basic-authorship = { git = "https://github.com/paritytech/substrate" }
 robonomics-node-runtime = { path = "runtime" }
 node-executor = { git = "https://github.com/paritytech/substrate" }
 structopt = "0.2.13"

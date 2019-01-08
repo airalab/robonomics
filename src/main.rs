@@ -32,14 +32,14 @@ mod cli;
 pub use substrate_cli::{VersionInfo, IntoExit, error};
 
 fn run() -> cli::error::Result<()> {
-	let version = VersionInfo {
-		commit: env!("VERGEN_SHA_SHORT"),
-		version: env!("CARGO_PKG_VERSION"),
-		executable_name: "robonomics-node",
-		author: "Airalab <research@aira.life>",
-		description: "Robonomics Node",
-	};
-	cli::run(::std::env::args(), cli::Exit, version)
+    let version = VersionInfo {
+        commit: env!("VERGEN_SHA_SHORT"),
+        version: env!("CARGO_PKG_VERSION"),
+        executable_name: "robonomics-node",
+        author: "Airalab <research@aira.life>",
+        description: "Robonomics Node",
+    };
+    cli::run(::std::env::args(), cli::Exit, version)
 }
 
 quick_main!(run);

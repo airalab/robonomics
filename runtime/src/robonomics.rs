@@ -1,11 +1,27 @@
+// Copyright 2019 Airalab
+// This file is part of Substrate.
+
+// Substrate is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Substrate is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
+
 use rstd::prelude::Vec;
 use runtime_primitives::traits::*;
 use srml_support::{StorageValue, StorageMap, dispatch::Result};
 use {balances, system::{self, ensure_signed}};
 
 pub trait Trait: balances::Trait {
-	/// The overarching event type.
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    /// The overarching event type.
+    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 /// An offer message.
@@ -41,7 +57,7 @@ pub struct Liability<Balance, AccountId> {
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+        fn deposit_event<T>() = default;
 
         /// Send a demand message
         pub fn demand(
