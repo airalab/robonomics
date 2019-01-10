@@ -11,21 +11,21 @@ integer-sqrt = { git = "https://github.com/paritytech/integer-sqrt-rs.git" }
 safe-mix = { version = "1.0", default-features = false}
 parity-codec-derive = { version = "^2.1" }
 parity-codec = { version = "^2.1", default-features = false }
-substrate-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
-substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-std = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-io = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-balances = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-consensus = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-executive = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-aura = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-system = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false }
-srml-upgrade-key = { git = "https://github.com/paritytech/substrate", default-features = false }
-sr-version = { git = "https://github.com/paritytech/substrate", default-features = false }
-substrate-consensus-aura-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
+substrate-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+sr-std = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+sr-io = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-support = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-balances = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-consensus = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-executive = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-aura = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+sr-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-system = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+srml-upgrade-key = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+sr-version = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
+substrate-consensus-aura-primitives = { git = "https://github.com/paritytech/substrate", default-features = false, rev = "8b0e5d7ca8b3bf4ae2ad26d773e466d5bc30cbaa" }
 
 [features]
 default = []
