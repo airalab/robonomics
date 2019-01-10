@@ -6,13 +6,13 @@ with nixpkgs.latest.rustChannels;
 with nixpkgs;
 
 let
-  rust = nightly.rust.override {
+  channel = rustChannelOf { date = "2019-01-08"; channel = "nightly"; };
+  rust = channel.rust.override {
     targets = [ "wasm32-unknown-unknown" ];
   };
-  cargo = nightly.cargo;
 in
   stdenv.mkDerivation {
     name = "substrate-nix-shell";
-    buildInputs = [ rust cargo wasm-gc pkgconfig openssl clang ];
+    buildInputs = [ rust wasm-gc pkgconfig openssl clang ];
     LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   }
