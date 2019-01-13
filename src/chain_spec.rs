@@ -5,11 +5,13 @@ use robonomics_node_runtime::{
 };
 use substrate_service;
 
-// Note this is the URL for the telemetry server
-//const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
 pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
+
+/// Robonomics testnet generator
+pub fn robonomics_testnet_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_embedded(include_bytes!("../res/robonomics.json"))
+}
 
 /// The chain specification option. This is expected to come in from the CLI and
 /// is little more than one of a number of alternatives which can easily be converted
@@ -18,8 +20,8 @@ pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
 pub enum Alternative {
     /// Whatever the current runtime is, with just Alice as an auth.
     Development,
-    /// Whatever the current runtime is, with simple Alice/Bob auths.
-    LocalTestnet,
+    /// Robonomics public testnet
+    Robonomics,
 }
 
 impl Alternative {
@@ -42,35 +44,14 @@ impl Alternative {
                 None,
                 None
             ),
-            Alternative::LocalTestnet => ChainSpec::from_genesis(
-                "Local Testnet",
-                "local_testnet",
-                || testnet_genesis(vec![
-                    ed25519::Pair::from_seed(b"Alice                           ").public().into(),
-                    ed25519::Pair::from_seed(b"Bob                             ").public().into(),
-                ], vec![
-                    ed25519::Pair::from_seed(b"Alice                           ").public().0.into(),
-                    ed25519::Pair::from_seed(b"Bob                             ").public().0.into(),
-                    ed25519::Pair::from_seed(b"Charlie                         ").public().0.into(),
-                    ed25519::Pair::from_seed(b"Dave                            ").public().0.into(),
-                    ed25519::Pair::from_seed(b"Eve                             ").public().0.into(),
-                    ed25519::Pair::from_seed(b"Ferdie                          ").public().0.into(),
-                ],
-                    ed25519::Pair::from_seed(b"Alice                           ").public().0.into()
-                ),
-                vec![],
-                None,
-                None,
-                None,
-                None
-            ),
+            Alternative::Robonomics => robonomics_testnet_config()?,
         })
     }
 
     pub(crate) fn from(s: &str) -> Option<Self> {
         match s {
-            "dev" => Some(Alternative::Development),
-            "local" => Some(Alternative::LocalTestnet),
+            "dev"        => Some(Alternative::Development),
+            "robonomics" => Some(Alternative::Robonomics),
             _ => None,
         }
     }

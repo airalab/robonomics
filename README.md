@@ -8,5 +8,5 @@ Run
 
 ```bash
 curl https://nixos.org/nix/install | sh
-nix-shell --run "./build.sh && cargo run --release -- --chain ./robonomics.json"
+nix-shell --run "cargo run --release -- --chain robonomics"
 ```
