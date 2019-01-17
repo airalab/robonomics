@@ -1,4 +1,5 @@
 use service;
+use ros_integration;
 use futures::{future, Future, sync::oneshot};
 use std::cell::RefCell;
 use tokio::runtime::Runtime;
@@ -13,7 +14,9 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 pub struct NodeParams {
     #[structopt(flatten)]
-    core: CoreParams
+    core: CoreParams,
+    #[structopt(long = "ros-integration", help = "Enable ROS integration service")]
+    ros_integration: bool
 }
 
 /// Parse command line arguments into service configuration.
@@ -41,6 +44,8 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
         load_spec, version, "robonomics-node", &matches
     )?;
 
+    ros_integration::new("robonomics_node")?;
+
     match execute_default::<service::Factory, _>(spec, exit, &matches, &config)? {
         Action::ExecutedInternally => (),
         Action::RunService(exit) => {
@@ -50,6 +55,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             info!("Chain specification: {}", config.chain_spec.name());
             info!("Node name: {}", config.name);
             info!("Roles: {:?}", config.roles);
+
             let mut runtime = Runtime::new()?;
             let executor = runtime.executor();
             match config.roles == ServiceRoles::LIGHT {

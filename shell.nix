@@ -1,5 +1,5 @@
 { moz_overlay ? import (builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz)
-, nixpkgs ? import <nixpkgs> { overlays = [ moz_overlay ]; }
+, nixpkgs ? import (builtins.fetchTarball https://github.com/airalab/airapkgs/archive/nixos-unstable.tar.gz) { overlays = [ moz_overlay ]; }
 }:
 
 with nixpkgs.latest.rustChannels;
@@ -13,6 +13,6 @@ let
 in
   stdenv.mkDerivation {
     name = "substrate-nix-shell";
-    buildInputs = [ rust wasm-gc pkgconfig openssl clang ];
+    buildInputs = [ rust wasm-gc pkgconfig openssl clang ros_comm ];
     LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   }

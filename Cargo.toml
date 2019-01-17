@@ -33,6 +33,7 @@ substrate-client = { git = "https://github.com/paritytech/substrate", default-fe
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
 robonomics-node-runtime = { path = "runtime" }
 structopt = "0.2.13"
+rosrust = "0.7.1"
 
 [build-dependencies]
 vergen = "2"
