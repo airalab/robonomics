@@ -60,7 +60,7 @@ impl Alternative {
 fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<AccountId>, upgrade_key: AccountId) -> GenesisConfig {
     GenesisConfig {
         consensus: Some(ConsensusConfig {
-            code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_node_runtime.compact.wasm").to_vec(),
+            code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm").to_vec(),
             authorities: initial_authorities.clone(),
         }),
         system: None,

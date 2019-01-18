@@ -7,7 +7,7 @@
     "/ip6/fc0e:f69:1e44:603e:e14:4ec8:901a:ab3e/tcp/30333/p2p/QmWET4cMuFWUKTseCkuJzGUUPia7nHUDDqZKsGRPKQScot",
     "/ip6/fc6c:99a2:171a:f36a:8cd0:cc6b:efb7:8bb4/tcp/30333/p2p/QmQRP7gjnDSwQm4ohy2XRNCwt6EbryR9rQtQFRNNuUX856",
     "/ip4/164.132.111.49/tcp/30333/p2p/QmQRP7gjnDSwQm4ohy2XRNCwt6EbryR9rQtQFRNNuUX856",
-    "/ip4/139.162.132.141/tcp/30333/p2p/QmSj4tqjkkozfCbECxnFomVL3cTfBNbYzkrt4bxTVChWwM"
+    "/ip4/139.162.132.141/tcp/30333/p2p/QmfJsKpyM9QhZZfik4D6VTaaMMqXufKXKRjTUce63Y8Gfj"
   ],
   "telemetryUrl": "wss://telemetry.polkadot.io/submit/",
   "protocolId": null,
