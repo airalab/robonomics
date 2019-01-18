@@ -1,5 +1,5 @@
 use primitives::{Ed25519AuthorityId as AuthorityId, ed25519};
-use robonomics_node_runtime::{
+use robonomics_runtime::{
     AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, IndicesConfig, BalancesConfig,
     UpgradeKeyConfig, AuthorityKeyConfig
 };

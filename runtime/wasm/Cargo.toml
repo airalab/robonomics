@@ -1,5 +1,5 @@
 [package]
-name = "robonomics-node-runtime"
+name = "robonomics-runtime"
 version = "0.3.0"
 authors = ["Airalab <research@aira.life>"]
 

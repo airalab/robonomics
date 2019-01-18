@@ -1,11 +1,11 @@
 [package]
-name = "robonomics-node"
+name = "robonomics"
 version = "0.3.0"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 
 [[bin]]
-name = "robonomics-node"
+name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
@@ -32,7 +32,7 @@ substrate-service = { git = "https://github.com/paritytech/substrate" }
 substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
-robonomics-node-runtime = { path = "runtime" }
+robonomics-runtime = { path = "runtime" }
 
 [build-dependencies]
 vergen = "2"

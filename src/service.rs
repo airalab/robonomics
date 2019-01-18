@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use transaction_pool::{self, txpool::{Pool as TransactionPool}};
-use robonomics_node_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
+use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
 use substrate_service::{
     FactoryFullConfiguration, LightComponents, FullComponents, FullBackend,
     FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
@@ -20,9 +20,9 @@ pub use substrate_executor::NativeExecutor;
 /// Robonomics native executor instance.
 native_executor_instance!(
     pub Executor,
-    robonomics_node_runtime::api::dispatch,
-    robonomics_node_runtime::native_version,
-    include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_node_runtime.compact.wasm")
+    robonomics_runtime::api::dispatch,
+    robonomics_runtime::native_version,
+    include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm")
 );
 
 construct_simple_protocol! {

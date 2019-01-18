@@ -21,7 +21,7 @@ extern crate substrate_transaction_pool as transaction_pool;
 extern crate substrate_basic_authorship as basic_authorship;
 #[macro_use]
 extern crate substrate_service;
-extern crate robonomics_node_runtime;
+extern crate robonomics_runtime;
 extern crate structopt;
 extern crate sr_primitives as runtime_primitives;
 
@@ -38,7 +38,7 @@ fn run() -> cli::error::Result<()> {
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
         description: "Reference implementation of robonomics.network node",
-        executable_name: "robonomics-node",
+        executable_name: "robonomics",
     };
     cli::run(::std::env::args(), cli::Exit, version)
 }

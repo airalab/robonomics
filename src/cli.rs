@@ -38,7 +38,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
         };
 
     let (spec, config) = parse_matches::<service::Factory, _>(
-        load_spec, &version, "robonomics-node", &matches
+        load_spec, &version, "Robonomics", &matches
     )?;
 
     match execute_default::<service::Factory, _>(spec, exit, &matches, &config, &version)? {

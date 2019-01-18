@@ -790,7 +790,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "robonomics-node-runtime"
+name = "robonomics-runtime"
 version = "0.3.0"
 dependencies = [
  "integer-sqrt 0.1.0 (git+https://github.com/paritytech/integer-sqrt-rs.git)",

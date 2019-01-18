@@ -2076,7 +2076,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "robonomics-node"
+name = "robonomics"
 version = "0.3.0"
 dependencies = [
  "ctrlc 3.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2087,7 +2087,7 @@ dependencies = [
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-codec 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "robonomics-node-runtime 0.3.0",
+ "robonomics-runtime 0.3.0",
  "slog 2.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "sr-io 0.1.0 (git+https://github.com/paritytech/substrate)",
  "sr-primitives 0.1.0 (git+https://github.com/paritytech/substrate)",
@@ -2107,7 +2107,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "robonomics-node-runtime"
+name = "robonomics-runtime"
 version = "0.3.0"
 dependencies = [
  "hex-literal 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
