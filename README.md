@@ -8,19 +8,18 @@ Robonomics on Substrate
 Quick start
 -----------
 
-## Classic install
-
-### Install Rust
-
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
-    source ~/.cargo/env
-
-### Install Robonomics node
-
     cargo install --force --git https://github.com/airalab/substrate-node-robonomics robonomics
+
+Run node in [Robonomics testnet](https://telemetry.polkadot.io/#/Robonomics):
+
     robonomics
 
-## Nix way install
+Or run your local development network:
+
+    robonomics --dev
+
+Nix way
+-------
 
 ### Install nix
 
