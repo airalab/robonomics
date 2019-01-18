@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-node"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 
@@ -9,15 +9,16 @@ name = "robonomics-node"
 path = "src/main.rs"
 
 [dependencies]
-error-chain = "0.12"
-futures = "0.1"
-ctrlc = { version = "3.0", features = ["termination"] }
 log = "0.4"
+slog = "^2"
 tokio = "0.1.7"
+futures = "0.1"
+error-chain = "0.12"
+ctrlc = { version = "3.0", features = ["termination"] }
+structopt = "0.2.13"
 exit-future = "0.1"
 parking_lot = "0.4"
 hex-literal = "0.1"
-slog = "^2"
 parity-codec = { version = "2.1" }
 trie-root = { git = "https://github.com/paritytech/trie" }
 sr-io = { git = "https://github.com/paritytech/substrate" }
@@ -32,7 +33,6 @@ substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
 robonomics-node-runtime = { path = "runtime" }
-structopt = "0.2.13"
 
 [build-dependencies]
 vergen = "2"

@@ -33,11 +33,12 @@ pub use substrate_cli::{VersionInfo, IntoExit, error};
 
 fn run() -> cli::error::Result<()> {
     let version = VersionInfo {
+        name: "Robonomics Node",
+        author: "Airalab <research@aira.life>",
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
+        description: "Reference implementation of robonomics.network node",
         executable_name: "robonomics-node",
-        author: "Airalab <research@aira.life>",
-        description: "Robonomics Node",
     };
     cli::run(::std::env::args(), cli::Exit, version)
 }

@@ -1,6 +1,6 @@
 use primitives::{Ed25519AuthorityId as AuthorityId, ed25519};
 use robonomics_node_runtime::{
-    AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig,
+    AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, IndicesConfig, BalancesConfig,
     UpgradeKeyConfig, AuthorityKeyConfig
 };
 use substrate_service;
@@ -50,8 +50,8 @@ impl Alternative {
 
     pub(crate) fn from(s: &str) -> Option<Self> {
         match s {
-            "dev"        => Some(Alternative::Development),
-            "robonomics" => Some(Alternative::Robonomics),
+            "dev" => Some(Alternative::Development),
+            "" | "robonomics" => Some(Alternative::Robonomics),
             _ => None,
         }
     }
@@ -67,13 +67,15 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
         timestamp: Some(TimestampConfig {
             period: 5,                    // 5 second block time.
         }),
+        indices: Some(IndicesConfig {
+            ids: endowed_accounts.clone(),
+        }),
         balances: Some(BalancesConfig {
             transaction_base_fee: 1,
             transaction_byte_fee: 0,
             existential_deposit: 500,
             transfer_fee: 0,
             creation_fee: 0,
-            reclaim_rebate: 0,
             balances: endowed_accounts.iter().map(|&k|(k, (1 << 60))).collect(),
         }),
         upgrade_key: Some(UpgradeKeyConfig {
