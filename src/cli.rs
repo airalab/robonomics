@@ -54,8 +54,6 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             info!("Node name: {}", config.name);
             info!("Roles: {:?}", config.roles);
 
-            ros_integration::new(config.name)?;
-
             let mut runtime = Runtime::new()?;
             let executor = runtime.executor();
             match config.roles == ServiceRoles::LIGHT {
@@ -89,6 +87,7 @@ fn run_until_exit<T, C, E>(
 
     let executor = runtime.executor();
     informant::start(&service, exit.clone(), executor.clone());
+    ros_integration::start(&service, exit.clone(), executor.clone());
 
     let _ = runtime.block_on(e.into_exit());
     exit_send.fire();

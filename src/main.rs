@@ -24,12 +24,15 @@ extern crate substrate_service;
 extern crate robonomics_runtime;
 extern crate structopt;
 extern crate sr_primitives as runtime_primitives;
+extern crate exit_future;
+#[macro_use]
 extern crate rosrust;
 
 mod ros_integration;
 mod chain_spec;
 mod service;
 mod cli;
+mod msg;
 
 pub use substrate_cli::{VersionInfo, IntoExit, error};
 

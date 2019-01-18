@@ -13,6 +13,6 @@ let
 in
   stdenv.mkDerivation {
     name = "substrate-nix-shell";
-    buildInputs = [ rust wasm-gc pkgconfig openssl clang ros_comm ];
+    buildInputs = [ rust wasm-gc pkgconfig openssl clang ros_comm std_msgs ];
     LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   }
