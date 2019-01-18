@@ -37,13 +37,14 @@ extern crate parity_codec;
 extern crate parity_codec_derive;
 #[macro_use]
 extern crate sr_version as version;
+extern crate srml_aura as aura;
 extern crate srml_system as system;
+extern crate srml_indices as indices;
+extern crate srml_balances as balances;
 extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
-extern crate srml_balances as balances;
 extern crate srml_upgrade_key as upgrade_key;
-extern crate srml_aura as aura;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
 mod authority_key;
@@ -55,7 +56,7 @@ use primitives::bytes;
 use primitives::{Ed25519AuthorityId as AuthorityId, OpaqueMetadata};
 use runtime_primitives::{
     ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-    traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent, Convert},
+    traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent, Convert, StaticLookup},
     BasicInherentData, CheckInherentError
 };
 use client::{block_builder::api as block_builder_api, runtime_api};
@@ -115,9 +116,9 @@ pub mod opaque {
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
-    impl_name: create_runtime_str!("robonomics-node"),
-    authoring_version: 1,
-    spec_version: 2,
+    impl_name: create_runtime_str!("robonomics"),
+    authoring_version: 3,
+    spec_version: 3,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -134,6 +135,8 @@ pub fn native_version() -> NativeVersion {
 impl system::Trait for Runtime {
     /// The identifier used to distinguish between accounts.
     type AccountId = AccountId;
+    /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+    type Lookup = Indices;
     /// The index type for storing how many extrinsics an account has signed.
     type Index = Nonce;
     /// The index type for blocks.
@@ -170,6 +173,18 @@ impl consensus::Trait for Runtime {
     type Log = Log;
 }
 
+impl indices::Trait for Runtime {
+    /// The type for recording indexing into the account enumeration. If this ever overflows,
+    /// there will be problems!
+    type AccountIndex = u32;
+    /// Use the standard means of resolving an index hint from an id.
+    type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
+    /// Determine whether an account is dead.
+    type IsDeadAccount = Balances;
+    /// The uniquitous event type.
+    type Event = Event;
+}
+
 impl timestamp::Trait for Runtime {
     /// The position in the block's extrinsics that the timestamp-set inherent must be placed.
     const TIMESTAMP_SET_POSITION: u32 = 0;
@@ -181,11 +196,10 @@ impl timestamp::Trait for Runtime {
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
     type Balance = u128;
-    /// The type for recording indexing into the account enumeration. If this ever overflows, there
-    /// will be problems!
-    type AccountIndex = u32;
     /// What to do if an account's free balance gets zeroed.
     type OnFreeBalanceZero = ();
+    /// What to do if a new account is created.
+    type OnNewAccount = Indices;
     /// Restrict whether an account can transfer funds. We don't place any further restrictions.
     type EnsureAccountLiquid = ();
     /// The uniquitous event type.
@@ -225,6 +239,7 @@ construct_runtime!(
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
         Aura: aura::{Module},
+        Indices: indices,
         Balances: balances,
         UpgradeKey: upgrade_key,
         AuthorityKey: authority_key,
@@ -233,9 +248,9 @@ construct_runtime!(
 );
 
 /// The type used as a helper for interpreting the sender of transactions.
-type Context = balances::ChainContext<Runtime>;
+type Context = system::ChainContext<Runtime>;
 /// The address format for describing accounts.
-type Address = balances::Address<Runtime>;
+type Address = <Indices as StaticLookup>::Source;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
 /// Block type as expected by this runtime.

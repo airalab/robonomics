@@ -1,14 +1,14 @@
-use service;
-use ros_integration;
-use futures::{future, Future, sync::oneshot};
 use std::cell::RefCell;
 use tokio::runtime::Runtime;
+use futures::{future, Future, sync::oneshot};
 pub use substrate_cli::{VersionInfo, IntoExit, error};
 use substrate_cli::{Action, informant, parse_matches, execute_default, CoreParams};
 use substrate_service::{ServiceFactory, Roles as ServiceRoles};
-use chain_spec;
 use std::ops::Deref;
 use structopt::StructOpt;
+use ros_integration;
+use chain_spec;
+use service;
 
 /// Extend params for Node
 #[derive(Debug, StructOpt)]
@@ -31,7 +31,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
     );
 
     let matches = match NodeParams::clap()
-        .name(version.executable_name)
+        .name(version.name)
         .author(version.author)
         .about(version.description)
         .version(&(full_version + "\n")[..])
@@ -41,20 +41,20 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
         };
 
     let (spec, config) = parse_matches::<service::Factory, _>(
-        load_spec, version, "robonomics-node", &matches
+        load_spec, &version, "robonomics-node", &matches
     )?;
 
-    ros_integration::new("robonomics_node")?;
-
-    match execute_default::<service::Factory, _>(spec, exit, &matches, &config)? {
+    match execute_default::<service::Factory, _>(spec, exit, &matches, &config, &version)? {
         Action::ExecutedInternally => (),
         Action::RunService(exit) => {
-            info!("Robonomics Node");
+            info!("{}", version.name);
             info!("  version {}", config.full_version());
-            info!("  by Airalab, 2018");
+            info!("  by {}, 2018, 2019", version.author);
             info!("Chain specification: {}", config.chain_spec.name());
             info!("Node name: {}", config.name);
             info!("Roles: {:?}", config.roles);
+
+            ros_integration::new(config.name)?;
 
             let mut runtime = Runtime::new()?;
             let executor = runtime.executor();
