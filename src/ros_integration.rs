@@ -33,10 +33,10 @@ pub fn start_ros<B, C, N>(
     let mut peers_pub = ros.publish("network/peers").unwrap();
     //let mut liability_pub = ros.publish("liability/new").unwrap();
 
-    let events_key: StorageKey = StorageKey(b"system_events".to_vec());
-    let stream = client.storage_changes_notification_stream(Some(&[events_key])).unwrap();
+    //let events_key: StorageKey = StorageKey(b"system_events".to_vec());
+    let stream = client.storage_changes_notification_stream(None).unwrap();
     stream.for_each(move |(best_hash, changes)| {
-        println!("{:?}", changes);
+        //println!("{:?}", changes);
 
         let mut hash_msg = msg::std_msgs::String::default(); 
         hash_msg.data = best_hash.to_string();
