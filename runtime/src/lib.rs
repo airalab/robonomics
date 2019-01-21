@@ -48,7 +48,7 @@ extern crate srml_upgrade_key as upgrade_key;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
 mod authority_key;
-mod robonomics;
+pub mod robonomics;
 
 use rstd::prelude::*;
 #[cfg(feature = "std")]
@@ -279,8 +279,8 @@ impl_runtime_apis! {
             Executive::execute_block(block)
         }
 
-        fn initialise_block(header: <Block as BlockT>::Header) {
-            Executive::initialise_block(&header)
+        fn initialise_block(header: &<Block as BlockT>::Header) {
+            Executive::initialise_block(header)
         }
     }
 
