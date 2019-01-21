@@ -9,6 +9,7 @@ extern crate error_chain;
 extern crate tokio;
 #[macro_use]
 extern crate log;
+extern crate structopt;
 extern crate substrate_cli;
 extern crate substrate_primitives as primitives;
 extern crate substrate_consensus_aura as consensus;
@@ -22,9 +23,7 @@ extern crate substrate_basic_authorship as basic_authorship;
 #[macro_use]
 extern crate substrate_service;
 extern crate robonomics_runtime;
-extern crate structopt;
 extern crate sr_primitives as runtime_primitives;
-extern crate exit_future;
 #[macro_use]
 extern crate rosrust;
 
@@ -32,7 +31,6 @@ mod ros_integration;
 mod chain_spec;
 mod service;
 mod cli;
-mod msg;
 
 pub use substrate_cli::{VersionInfo, IntoExit, error};
 

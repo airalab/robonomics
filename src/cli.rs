@@ -6,7 +6,6 @@ use substrate_cli::{Action, informant, parse_matches, execute_default, CoreParam
 use substrate_service::{ServiceFactory, Roles as ServiceRoles};
 use std::ops::Deref;
 use structopt::StructOpt;
-use ros_integration;
 use chain_spec;
 use service;
 
@@ -87,7 +86,6 @@ fn run_until_exit<T, C, E>(
 
     let executor = runtime.executor();
     informant::start(&service, exit.clone(), executor.clone());
-    ros_integration::start(&service, exit.clone(), executor.clone());
 
     let _ = runtime.block_on(e.into_exit());
     exit_send.fire();

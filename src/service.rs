@@ -15,6 +15,7 @@ use client;
 use primitives::ed25519::Pair;
 use runtime_primitives::BasicInherentData as InherentData;
 use basic_authorship::ProposerFactory;
+use ros_integration::start_ros;
 
 pub use substrate_executor::NativeExecutor;
 /// Robonomics native executor instance.
@@ -42,10 +43,19 @@ construct_service_factory! {
             { |config, client| Ok(TransactionPool::new(config, transaction_pool::ChainApi::new(client))) },
         Genesis = GenesisConfig,
         Configuration = (),
-        FullService = FullComponents<Self>
-            { |config: FactoryFullConfiguration<Self>, executor: TaskExecutor|
-                FullComponents::<Factory>::new(config, executor)
-            },
+        FullService = FullComponents<Self> {
+            |config: FactoryFullConfiguration<Self>, executor: TaskExecutor| {
+                let service = FullComponents::<Factory>::new(config, executor.clone()).unwrap();
+
+                executor.spawn(start_ros(
+                    service.network(),
+                    service.client(),
+                    service.on_exit()
+                ));
+
+                Ok(service)
+            }
+        },
         AuthoritySetup = {
             |service: Self::FullService, executor: TaskExecutor, key: Option<Arc<Pair>>| {
                 if let Some(key) = key {
