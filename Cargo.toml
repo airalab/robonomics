@@ -1,6 +1,6 @@
 [package]
 name = "robonomics"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 
@@ -13,7 +13,6 @@ log = "0.4"
 slog = "^2"
 tokio = "0.1.7"
 futures = "0.1"
-rosrust = "0.7.1"
 error-chain = "0.12"
 ctrlc = { version = "3.0", features = ["termination"] }
 structopt = "0.2.13"
@@ -22,7 +21,6 @@ parking_lot = "0.4"
 hex-literal = "0.1"
 parity-codec = { version = "2.1" }
 trie-root = { git = "https://github.com/paritytech/trie" }
-sr-io = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
 substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 substrate-basic-authorship = { git = "https://github.com/paritytech/substrate" }
@@ -33,13 +31,22 @@ substrate-service = { git = "https://github.com/paritytech/substrate" }
 substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
+ros-integration = { path = "ros-integration", optional = true }
 robonomics-runtime = { path = "runtime" }
+
+[features]
+default = []
+
+## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
+# To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
+# It also require roscore to be launched to start.
+ros = [ 'ros-integration' ]
 
 [build-dependencies]
 vergen = "2"
 
 [workspace]
-members = [ "runtime" ]
+members = [ "runtime", "ros-integration" ]
 exclude = [ "runtime/wasm" ]
 
 [profile.release]

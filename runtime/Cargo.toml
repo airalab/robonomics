@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-runtime"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Airalab <research@aira.life>"]
 
 [dependencies]

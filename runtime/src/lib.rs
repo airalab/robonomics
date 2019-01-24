@@ -21,7 +21,6 @@
 #![recursion_limit="256"]
 
 extern crate sr_std as rstd;
-extern crate sr_io as runtime_io;
 #[macro_use]
 extern crate substrate_client as client;
 #[macro_use]
@@ -71,6 +70,7 @@ pub use runtime_primitives::BuildStorage;
 pub use consensus::Call as ConsensusCall;
 pub use timestamp::Call as TimestampCall;
 pub use balances::Call as BalancesCall;
+pub use robonomics::Call as RobonomicsCall;
 pub use runtime_primitives::{Permill, Perbill};
 pub use timestamp::BlockPeriod;
 pub use srml_support::{StorageValue, RuntimeMetadata};
