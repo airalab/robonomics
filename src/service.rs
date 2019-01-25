@@ -51,7 +51,6 @@ construct_service_factory! {
                     service.network(),
                     service.client(),
                     service.transaction_pool(),
-                    service.keystore(),
                     service.on_exit(),
                 ));
 
