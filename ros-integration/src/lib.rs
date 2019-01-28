@@ -37,6 +37,7 @@ pub fn start_ros<A, B, C, N>(
     network: Arc<N>,
     client: Arc<C>,
     pool: Arc<TransactionPool<A>>,
+    keystore: &Keystore,
     on_exit: impl Future<Item=(),Error=()>,
 ) -> impl Future<Item=(),Error=()> where
     A: txpool::ChainApi<Block = B> + 'static,
@@ -44,8 +45,7 @@ pub fn start_ros<A, B, C, N>(
     C: BlockchainEvents<B> + BlockBody<B> + HeaderBackend<B> + BlockNumberToHash + 'static,
     N: SyncProvider<B> + 'static
 {
-    let seed: [u8; 32] = hex!("");
-    let key = ed25519::Pair::from_seed(&seed);
+    let key = keystore.load(&keystore.contents().unwrap()[0], "").unwrap();
     let local_id: AccountId = key.public().0.into();
     println!("ROS account: {:?}", key.public().to_ss58check());
 
@@ -55,13 +55,12 @@ pub fn start_ros<A, B, C, N>(
     let _demand = ros.subscribe("liability/demand", move |v: msg::std_msgs::String| {
         let block = info_maker.info().unwrap().best_number;
         let payload = (
-            39 + 1,
+            0,
             Call::Robonomics(RobonomicsCall::demand(vec![0, 1], vec![2, 3], 42)),
             Era::immortal(),
             info_maker.genesis_hash(),
         );
         let signature = key.sign(&payload.encode());
-        println!("ver: {:?}", ed25519::verify(&signature.encode(), &payload.encode(), key.public()));
         let extrinsic = UncheckedExtrinsic::new_signed(
             payload.0,
             payload.1,
@@ -69,10 +68,8 @@ pub fn start_ros<A, B, C, N>(
             signature.into(),
             payload.2
         ).encode();
-        let utx: ExtrinsicFor<A> = Decode::decode(&mut &extrinsic[..]).unwrap();
-        println!("signed: {:?}", utx.is_signed());
-        //println!("utx: {:?}", utx);
-        println!("result: {:?}", pool.submit_one(&BlockId::number(block), utx));
+        let xt: ExtrinsicFor<A> = Decode::decode(&mut &extrinsic[..]).unwrap();
+        println!("result: {:?}", pool.submit_one(&BlockId::number(block), xt));
     }).unwrap();
 
     let _offer = ros.subscribe("liability/offer", |v: msg::std_msgs::String| {
