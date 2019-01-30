@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-runtime"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Airalab <research@aira.life>"]
 
 [dependencies]
@@ -9,12 +9,13 @@ hex-literal = "0.1.0"
 serde = { version = "1.0", default-features = false }
 serde_derive = { version = "1.0", optional = true }
 safe-mix = { version = "1.0", default-features = false }
-parity-codec = "2.0"
-parity-codec-derive = "2.0"
+parity-codec = "3.0"
+parity-codec-derive = "3.0"
 sr-io = { git = "https://github.com/paritytech/substrate" }
 sr-std = { git = "https://github.com/paritytech/substrate" }
 sr-version = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
+srml-sudo = { git = "https://github.com/paritytech/substrate" }
 srml-aura = { git = "https://github.com/paritytech/substrate" }
 srml-system = { git = "https://github.com/paritytech/substrate" }
 srml-support = { git = "https://github.com/paritytech/substrate" }
@@ -23,7 +24,6 @@ srml-balances = { git = "https://github.com/paritytech/substrate" }
 srml-consensus = { git = "https://github.com/paritytech/substrate" }
 srml-executive = { git = "https://github.com/paritytech/substrate" }
 srml-timestamp = { git = "https://github.com/paritytech/substrate" }
-srml-upgrade-key = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", optional = true }
 substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
@@ -40,6 +40,7 @@ std = [
 	"sr-std/std",
 	"sr-version/std",
 	"sr-primitives/std",
+	"srml-sudo/std",
 	"srml-aura/std",
 	"srml-system/std",
 	"srml-support/std",
@@ -47,7 +48,6 @@ std = [
 	"srml-balances/std",
 	"srml-executive/std",
 	"srml-timestamp/std",
-	"srml-upgrade-key/std",
 	"substrate-client",
 	"substrate-client/std",
 	"substrate-primitives/std",

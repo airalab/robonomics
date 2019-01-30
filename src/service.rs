@@ -2,28 +2,33 @@
 
 #![warn(unused_extern_crates)]
 
-use std::sync::Arc;
-use transaction_pool::{self, txpool::{Pool as TransactionPool}};
-use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
 use substrate_service::{
     FactoryFullConfiguration, LightComponents, FullComponents, FullBackend,
     FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
     TaskExecutor,
 };
 use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration, NothingExtra};
-use client;
-use primitives::ed25519::Pair;
-use runtime_primitives::BasicInherentData as InherentData;
+use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
+use transaction_pool::{self, txpool::{Pool as TransactionPool}};
 use basic_authorship::ProposerFactory;
+use inherents::InherentDataProviders;
+use primitives::ed25519::Pair;
+use std::sync::Arc;
+use client;
 
 pub use substrate_executor::NativeExecutor;
-/// Robonomics native executor instance.
+/// Robonomics runtime native executor instance.
 native_executor_instance!(
     pub Executor,
     robonomics_runtime::api::dispatch,
     robonomics_runtime::native_version,
     include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm")
 );
+
+#[derive(Default)]
+pub struct NodeConfig {
+    inherent_data_providers: InherentDataProviders,
+}
 
 construct_simple_protocol! {
     /// Robonomics protocol attachment for substrate.
@@ -41,7 +46,7 @@ construct_service_factory! {
         LightTransactionPoolApi = transaction_pool::ChainApi<client::Client<LightBackend<Self>, LightExecutor<Self>, Block, RuntimeApi>, Block>
             { |config, client| Ok(TransactionPool::new(config, transaction_pool::ChainApi::new(client))) },
         Genesis = GenesisConfig,
-        Configuration = (),
+        Configuration = NodeConfig,
         FullService = FullComponents<Self> {
             |config: FactoryFullConfiguration<Self>, executor: TaskExecutor| {
                 let service = FullComponents::<Factory>::new(config, executor.clone()).unwrap();
@@ -75,7 +80,8 @@ construct_service_factory! {
                         proposer,
                         service.network(),
                         service.on_exit(),
-                    ));
+                        service.config.custom.inherent_data_providers.clone(),
+                    )?);
                 }
 
                 Ok(service)
@@ -87,29 +93,31 @@ construct_service_factory! {
             Self::Block,
             FullClient<Self>,
             NothingExtra,
-            ::consensus::InherentProducingFn<InherentData>,
         >
-            { |config: &mut FactoryFullConfiguration<Self> , client: Arc<FullClient<Self>>|
-                Ok(import_queue(
+            { |config: &mut FactoryFullConfiguration<Self>, client: Arc<FullClient<Self>>|
+                import_queue(
                     SlotDuration::get_or_compute(&*client)?,
+                    client.clone(),
+                    None,
                     client,
                     NothingExtra,
-                    ::consensus::make_basic_inherent as _,
-                ))
+                    config.custom.inherent_data_providers.clone(),
+                ).map_err(Into::into)
             },
         LightImportQueue = AuraImportQueue<
             Self::Block,
             LightClient<Self>,
             NothingExtra,
-            ::consensus::InherentProducingFn<InherentData>,
         >
-            { |ref mut config, client: Arc<LightClient<Self>>|
-                Ok(import_queue(
+            { |config: &mut FactoryFullConfiguration<Self>, client: Arc<LightClient<Self>>|
+                import_queue(
                     SlotDuration::get_or_compute(&*client)?,
+                    client.clone(),
+                    None,
                     client,
                     NothingExtra,
-                    ::consensus::make_basic_inherent as _,
-                ))
+                    config.custom.inherent_data_providers.clone(),
+                ).map_err(Into::into)
             },
     }
 }

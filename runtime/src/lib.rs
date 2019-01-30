@@ -1,19 +1,4 @@
-// Copyright 2019 Airalab
-// This file is part of Substrate.
-
-// Substrate is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Substrate is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-//! The Robonomics Node runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The Robonomics runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
@@ -36,6 +21,7 @@ extern crate parity_codec;
 extern crate parity_codec_derive;
 #[macro_use]
 extern crate sr_version as version;
+extern crate srml_sudo as sudo;
 extern crate srml_aura as aura;
 extern crate srml_system as system;
 extern crate srml_indices as indices;
@@ -43,37 +29,35 @@ extern crate srml_balances as balances;
 extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
-extern crate srml_upgrade_key as upgrade_key;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
-mod authority_key;
 pub mod robonomics;
 
 use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
-use primitives::{Ed25519AuthorityId as AuthorityId, OpaqueMetadata};
+use primitives::{Ed25519AuthorityId, OpaqueMetadata};
 use runtime_primitives::{
     ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-    traits::{self, BlakeTwo256, Block as BlockT, ProvideInherent, Convert, StaticLookup},
-    BasicInherentData, CheckInherentError
+    traits::{self, BlakeTwo256, Block as BlockT, StaticLookup},
 };
-use client::{block_builder::api as block_builder_api, runtime_api};
+use client::{
+    block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
+    runtime_api
+};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
-use consensus_aura::api as aura_api;
 
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
-pub use runtime_primitives::BuildStorage;
+pub use balances::Call as BalancesCall;
 pub use consensus::Call as ConsensusCall;
 pub use timestamp::Call as TimestampCall;
-pub use balances::Call as BalancesCall;
 pub use robonomics::Call as RobonomicsCall;
 pub use runtime_primitives::{Permill, Perbill};
+pub use srml_support::StorageValue;
 pub use timestamp::BlockPeriod;
-pub use srml_support::{StorageValue, RuntimeMetadata};
 pub use system::EventRecord;
 
 /// Alias to Ed25519 pubkey that identifies an account on the chain.
@@ -105,21 +89,21 @@ pub mod opaque {
         }
     }
     /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, AuthorityId>>;
+    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, Ed25519AuthorityId>>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
     /// Opaque session key type.
-    pub type SessionKey = AuthorityId;
+    pub type SessionKey = Ed25519AuthorityId;
 }
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
-    impl_name: create_runtime_str!("robonomics"),
-    authoring_version: 3,
-    spec_version: 3,
+    impl_name: create_runtime_str!("robonomics-node"),
+    authoring_version: 4,
+    spec_version: 4,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -163,10 +147,8 @@ impl aura::Trait for Runtime {
 }
 
 impl consensus::Trait for Runtime {
-    /// The position in the block's extrinsics that the note-offline inherent must be placed.
-    const NOTE_OFFLINE_POSITION: u32 = 1;
     /// The identifier we use to refer to authorities.
-    type SessionKey = AuthorityId;
+    type SessionKey = Ed25519AuthorityId;
     // The aura module handles offline-reports internally
     // rather than using an explicit report system.
     type InherentOfflineReport = ();
@@ -187,8 +169,6 @@ impl indices::Trait for Runtime {
 }
 
 impl timestamp::Trait for Runtime {
-    /// The position in the block's extrinsics that the timestamp-set inherent must be placed.
-    const TIMESTAMP_SET_POSITION: u32 = 0;
     /// A timestamp: seconds since the unix epoch.
     type Moment = u64;
     type OnTimestampSet = Aura;
@@ -207,22 +187,10 @@ impl balances::Trait for Runtime {
     type Event = Event;
 }
 
-impl upgrade_key::Trait for Runtime {
+impl sudo::Trait for Runtime {
     /// The uniquitous event type.
     type Event = Event;
-}
-
-pub struct ConvertAuthorityId;
-impl Convert<AccountId, AuthorityId> for ConvertAuthorityId {
-    fn convert(a: AccountId) -> AuthorityId {
-        AuthorityId(a.into())
-    }
-}
-
-impl authority_key::Trait for Runtime {
-    /// The uniquitous event type.
-    type Event = Event;
-    type ConvertAccountIdToSessionKey = ConvertAuthorityId;
+    type Proposal = Call;
 }
 
 impl robonomics::Trait for Runtime {
@@ -231,20 +199,19 @@ impl robonomics::Trait for Runtime {
 }
 
 construct_runtime!(
-    pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId>) where
+    pub enum Runtime with Log(InternalLog: DigestItem<Hash, Ed25519AuthorityId>) where
         Block = Block,
         NodeBlock = opaque::Block,
-        InherentData = BasicInherentData
+        UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: system::{default, Log(ChangesTrieRoot)},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-        Aura: aura::{Module},
-        Indices: indices,
-        Balances: balances,
-        UpgradeKey: upgrade_key,
-        AuthorityKey: authority_key,
         Robonomics: robonomics,
+        Aura: aura::{Module},
+        Balances: balances,
+        Indices: indices,
+        Sudo: sudo,
     }
 );
 
@@ -272,7 +239,7 @@ impl_runtime_apis! {
             VERSION
         }
 
-        fn authorities() -> Vec<AuthorityId> {
+        fn authorities() -> Vec<Ed25519AuthorityId> {
             Consensus::authorities()
         }
 
@@ -291,7 +258,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl block_builder_api::BlockBuilder<Block, BasicInherentData> for Runtime {
+    impl block_builder_api::BlockBuilder<Block> for Runtime {
         fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
             Executive::apply_extrinsic(extrinsic)
         }
@@ -300,27 +267,12 @@ impl_runtime_apis! {
             Executive::finalise_block()
         }
 
-        fn inherent_extrinsics(data: BasicInherentData) -> Vec<<Block as BlockT>::Extrinsic> {
-            let mut inherent = Vec::new();
-
-            inherent.extend(
-                Timestamp::create_inherent_extrinsics(data.timestamp)
-                    .into_iter()
-                    .map(|v| (v.0, UncheckedExtrinsic::new_unsigned(Call::Timestamp(v.1))))
-            );
-
-            inherent.extend(
-                Consensus::create_inherent_extrinsics(data.consensus)
-                    .into_iter()
-                    .map(|v| (v.0, UncheckedExtrinsic::new_unsigned(Call::Consensus(v.1))))
-            );
-
-            inherent.as_mut_slice().sort_unstable_by_key(|v| v.0);
-            inherent.into_iter().map(|v| v.1).collect()
+        fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+            data.create_extrinsics()
         }
 
-        fn check_inherents(block: Block, data: BasicInherentData) -> Result<(), CheckInherentError> {
-            Runtime::check_inherents(block, data)
+        fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+            data.check_extrinsics(&block)
         }
 
         fn random_seed() -> <Block as BlockT>::Hash {
@@ -334,7 +286,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl aura_api::AuraApi<Block> for Runtime {
+    impl consensus_aura::AuraApi<Block> for Runtime {
         fn slot_duration() -> u64 {
             Aura::slot_duration()
         }

@@ -1,3 +1,5 @@
+//! This module exports Robonomics API into ROS namespace.
+
 #[macro_use]
 extern crate hex_literal;
 #[macro_use]
