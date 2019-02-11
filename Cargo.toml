@@ -17,8 +17,6 @@ error-chain = "0.12"
 ctrlc = { version = "3.0", features = ["termination"] }
 exit-future = "0.1"
 parking_lot = "0.4"
-hex-literal = "0.1"
-trie-root = { git = "https://github.com/paritytech/trie" }
 substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 substrate-basic-authorship = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura = { git = "https://github.com/paritytech/substrate" }

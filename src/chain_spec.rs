@@ -79,6 +79,7 @@ fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_account
             transfer_fee: 0,
             creation_fee: 0,
             balances: endowed_accounts.iter().map(|&k|(k, (1 << 60))).collect(),
+            vesting: vec![],
         }),
         sudo: Some(SudoConfig {
             key: sudo_key,

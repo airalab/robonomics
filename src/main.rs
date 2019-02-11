@@ -37,6 +37,7 @@ fn run() -> cli::error::Result<()> {
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
         description: "Reference implementation of robonomics.network node",
+        support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
         executable_name: "robonomics",
     };
     cli::run(::std::env::args(), cli::Exit, version)

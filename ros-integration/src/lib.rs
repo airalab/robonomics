@@ -1,8 +1,6 @@
 //! This module exports Robonomics API into ROS namespace.
 
 #[macro_use]
-extern crate hex_literal;
-#[macro_use]
 extern crate rosrust;
 extern crate robonomics_runtime;
 extern crate sr_io as runtime_io;
@@ -14,19 +12,18 @@ extern crate substrate_primitives as primitives;
 extern crate substrate_transaction_pool as transaction_pool;
 
 use std::sync::Arc;
-use primitives::ed25519;
 use network::SyncProvider;
 use futures::{Future, Stream};
 use keystore::Store as Keystore;
 use runtime_primitives::codec::{Decode, Encode};
 use runtime_primitives::generic::{BlockId, Era};
-use runtime_primitives::traits::{As, Block, Header, BlockNumberToHash, Extrinsic};
+use runtime_primitives::traits::{As, Block, Header, BlockNumberToHash};
 use client::{BlockchainEvents, BlockBody, blockchain::HeaderBackend};
-use primitives::storage::{self, StorageKey, StorageData, StorageChangeSet};
+use primitives::storage::{StorageKey, StorageData, StorageChangeSet};
 use transaction_pool::txpool::{self, Pool as TransactionPool, ExtrinsicFor};
 use robonomics_runtime::{
-    AccountId, Call, UncheckedExtrinsic, Runtime, StorageValue,
-    robonomics::*, Robonomics, RobonomicsCall, EventRecord, Event
+    AccountId, Call, UncheckedExtrinsic, EventRecord, Event,
+    robonomics::*, RobonomicsCall
 };
 
 use rosrust::api::Ros;
@@ -69,8 +66,9 @@ pub fn start_ros<A, B, C, N>(
             local_id.into(),
             signature.into(),
             payload.2
-        ).encode();
-        let xt: ExtrinsicFor<A> = Decode::decode(&mut &extrinsic[..]).unwrap();
+        );
+        let xt: ExtrinsicFor<A> = Decode::decode(&mut &extrinsic.encode()[..]).unwrap();
+        //println!("check: {:?}", extrinsic.check());
         println!("result: {:?}", pool.submit_one(&BlockId::number(block), xt));
     }).unwrap();
 

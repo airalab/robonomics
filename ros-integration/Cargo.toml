@@ -5,7 +5,6 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-hex-literal = "0.1"
 futures = "0.1"
 rosrust = "0.7.1"
 robonomics-runtime = { path = "../runtime" }
