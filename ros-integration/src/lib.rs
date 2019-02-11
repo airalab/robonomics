@@ -2,6 +2,8 @@
 
 #[macro_use]
 extern crate rosrust;
+#[macro_use]
+extern crate log;
 extern crate robonomics_runtime;
 extern crate sr_io as runtime_io;
 extern crate sr_primitives as runtime_primitives;

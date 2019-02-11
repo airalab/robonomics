@@ -5,8 +5,10 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
+log = "0.4"
 futures = "0.1"
 rosrust = "0.7.1"
+rosbag = "0.2.0"
 robonomics-runtime = { path = "../runtime" }
 sr-io = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
