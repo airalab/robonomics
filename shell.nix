@@ -6,7 +6,7 @@ with nixpkgs.latest.rustChannels;
 with nixpkgs;
 
 let
-  channel = rustChannelOf { date = "2019-01-30"; channel = "nightly"; };
+  channel = rustChannelOf { date = "2019-02-15"; channel = "nightly"; };
   rust = channel.rust.override {
     targets = [ "wasm32-unknown-unknown" ];
   };

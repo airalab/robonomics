@@ -2,8 +2,8 @@
 
 use primitives::{Ed25519AuthorityId, ed25519};
 use robonomics_runtime::{
-    GenesisConfig, ConsensusConfig, TimestampConfig, IndicesConfig, BalancesConfig, SudoConfig,
-    AccountId
+    GenesisConfig, ConsensusConfig, TimestampConfig, IndicesConfig, BalancesConfig,
+    SudoConfig, FeesConfig, AccountId
 };
 use substrate_service;
 
@@ -73,17 +73,18 @@ fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_account
             ids: endowed_accounts.clone(),
         }),
         balances: Some(BalancesConfig {
-            transaction_base_fee: 1,
-            transaction_byte_fee: 0,
             existential_deposit: 500,
             transfer_fee: 0,
             creation_fee: 0,
             balances: endowed_accounts.iter().map(|&k|(k, (1 << 60))).collect(),
             vesting: vec![],
         }),
+		fees: Some(FeesConfig {
+			transaction_base_fee: 1,
+			transaction_byte_fee: 0,
+		}),
         sudo: Some(SudoConfig {
             key: sudo_key,
         }),
-        robonomics: None
     }
 }

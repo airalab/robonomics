@@ -7,8 +7,6 @@ extern crate futures;
 #[macro_use]
 extern crate error_chain;
 extern crate tokio;
-#[macro_use]
-extern crate log;
 extern crate substrate_cli;
 extern crate substrate_primitives as primitives;
 extern crate substrate_consensus_aura as consensus;

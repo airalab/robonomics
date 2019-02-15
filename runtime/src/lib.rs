@@ -10,7 +10,6 @@ extern crate sr_std as rstd;
 extern crate substrate_client as client;
 #[macro_use]
 extern crate srml_support;
-#[macro_use]
 extern crate sr_primitives as runtime_primitives;
 #[cfg(feature = "std")]
 #[macro_use]
@@ -21,6 +20,7 @@ extern crate parity_codec;
 extern crate parity_codec_derive;
 #[macro_use]
 extern crate sr_version as version;
+extern crate srml_fees as fees;
 extern crate srml_sudo as sudo;
 extern crate srml_aura as aura;
 extern crate srml_system as system;
@@ -102,8 +102,8 @@ pub mod opaque {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
-    authoring_version: 4,
-    spec_version: 4,
+    authoring_version: 5,
+    spec_version: 5,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -193,6 +193,12 @@ impl sudo::Trait for Runtime {
     type Proposal = Call;
 }
 
+impl fees::Trait for Runtime {
+	type Amount = u128;
+	type TransferAsset = Balances;
+	type Event = Event;
+}
+
 impl robonomics::Trait for Runtime {
     /// The uniquitous event type.
     type Event = Event;
@@ -207,11 +213,12 @@ construct_runtime!(
         System: system::{default, Log(ChangesTrieRoot)},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-        Robonomics: robonomics,
         Aura: aura::{Module},
         Balances: balances,
         Indices: indices,
         Sudo: sudo,
+        Fees: fees::{Module, Storage, Config<T>, Event<T>},
+        Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
 );
 
@@ -230,7 +237,7 @@ pub type UncheckedExtrinsic = generic::UncheckedMortalCompactExtrinsic<Address, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
+pub type Executive = executive::Executive<Runtime, Block, Context, Fees, AllModules>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
