@@ -24,12 +24,16 @@ extern crate srml_fees as fees;
 extern crate srml_sudo as sudo;
 extern crate srml_aura as aura;
 extern crate srml_system as system;
+extern crate srml_session as session;
+extern crate srml_staking as staking;
+extern crate srml_grandpa as grandpa;
 extern crate srml_indices as indices;
 extern crate srml_balances as balances;
 extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
+
 
 pub mod robonomics;
 
@@ -39,8 +43,9 @@ use primitives::bytes;
 use primitives::{Ed25519AuthorityId, OpaqueMetadata};
 use runtime_primitives::{
     ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-    traits::{self, BlakeTwo256, Block as BlockT, StaticLookup},
+    traits::{self, Convert, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
 };
+use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
     block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
     runtime_api
@@ -62,6 +67,10 @@ pub use system::EventRecord;
 
 /// Alias to Ed25519 pubkey that identifies an account on the chain.
 pub type AccountId = primitives::H256;
+
+/// The Ed25519 pub key of an session that belongs to an authority of the chain. This is
+/// exactly equivalent to what the substrate calls an "authority".
+pub type SessionKey = primitives::Ed25519AuthorityId;
 
 /// A hash of some data used by the chain.
 pub type Hash = primitives::H256;
@@ -89,7 +98,7 @@ pub mod opaque {
         }
     }
     /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, Ed25519AuthorityId>>;
+    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, SessionKey>>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
@@ -102,8 +111,8 @@ pub mod opaque {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
-    authoring_version: 5,
-    spec_version: 5,
+    authoring_version: 10,
+    spec_version: 10,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -142,13 +151,19 @@ impl system::Trait for Runtime {
     type Origin = Origin;
 }
 
+impl timestamp::Trait for Runtime {
+    /// A timestamp: seconds since the unix epoch.
+    type Moment = u64;
+    type OnTimestampSet = Aura;
+}
+
 impl aura::Trait for Runtime {
     type HandleReport = ();
 }
 
 impl consensus::Trait for Runtime {
     /// The identifier we use to refer to authorities.
-    type SessionKey = Ed25519AuthorityId;
+    type SessionKey = SessionKey;
     // The aura module handles offline-reports internally
     // rather than using an explicit report system.
     type InherentOfflineReport = ();
@@ -168,12 +183,6 @@ impl indices::Trait for Runtime {
     type Event = Event;
 }
 
-impl timestamp::Trait for Runtime {
-    /// A timestamp: seconds since the unix epoch.
-    type Moment = u64;
-    type OnTimestampSet = Aura;
-}
-
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
     type Balance = u128;
@@ -187,25 +196,49 @@ impl balances::Trait for Runtime {
     type Event = Event;
 }
 
-impl sudo::Trait for Runtime {
-    /// The uniquitous event type.
-    type Event = Event;
-    type Proposal = Call;
-}
-
 impl fees::Trait for Runtime {
 	type Amount = u128;
 	type TransferAsset = Balances;
 	type Event = Event;
 }
 
+/// Session key conversion.
+pub struct SessionKeyConversion;
+impl Convert<AccountId, SessionKey> for SessionKeyConversion {
+    fn convert(a: AccountId) -> SessionKey {
+        a.to_fixed_bytes().into()
+    }
+}
+
+impl session::Trait for Runtime {
+    type ConvertAccountIdToSessionKey = SessionKeyConversion;
+    type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
+    type Event = Event;
+}
+
+impl staking::Trait for Runtime {
+    type Currency = balances::Module<Self>;
+    type OnRewardMinted = ();
+    type Event = Event;
+}
+
+impl grandpa::Trait for Runtime {
+    type SessionKey = SessionKey;
+    type Log = Log;
+    type Event = Event;
+}
+
+impl sudo::Trait for Runtime {
+    type Event = Event;
+    type Proposal = Call;
+}
+
 impl robonomics::Trait for Runtime {
-    /// The uniquitous event type.
     type Event = Event;
 }
 
 construct_runtime!(
-    pub enum Runtime with Log(InternalLog: DigestItem<Hash, Ed25519AuthorityId>) where
+    pub enum Runtime with Log(InternalLog: DigestItem<Hash, SessionKey>) where
         Block = Block,
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
@@ -214,10 +247,13 @@ construct_runtime!(
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
         Aura: aura::{Module},
-        Balances: balances,
+        Session: session,
+        Staking: staking::{default, OfflineWorker},
+        Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
         Indices: indices,
-        Sudo: sudo,
+        Balances: balances,
         Fees: fees::{Module, Storage, Config<T>, Event<T>},
+        Sudo: sudo,
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
 );
@@ -246,7 +282,7 @@ impl_runtime_apis! {
             VERSION
         }
 
-        fn authorities() -> Vec<Ed25519AuthorityId> {
+        fn authorities() -> Vec<SessionKey> {
             Consensus::authorities()
         }
 
@@ -290,6 +326,26 @@ impl_runtime_apis! {
     impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             Executive::validate_transaction(tx)
+        }
+    }
+
+    impl fg_primitives::GrandpaApi<Block> for Runtime {
+        fn grandpa_pending_change(digest: &DigestFor<Block>)
+            -> Option<ScheduledChange<NumberFor<Block>>>
+        {
+            for log in digest.logs.iter().filter_map(|l| match l {
+                Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
+                _=> None
+            }) {
+                if let Some(change) = Grandpa::scrape_digest_change(log) {
+                    return Some(change);
+                }
+            }
+            None
+        }
+
+        fn grandpa_authorities() -> Vec<(SessionKey, u64)> {
+            Grandpa::grandpa_authorities()
         }
     }
 

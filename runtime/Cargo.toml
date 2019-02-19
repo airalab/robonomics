@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-runtime"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Airalab <research@aira.life>"]
 
 [dependencies]
@@ -21,6 +21,9 @@ srml-aura = { git = "https://github.com/paritytech/substrate" }
 srml-system = { git = "https://github.com/paritytech/substrate" }
 srml-support = { git = "https://github.com/paritytech/substrate" }
 srml-indices = { git = "https://github.com/paritytech/substrate" }
+srml-session = { git = "https://github.com/paritytech/substrate" }
+srml-staking = { git = "https://github.com/paritytech/substrate" }
+srml-grandpa = { git = "https://github.com/paritytech/substrate" }
 srml-balances = { git = "https://github.com/paritytech/substrate" }
 srml-consensus = { git = "https://github.com/paritytech/substrate" }
 srml-executive = { git = "https://github.com/paritytech/substrate" }

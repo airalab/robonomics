@@ -2,8 +2,9 @@
 
 use primitives::{Ed25519AuthorityId, ed25519};
 use robonomics_runtime::{
-    GenesisConfig, ConsensusConfig, TimestampConfig, IndicesConfig, BalancesConfig,
-    SudoConfig, FeesConfig, AccountId
+    GenesisConfig, ConsensusConfig, SessionConfig, StakingConfig, TimestampConfig,
+    IndicesConfig, BalancesConfig, FeesConfig, GrandpaConfig, SudoConfig,
+    AccountId, Perbill
 };
 use substrate_service;
 
@@ -60,6 +61,9 @@ impl Alternative {
 }
 
 fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_accounts: Vec<AccountId>, sudo_key: AccountId) -> GenesisConfig {
+    const SECS_PER_BLOCK: u64 = 10;
+    const MINUTES: u64 = 60 / SECS_PER_BLOCK;
+
     GenesisConfig {
         consensus: Some(ConsensusConfig {
             code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm").to_vec(),
@@ -67,7 +71,7 @@ fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_account
         }),
         system: None,
         timestamp: Some(TimestampConfig {
-            period: 10,
+            period: SECS_PER_BLOCK / 2,
         }),
         indices: Some(IndicesConfig {
             ids: endowed_accounts.clone(),
@@ -80,9 +84,30 @@ fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_account
             vesting: vec![],
         }),
 		fees: Some(FeesConfig {
-			transaction_base_fee: 1,
-			transaction_byte_fee: 0,
+			transaction_base_fee: 1000,
+			transaction_byte_fee: 50,
 		}),
+        session: Some(SessionConfig {
+            validators: initial_authorities.iter().cloned().map(Into::into).collect(),
+            session_length: 5 * MINUTES,
+        }),
+        staking: Some(StakingConfig {
+            current_era: 0,
+            intentions: initial_authorities.iter().cloned().map(Into::into).collect(),
+            offline_slash: Perbill::from_billionths(1),
+            session_reward: Perbill::from_billionths(5),
+            current_offline_slash: 0,
+            current_session_reward: 0,
+            validator_count: 7,
+            sessions_per_era: 12,
+            bonding_duration: 60 * MINUTES,
+            offline_slash_grace: 4,
+            minimum_validator_count: 4,
+            invulnerables: initial_authorities.iter().cloned().map(Into::into).collect(),
+        }),
+        grandpa: Some(GrandpaConfig {
+            authorities: initial_authorities.clone().into_iter().map(|k| (k, 1)).collect(),
+        }),
         sudo: Some(SudoConfig {
             key: sudo_key,
         }),
