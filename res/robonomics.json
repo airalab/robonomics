@@ -3,7 +3,10 @@
   "id": "robonomics_testnet",
   "bootNodes": [
       "/ip4/164.132.111.49/tcp/30333/p2p/QmbchbXAo3hc3udx3tsew9YKMC6XkMNSu1CgfeHKruySwK",
-      "/ip6/fc6c:99a2:171a:f36a:8cd0:cc6b:efb7:8bb4/tcp/30333/p2p/QmbchbXAo3hc3udx3tsew9YKMC6XkMNSu1CgfeHKruySwK"
+      "/ip4/139.162.132.141/tcp/30333/p2p/Qma4GcxP7WktLXXeF4AAQDkAyQgYtiKqG8Bv8WnhGMGAQT",
+      "/ip6/fcaa:9c13:6ea4:4b92:8b9b:9:2390:52c1/tcp/30333/p2p/QmUgEXKXZfnw5ohYRGTxCAuyTUfjzKc8Xnmk26XjzizuNo",
+      "/ip6/fc6c:99a2:171a:f36a:8cd0:cc6b:efb7:8bb4/tcp/30333/p2p/QmbchbXAo3hc3udx3tsew9YKMC6XkMNSu1CgfeHKruySwK",
+      "/ip6/fc59:cb90:5852:7fe3:a759:57d9:f546:a3a8/tcp/30333/p2p/Qma4GcxP7WktLXXeF4AAQDkAyQgYtiKqG8Bv8WnhGMGAQT"
   ],
   "telemetryUrl": "wss://telemetry.polkadot.io/submit/",
   "protocolId": null,
