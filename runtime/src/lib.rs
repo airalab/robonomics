@@ -111,8 +111,8 @@ pub mod opaque {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
-    authoring_version: 10,
-    spec_version: 10,
+    authoring_version: 11,
+    spec_version: 11,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -197,7 +197,6 @@ impl balances::Trait for Runtime {
 }
 
 impl fees::Trait for Runtime {
-	type Amount = u128;
 	type TransferAsset = Balances;
 	type Event = Event;
 }
