@@ -48,6 +48,24 @@ impl Alternative {
                 None
             ),
             Alternative::Robonomics => robonomics_testnet_config()?,
+/* XXX: Using raw config instead precompiled
+                ChainSpec::from_genesis(
+                "Robonomics",
+                "robonomics_testnet",
+                || testnet_genesis(vec![
+                    ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().into(),
+                ], vec![
+                    ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().0.into(),
+                ],
+                    ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().0.into()
+                ),
+                vec![],
+                None,
+                None,
+                None,
+                None
+                ),
+*/
         })
     }
 
@@ -94,8 +112,8 @@ fn testnet_genesis(initial_authorities: Vec<Ed25519AuthorityId>, endowed_account
         staking: Some(StakingConfig {
             current_era: 0,
             intentions: initial_authorities.iter().cloned().map(Into::into).collect(),
-            offline_slash: Perbill::from_billionths(1),
-            session_reward: Perbill::from_billionths(5),
+            offline_slash: Perbill::from_billionths(1_000_000),
+            session_reward: Perbill::from_billionths(5_000_000),
             current_offline_slash: 0,
             current_session_reward: 0,
             validator_count: 7,
