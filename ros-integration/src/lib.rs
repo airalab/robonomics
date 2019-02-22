@@ -17,7 +17,7 @@ use std::sync::Arc;
 use network::SyncProvider;
 use futures::{Future, Stream};
 use keystore::Store as Keystore;
-use runtime_primitives::codec::{Decode, Encode};
+use runtime_primitives::codec::{Decode, Encode, Compact};
 use runtime_primitives::generic::{BlockId, Era};
 use runtime_primitives::traits::{As, Block, Header, BlockNumberToHash};
 use client::{BlockchainEvents, BlockBody, blockchain::HeaderBackend};
@@ -25,7 +25,7 @@ use primitives::storage::{StorageKey, StorageData, StorageChangeSet};
 use transaction_pool::txpool::{self, Pool as TransactionPool, ExtrinsicFor};
 use robonomics_runtime::{
     AccountId, Call, UncheckedExtrinsic, EventRecord, Event,
-    robonomics::*, RobonomicsCall
+    robonomics::*, RobonomicsCall, Nonce
 };
 
 use rosrust::api::Ros;
@@ -56,14 +56,14 @@ pub fn start_ros<A, B, C, N>(
     let _demand = ros.subscribe("liability/demand", move |v: msg::std_msgs::String| {
         let block = info_maker.info().unwrap().best_number;
         let payload = (
-            0,
+            Compact::<Nonce>::from(0),
             Call::Robonomics(RobonomicsCall::demand(vec![0, 1], vec![2, 3], 42)),
             Era::immortal(),
             info_maker.genesis_hash(),
         );
         let signature = key.sign(&payload.encode());
         let extrinsic = UncheckedExtrinsic::new_signed(
-            payload.0,
+            payload.0.into(),
             payload.1,
             local_id.into(),
             signature.into(),
