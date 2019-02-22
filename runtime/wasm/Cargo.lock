@@ -1003,7 +1003,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "integer-sqrt 0.1.0 (git+https://github.com/paritytech/integer-sqrt-rs.git)",
  "parity-codec 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
