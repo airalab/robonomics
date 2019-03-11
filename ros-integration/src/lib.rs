@@ -102,9 +102,10 @@ pub fn start_ros<A, B, C, N>(
             events.iter().for_each(|event| {
                 if let Event::robonomics(e) = event {
                     match e {
-                        RawEvent::NewDemand(hash) => println!("NewDemand: {:?}", hash),
-                        RawEvent::NewOffer(hash) => println!("NewOffer: {:?}", hash),
-                        RawEvent::NewLiability(id, _, _) => {
+                        RawEvent::NewDemand(hash, demand) => println!("NewDemand: {:?} {:?}", hash, demand),
+                        RawEvent::NewOffer(hash, offer) => println!("NewOffer: {:?} {:?}", hash, offer),
+                        RawEvent::NewLiability(id, liability) => {
+                            println!("NewLiability: {:?} {:?}", id, liability);
                             let mut liability_msg = msg::std_msgs::UInt64::default();
                             liability_msg.data = *id;
                             liability_pub.send(liability_msg).unwrap()
@@ -122,9 +123,8 @@ pub fn start_ros<A, B, C, N>(
             hash_msg.data = block.header.hash().to_string();
             hash_pub.send(hash_msg).unwrap();
 
-		    let sync_status = network.status();
             let mut peers_msg = msg::std_msgs::UInt64::default();
-            peers_msg.data = sync_status.num_peers as u64;
+            peers_msg.data = network.peers().len() as u64;
             peers_pub.send(peers_msg).unwrap();
 
             let mut number_msg = msg::std_msgs::UInt64::default();
