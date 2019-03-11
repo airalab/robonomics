@@ -43,7 +43,7 @@ use primitives::bytes;
 use primitives::{Ed25519AuthorityId, OpaqueMetadata};
 use runtime_primitives::{
     ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-    traits::{self, Convert, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
+    traits::{self, Verify, Convert, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
 };
 use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
@@ -65,8 +65,19 @@ pub use srml_support::StorageValue;
 pub use timestamp::BlockPeriod;
 pub use system::EventRecord;
 
-/// Alias to Ed25519 pubkey that identifies an account on the chain.
-pub type AccountId = primitives::H256;
+/// Alias to 512-bit hash when used in the context of a signature on the chain.
+pub type Signature = Ed25519Signature;
+
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
+pub type AccountId = <Signature as Verify>::Signer;
+
+/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
+/// never know...
+pub type AccountIndex = u32;
+
+/// Balance of an account.
+pub type Balance = u128;
 
 /// The Ed25519 pub key of an session that belongs to an authority of the chain. This is
 /// exactly equivalent to what the substrate calls an "authority".
@@ -111,8 +122,8 @@ pub mod opaque {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
-    authoring_version: 12,
-    spec_version: 12,
+    authoring_version: 1,
+    spec_version: 20,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
@@ -174,7 +185,7 @@ impl consensus::Trait for Runtime {
 impl indices::Trait for Runtime {
     /// The type for recording indexing into the account enumeration. If this ever overflows,
     /// there will be problems!
-    type AccountIndex = u32;
+    type AccountIndex = AccountIndex;
     /// Use the standard means of resolving an index hint from an id.
     type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
     /// Determine whether an account is dead.
@@ -185,13 +196,11 @@ impl indices::Trait for Runtime {
 
 impl balances::Trait for Runtime {
     /// The type for recording an account's balance.
-    type Balance = u128;
+    type Balance = Balance;
     /// What to do if an account's free balance gets zeroed.
-    type OnFreeBalanceZero = ();
+    type OnFreeBalanceZero = (Staking, Session);
     /// What to do if a new account is created.
     type OnNewAccount = Indices;
-    /// Restrict whether an account can transfer funds. We don't place any further restrictions.
-    type EnsureAccountLiquid = ();
     /// The uniquitous event type.
     type Event = Event;
 }
@@ -337,6 +346,19 @@ impl_runtime_apis! {
                 _=> None
             }) {
                 if let Some(change) = Grandpa::scrape_digest_change(log) {
+                    return Some(change);
+                }
+            }
+            None
+        }
+        fn grandpa_forced_change(digest: &DigestFor<Block>)
+            -> Option<(NumberFor<Block>, ScheduledChange<NumberFor<Block>>)>
+        {
+            for log in digest.logs.iter().filter_map(|l| match l {
+                Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
+                _ => None
+            }) {
+                if let Some(change) = Grandpa::scrape_digest_forced_change(log) {
                     return Some(change);
                 }
             }

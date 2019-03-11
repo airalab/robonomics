@@ -30,7 +30,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             match config.roles {
                 ServiceRoles::LIGHT => run_until_exit(
                     runtime,
-                     service::Factory::new_light(config, executor).map_err(|e| format!("{:?}", e))?,
+                    service::Factory::new_light(config, executor).map_err(|e| format!("{:?}", e))?,
                     exit
                 ),
                 _ => run_until_exit(
@@ -44,7 +44,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 }
 
 fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
-    Ok(match chain_spec::Alternative::from(id) {
+    Ok(match chain_spec::ChainOpt::from(id) {
         Some(spec) => Some(spec.load()?),
         None => None,
     })
@@ -67,6 +67,15 @@ fn run_until_exit<T, C, E>(
 
     let _ = runtime.block_on(e.into_exit());
     exit_send.fire();
+
+    // we eagerly drop the service so that the internal exit future is fired,
+    // but we need to keep holding a reference to the global telemetry guard
+    let _telemetry = service.telemetry();
+    drop(service);
+
+    // TODO [andre]: timeout this future #1318
+    let _ = runtime.shutdown_on_idle().wait();
+
     Ok(())
 }
 

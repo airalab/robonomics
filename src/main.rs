@@ -16,11 +16,13 @@ extern crate substrate_client as client;
 extern crate substrate_network as network;
 #[macro_use]
 extern crate substrate_executor;
+extern crate substrate_telemetry;
 extern crate substrate_transaction_pool as transaction_pool;
 extern crate substrate_basic_authorship as basic_authorship;
 extern crate substrate_finality_grandpa as grandpa;
 #[macro_use]
 extern crate substrate_service;
+extern crate substrate_keystore;
 extern crate robonomics_runtime;
 
 mod chain_spec;
