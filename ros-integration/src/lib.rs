@@ -2,9 +2,11 @@
 
 #[macro_use]
 extern crate rosrust;
+extern crate robonomics_runtime;
+#[macro_use]
+extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate robonomics_runtime;
 extern crate sr_io as runtime_io;
 extern crate sr_primitives as runtime_primitives;
 extern crate substrate_client as client;
@@ -28,7 +30,8 @@ use robonomics_runtime::{
     robonomics::*, RobonomicsCall, Nonce
 };
 
-use rosrust::api::Ros;
+#[macro_use]
+mod ros;
 
 mod msg {
     rosmsg_include!(std_msgs / UInt64, std_msgs / String);
@@ -50,10 +53,10 @@ pub fn start_ros<A, B, C, N>(
     let local_id: AccountId = key.public().0.into();
     println!("ROS account: {:?}", key.public().to_ss58check());
 
-    let mut ros = Ros::new("robonomics").unwrap();
+    ros::init();
 
     let info_maker = client.clone();
-    let _demand = ros.subscribe("liability/demand", move |v: msg::std_msgs::String| {
+    let _demand = ros::subscribe("liability/demand", move |v: msg::std_msgs::String| {
         let block = info_maker.info().unwrap().best_number;
         let payload = (
             Compact::<Nonce>::from(0),
@@ -74,13 +77,13 @@ pub fn start_ros<A, B, C, N>(
         println!("result: {:?}", pool.submit_one(&BlockId::number(block), xt));
     }).unwrap();
 
-    let _offer = ros.subscribe("liability/offer", |v: msg::std_msgs::String| {
+    let _offer = ros::subscribe("liability/offer", |v: msg::std_msgs::String| {
     }).unwrap();
 
-    let mut hash_pub = ros.publish("blockchain/best_hash").unwrap();
-    let mut number_pub = ros.publish("blockchain/best_number").unwrap();
-    let mut peers_pub = ros.publish("network/peers").unwrap();
-    let mut liability_pub = ros.publish("liability/new").unwrap();
+    let mut hash_pub = ros::publish("blockchain/best_hash").unwrap();
+    let mut number_pub = ros::publish("blockchain/best_number").unwrap();
+    let mut peers_pub = ros::publish("network/peers").unwrap();
+    let mut liability_pub = ros::publish("liability/new").unwrap();
 
     let events_key = StorageKey(runtime_io::twox_128(b"System Events").to_vec());
     let storage_stream = client.storage_changes_notification_stream(Some(&[events_key])).unwrap()
