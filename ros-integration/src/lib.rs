@@ -7,6 +7,7 @@ extern crate robonomics_runtime;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate bs58;
 extern crate sr_io as runtime_io;
 extern crate sr_primitives as runtime_primitives;
 extern crate substrate_client as client;
@@ -32,6 +33,11 @@ use robonomics_runtime::{
 
 #[macro_use]
 mod ros;
+#[macro_use]
+mod ipfs;
+mod rosbag_player;
+
+use rosbag_player::RosbagPlayer;
 
 mod msg {
     rosmsg_include!(std_msgs / UInt64, std_msgs / String);
@@ -54,6 +60,7 @@ pub fn start_ros<A, B, C, N>(
     println!("ROS account: {:?}", key.public().to_ss58check());
 
     ros::init();
+    ipfs::init();
 
     let info_maker = client.clone();
     let _demand = ros::subscribe("liability/demand", move |v: msg::std_msgs::String| {
@@ -111,7 +118,15 @@ pub fn start_ros<A, B, C, N>(
                             println!("NewLiability: {:?} {:?}", id, liability);
                             let mut liability_msg = msg::std_msgs::UInt64::default();
                             liability_msg.data = *id;
-                            liability_pub.send(liability_msg).unwrap()
+                            liability_pub.send(liability_msg).unwrap();
+
+                            if liability.promisor == local_id {
+                                let objective_s = bs58::encode(&liability.order.objective).into_string();
+                                println!("EXECUTOR: liability.objective is {:?}", objective_s);
+                                ipfs::read_file(&objective_s);
+                                let mut player = RosbagPlayer::new(&objective_s);
+                                player.play_rosbag();
+                            }
                         },
                         _ => ()
                     }
