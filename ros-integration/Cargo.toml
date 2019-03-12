@@ -11,6 +11,8 @@ rosrust = "0.7.1"
 rosbag = "0.2.0"
 lazy_static = "1.2.0"
 regex = "1"
+ipfs-api = "0.5.1"
+hyper = "0.12.25"
 robonomics-runtime = { path = "../runtime" }
 sr-io = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
