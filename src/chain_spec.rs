@@ -118,14 +118,14 @@ pub fn testnet_genesis(
         }),
         session: Some(SessionConfig {
             validators: initial_authorities.iter().map(|x| x.1.into()).collect(),
-            session_length: 10,
+            session_length: 15,
             keys: initial_authorities.iter().map(|x| (x.1.clone(), x.2.clone())).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
             current_era: 0,
             minimum_validator_count: 2,
-            validator_count: 2,
-            sessions_per_era: 10,
+            validator_count: 7,
+            sessions_per_era: 60,
             bonding_duration: 60 * MINUTES,
             session_reward: Perbill::from_millionths(200_000),
             offline_slash: Perbill::from_millionths(1_000_000),
@@ -158,12 +158,20 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let stash = ed25519::Public::from_ss58check("5HakruKnWQWa36am44tKu9hwDjkYCzaravUqjkerfpY6pQHi").unwrap().0;
-    let control = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().0;
+    let aira_stash   = ed25519::Public::from_ss58check("5HairafECXZHE4VBPwz2r5BVEYjK2MjGE5bRDL451BSCsfED").unwrap().0;
+    let aira_control = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewFQv").unwrap().0;
+    let akru_stash   = ed25519::Public::from_ss58check("5HakruKnWQWa36am44tKu9hwDjkYCzaravUqjkerfpY6pQHi").unwrap().0;
+    let akru_control = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().0;
+    let khssnv_stash   = ed25519::Public::from_ss58check("5DKhSUPRtrPuNcH3a4WRkWpeWBhKrNpRzWTykmCELHV6dhRs").unwrap().0;
+    let khssnv_control = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZ6VR").unwrap().0;
     testnet_genesis(
-        vec![(stash.into(), control.into(), control.into())],
-        control.into(),
-        Some(vec![control.into()]),
+        vec![
+          (aira_stash.into(), aira_control.into(), aira_control.into()),
+          (akru_stash.into(), akru_control.into(), akru_control.into()),
+          (khssnv_stash.into(), khssnv_control.into(), khssnv_control.into()),
+        ],
+        akru_control.into(),
+        Some(vec![aira_control.into(), akru_control.into(), khssnv_control.into()]),
     )
 }
 
