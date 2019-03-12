@@ -91,7 +91,7 @@ pub fn testnet_genesis(
     const GLUSHKOV: u128 = 1_000 * COASE;    // assume this is worth about a cent.
     const XRT: u128 = 1_000 * GLUSHKOV;
 
-    const SECS_PER_BLOCK: u64 = 8;
+    const SECS_PER_BLOCK: u64 = 4;
     const MINUTES: u64 = 60 / SECS_PER_BLOCK;
 
     const ENDOWMENT: u128 = 10_000_000 * XRT;
@@ -123,7 +123,7 @@ pub fn testnet_genesis(
         }),
         staking: Some(StakingConfig {
             current_era: 0,
-            minimum_validator_count: 1,
+            minimum_validator_count: 2,
             validator_count: 2,
             sessions_per_era: 10,
             bonding_duration: 60 * MINUTES,
