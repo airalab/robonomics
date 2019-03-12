@@ -23,15 +23,14 @@ pub fn init() {
 }
 
 #[inline]
-pub fn read_file(ipfs_path: &'static str) -> std::io::Result<()> {
+pub fn read_file(ipfs_path: &str) -> std::io::Result<()> {
+
+    let mut f = File::create(ipfs_path).expect("could not create file");
 
     let req = ipfs!().cat(ipfs_path)
-        .concat2()
-        .map(move |res| {
-            let mut f = File::create(ipfs_path).expect("could not create file");
-            f.write_all(&res).unwrap();
-        })
-    .map_err(|e| eprintln!("{}", e));
+        .for_each(move |chunk| f.write_all(&chunk).map_err(From::from))
+        .map_err(|e| eprintln!("{}", e));
+
     hyper::rt::run(req);
     Ok(())
 }
