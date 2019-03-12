@@ -6,7 +6,8 @@ use robonomics_runtime::{
     IndicesConfig, BalancesConfig, FeesConfig, GrandpaConfig, SudoConfig,
     AccountId, Perbill
 };
-use substrate_service;
+use substrate_service::{self, Properties};
+use serde_json::json;
 
 use substrate_keystore::pad_seed;
 use substrate_telemetry::TelemetryEndpoints;
@@ -90,7 +91,7 @@ pub fn testnet_genesis(
     const GLUSHKOV: u128 = 1_000 * COASE;    // assume this is worth about a cent.
     const XRT: u128 = 1_000 * GLUSHKOV;
 
-    const SECS_PER_BLOCK: u64 = 8;
+    const SECS_PER_BLOCK: u64 = 4;
     const MINUTES: u64 = 60 / SECS_PER_BLOCK;
 
     const ENDOWMENT: u128 = 10_000_000 * XRT;
@@ -122,7 +123,7 @@ pub fn testnet_genesis(
         }),
         staking: Some(StakingConfig {
             current_era: 0,
-            minimum_validator_count: 1,
+            minimum_validator_count: 2,
             validator_count: 2,
             sessions_per_era: 10,
             bonding_duration: 60 * MINUTES,
@@ -148,6 +149,11 @@ pub fn testnet_genesis(
             transaction_byte_fee: 50 * COASE,
         }),
     }
+}
+
+/// XRT token properties.
+fn xrt_props() -> Properties {
+    json!({"tokenDecimals": 9, "tokenSymbol": "XRT"}).as_object().unwrap().clone()
 }
 
 /// Robonomics testnet config. 
@@ -179,7 +185,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
         None,
         None,
-        None,
+        Some(xrt_props())
     )
 }
 
@@ -195,7 +201,16 @@ fn development_config_genesis() -> GenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
-    ChainSpec::from_genesis("Development", "dev", development_config_genesis, vec![], None, None, None, None)
+    ChainSpec::from_genesis(
+        "Development",
+        "dev",
+        development_config_genesis,
+        vec![],
+        None,
+        None,
+        None,
+        Some(xrt_props())
+    )
 }
 
 fn local_testnet_genesis() -> GenesisConfig {
@@ -211,5 +226,14 @@ fn local_testnet_genesis() -> GenesisConfig {
 
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
-    ChainSpec::from_genesis("Local Testnet", "local_testnet", local_testnet_genesis, vec![], None, None, None, None)
+    ChainSpec::from_genesis(
+        "Local Testnet",
+        "local_testnet",
+        local_testnet_genesis,
+        vec![],
+        None,
+        None,
+        None,
+        Some(xrt_props())
+    )
 }

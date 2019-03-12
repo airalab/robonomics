@@ -3,10 +3,11 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
+extern crate tokio;
 extern crate futures;
+extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
-extern crate tokio;
 extern crate substrate_cli;
 extern crate substrate_primitives as primitives;
 extern crate substrate_consensus_aura as consensus;

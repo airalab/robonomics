@@ -28,6 +28,7 @@ srml-indices = { git = "https://github.com/paritytech/substrate", default-featur
 srml-balances = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-consensus = { git = "https://github.com/paritytech/substrate", default-features = false }
 srml-executive = { git = "https://github.com/paritytech/substrate", default-features = false }
+srml-finality-tracker = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-consensus-aura-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }

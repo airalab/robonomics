@@ -32,6 +32,7 @@ extern crate srml_balances as balances;
 extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
+extern crate srml_finality_tracker as finality_tracker;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
 
@@ -124,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_name: create_runtime_str!("robonomics-node"),
     authoring_version: 1,
     spec_version: 20,
-    impl_version: 1,
+    impl_version: 20,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -236,6 +237,10 @@ impl grandpa::Trait for Runtime {
     type Event = Event;
 }
 
+impl finality_tracker::Trait for Runtime {
+    type OnFinalizationStalled = grandpa::SyncedAuthorities<Runtime>;
+}
+
 impl sudo::Trait for Runtime {
     type Event = Event;
     type Proposal = Call;
@@ -257,6 +262,7 @@ construct_runtime!(
         Aura: aura::{Module},
         Session: session,
         Staking: staking::{default, OfflineWorker},
+        FinalityTracker: finality_tracker::{Module, Call, Inherent},
         Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
         Indices: indices,
         Balances: balances,
