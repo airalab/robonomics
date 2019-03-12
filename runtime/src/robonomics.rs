@@ -9,35 +9,35 @@ use {balances, system::{self, ensure_signed}};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Order<Balance> {
-    model: Vec<u8>,
-    objective: Vec<u8>,
-    cost: Balance
+    pub model: Vec<u8>,
+    pub objective: Vec<u8>,
+    pub cost: Balance
 }
 
 /// Offer message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Offer<Balance, AccountId> {
-    order: Order<Balance>,
-    sender: AccountId
+    pub order: Order<Balance>,
+    pub sender: AccountId
 }
 
 /// Demand message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Demand<Balance, AccountId> {
-    order: Order<Balance>,
-    sender: AccountId
+    pub order: Order<Balance>,
+    pub sender: AccountId
 }
 
 /// Liability descriptive parameters.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Liability<Balance, AccountId> {
-    order: Order<Balance>,
-    promisee: AccountId,
-    promisor: AccountId,
-    result: Option<Vec<u8>>
+    pub order: Order<Balance>,
+    pub promisee: AccountId,
+    pub promisor: AccountId,
+    pub result: Option<Vec<u8>>
 }
 
 /// Liability index type.
