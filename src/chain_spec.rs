@@ -6,7 +6,8 @@ use robonomics_runtime::{
     IndicesConfig, BalancesConfig, FeesConfig, GrandpaConfig, SudoConfig,
     AccountId, Perbill
 };
-use substrate_service;
+use substrate_service::{self, Properties};
+use serde_json::json;
 
 use substrate_keystore::pad_seed;
 use substrate_telemetry::TelemetryEndpoints;
@@ -150,6 +151,11 @@ pub fn testnet_genesis(
     }
 }
 
+/// XRT token properties.
+fn xrt_props() -> Properties {
+    json!({"tokenDecimals": 9, "tokenSymbol": "XRT"}).as_object().unwrap().clone()
+}
+
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let stash = ed25519::Public::from_ss58check("5HakruKnWQWa36am44tKu9hwDjkYCzaravUqjkerfpY6pQHi").unwrap().0;
@@ -179,7 +185,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
         None,
         None,
-        None,
+        Some(xrt_props())
     )
 }
 
@@ -195,7 +201,16 @@ fn development_config_genesis() -> GenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
-    ChainSpec::from_genesis("Development", "dev", development_config_genesis, vec![], None, None, None, None)
+    ChainSpec::from_genesis(
+        "Development",
+        "dev",
+        development_config_genesis,
+        vec![],
+        None,
+        None,
+        None,
+        Some(xrt_props())
+    )
 }
 
 fn local_testnet_genesis() -> GenesisConfig {
@@ -211,5 +226,14 @@ fn local_testnet_genesis() -> GenesisConfig {
 
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
-    ChainSpec::from_genesis("Local Testnet", "local_testnet", local_testnet_genesis, vec![], None, None, None, None)
+    ChainSpec::from_genesis(
+        "Local Testnet",
+        "local_testnet",
+        local_testnet_genesis,
+        vec![],
+        None,
+        None,
+        None,
+        Some(xrt_props())
+    )
 }
