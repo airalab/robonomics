@@ -1,9 +1,10 @@
 use std::sync::Mutex;
-use hyper::rt::Future;
 use ipfs_api::IpfsClient;
 use std::io::Write;
 use futures::{Stream};
 use std::fs::File;
+use substrate_service::{TaskExecutor};
+use futures::{Future};
 
 lazy_static! {
     static ref IPFS: Mutex<Option<IpfsClient>> = Mutex::new(None);
@@ -23,14 +24,10 @@ pub fn init() {
 }
 
 #[inline]
-pub fn read_file(ipfs_path: &str) -> std::io::Result<()> {
-
+pub fn read_file(ipfs_path: &str) -> impl Future<Item=(),Error=()> {
     let mut f = File::create(ipfs_path).expect("could not create file");
 
-    let req = ipfs!().cat(ipfs_path)
+    ipfs!().cat(ipfs_path)
         .for_each(move |chunk| f.write_all(&chunk).map_err(From::from))
-        .map_err(|e| eprintln!("{}", e));
-
-    hyper::rt::run(req);
-    Ok(())
+        .map_err(|e| eprintln!("{}", e))
 }
