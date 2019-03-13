@@ -69,6 +69,7 @@ construct_service_factory! {
                     service.transaction_pool(),
                     service.keystore(),
                     service.on_exit(),
+                    executor.clone()
                 ));
 
                 Ok(service)

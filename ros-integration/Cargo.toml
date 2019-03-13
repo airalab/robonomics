@@ -17,6 +17,7 @@ bs58 = "0.2.2"
 robonomics-runtime = { path = "../runtime" }
 sr-io = { git = "https://github.com/paritytech/substrate" }
 sr-primitives = { git = "https://github.com/paritytech/substrate" }
+substrate-service = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
 substrate-network = { git = "https://github.com/paritytech/substrate" }
 substrate-keystore = { git = "https://github.com/paritytech/substrate" }

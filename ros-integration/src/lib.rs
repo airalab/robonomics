@@ -30,6 +30,7 @@ use robonomics_runtime::{
     AccountId, Call, UncheckedExtrinsic, EventRecord, Event,
     robonomics::*, RobonomicsCall, Nonce
 };
+use substrate_service::{TaskExecutor};
 
 #[macro_use]
 mod ros;
@@ -49,11 +50,12 @@ pub fn start_ros<A, B, C, N>(
     pool: Arc<TransactionPool<A>>,
     keystore: &Keystore,
     on_exit: impl Future<Item=(),Error=()>,
+    executor: TaskExecutor
 ) -> impl Future<Item=(),Error=()> where
     A: txpool::ChainApi<Block = B> + 'static,
     B: Block + 'static,
     C: BlockchainEvents<B> + BlockBody<B> + HeaderBackend<B> + BlockNumberToHash + 'static,
-    N: SyncProvider<B> + 'static
+    N: SyncProvider<B> + 'static,
 {
     let key = keystore.load(&keystore.contents().unwrap()[0], "").unwrap();
     let local_id: AccountId = key.public().0.into();
@@ -123,9 +125,11 @@ pub fn start_ros<A, B, C, N>(
                             if liability.promisor == local_id {
                                 let objective_s = bs58::encode(&liability.order.objective).into_string();
                                 println!("EXECUTOR: liability.objective is {:?}", objective_s);
-                                ipfs::read_file(&objective_s);
-                                let mut player = RosbagPlayer::new(&objective_s);
-                                player.play_rosbag();
+                                let ipfs_task = ipfs::read_file(&objective_s);
+                                executor.spawn(ipfs_task.map(move |_| {
+                                    let mut player = RosbagPlayer::new(&objective_s);
+                                    player.play_rosbag();
+                                }));
                             }
                         },
                         _ => ()
