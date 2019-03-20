@@ -21,7 +21,6 @@ use ipfs_api::IpfsClient;
 use std::io::Write;
 use futures::{Stream};
 use std::fs::File;
-use substrate_service::{TaskExecutor};
 use futures::{Future};
 
 lazy_static! {

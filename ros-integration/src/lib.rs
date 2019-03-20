@@ -19,13 +19,12 @@
 
 #[macro_use]
 extern crate rosrust;
-extern crate robonomics_runtime;
 #[macro_use]
 extern crate lazy_static;
+extern crate bs58;
 #[macro_use]
 extern crate log;
-extern crate bs58;
-extern crate sr_io as runtime_io;
+
 extern crate sr_primitives as runtime_primitives;
 extern crate substrate_client as client;
 extern crate substrate_network as network;
@@ -33,21 +32,36 @@ extern crate substrate_keystore as keystore;
 extern crate substrate_primitives as primitives;
 extern crate substrate_transaction_pool as transaction_pool;
 
+extern crate robonomics_runtime;
+
 use std::sync::Arc;
-use network::SyncProvider;
 use futures::{Future, Stream};
+use futures::sync::mpsc;
+
+use network::SyncProvider;
 use keystore::Store as Keystore;
-use runtime_primitives::codec::{Decode, Encode, Compact};
-use runtime_primitives::generic::{BlockId, Era};
-use runtime_primitives::traits::{As, Block, Header, BlockNumberToHash};
-use client::{BlockchainEvents, BlockBody, blockchain::HeaderBackend};
-use primitives::storage::{StorageKey, StorageData, StorageChangeSet};
-use transaction_pool::txpool::{self, Pool as TransactionPool, ExtrinsicFor};
+use client::{
+    Client, CallExecutor, BlockchainEvents,
+    blockchain::HeaderBackend,
+    backend::Backend
+};
+use runtime_primitives::{
+    codec::{Decode, Encode, Compact},
+    generic::{BlockId, Era},
+    traits::{As, Block, Header, BlockNumberToHash}
+};
+use primitives::{
+    Blake2Hasher, H256, twox_128,
+    sr25519, crypto::Pair, crypto::Ss58Codec, 
+    storage::{StorageKey, StorageData, StorageChangeSet}
+};
+use transaction_pool::txpool::{ChainApi, Pool, ExtrinsicFor};
+use substrate_service::TaskExecutor;
+
 use robonomics_runtime::{
     AccountId, Call, UncheckedExtrinsic, EventRecord, Event,
-    robonomics::*, RobonomicsCall, Nonce
+    robonomics::*, RobonomicsCall, Nonce, Runtime
 };
-use substrate_service::{TaskExecutor};
 
 #[macro_use]
 mod ros;
@@ -58,105 +72,154 @@ mod rosbag_player;
 use rosbag_player::RosbagPlayer;
 
 mod msg {
-    rosmsg_include!(std_msgs / UInt64, std_msgs / String);
+    rosmsg_include!(
+        std_msgs / UInt64
+      , std_msgs / String
+      , robonomics_msgs / Demand 
+      , robonomics_msgs / Offer
+      , robonomics_msgs / Liability
+    );
 }
 
-pub fn start_ros<A, B, C, N>(
-    network: Arc<N>,
-    client: Arc<C>,
-    pool: Arc<TransactionPool<A>>,
-    keystore: &Keystore,
-    on_exit: impl Future<Item=(),Error=()>,
-    executor: TaskExecutor
+const QUEUE_SIZE: usize = 10;
+
+fn extrinsic_stream<B, E, P, RA>(
+    client: Arc<Client<B, E, P::Block, RA>>,
+    key: sr25519::Pair,
+    pool: Arc<Pool<P>>,
+    stream: mpsc::UnboundedReceiver<RobonomicsCall<Runtime>>
 ) -> impl Future<Item=(),Error=()> where
-    A: txpool::ChainApi<Block = B> + 'static,
-    B: Block + 'static,
-    C: BlockchainEvents<B> + BlockBody<B> + HeaderBackend<B> + BlockNumberToHash + 'static,
-    N: SyncProvider<B> + 'static,
+    B: Backend<P::Block, Blake2Hasher>,
+    E: CallExecutor<P::Block, Blake2Hasher> + Send + Sync,
+    P: ChainApi,
+    RA: Send + Sync,
+    P::Block: Block<Hash=H256>,
 {
-    let key = keystore.load(&keystore.contents().unwrap()[0], "").unwrap();
-    let local_id: AccountId = key.public().0.into();
-    println!("ROS account: {:?}", key.public().to_ss58check());
+    // Get account address from keypair
+    let local_id: AccountId = key.public();
+    let mut nonce_key = b"System AccountNonce".to_vec();
+    nonce_key.extend_from_slice(&local_id.0[..]);
+    let storage_key = StorageKey(twox_128(&nonce_key[..]).to_vec());
 
-    ros::init();
-    ipfs::init();
-
-    let info_maker = client.clone();
-    let _demand = ros::subscribe("liability/demand", move |v: msg::std_msgs::String| {
-        let block = info_maker.info().unwrap().best_number;
+    stream.for_each(move |call| {
+        let block_id = BlockId::hash(client.backend().blockchain().info().unwrap().best_hash);
+        let nonce = if let Some(storage_data) = client.storage(&block_id, &storage_key).unwrap() {
+            let nonce: Nonce = Decode::decode(&mut &storage_data.0[..]).unwrap();
+            Compact::<Nonce>::from(nonce)
+        } else {
+            Compact::<Nonce>::from(0)
+        };
         let payload = (
-            Compact::<Nonce>::from(0),
-            Call::Robonomics(RobonomicsCall::demand(vec![0, 1], vec![2, 3], 42)),
+            nonce,
+            Call::Robonomics(call),
             Era::immortal(),
-            info_maker.genesis_hash(),
+            client.genesis_hash(),
         );
         let signature = key.sign(&payload.encode());
         let extrinsic = UncheckedExtrinsic::new_signed(
             payload.0.into(),
             payload.1,
-            local_id.into(),
+            local_id.clone().into(),
             signature.into(),
-            payload.2
+            payload.2,
         );
-        let xt: ExtrinsicFor<A> = Decode::decode(&mut &extrinsic.encode()[..]).unwrap();
-        //println!("check: {:?}", extrinsic.check());
-        println!("result: {:?}", pool.submit_one(&BlockId::number(block), xt));
-    }).unwrap();
+        let xt: ExtrinsicFor<P> = Decode::decode(&mut &extrinsic.encode()[..]).unwrap();
+        let res = pool.submit_one(&block_id, xt);
+        debug!("submission result: {:?}", res); 
+        Ok(())
+    })
+}
 
-    let _offer = ros::subscribe("liability/offer", |v: msg::std_msgs::String| {
-    }).unwrap();
+fn event_stream<B, C>(
+    client: Arc<C>,
+) -> impl Future<Item=(),Error=()> where
+    C: BlockchainEvents<B>,
+    B: Block,
+{
+    let demand_pub = ros::publish("liability/demand/incoming", QUEUE_SIZE).unwrap();
+    let offer_pub = ros::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
+    let liability_pub = ros::publish("liability/incoming", QUEUE_SIZE).unwrap();
 
-    let mut hash_pub = ros::publish("blockchain/best_hash").unwrap();
-    let mut number_pub = ros::publish("blockchain/best_number").unwrap();
-    let mut peers_pub = ros::publish("network/peers").unwrap();
-    let mut liability_pub = ros::publish("liability/new").unwrap();
-
-    let events_key = StorageKey(runtime_io::twox_128(b"System Events").to_vec());
-    let storage_stream = client.storage_changes_notification_stream(Some(&[events_key])).unwrap()
+    let events_key = StorageKey(twox_128(b"System Events").to_vec());
+    client.storage_changes_notification_stream(Some(&[events_key])).unwrap()
         .map(|(block, changes)| StorageChangeSet { block, changes: changes.iter().cloned().collect()})
         .for_each(move |change_set| {
-            let records: Vec<Vec<EventRecord<Event>>> = change_set.changes
-                .iter()
+            // Decode events from change set
+            let records: Vec<Vec<EventRecord<Event>>> = change_set.changes.iter()
                 .filter_map(|(_, mbdata)| if let Some(StorageData(data)) = mbdata {
                     Decode::decode(&mut &data[..])
                 } else { None })
                 .collect();
-            let events: Vec<Event> = records
-                .concat()
-                .iter()
-                .cloned()
-                .map(|r| r.event)
-                .collect();
-            //println!("changes: {:?}", events);
+            let events: Vec<Event> = records.concat().iter().cloned().map(|r| r.event).collect();
+
+            // Iterate and dispatch events
             events.iter().for_each(|event| {
-                if let Event::robonomics(e) = event {
-                    match e {
-                        RawEvent::NewDemand(hash, demand) => println!("NewDemand: {:?} {:?}", hash, demand),
-                        RawEvent::NewOffer(hash, offer) => println!("NewOffer: {:?} {:?}", hash, offer),
-                        RawEvent::NewLiability(id, liability) => {
-                            println!("NewLiability: {:?} {:?}", id, liability);
-                            let mut liability_msg = msg::std_msgs::UInt64::default();
-                            liability_msg.data = *id;
-                            liability_pub.send(liability_msg).unwrap();
+                if let Event::robonomics(e) = event { match e {
+                    RawEvent::NewDemand(hash, demand) => {
+                        debug!("NewDemand: {:?} {:?}", hash, demand);
+                        let mut msg = msg::robonomics_msgs::Demand::default();
+                        let model = bs58::encode(&demand.order.model);
+                        let objective = bs58::encode(&demand.order.objective);
 
-                            if liability.promisor == local_id {
-                                let objective_s = bs58::encode(&liability.order.objective).into_string();
-                                println!("EXECUTOR: liability.objective is {:?}", objective_s);
-                                let ipfs_task = ipfs::read_file(&objective_s);
-                                executor.spawn(ipfs_task.map(move |_| {
-                                    let mut player = RosbagPlayer::new(&objective_s);
-                                    player.play_rosbag();
-                                }));
-                            }
-                        },
-                        _ => ()
-                    }
+                        msg.order.model     = model.into_string();
+                        msg.order.objective = objective.into_string();
+                        msg.order.cost      = demand.order.cost.to_string();
+                        msg.sender          = demand.sender.to_ss58check();
+
+                        demand_pub.send(msg).unwrap();
+                    },
+
+                    RawEvent::NewOffer(hash, offer) => {
+                        debug!("NewOffer: {:?} {:?}", hash, offer);
+                        let mut msg = msg::robonomics_msgs::Offer::default();
+                        let model = bs58::encode(&offer.order.model);
+                        let objective = bs58::encode(&offer.order.objective);
+
+                        msg.order.model     = model.into_string();
+                        msg.order.objective = objective.into_string();
+                        msg.order.cost      = offer.order.cost.to_string();
+                        msg.sender          = offer.sender.to_ss58check();
+
+                        offer_pub.send(msg).unwrap();
+                    },
+
+                    RawEvent::NewLiability(id, liability) => {
+                        debug!("NewLiability: {:?} {:?}", id, liability);
+                        let mut msg = msg::robonomics_msgs::Liability::default();
+                        let model = bs58::encode(&liability.order.model);
+                        let objective = bs58::encode(&liability.order.objective);
+
+                        msg.id              = id.to_string();
+                        msg.order.model     = model.into_string();
+                        msg.order.objective = objective.into_string();
+                        msg.order.cost      = liability.order.cost.to_string();
+                        msg.promisee        = liability.promisee.to_ss58check();
+                        msg.promisor        = liability.promisor.to_ss58check();
+
+                        liability_pub.send(msg).unwrap();
+                    },
+
+                    _ => ()
                 }
-            });
-            Ok(())
+            }
         });
+        Ok(())
+    })
+}
 
-    let import_stream = client.import_notification_stream().for_each(move |block| {
+fn status_stream<B, C, N>(
+    client: Arc<C>,
+    network: Arc<N>,
+) -> impl Future<Item=(),Error=()> where
+    C: BlockchainEvents<B> + HeaderBackend<B>,
+    N: SyncProvider<B>,
+    B: Block,
+{
+    let mut hash_pub = ros::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
+    let mut number_pub = ros::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
+    let mut peers_pub = ros::publish("network/peers", QUEUE_SIZE).unwrap();
+
+    client.import_notification_stream().for_each(move |block| {
         if block.is_new_best {
             let mut hash_msg = msg::std_msgs::String::default(); 
             hash_msg.data = block.header.hash().to_string();
@@ -169,21 +232,72 @@ pub fn start_ros<A, B, C, N>(
             let mut number_msg = msg::std_msgs::UInt64::default();
 		    number_msg.data = block.header.number().as_();
             number_pub.send(number_msg).unwrap();
-
-            if let Ok(Some(xts)) = client.block_body(&BlockId::hash(block.hash)) {
-                let decoded: Vec<UncheckedExtrinsic> = xts
-                    .iter()
-                    .map(|xt| Decode::decode(&mut &xt.encode()[..]).unwrap())
-                    .collect();
-                //println!("{:?}", decoded);
-            }
         }
         Ok(())
-    });
- 
-    import_stream
-        .join(storage_stream)
+    })
+}
+
+pub fn start_ros_api<N, B, E, P, RA>(
+    network: Arc<N>,
+    client: Arc<Client<B, E, P::Block, RA>>,
+    pool: Arc<Pool<P>>,
+    keystore: &Keystore,
+    on_exit: impl Future<Item=(),Error=()> + 'static,
+    executor: TaskExecutor,
+) -> impl Future<Item=(),Error=()> + 'static where
+    N: SyncProvider<P::Block> + 'static,
+    B: Backend<P::Block, Blake2Hasher> + 'static,
+    E: CallExecutor<P::Block, Blake2Hasher> + Send + Sync + 'static,
+    P: ChainApi + 'static,
+    RA: Send + Sync + 'static,
+    P::Block: Block<Hash=H256>,
+{
+    ros::init();
+    ipfs::init();
+
+    let key = sr25519::Pair::from_string("//Alice", None).unwrap(); 
+    let ros_account = key.public().to_ss58check();
+    println!("ROS account: {:?}", ros_account);
+
+    // Create extrinsics channel
+    let (tx, rx) = mpsc::unbounded();
+    let tx2 = tx.clone();
+
+    // Subscribe for sending demand extrinsics
+    let _demand = ros::subscribe("liability/demand/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
+        let model = bs58::decode(v.model).into_vec().unwrap();
+        let objective = bs58::decode(v.objective).into_vec().unwrap();
+        let cost = v.cost.parse().unwrap();
+        tx.unbounded_send(RobonomicsCall::demand(model, objective, cost)).unwrap();
+    }).expect("failed to create demand subscriber");
+
+    // Subscribe for sending offer extrinsics
+    let _offer = ros::subscribe("liability/offer/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
+        println!("Send offer {:?}", v.cost);
+        let model = bs58::decode(v.model).into_vec().unwrap();
+        let objective = bs58::decode(v.objective).into_vec().unwrap();
+        let cost = v.cost.parse().unwrap();
+        tx2.unbounded_send(RobonomicsCall::offer(model, objective, cost)).unwrap();
+    }).expect("failed to create demand subscriber");
+
+    // Subscribe for execute local liabilities
+    let _liability = ros::subscribe("liability/incoming", QUEUE_SIZE, move |v: msg::robonomics_msgs::Liability| {
+        // Primitive liability engine
+        if v.promisor == ros_account {
+            println!("liability.objective is {:?}", v.order.objective);
+            let objective_s = v.order.objective.clone();
+            let ipfs_task = ipfs::read_file(objective_s.as_str());
+            let task = ipfs_task.then(move |_|
+                RosbagPlayer::new(objective_s.as_str()).play_rosbag().map_err(|_| ())
+            );
+            executor.spawn(task);
+        }
+    }).expect("failed to create liability subscriber");
+
+    extrinsic_stream(client.clone(), key, pool, rx)
+        .join(event_stream(client.clone()))
+        .join(status_stream(client, network))
         .map(|_| ())
         .select(on_exit)
-        .then(move |_| { _demand; _offer; Ok(()) })
+        .then(move |_| { _demand; _offer; _liability; Ok(()) })
 }

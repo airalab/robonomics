@@ -30,7 +30,7 @@ use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration, Nothing
 use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
 use transaction_pool::{self, txpool::{Pool as TransactionPool}};
 use inherents::InherentDataProviders;
-use primitives::ed25519::Pair;
+use primitives::{Pair as _Pair, ed25519::Pair};
 use std::sync::Arc;
 use grandpa;
 use client;
@@ -80,13 +80,13 @@ construct_service_factory! {
                 let service = FullComponents::<Factory>::new(config, executor.clone()).unwrap();
 
                 #[cfg(feature = "ros")]
-                executor.spawn(ros_integration::start_ros(
+                executor.spawn(ros_integration::start_ros_api(
                     service.network(),
                     service.client(),
                     service.transaction_pool(),
                     service.keystore(),
                     service.on_exit(),
-                    executor.clone()
+                    executor.clone(),
                 ));
 
                 Ok(service)

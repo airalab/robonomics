@@ -37,7 +37,6 @@ extern crate parity_codec;
 extern crate parity_codec_derive;
 #[macro_use]
 extern crate sr_version as version;
-extern crate srml_fees as fees;
 extern crate srml_sudo as sudo;
 extern crate srml_aura as aura;
 extern crate srml_system as system;
@@ -58,10 +57,10 @@ pub mod robonomics;
 use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
-use primitives::{Ed25519AuthorityId, OpaqueMetadata};
+use primitives::OpaqueMetadata;
 use runtime_primitives::{
-    ApplyResult, transaction_validity::TransactionValidity, Ed25519Signature, generic,
-    traits::{self, Verify, Convert, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
+    ApplyResult, transaction_validity::TransactionValidity, generic,
+    traits::{self, Verify, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
 };
 use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
@@ -81,14 +80,22 @@ pub use robonomics::Call as RobonomicsCall;
 pub use runtime_primitives::{Permill, Perbill};
 pub use srml_support::StorageValue;
 pub use timestamp::BlockPeriod;
+pub use staking::StakerStatus;
 pub use system::EventRecord;
 
 /// Alias to 512-bit hash when used in the context of a signature on the chain.
-pub type Signature = Ed25519Signature;
+pub type Signature = primitives::sr25519::Signature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <Signature as Verify>::Signer;
+
+/// Alias to 512-bit hash when used in the context of a session signature on the chain.
+pub type AuthoritySignature = primitives::ed25519::Signature;
+
+/// The Ed25519 pub key of an session that belongs to an authority of the chain. This is
+/// exactly equivalent to what the substrate calls an "authority".
+pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
@@ -96,10 +103,6 @@ pub type AccountIndex = u32;
 
 /// Balance of an account.
 pub type Balance = u128;
-
-/// The Ed25519 pub key of an session that belongs to an authority of the chain. This is
-/// exactly equivalent to what the substrate calls an "authority".
-pub type SessionKey = primitives::Ed25519AuthorityId;
 
 /// A hash of some data used by the chain.
 pub type Hash = primitives::H256;
@@ -127,13 +130,13 @@ pub mod opaque {
         }
     }
     /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, SessionKey>>;
+    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, AuthorityId, AuthoritySignature>>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
     /// Opaque session key type.
-    pub type SessionKey = Ed25519AuthorityId;
+    pub type SessionKey = AuthorityId;
 }
 
 /// This runtime version.
@@ -141,8 +144,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
     authoring_version: 1,
-    spec_version: 20,
-    impl_version: 20,
+    spec_version: 21,
+    impl_version: 21,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -192,7 +195,7 @@ impl aura::Trait for Runtime {
 
 impl consensus::Trait for Runtime {
     /// The identifier we use to refer to authorities.
-    type SessionKey = SessionKey;
+    type SessionKey = AuthorityId;
     // The aura module handles offline-reports internally
     // rather than using an explicit report system.
     type InherentOfflineReport = ();
@@ -221,54 +224,64 @@ impl balances::Trait for Runtime {
     type OnNewAccount = Indices;
     /// The uniquitous event type.
     type Event = Event;
-}
-
-impl fees::Trait for Runtime {
-	type TransferAsset = Balances;
-	type Event = Event;
-}
-
-/// Session key conversion.
-pub struct SessionKeyConversion;
-impl Convert<AccountId, SessionKey> for SessionKeyConversion {
-    fn convert(a: AccountId) -> SessionKey {
-        a.to_fixed_bytes().into()
-    }
+    /// TODO
+    type TransactionPayment = ();
+    /// TODO
+    type DustRemoval = ();
+    /// TODO
+    type TransferPayment = ();
 }
 
 impl session::Trait for Runtime {
-    type ConvertAccountIdToSessionKey = SessionKeyConversion;
+    /// TODO
+    type ConvertAccountIdToSessionKey = ();
+    /// TODO
     type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
+    /// TODO
     type Event = Event;
 }
 
 impl staking::Trait for Runtime {
+    /// TODO
     type Currency = balances::Module<Self>;
+    /// TODO
     type OnRewardMinted = ();
+    /// The uniquitous event type.
     type Event = Event;
+    /// TODO
+    type Slash = ();
+    /// TODO
+    type Reward = ();
 }
 
 impl grandpa::Trait for Runtime {
-    type SessionKey = SessionKey;
+    /// TODO
+    type SessionKey = AuthorityId;
+    /// TODO
     type Log = Log;
+    /// The uniquitous event type.
     type Event = Event;
 }
 
 impl finality_tracker::Trait for Runtime {
+    /// TODO
     type OnFinalizationStalled = grandpa::SyncedAuthorities<Runtime>;
 }
 
 impl sudo::Trait for Runtime {
-    type Event = Event;
+    /// TODO
     type Proposal = Call;
+    /// The uniquitous event type.
+    type Event = Event;
 }
 
 impl robonomics::Trait for Runtime {
+    /// The uniquitous event type.
     type Event = Event;
 }
 
 construct_runtime!(
-    pub enum Runtime with Log(InternalLog: DigestItem<Hash, SessionKey>) where
+    pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId, AuthoritySignature>) where
         Block = Block,
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
@@ -283,7 +296,6 @@ construct_runtime!(
         Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
         Indices: indices,
         Balances: balances,
-        Fees: fees::{Module, Storage, Config<T>, Event<T>},
         Sudo: sudo,
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
@@ -300,11 +312,11 @@ pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedMortalCompactExtrinsic<Address, Nonce, Call, Ed25519Signature>;
+pub type UncheckedExtrinsic = generic::UncheckedMortalCompactExtrinsic<Address, Nonce, Call, Signature>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = executive::Executive<Runtime, Block, Context, Fees, AllModules>;
+pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -313,7 +325,7 @@ impl_runtime_apis! {
             VERSION
         }
 
-        fn authorities() -> Vec<SessionKey> {
+        fn authorities() -> Vec<AuthorityId> {
             Consensus::authorities()
         }
 
@@ -388,7 +400,7 @@ impl_runtime_apis! {
             None
         }
 
-        fn grandpa_authorities() -> Vec<(SessionKey, u64)> {
+        fn grandpa_authorities() -> Vec<(AuthorityId, u64)> {
             Grandpa::grandpa_authorities()
         }
     }

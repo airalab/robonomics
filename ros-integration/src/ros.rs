@@ -41,20 +41,20 @@ pub fn init() {
 }
 
 #[inline]
-pub fn subscribe<T, F>(topic: &str, callback: F) -> Result<Subscriber>
+pub fn subscribe<T, F>(topic: &str, queue_size: usize, callback: F) -> Result<Subscriber>
 where
     F: Fn(T) -> () + Send + 'static,
-    T: Message
+    T: Message,
 {
-    ros!().subscribe::<T, F>(topic, callback)
+    ros!().subscribe::<T, F>(topic, queue_size, callback)
 }
 
 #[inline]
-pub fn publish<T>(topic: &str) -> Result<Publisher<T>>
+pub fn publish<T>(topic: &str, queue_size: usize) -> Result<Publisher<T>>
 where
     T: Message
 {
-    ros!().publish::<T>(topic)
+    ros!().publish::<T>(topic, queue_size)
 }
 
 #[inline]

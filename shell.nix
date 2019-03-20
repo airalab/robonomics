@@ -15,7 +15,7 @@ in
     name = "substrate-nix-shell";
     buildInputs = [
       rust wasm-gc pkgconfig openssl clang
-      ros_comm std_msgs
+      (callPackage ./robonomics_msgs { })
     ];
     LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   }

@@ -17,16 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use primitives::{Ed25519AuthorityId as AuthorityId, ed25519};
+use primitives::{ed25519, sr25519, crypto::Pair, crypto::Ss58Codec};
 use robonomics_runtime::{
     GenesisConfig, ConsensusConfig, SessionConfig, StakingConfig, TimestampConfig,
-    IndicesConfig, BalancesConfig, FeesConfig, GrandpaConfig, SudoConfig,
-    AccountId, Perbill
+    IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
+    AccountId, AuthorityId, Perbill, StakerStatus
 };
 use substrate_service::{self, Properties};
 use serde_json::json;
 
-use substrate_keystore::pad_seed;
 use substrate_telemetry::TelemetryEndpoints;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -67,23 +66,26 @@ impl ChainOpt {
     }
 }
 
-/// Helper function to generate AuthorityID from seed
+/// Helper function to generate AccountId from seed
 pub fn get_account_id_from_seed(seed: &str) -> AccountId {
-    let padded_seed = pad_seed(seed);
-    // NOTE from ed25519 impl:
-    // prefer pkcs#8 unless security doesn't matter -- this is used primarily for tests.
-    ed25519::Pair::from_seed(&padded_seed).public().0.into()
+    sr25519::Pair::from_string(&format!("//{}", seed), None)
+        .expect("static values are valid; qed")
+        .public()
+}
+
+/// Helper function to generate AuthorityId from seed
+pub fn get_session_key_from_seed(seed: &str) -> AuthorityId {
+    ed25519::Pair::from_string(&format!("//{}", seed), None)
+        .expect("static values are valid; qed")
+        .public()
 }
 
 /// Helper function to generate stash, controller and session key from seed
 pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, AuthorityId) {
-    let padded_seed = pad_seed(seed);
-    // NOTE from ed25519 impl:
-    // prefer pkcs#8 unless security doesn't matter -- this is used primarily for tests.
     (
-        get_account_id_from_seed(&format!("{}-stash", seed)),
+        get_account_id_from_seed(&format!("{}//stash", seed)),
         get_account_id_from_seed(seed),
-        ed25519::Pair::from_seed(&padded_seed).public().0.into()
+        get_session_key_from_seed(seed)
     )
 }
 
@@ -125,16 +127,18 @@ pub fn testnet_genesis(
         }),
         balances: Some(BalancesConfig {
             existential_deposit: 1 * COASE,
+            transaction_base_fee: 1 * GLUSHKOV,
+            transaction_byte_fee: 50 * COASE,
             transfer_fee: 0,
             creation_fee: 0,
             balances: endowed_accounts.iter()
-                .map(|&k| (k, ENDOWMENT))
+                .map(|k| (k.clone(), ENDOWMENT))
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
             vesting: vec![],
         }),
         session: Some(SessionConfig {
-            validators: initial_authorities.iter().map(|x| x.1.into()).collect(),
+            validators: initial_authorities.iter().map(|x| x.1.clone()).collect(),
             session_length: 15,
             keys: initial_authorities.iter().map(|x| (x.1.clone(), x.2.clone())).collect::<Vec<_>>(),
         }),
@@ -149,8 +153,9 @@ pub fn testnet_genesis(
             current_offline_slash: 0,
             current_session_reward: 0,
             offline_slash_grace: 4,
-            stakers: initial_authorities.iter().map(|x| (x.0.into(), x.1.into(), STASH)).collect(),
-            invulnerables: initial_authorities.iter().map(|x| x.1.into()).collect(),
+            stakers: initial_authorities.iter()
+                .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)).collect(),
+            invulnerables: initial_authorities.iter().map(|x| x.1.clone()).collect(),
         }),
         timestamp: Some(TimestampConfig {
             period: SECS_PER_BLOCK / 2,
@@ -160,10 +165,6 @@ pub fn testnet_genesis(
         }),
         grandpa: Some(GrandpaConfig {
             authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
-        }),
-        fees: Some(FeesConfig {
-            transaction_base_fee: 1 * GLUSHKOV,
-            transaction_byte_fee: 50 * COASE,
         }),
     }
 }
@@ -175,20 +176,26 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_stash   = ed25519::Public::from_ss58check("5HairafECXZHE4VBPwz2r5BVEYjK2MjGE5bRDL451BSCsfED").unwrap().0;
-    let aira_control = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewFQv").unwrap().0;
-    let akru_stash   = ed25519::Public::from_ss58check("5HakruKnWQWa36am44tKu9hwDjkYCzaravUqjkerfpY6pQHi").unwrap().0;
-    let akru_control = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap().0;
-    let khssnv_stash   = ed25519::Public::from_ss58check("5DKhSUPRtrPuNcH3a4WRkWpeWBhKrNpRzWTykmCELHV6dhRs").unwrap().0;
-    let khssnv_control = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZ6VR").unwrap().0;
+    let aira_auth      = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewFQv").unwrap();
+    let aira_stash     = sr25519::Public::from_ss58check("5HairaMoMPBrdEmRpcrjYD4ehAWY9TbW1pfM7jCuZ2xeo1ad").unwrap();
+    let aira_control   = sr25519::Public::from_ss58check("5Caira8TgPmPSa8bvnDswvaC3wneZLcd6452c5mnoXHxgyAH").unwrap();
+
+    let akru_auth      = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap();
+    let akru_stash     = sr25519::Public::from_ss58check("5Hakru6fU7UzK16UmKjsLqU7tkC7DmknAaeNVNCJfWMygvRc").unwrap();
+    let akru_control   = sr25519::Public::from_ss58check("5HakruTf8cNGNQPJEWuo4W4L5REL8YrsUv1umFg7KpqsWqGo").unwrap();
+
+    let khssnv_auth    = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZ6VR").unwrap();
+    let khssnv_stash   = sr25519::Public::from_ss58check("5EZXDc1YpNnK1fXzzre9MqauzmzoH5RjsCfxxBK5hfhSobFf").unwrap();
+    let khssnv_control = sr25519::Public::from_ss58check("5FCS8tQPJmYHimcu8m9f7kNMKetDwjv8V8ys1RQmCVsnfeHr").unwrap();
+
     testnet_genesis(
         vec![
-          (aira_stash.into(), aira_control.into(), aira_control.into()),
-          (akru_stash.into(), akru_control.into(), akru_control.into()),
-          (khssnv_stash.into(), khssnv_control.into(), khssnv_control.into()),
+          (aira_stash, aira_control.clone(), aira_auth),
+          (akru_stash, akru_control.clone(), akru_auth),
+          (khssnv_stash, khssnv_control.clone(), khssnv_auth),
         ],
-        akru_control.into(),
-        Some(vec![aira_control.into(), akru_control.into(), khssnv_control.into()]),
+        akru_control.clone(),
+        Some(vec![aira_control, akru_control, khssnv_control]),
     )
 }
 
