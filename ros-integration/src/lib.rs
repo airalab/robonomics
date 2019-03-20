@@ -56,7 +56,6 @@ use primitives::{
     storage::{StorageKey, StorageData, StorageChangeSet}
 };
 use transaction_pool::txpool::{ChainApi, Pool, ExtrinsicFor};
-use substrate_service::TaskExecutor;
 
 use robonomics_runtime::{
     AccountId, Call, UncheckedExtrinsic, EventRecord, Event,
@@ -77,12 +76,31 @@ mod msg {
       , std_msgs / String
       , robonomics_msgs / Demand 
       , robonomics_msgs / Offer
+      , robonomics_msgs / Finalize
       , robonomics_msgs / Liability
     );
 }
 
+/// ROS Pub/Sub queue size.
+/// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
 const QUEUE_SIZE: usize = 10;
 
+/// Simple liability engine.
+fn liability_stream(
+    stream: mpsc::UnboundedReceiver<msg::robonomics_msgs::Liability>,
+    ros_account: String,
+) -> impl Future<Item=(),Error=()> {
+    stream
+        .filter(move |liability| liability.promisor == ros_account)
+        .for_each(|liability| {
+            ipfs::read_file(liability.order.objective.as_str()).then(move |_| {
+                let player = RosbagPlayer::new(liability.order.objective.as_str());
+                player.play_rosbag().map_err(|_| ())
+            })
+        })
+}
+
+/// Robonomics extrinsic sender.
 fn extrinsic_stream<B, E, P, RA>(
     client: Arc<Client<B, E, P::Block, RA>>,
     key: sr25519::Pair,
@@ -130,8 +148,10 @@ fn extrinsic_stream<B, E, P, RA>(
     })
 }
 
+/// Storage event listener.
 fn event_stream<B, C>(
     client: Arc<C>,
+    liability_tx: mpsc::UnboundedSender<msg::robonomics_msgs::Liability>,
 ) -> impl Future<Item=(),Error=()> where
     C: BlockchainEvents<B>,
     B: Block,
@@ -189,14 +209,17 @@ fn event_stream<B, C>(
                         let model = bs58::encode(&liability.order.model);
                         let objective = bs58::encode(&liability.order.objective);
 
-                        msg.id              = id.to_string();
+                        msg.id              = *id;
                         msg.order.model     = model.into_string();
                         msg.order.objective = objective.into_string();
                         msg.order.cost      = liability.order.cost.to_string();
                         msg.promisee        = liability.promisee.to_ss58check();
                         msg.promisor        = liability.promisor.to_ss58check();
 
-                        liability_pub.send(msg).unwrap();
+                        liability_pub.send(msg.clone()).unwrap();
+                        
+                        // Send new liability to engine
+                        liability_tx.unbounded_send(msg).unwrap();
                     },
 
                     _ => ()
@@ -207,6 +230,7 @@ fn event_stream<B, C>(
     })
 }
 
+/// Robonomics node status.
 fn status_stream<B, C, N>(
     client: Arc<C>,
     network: Arc<N>,
@@ -215,9 +239,9 @@ fn status_stream<B, C, N>(
     N: SyncProvider<B>,
     B: Block,
 {
-    let mut hash_pub = ros::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
-    let mut number_pub = ros::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
-    let mut peers_pub = ros::publish("network/peers", QUEUE_SIZE).unwrap();
+    let hash_pub = ros::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
+    let number_pub = ros::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
+    let peers_pub = ros::publish("network/peers", QUEUE_SIZE).unwrap();
 
     client.import_notification_stream().for_each(move |block| {
         if block.is_new_best {
@@ -237,13 +261,13 @@ fn status_stream<B, C, N>(
     })
 }
 
+/// ROS API main routine.
 pub fn start_ros_api<N, B, E, P, RA>(
     network: Arc<N>,
     client: Arc<Client<B, E, P::Block, RA>>,
     pool: Arc<Pool<P>>,
     keystore: &Keystore,
     on_exit: impl Future<Item=(),Error=()> + 'static,
-    executor: TaskExecutor,
 ) -> impl Future<Item=(),Error=()> + 'static where
     N: SyncProvider<P::Block> + 'static,
     B: Backend<P::Block, Blake2Hasher> + 'static,
@@ -260,44 +284,48 @@ pub fn start_ros_api<N, B, E, P, RA>(
     println!("ROS account: {:?}", ros_account);
 
     // Create extrinsics channel
-    let (tx, rx) = mpsc::unbounded();
-    let tx2 = tx.clone();
+    let (demand_tx, extrinsic_rx) = mpsc::unbounded();
+    let offer_tx = demand_tx.clone();
+    let finalize_tx = demand_tx.clone();
 
     // Subscribe for sending demand extrinsics
-    let _demand = ros::subscribe("liability/demand/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
+    let demand = ros::subscribe("liability/demand/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
         let model = bs58::decode(v.model).into_vec().unwrap();
         let objective = bs58::decode(v.objective).into_vec().unwrap();
         let cost = v.cost.parse().unwrap();
-        tx.unbounded_send(RobonomicsCall::demand(model, objective, cost)).unwrap();
+        demand_tx.unbounded_send(RobonomicsCall::demand(model, objective, cost)).unwrap();
     }).expect("failed to create demand subscriber");
 
     // Subscribe for sending offer extrinsics
-    let _offer = ros::subscribe("liability/offer/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
-        println!("Send offer {:?}", v.cost);
+    let offer = ros::subscribe("liability/offer/send", QUEUE_SIZE, move |v: msg::robonomics_msgs::Order| {
         let model = bs58::decode(v.model).into_vec().unwrap();
         let objective = bs58::decode(v.objective).into_vec().unwrap();
         let cost = v.cost.parse().unwrap();
-        tx2.unbounded_send(RobonomicsCall::offer(model, objective, cost)).unwrap();
+        offer_tx.unbounded_send(RobonomicsCall::offer(model, objective, cost)).unwrap();
     }).expect("failed to create demand subscriber");
 
-    // Subscribe for execute local liabilities
-    let _liability = ros::subscribe("liability/incoming", QUEUE_SIZE, move |v: msg::robonomics_msgs::Liability| {
-        // Primitive liability engine
-        if v.promisor == ros_account {
-            println!("liability.objective is {:?}", v.order.objective);
-            let objective_s = v.order.objective.clone();
-            let ipfs_task = ipfs::read_file(objective_s.as_str());
-            let task = ipfs_task.then(move |_|
-                RosbagPlayer::new(objective_s.as_str()).play_rosbag().map_err(|_| ())
-            );
-            executor.spawn(task);
-        }
+    // Finalize liability
+    let finalize = ros::subscribe("liability/finalize", QUEUE_SIZE, move |v: msg::robonomics_msgs::Finalize| {
+        let result = bs58::decode(v.result).into_vec().unwrap();
+        finalize_tx.unbounded_send(RobonomicsCall::finalize(v.id, result)).unwrap();
     }).expect("failed to create liability subscriber");
 
-    extrinsic_stream(client.clone(), key, pool, rx)
-        .join(event_stream(client.clone()))
+    // Create liability channel
+    let (liability_tx, liability_rx) = mpsc::unbounded();
+
+    // Store subscribers in vector
+    let subs = vec![demand, offer, finalize];
+
+    extrinsic_stream(client.clone(), key, pool, extrinsic_rx)
+        .join(liability_stream(liability_rx, ros_account))
+        .join(event_stream(client.clone(), liability_tx))
         .join(status_stream(client, network))
         .map(|_| ())
         .select(on_exit)
-        .then(move |_| { _demand; _offer; _liability; Ok(()) })
+        .then(move |_| {
+            // move subscribers to this closure
+            // subscribers must not be removed until exit
+            subs;
+            Ok(())
+        })
 }

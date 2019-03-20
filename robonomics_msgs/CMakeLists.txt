@@ -51,6 +51,7 @@ add_message_files(
         Order.msg
         Demand.msg
         Offer.msg
+        Finalize.msg
         Liability.msg
 )
 
