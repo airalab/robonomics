@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import rospy
+import rosbag
+from std_msgs.msg import String
+from robonomics_msgs.msg import Liability
+
+
+class WorkerNode:
+    def __init__(self):
+        rospy.init_node('worker')
+        rospy.loginfo('Launching worker node...')
+        rospy.Subscriber('/liability/incoming', Liability, self.on_new_liability)
+        rospy.Subscriber('/turtle1/cmd', String, self.on_cmd)
+        rospy.loginfo('Worker node launched.')
+
+    def on_new_liability(self, liability: Liability):
+        rospy.loginfo('New liability incoming:')
+        rospy.loginfo(liability)
+
+    def on_cmd(self, cmd: String):
+        rospy.loginfo('New cmd:')
+        rospy.loginfo(cmd)
+        if 'please' in cmd.data: # if asked polite
+            with rosbag.Bag('./twist.bag', 'r') as bag:
+                msgs = bag.read_messages()
+                pub = False
+                for t, m, ts in msgs:
+                    if not pub:
+                        pub = rospy.Publisher(t, m.__class__, queue_size=10)
+                        rospy.sleep(1)
+                    pub.publish(m)
+
+    def spin(self):
+        rospy.spin()
+
+if __name__ == '__main__':
+    WorkerNode().spin()
