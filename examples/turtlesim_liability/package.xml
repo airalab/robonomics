@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>turtlesim_liability</name>
+  <version>0.0.0</version>
+  <description>The turtlesim_liability package</description>
+
+  <author email="alisher@aira.life">Alisher A. Khassanov</author>
+  <maintainer email="alisher@aira.life">Alisher A. Khassanov</maintainer>
+
+  <license>Unlicense</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <exec_depend>rospy</exec_depend>
+
+  <export>
+  </export>
+</package>

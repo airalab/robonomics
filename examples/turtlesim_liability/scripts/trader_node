@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import rospy
+from robonomics_msgs.msg import Demand, Order
+
+
+class TraderNode:
+    def __init__(self):
+        rospy.init_node('trader')
+        rospy.loginfo('Launching trader node...')
+
+        self.offer = rospy.Publisher('/liability/offer/send', Order, queue_size=128)
+
+        def on_incoming_demand(incoming: Demand):
+            rospy.loginfo('Incoming:')
+            rospy.loginfo(incoming)
+            if incoming.order.model == rospy.get_param('~model'):
+                rospy.loginfo('For my model!')
+                self.make_offer(incoming.order.objective, incoming.order.cost)
+            else:
+                rospy.loginfo('Not for my model, skip.')
+        rospy.Subscriber('/liability/demand/incoming', Demand, on_incoming_demand)
+
+        rospy.loginfo('Trader node launched.')
+
+    def make_offer(self, objective, cost):
+        rospy.loginfo('Making offer...')
+        order = Order()
+        order.model = rospy.get_param('~model')
+        order.objective = objective
+        order.cost = cost
+        self.offer.publish(order)
+        rospy.loginfo('Order sent:')
+        rospy.loginfo(order)
+
+    def spin(self):
+        rospy.spin()
+
+
+if __name__ == '__main__':
+    TraderNode().spin()

@@ -1,0 +1,5 @@
+<launch>
+  <node name="trader" pkg="turtlesim_robonomics_substrate" type="trader_node" output="screen">
+    <param name="model" value="QmPVr7k4N2jNiCYjbvQWPcmxzm5jwY3ZHEuJMgbQLmPKvY" />
+  </node>
+</launch>
