@@ -49,6 +49,7 @@ extern crate srml_executive as executive;
 extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
 extern crate srml_finality_tracker as finality_tracker;
+extern crate substrate_offchain_primitives as offchain_primitives;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
 
 
@@ -369,6 +370,12 @@ impl_runtime_apis! {
     impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             Executive::validate_transaction(tx)
+        }
+    }
+
+    impl offchain_primitives::OffchainWorkerApi<Block> for Runtime {
+        fn offchain_worker(number: NumberFor<Block>) {
+            Executive::offchain_worker(number)
         }
     }
 

@@ -148,10 +148,9 @@ pub fn testnet_genesis(
             validator_count: 7,
             sessions_per_era: 60,
             bonding_duration: 60 * MINUTES,
+            current_session_reward: 0,
             session_reward: Perbill::from_millionths(200_000),
             offline_slash: Perbill::from_millionths(1_000_000),
-            current_offline_slash: 0,
-            current_session_reward: 0,
             offline_slash_grace: 4,
             stakers: initial_authorities.iter()
                 .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)).collect(),

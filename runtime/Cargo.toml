@@ -31,6 +31,7 @@ srml-finality-tracker = { git = "https://github.com/paritytech/substrate" }
 substrate-client = { git = "https://github.com/paritytech/substrate", optional = true }
 substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
+substrate-offchain-primitives = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura-primitives = { git = "https://github.com/paritytech/substrate" }
 
 [features]

@@ -152,7 +152,6 @@ decl_storage! {
     }
 }
 
-/// Event for this module.
 decl_event! {
     pub enum Event<T>
         where <T as system::Trait>::Hash,

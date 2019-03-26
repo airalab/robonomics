@@ -26,6 +26,7 @@ use substrate_service::{
     FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
     TaskExecutor,
 };
+use primitives::ed25519;
 use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration, NothingExtra};
 use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
 use transaction_pool::{self, txpool::{Pool as TransactionPool}};
@@ -36,7 +37,6 @@ use grandpa;
 use client;
 
 pub use substrate_executor::NativeExecutor;
-/// Robonomics runtime native executor instance.
 native_executor_instance!(
     pub Executor,
     robonomics_runtime::api::dispatch,
@@ -100,6 +100,7 @@ construct_service_factory! {
                     let proposer = Arc::new(basic_authorship::ProposerFactory {
                         client: service.client(),
                         transaction_pool: service.transaction_pool(),
+                        inherents_pool: service.inherents_pool(),
                     });
                     let client = service.client();
                     executor.spawn(start_aura(
@@ -111,6 +112,7 @@ construct_service_factory! {
                         service.network(),
                         service.on_exit(),
                         service.config.custom.inherent_data_providers.clone(),
+                        service.config.force_authoring,
                     )?);
 
                     info!("Running Grandpa session as Authority {}", key.public());
@@ -146,7 +148,7 @@ construct_service_factory! {
 
                 config.custom.grandpa_import_setup = Some((block_import.clone(), link_half));
 
-                import_queue(
+                import_queue::<_, _, _, ed25519::Pair>(
                     slot_duration,
                     block_import,
                     Some(justification_import),
@@ -157,7 +159,7 @@ construct_service_factory! {
             }},
         LightImportQueue = AuraImportQueue<Self::Block>
             { |config: &mut FactoryFullConfiguration<Self>, client: Arc<LightClient<Self>>|
-                import_queue(
+                import_queue::<_, _, _, ed25519::Pair>(
                     SlotDuration::get_or_compute(&*client)?,
                     client.clone(),
                     None,
