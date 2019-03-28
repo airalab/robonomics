@@ -18,9 +18,13 @@
 //! The Robonomics substrate module. This can be compiled with `#[no_std]`, ready for Wasm.
 
 use rstd::vec::Vec;
+use parity_codec::Codec;
+use system::ensure_signed;
 use runtime_primitives::traits::*;
-use srml_support::{StorageValue, StorageMap, dispatch::Result};
-use {balances, system::{self, ensure_signed}};
+use srml_support::{
+    StorageValue, StorageMap, Parameter,
+    traits::{ReservableCurrency, Currency}, dispatch::Result
+};
 
 /// Order params.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
@@ -34,7 +38,7 @@ pub struct Order<Balance> {
 /// Offer message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-pub struct Offer<Balance, AccountId> {
+pub struct Offer<Balance,AccountId> {
     pub order: Order<Balance>,
     pub sender: AccountId
 }
@@ -42,7 +46,7 @@ pub struct Offer<Balance, AccountId> {
 /// Demand message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-pub struct Demand<Balance, AccountId> {
+pub struct Demand<Balance,AccountId> {
     pub order: Order<Balance>,
     pub sender: AccountId
 }
@@ -50,23 +54,28 @@ pub struct Demand<Balance, AccountId> {
 /// Liability descriptive parameters.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-pub struct Liability<Balance, AccountId> {
+pub struct Liability<Balance,AccountId> {
     pub order: Order<Balance>,
     pub promisee: AccountId,
     pub promisor: AccountId,
     pub result: Option<Vec<u8>>
 }
 
-/// Liability index type.
-pub type LiabilityIndex = u64;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 
-pub trait Trait: balances::Trait {
+pub trait Trait: system::Trait {
+	/// Type used for storing an liability's index; implies the maximum number of liabilities
+    /// the system can hold.
+	type LiabilityIndex: Parameter + Member + Codec + Default + SimpleArithmetic + As<u8> + As<u16> + As<u32> + As<u64> + As<usize> + Copy;
+    /// Payment currency; implies the processing token for liability contract.
+	type Currency: ReservableCurrency<Self::AccountId>;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Trait> for enum Call where origin: T::Origin
+    {
         fn deposit_event<T>() = default;
 
         /// Send demand and create liability when matched.
@@ -74,7 +83,7 @@ decl_module! {
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
-            #[compact] cost: T::Balance
+            #[compact] cost: BalanceOf<T>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
@@ -82,14 +91,13 @@ decl_module! {
             let order_hash = T::Hashing::hash_of(&order);
             let demand = Demand { order, sender };
 
-            if let Some(offer) = Self::offer_of(order_hash) {
-                Self::create_liability(demand, offer);
-                <OfferOf<T>>::remove(order_hash);
+            if let Some(offer) = <OfferOf<T>>::mutate(order_hash, |v| v.pop()) {
+                Self::create_liability(demand, offer)
             } else {
                 Self::deposit_event(RawEvent::NewDemand(order_hash.clone(), demand.clone()));
-                <DemandOf<T>>::insert(order_hash, demand)
+                <DemandOf<T>>::mutate(order_hash, |v| v.push(demand));
+                Ok(())
             }
-            Ok(())
         }
         
         /// Send offer and create liability when matched.
@@ -97,7 +105,7 @@ decl_module! {
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
-            #[compact] cost: T::Balance
+            #[compact] cost: BalanceOf<T>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
@@ -105,20 +113,19 @@ decl_module! {
             let order_hash = T::Hashing::hash_of(&order);
             let offer = Offer { order, sender };
 
-            if let Some(demand) = Self::demand_of(order_hash) {
-                Self::create_liability(demand, offer);
-                <DemandOf<T>>::remove(order_hash);
+            if let Some(demand) = <DemandOf<T>>::mutate(order_hash, |v| v.pop()) {
+                Self::create_liability(demand, offer)
             } else {
                 Self::deposit_event(RawEvent::NewOffer(order_hash.clone(), offer.clone()));
-                <OfferOf<T>>::insert(order_hash, offer);
+                <OfferOf<T>>::mutate(order_hash, |v| v.push(offer));
+                Ok(())
             }
-            Ok(())
         }
 
         /// Send result to finalize liability.
         pub fn finalize(
             origin,
-            liability_index: LiabilityIndex,
+            liability_index: T::LiabilityIndex,
             result: Vec<u8>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
@@ -127,8 +134,11 @@ decl_module! {
             ensure!(sender == liability.promisor, "this call is for promisor only");
             ensure!(None == liability.result, "liability already finalized");
 
+		    T::Currency::repatriate_reserved(&liability.promisee, &liability.promisor, liability.order.cost)?;
+
             <LiabilityOf<T>>::insert(liability_index, Liability { result: Some(result.clone()), .. liability });
             Self::deposit_event(RawEvent::Finalized(liability_index, result));
+
             Ok(())
         }
     }
@@ -138,17 +148,17 @@ decl_storage! {
     trait Store for Module<T: Trait> as Robonomics {
         /// Get demand by hash.
         pub DemandOf get(demand_of):
-            map T::Hash => Option<Demand<T::Balance, T::AccountId>>;
+            map T::Hash => Vec<Demand<BalanceOf<T>,T::AccountId>>;
 
         /// Get offer by hash.
         pub OfferOf get(offer_of):
-            map T::Hash => Option<Offer<T::Balance, T::AccountId>>;
+            map T::Hash => Vec<Offer<BalanceOf<T>,T::AccountId>>;
 
-        pub LiabilityCount get(liability_count): LiabilityIndex;
+        pub LiabilityCount get(liability_count): T::LiabilityIndex;
 
         /// Get liability by index.
-        pub LiabilityOf get(liability_list):
-            map LiabilityIndex => Option<Liability<T::Balance, T::AccountId>>;
+        pub LiabilityOf get(liability_of):
+            map T::LiabilityIndex => Option<Liability<BalanceOf<T>,T::AccountId>>;
     }
 }
 
@@ -156,7 +166,8 @@ decl_event! {
     pub enum Event<T>
         where <T as system::Trait>::Hash,
               <T as system::Trait>::AccountId,
-              <T as balances::Trait>::Balance
+              <T as Trait>::LiabilityIndex,
+              Balance = BalanceOf<T>
     {
         /// Someone wants a service.
         NewDemand(Hash, Demand<Balance, AccountId>),
@@ -174,15 +185,21 @@ decl_event! {
 
 impl<T: Trait> Module<T> {
     fn create_liability(
-        demand: Demand<T::Balance,T::AccountId>,
-        offer: Offer<T::Balance,T::AccountId>
-    ) {
+        demand: Demand<BalanceOf<T>,T::AccountId>,
+        offer: Offer<BalanceOf<T>,T::AccountId>
+    ) -> Result {
         let Demand { order, sender: promisee } = demand;
         let Offer { order: _o, sender: promisor } = offer;
         let index = Self::liability_count();
+
+		T::Currency::reserve(&promisee, order.cost)
+            .map_err(|_| "promisee's balance too low")?;
+
         let liability = Liability { order, promisee, promisor, result: None };
         Self::deposit_event(RawEvent::NewLiability(index, liability.clone()));
         <LiabilityOf<T>>::insert(index, liability);
-        <LiabilityCount<T>>::mutate(|v| *v += 1);
+        <LiabilityCount<T>>::mutate(|v| *v += T::LiabilityIndex::sa(1));
+
+        Ok(())
     }
 }

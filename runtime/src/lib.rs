@@ -225,58 +225,46 @@ impl balances::Trait for Runtime {
     type OnNewAccount = Indices;
     /// The uniquitous event type.
     type Event = Event;
-    /// TODO
+
     type TransactionPayment = ();
-    /// TODO
     type DustRemoval = ();
-    /// TODO
     type TransferPayment = ();
 }
 
 impl session::Trait for Runtime {
-    /// TODO
     type ConvertAccountIdToSessionKey = ();
-    /// TODO
     type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
-    /// TODO
     type Event = Event;
 }
 
 impl staking::Trait for Runtime {
-    /// TODO
     type Currency = balances::Module<Self>;
-    /// TODO
     type OnRewardMinted = ();
-    /// The uniquitous event type.
     type Event = Event;
-    /// TODO
     type Slash = ();
-    /// TODO
     type Reward = ();
 }
 
 impl grandpa::Trait for Runtime {
-    /// TODO
     type SessionKey = AuthorityId;
-    /// TODO
     type Log = Log;
-    /// The uniquitous event type.
     type Event = Event;
 }
 
 impl finality_tracker::Trait for Runtime {
-    /// TODO
     type OnFinalizationStalled = grandpa::SyncedAuthorities<Runtime>;
 }
 
 impl sudo::Trait for Runtime {
-    /// TODO
     type Proposal = Call;
-    /// The uniquitous event type.
     type Event = Event;
 }
 
 impl robonomics::Trait for Runtime {
+    /// Type for recording indexing into the liability enumeration.
+    type LiabilityIndex = u64;
+    /// Native token as processing currency.
+    type Currency = balances::Module<Self>;
     /// The uniquitous event type.
     type Event = Event;
 }

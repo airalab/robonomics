@@ -157,7 +157,7 @@ pub fn testnet_genesis(
             invulnerables: initial_authorities.iter().map(|x| x.1.clone()).collect(),
         }),
         timestamp: Some(TimestampConfig {
-            period: SECS_PER_BLOCK / 2,
+            minimum_period: SECS_PER_BLOCK / 2,
         }),
         sudo: Some(SudoConfig {
             key: root_key,
