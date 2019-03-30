@@ -50,8 +50,8 @@ extern crate srml_consensus as consensus;
 extern crate srml_timestamp as timestamp;
 extern crate srml_finality_tracker as finality_tracker;
 extern crate substrate_offchain_primitives as offchain_primitives;
+extern crate substrate_consensus_authorities as consensus_authorities;
 extern crate substrate_consensus_aura_primitives as consensus_aura;
-
 
 pub mod robonomics;
 
@@ -59,9 +59,11 @@ use rstd::prelude::*;
 #[cfg(feature = "std")]
 use primitives::bytes;
 use primitives::OpaqueMetadata;
-use runtime_primitives::{
-    ApplyResult, transaction_validity::TransactionValidity, generic,
-    traits::{self, Verify, BlakeTwo256, Block as BlockT, DigestFor, NumberFor, StaticLookup},
+use runtime_primitives::transaction_validity::TransactionValidity;
+use runtime_primitives::{ApplyResult, generic, create_runtime_str};
+use runtime_primitives::traits::{
+    self, Verify, BlakeTwo256, Block as BlockT, AuthorityIdFor, DigestFor, NumberFor,
+    StaticLookup, CurrencyToVoteHandler
 };
 use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
@@ -239,6 +241,7 @@ impl session::Trait for Runtime {
 
 impl staking::Trait for Runtime {
     type Currency = balances::Module<Self>;
+    type CurrencyToVote = CurrencyToVoteHandler;
     type OnRewardMinted = ();
     type Event = Event;
     type Slash = ();
@@ -276,15 +279,15 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: system::{default, Log(ChangesTrieRoot)},
+        Aura: aura::{Module},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-        Aura: aura::{Module},
+        Indices: indices,
+        Balances: balances,
         Session: session,
         Staking: staking::{default, OfflineWorker},
         FinalityTracker: finality_tracker::{Module, Call, Inherent},
         Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
-        Indices: indices,
-        Balances: balances,
         Sudo: sudo,
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
@@ -314,16 +317,12 @@ impl_runtime_apis! {
             VERSION
         }
 
-        fn authorities() -> Vec<AuthorityId> {
-            Consensus::authorities()
-        }
-
         fn execute_block(block: Block) {
             Executive::execute_block(block)
         }
 
-        fn initialise_block(header: &<Block as BlockT>::Header) {
-            Executive::initialise_block(header)
+        fn initialize_block(header: &<Block as BlockT>::Header) {
+            Executive::initialize_block(header)
         }
     }
 
@@ -338,8 +337,8 @@ impl_runtime_apis! {
             Executive::apply_extrinsic(extrinsic)
         }
 
-        fn finalise_block() -> <Block as BlockT>::Header {
-            Executive::finalise_block()
+        fn finalize_block() -> <Block as BlockT>::Header {
+            Executive::finalize_block()
         }
 
         fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
@@ -403,6 +402,12 @@ impl_runtime_apis! {
     impl consensus_aura::AuraApi<Block> for Runtime {
         fn slot_duration() -> u64 {
             Aura::slot_duration()
+        }
+    }
+
+    impl consensus_authorities::AuthoritiesApi<Block> for Runtime {
+        fn authorities() -> Vec<AuthorityIdFor<Block>> {
+            Consensus::authorities()
         }
     }
 }

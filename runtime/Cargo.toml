@@ -32,6 +32,7 @@ substrate-client = { git = "https://github.com/paritytech/substrate", optional =
 substrate-keyring = { git = "https://github.com/paritytech/substrate" }
 substrate-primitives = { git = "https://github.com/paritytech/substrate" }
 substrate-offchain-primitives = { git = "https://github.com/paritytech/substrate" }
+substrate-consensus-authorities = { git = "https://github.com/paritytech/substrate" }
 substrate-consensus-aura-primitives = { git = "https://github.com/paritytech/substrate" }
 
 [features]
