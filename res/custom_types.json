@@ -17,5 +17,6 @@
         "promisee": "AccountId",
         "promisor": "AccountId",
         "result": "Option<Vec<u8>>"
-    }
+    },
+    "LiabilityIndex": "u64"
 }
