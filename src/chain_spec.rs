@@ -179,7 +179,7 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_auth: AuthorityId  = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
+    let aira_auth: AuthorityId  = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
     let aira_stash: AccountId   = hex!["4e431ea08693fcba3466628c740703a3244308570646765dc388642c77b6bc28"].unchecked_into();
     let aira_control: AccountId = hex!["3ae9a59c2c2a0bf06d9a58a47eaef86a6ce8eee356eb5d29574739d0d0c33d30"].unchecked_into();
 
