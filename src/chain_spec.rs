@@ -175,17 +175,17 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_auth      = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewFQv").unwrap();
-    let aira_stash     = sr25519::Public::from_ss58check("5HairaMoMPBrdEmRpcrjYD4ehAWY9TbW1pfM7jCuZ2xeo1ad").unwrap();
-    let aira_control   = sr25519::Public::from_ss58check("5Caira8TgPmPSa8bvnDswvaC3wneZLcd6452c5mnoXHxgyAH").unwrap();
+    let aira_auth      = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewY7P").unwrap();
+    let aira_stash     = sr25519::Public::from_ss58check("5DqKXk5eLLy1iVCF3hCqrfLSB963dxnjSJ6s59ZNhAPKtZ67").unwrap();
+    let aira_control   = sr25519::Public::from_ss58check("5DPx3PtkM4qhukADRyvi2kyjhkwUajhXLo9tMxW3KrQF68Vy").unwrap();
 
-    let akru_auth      = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affWFt").unwrap();
-    let akru_stash     = sr25519::Public::from_ss58check("5Hakru6fU7UzK16UmKjsLqU7tkC7DmknAaeNVNCJfWMygvRc").unwrap();
-    let akru_control   = sr25519::Public::from_ss58check("5HakruTf8cNGNQPJEWuo4W4L5REL8YrsUv1umFg7KpqsWqGo").unwrap();
+    let akru_auth      = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affMWK").unwrap();
+    let akru_stash     = sr25519::Public::from_ss58check("5FTpnUHFxjcy3suar7w86a3tgZsUaC3rymyEN7BnLtxvwaMh").unwrap();
+    let akru_control   = sr25519::Public::from_ss58check("5CJy5mEys9B2zt9dFkpBUaR3wXaod5Xyx9kZ4SrcPWGbt8Re").unwrap();
 
-    let khssnv_auth    = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZ6VR").unwrap();
-    let khssnv_stash   = sr25519::Public::from_ss58check("5EZXDc1YpNnK1fXzzre9MqauzmzoH5RjsCfxxBK5hfhSobFf").unwrap();
-    let khssnv_control = sr25519::Public::from_ss58check("5FCS8tQPJmYHimcu8m9f7kNMKetDwjv8V8ys1RQmCVsnfeHr").unwrap();
+    let khssnv_auth    = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZHDW").unwrap();
+    let khssnv_stash   = sr25519::Public::from_ss58check("5D7spMYU5os83DaYfZDrZ4Pu3Y55FdbU1xHUpp3ZFrpRupY5").unwrap();
+    let khssnv_control = sr25519::Public::from_ss58check("5Eo8nS2A3JtgrFH6F55Xq1r5euDFWgQmqHjMbwqdvktBG48z").unwrap();
 
     testnet_genesis(
         vec![
