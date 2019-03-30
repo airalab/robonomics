@@ -25,6 +25,8 @@ extern crate futures;
 extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate hex_literal;
 extern crate substrate_cli;
 extern crate substrate_primitives as primitives;
 extern crate substrate_consensus_aura as consensus;

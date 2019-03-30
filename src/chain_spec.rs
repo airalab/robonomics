@@ -17,13 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use primitives::{ed25519, sr25519, crypto::Pair, crypto::Ss58Codec};
+use primitives::{
+    ed25519, sr25519,
+    crypto::{Pair, UncheckedInto}
+};
 use robonomics_runtime::{
     GenesisConfig, ConsensusConfig, SessionConfig, StakingConfig, TimestampConfig,
     IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     AccountId, AuthorityId, Perbill, StakerStatus
 };
 use substrate_service::{self, Properties};
+use hex_literal::{hex, hex_impl};
 use serde_json::json;
 
 use substrate_telemetry::TelemetryEndpoints;
@@ -175,17 +179,17 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_auth      = ed25519::Public::from_ss58check("5DAirazvxYkdNUCQJY8uGz2KdSUJnEYzPRDb78ss1S8ewY7P").unwrap();
-    let aira_stash     = sr25519::Public::from_ss58check("5DqKXk5eLLy1iVCF3hCqrfLSB963dxnjSJ6s59ZNhAPKtZ67").unwrap();
-    let aira_control   = sr25519::Public::from_ss58check("5DPx3PtkM4qhukADRyvi2kyjhkwUajhXLo9tMxW3KrQF68Vy").unwrap();
+    let aira_auth: AuthorityId  = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
+    let aira_stash: AccountId   = hex!["4e431ea08693fcba3466628c740703a3244308570646765dc388642c77b6bc28"].unchecked_into();
+    let aira_control: AccountId = hex!["3ae9a59c2c2a0bf06d9a58a47eaef86a6ce8eee356eb5d29574739d0d0c33d30"].unchecked_into();
 
-    let akru_auth      = ed25519::Public::from_ss58check("5Dakru9P3kCScVXgoU2pN8dQU3US178msVxUatD122affMWK").unwrap();
-    let akru_stash     = sr25519::Public::from_ss58check("5FTpnUHFxjcy3suar7w86a3tgZsUaC3rymyEN7BnLtxvwaMh").unwrap();
-    let akru_control   = sr25519::Public::from_ss58check("5CJy5mEys9B2zt9dFkpBUaR3wXaod5Xyx9kZ4SrcPWGbt8Re").unwrap();
+    let akru_auth: AuthorityId  = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
+    let akru_stash: AccountId   = hex!["9656aa462eb8b0ba6ddcb46a7001bacda12abe826173b7db8a33bc1a612cc253"].unchecked_into(); 
+    let akru_control: AccountId = hex!["0ae0b0afc9783c4e7493e56d9572fc45c024e12bbef7d3abf2534c2d07acb81b"].unchecked_into(); 
 
-    let khssnv_auth    = ed25519::Public::from_ss58check("5CKhj6NsXY9exr2oCwK2t3v1cfXyWqg9qmAQ2LTM1psyZHDW").unwrap();
-    let khssnv_stash   = sr25519::Public::from_ss58check("5D7spMYU5os83DaYfZDrZ4Pu3Y55FdbU1xHUpp3ZFrpRupY5").unwrap();
-    let khssnv_control = sr25519::Public::from_ss58check("5Eo8nS2A3JtgrFH6F55Xq1r5euDFWgQmqHjMbwqdvktBG48z").unwrap();
+    let khssnv_auth: AuthorityId  = hex!["0b703dcc8367d3b98bfaead0c362a89a3722c9756919150f3727de07080b5f1e"].unchecked_into();
+    let khssnv_stash: AccountId   = hex!["2ea77f95a8a9462c11b1dd65bea115631c8538c9f4b3998a44f754a9e2a46556"].unchecked_into();
+    let khssnv_control: AccountId = hex!["78d4af7d1b359f0648e21f51c429bde663886706eda868815931984414e8f667"].unchecked_into();
 
     testnet_genesis(
         vec![
@@ -211,6 +215,8 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         "/ip4/164.132.111.49/tcp/30333/p2p/QmbPgV4iTsWHhrZDTPU5g1YtxJ11PcGC3f9oMTaNLUvJ6m".into(),
         "/ip4/54.38.53.77/tcp/30333/p2p/QmPVJKr8TkLkDF98BYyySxe2bVJ2BY9epXvmdCkExwtp2Q".into(),
         "/ip4/139.162.132.141/tcp/30333/p2p/QmUQhKfBKfb5jMstpQ5kUER5HzVsLLJysyewnFDHEveHkh".into(),
+        "/ip6/2001:41d0:401:3100::34e6/tcp/30333/p2p/QmbPgV4iTsWHhrZDTPU5g1YtxJ11PcGC3f9oMTaNLUvJ6m".into(),
+        "/ip6/fc6c:99a2:171a:f36a:8cd0:cc6b:efb7:8bb4/tcp/30333/p2p/QmbPgV4iTsWHhrZDTPU5g1YtxJ11PcGC3f9oMTaNLUvJ6m".into(),
         "/ip6/fcaa:9c13:6ea4:4b92:8b9b:9:2390:52c1/tcp/30333/p2p/QmduvgCG1Tfj2P1oLRDjGzrhto4PKmSUtCGCNKoKEvNHxL".into(),
         "/ip6/fc59:cb90:5852:7fe3:a759:57d9:f546:a3a8/tcp/30333/p2p/QmUQhKfBKfb5jMstpQ5kUER5HzVsLLJysyewnFDHEveHkh".into(),
     ];
