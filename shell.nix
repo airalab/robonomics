@@ -6,7 +6,7 @@ with nixpkgs.latest.rustChannels;
 with nixpkgs;
 
 let
-  channel = rustChannelOf { date = "2019-03-01"; channel = "nightly"; };
+  channel = rustChannelOf { date = "2019-04-02"; channel = "nightly"; };
   rust = channel.rust.override { targets = [ "wasm32-unknown-unknown" ]; };
   msgs = callPackage ./robonomics_msgs { };
 in

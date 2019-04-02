@@ -24,24 +24,27 @@ use std::time::Duration;
 use substrate_service::{
     FactoryFullConfiguration, LightComponents, FullComponents, FullBackend,
     FullClient, LightClient, LightBackend, FullExecutor, LightExecutor,
-    TaskExecutor,
+    TaskExecutor, construct_service_factory
 };
-use primitives::ed25519;
 use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration, NothingExtra};
 use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi};
 use transaction_pool::{self, txpool::{Pool as TransactionPool}};
-use inherents::InherentDataProviders;
 use primitives::{Pair as _Pair, ed25519::Pair};
+use executor::native_executor_instance;
+use network::construct_simple_protocol;
+use inherents::InherentDataProviders;
+use primitives::ed25519;
 use std::sync::Arc;
+use log::info;
 use grandpa;
 use client;
 
-pub use substrate_executor::NativeExecutor;
+pub use executor::NativeExecutor;
 native_executor_instance!(
     pub Executor,
     robonomics_runtime::api::dispatch,
     robonomics_runtime::native_version,
-    include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm")
+    include_bytes!("../../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm")
 );
 
 pub struct NodeConfig<F: substrate_service::ServiceFactory> {
@@ -126,7 +129,7 @@ construct_service_factory! {
                         name: Some(service.config.name.clone())
                     },
                     link_half,
-                    grandpa::NetworkBridge::new(service.network()),
+                    service.network(),
                     service.config.custom.inherent_data_providers.clone(),
                     service.on_exit(),
                 )?);
@@ -155,7 +158,6 @@ construct_service_factory! {
                     client,
                     NothingExtra,
                     config.custom.inherent_data_providers.clone(),
-                    false,
                 ).map_err(Into::into)
             }},
         LightImportQueue = AuraImportQueue<Self::Block>
@@ -167,7 +169,6 @@ construct_service_factory! {
                     client,
                     NothingExtra,
                     config.custom.inherent_data_providers.clone(),
-                    false,
                 ).map_err(Into::into)
             },
     }

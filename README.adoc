@@ -83,7 +83,7 @@ $env:OPENSSL_STATIC = 'Yes'
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/substrate-node-robonomics
+cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.9.0
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 

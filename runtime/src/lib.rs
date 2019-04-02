@@ -18,57 +18,33 @@
 //! The Robonomics runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
-extern crate sr_std as rstd;
-#[macro_use]
-extern crate substrate_client as client;
-#[macro_use]
-extern crate srml_support;
-extern crate sr_primitives as runtime_primitives;
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate serde_derive;
-extern crate substrate_primitives as primitives;
-extern crate parity_codec;
-#[macro_use]
-extern crate parity_codec_derive;
-#[macro_use]
-extern crate sr_version as version;
-extern crate srml_sudo as sudo;
-extern crate srml_aura as aura;
-extern crate srml_system as system;
-extern crate srml_session as session;
-extern crate srml_staking as staking;
-extern crate srml_grandpa as grandpa;
-extern crate srml_indices as indices;
-extern crate srml_balances as balances;
-extern crate srml_executive as executive;
-extern crate srml_consensus as consensus;
-extern crate srml_timestamp as timestamp;
-extern crate srml_finality_tracker as finality_tracker;
-extern crate substrate_offchain_primitives as offchain_primitives;
-extern crate substrate_consensus_authorities as consensus_authorities;
-extern crate substrate_consensus_aura_primitives as consensus_aura;
-
 pub mod robonomics;
 
-use rstd::prelude::*;
+#[cfg(feature = "std")]
+use serde_derive::{Serialize, Deserialize};
 #[cfg(feature = "std")]
 use primitives::bytes;
+
+use rstd::prelude::*;
+use support::construct_runtime;
+use parity_codec::{Encode, Decode};
 use primitives::OpaqueMetadata;
+use runtime_primitives::{
+    ApplyResult, AnySignature, generic, create_runtime_str
+};
 use runtime_primitives::transaction_validity::TransactionValidity;
-use runtime_primitives::{ApplyResult, generic, create_runtime_str};
 use runtime_primitives::traits::{
-    self, Verify, BlakeTwo256, Block as BlockT, AuthorityIdFor, DigestFor, NumberFor,
+    self, Verify, BlakeTwo256, Block as BlockT,
+    AuthorityIdFor, DigestFor, NumberFor,
     StaticLookup, CurrencyToVoteHandler
 };
 use grandpa::fg_primitives::{self, ScheduledChange};
 use client::{
     block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
-    runtime_api
+    runtime_api, impl_runtime_apis
 };
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
@@ -81,13 +57,13 @@ pub use consensus::Call as ConsensusCall;
 pub use timestamp::Call as TimestampCall;
 pub use robonomics::Call as RobonomicsCall;
 pub use runtime_primitives::{Permill, Perbill};
-pub use srml_support::StorageValue;
+pub use support::StorageValue;
 pub use timestamp::BlockPeriod;
 pub use staking::StakerStatus;
 pub use system::EventRecord;
 
 /// Alias to 512-bit hash when used in the context of a signature on the chain.
-pub type Signature = primitives::sr25519::Signature;
+pub type Signature = AnySignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
@@ -147,8 +123,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
     authoring_version: 1,
-    spec_version: 21,
-    impl_version: 21,
+    spec_version: 22,
+    impl_version: 22,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -279,7 +255,7 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: system::{default, Log(ChangesTrieRoot)},
-        Aura: aura::{Module},
+        Aura: aura::{Module, Inherent(Timestamp)},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
         Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
         Indices: indices,
@@ -323,6 +299,10 @@ impl_runtime_apis! {
 
         fn initialize_block(header: &<Block as BlockT>::Header) {
             Executive::initialize_block(header)
+        }
+
+        fn authorities() -> Vec<AuthorityIdFor<Block>> {
+            panic!("Deprecated, please use `AuthoritiesApi`.")
         }
     }
 

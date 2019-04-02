@@ -18,13 +18,16 @@
 //! The Robonomics substrate module. This can be compiled with `#[no_std]`, ready for Wasm.
 
 use rstd::vec::Vec;
-use parity_codec::Codec;
+#[cfg(feature = "std")]
+use serde_derive::{Serialize, Deserialize};
+use parity_codec::{Codec, Encode, Decode};
 use system::ensure_signed;
-use runtime_primitives::traits::*;
-use srml_support::{
+use support::{
     StorageValue, StorageMap, Parameter,
+    decl_module, decl_storage, decl_event, ensure,
     traits::{ReservableCurrency, Currency}, dispatch::Result
 };
+use runtime_primitives::traits::{Member, SimpleArithmetic, As, Hash};
 
 /// Order params.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]

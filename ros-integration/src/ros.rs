@@ -16,6 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+use lazy_static::lazy_static;
 use std::sync::Mutex;
 use rosrust::error::Result;
 use rosrust::{

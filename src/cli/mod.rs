@@ -17,15 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Console line interface.
 
+use log::info;
 use std::ops::Deref;
 use std::cell::RefCell;
 use tokio::runtime::Runtime;
 use futures::{future, Future, sync::oneshot};
-pub use substrate_cli::{VersionInfo, IntoExit, error};
 use substrate_cli::{informant, parse_and_execute, NoCustom};
 use substrate_service::{ServiceFactory, Roles as ServiceRoles};
-use chain_spec;
-use service;
+pub use substrate_cli::{VersionInfo, IntoExit, error};
+
+mod chain_spec;
+mod service;
 
 /// Parse command line arguments into service configuration.
 pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()> where

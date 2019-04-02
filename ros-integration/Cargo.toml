@@ -1,25 +1,23 @@
 [package]
 name = "ros-integration"
 version = "0.1.0"
-authors = ["Airalab <research@aira.life>"]
+authors = [ "Airalab <research@aira.life>" ]
 edition = "2018"
 
 [dependencies]
 log = "0.4"
+bs58 = "0.2"
+rosbag = "0.2"
 futures = "0.1"
-rosbag = "0.2.0"
-lazy_static = "1.2.0"
-regex = "1"
-ipfs-api = "0.5.1"
-hyper = "0.12.25"
-bs58 = "0.2.2"
+ipfs-api = "0.5"
+lazy_static = "1.2"
 robonomics-runtime = { path = "../runtime" }
 rosrust = { git = "https://github.com/adnanademovic/rosrust" }
-sr-io = { git = "https://github.com/paritytech/substrate" }
-sr-primitives = { git = "https://github.com/paritytech/substrate" }
-substrate-service = { git = "https://github.com/paritytech/substrate" }
-substrate-client = { git = "https://github.com/paritytech/substrate", default-features = false }
-substrate-network = { git = "https://github.com/paritytech/substrate" }
-substrate-keystore = { git = "https://github.com/paritytech/substrate" }
-substrate-primitives = { git = "https://github.com/paritytech/substrate" }
-substrate-transaction-pool = { git = "https://github.com/paritytech/substrate" }
+rosrust_codegen = { git = "https://github.com/adnanademovic/rosrust" }
+client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
+service = { package = "substrate-service", git = "https://github.com/paritytech/substrate" }
+network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }
+keystore = { package = "substrate-keystore", git = "https://github.com/paritytech/substrate" }
+primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
+runtime_primitives = { package = "sr-primitives", git = "https://github.com/paritytech/substrate" }
+transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }

@@ -17,10 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use primitives::{
-    ed25519, sr25519,
-    crypto::{Pair, UncheckedInto}
-};
+use primitives::{ed25519, sr25519, crypto::{Pair, UncheckedInto}};
 use robonomics_runtime::{
     GenesisConfig, ConsensusConfig, SessionConfig, StakingConfig, TimestampConfig,
     IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
@@ -30,7 +27,7 @@ use substrate_service::{self, Properties};
 use hex_literal::{hex, hex_impl};
 use serde_json::json;
 
-use substrate_telemetry::TelemetryEndpoints;
+use telemetry::TelemetryEndpoints;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -122,7 +119,7 @@ pub fn testnet_genesis(
 
     GenesisConfig {
         consensus: Some(ConsensusConfig {
-            code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm").to_vec(),
+            code: include_bytes!("../../runtime/wasm/target/wasm32-unknown-unknown/release/robonomics_runtime.compact.wasm").to_vec(),
             authorities: initial_authorities.iter().map(|x| x.2.clone()).collect(),
         }),
         system: None,

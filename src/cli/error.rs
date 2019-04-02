@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Initialization errors.
 
-use client;
+use self;
 
 error_chain! {
     foreign_links {
@@ -25,6 +25,6 @@ error_chain! {
         Cli(::clap::Error) #[doc="CLI error"];
     }
     links {
-        Client(client::error::Error, client::error::ErrorKind) #[doc="Client error"];
+        Client(self::error::Error, self::error::ErrorKind) #[doc="Client error"];
     }
 }

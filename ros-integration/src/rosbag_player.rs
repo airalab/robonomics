@@ -16,17 +16,16 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use rosbag::{RosBag, Record};
 use rosrust::api::raii::Publisher;
-use std::{thread, time};
 use std::collections::HashMap;
+use rosbag::{RosBag, Record};
+use std::{thread, time};
 use std::string::String;
 use std::sync::Arc;
-use super::ros;
+use log::debug;
 
-mod msg {
-    rosmsg_include!(std_msgs / UInt64, std_msgs / String);
-}
+use crate::msg::std_msgs;
+use crate::ros;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum WorkerMsg {
@@ -34,7 +33,7 @@ pub enum WorkerMsg {
 }
 
 struct PublisherDesc{
-    publisher: Publisher<msg::std_msgs::String>,
+    publisher: Publisher<std_msgs::String>,
     rostopic: String,
     msgtype: String,
 }
@@ -108,7 +107,7 @@ impl RosbagPlayer{
                         for msg in chunk.iter_msgs() {
                             let iterated_msg = msg?;
 
-                            let dcdc: msg::std_msgs::String = rosrust::RosMsg::decode(iterated_msg.data).unwrap();
+                            let dcdc: std_msgs::String = rosrust::RosMsg::decode(iterated_msg.data).unwrap();
                             let publisher_description = self.map.get_mut(&iterated_msg.conn_id).unwrap();
                             debug!("rosbag_player {}: publish msg {:?} with decoded data {:?} of type {} into topic {}",
                                    self.path, iterated_msg, dcdc.data, publisher_description.msgtype, publisher_description.rostopic);
