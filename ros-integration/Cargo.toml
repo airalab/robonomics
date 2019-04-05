@@ -11,9 +11,8 @@ rosbag = "0.2"
 futures = "0.1"
 ipfs-api = "0.5"
 lazy_static = "1.2"
-robonomics-runtime = { path = "../runtime" }
+rosrust_codegen = "0.7.0"
 rosrust = { git = "https://github.com/adnanademovic/rosrust" }
-rosrust_codegen = { git = "https://github.com/adnanademovic/rosrust" }
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
 service = { package = "substrate-service", git = "https://github.com/paritytech/substrate" }
 network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }
@@ -21,3 +20,4 @@ keystore = { package = "substrate-keystore", git = "https://github.com/paritytec
 primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
 runtime_primitives = { package = "sr-primitives", git = "https://github.com/paritytech/substrate" }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
+robonomics-runtime = { path = "../runtime" }

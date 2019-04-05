@@ -17,19 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use primitives::{ed25519, sr25519, crypto::{Pair, UncheckedInto}};
+use primitives::{ed25519, sr25519, crypto::Pair};
 use robonomics_runtime::{
     GenesisConfig, ConsensusConfig, SessionConfig, StakingConfig, TimestampConfig,
     IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     AccountId, AuthorityId, Perbill, StakerStatus
 };
 use substrate_service::{self, Properties};
-use hex_literal::{hex, hex_impl};
 use serde_json::json;
 
+/*
+use hex_literal::{hex, hex_impl};
+use primitives::crypto::UncheckedInto;
 use telemetry::TelemetryEndpoints;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+*/
 
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
 pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
@@ -193,6 +196,12 @@ fn xrt_props() -> Properties {
 }
 
 /// Robonomics testnet config. 
+pub fn robonomics_testnet_config() -> ChainSpec {
+    ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
+}
+
+/*
+/// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let aira_auth: AuthorityId  = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
     let aira_stash: AccountId   = hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into();
@@ -211,13 +220,6 @@ fn robonomics_config_genesis() -> GenesisConfig {
         Some(vec![aira_control, akru_control]),
     )
 }
-
-/*
-/// Robonomics testnet config. 
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
-}
-*/
 
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
@@ -241,6 +243,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
+*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
