@@ -83,7 +83,7 @@ $env:OPENSSL_STATIC = 'Yes'
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.9.0
+cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.10.0
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
@@ -122,24 +122,25 @@ You can support the network just by launch the node. Every additional full node 
 
 For nodes that can be online 24/7 also available most important role on chain - block producers or briefly validator. Robonomics on Substrate use https://github.com/paritytech/substrate/blob/8930f297737db67257f3be1a8b286f8c50189066/srml/staking/Staking.md[NPoS algorithm] for choosing block production accounts. For this reason if you have any stake in test XRT you can try self in block production. You can request test XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
 
- . Generate two accounts `stash` and `controller` using https://polkadot.js.org/apps/#/accounts/create[Account page]
+ . Generate accounts at https://polkadot.js.org/apps/#/accounts/create[Account page]:
+ .. `session` using `Edwards (ed25519)` crypto; 
+ .. `stash` usign `Schnorrkel (sr25519)` crypto;
+ .. `controller` using `Schnorrkel (sr25519)` crypto.
 
- . Transfer full amount of test XRT to `stash` and a little bit to `controller` accounts
+ . Transfer full amount of test XRT to `stash` and a little bit to `controller` account.
 
- . https://polkadot.js.org/apps/#/extrinsics[Send extrinsic] from `stash` account with params `staking:bond(controller, value, payee)`:
+ . https://polkadot.js.org/apps/#/extrinsics[Send extrinsic] from `controller` account with module `session` and method `setKey()`:
+ .. `session` account address as parameter.
 
- .. `controller` account
- .. `stash` account total balance
- .. `0x00`
+ . https://polkadot.js.org/apps/#/staking/actions[Staking actions]:
+ .. Run Bond action from `stash` account to `controller` account;
+ .. Run Validate action from `controller` account.
 
- . https://polkadot.js.org/apps/#/extrinsics[Send extrinsic] from `controller` account with params `staking:validate(prefs)`
- .. `0x00`
-
- . Launch Robonomics node (set `controller` account seed as parameter):
+ . Launch Robonomics node (set `session` account seed as parameter):
 [source, shell]
-robonomics --validator --key %CONTROLLER_SEED%
+robonomics --validator --key %SESSION_SEED%
 
- . Check https://polkadot.js.org/apps/#/staking[validator list]
+ . Check https://polkadot.js.org/apps/#/staking[validator list], at new Era validator set will updated.
 
 == Robotics integration
 
