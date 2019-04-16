@@ -124,7 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_name: create_runtime_str!("robonomics-node"),
     authoring_version: 1,
     spec_version: 22,
-    impl_version: 22,
+    impl_version: 23,
     apis: RUNTIME_API_VERSIONS,
 };
 

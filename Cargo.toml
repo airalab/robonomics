@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-node"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 edition = "2018"
