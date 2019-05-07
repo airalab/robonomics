@@ -20,14 +20,14 @@
 use rstd::vec::Vec;
 #[cfg(feature = "std")]
 use serde_derive::{Serialize, Deserialize};
-use parity_codec::{Codec, Encode, Decode};
+use parity_codec::{Encode, Decode};
 use system::ensure_signed;
 use support::{
-    StorageValue, StorageMap, Parameter,
+    StorageValue, StorageMap,
     decl_module, decl_storage, decl_event, ensure,
     traits::{ReservableCurrency, Currency}, dispatch::Result
 };
-use runtime_primitives::traits::{Member, SimpleArithmetic, As, Hash};
+use runtime_primitives::traits::Hash;
 
 /// Order params.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
@@ -36,8 +36,7 @@ pub struct Order<Balance,AccountId> {
     pub model: Vec<u8>,
     pub objective: Vec<u8>,
     pub cost: Balance,
-// ACTION: add custodian here
-    pub custodian: AccountId
+    pub custodian: AccountId,
 }
 
 /// Offer message.
@@ -69,10 +68,11 @@ pub struct Liability<Balance,AccountId> {
 
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 
+/// Type used for storing an liability's index; implies the maximum number of liabilities
+/// the system can hold.
+type LiabilityIndex = u64;
+
 pub trait Trait: system::Trait {
-	/// Type used for storing an liability's index; implies the maximum number of liabilities
-    /// the system can hold.
-	type LiabilityIndex: Parameter + Member + Codec + Default + SimpleArithmetic + As<u8> + As<u16> + As<u32> + As<u64> + As<usize> + Copy;
     /// Payment currency; implies the processing token for liability contract.
 	type Currency: ReservableCurrency<Self::AccountId>;
     /// The overarching event type.
@@ -90,12 +90,10 @@ decl_module! {
             model: Vec<u8>,
             objective: Vec<u8>,
             #[compact] cost: BalanceOf<T>,
-            // ACTION: add custodian here
             custodian: T::AccountId
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
-            // ACTION: add custodian here
             let order = Order { model, objective, cost, custodian }; 
             let order_hash = T::Hashing::hash_of(&order);
             let demand = Demand { order, sender };
@@ -115,12 +113,10 @@ decl_module! {
             model: Vec<u8>,
             objective: Vec<u8>,
             #[compact] cost: BalanceOf<T>,
-            // ACTION: add custodian here
             custodian: T::AccountId
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
-            // ACTION: add custodian here
             let order = Order { model, objective, cost, custodian }; 
             let order_hash = T::Hashing::hash_of(&order);
             let offer = Offer { order, sender };
@@ -137,13 +133,13 @@ decl_module! {
         /// Send result to finalize liability.
         pub fn finalize(
             origin,
-            liability_index: T::LiabilityIndex,
+            liability_index: LiabilityIndex,
             result: Vec<u8>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
             let liability = <LiabilityOf<T>>::get(liability_index).ok_or("liability not found")?;
-            // ACTION: change sender check to be custodian
+
             ensure!(sender == liability.order.custodian, "this call is for custodian only");
             ensure!(None == liability.result, "liability already finalized");
 
@@ -167,11 +163,11 @@ decl_storage! {
         pub OfferOf get(offer_of):
             map T::Hash => Vec<Offer<BalanceOf<T>,T::AccountId>>;
 
-        pub LiabilityCount get(liability_count): T::LiabilityIndex;
+        pub LiabilityCount get(liability_count): LiabilityIndex;
 
         /// Get liability by index.
         pub LiabilityOf get(liability_of):
-            map T::LiabilityIndex => Option<Liability<BalanceOf<T>,T::AccountId>>;
+            map LiabilityIndex => Option<Liability<BalanceOf<T>,T::AccountId>>;
     }
 }
 
@@ -179,7 +175,6 @@ decl_event! {
     pub enum Event<T>
         where <T as system::Trait>::Hash,
               <T as system::Trait>::AccountId,
-              <T as Trait>::LiabilityIndex,
               Balance = BalanceOf<T>
     {
         /// Someone wants a service.
@@ -211,7 +206,7 @@ impl<T: Trait> Module<T> {
         let liability = Liability { order, promisee, promisor, result: None };
         Self::deposit_event(RawEvent::NewLiability(index, liability.clone()));
         <LiabilityOf<T>>::insert(index, liability);
-        <LiabilityCount<T>>::mutate(|v| *v += T::LiabilityIndex::sa(1));
+        LiabilityCount::mutate(|v| *v += 1);
 
         Ok(())
     }

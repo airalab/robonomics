@@ -22,7 +22,7 @@
 
 mod cli;
 
-fn run() -> cli::error::Result<()> {
+fn main() {
     let version = cli::VersionInfo {
         name: "Robonomics Node",
         author: "Airalab <research@aira.life>",
@@ -32,7 +32,9 @@ fn run() -> cli::error::Result<()> {
         support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
         executable_name: "robonomics",
     };
-    cli::run(::std::env::args(), cli::Exit, version)
-}
 
-error_chain::quick_main!(run);
+    if let Err(e) = cli::run(::std::env::args(), cli::Exit, version) {
+        eprintln!("Error starting the node: {}\n\n{:?}", e, e);
+        std::process::exit(1)
+    }
+}

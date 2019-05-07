@@ -37,7 +37,7 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 {
     parse_and_execute::<service::Factory, NoCustom, NoCustom, _, _, _, _, _>(
         load_spec, &version, "robonomics-node", args, exit,
-         |exit, _custom_args, config| {
+         |exit, _cli_args, _custom_args, config| {
             info!("{}", version.name);
             info!("  version {}", config.full_version());
             info!("  by {}, 2018, 2019", version.author);
@@ -45,16 +45,15 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             info!("Node name: {}", config.name);
             info!("Roles: {:?}", config.roles);
             let runtime = Runtime::new().map_err(|e| format!("{:?}", e))?;
-            let executor = runtime.executor();
             match config.roles {
                 ServiceRoles::LIGHT => run_until_exit(
                     runtime,
-                    service::Factory::new_light(config, executor).map_err(|e| format!("{:?}", e))?,
+                    service::Factory::new_light(config).map_err(|e| format!("{:?}", e))?,
                     exit
                 ),
                 _ => run_until_exit(
                     runtime,
-                    service::Factory::new_full(config, executor).map_err(|e| format!("{:?}", e))?,
+                    service::Factory::new_full(config).map_err(|e| format!("{:?}", e))?,
                     exit
                 ),
             }.map_err(|e| format!("{:?}", e))
@@ -81,8 +80,8 @@ fn run_until_exit<T, C, E>(
 {
     let (exit_send, exit) = exit_future::signal();
 
-    let executor = runtime.executor();
-    informant::start(&service, exit.clone(), executor.clone());
+    let informant = informant::build(&service);
+    runtime.executor().spawn(exit.until(informant).map(|_| ()));
 
     let _ = runtime.block_on(e.into_exit());
     exit_send.fire();

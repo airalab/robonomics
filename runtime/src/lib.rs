@@ -29,7 +29,7 @@ use serde_derive::{Serialize, Deserialize};
 use primitives::bytes;
 
 use rstd::prelude::*;
-use support::construct_runtime;
+use support::{construct_runtime, parameter_types};
 use parity_codec::{Encode, Decode};
 use primitives::OpaqueMetadata;
 use runtime_primitives::{
@@ -37,11 +37,11 @@ use runtime_primitives::{
 };
 use runtime_primitives::transaction_validity::TransactionValidity;
 use runtime_primitives::traits::{
-    self, Verify, BlakeTwo256, Block as BlockT,
-    AuthorityIdFor, DigestFor, NumberFor,
-    StaticLookup, CurrencyToVoteHandler
+    self, Verify, BlakeTwo256, Block as BlockT, Convert,
+    DigestFor, NumberFor, StaticLookup
 };
 use grandpa::fg_primitives::{self, ScheduledChange};
+use grandpa::{AuthorityWeight as GrandpaWeight};
 use client::{
     block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
     runtime_api, impl_runtime_apis
@@ -53,14 +53,14 @@ use version::NativeVersion;
 // A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use balances::Call as BalancesCall;
-pub use consensus::Call as ConsensusCall;
 pub use timestamp::Call as TimestampCall;
 pub use robonomics::Call as RobonomicsCall;
-pub use runtime_primitives::{Permill, Perbill};
+pub use runtime_primitives::{Permill, Perbill, impl_opaque_keys};
 pub use support::StorageValue;
 pub use timestamp::BlockPeriod;
 pub use staking::StakerStatus;
 pub use system::EventRecord;
+pub use grandpa::{AuthorityId as GrandpaId};
 
 /// Alias to 512-bit hash when used in the context of a signature on the chain.
 pub type Signature = AnySignature;
@@ -69,12 +69,18 @@ pub type Signature = AnySignature;
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <Signature as Verify>::Signer;
 
+/// Alias to the signature scheme used for Aura authority signatures.
+pub type AuraSignature = primitives::ed25519::Signature;
+
+/// The Ed25519 pub key of an session that belongs to an Aura authority of the chain.
+pub type AuraId = primitives::ed25519::Public;
+
 /// Alias to 512-bit hash when used in the context of a session signature on the chain.
-pub type AuthoritySignature = primitives::ed25519::Signature;
+//pub type AuthoritySignature = primitives::ed25519::Signature;
 
 /// The Ed25519 pub key of an session that belongs to an authority of the chain. This is
 /// exactly equivalent to what the substrate calls an "authority".
-pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
+//pub type AuthorityId = <AuthoritySignature as Verify>::Signer;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
@@ -108,14 +114,14 @@ pub mod opaque {
             None
         }
     }
+    /// Digest item type.
+    pub type DigestItem = generic::DigestItem<Hash>;
     /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<Hash, AuthorityId, AuthoritySignature>>;
+    pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// Opaque block type.
     pub type Block = generic::Block<Header, UncheckedExtrinsic>;
     /// Opaque block identifier type.
     pub type BlockId = generic::BlockId<Block>;
-    /// Opaque session key type.
-    pub type SessionKey = AuthorityId;
 }
 
 /// This runtime version.
@@ -123,8 +129,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-node"),
     authoring_version: 1,
-    spec_version: 22,
-    impl_version: 23,
+    spec_version: 30,
+    impl_version: 30,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -135,6 +141,20 @@ pub fn native_version() -> NativeVersion {
         runtime_version: VERSION,
         can_author_with: Default::default(),
     }
+}
+
+pub struct CurrencyToVoteHandler;
+
+impl CurrencyToVoteHandler {
+    fn factor() -> u128 { (Balances::total_issuance() / u64::max_value() as u128).max(1) }
+}
+
+impl Convert<u128, u64> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u64 { (x / Self::factor()) as u64 }
+}
+
+impl Convert<u128, u128> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u128 { x * Self::factor() }
 }
 
 impl system::Trait for Runtime {
@@ -150,14 +170,10 @@ impl system::Trait for Runtime {
     type Hash = Hash;
     /// The hashing algorithm used.
     type Hashing = BlakeTwo256;
-    /// The header digest type.
-    type Digest = generic::Digest<Log>;
     /// The header type.
-    type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
+    type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// The ubiquitous event type.
     type Event = Event;
-    /// The ubiquitous log type.
-    type Log = Log;
     /// The ubiquitous origin type.
     type Origin = Origin;
 }
@@ -170,18 +186,8 @@ impl timestamp::Trait for Runtime {
 
 impl aura::Trait for Runtime {
     type HandleReport = aura::StakingSlasher<Runtime>;
+    type AuthorityId = AuraId;
 }
-
-impl consensus::Trait for Runtime {
-    /// The identifier we use to refer to authorities.
-    type SessionKey = AuthorityId;
-    // The aura module handles offline-reports internally
-    // rather than using an explicit report system.
-    type InherentOfflineReport = ();
-    /// The ubiquitous log type.
-    type Log = Log;
-}
-
 impl indices::Trait for Runtime {
     /// The type for recording indexing into the account enumeration. If this ever overflows,
     /// there will be problems!
@@ -203,16 +209,34 @@ impl balances::Trait for Runtime {
     type OnNewAccount = Indices;
     /// The uniquitous event type.
     type Event = Event;
-
     type TransactionPayment = ();
     type DustRemoval = ();
     type TransferPayment = ();
 }
 
+const MINUTES: BlockNumber = 6;
+
+parameter_types! {
+    pub const Period: BlockNumber = 10 * MINUTES;
+    pub const Offset: BlockNumber = 0;
+}
+
+type SessionHandlers = (Grandpa, Aura);
+impl_opaque_keys! {
+    pub struct SessionKeys(grandpa::AuthorityId, AuraId);
+}
+
 impl session::Trait for Runtime {
-    type ConvertAccountIdToSessionKey = ();
-    type OnSessionChange = (Staking, grandpa::SyncedAuthorities<Runtime>);
+    type OnSessionEnding = Staking;
+    type SessionHandler = SessionHandlers;
+    type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
     type Event = Event;
+    type Keys = SessionKeys;
+}
+
+parameter_types! {
+    pub const SessionsPerEra: session::SessionIndex = 6;
+    pub const BondingDuration: staking::EraIndex = 24 * 28;
 }
 
 impl staking::Trait for Runtime {
@@ -222,16 +246,16 @@ impl staking::Trait for Runtime {
     type Event = Event;
     type Slash = ();
     type Reward = ();
+    type SessionsPerEra = SessionsPerEra;
+    type BondingDuration = BondingDuration;
 }
 
 impl grandpa::Trait for Runtime {
-    type SessionKey = AuthorityId;
-    type Log = Log;
     type Event = Event;
 }
 
 impl finality_tracker::Trait for Runtime {
-    type OnFinalizationStalled = grandpa::SyncedAuthorities<Runtime>;
+    type OnFinalizationStalled = Grandpa;
 }
 
 impl sudo::Trait for Runtime {
@@ -240,30 +264,27 @@ impl sudo::Trait for Runtime {
 }
 
 impl robonomics::Trait for Runtime {
-    /// Type for recording indexing into the liability enumeration.
-    type LiabilityIndex = u64;
     /// Native token as processing currency.
-    type Currency = balances::Module<Self>;
+    type Currency = Balances;
     /// The uniquitous event type.
     type Event = Event;
 }
 
 construct_runtime!(
-    pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId, AuthoritySignature>) where
+    pub enum Runtime where
         Block = Block,
         NodeBlock = opaque::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        System: system::{default, Log(ChangesTrieRoot)},
-        Aura: aura::{Module, Inherent(Timestamp)},
+        System: system::{Module, Call, Storage, Config, Event},
+        Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
-        Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
         Indices: indices,
         Balances: balances,
-        Session: session,
+        Session: session::{Module, Call, Storage, Event, Config<T>},
         Staking: staking::{default, OfflineWorker},
         FinalityTracker: finality_tracker::{Module, Call, Inherent},
-        Grandpa: grandpa::{Module, Call, Storage, Config<T>, Log(), Event<T>},
+        Grandpa: grandpa::{Module, Call, Storage, Config, Event},
         Sudo: sudo,
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
@@ -274,7 +295,7 @@ type Context = system::ChainContext<Runtime>;
 /// The address format for describing accounts.
 type Address = <Indices as StaticLookup>::Source;
 /// Block header type as expected by this runtime.
-pub type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// BlockId type as expected by this runtime.
@@ -284,7 +305,7 @@ pub type UncheckedExtrinsic = generic::UncheckedMortalCompactExtrinsic<Address, 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = executive::Executive<Runtime, Block, Context, Balances, AllModules>;
+pub type Executive = executive::Executive<Runtime, Block, Context, Balances, Runtime, AllModules>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -299,10 +320,6 @@ impl_runtime_apis! {
 
         fn initialize_block(header: &<Block as BlockT>::Header) {
             Executive::initialize_block(header)
-        }
-
-        fn authorities() -> Vec<AuthorityIdFor<Block>> {
-            panic!("Deprecated, please use `AuthoritiesApi`.")
         }
     }
 
@@ -350,44 +367,25 @@ impl_runtime_apis! {
         fn grandpa_pending_change(digest: &DigestFor<Block>)
             -> Option<ScheduledChange<NumberFor<Block>>>
         {
-            for log in digest.logs.iter().filter_map(|l| match l {
-                Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
-                _=> None
-            }) {
-                if let Some(change) = Grandpa::scrape_digest_change(log) {
-                    return Some(change);
-                }
-            }
-            None
+            Grandpa::pending_change(digest)
         }
         fn grandpa_forced_change(digest: &DigestFor<Block>)
             -> Option<(NumberFor<Block>, ScheduledChange<NumberFor<Block>>)>
         {
-            for log in digest.logs.iter().filter_map(|l| match l {
-                Log(InternalLog::grandpa(grandpa_signal)) => Some(grandpa_signal),
-                _ => None
-            }) {
-                if let Some(change) = Grandpa::scrape_digest_forced_change(log) {
-                    return Some(change);
-                }
-            }
-            None
+            Grandpa::forced_change(digest)
         }
 
-        fn grandpa_authorities() -> Vec<(AuthorityId, u64)> {
+        fn grandpa_authorities() -> Vec<(GrandpaId, GrandpaWeight)> {
             Grandpa::grandpa_authorities()
         }
     }
 
-    impl consensus_aura::AuraApi<Block> for Runtime {
+    impl consensus_aura::AuraApi<Block, AuraId> for Runtime {
         fn slot_duration() -> u64 {
             Aura::slot_duration()
         }
-    }
-
-    impl consensus_authorities::AuthoritiesApi<Block> for Runtime {
-        fn authorities() -> Vec<AuthorityIdFor<Block>> {
-            Consensus::authorities()
+        fn authorities() -> Vec<AuraId> {
+            Aura::authorities()
         }
     }
 }

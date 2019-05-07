@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-runtime-wasm"
-version = "0.10.1"
+version = "0.11.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
