@@ -249,7 +249,9 @@ pub fn start_ros_api<N, B, E, P, RA>(
     ros::init();
     ipfs::init();
 
-    let key = sr25519::Pair::from_string("//Alice", None).unwrap(); 
+    let keystore_default_public = &keystore.contents().unwrap()[0];
+    let keystore_default_key = keystore.load(&keystore_default_public, &String::new()).unwrap();
+    let key = sr25519::Pair::from_seed(*keystore_default_key.seed());
     let ros_account = key.public().to_ss58check();
     println!("ROS account: {:?}", ros_account);
 
