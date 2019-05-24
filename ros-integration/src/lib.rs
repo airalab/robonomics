@@ -43,7 +43,6 @@ use robonomics_runtime::{
     robonomics::*, RobonomicsCall, Nonce, Runtime
 };
 
-mod ros;
 mod msg;
 mod ipfs;
 mod rosbag_player;
@@ -126,9 +125,9 @@ fn event_stream<B, C>(
     C: BlockchainEvents<B>,
     B: Block,
 {
-    let demand_pub = ros::publish("liability/demand/incoming", QUEUE_SIZE).unwrap();
-    let offer_pub = ros::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
-    let liability_pub = ros::publish("liability/incoming", QUEUE_SIZE).unwrap();
+    let demand_pub = rosrust::publish("liability/demand/incoming", QUEUE_SIZE).unwrap();
+    let offer_pub = rosrust::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
+    let liability_pub = rosrust::publish("liability/incoming", QUEUE_SIZE).unwrap();
 
     let events_key = StorageKey(twox_128(b"System Events").to_vec());
     client.storage_changes_notification_stream(Some(&[events_key])).unwrap()
@@ -209,9 +208,9 @@ fn status_stream<B, C, N>(
     N: SyncProvider<B>,
     B: Block,
 {
-    let hash_pub = ros::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
-    let number_pub = ros::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
-    let peers_pub = ros::publish("network/peers", QUEUE_SIZE).unwrap();
+    let hash_pub = rosrust::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
+    let number_pub = rosrust::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
+    let peers_pub = rosrust::publish("network/peers", QUEUE_SIZE).unwrap();
 
     client.import_notification_stream().for_each(move |block| {
         if block.is_new_best {
@@ -246,7 +245,7 @@ pub fn start_ros_api<N, B, E, P, RA>(
     RA: Send + Sync + 'static,
     P::Block: Block<Hash=H256>,
 {
-    ros::init();
+    rosrust::try_init_with_options("robonomics", false);
     ipfs::init();
 
     let keystore_default_public = &keystore.contents().unwrap()[0];
@@ -261,7 +260,7 @@ pub fn start_ros_api<N, B, E, P, RA>(
     let finalize_tx = demand_tx.clone();
 
     // Subscribe for sending demand extrinsics
-    let demand = ros::subscribe("liability/demand/send", QUEUE_SIZE, move |v: robonomics_msgs::Order| {
+    let demand = rosrust::subscribe("liability/demand/send", QUEUE_SIZE, move |v: robonomics_msgs::Order| {
         let model = bs58::decode(v.model).into_vec().unwrap();
         let objective = bs58::decode(v.objective).into_vec().unwrap();
         let cost = v.cost.parse().unwrap();
@@ -269,7 +268,7 @@ pub fn start_ros_api<N, B, E, P, RA>(
     }).expect("failed to create demand subscriber");
 
     // Subscribe for sending offer extrinsics
-    let offer = ros::subscribe("liability/offer/send", QUEUE_SIZE, move |v: robonomics_msgs::Order| {
+    let offer = rosrust::subscribe("liability/offer/send", QUEUE_SIZE, move |v: robonomics_msgs::Order| {
         let model = bs58::decode(v.model).into_vec().unwrap();
         let objective = bs58::decode(v.objective).into_vec().unwrap();
         let cost = v.cost.parse().unwrap();
@@ -277,7 +276,7 @@ pub fn start_ros_api<N, B, E, P, RA>(
     }).expect("failed to create demand subscriber");
 
     // Finalize liability
-    let finalize = ros::subscribe("liability/finalize", QUEUE_SIZE, move |v: robonomics_msgs::Finalize| {
+    let finalize = rosrust::subscribe("liability/finalize", QUEUE_SIZE, move |v: robonomics_msgs::Finalize| {
         let result = bs58::decode(v.result).into_vec().unwrap();
         finalize_tx.unbounded_send(RobonomicsCall::finalize(v.id, result)).unwrap();
     }).expect("failed to create liability subscriber");
