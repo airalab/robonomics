@@ -25,7 +25,6 @@ use std::sync::Arc;
 use log::debug;
 
 use crate::msg::std_msgs;
-use crate::ros;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum WorkerMsg {
@@ -78,7 +77,7 @@ impl RosbagPlayer{
 
             match iterated {
                 Record::Connection(conn) => {
-                    let topic_publisher = ros::publish(conn.topic, 32).unwrap();
+                    let topic_publisher = rosrust::publish(conn.topic, 32).unwrap();
                     let p_desc = PublisherDesc {
                         publisher: topic_publisher,
                         rostopic: conn.topic.to_string(),
