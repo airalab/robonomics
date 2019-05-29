@@ -2,7 +2,8 @@
     "Order": {
         "model": "Vec<u8>",
         "objective": "Vec<u8>",
-        "cost": "Balance"
+        "cost": "Balance",
+        "custodian": "AccountId"
     },
     "Demand": {
         "order": "Order",
