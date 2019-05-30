@@ -32,35 +32,38 @@ use runtime_primitives::traits::{Member, SimpleArithmetic, As, Hash};
 /// Order params.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
-pub struct Order<Balance> {
+pub struct Order<Balance,AccountId> {
     pub model: Vec<u8>,
     pub objective: Vec<u8>,
-    pub cost: Balance
+    pub cost: Balance,
+// ACTION: add custodian here
+    pub custodian: AccountId
 }
 
 /// Offer message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Offer<Balance,AccountId> {
-    pub order: Order<Balance>,
-    pub sender: AccountId
+    pub order: Order<Balance,AccountId>,
+    pub sender: AccountId,
 }
 
 /// Demand message.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Demand<Balance,AccountId> {
-    pub order: Order<Balance>,
-    pub sender: AccountId
+    pub order: Order<Balance,AccountId>,
+    pub sender: AccountId, 
 }
 
 /// Liability descriptive parameters.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq)]
 pub struct Liability<Balance,AccountId> {
-    pub order: Order<Balance>,
+    pub order: Order<Balance,AccountId>,
     pub promisee: AccountId,
     pub promisor: AccountId,
+
     pub result: Option<Vec<u8>>
 }
 
@@ -86,11 +89,14 @@ decl_module! {
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
-            #[compact] cost: BalanceOf<T>
+            #[compact] cost: BalanceOf<T>,
+            // ACTION: add custodian here
+            custodian: T::AccountId
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
-            let order = Order { model, objective, cost }; 
+            // ACTION: add custodian here
+            let order = Order { model, objective, cost, custodian }; 
             let order_hash = T::Hashing::hash_of(&order);
             let demand = Demand { order, sender };
 
@@ -108,11 +114,14 @@ decl_module! {
             origin,
             model: Vec<u8>,
             objective: Vec<u8>,
-            #[compact] cost: BalanceOf<T>
+            #[compact] cost: BalanceOf<T>,
+            // ACTION: add custodian here
+            custodian: T::AccountId
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
-            let order = Order { model, objective, cost }; 
+            // ACTION: add custodian here
+            let order = Order { model, objective, cost, custodian }; 
             let order_hash = T::Hashing::hash_of(&order);
             let offer = Offer { order, sender };
 
@@ -134,7 +143,8 @@ decl_module! {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
             let liability = <LiabilityOf<T>>::get(liability_index).ok_or("liability not found")?;
-            ensure!(sender == liability.promisor, "this call is for promisor only");
+            // ACTION: change sender check to be custodian
+            ensure!(sender == liability.order.custodian, "this call is for custodian only");
             ensure!(None == liability.result, "liability already finalized");
 
 		    T::Currency::repatriate_reserved(&liability.promisee, &liability.promisor, liability.order.cost)?;
