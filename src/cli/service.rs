@@ -91,6 +91,15 @@ construct_service_factory! {
                     service.on_exit(),
                 ));
 
+                #[cfg(feature = "ros")]
+                executor.spawn(chain_rpc_ros::start_status_api(
+                   service.network(),
+                   service.client(),
+                   service.transaction_pool(),
+                   service.keystore(),
+                   service.on_exit(),
+                ));
+
                 Ok(service)
             }
         },

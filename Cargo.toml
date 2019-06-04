@@ -33,6 +33,7 @@ client = { package = "substrate-client", git = "https://github.com/paritytech/su
 substrate-service = { git = "https://github.com/paritytech/substrate" }
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
 ros-integration = { path = "ros-integration", optional = true }
+chain-rpc-ros = { path = "chain-rpc-ros", optional = true }
 robonomics-runtime = { path = "runtime" }
 
 [features]
@@ -41,13 +42,13 @@ default = []
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
 # To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
 # It also require roscore to be launched to start.
-ros = [ 'ros-integration' ]
+ros = [ 'ros-integration', 'chain-rpc-ros' ]
 
 [build-dependencies]
 vergen = "3"
 
 [workspace]
-members = [ "runtime", "ros-integration" ]
+members = [ "runtime", "ros-integration", "chain-rpc-ros" ]
 exclude = [ "runtime/wasm" ]
 
 [badges]

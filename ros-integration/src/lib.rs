@@ -199,37 +199,6 @@ fn event_stream<B, C>(
     })
 }
 
-/// Robonomics node status.
-fn status_stream<B, C, N>(
-    client: Arc<C>,
-    network: Arc<N>,
-) -> impl Future<Item=(),Error=()> where
-    C: BlockchainEvents<B> + HeaderBackend<B>,
-    N: SyncProvider<B>,
-    B: Block,
-{
-    let hash_pub = rosrust::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
-    let number_pub = rosrust::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
-    let peers_pub = rosrust::publish("network/peers", QUEUE_SIZE).unwrap();
-
-    client.import_notification_stream().for_each(move |block| {
-        if block.is_new_best {
-            let mut hash_msg = std_msgs::String::default(); 
-            hash_msg.data = block.header.hash().to_string();
-            hash_pub.send(hash_msg).unwrap();
-
-            let mut peers_msg = std_msgs::UInt64::default();
-            peers_msg.data = network.peers().len() as u64;
-            peers_pub.send(peers_msg).unwrap();
-
-            let mut number_msg = std_msgs::UInt64::default();
-		    number_msg.data = block.header.number().as_();
-            number_pub.send(number_msg).unwrap();
-        }
-        Ok(())
-    })
-}
-
 /// ROS API main routine.
 pub fn start_ros_api<N, B, E, P, RA>(
     network: Arc<N>,
@@ -289,8 +258,7 @@ pub fn start_ros_api<N, B, E, P, RA>(
 
     extrinsic_stream(client.clone(), key, pool, extrinsic_rx)
         .join(liability_stream(liability_rx, ros_account))
-        .join(event_stream(client.clone(), liability_tx))
-        .join(status_stream(client, network))
+        .join(event_stream(client, liability_tx))
         .map(|_| ())
         .select(on_exit)
         .then(move |_| {
