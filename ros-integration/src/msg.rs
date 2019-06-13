@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 ///! Rust generated ROS messages.
-use rosrust_codegen::rosmsg_include;
+use rosrust::rosmsg_include;
 
 rosmsg_include!(
     std_msgs / UInt64,

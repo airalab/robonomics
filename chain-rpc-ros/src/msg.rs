@@ -16,13 +16,12 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 ///! Rust generated ROS messages.
-use rosrust_codegen::rosmsg_include;
+use rosrust::rosmsg_include;
 
 rosmsg_include!(
     std_msgs / UInt64,
     std_msgs / String,
-    robonomics_msgs / Demand,
-    robonomics_msgs / Offer,
-    robonomics_msgs / Finalize,
-    robonomics_msgs / Liability,
+
+    robonomics_msgs / BlockHash,
+    robonomics_msgs / BlockNumber,
 );
