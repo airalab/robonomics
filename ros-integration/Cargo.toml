@@ -11,8 +11,7 @@ rosbag = "0.2"
 futures = "0.1"
 ipfs-api = "0.5"
 lazy_static = "1.2"
-rosrust_codegen = "0.7.0"
-rosrust = { git = "https://github.com/adnanademovic/rosrust" }
+rosrust = "0.8.0"
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
 service = { package = "substrate-service", git = "https://github.com/paritytech/substrate" }
 network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }

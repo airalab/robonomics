@@ -35,14 +35,22 @@ use primitives::{
 use transaction_pool::txpool::{ChainApi, Pool};
 use robonomics_runtime::{
 };
+use std::thread;
+use futures::future::IntoFuture;
+use log::info;
 
 mod msg;
 
-use msg::{std_msgs};
+use msg::{std_msgs, robonomics_msgs};
 
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
 const QUEUE_SIZE: usize = 10;
+const BEST_HASH_ROS_NAME: &str = "blockchain/best_hash";
+const BEST_NUMBER_ROS_NAME: &str = "blockchain/best_number";
+const FINALIZED_HASH_ROS_NAME: &str = "blockchain/finalized_hash";
+const FINALIZED_NUMBER_ROS_NAME: &str = "blockchain/finalized_number";
+const NETWORK_PEERS_ROS_NAME: &str = "network/peers";
 
 /// Robonomics node status.
 fn status_stream<B, C, N>(
@@ -53,9 +61,9 @@ fn status_stream<B, C, N>(
     N: SyncProvider<B>,
     B: Block,
 {
-    let hash_pub = rosrust::publish("blockchain/best_hash", QUEUE_SIZE).unwrap();
-    let number_pub = rosrust::publish("blockchain/best_number", QUEUE_SIZE).unwrap();
-    let peers_pub = rosrust::publish("network/peers", QUEUE_SIZE).unwrap();
+    let hash_pub = rosrust::publish(BEST_HASH_ROS_NAME, QUEUE_SIZE).unwrap();
+    let number_pub = rosrust::publish(BEST_NUMBER_ROS_NAME, QUEUE_SIZE).unwrap();
+    let peers_pub = rosrust::publish(NETWORK_PEERS_ROS_NAME, QUEUE_SIZE).unwrap();
 
     client.import_notification_stream().for_each(move |block| {
         if block.is_new_best {
@@ -84,8 +92,8 @@ fn finality_stream<B, C, N>(
     N: SyncProvider<B>,
     B: Block,
 {
-    let finalized_number_pub = rosrust::publish("blockchain/finalized_number", QUEUE_SIZE).unwrap();
-    let finalized_hash_pub = rosrust::publish("blockchain/finalized_hash", QUEUE_SIZE).unwrap();
+    let finalized_number_pub = rosrust::publish(FINALIZED_NUMBER_ROS_NAME, QUEUE_SIZE).unwrap();
+    let finalized_hash_pub = rosrust::publish(FINALIZED_HASH_ROS_NAME, QUEUE_SIZE).unwrap();
 
     client.finality_notification_stream().for_each(move |block| {
         let mut finalized_number_msg = std_msgs::UInt64::default();
@@ -98,6 +106,59 @@ fn finality_stream<B, C, N>(
 
         Ok(())
     })
+}
+
+fn rpc_api_stream<B, C, N>(
+    client_original: Arc<C>,
+    network: Arc<N>,
+) -> impl Future<Item=(),Error=()> + 'static where
+    C: BlockchainEvents<B> + HeaderBackend<B> + 'static,
+    N: SyncProvider<B>,
+    B: Block,
+{
+    thread::spawn(move || {
+        info!("Start rosrust service");
+
+        let client = client_original.clone();
+        let _best_hash_service =
+            rosrust::service::<msg::robonomics_msgs::BlockHash, _>(BEST_HASH_ROS_NAME, move |_req| {
+                // Callback for handling requests
+                let mut res = msg::robonomics_msgs::BlockHashRes::default();
+                res.hash = client.info().unwrap().best_hash.to_string();
+                debug!("rosservice get best hash res {}", res.hash);
+                Ok(res)
+            });
+
+        let client = client_original.clone();
+        let _best_number_service =
+            rosrust::service::<msg::robonomics_msgs::BlockNumber, _>(BEST_NUMBER_ROS_NAME, move |_req| {
+                let mut res = msg::robonomics_msgs::BlockNumberRes::default();
+                res.number = client.info().unwrap().best_number.as_();
+                debug!("rosservice get best number res {}", res.number);
+                Ok(res)
+            });
+
+        let client = client_original.clone();
+        let _finalized_hash_service =
+            rosrust::service::<msg::robonomics_msgs::BlockHash, _>(FINALIZED_HASH_ROS_NAME, move |_req| {
+                let mut res = msg::robonomics_msgs::BlockHashRes::default();
+                res.hash = client.info().unwrap().finalized_hash.to_string();
+                debug!("rosservice get finalized hash res {}", res.hash);
+                Ok(res)
+            });
+
+        let client = client_original.clone();
+        let _finalized_number_service =
+            rosrust::service::<msg::robonomics_msgs::BlockNumber, _>(FINALIZED_NUMBER_ROS_NAME, move |_req| {
+                let mut res = msg::robonomics_msgs::BlockNumberRes::default();
+                res.number = client.info().unwrap().finalized_number.as_();
+                debug!("rosservice get finalized number res {}", res.number);
+                Ok(res)
+            });
+        // Block the thread until a shutdown signal is received
+        rosrust::spin();
+    });
+    Ok(()).into_future()
 }
 
 /// ROS API status routine
@@ -115,8 +176,9 @@ pub fn start_status_api<N, B, E, P, RA>(
     RA: Send + Sync + 'static,
     P::Block: Block<Hash=H256>,
 {
-        status_stream(client.clone(), network.clone())
-            .join(finality_stream(client, network))
+    status_stream(client.clone(), network.clone())
+        .join(finality_stream(client.clone(), network.clone()))
+        .join(rpc_api_stream(client, network))
         .map(|_| ())
         .select(on_exit)
         .then(move |_| {
