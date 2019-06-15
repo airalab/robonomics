@@ -20,6 +20,7 @@ This source is a part of AIRA project. It implements their purposes using Substr
  . Open https://polkadot.js.org/apps/#/settings[Substrate UI]: General settings
  . Set `custom` node endpoint to `wss://robonomics.akru.me/`
  . Save and reload
+ . Get test tokens https://faucets.blockxlabs.com
 
 When connection is success you can explore `Robonomics testnet` using Substrate UI. Just create account and request test XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
 
