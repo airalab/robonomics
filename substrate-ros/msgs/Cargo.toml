@@ -1,0 +1,8 @@
+[package]
+name = "substrate-ros-msgs"
+version = "0.1.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+
+[dependencies]
+rosrust = "0.8"

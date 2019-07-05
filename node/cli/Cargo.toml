@@ -1,0 +1,41 @@
+[package]
+name = "node-cli"
+version = "0.11.0"
+authors = ["Airalab <research@aira.life>"]
+build = "build.rs"
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+tokio = "0.1.7"
+futures = "0.1"
+serde_json = "1.0"
+hex-literal = "0.2"
+exit-future = "0.1"
+parking_lot = "0.4"
+ctrlc = { version = "3.0", features = ["termination"] }
+transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
+consensus = { package = "substrate-consensus-aura", git = "https://github.com/paritytech/substrate" }
+basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate" }
+grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate" }
+grandpa_primitives = { package = "substrate-finality-grandpa-primitives", git = "https://github.com/paritytech/substrate" }
+primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
+telemetry = { package = "substrate-telemetry", git = "https://github.com/paritytech/substrate" }
+inherents = { package = "substrate-inherents", git = "https://github.com/paritytech/substrate" }
+keystore = { package = "substrate-keystore", git = "https://github.com/paritytech/substrate" }
+executor = { package = "substrate-executor", git = "https://github.com/paritytech/substrate" }
+network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }
+client = { package = "substrate-client", git = "https://github.com/paritytech/substrate", default-features = false }
+substrate-service = { git = "https://github.com/paritytech/substrate" }
+substrate-cli = { git = "https://github.com/paritytech/substrate" }
+ros-robonomics = { package = "substrate-ros-robonomics", path = "../../substrate-ros/robonomics", optional = true }
+ros-rpc = { package = "substrate-ros-rpc", path = "../../substrate-ros/rpc", optional = true }
+robonomics-runtime = { path = "../runtime" }
+
+[features]
+default = []
+ros = [ 'ros-rpc' ]
+
+[build-dependencies]                                                                                                                
+substrate-cli = { git = "https://github.com/paritytech/substrate" }
+structopt = "0.2"

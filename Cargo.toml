@@ -7,48 +7,30 @@ edition = "2018"
 
 [[bin]]
 name = "robonomics"
-path = "src/main.rs"
+path = "node/src/main.rs"
 
 [dependencies]
-log = "0.4"
-tokio = "0.1.7"
-futures = "0.1"
-serde_json = "1.0"
-hex-literal = "0.2"
-exit-future = "0.1"
-parking_lot = "0.4"
-ctrlc = { version = "3.0", features = ["termination"] }
-transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
-consensus = { package = "substrate-consensus-aura", git = "https://github.com/paritytech/substrate" }
-basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate" }
-grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate" }
-primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
-telemetry = { package = "substrate-telemetry", git = "https://github.com/paritytech/substrate" }
-inherents = { package = "substrate-inherents", git = "https://github.com/paritytech/substrate" }
-keystore = { package = "substrate-keystore", git = "https://github.com/paritytech/substrate" }
-executor = { package = "substrate-executor", git = "https://github.com/paritytech/substrate" }
-network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }
-client = { package = "substrate-client", git = "https://github.com/paritytech/substrate", default-features = false }
-substrate-service = { git = "https://github.com/paritytech/substrate" }
-substrate-cli = { git = "https://github.com/paritytech/substrate" }
-ros-integration = { path = "ros-integration", optional = true }
-chain-rpc-ros = { path = "chain-rpc-ros", optional = true }
-robonomics-runtime = { path = "runtime" }
+cli = { package = "node-cli", path = "node/cli" }
+
+[build-dependencies]
+vergen = "3"
 
 [features]
 default = []
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
 # To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
-# It also require roscore to be launched to start.
-ros = [ 'ros-integration', 'chain-rpc-ros' ]
-
-[build-dependencies]
-vergen = "3"
+# It also require roscore service to be launched.
+ros = [ 'cli/ros' ]
 
 [workspace]
-members = [ "runtime", "ros-integration", "chain-rpc-ros" ]
-exclude = [ "runtime/wasm" ]
+members = [
+  "node/cli",
+  "node/runtime",
+  "substrate-ros/rpc",
+  "substrate-ros/msgs",
+  "substrate-ros/robonomics"
+]
 
 [badges]
 travis-ci = { repository = "airalab/substrate-node-robonomics", branch = "master" }

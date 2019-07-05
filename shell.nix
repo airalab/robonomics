@@ -6,14 +6,14 @@ with nixpkgs.latest.rustChannels;
 with nixpkgs;
 
 let
-  channel = rustChannelOf { date = "2019-06-24"; channel = "nightly"; };
+  channel = rustChannelOf { date = "2019-07-01"; channel = "nightly"; };
   rust = channel.rust.override { targets = [ "wasm32-unknown-unknown" ]; };
-  msgs = callPackage ./robonomics_msgs { };
+  msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
 in
   stdenv.mkDerivation {
     name = "substrate-nix-shell";
     buildInputs = [
-      rust wasm-gc pkgconfig openssl clang # msgs
+      rust pkgconfig openssl clang msgs
     ];
     LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   }
