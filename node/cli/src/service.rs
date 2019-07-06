@@ -95,11 +95,14 @@ construct_service_factory! {
                 */
 
                 #[cfg(feature = "ros")]
-                service.spawn_task(Box::new(ros_rpc::start_ros_rpc(
-                   service.client(),
-                   service.transaction_pool(),
-                   service.on_exit(),
-                )));
+                {
+                    let author = ros_rpc::author::Author::new(
+                        service.client(),
+                        service.transaction_pool(),
+                    );
+
+                    service.spawn_task(Box::new(author.start_rpc(service.on_exit())));
+                }
 
                 Ok(service)
             }

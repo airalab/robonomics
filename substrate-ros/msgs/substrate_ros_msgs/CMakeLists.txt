@@ -53,6 +53,9 @@ add_message_files(
         Offer.msg
         Finalize.msg
         Liability.msg
+
+        RawExtrinsic.msg
+        ExHash.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -62,6 +65,10 @@ add_service_files(
         BlockNumber.srv
         BlockHashByNumber.srv
         BlockNumberByHash.srv
+
+        SubmitExtrinsic.srv
+        PendingExtrinsics.srv
+        RemoveExtrinsic.srv
  )
 
 ## Generate actions in the 'action' folder

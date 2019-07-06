@@ -30,6 +30,13 @@ rosmsg_include!(
     substrate_ros_msgs / Liability,
 
     // substrate rpc messages
+    substrate_ros_msgs / ExHash,
+    substrate_ros_msgs / RawExtrinsic,
+
+    substrate_ros_msgs / PendingExtrinsics,
+    substrate_ros_msgs / RemoveExtrinsic,
+    substrate_ros_msgs / SubmitExtrinsic,
+
     substrate_ros_msgs / BlockHash,
     substrate_ros_msgs / BlockNumber,
     substrate_ros_msgs / BlockHashByNumber,
