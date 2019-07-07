@@ -13,6 +13,7 @@ futures = "0.1"
 ipfs-api = "0.5"
 lazy_static = "1.2"
 robonomics-runtime = { path = "../../node/runtime" }
+msgs = { package = "substrate-ros-msgs", path = "../msgs" }
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
 service = { package = "substrate-service", git = "https://github.com/paritytech/substrate" }
 network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }

@@ -17,9 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use std::sync::Arc;
-
-use serde_json;
-use futures::Future;
 use client::{self, Client};
 use parity_codec::{Encode, Decode};
 use primitives::{Bytes, Blake2Hasher, H256};
@@ -27,9 +24,7 @@ use runtime_primitives::{generic, traits};
 use transaction_pool::{
 	txpool::{
 		ChainApi as PoolChainApi,
-		BlockHash,
 		ExHash as ExHashT,
-		IntoPoolError,
 		Pool,
 	},
 };
@@ -39,6 +34,8 @@ use msgs::substrate_ros_msgs::{
     PendingExtrinsics, PendingExtrinsicsRes,
     RemoveExtrinsic, RemoveExtrinsicRes,
 };
+use rosrust::api::error::Error;
+use crate::traits::RosRpc;
 
 const SUBMIT_SRV_NAME: &str = "/author/submit_extrinsic";
 const REMOVE_SRV_NAME: &str = "/author/remove_extrinsic";
@@ -71,55 +68,6 @@ impl<B, E, P, RA> Author<B, E, P, RA> where
         }
     }
 
-    pub fn start_rpc(self, on_exit: impl Future<Item=(), Error=()>) -> impl Future<Item=(), Error=()> {
-        rosrust::try_init_with_options("robonomics", false);
-
-        let api = Arc::new(self);
-
-        let api1 = api.clone();
-        let _submit =
-            rosrust::service::<SubmitExtrinsic, _>(SUBMIT_SRV_NAME, move |req| {
-                let mut res = SubmitExtrinsicRes::default();
-                match api1.submit_extrinsic(req.extrinsic.data.into()) {
-                    Ok(hash) => {
-                        res.hash = ExHash::default();
-                        res.hash.data = hash.into();
-                    },
-                    Err(err) => res.error = err.to_string()
-                }
-                Ok(res)
-            });
-
-        let api2 = api.clone();
-        let _pending =
-            rosrust::service::<PendingExtrinsics, _>(PENDING_SRV_NAME, move |_req| {
-                let mut res = PendingExtrinsicsRes::default();
-                for xt in api2.pending_extrinsics() {
-                    let mut xt_msg = RawExtrinsic::default();
-                    for b in xt.iter() { xt_msg.data.push(*b); }
-                    res.extrinsics.push(xt_msg);
-                }
-                Ok(res)
-            });
-
-        let _remove =
-            rosrust::service::<RemoveExtrinsic, _>(REMOVE_SRV_NAME, move |req| {
-                let mut res = RemoveExtrinsicRes::default();
-                let hashes = req.extrinsics.iter().map(|h| h.data.into()).collect();
-                for xt in api.remove_extrinsic(hashes) {
-                    let mut hash_msg = ExHash::default();
-                    hash_msg.data = xt.into();
-                    res.extrinsics.push(hash_msg);
-                }
-                Ok(res)
-            });
-
-        on_exit.then(move |_| {
-            _submit; _pending; _remove;
-            Ok(())
-        })
-    }
-
 	fn submit_extrinsic(&self, ext: Bytes) -> Result<ExHashT<P>, &str> {
 		let xt = Decode::decode(&mut &ext[..]).ok_or("Bad extrinsic format")?;
 		let best_block_hash = self.client.info().chain.best_hash;
@@ -138,4 +86,66 @@ impl<B, E, P, RA> Author<B, E, P, RA> where
 			.map(|tx| tx.hash.clone())
 			.collect()
 	}
+}
+
+impl<B, E, P, RA> RosRpc for Author<B, E, P, RA> where
+	B: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+	E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+	P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
+	P::Block: traits::Block<Hash=H256>,
+	P::Error: 'static,
+	RA: Send + Sync + 'static
+{
+    fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error> {
+        // TODO: drop this hack
+        // <
+        rosrust::try_init_with_options("robonomics", false).unwrap();
+        // !>
+
+        let mut services = vec![];
+
+        let api1 = api.clone();
+        services.push(
+            rosrust::service::<SubmitExtrinsic, _>(SUBMIT_SRV_NAME, move |req| {
+                let mut res = SubmitExtrinsicRes::default();
+                match api1.submit_extrinsic(req.extrinsic.data.into()) {
+                    Ok(hash) => {
+                        res.hash = ExHash::default();
+                        res.hash.data = hash.into();
+                    },
+                    Err(err) => res.error = err.to_string()
+                }
+                Ok(res)
+            })?
+        );
+
+        let api2 = api.clone();
+        services.push(
+            rosrust::service::<PendingExtrinsics, _>(PENDING_SRV_NAME, move |_req| {
+                let mut res = PendingExtrinsicsRes::default();
+                for xt in api2.pending_extrinsics() {
+                    let mut xt_msg = RawExtrinsic::default();
+                    for b in xt.iter() { xt_msg.data.push(*b); }
+                    res.extrinsics.push(xt_msg);
+                }
+                Ok(res)
+            })?
+        );
+
+        let api3 = api.clone();
+        services.push(
+            rosrust::service::<RemoveExtrinsic, _>(REMOVE_SRV_NAME, move |req| {
+                let mut res = RemoveExtrinsicRes::default();
+                let hashes = req.extrinsics.iter().map(|h| h.data.into()).collect();
+                for xt in api3.remove_extrinsic(hashes) {
+                    let mut hash_msg = ExHash::default();
+                    hash_msg.data = xt.into();
+                    res.extrinsics.push(hash_msg);
+                }
+                Ok(res)
+            })?
+        );
+
+        Ok(services)
+    }
 }

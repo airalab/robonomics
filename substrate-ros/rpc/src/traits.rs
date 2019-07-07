@@ -15,32 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Rust generated ROS messages.
-use rosrust::rosmsg_include;
 
-rosmsg_include!(
-    // standard ros messages
-    std_msgs / UInt64,
-    std_msgs / String,
+use std::sync::Arc;
+use rosrust::Service;
+use rosrust::api::error::Error;
 
-    // robonomics messages
-    substrate_ros_msgs / Demand,
-    substrate_ros_msgs / Offer,
-    substrate_ros_msgs / Finalize,
-    substrate_ros_msgs / Liability,
-
-    // substrate rpc messages
-    substrate_ros_msgs / ExHash,
-    substrate_ros_msgs / BlockHash,
-    substrate_ros_msgs / RawExtrinsic,
-
-    substrate_ros_msgs / PendingExtrinsics,
-    substrate_ros_msgs / RemoveExtrinsic,
-    substrate_ros_msgs / SubmitExtrinsic,
-
-    substrate_ros_msgs / GetBlock,
-    substrate_ros_msgs / GetBlockHash,
-    substrate_ros_msgs / GetBlockHeader,
-    substrate_ros_msgs / GetBestHead,
-    substrate_ros_msgs / GetFinalizedHead,
-);
+pub trait RosRpc {
+    fn start(api: Arc<Self>) -> Result<Vec<Service>, Error>;
+}

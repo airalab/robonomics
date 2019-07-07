@@ -56,19 +56,21 @@ add_message_files(
 
         RawExtrinsic.msg
         ExHash.msg
+        BlockHash.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
     FILES
-        BlockHash.srv
-        BlockNumber.srv
-        BlockHashByNumber.srv
-        BlockNumberByHash.srv
-
         SubmitExtrinsic.srv
         PendingExtrinsics.srv
         RemoveExtrinsic.srv
+
+        GetBlock.srv
+        GetBlockHash.srv
+        GetBlockHeader.srv
+        GetBestHead.srv
+        GetFinalizedHead.srv
  )
 
 ## Generate actions in the 'action' folder

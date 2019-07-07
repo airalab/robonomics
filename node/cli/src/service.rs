@@ -85,11 +85,10 @@ construct_service_factory! {
 
                 /*
                 #[cfg(feature = "ros")]
-                service.spawn_task(Box::new(ros_integration::start_ros_api(
+                service.spawn_task(Box::new(ros_robonomics::start_ros_api(
                     service.network(),
                     service.client(),
                     service.transaction_pool(),
-                    service.keystore(),
                     service.on_exit(),
                 )));
                 */
@@ -101,7 +100,17 @@ construct_service_factory! {
                         service.transaction_pool(),
                     );
 
-                    service.spawn_task(Box::new(author.start_rpc(service.on_exit())));
+                    let chain = ros_rpc::chain::Chain::new(
+                        service.client(),
+                    );
+
+                    let _services = vec![
+                        ros_rpc::traits::RosRpc::start(Arc::new(author)).unwrap(),
+                        ros_rpc::traits::RosRpc::start(Arc::new(chain)).unwrap(),
+                    ];
+
+                    let on_exit = service.on_exit().then(move |_| {_services; Ok(())});
+                    service.spawn_task(Box::new(on_exit));
                 }
 
                 Ok(service)

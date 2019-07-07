@@ -24,7 +24,7 @@ use std::string::String;
 use std::sync::Arc;
 use log::debug;
 
-use crate::msg::std_msgs;
+use msgs::std_msgs;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum WorkerMsg {

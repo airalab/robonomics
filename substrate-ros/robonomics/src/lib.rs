@@ -20,7 +20,6 @@
 use log::debug;
 use std::sync::Arc;
 use futures::{Future, Stream, sync::mpsc};
-use network::SyncProvider;
 use keystore::Store as Keystore;
 use client::{
     Client, CallExecutor, BlockchainEvents,
@@ -30,7 +29,7 @@ use client::{
 use runtime_primitives::{
     codec::{Decode, Encode, Compact},
     generic::{BlockId, Era},
-    traits::{As, Block, Header, BlockNumberToHash}
+    traits::{Block, Header, BlockNumberToHash}
 };
 use primitives::{
     Blake2Hasher, H256, twox_128,
@@ -200,13 +199,11 @@ fn event_stream<B, C>(
 
 /// ROS API main routine.
 pub fn start_ros_api<N, B, E, P, RA>(
-    network: Arc<N>,
     client: Arc<Client<B, E, P::Block, RA>>,
     pool: Arc<Pool<P>>,
     keystore: &Keystore,
     on_exit: impl Future<Item=(),Error=()> + 'static,
 ) -> impl Future<Item=(),Error=()> + 'static where
-    N: SyncProvider<P::Block> + 'static,
     B: Backend<P::Block, Blake2Hasher> + 'static,
     E: CallExecutor<P::Block, Blake2Hasher> + Send + Sync + 'static,
     P: ChainApi + 'static,
