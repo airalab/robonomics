@@ -22,7 +22,7 @@ use robonomics_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, AuraConfig, StakingConfig,
     TimestampConfig, IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     SessionKeys, AccountId, Perbill, StakerStatus, AuraId, GrandpaId,
-    Balance, XRT, WASM_BINARY
+    Balance, XRT, WASM_BINARY, SECS_PER_BLOCK
 };
 use substrate_service::{self, Properties};
 use serde_json::json;
@@ -77,14 +77,14 @@ pub fn get_account_id_from_seed(seed: &str) -> AccountId {
 }
 
 /// Helper function to generate AuraId from seed
-pub fn get_aura_key_from_seed(seed: &str) -> AuraId {
+pub fn get_aura_id_from_seed(seed: &str) -> AuraId {
     ed25519::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
 }
 
 /// Helper function to generate GrandpaId from seed
-pub fn get_grandpa_key_from_seed(seed: &str) -> GrandpaId {
+pub fn get_grandpa_id_from_seed(seed: &str) -> GrandpaId {
     ed25519::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
@@ -95,9 +95,14 @@ pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, AuraId
     (
         get_account_id_from_seed(&format!("{}//stash", seed)),
         get_account_id_from_seed(seed),
-        get_aura_key_from_seed(seed),
-        get_grandpa_key_from_seed(seed),
+        get_aura_id_from_seed(seed),
+        get_grandpa_id_from_seed(seed),
     )
+}
+
+
+fn session_keys(key: ed25519::Public) -> SessionKeys {
+    SessionKeys { ed25519: key }
 }
 
 /// Helper function to create GenesisConfig for testing
@@ -114,10 +119,14 @@ pub fn testnet_genesis(
             get_account_id_from_seed("Dave"),
             get_account_id_from_seed("Eve"),
             get_account_id_from_seed("Ferdie"),
+            get_account_id_from_seed("Alice//stash"),
+            get_account_id_from_seed("Bob//stash"),
+            get_account_id_from_seed("Charlie//stash"),
+            get_account_id_from_seed("Dave//stash"),
+            get_account_id_from_seed("Eve//stash"),
+            get_account_id_from_seed("Ferdie//stash"),
         ]
     });
-
-    const SECS_PER_BLOCK: u64 = 4;
 
     const ENDOWMENT: Balance = 100 * XRT;
     const STASH: Balance = 1_000 * XRT;
@@ -128,18 +137,19 @@ pub fn testnet_genesis(
             changes_trie_config: Default::default(),
         }),
         indices: Some(IndicesConfig {
-            ids: endowed_accounts.clone(),
+            ids: endowed_accounts.iter().cloned()
+                .chain(initial_authorities.iter().map(|x| x.0.clone()))
+                .collect::<Vec<_>>(),
         }),
         balances: Some(BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .map(|k| (k.clone(), ENDOWMENT))
+            balances: endowed_accounts.iter().cloned()
+                .map(|k| (k, ENDOWMENT))
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
             vesting: vec![],
         }),
         session: Some(SessionConfig {
-            keys: initial_authorities.iter().map(|x| (x.1.clone(), SessionKeys(x.2.clone(), x.2.clone()))).collect::<Vec<_>>(),
+            keys: initial_authorities.iter().map(|x| (x.1.clone(), session_keys(x.2.clone()))).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
             current_era: 0,

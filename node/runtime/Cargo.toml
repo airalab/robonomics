@@ -19,6 +19,7 @@ primitives = { package = "substrate-primitives", git = "https://github.com/parit
 executive = { package = "srml-executive", git = "https://github.com/paritytech/substrate", default-features = false }
 support = { package = "srml-support", git = "https://github.com/paritytech/substrate", default-features = false }
 aura = { package = "srml-aura", git = "https://github.com/paritytech/substrate", default-features = false }
+authorship = { package = "srml-authorship", git = "https://github.com/paritytech/substrate", default-features = false }
 system = { package = "srml-system", git = "https://github.com/paritytech/substrate", default-features = false }
 timestamp = { package = "srml-timestamp", git = "https://github.com/paritytech/substrate", default-features = false }
 indices = { package = "srml-indices", git = "https://github.com/paritytech/substrate", default-features = false }
@@ -48,6 +49,7 @@ std = [
 	"executive/std",
 	"support/std",
 	"aura/std",
+    "authorship/std",
 	"system/std",
 	"timestamp/std",
     "indices/std",

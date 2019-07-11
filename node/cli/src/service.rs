@@ -50,7 +50,7 @@ native_executor_instance!(
 
 pub struct NodeConfig<F: substrate_service::ServiceFactory> {
     inherent_data_providers: InherentDataProviders,
-    pub grandpa_import_setup: Option<(Arc<grandpa::BlockImportForService<F>>, grandpa::LinkHalfForService<F>)>,
+    pub grandpa_import_setup: Option<(grandpa::BlockImportForService<F>, grandpa::LinkHalfForService<F>)>,
 }
 
 impl<F> Default for NodeConfig<F> where F: substrate_service::ServiceFactory {
@@ -132,12 +132,13 @@ construct_service_factory! {
                     let client = service.client();
                     let select_chain = service.select_chain()
                         .ok_or(ServiceError::SelectChainRequired)?;
+
                     let aura = start_aura(
                         SlotDuration::get_or_compute(&*client)?,
                         Arc::new(aura_key),
                         client,
                         select_chain,
-                        block_import.clone(),
+                        block_import,
                         proposer,
                         service.network(),
                         service.config.custom.inherent_data_providers.clone(),
@@ -162,7 +163,7 @@ construct_service_factory! {
                 };
 
                 match config.local_key {
-                    None => {
+                    None if !service.config.grandpa_voter => {
                         service.spawn_task(Box::new(grandpa::run_grandpa_observer(
                             config,
                             link_half,
@@ -170,8 +171,8 @@ construct_service_factory! {
                             service.on_exit(),
                         )?));
                     },
-
-                    Some(_) => {
+                    // Either config.local_key is set, or user forced voter service via `--grandpa-voter` flag.
+                    _ => {
                         let telemetry_on_connect = TelemetryOnConnect {
                             telemetry_connection_sinks: service.telemetry_on_connect_stream(),
                         };
@@ -201,15 +202,14 @@ construct_service_factory! {
                     grandpa::block_import::<_, _, _, RuntimeApi, FullClient<Self>, _>(
                         client.clone(), client.clone(), select_chain
                     )?;
-                let block_import = Arc::new(block_import);
                 let justification_import = block_import.clone();
 
                 config.custom.grandpa_import_setup = Some((block_import.clone(), link_half));
 
                 import_queue::<_, _, AuraPair>(
                     slot_duration,
-                    block_import,
-                    Some(justification_import),
+                    Box::new(block_import),
+                    Some(Box::new(justification_import)),
                     None,
                     None,
                     client,
@@ -226,7 +226,7 @@ construct_service_factory! {
                 let block_import = grandpa::light_block_import::<_, _, _, RuntimeApi, LightClient<Self>>(
                     client.clone(), Arc::new(fetch_checker), client.clone()
                 )?;
-                let block_import = Arc::new(block_import);
+                let block_import = Box::new(block_import);
                 let finality_proof_import = block_import.clone();
                 let finality_proof_request_builder = finality_proof_import.create_finality_proof_request_builder();
                 import_queue::<_, _, AuraPair>(

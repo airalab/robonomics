@@ -33,7 +33,7 @@ use support::{construct_runtime, parameter_types};
 use parity_codec::{Encode, Decode};
 use primitives::OpaqueMetadata;
 use runtime_primitives::{
-    ApplyResult, AnySignature, generic, create_runtime_str
+    ApplyResult, AnySignature, generic, create_runtime_str, key_types
 };
 use runtime_primitives::transaction_validity::TransactionValidity;
 use runtime_primitives::traits::{
@@ -87,6 +87,9 @@ pub type AuraId = primitives::ed25519::Public;
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
+
+/// Type used for expressing timestamp.
+pub type Moment = u64;
 
 /// Balance of an account.
 pub type Balance = u128;
@@ -145,22 +148,8 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
-pub const COASE: Balance = 1_000;
-pub const GLUSHKOV: Balance = 1_000 * COASE;
-pub const XRT: Balance = 1_000 * GLUSHKOV;
-
-pub struct CurrencyToVoteHandler;
-
-impl CurrencyToVoteHandler {
-    fn factor() -> u128 { (Balances::total_issuance() / u64::max_value() as u128).max(1) }
-}
-
-impl Convert<u128, u64> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> u64 { (x / Self::factor()) as u64 }
-}
-
-impl Convert<u128, u128> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> u128 { x * Self::factor() }
+parameter_types! {
+    pub const BlockHashCount: BlockNumber = 250;
 }
 
 impl system::Trait for Runtime {
@@ -182,12 +171,26 @@ impl system::Trait for Runtime {
     type Event = Event;
     /// The ubiquitous origin type.
     type Origin = Origin;
+    /// TODO: doc
+    type BlockHashCount = BlockHashCount;
 }
 
 impl timestamp::Trait for Runtime {
     /// A timestamp: seconds since the unix epoch.
-    type Moment = u64;
+    type Moment = Moment;
     type OnTimestampSet = Aura;
+}
+
+parameter_types! {
+        pub const UncleGenerations: u64 = 0;
+}
+
+// TODO: #2986 implement this properly
+impl authorship::Trait for Runtime {
+    type FindAuthor = ();
+    type UncleGenerations = UncleGenerations;
+    type FilterUncle = ();
+    type EventHandler = ();
 }
 
 impl aura::Trait for Runtime {
@@ -233,7 +236,9 @@ impl balances::Trait for Runtime {
     type TransactionByteFee = TransactionByteFee;
 }
 
-const MINUTES: BlockNumber = 6;
+pub const MINUTES: Moment = 60 / SECS_PER_BLOCK;
+pub const HOURS: Moment = MINUTES * 60;
+pub const DAYS: Moment = HOURS * 24;
 
 parameter_types! {
     pub const Period: BlockNumber = 10 * MINUTES;
@@ -241,9 +246,17 @@ parameter_types! {
 }
 
 type SessionHandlers = (Grandpa, Aura);
+
 impl_opaque_keys! {
-    pub struct SessionKeys(grandpa::AuthorityId, AuraId);
+    pub struct SessionKeys {
+        #[id(key_types::ED25519)]
+        pub ed25519: GrandpaId,
+    }
 }
+
+// NOTE: `SessionHandler` and `SessionKeys` are co-dependent: One key will be used for each
+// handler. The number and order of items in `SessionHandler` *MUST* be the same number and order of keys
+// in `SessionKeys`.
 
 impl session::Trait for Runtime {
     type OnSessionEnding = Staking;
@@ -251,7 +264,14 @@ impl session::Trait for Runtime {
     type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
     type Event = Event;
     type Keys = SessionKeys;
+    type ValidatorId = AccountId;
+    type ValidatorIdOf = staking::StashOf<Self>;
     type SelectInitialValidators = Staking;
+}
+
+impl session::historical::Trait for Runtime {
+    type FullIdentification = staking::Exposure<AccountId, Balance>;
+    type FullIdentificationOf = staking::ExposureOf<Runtime>;
 }
 
 parameter_types! {
@@ -259,8 +279,28 @@ parameter_types! {
     pub const BondingDuration: staking::EraIndex = 24 * 28;
 }
 
+pub const COASE: Balance = 1_000;
+pub const GLUSHKOV: Balance = 1_000 * COASE;
+pub const XRT: Balance = 1_000 * GLUSHKOV;
+
+pub struct CurrencyToVoteHandler;
+
+impl CurrencyToVoteHandler {
+    fn factor() -> u128 { (Balances::total_issuance() / u64::max_value() as u128).max(1) }
+}
+
+impl Convert<u128, u64> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u64 { (x / Self::factor()) as u64 }
+}
+
+impl Convert<u128, u128> for CurrencyToVoteHandler {
+    fn convert(x: u128) -> u128 { x * Self::factor() }
+}
+
+pub const SECS_PER_BLOCK: Moment = 4;
+
 impl staking::Trait for Runtime {
-    type Currency = balances::Module<Self>;
+    type Currency = Balances;
     type CurrencyToVote = CurrencyToVoteHandler;
     type OnRewardMinted = ();
     type Event = Event;
@@ -268,6 +308,7 @@ impl staking::Trait for Runtime {
     type Reward = ();
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
+    type SessionInterface = Self;
 }
 
 impl grandpa::Trait for Runtime {
@@ -306,6 +347,7 @@ construct_runtime!(
         System: system::{Module, Call, Storage, Config, Event},
         Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
         Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
+        Authorship: authorship::{Module, Call, Storage},
         Indices: indices,
         Balances: balances,
         Session: session::{Module, Call, Storage, Event, Config<T>},
@@ -396,6 +438,7 @@ impl_runtime_apis! {
         {
             Grandpa::pending_change(digest)
         }
+
         fn grandpa_forced_change(digest: &DigestFor<Block>)
             -> Option<(NumberFor<Block>, ScheduledChange<NumberFor<Block>>)>
         {
@@ -411,6 +454,7 @@ impl_runtime_apis! {
         fn slot_duration() -> u64 {
             Aura::slot_duration()
         }
+
         fn authorities() -> Vec<AuraId> {
             Aura::authorities()
         }
