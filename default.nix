@@ -1,13 +1,15 @@
-{ nixpkgs ? import ./nixpkgs.nix { } 
-, release ? import ./release.nix { }
+{ nixpkgs ? import ./nixpkgs.nix { }
 , ros ? true
+, rustWasm
+, msgs
 }:
 
 with nixpkgs;
-with release;
 
-stdenv.mkDerivation {
-  name = "substrate-nix-shell";
+rustPlatform.buildRustPackage rec {
+  name = "robonomics-node";
+  src = ./.;
+  cargoSha256 = null; 
   propagatedBuildInputs = if ros then [ msgs ] else [];
   buildInputs = [ rustWasm wasm-gc pkgconfig openssl clang ];
   LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
