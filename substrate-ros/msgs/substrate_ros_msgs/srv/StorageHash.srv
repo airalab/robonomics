@@ -1,0 +1,6 @@
+BlockHash block
+StorageKey key
+---
+bool success
+BlockHash hash
+string error

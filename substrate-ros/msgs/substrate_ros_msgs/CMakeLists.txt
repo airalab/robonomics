@@ -48,29 +48,44 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
     FILES
+        # Robonomics messages
         Order.msg
         Demand.msg
         Offer.msg
         Finalize.msg
         Liability.msg
 
+        # RPC data types
         RawExtrinsic.msg
         ExHash.msg
         BlockHash.msg
+        StorageKey.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
     FILES
+        # Author RPC
         SubmitExtrinsic.srv
         PendingExtrinsics.srv
         RemoveExtrinsic.srv
 
+        # Chain RPC
         GetBlock.srv
         GetBlockHash.srv
         GetBlockHeader.srv
         GetBestHead.srv
         GetFinalizedHead.srv
+
+        # System RPC
+        SystemHealth.srv
+
+        # State RPC
+        StateCall.srv
+        StorageHash.srv
+        StorageKeys.srv
+        StorageQuery.srv
+        StorageSize.srv
  )
 
 ## Generate actions in the 'action' folder

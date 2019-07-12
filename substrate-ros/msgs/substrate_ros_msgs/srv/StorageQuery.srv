@@ -1,0 +1,6 @@
+BlockHash block
+StorageKey key
+---
+bool success
+uint8[] data
+string error

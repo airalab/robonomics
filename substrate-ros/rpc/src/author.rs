@@ -97,11 +97,6 @@ impl<B, E, P, RA> RosRpc for Author<B, E, P, RA> where
 	RA: Send + Sync + 'static
 {
     fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error> {
-        // TODO: drop this hack
-        // <
-        rosrust::try_init_with_options("robonomics", false).unwrap();
-        // !>
-
         let mut services = vec![];
 
         let api1 = api.clone();

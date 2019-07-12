@@ -95,6 +95,17 @@ construct_service_factory! {
 
                 #[cfg(feature = "ros")]
                 {
+			        let system_info = ros_rpc::system::SystemInfo {
+				        chain_name: service.config.chain_spec.name().into(),
+				        impl_name: service.config.impl_name.into(),
+				        impl_version: service.config.impl_version.into(),
+				        properties: service.config.chain_spec.properties(),
+			        };
+                    let system = ros_rpc::system::System::new(
+                        system_info,
+                        service.network(),
+                    );
+
                     let author = ros_rpc::author::Author::new(
                         service.client(),
                         service.transaction_pool(),
@@ -104,9 +115,15 @@ construct_service_factory! {
                         service.client(),
                     );
 
+                    let state = ros_rpc::state::State::new(
+                        service.client(),
+                    );
+
                     let _services = vec![
+                        ros_rpc::traits::RosRpc::start(Arc::new(system)).unwrap(),
                         ros_rpc::traits::RosRpc::start(Arc::new(author)).unwrap(),
                         ros_rpc::traits::RosRpc::start(Arc::new(chain)).unwrap(),
+                        ros_rpc::traits::RosRpc::start(Arc::new(state)).unwrap(),
                     ];
 
                     let on_exit = service.on_exit().then(move |_| {_services; Ok(())});

@@ -4325,6 +4325,7 @@ dependencies = [
 name = "substrate-ros-rpc"
 version = "0.1.0"
 dependencies = [
+ "futures 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-codec 4.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rosrust 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4337,6 +4338,7 @@ dependencies = [
  "substrate-ros-msgs 0.1.0",
  "substrate-rpc 2.0.0 (git+https://github.com/paritytech/substrate)",
  "substrate-service 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-state-machine 2.0.0 (git+https://github.com/paritytech/substrate)",
  "substrate-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 

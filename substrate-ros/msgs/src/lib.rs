@@ -23,13 +23,16 @@ rosmsg_include!(
     std_msgs / UInt64,
     std_msgs / String,
 
-    // robonomics messages
+    // standard ros services
+    std_srvs / Trigger,
+
+    // substrate robonomics
     substrate_ros_msgs / Demand,
     substrate_ros_msgs / Offer,
     substrate_ros_msgs / Finalize,
     substrate_ros_msgs / Liability,
 
-    // substrate rpc messages
+    // substrate rpc
     substrate_ros_msgs / ExHash,
     substrate_ros_msgs / BlockHash,
     substrate_ros_msgs / RawExtrinsic,
@@ -43,4 +46,13 @@ rosmsg_include!(
     substrate_ros_msgs / GetBlockHeader,
     substrate_ros_msgs / GetBestHead,
     substrate_ros_msgs / GetFinalizedHead,
+
+    substrate_ros_msgs / SystemHealth,
+
+    substrate_ros_msgs / StorageKey,
+    substrate_ros_msgs / StateCall,
+    substrate_ros_msgs / StorageHash,
+    substrate_ros_msgs / StorageKeys,
+    substrate_ros_msgs / StorageQuery,
+    substrate_ros_msgs / StorageSize,
 );

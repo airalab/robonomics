@@ -1,0 +1,6 @@
+BlockHash block
+StorageKey key
+---
+bool success
+uint64 size
+string error
