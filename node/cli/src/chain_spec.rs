@@ -20,9 +20,9 @@
 use primitives::{ed25519, sr25519, crypto::Pair};
 use robonomics_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, AuraConfig, StakingConfig,
-    TimestampConfig, IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
+    IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     SessionKeys, AccountId, Perbill, StakerStatus, AuraId, GrandpaId,
-    Balance, XRT, WASM_BINARY, SECS_PER_BLOCK
+    Balance, XRT, WASM_BINARY
 };
 use substrate_service::{self, Properties};
 use serde_json::json;
@@ -161,9 +161,6 @@ pub fn testnet_genesis(
             offline_slash_grace: 4,
             stakers: initial_authorities.iter().map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)).collect(),
             invulnerables: initial_authorities.iter().map(|x| x.1.clone()).collect(),
-        }),
-        timestamp: Some(TimestampConfig {
-            minimum_period: SECS_PER_BLOCK / 2,
         }),
         sudo: Some(SudoConfig {
             key: root_key,

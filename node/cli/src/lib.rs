@@ -20,8 +20,10 @@
 use log::info;
 use std::ops::Deref;
 use std::cell::RefCell;
+use futures::future;
+use futures::sync::oneshot;
+use tokio::prelude::Future;
 use tokio::runtime::Runtime;
-use futures::{future, Future, sync::oneshot};
 use substrate_cli::{informant, parse_and_execute, NoCustom};
 use substrate_service::{ServiceFactory, Roles as ServiceRoles};
 pub use substrate_cli::{VersionInfo, IntoExit, error};

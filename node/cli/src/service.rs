@@ -27,6 +27,7 @@ use substrate_service::{
     TelemetryOnConnect, construct_service_factory,
     error::{Error as ServiceError}
 };
+use futures03::future::{FutureExt, TryFutureExt};
 use consensus::{import_queue, start_aura, AuraImportQueue, SlotDuration};
 use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider};
 use robonomics_runtime::{self, GenesisConfig, opaque::Block, RuntimeApi, AuraPair};
@@ -83,24 +84,21 @@ construct_service_factory! {
             |config: FactoryFullConfiguration<Self>| {
                 let service = FullComponents::<Factory>::new(config)?;
 
-                /*
-                #[cfg(feature = "ros")]
-                service.spawn_task(Box::new(ros_robonomics::start_ros_api(
-                    service.network(),
-                    service.client(),
-                    service.transaction_pool(),
-                    service.on_exit(),
-                )));
-                */
-
                 #[cfg(feature = "ros")]
                 {
-			        let system_info = ros_rpc::system::SystemInfo {
-				        chain_name: service.config.chain_spec.name().into(),
-				        impl_name: service.config.impl_name.into(),
-				        impl_version: service.config.impl_version.into(),
-				        properties: service.config.chain_spec.properties(),
-			        };
+                    let (api, api_subs) = ros_robonomics::start_api(
+                            service.client(),
+                            service.transaction_pool(),
+                            service.authority_key().unwrap(),
+                        );
+                    service.spawn_task(Box::new(api.unit_error().boxed().compat()));
+
+                    let system_info = ros_rpc::system::SystemInfo {
+                        chain_name: service.config.chain_spec.name().into(),
+                        impl_name: service.config.impl_name.into(),
+                        impl_version: service.config.impl_version.into(),
+                        properties: service.config.chain_spec.properties(),
+                    };
                     let system = ros_rpc::system::System::new(
                         system_info,
                         service.network(),
@@ -119,14 +117,18 @@ construct_service_factory! {
                         service.client(),
                     );
 
-                    let _services = vec![
+                    let rpc_subs = vec![
                         ros_rpc::traits::RosRpc::start(Arc::new(system)).unwrap(),
                         ros_rpc::traits::RosRpc::start(Arc::new(author)).unwrap(),
                         ros_rpc::traits::RosRpc::start(Arc::new(chain)).unwrap(),
                         ros_rpc::traits::RosRpc::start(Arc::new(state)).unwrap(),
                     ];
 
-                    let on_exit = service.on_exit().then(move |_| {_services; Ok(())});
+                    let on_exit = service.on_exit().then(move |_| {
+                        api_subs;
+                        rpc_subs;
+                        Ok(())
+                    });
                     service.spawn_task(Box::new(on_exit));
                 }
 

@@ -84,11 +84,6 @@ impl<B: traits::Block, S, H> RosRpc for System<B, S, H> where
     H: ExHashT 
 {
     fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error> {
-        // TODO: drop this hack
-        // <
-        rosrust::try_init_with_options("robonomics", false).unwrap();
-        // !>
-
         let mut services = vec![];
 
         let api1 = api.clone();

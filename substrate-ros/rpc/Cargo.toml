@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-futures = "0.1"
 rosrust = "0.8"
 serde_json = "1.0"
 parity-codec = "4.1"

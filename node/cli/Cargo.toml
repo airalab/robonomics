@@ -13,6 +13,7 @@ serde_json = "1.0"
 hex-literal = "0.2"
 exit-future = "0.1"
 parking_lot = "0.4"
+futures03 = { package = "futures-preview", version = "0.3.0-alpha.17", features = ["compat"] }
 ctrlc = { version = "3.0", features = ["termination"] }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
 consensus = { package = "substrate-consensus-aura", git = "https://github.com/paritytech/substrate" }
@@ -34,7 +35,7 @@ robonomics-runtime = { path = "../runtime" }
 
 [features]
 default = []
-ros = [ 'ros-rpc' ]
+ros = [ 'ros-rpc', 'ros-robonomics' ]
 
 [build-dependencies]                                                                                                                
 substrate-cli = { git = "https://github.com/paritytech/substrate" }

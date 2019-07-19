@@ -36,7 +36,7 @@ pub struct Order<Balance,AccountId> {
     pub model: Vec<u8>,
     pub objective: Vec<u8>,
     pub cost: Balance,
-    pub custodian: AccountId,
+    pub custodian: Option<AccountId>,
 }
 
 /// Offer message.
@@ -90,7 +90,7 @@ decl_module! {
             model: Vec<u8>,
             objective: Vec<u8>,
             #[compact] cost: BalanceOf<T>,
-            custodian: T::AccountId
+            custodian: Option<T::AccountId>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
@@ -113,7 +113,7 @@ decl_module! {
             model: Vec<u8>,
             objective: Vec<u8>,
             #[compact] cost: BalanceOf<T>,
-            custodian: T::AccountId
+            custodian: Option<T::AccountId>
         ) -> Result {
             // Ensure we have a signed message, and derive the sender's account id from the signature
             let sender = ensure_signed(origin)?;
@@ -140,11 +140,16 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let liability = <LiabilityOf<T>>::get(liability_index).ok_or("liability not found")?;
 
-            ensure!(sender == liability.order.custodian, "this call is for custodian only");
+            // Safety checks
             ensure!(None == liability.result, "liability already finalized");
+            if let Some(custodian) = liability.clone().order.custodian {
+                ensure!(sender == custodian, "this call is for custodian only");
+            }
 
+            // Release costs
 		    T::Currency::repatriate_reserved(&liability.promisee, &liability.promisor, liability.order.cost)?;
 
+            // Update storage
             <LiabilityOf<T>>::insert(liability_index, Liability { result: Some(result.clone()), .. liability });
             Self::deposit_event(RawEvent::Finalized(liability_index, result));
 
