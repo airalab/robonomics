@@ -115,7 +115,11 @@ pub mod opaque {
     #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
     pub struct UncheckedExtrinsic(#[cfg_attr(feature = "std", serde(with="bytes"))] pub Vec<u8>);
     impl traits::Extrinsic for UncheckedExtrinsic {
+        type Call = ();
         fn is_signed(&self) -> Option<bool> {
+            None
+        }
+        fn new_unsigned(_call: Self::Call) -> Option<Self> {
             None
         }
     }

@@ -36,8 +36,8 @@ use executor::native_executor_instance;
 use network::construct_simple_protocol;
 use inherents::InherentDataProviders;
 use client::{self, LongestChain};
+use primitives::{Pair, sr25519};
 use futures::prelude::*;
-use primitives::Pair;
 use std::sync::Arc;
 use log::info;
 
@@ -86,10 +86,11 @@ construct_service_factory! {
 
                 #[cfg(feature = "ros")]
                 {
+                    let key = service.authority_key::<AuraPair>().unwrap();
                     let (api, api_subs) = ros_robonomics::start_api(
                             service.client(),
                             service.transaction_pool(),
-                            service.authority_key().unwrap(),
+                            sr25519::Pair::from_seed_slice(&key.to_raw_vec()).unwrap(),
                         );
                     service.spawn_task(Box::new(api.unit_error().boxed().compat()));
 
