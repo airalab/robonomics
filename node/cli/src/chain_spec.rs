@@ -179,12 +179,10 @@ fn xrt_props() -> Properties {
     json!({"tokenDecimals": 9, "tokenSymbol": "XRT"}).as_object().unwrap().clone()
 }
 
-/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
 }
-*/
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
@@ -208,10 +206,11 @@ fn robonomics_config_genesis() -> GenesisConfig {
     )
 }
 
+/*
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
-        "/ip6/fc59:cb90:5852:7fe3:a759:57d9:f546:a3a8/tcp/30333/p2p/QmUQhKfBKfb5jMstpQ5kUER5HzVsLLJysyewnFDHEveHkh".into(),
+        "/ip4/95.216.202.55/tcp/30333/p2p/QmcYrdpTWSGLTVHMCMj27xaGkuqab1sHqXF33YdUrhS9Fp".into(),
     ];
     ChainSpec::from_genesis(
         "Robonomics",
@@ -224,6 +223,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
+*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
