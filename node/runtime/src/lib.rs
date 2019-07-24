@@ -22,31 +22,34 @@
 #![recursion_limit="256"]
 
 pub mod robonomics;
-
-#[cfg(feature = "std")]
-use serde_derive::{Serialize, Deserialize};
-#[cfg(feature = "std")]
-use primitives::bytes;
+pub mod constants;
+pub mod types;
+pub mod impls;
 
 use rstd::prelude::*;
 use support::{construct_runtime, parameter_types};
-use parity_codec::{Encode, Decode};
 use primitives::OpaqueMetadata;
 use runtime_primitives::{
-    ApplyResult, AnySignature, Fixed64, generic, create_runtime_str, key_types
+    ApplyResult, generic, create_runtime_str, key_types
 };
+use runtime_primitives::weights::Weight;
 use runtime_primitives::transaction_validity::TransactionValidity;
-use runtime_primitives::weights::{Weight, WeightMultiplier, MAX_TRANSACTIONS_WEIGHT, IDEAL_TRANSACTIONS_WEIGHT};
 use runtime_primitives::traits::{
-    self, Verify, BlakeTwo256, Block as BlockT, Convert,
-    DigestFor, NumberFor, StaticLookup, Saturating
+    BlakeTwo256, Block as BlockT,
+    DigestFor, NumberFor, StaticLookup,
 };
+use babe::{AuthorityId as BabeId};
 use grandpa::fg_primitives::{self, ScheduledChange};
 use grandpa::{AuthorityWeight as GrandpaWeight};
 use finality_tracker::{DEFAULT_REPORT_LATENCY, DEFAULT_WINDOW_SIZE};
 use client::{
     block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
     runtime_api, impl_runtime_apis
+};
+use crate::impls::{CurrencyToVoteHandler, WeightMultiplierUpdateHandler, WeightToFee};
+use crate::constants::{time::*, currency::*};
+use crate::types::{
+    Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
@@ -66,72 +69,6 @@ pub use grandpa::{AuthorityId as GrandpaId};
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
-/// Alias to 512-bit hash when used in the context of a signature on the chain.
-pub type Signature = AnySignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <Signature as Verify>::Signer;
-
-/// The aura crypto scheme defined via the keypair type.
-#[cfg(feature = "std")]
-pub type AuraPair = primitives::ed25519::Pair;
-
-/// Alias to the signature scheme used for Aura authority signatures.
-pub type AuraSignature = primitives::ed25519::Signature;
-
-/// The Ed25519 pub key of an session that belongs to an Aura authority of the chain.
-pub type AuraId = primitives::ed25519::Public;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
-
-/// Type used for expressing timestamp.
-pub type Moment = u64;
-
-/// Balance of an account.
-pub type Balance = u128;
-
-/// A hash of some data used by the chain.
-pub type Hash = primitives::H256;
-
-/// Index of a block number in the chain.
-pub type BlockNumber = u64;
-
-/// Index of an account's extrinsic in the chain.
-pub type Nonce = u64;
-
-/// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
-/// the specifics of the runtime. They can then be made to be agnostic over specific formats
-/// of data like extrinsics, allowing for them to continue syncing the network through upgrades
-/// to even the core datastructures.
-pub mod opaque {
-    use super::*;
-
-    /// Opaque, encoded, unchecked extrinsic.
-    #[derive(PartialEq, Eq, Clone, Default, Encode, Decode)]
-    #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
-    pub struct UncheckedExtrinsic(#[cfg_attr(feature = "std", serde(with="bytes"))] pub Vec<u8>);
-    impl traits::Extrinsic for UncheckedExtrinsic {
-        type Call = ();
-        fn is_signed(&self) -> Option<bool> {
-            None
-        }
-        fn new_unsigned(_call: Self::Call) -> Option<Self> {
-            None
-        }
-    }
-    /// Digest item type.
-    pub type DigestItem = generic::DigestItem<Hash>;
-    /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// Opaque block type.
-    pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-    /// Opaque block identifier type.
-    pub type BlockId = generic::BlockId<Block>;
-}
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -154,59 +91,9 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-}
-
-/// A struct that updates the weight multiplier based on the saturation level of the previous block.
-/// This should typically be called once per-block.
-///
-/// This assumes that weight is a numeric value in the u32 range.
-///
-/// Formula:
-///   diff = (ideal_weight - current_block_weight)
-///   v = 0.00004
-///   next_weight = weight * (1 + (v . diff) + (v . diff)^2 / 2)
-///
-/// https://research.web3.foundation/en/latest/polkadot/Token%20Economics/#relay-chain-transaction-fees
-pub struct WeightMultiplierUpdateHandler;
-impl Convert<(Weight, WeightMultiplier), WeightMultiplier> for WeightMultiplierUpdateHandler {
-	fn convert(previous_state: (Weight, WeightMultiplier)) -> WeightMultiplier {
-		let (block_weight, multiplier) = previous_state;
-		let ideal = IDEAL_TRANSACTIONS_WEIGHT as u128;
-		let block_weight = block_weight as u128;
-
-		// determines if the first_term is positive
-		let positive = block_weight >= ideal;
-		let diff_abs = block_weight.max(ideal) - block_weight.min(ideal);
-		// diff is within u32, safe.
-		let diff = Fixed64::from_rational(diff_abs as i64, MAX_TRANSACTIONS_WEIGHT as u64);
-		let diff_squared = diff.saturating_mul(diff);
-
-		// 0.00004 = 4/100_000 = 40_000/10^9
-		let v = Fixed64::from_rational(4, 100_000);
-		// 0.00004^2 = 16/10^10 ~= 2/10^9. Taking the future /2 into account, then it is just 1 parts
-		// from a billionth.
-		let v_squared_2 = Fixed64::from_rational(1, 1_000_000_000);
-
-		let first_term = v.saturating_mul(diff);
-		// It is very unlikely that this will exist (in our poor perbill estimate) but we are giving
-		// it a shot.
-		let second_term = v_squared_2.saturating_mul(diff_squared);
-
-		if positive {
-			let excess = first_term.saturating_add(second_term);
-			multiplier.saturating_add(WeightMultiplier::from_fixed(excess))
-		} else {
-			// first_term > second_term
-			let negative = first_term - second_term;
-			multiplier.saturating_sub(WeightMultiplier::from_fixed(negative))
-				// despite the fact that apply_to saturates weight (final fee cannot go below 0)
-				// it is crucially important to stop here and don't further reduce the weight fee
-				// multiplier. While at -1, it means that the network is so un-congested that all
-				// transactions are practically free. We stop here and only increase if the network
-				// became more busy.
-				.max(WeightMultiplier::from_rational(-1, 1))
-		}
-	}
+    pub const MaximumBlockWeight: Weight = 4 * 1024 * 1024;
+    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    pub const MaximumBlockLength: u32 = 4 * 1024 * 1024;
 }
 
 impl system::Trait for Runtime {
@@ -215,7 +102,7 @@ impl system::Trait for Runtime {
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = Indices;
     /// The index type for storing how many extrinsics an account has signed.
-    type Index = Nonce;
+    type Index = Index;
     /// The index type for blocks.
     type BlockNumber = BlockNumber;
     /// The type for hashing blocks and tries.
@@ -232,21 +119,35 @@ impl system::Trait for Runtime {
     type Origin = Origin;
     /// TODO: doc
     type BlockHashCount = BlockHashCount;
+    /// TODO: doc
+    type MaximumBlockWeight = MaximumBlockWeight;
+    /// TODO: doc
+    type MaximumBlockLength = MaximumBlockLength;
+    /// TODO: doc
+    type AvailableBlockRatio = AvailableBlockRatio;
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = SECS_PER_BLOCK / 2;
+    pub const MinimumPeriod: u64 = MILLISECS_PER_BLOCK / 2;
 }
 
 impl timestamp::Trait for Runtime {
     /// A timestamp: seconds since the unix epoch.
     type Moment = Moment;
-    type OnTimestampSet = Aura;
+    type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
 }
 
 parameter_types! {
-        pub const UncleGenerations: u64 = 0;
+    pub const UncleGenerations: u64 = 0;
+}
+
+parameter_types! {
+    pub const EpochDuration: u64 = 10 * MINUTES;
+}
+
+impl babe::Trait for Runtime {
+    type EpochDuration = EpochDuration;
 }
 
 // TODO: #2986 implement this properly
@@ -257,10 +158,6 @@ impl authorship::Trait for Runtime {
     type EventHandler = ();
 }
 
-impl aura::Trait for Runtime {
-    type HandleReport = aura::StakingSlasher<Runtime>;
-    type AuthorityId = AuraId;
-}
 impl indices::Trait for Runtime {
     /// The type for recording indexing into the account enumeration. If this ever overflows,
     /// there will be problems!
@@ -298,23 +195,22 @@ impl balances::Trait for Runtime {
     type CreationFee = CreationFee;
     type TransactionBaseFee = TransactionBaseFee;
     type TransactionByteFee = TransactionByteFee;
+    type WeightToFee = WeightToFee;
 }
-
-pub const MINUTES: Moment = 60 / SECS_PER_BLOCK;
-pub const HOURS: Moment = MINUTES * 60;
-pub const DAYS: Moment = HOURS * 24;
 
 parameter_types! {
     pub const Period: BlockNumber = 10 * MINUTES;
     pub const Offset: BlockNumber = 0;
 }
 
-type SessionHandlers = (Grandpa, Aura);
+type SessionHandlers = (Grandpa, Babe, ImOnline);
 
 impl_opaque_keys! {
     pub struct SessionKeys {
         #[id(key_types::ED25519)]
         pub ed25519: GrandpaId,
+        #[id(key_types::SR25519)]
+        pub sr25519: BabeId,
     }
 }
 
@@ -343,28 +239,9 @@ parameter_types! {
     pub const BondingDuration: staking::EraIndex = 24 * 28;
 }
 
-pub const COASE: Balance = 1_000;
-pub const GLUSHKOV: Balance = 1_000 * COASE;
-pub const XRT: Balance = 1_000 * GLUSHKOV;
-
-pub struct CurrencyToVoteHandler;
-
-impl CurrencyToVoteHandler {
-    fn factor() -> u128 { (Balances::total_issuance() / u64::max_value() as u128).max(1) }
-}
-
-impl Convert<u128, u64> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> u64 { (x / Self::factor()) as u64 }
-}
-
-impl Convert<u128, u128> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> u128 { x * Self::factor() }
-}
-
-pub const SECS_PER_BLOCK: Moment = 4;
-
 impl staking::Trait for Runtime {
     type Currency = Balances;
+    type Time = Timestamp;
     type CurrencyToVote = CurrencyToVoteHandler;
     type OnRewardMinted = ();
     type Event = Event;
@@ -395,6 +272,15 @@ impl sudo::Trait for Runtime {
     type Event = Event;
 }
 
+impl im_online::Trait for Runtime {
+    type AuthorityId = BabeId;
+    type Call = Call;
+    type Event = Event;
+    type SessionsPerEra = SessionsPerEra;
+    type UncheckedExtrinsic = UncheckedExtrinsic;
+    type IsValidAuthorityId = Babe;
+}
+
 impl robonomics::Trait for Runtime {
     /// Native token as processing currency.
     type Currency = Balances;
@@ -405,11 +291,11 @@ impl robonomics::Trait for Runtime {
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
-        NodeBlock = opaque::Block,
+        NodeBlock = types::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         System: system::{Module, Call, Storage, Config, Event},
-        Aura: aura::{Module, Config<T>, Inherent(Timestamp)},
+        Babe: babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
         Timestamp: timestamp::{Module, Call, Storage, Inherent},
         Authorship: authorship::{Module, Call, Storage},
         Indices: indices,
@@ -419,26 +305,42 @@ construct_runtime!(
         FinalityTracker: finality_tracker::{Module, Call, Inherent},
         Grandpa: grandpa::{Module, Call, Storage, Config, Event},
         Sudo: sudo,
+        ImOnline: im_online::{default, ValidateUnsigned},
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
     }
 );
 
 /// The type used as a helper for interpreting the sender of transactions.
-type Context = system::ChainContext<Runtime>;
+pub type Context = system::ChainContext<Runtime>;
+
 /// The address format for describing accounts.
-type Address = <Indices as StaticLookup>::Source;
+pub type Address = <Indices as StaticLookup>::Source;
+
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
+
+/// The SignedExtension to the basic transaction logic.
+pub type SignedExtra = (
+    system::CheckEra<Runtime>,
+    system::CheckNonce<Runtime>,
+    system::CheckWeight<Runtime>,
+    balances::TakeFees<Runtime>
+);
+
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedMortalCompactExtrinsic<Address, Nonce, Call, Signature>;
+pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+
 /// Executive: handles dispatch to the various modules.
-pub type Executive = executive::Executive<Runtime, Block, Context, Balances, Runtime, AllModules>;
+pub type Executive = executive::Executive<Runtime, Block, Context, Runtime, AllModules>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -514,13 +416,23 @@ impl_runtime_apis! {
         }
     }
 
-    impl consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> u64 {
-            Aura::slot_duration()
+    impl babe_primitives::BabeApi<Block> for Runtime {
+        fn startup_data() -> babe_primitives::BabeConfiguration {
+            babe_primitives::BabeConfiguration {
+                median_required_blocks: 1000,
+                slot_duration: Babe::slot_duration(),
+                c: (3, 10),
+            }
         }
 
-        fn authorities() -> Vec<AuraId> {
-            Aura::authorities()
+        fn epoch() -> babe_primitives::Epoch {
+            babe_primitives::Epoch {
+                start_slot: Babe::epoch_start_slot(),
+                authorities: Babe::authorities(),
+                epoch_index: Babe::epoch_index(),
+                randomness: Babe::randomness(),
+                duration: EpochDuration::get(),
+            }
         }
     }
 }

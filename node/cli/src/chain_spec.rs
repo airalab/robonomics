@@ -17,13 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
+use grandpa::AuthorityId as GrandpaId;
+use babe_primitives::AuthorityId as BabeId;
 use primitives::{ed25519, sr25519, crypto::Pair};
 use robonomics_runtime::{
-    GenesisConfig, SystemConfig, SessionConfig, AuraConfig, StakingConfig,
-    IndicesConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    SessionKeys, AccountId, Perbill, StakerStatus, AuraId, GrandpaId,
-    Balance, XRT, WASM_BINARY
+    GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
+    IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
+    SessionKeys, Perbill, StakerStatus, WASM_BINARY,
 };
+use robonomics_runtime::constants::{time::*, currency::*};
+use robonomics_runtime::types::{AccountId, Balance};
 use substrate_service::{self, Properties};
 use serde_json::json;
 
@@ -76,9 +79,9 @@ pub fn get_account_id_from_seed(seed: &str) -> AccountId {
         .public()
 }
 
-/// Helper function to generate AuraId from seed
-pub fn get_aura_id_from_seed(seed: &str) -> AuraId {
-    ed25519::Pair::from_string(&format!("//{}", seed), None)
+/// Helper function to generate BabeId from seed
+pub fn get_aura_id_from_seed(seed: &str) -> BabeId {
+    sr25519::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
 }
@@ -91,7 +94,7 @@ pub fn get_grandpa_id_from_seed(seed: &str) -> GrandpaId {
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, AuraId, GrandpaId) {
+pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, BabeId, GrandpaId) {
     (
         get_account_id_from_seed(&format!("{}//stash", seed)),
         get_account_id_from_seed(seed),
@@ -101,13 +104,16 @@ pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, AuraId
 }
 
 
-fn session_keys(key: ed25519::Public) -> SessionKeys {
-    SessionKeys { ed25519: key }
+fn session_keys(ed_key: ed25519::Public, sr_key: sr25519::Public) -> SessionKeys {
+    SessionKeys {
+        ed25519: ed_key,
+        sr25519: sr_key,
+    }
 }
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, AuraId, GrandpaId)>,
+    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId)>,
     root_key: AccountId,
     endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
@@ -149,14 +155,12 @@ pub fn testnet_genesis(
             vesting: vec![],
         }),
         session: Some(SessionConfig {
-            keys: initial_authorities.iter().map(|x| (x.1.clone(), session_keys(x.2.clone()))).collect::<Vec<_>>(),
+            keys: initial_authorities.iter().map(|x| (x.1.clone(), session_keys(x.3.clone(), x.2.clone()))).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
             current_era: 0,
             minimum_validator_count: 2,
             validator_count: 7,
-            current_session_reward: 0,
-            session_reward: Perbill::from_millionths(200_000),
             offline_slash: Perbill::from_millionths(1_000_000),
             offline_slash_grace: 4,
             stakers: initial_authorities.iter().map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)).collect(),
@@ -165,12 +169,16 @@ pub fn testnet_genesis(
         sudo: Some(SudoConfig {
             key: root_key,
         }),
-        aura: Some(AuraConfig {
-            authorities: initial_authorities.iter().map(|x| x.2.clone()).collect(),
+        babe: Some(BabeConfig {
+            authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
         }),
         grandpa: Some(GrandpaConfig {
             authorities: initial_authorities.iter().map(|x| (x.3.clone(), 1)).collect(),
         }),
+		im_online: Some(ImOnlineConfig {
+			gossip_at: 0,
+			last_new_era_start: 0,
+		}),
     }
 }
 
@@ -180,18 +188,20 @@ fn xrt_props() -> Properties {
 }
 
 /// Robonomics testnet config. 
+/*
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
 }
+*/
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_aura: AuraId       = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
+    let aira_aura: BabeId       = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
     let aira_grandpa: GrandpaId = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
     let aira_stash: AccountId   = hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into();
     let aira_control: AccountId = hex!["16e4b93d965a27e50de7e27b6e9b8471186b4a463bbad8e2b0a398007098504e"].unchecked_into();
 
-    let akru_aura: AuraId       = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
+    let akru_aura: BabeId       = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
     let akru_grandpa: GrandpaId = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
     let akru_stash: AccountId   = hex!["a26253010447e4a0ec7ddce034034a4ebcfb1317440fd458c21c592ddf8d0337"].unchecked_into();
     let akru_control: AccountId = hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into();
@@ -206,7 +216,6 @@ fn robonomics_config_genesis() -> GenesisConfig {
     )
 }
 
-/*
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
@@ -223,7 +232,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

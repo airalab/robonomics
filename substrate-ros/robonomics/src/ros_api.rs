@@ -19,29 +19,26 @@
 
 use log::debug;
 use std::sync::Arc;
-use futures::{
-    prelude::*,
-    channel::mpsc,
-    StreamExt as _,
-};
+use futures::{prelude::*, channel::mpsc};
 use client::{
     Client, CallExecutor, BlockchainEvents,
     backend::Backend,
 };
 use runtime_primitives::{
-    codec::{Decode, Encode, Compact},
+    codec::{Decode, Encode},
     generic::{BlockId, Era},
     traits::{Block, BlockNumberToHash},
 };
 use primitives::{
-    Blake2Hasher, H256, twox_128,
-    sr25519, crypto::Pair, crypto::Ss58Codec,
+    Blake2Hasher, H256, blake2_256, sr25519,
     storage::{StorageKey, StorageData},
+    crypto::Pair, crypto::Ss58Codec,
 };
 use transaction_pool::txpool::{ChainApi, Pool, ExtrinsicFor};
 use robonomics_runtime::{
-    AccountId, Call, UncheckedExtrinsic, EventRecord, Event, Hash,
-    robonomics::*, RobonomicsCall, Nonce, Runtime
+    Call, UncheckedExtrinsic, EventRecord, Event,
+    types::{AccountId, Hash},
+    robonomics::*, RobonomicsCall, Runtime
 };
 
 use msgs::substrate_ros_msgs;
@@ -67,30 +64,33 @@ fn extrinsic_stream<B, E, P, RA>(
     let local_id: AccountId = key.public();
     let mut nonce_key = b"System AccountNonce".to_vec();
     nonce_key.extend_from_slice(&local_id.0[..]);
-    let storage_key = StorageKey(twox_128(&nonce_key[..]).to_vec());
+    let storage_key = StorageKey(blake2_256(&nonce_key[..]).to_vec());
 
     stream.for_each(move |call| {
         let block_id = BlockId::hash(client.info().chain.best_hash);
         let nonce = if let Some(storage_data) = client.storage(&block_id, &storage_key).unwrap() {
-            let nonce: Nonce = Decode::decode(&mut &storage_data.0[..]).unwrap();
-            Compact::<Nonce>::from(nonce)
+            Decode::decode(&mut &storage_data.0[..]).unwrap()
         } else {
-            Compact::<Nonce>::from(0)
+            0
         };
-        let payload = (
-            nonce,
-            Call::Robonomics(call),
-            Era::immortal(),
-            client.genesis_hash(),
-        );
-        let signature = key.sign(&payload.encode());
-        let extrinsic = UncheckedExtrinsic::new_signed(
-            payload.0.into(),
-            payload.1,
-            local_id.clone().into(),
-            signature.into(),
-            payload.2,
-        );
+		let check_era = system::CheckEra::from(Era::Immortal);
+		let check_nonce = system::CheckNonce::from(nonce);
+		let check_weight = system::CheckWeight::from();
+		let take_fees = balances::TakeFees::from(0);
+		let extra = (check_era, check_nonce, check_weight, take_fees);
+
+		let raw_payload = (Call::Robonomics(call), extra.clone(), client.genesis_hash());
+		let signature = raw_payload.using_encoded(|payload| if payload.len() > 256 {
+			key.sign(&blake2_256(payload)[..])
+		} else {
+			key.sign(payload)
+		});
+		let extrinsic = UncheckedExtrinsic::new_signed(
+			raw_payload.0,
+            key.public().into(),
+			signature.into(),
+			extra,
+		).encode();
         let xt: ExtrinsicFor<P> = Decode::decode(&mut &extrinsic.encode()[..]).unwrap();
         let res = pool.submit_one(&block_id, xt);
         debug!("txpool submit result: {:?}", res); 
@@ -109,7 +109,7 @@ fn event_stream<B, C>(
     let offer_pub = rosrust::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
     let liability_pub = rosrust::publish("liability/incoming", QUEUE_SIZE).unwrap();
 
-    let events_key = StorageKey(twox_128(b"System Events").to_vec());
+    let events_key = StorageKey(blake2_256(b"System Events").to_vec());
     client.storage_changes_notification_stream(Some(&[events_key]), None).unwrap()
         .for_each(move |(_, changes)| {
             // Decode events from change set
