@@ -143,7 +143,7 @@ parameter_types! {
 }
 
 parameter_types! {
-    pub const EpochDuration: u64 = 10 * MINUTES;
+    pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
 }
 
 impl babe::Trait for Runtime {
@@ -421,7 +421,7 @@ impl_runtime_apis! {
             babe_primitives::BabeConfiguration {
                 median_required_blocks: 1000,
                 slot_duration: Babe::slot_duration(),
-                c: (3, 10),
+                c: (278, 1000),
             }
         }
 

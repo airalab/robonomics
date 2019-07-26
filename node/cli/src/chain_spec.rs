@@ -80,7 +80,7 @@ pub fn get_account_id_from_seed(seed: &str) -> AccountId {
 }
 
 /// Helper function to generate BabeId from seed
-pub fn get_aura_id_from_seed(seed: &str) -> BabeId {
+pub fn get_babe_id_from_seed(seed: &str) -> BabeId {
     sr25519::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
@@ -98,7 +98,7 @@ pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, BabeId
     (
         get_account_id_from_seed(&format!("{}//stash", seed)),
         get_account_id_from_seed(seed),
-        get_aura_id_from_seed(seed),
+        get_babe_id_from_seed(seed),
         get_grandpa_id_from_seed(seed),
     )
 }
@@ -188,34 +188,33 @@ fn xrt_props() -> Properties {
 }
 
 /// Robonomics testnet config. 
-/*
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
-}
-*/
-
-/// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_aura: BabeId       = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
+    let aira_babe: BabeId       = hex!["3ae9a59c2c2a0bf06d9a58a47eaef86a6ce8eee356eb5d29574739d0d0c33d30"].unchecked_into();
     let aira_grandpa: GrandpaId = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
     let aira_stash: AccountId   = hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into();
     let aira_control: AccountId = hex!["16e4b93d965a27e50de7e27b6e9b8471186b4a463bbad8e2b0a398007098504e"].unchecked_into();
 
-    let akru_aura: BabeId       = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
+    let akru_babe: BabeId       = hex!["0ae0b0afc9783c4e7493e56d9572fc45c024e12bbef7d3abf2534c2d07acb81b"].unchecked_into();
     let akru_grandpa: GrandpaId = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
     let akru_stash: AccountId   = hex!["a26253010447e4a0ec7ddce034034a4ebcfb1317440fd458c21c592ddf8d0337"].unchecked_into();
     let akru_control: AccountId = hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into();
 
     testnet_genesis(
         vec![
-          (aira_stash, aira_control.clone(), aira_aura, aira_grandpa),
-          (akru_stash, akru_control.clone(), akru_aura, akru_grandpa),
+          (aira_stash, aira_control.clone(), aira_babe, aira_grandpa),
+          (akru_stash, akru_control.clone(), akru_babe, akru_grandpa),
         ],
         akru_control.clone(),
         Some(vec![aira_control, akru_control]),
     )
 }
 
+/// Robonomics testnet config. 
+pub fn robonomics_testnet_config() -> ChainSpec {
+    ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
+}
+
+/*
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
@@ -232,6 +231,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
+*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

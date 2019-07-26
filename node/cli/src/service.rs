@@ -183,10 +183,10 @@ construct_service_factory! {
                 if let Some(babe_key) = service.authority_key() {
                     info!("Using BABE key {}", babe_key.public());
 
-                    let proposer = Arc::new(basic_authorship::ProposerFactory {
+                    let proposer = basic_authorship::ProposerFactory {
                         client: service.client(),
                         transaction_pool: service.transaction_pool(),
-                    });
+                    };
 
                     let client = service.client();
                     let select_chain = service.select_chain()
