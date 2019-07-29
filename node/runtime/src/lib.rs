@@ -144,10 +144,12 @@ parameter_types! {
 
 parameter_types! {
     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
+    pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 }
 
 impl babe::Trait for Runtime {
     type EpochDuration = EpochDuration;
+    type ExpectedBlockTime = ExpectedBlockTime;
 }
 
 // TODO: #2986 implement this properly
@@ -355,6 +357,12 @@ impl_runtime_apis! {
 
         fn initialize_block(header: &<Block as BlockT>::Header) {
             Executive::initialize_block(header)
+        }
+    }
+
+    impl consensus_primitives::ConsensusApi<Block, babe_primitives::AuthorityId> for Runtime {
+        fn authorities() -> Vec<babe_primitives::AuthorityId> {
+            Babe::authorities().into_iter().map(|(a, _)| a).collect()
         }
     }
 

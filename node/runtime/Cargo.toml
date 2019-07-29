@@ -19,6 +19,7 @@ executive = { package = "srml-executive", git = "https://github.com/paritytech/s
 support = { package = "srml-support", git = "https://github.com/paritytech/substrate", default-features = false }
 babe = { package = "srml-babe", git = "https://github.com/paritytech/substrate", default-features = false }
 babe-primitives = { package = "substrate-consensus-babe-primitives", git = "https://github.com/paritytech/substrate", default-features = false }
+consensus-primitives = { package = "substrate-consensus-common-primitives", git = "https://github.com/paritytech/substrate", default-features = false }
 authorship = { package = "srml-authorship", git = "https://github.com/paritytech/substrate", default-features = false }
 system = { package = "srml-system", git = "https://github.com/paritytech/substrate", default-features = false }
 timestamp = { package = "srml-timestamp", git = "https://github.com/paritytech/substrate", default-features = false }
@@ -50,6 +51,7 @@ std = [
 	"support/std",
     "babe/std",
     "babe-primitives/std",
+    "consensus-primitives/std",
     "authorship/std",
 	"system/std",
 	"timestamp/std",
