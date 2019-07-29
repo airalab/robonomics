@@ -100,32 +100,12 @@ construct_service_factory! {
                         impl_version: service.config.impl_version.into(),
                         properties: service.config.chain_spec.properties(),
                     };
-                    let system = ros_rpc::system::System::new(
-                        system_info,
-                        service.network(),
-                    );
 
-                    let author = ros_rpc::author::Author::new(
-                        service.client(),
-                        service.transaction_pool(),
-                    );
-
-                    let chain = ros_rpc::chain::Chain::new(
-                        service.client(),
-                    );
-
-                    let state = ros_rpc::state::State::new(
-                        service.client(),
-                    );
-
-                    let rpc_subs = vec![
-                        ros_rpc::traits::RosRpc::start(Arc::new(system)).unwrap(),
-                        ros_rpc::traits::RosRpc::start(Arc::new(author)).unwrap(),
-                        ros_rpc::traits::RosRpc::start(Arc::new(chain)).unwrap(),
-                        ros_rpc::traits::RosRpc::start(Arc::new(state)).unwrap(),
-                    ];
+                    let (srvs, publishers)= ros_rpc::traits::start_services(system_info.clone(), service.network(), service.client(), service.transaction_pool());
+                    service.spawn_task(Box::new(Box::new(publishers.unit_error().boxed().compat())));
 
                     let on_exit = service.on_exit().then(move |_| {
+                        srvs;
                         api_subs;
                         rpc_subs;
                         Ok(())

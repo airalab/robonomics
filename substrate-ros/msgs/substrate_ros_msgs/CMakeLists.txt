@@ -60,6 +60,7 @@ add_message_files(
         ExHash.msg
         BlockHash.msg
         StorageKey.msg
+        SystemHealthInfo.msg
 )
 
 ## Generate services in the 'srv' folder

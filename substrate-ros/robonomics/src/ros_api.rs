@@ -26,12 +26,13 @@ use futures::{
 };
 use client::{
     Client, CallExecutor, BlockchainEvents,
+    blockchain::HeaderBackend,
     backend::Backend,
 };
 use runtime_primitives::{
     codec::{Decode, Encode, Compact},
     generic::{BlockId, Era},
-    traits::{Block, BlockNumberToHash},
+    traits::{Header, Block, BlockNumberToHash},
 };
 use primitives::{
     Blake2Hasher, H256, twox_128,
@@ -45,10 +46,16 @@ use robonomics_runtime::{
 };
 
 use msgs::substrate_ros_msgs;
+use msgs::std_msgs;
 
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
 const QUEUE_SIZE: usize = 10;
+
+const BEST_HASH_ROS_TOPIC_NAME: &str = "/chain/best_hash";
+const BEST_NUMBER_ROS_TOPIC_NAME: &str = "/chain/best_number";
+const FINALIZED_HASH_ROS_TOPIC_NAME: &str = "/chain/finalized_hash";
+const FINALIZED_NUMBER_ROS_TOPIC_NAME: &str = "/chain/finalized_number";
 
 /// Robonomics extrinsic sender.
 fn extrinsic_stream<B, E, P, RA>(
@@ -174,6 +181,53 @@ fn event_stream<B, C>(
         })
 }
 
+fn import_notification_stream<B, C>(
+    client: Arc<C>,
+) -> impl Future<Output=()> where
+    C: BlockchainEvents<B> + HeaderBackend<B>,
+    B: Block<Hash=H256>,
+    <<B as Block>::Header as Header>::Number: Into<u64>
+{
+    let hash_pub = rosrust::publish(BEST_HASH_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
+    let number_pub = rosrust::publish(BEST_NUMBER_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
+
+    client.import_notification_stream().for_each(move |block| {
+        if block.is_new_best {
+            let mut hash_msg = substrate_ros_msgs::BlockHash::default();
+            hash_msg.data = block.hash.into();
+            hash_pub.send(hash_msg).unwrap();
+
+            let mut number_msg = std_msgs::UInt64::default();
+            number_msg.data = (*block.header.number()).into();
+            number_pub.send(number_msg).unwrap();
+        }
+        future::ready(())
+    })
+}
+
+fn finality_notification_stream<B, C>(
+    client: Arc<C>,
+) -> impl Future<Output=()> where
+    C: BlockchainEvents<B> + HeaderBackend<B>,
+    B: Block<Hash=H256>,
+    <<B as Block>::Header as Header>::Number: Into<u64>,
+{
+    let finalized_number_pub = rosrust::publish(FINALIZED_NUMBER_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
+    let finalized_hash_pub = rosrust::publish(FINALIZED_HASH_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
+
+    client.finality_notification_stream().for_each(move |block| {
+        let mut finalized_number_msg = std_msgs::UInt64::default();
+        finalized_number_msg.data = (*block.header.number()).into();
+        finalized_number_pub.send(finalized_number_msg).unwrap();
+
+        let mut finalized_hash_msg = substrate_ros_msgs::BlockHash::default();
+        finalized_hash_msg.data = block.hash.into();
+        finalized_hash_pub.send(finalized_hash_msg).unwrap();
+
+        future::ready(())
+    })
+}
+
 /// ROS API main routine.
 pub fn start_api<B, E, P, RA>(
     client: Arc<Client<B, E, P::Block, RA>>,
@@ -185,6 +239,7 @@ pub fn start_api<B, E, P, RA>(
     P: ChainApi + 'static,
     RA: Send + Sync + 'static,
     P::Block: Block<Hash=H256>,
+    <<P::Block as Block>::Header as Header>::Number: Into<u64>,
 {
     rosrust::try_init_with_options("robonomics", false);
 
@@ -221,7 +276,9 @@ pub fn start_api<B, E, P, RA>(
     // Store subscribers in vector
     let subscriptions = vec![demand, offer, finalize];
     let extrinsics = extrinsic_stream(client.clone(), ros_key, pool, extrinsic_rx);
-    let events = event_stream(client);
+    let events = event_stream(client.clone());
+    let status = import_notification_stream(client.clone());
+    let finality = finality_notification_stream(client);
 
-    (future::join(extrinsics, events).map(|_| ()), subscriptions)
+    (future::join4(extrinsics, events, status, finality).map(|_| ()), subscriptions)
 }

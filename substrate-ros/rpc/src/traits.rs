@@ -20,6 +20,69 @@ use std::sync::Arc;
 use rosrust::Service;
 use rosrust::api::error::Error;
 
+pub use substrate_rpc::system::helpers::SystemInfo;
+
+use client::Client;
+use transaction_pool::{
+    txpool::{
+        ChainApi as PoolChainApi,
+        Pool,
+    },
+};
+use network::{
+    specialization::NetworkSpecialization,
+    NetworkService, ExHashT,
+};
+use runtime_primitives::traits;
+use primitives::{Bytes, Blake2Hasher, H256};
+use futures::prelude::*;
+
+pub fn start_services<B, S, H, F, E, P, A> (system_info: SystemInfo,
+                      service_network: Arc<NetworkService<B, S, H>>,
+                      service_client: Arc<Client<F, E, <P as PoolChainApi>::Block, A>>,
+                      service_transaction_pool: Arc<Pool<P>>
+                    )
+    -> (Vec<rosrust::Service>, impl Future<Output=()>) where
+    B: traits::Block<Hash=H256>,
+    S: NetworkSpecialization<B>,
+    H: ExHashT,
+    F: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
+    P::Block: traits::Block<Hash=H256>,
+    P::Error: 'static,
+    A: Send + Sync + 'static
+{
+
+    let system = Arc::new(crate::system::System::new(
+        system_info,
+        service_network,
+    ));
+
+    let author = Arc::new(crate::author::Author::new(
+        service_client.clone(),
+        service_transaction_pool,
+    ));
+
+    let chain = Arc::new(crate::chain::Chain::new(
+        service_client.clone(),
+    ));
+
+    let state = Arc::new(crate::state::State::new(
+        service_client,
+    ));
+
+    let mut services = vec![];
+    services.append(&mut crate::system::System::start(system.clone()).unwrap());
+    services.append(&mut crate::author::Author::start(author.clone()).unwrap());
+    services.append(&mut crate::state::State::start(state.clone()).unwrap());
+    services.append(&mut crate::chain::Chain::start(chain.clone()).unwrap());
+
+    let system_publisher_future = crate::system::start_system_publishers(system);
+
+    (services, system_publisher_future)
+}
+
 pub trait RosRpc {
     fn start(api: Arc<Self>) -> Result<Vec<Service>, Error>;
 }

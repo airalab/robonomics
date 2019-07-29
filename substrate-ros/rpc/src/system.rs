@@ -27,7 +27,8 @@ use network::{
 };
 use msgs::{
     std_srvs::{Trigger, TriggerRes},
-    substrate_ros_msgs::{SystemHealth, SystemHealthRes}
+    substrate_ros_msgs::{SystemHealth, SystemHealthRes, SystemHealthInfo},
+    std_msgs
 };
 
 pub use substrate_rpc::system::helpers::SystemInfo;
@@ -77,6 +78,76 @@ impl<B: traits::Block, S, H> System<B, S, H> where
             should_have_peers: true, // in practice configurations without peers useless
         }
     }
+
+    async fn publish_system_name(&self, publisher: rosrust::Publisher<std_msgs::String>)
+    {
+        loop {
+            let mut msg = std_msgs::String::default();
+            msg.data = self.system_name();
+            publisher.send(msg).unwrap();
+            Delay::new(time::Duration::from_secs(1)).await;
+        };
+    }
+
+    async fn publish_system_version(&self, publisher: rosrust::Publisher<std_msgs::String>)
+    {
+        loop {
+            let mut msg = std_msgs::String::default();
+            msg.data = self.system_version();
+            publisher.send(msg).unwrap();
+            Delay::new(time::Duration::from_secs(1)).await;
+        };
+    }
+
+    async fn publish_system_chain(&self, publisher: rosrust::Publisher<std_msgs::String>)
+    {
+        loop {
+            let mut msg = std_msgs::String::default();
+            msg.data = self.system_chain();
+            publisher.send(msg).unwrap();
+            Delay::new(time::Duration::from_secs(1)).await;
+        };
+    }
+
+    async fn publish_system_health(&self, publisher: rosrust::Publisher<SystemHealthInfo>)
+    {
+        loop {
+            let mut res = SystemHealthInfo::default();
+            let health = self.system_health();
+            res.peers = health.peers as u32;
+            res.is_syncing = health.is_syncing;
+            publisher.send(res).unwrap();
+            Delay::new(time::Duration::from_secs(1)).await;
+        };
+    }
+
+}
+
+use futures_timer::Delay;
+use std::time;
+use rosrust::{Message, RosMsg};
+use parity_codec::alloc::collections::HashMap;
+use futures::{
+    prelude::*,
+    channel::mpsc,
+    StreamExt as _,
+};
+
+pub async fn start_system_publishers<B: traits::Block, S, H> (api: Arc<System<B, S, H>>)
+      where
+    S: NetworkSpecialization<B>,
+    H: ExHashT
+{
+
+    let system_name_publisher = rosrust::publish(SYSTEM_NAME_SRV_NAME, 10).unwrap();
+    let system_version_publisher = rosrust::publish(SYSTEM_VERSION_SRV_NAME, 10).unwrap();
+    let system_chain_publisher = rosrust::publish(SYSTEM_CHAIN_SRV_NAME, 10).unwrap();
+    let system_health_publisher = rosrust::publish(SYSTEM_HEALTH_SRV_NAME, 10).unwrap();
+
+    future::join4(api.publish_system_version(system_version_publisher),
+                  api.publish_system_name(system_name_publisher),
+                  api.publish_system_chain(system_chain_publisher),
+                  api.publish_system_health(system_health_publisher)).map(|_| ()).await
 }
 
 impl<B: traits::Block, S, H> RosRpc for System<B, S, H> where
@@ -131,8 +202,8 @@ impl<B: traits::Block, S, H> RosRpc for System<B, S, H> where
             rosrust::service::<SystemHealth, _>(SYSTEM_HEALTH_SRV_NAME, move |_| {
                 let mut res = SystemHealthRes::default();
                 let health = api5.system_health();
-                res.peers = health.peers as u32;
-                res.is_syncing = health.is_syncing;
+                res.info.peers = health.peers as u32;
+                res.info.is_syncing = health.is_syncing;
                 Ok(res)
             })?
         );

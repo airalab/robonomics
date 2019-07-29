@@ -1,3 +1,2 @@
 ---
-uint32 peers 
-bool is_syncing
+SystemHealthInfo info
