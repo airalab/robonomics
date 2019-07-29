@@ -48,6 +48,7 @@ rosmsg_include!(
     substrate_ros_msgs / GetFinalizedHead,
 
     substrate_ros_msgs / SystemHealth,
+    substrate_ros_msgs / SystemHealthInfo,
 
     substrate_ros_msgs / StorageKey,
     substrate_ros_msgs / StateCall,
