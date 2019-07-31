@@ -4,7 +4,7 @@
 import rospy
 import rosbag
 from std_msgs.msg import String
-from robonomics_msgs.msg import Liability
+from substrate_ros_msgs.msg import Liability
 
 
 class WorkerNode:
