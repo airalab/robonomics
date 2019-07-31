@@ -12,7 +12,7 @@ matrix:
 
 install:
 - rustup target add wasm32-unknown-unknown --toolchain nightly
-- cargo install --git https://github.com/alexcrichton/wasm-gc
+- cargo install --git https://github.com/alexcrichton/wasm-gc --force
 
 script:
 - travis_wait 180 cargo build --release --locked
