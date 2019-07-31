@@ -211,7 +211,7 @@ fn robonomics_config_genesis() -> GenesisConfig {
 
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_embedded(include_bytes!("../../res/robonomics_testnet.json")).unwrap()
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
 }
 
 /*

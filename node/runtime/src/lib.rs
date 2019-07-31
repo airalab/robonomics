@@ -91,9 +91,9 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-    pub const MaximumBlockWeight: Weight = 4 * 1024 * 1024;
+    pub const MaximumBlockWeight: Weight = 1_000_000_000;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    pub const MaximumBlockLength: u32 = 4 * 1024 * 1024;
+    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 }
 
 impl system::Trait for Runtime {
@@ -128,7 +128,7 @@ impl system::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = MILLISECS_PER_BLOCK / 2;
+    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
 
 impl timestamp::Trait for Runtime {
@@ -144,10 +144,12 @@ parameter_types! {
 
 parameter_types! {
     pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
+    pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 }
 
 impl babe::Trait for Runtime {
     type EpochDuration = EpochDuration;
+    type ExpectedBlockTime = ExpectedBlockTime;
 }
 
 // TODO: #2986 implement this properly
@@ -198,11 +200,6 @@ impl balances::Trait for Runtime {
     type WeightToFee = WeightToFee;
 }
 
-parameter_types! {
-    pub const Period: BlockNumber = 10 * MINUTES;
-    pub const Offset: BlockNumber = 0;
-}
-
 type SessionHandlers = (Grandpa, Babe, ImOnline);
 
 impl_opaque_keys! {
@@ -221,7 +218,7 @@ impl_opaque_keys! {
 impl session::Trait for Runtime {
     type OnSessionEnding = Staking;
     type SessionHandler = SessionHandlers;
-    type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
+    type ShouldEndSession = Babe;
     type Event = Event;
     type Keys = SessionKeys;
     type ValidatorId = AccountId;
@@ -355,6 +352,12 @@ impl_runtime_apis! {
 
         fn initialize_block(header: &<Block as BlockT>::Header) {
             Executive::initialize_block(header)
+        }
+    }
+
+    impl consensus_primitives::ConsensusApi<Block, babe_primitives::AuthorityId> for Runtime {
+        fn authorities() -> Vec<babe_primitives::AuthorityId> {
+            Babe::authorities().into_iter().map(|(a, _)| a).collect()
         }
     }
 
