@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-from robonomics_msgs.msg import Demand, Order
-
+from substrate_ros_msgs.msg import Demand, Order
 
 class TraderNode:
     def __init__(self):

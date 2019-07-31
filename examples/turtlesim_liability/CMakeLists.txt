@@ -7,6 +7,22 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package()
 
+install(
+    FILES
+        launch/trader.launch
+        launch/worker.launch
+    DESTINATION
+        ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+catkin_install_python(
+    PROGRAMS
+        scripts/trader_node
+        scripts/worker_node
+    DESTINATION
+        ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
