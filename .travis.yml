@@ -15,7 +15,7 @@ install:
 - cargo install --git https://github.com/alexcrichton/wasm-gc
 
 script:
-- cargo build --release --locked
+- travis_wait 180 cargo build --release --locked
 
 notifications:
   email:
