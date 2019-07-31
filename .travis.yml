@@ -3,3 +3,20 @@ language: rust
 cache: cargo
 rust:
   - nightly
+
+matrix:
+  include:
+  - os: linux 
+  - os: osx
+  - os: windows
+
+install:
+- rustup target add wasm32-unknown-unknown --toolchain nightly
+- cargo install --git https://github.com/alexcrichton/wasm-gc
+
+script:
+- cargo build --release --locked
+
+notifications:
+  email:
+    on_success: never
