@@ -31,7 +31,7 @@ use runtime_primitives::{
     traits::{Header, Block, BlockNumberToHash},
 };
 use primitives::{
-    Blake2Hasher, H256, blake2_256, sr25519,
+    Blake2Hasher, H256, blake2_256, sr25519, twox_128,
     storage::{StorageKey, StorageData},
     crypto::Pair, crypto::Ss58Codec,
 };
@@ -98,7 +98,7 @@ fn extrinsic_stream<B, E, P, RA>(
 			signature.into(),
 			extra,
 		).encode();
-        let xt: ExtrinsicFor<P> = Decode::decode(&mut &extrinsic.encode()[..]).unwrap();
+        let xt: ExtrinsicFor<P> = Decode::decode(&mut &extrinsic.as_slice()[..]).unwrap();
         let res = pool.submit_one(&block_id, xt);
         debug!("txpool submit result: {:?}", res); 
         future::ready(())
@@ -116,7 +116,7 @@ fn event_stream<B, C>(
     let offer_pub = rosrust::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
     let liability_pub = rosrust::publish("liability/incoming", QUEUE_SIZE).unwrap();
 
-    let events_key = StorageKey(blake2_256(b"System Events").to_vec());
+    let events_key = StorageKey(twox_128(b"System Events").to_vec());
     client.storage_changes_notification_stream(Some(&[events_key]), None).unwrap()
         .for_each(move |(_, changes)| {
             // Decode events from change set
@@ -265,7 +265,7 @@ pub fn start_api<B, E, P, RA>(
         let objective = bs58::decode(v.objective).into_vec().unwrap();
         let cost = v.cost.parse().unwrap();
         offer_tx.unbounded_send(RobonomicsCall::offer(model, objective, cost, None)).unwrap();
-    }).expect("failed to create demand subscriber");
+    }).expect("failed to create offer subscriber");
 
     // Finalize liability
     let finalize = rosrust::subscribe("liability/finalize", QUEUE_SIZE, move |v: substrate_ros_msgs::Finalize| {
