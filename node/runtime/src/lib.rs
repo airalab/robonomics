@@ -91,9 +91,9 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-    pub const MaximumBlockWeight: Weight = 4 * 1024 * 1024;
+    pub const MaximumBlockWeight: Weight = 1_000_000_000;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    pub const MaximumBlockLength: u32 = 4 * 1024 * 1024;
+    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 }
 
 impl system::Trait for Runtime {
@@ -200,11 +200,6 @@ impl balances::Trait for Runtime {
     type WeightToFee = WeightToFee;
 }
 
-parameter_types! {
-    pub const Period: BlockNumber = 10 * MINUTES;
-    pub const Offset: BlockNumber = 0;
-}
-
 type SessionHandlers = (Grandpa, Babe, ImOnline);
 
 impl_opaque_keys! {
@@ -223,7 +218,7 @@ impl_opaque_keys! {
 impl session::Trait for Runtime {
     type OnSessionEnding = Staking;
     type SessionHandler = SessionHandlers;
-    type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
+    type ShouldEndSession = Babe;
     type Event = Event;
     type Keys = SessionKeys;
     type ValidatorId = AccountId;
