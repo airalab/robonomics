@@ -24,3 +24,4 @@ pub mod rosbag_player;
 pub mod ros_api;
 
 pub use ros_api::start_api;
+pub use liability_engine::start_liability_engine;

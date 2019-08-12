@@ -120,6 +120,9 @@ construct_service_factory! {
                             service.transaction_pool(),
                             sr25519::Pair::from_seed_slice(&key.to_raw_vec()).unwrap(),
                         );
+
+                    let liability_engine_services = ros_robonomics::start_liability_engine().unwrap();
+
                     service.spawn_task(Box::new(api.unit_error().boxed().compat()));
 
                     let system_info = ros_rpc::system::SystemInfo {
@@ -133,6 +136,7 @@ construct_service_factory! {
                     service.spawn_task(Box::new(Box::new(publishers.unit_error().boxed().compat())));
 
                     let on_exit = service.on_exit().then(move |_| {
+                        liability_engine_services;
                         srvs;
                         api_subs;
                         Ok(())

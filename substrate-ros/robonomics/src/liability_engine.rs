@@ -17,24 +17,40 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! This module exports Robonomics API into ROS namespace.
 
-use std::fs::File;
+use std::{
+    fs::File,
+    sync::{Arc,
+           Mutex},
+    collections::HashMap,
+};
 use ipfs_api::IpfsClient;
 use futures::{
     prelude::*,
     io::AllowStdIo,
     compat::Stream01CompatExt,
 };
-use msgs::substrate_ros_msgs;
+use msgs::{
+    substrate_ros_msgs::{Liability,
+                         StartLiabilityPlayer, StartLiabilityPlayerRes,
+                         AddLiability, AddLiabilityRes},
+    std_msgs
+};
+use rosrust::api::error::Error;
 use log::error;
+use futures::executor::block_on;
 
 use crate::rosbag_player::RosbagPlayer;
+const LIABILITY_ADD_SRV_NAME: &str = "/liability/add";
+const LIABILITY_START_SRV_NAME: &str = "/liability/start_player";
 
-/// Simple liability engine.
-async fn launch_liability(
-    liability: substrate_ros_msgs::Liability
+async fn add_liability(
+    liability: Liability,
+    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>
 ) {
-    let ipfs = IpfsClient::default(); 
+    let ipfs = IpfsClient::default();
     let bag_hash = liability.order.objective;
+    let liability_id = liability.id;
+    let mut liabilities = known_liabilities.lock().unwrap();
 
     let (response, _) = ipfs.cat(bag_hash.as_str()).compat().into_future().await;
     if let Some(Ok(content)) = response {
@@ -44,13 +60,44 @@ async fn launch_liability(
         buffer.close().await;
 
         let mut player = RosbagPlayer::new(bag_hash);
-        player.play().await;
+        liabilities.insert(liability_id, player);
     } else {
         error!("Unable to get IPFS content of {}", bag_hash);
     }
+
 }
 
-/*
-fn start_liability_engine() {
+/// Simple liability engine.
+async fn launch_liability_player(
+    liability_id: u64,
+    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>
+) {
+    let mut data = known_liabilities.lock().unwrap();
+    let mut player = data.remove(&liability_id).unwrap();
+    player.play().await;
 }
-*/
+
+pub fn start_liability_engine()
+    -> Result<Vec<rosrust::Service>, Error> {
+    let mut services = vec![];
+
+    let liability_players = Arc::new(Mutex::new(HashMap::new()));
+    let players01 = liability_players.clone();
+
+    services.push(rosrust::service::<StartLiabilityPlayer, _>(LIABILITY_START_SRV_NAME, move |req| {
+        let mut res = StartLiabilityPlayerRes::default();
+        block_on(launch_liability_player(req.id, &players01));
+        res.success = true;
+        Ok(res)
+    })?);
+
+    let players02 = liability_players.clone();
+    services.push(rosrust::service::<AddLiability, _>(LIABILITY_ADD_SRV_NAME, move |req| {
+        let mut res = AddLiabilityRes::default();
+        block_on(add_liability(req.liability, &players02));
+        res.success = true;
+        Ok(res)
+    })?);
+
+    Ok(services)
+}
