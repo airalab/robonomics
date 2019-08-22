@@ -17,7 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! This module exports Robonomics API into ROS namespace.
 
-use log::debug;
+use log::{
+    debug, info
+};
 use std::sync::Arc;
 use futures::{prelude::*, channel::mpsc};
 use client::{
@@ -108,13 +110,17 @@ fn extrinsic_stream<B, E, P, RA>(
 /// Storage event listener.
 fn event_stream<B, C>(
     client: Arc<C>,
+    key: sr25519::Pair,
 ) -> impl Future<Output=()> where
     C: BlockchainEvents<B>,
     B: Block,
 {
+    let ros_account = key.public().to_ss58check();
+
     let demand_pub = rosrust::publish("liability/demand/incoming", QUEUE_SIZE).unwrap();
     let offer_pub = rosrust::publish("liability/offer/incoming", QUEUE_SIZE).unwrap();
     let liability_pub = rosrust::publish("liability/incoming", QUEUE_SIZE).unwrap();
+    let liability_prepare_for_execution_pub = rosrust::publish("liability/prepare", QUEUE_SIZE).unwrap();
 
     let events_key = StorageKey(twox_128(b"System Events").to_vec());
     client.storage_changes_notification_stream(Some(&[events_key]), None).unwrap()
@@ -172,6 +178,11 @@ fn event_stream<B, C>(
                         msg.promisor        = liability.promisor.to_ss58check();
 
                         liability_pub.send(msg.clone()).expect("Unable to send NewLiability event message");
+
+                        if ros_account == liability.promisor.to_ss58check() {
+                            info!("Send liability {:?} to liability engine for preparing to execution", id);
+                            liability_prepare_for_execution_pub.send(msg.clone()).expect("Unable to send NewLiability event message");
+                        }
                     },
 
                     _ => ()
@@ -275,8 +286,8 @@ pub fn start_api<B, E, P, RA>(
 
     // Store subscribers in vector
     let subscriptions = vec![demand, offer, finalize];
-    let extrinsics = extrinsic_stream(client.clone(), ros_key, pool, extrinsic_rx);
-    let events = event_stream(client.clone());
+    let extrinsics = extrinsic_stream(client.clone(), ros_key.clone(), pool, extrinsic_rx);
+    let events = event_stream(client.clone(), ros_key);
     let status = import_notification_stream(client.clone());
     let finality = finality_notification_stream(client);
 

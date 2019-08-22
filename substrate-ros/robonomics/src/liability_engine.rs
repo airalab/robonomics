@@ -31,38 +31,47 @@ use futures::{
 };
 use msgs::{
     substrate_ros_msgs::{Liability,
-                         StartLiabilityPlayer, StartLiabilityPlayerRes,
-                         AddLiability, AddLiabilityRes},
-    std_msgs
+                         StartLiabilityPlayer, StartLiabilityPlayerRes},
 };
 use rosrust::api::error::Error;
 use log::error;
 use futures::executor::block_on;
 
 use crate::rosbag_player::RosbagPlayer;
-const LIABILITY_ADD_SRV_NAME: &str = "/liability/add";
-const LIABILITY_START_SRV_NAME: &str = "/liability/start_player";
+
+/// ROS Pub/Sub queue size.
+/// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
+const QUEUE_SIZE: usize = 10;
+
+const LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME: &str = "/liability/prepare";
+const LIABILITY_READY_TOPIC_NAME: &str = "liability/ready";
+const LIABILITY_START_SRV_NAME: &str = "/liability/start";
 
 async fn add_liability(
     liability: Liability,
-    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>
+    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>,
+    publisher: &Arc<rosrust::Publisher<Liability>>
 ) {
     let ipfs = IpfsClient::default();
+    let l = liability.clone();
     let bag_hash = liability.order.objective;
     let liability_id = liability.id;
     let mut liabilities = known_liabilities.lock().unwrap();
 
-    let (response, _) = ipfs.cat(bag_hash.as_str()).compat().into_future().await;
-    if let Some(Ok(content)) = response {
-        let bag_file = File::create(bag_hash.as_str()).expect("could not create file");
-        let mut buffer = AllowStdIo::new(bag_file);
-        buffer.write_all(&content).await;
-        buffer.close().await;
+    if ! (liabilities.contains_key(&liability_id)) {
+        let (response, _) = ipfs.cat(bag_hash.as_str()).compat().into_future().await;
+        if let Some(Ok(content)) = response {
+            let bag_file = File::create(bag_hash.as_str()).expect("could not create file");
+            let mut buffer = AllowStdIo::new(bag_file);
+            buffer.write_all(&content).await;
+            buffer.close().await;
 
-        let mut player = RosbagPlayer::new(bag_hash);
-        liabilities.insert(liability_id, player);
-    } else {
-        error!("Unable to get IPFS content of {}", bag_hash);
+            let player = RosbagPlayer::new(bag_hash);
+            liabilities.insert(liability_id, player);
+            publisher.send(l).unwrap();
+        } else {
+            error!("Unable to get IPFS content of {}", bag_hash);
+        }
     }
 
 }
@@ -78,26 +87,27 @@ async fn launch_liability_player(
 }
 
 pub fn start_liability_engine()
-    -> Result<Vec<rosrust::Service>, Error> {
+    -> Result<(Vec<rosrust::Service>, Vec<rosrust::Subscriber>), Error> {
     let mut services = vec![];
+    let mut subscribers = vec![];
 
     let liability_players = Arc::new(Mutex::new(HashMap::new()));
-    let players01 = liability_players.clone();
+    let liability_ready_pub = Arc::new(rosrust::publish(LIABILITY_READY_TOPIC_NAME, QUEUE_SIZE).unwrap());
 
-    services.push(rosrust::service::<StartLiabilityPlayer, _>(LIABILITY_START_SRV_NAME, move |req| {
-        let mut res = StartLiabilityPlayerRes::default();
-        block_on(launch_liability_player(req.id, &players01));
-        res.success = true;
-        Ok(res)
-    })?);
+    let players01 = liability_players.clone();
+    subscribers.push(
+        rosrust::subscribe(LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME, QUEUE_SIZE, move |l: Liability| {
+            block_on(add_liability(l.clone(), &players01, &liability_ready_pub));
+        }).expect("failed to create incoming liability subscriber")
+    );
 
     let players02 = liability_players.clone();
-    services.push(rosrust::service::<AddLiability, _>(LIABILITY_ADD_SRV_NAME, move |req| {
-        let mut res = AddLiabilityRes::default();
-        block_on(add_liability(req.liability, &players02));
+    services.push(rosrust::service::<StartLiabilityPlayer, _>(LIABILITY_START_SRV_NAME, move |req| {
+        let mut res = StartLiabilityPlayerRes::default();
+        block_on(launch_liability_player(req.id, &players02));
         res.success = true;
         Ok(res)
     })?);
 
-    Ok(services)
+    Ok((services, subscribers))
 }

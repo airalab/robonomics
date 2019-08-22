@@ -57,6 +57,5 @@ rosmsg_include!(
     substrate_ros_msgs / StorageQuery,
     substrate_ros_msgs / StorageSize,
 
-    substrate_ros_msgs / AddLiability,
     substrate_ros_msgs / StartLiabilityPlayer,
 );

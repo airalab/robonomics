@@ -89,7 +89,6 @@ add_service_files(
         StorageSize.srv
 
         # Liability engine
-        AddLiability.srv
         StartLiabilityPlayer.srv
  )
 

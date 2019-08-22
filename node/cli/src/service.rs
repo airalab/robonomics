@@ -121,7 +121,7 @@ construct_service_factory! {
                             sr25519::Pair::from_seed_slice(&key.to_raw_vec()).unwrap(),
                         );
 
-                    let liability_engine_services = ros_robonomics::start_liability_engine().unwrap();
+                    let (liability_engine_services, liability_engine_subscribers) = ros_robonomics::start_liability_engine().unwrap();
 
                     service.spawn_task(Box::new(api.unit_error().boxed().compat()));
 
@@ -137,6 +137,7 @@ construct_service_factory! {
 
                     let on_exit = service.on_exit().then(move |_| {
                         liability_engine_services;
+                        liability_engine_subscribers;
                         srvs;
                         api_subs;
                         Ok(())
