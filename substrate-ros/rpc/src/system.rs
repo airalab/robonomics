@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use std::sync::Arc;
+use std::time::Duration;
 use rosrust::api::error::Error;
 use crate::traits::RosRpc;
 use runtime_primitives::traits;
@@ -32,14 +33,7 @@ use msgs::{
 };
 
 use futures_timer::Delay;
-use std::time;
-use rosrust::{Message, RosMsg};
-use parity_codec::alloc::collections::HashMap;
-use futures::{
-    prelude::*,
-    channel::mpsc,
-    StreamExt as _,
-};
+use futures::prelude::*;
 
 pub use substrate_rpc::system::helpers::SystemInfo;
 
@@ -48,6 +42,10 @@ const SYSTEM_VERSION_SRV_NAME: &str = "/system/version";
 const SYSTEM_CHAIN_SRV_NAME: &str = "/system/chain_name";
 const SYSTEM_PROPERTIES_SRV_NAME: &str = "/system/properties";
 const SYSTEM_HEALTH_SRV_NAME: &str = "/system/health";
+
+/// ROS Pub/Sub queue size.
+/// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
+const QUEUE_SIZE: usize = 10;
 
 pub struct System<B: traits::Block, S: NetworkSpecialization<B>, H: ExHashT> {
     info: SystemInfo,
@@ -88,66 +86,65 @@ impl<B: traits::Block, S, H> System<B, S, H> where
             should_have_peers: true, // in practice configurations without peers useless
         }
     }
-
-    async fn publish_system_name(&self, publisher: rosrust::Publisher<std_msgs::String>)
-    {
-        loop {
-            let mut msg = std_msgs::String::default();
-            msg.data = self.system_name();
-            publisher.send(msg).unwrap();
-            Delay::new(time::Duration::from_secs(1)).await;
-        };
-    }
-
-    async fn publish_system_version(&self, publisher: rosrust::Publisher<std_msgs::String>)
-    {
-        loop {
-            let mut msg = std_msgs::String::default();
-            msg.data = self.system_version();
-            publisher.send(msg).unwrap();
-            Delay::new(time::Duration::from_secs(1)).await;
-        };
-    }
-
-    async fn publish_system_chain(&self, publisher: rosrust::Publisher<std_msgs::String>)
-    {
-        loop {
-            let mut msg = std_msgs::String::default();
-            msg.data = self.system_chain();
-            publisher.send(msg).unwrap();
-            Delay::new(time::Duration::from_secs(1)).await;
-        };
-    }
-
-    async fn publish_system_health(&self, publisher: rosrust::Publisher<SystemHealthInfo>)
-    {
-        loop {
-            let mut res = SystemHealthInfo::default();
-            let health = self.system_health();
-            res.peers = health.peers as u32;
-            res.is_syncing = health.is_syncing;
-            publisher.send(res).unwrap();
-            Delay::new(time::Duration::from_secs(1)).await;
-        };
-    }
-
 }
 
-pub async fn start_system_publishers<B: traits::Block, S, H> (api: Arc<System<B, S, H>>)
-      where
+async fn publish_system_name(
+    api: Arc<System<B, S, H>>
+) -> Result<(), Error> where
     S: NetworkSpecialization<B>,
-    H: ExHashT
+    H: ExHashT 
 {
+    loop {
+        let mut msg = std_msgs::String::default();
+        msg.data = api.system_name();
+        publisher.send(msg)?;
+        Delay::new(Duration::from_secs(1)).await;
+    }
+}
 
-    let system_name_publisher = rosrust::publish(SYSTEM_NAME_SRV_NAME, 10).unwrap();
-    let system_version_publisher = rosrust::publish(SYSTEM_VERSION_SRV_NAME, 10).unwrap();
-    let system_chain_publisher = rosrust::publish(SYSTEM_CHAIN_SRV_NAME, 10).unwrap();
-    let system_health_publisher = rosrust::publish(SYSTEM_HEALTH_SRV_NAME, 10).unwrap();
+async fn publish_system_version(
+    api: Arc<System<B, S, H>>,
+    publisher: Publisher<std_msgs::String>,
+) -> Result<(), Error> where
+    S: NetworkSpecialization<B>,
+    H: ExHashT 
+{
+    loop {
+        let mut msg = std_msgs::String::default();
+        msg.data = api.system_version();
+        publisher.send(msg)?;
+        Delay::new(Duration::from_secs(1)).await;
+    }
+}
 
-    future::join4(api.publish_system_version(system_version_publisher),
-                  api.publish_system_name(system_name_publisher),
-                  api.publish_system_chain(system_chain_publisher),
-                  api.publish_system_health(system_health_publisher)).map(|_| ()).await
+async fn publish_system_chain(
+    api: Arc<System<B, S, H>>
+) -> Result<(), Error> where
+    S: NetworkSpecialization<B>,
+    H: ExHashT 
+{
+    loop {
+        let mut msg = std_msgs::String::default();
+        msg.data = api.system_chain();
+        publisher.send(msg)?;
+        Delay::new(Duration::from_secs(1)).await;
+    }
+}
+
+async fn publish_system_health(
+    api: Arc<System<B, S, H>>
+) -> Result<(), Error> where
+    S: NetworkSpecialization<B>,
+    H: ExHashT 
+{
+    loop {
+        let mut res = SystemHealthInfo::default();
+        let health = self.system_health();
+        res.peers = health.peers as u32;
+        res.is_syncing = health.is_syncing;
+        publisher.send(res)?;
+        Delay::new(Duration::from_secs(1)).await;
+    }
 }
 
 impl<B: traits::Block, S, H> RosRpc for System<B, S, H> where
@@ -210,4 +207,26 @@ impl<B: traits::Block, S, H> RosRpc for System<B, S, H> where
 
         Ok(services)
     }
+}
+
+pub fn start_publishers<B: traits::Block, S, H>(
+    api: Arc<System<B, S, H>>
+) -> Result<impl Future<Output=()>, Error> where
+    S: NetworkSpecialization<B>,
+    H: ExHashT 
+{
+    let name_pub = rosrust::publish(SYSTEM_NAME_SRV_NAME, QUEUE_SIZE)?;
+    let name_future = publish_system_name(api.clone(), name_pub);
+
+    let version_pub = rosrust::publish(SYSTEM_VERSION_SRV_NAME, QUEUE_SIZE)?;
+    let version = publish_system_version(api.clone(), version_pub); 
+
+    let chain_pub = rosrust::publish(SYSTEM_CHAIN_SRV_NAME, QUEUE_SIZE)?;
+    let chain = publish_system_chain(api.clone(), chain_pub);
+
+    let health_pub = rosrust::publish(SYSTEM_HEALTH_SRV_NAME, QUEUE_SIZE)?;
+    let health = publish_system_health(api.clone(), health_pub);
+
+    let task = future::join4(name, version, chain, health).map(|_| ());
+    Ok(task)
 }

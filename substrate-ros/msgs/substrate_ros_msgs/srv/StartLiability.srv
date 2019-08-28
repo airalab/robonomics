@@ -1,0 +1,4 @@
+string id
+---
+bool success
+string error

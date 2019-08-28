@@ -15,12 +15,10 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Robonomics Liability traits.
 
-use rosrust::api::error::Error;
-use std::sync::Arc;
+pub trait Liability {
 
-///! Simple ROS RPC launcher trait
-pub trait RosRpc {
-    ///! Launch ROS RPC services
-    fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error>;
+
 }
+

@@ -15,12 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+//! A `CodeExecutor` specialization which uses natively compiled runtime when the wasm to be
+//! executed is equivalent to the natively compiled code.
 
-use rosrust::api::error::Error;
-use std::sync::Arc;
+pub use substrate_executor::NativeExecutor;
+pub use substrate_executor::RuntimesCache;
+use substrate_executor::native_executor_instance;
 
-///! Simple ROS RPC launcher trait
-pub trait RosRpc {
-    ///! Launch ROS RPC services
-    fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error>;
-}
+native_executor_instance!(
+    pub Executor,
+    node_runtime::api::dispatch,
+    node_runtime::native_version
+);

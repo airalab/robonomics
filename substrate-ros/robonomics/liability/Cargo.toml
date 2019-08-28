@@ -1,0 +1,13 @@
+[package]
+name = "robonomics-liability"
+version = "0.1.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+bs58 = "0.2"
+rosbag = "0.2"
+rosrust = "0.8"
+ipfs-api = "0.5"
+msgs = { package = "substrate-ros-msgs", path = "../../msgs" }

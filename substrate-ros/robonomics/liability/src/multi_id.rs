@@ -15,12 +15,18 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Network tagged Robonomics liabilities.
+/// 
+/// To make clear what network own this liability lets concat network identifier
+/// with liability identifier. Encode it into Base58 when string representation needed.
+///
 
-use rosrust::api::error::Error;
-use std::sync::Arc;
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MultiID {
+    u32 network;
+    u8[] id;
+}
 
-///! Simple ROS RPC launcher trait
-pub trait RosRpc {
-    ///! Launch ROS RPC services
-    fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error>;
+impl ToString for MultiID {
+
 }

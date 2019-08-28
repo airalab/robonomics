@@ -15,6 +15,8 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Generic Rust implementation of ROSBAG player.
+/// http://wiki.ros.org/rosbag/Commandline#rosbag_play
 
 use rosrust::api::raii::Publisher;
 use std::collections::HashMap;

@@ -1,2 +1,2 @@
-uint64 id
+string id
 string result

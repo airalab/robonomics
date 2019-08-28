@@ -89,7 +89,7 @@ add_service_files(
         StorageSize.srv
 
         # Liability engine
-        StartLiabilityPlayer.srv
+        StartLiability.srv
  )
 
 ## Generate actions in the 'action' folder

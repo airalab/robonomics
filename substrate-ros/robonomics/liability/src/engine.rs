@@ -15,12 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! This module exports Robonomics API into ROS namespace.
+///! Robonomics liability engine.
+///
+/// This module helps robot to get liability metadata and content from different networks.
+/// And handle it correctly according to specified liability lifecycle, including persistent
+/// liability tracking, replaying and supervising.
 
 use std::{
     fs::File,
-    sync::{Arc,
-           Mutex},
+    sync::{Arc, Mutex},
     collections::HashMap,
 };
 use ipfs_api::IpfsClient;

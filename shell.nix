@@ -11,4 +11,6 @@ stdenv.mkDerivation {
   propagatedBuildInputs = if ros then [ msgs ] else [];
   buildInputs = [ rustWasm wasm-gc pkgconfig openssl clang ];
   LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
+  # FIXME: we can remove this once prost is updated.
+  PROTOC = "${protobuf}/bin/protoc";
 }

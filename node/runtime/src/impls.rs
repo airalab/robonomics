@@ -16,9 +16,11 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use runtime_primitives::weights::{Weight, WeightMultiplier};
-use runtime_primitives::traits::{Convert, Saturating};
-use runtime_primitives::Fixed64;
+use sr_primitives::{
+    weights::{Weight, WeightMultiplier},
+    traits::{Convert, Saturating},
+    Fixed64
+};
 use crate::constants::fee::TARGET_BLOCK_FULLNESS;
 use crate::{Balances, MaximumBlockWeight};
 use crate::types::Balance;

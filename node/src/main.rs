@@ -26,7 +26,7 @@ fn main() {
         author: "Airalab <research@aira.life>",
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
-        description: "Reference implementation of robonomics.network node",
+        description: "Substrate based implementation of Robonomics Network",
         support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
         executable_name: "robonomics",
     };

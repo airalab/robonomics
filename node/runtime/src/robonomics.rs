@@ -20,14 +20,14 @@
 use rstd::vec::Vec;
 #[cfg(feature = "std")]
 use serde_derive::{Serialize, Deserialize};
-use parity_codec::{Encode, Decode};
+use codec::{Encode, Decode};
 use system::ensure_signed;
 use support::{
     StorageValue, StorageMap,
     decl_module, decl_storage, decl_event, ensure,
     traits::{ReservableCurrency, Currency}, dispatch::Result
 };
-use runtime_primitives::traits::Hash;
+use sr_primitives::traits::Hash;
 
 /// Order params.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Debug))]
@@ -82,7 +82,7 @@ pub trait Trait: system::Trait {
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin
     {
-        fn deposit_event<T>() = default;
+        fn deposit_event() = default;
 
         /// Send demand and create liability when matched.
         pub fn demand(

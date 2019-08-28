@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! A set of primitive types used in substrate runtime.
 
-use runtime_primitives::{
+use sr_primitives::{
     generic, traits::{Verify, BlakeTwo256}, OpaqueExtrinsic, AnySignature
 };
 
@@ -66,3 +66,11 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub type UncheckedExtrinsic = OpaqueExtrinsic;
+
+client::decl_runtime_apis! {
+    /// The API to query account account nonce (aka index).
+    pub trait AccountNonceApi {
+        /// Get current account nonce of given `AccountId`.
+        fn account_nonce(account: AccountId) -> Index;
+    }
+}

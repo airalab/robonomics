@@ -19,19 +19,18 @@
 
 use grandpa::AuthorityId as GrandpaId;
 use babe_primitives::AuthorityId as BabeId;
-use primitives::{ed25519, sr25519, crypto::Pair};
-use robonomics_runtime::{
+use im_online::sr25519::AuthorityId as ImOnlineId;
+use primitives::{Pair, Public, crypto::UncheckedInto};
+use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    SessionKeys, Perbill, StakerStatus, WASM_BINARY,
+    AuthorityDiscoveryConfig, SessionKeys, Perbill, StakerStatus, WASM_BINARY,
 };
-use robonomics_runtime::constants::{time::*, currency::*};
-use robonomics_runtime::types::{AccountId, Balance};
+use node_runtime::constants::currency::*;
+use node_runtime::types::{AccountId, Balance};
 use substrate_service::{self, Properties};
 use serde_json::json;
-
 use hex_literal::hex;
-use primitives::crypto::UncheckedInto;
 use telemetry::TelemetryEndpoints;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -72,65 +71,47 @@ impl ChainOpt {
     }
 }
 
-/// Helper function to generate AccountId from seed
-pub fn get_account_id_from_seed(seed: &str) -> AccountId {
-    sr25519::Pair::from_string(&format!("//{}", seed), None)
-        .expect("static values are valid; qed")
-        .public()
-}
-
-/// Helper function to generate BabeId from seed
-pub fn get_babe_id_from_seed(seed: &str) -> BabeId {
-    sr25519::Pair::from_string(&format!("//{}", seed), None)
-        .expect("static values are valid; qed")
-        .public()
-}
-
-/// Helper function to generate GrandpaId from seed
-pub fn get_grandpa_id_from_seed(seed: &str) -> GrandpaId {
-    ed25519::Pair::from_string(&format!("//{}", seed), None)
+/// Helper function to generate a crypto pair from seed
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+    TPublic::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, BabeId, GrandpaId) {
+pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId) {
     (
-        get_account_id_from_seed(&format!("{}//stash", seed)),
-        get_account_id_from_seed(seed),
-        get_babe_id_from_seed(seed),
-        get_grandpa_id_from_seed(seed),
+        get_from_seed::<AccountId>(&format!("{}//stash", seed)),
+        get_from_seed::<AccountId>(seed),
+        get_from_seed::<GrandpaId>(seed),
+        get_from_seed::<BabeId>(seed),
+        get_from_seed::<ImOnlineId>(seed),
     )
 }
 
-
-fn session_keys(ed_key: ed25519::Public, sr_key: sr25519::Public) -> SessionKeys {
-    SessionKeys {
-        ed25519: ed_key,
-        sr25519: sr_key,
-    }
+fn session_keys(grandpa: GrandpaId, babe: BabeId, im_online: ImOnlineId) -> SessionKeys {
+    SessionKeys { grandpa, babe, im_online, }
 }
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId)>,
-    root_key: AccountId,
+    initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)>,
     endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
     let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
-            get_account_id_from_seed("Alice"),
-            get_account_id_from_seed("Bob"),
-            get_account_id_from_seed("Charlie"),
-            get_account_id_from_seed("Dave"),
-            get_account_id_from_seed("Eve"),
-            get_account_id_from_seed("Ferdie"),
-            get_account_id_from_seed("Alice//stash"),
-            get_account_id_from_seed("Bob//stash"),
-            get_account_id_from_seed("Charlie//stash"),
-            get_account_id_from_seed("Dave//stash"),
-            get_account_id_from_seed("Eve//stash"),
-            get_account_id_from_seed("Ferdie//stash"),
+            get_from_seed::<AccountId>("Alice"),
+            get_from_seed::<AccountId>("Bob"),
+            get_from_seed::<AccountId>("Charlie"),
+            get_from_seed::<AccountId>("Dave"),
+            get_from_seed::<AccountId>("Eve"),
+            get_from_seed::<AccountId>("Ferdie"),
+            get_from_seed::<AccountId>("Alice//stash"),
+            get_from_seed::<AccountId>("Bob//stash"),
+            get_from_seed::<AccountId>("Charlie//stash"),
+            get_from_seed::<AccountId>("Dave//stash"),
+            get_from_seed::<AccountId>("Eve//stash"),
+            get_from_seed::<AccountId>("Ferdie//stash"),
         ]
     });
 
@@ -155,30 +136,36 @@ pub fn testnet_genesis(
             vesting: vec![],
         }),
         session: Some(SessionConfig {
-            keys: initial_authorities.iter().map(|x| (x.1.clone(), session_keys(x.3.clone(), x.2.clone()))).collect::<Vec<_>>(),
+            keys: initial_authorities.iter().map(|x| {
+                (x.1.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone()))
+            }).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
             current_era: 0,
-            minimum_validator_count: 2,
-            validator_count: 7,
-            offline_slash: Perbill::from_millionths(1_000_000),
-            offline_slash_grace: 4,
-            stakers: initial_authorities.iter().map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)).collect(),
+            validator_count: 10,
+            minimum_validator_count: 3,
+            stakers: initial_authorities.iter().map(|x| {
+                (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)
+            }).collect(),
             invulnerables: initial_authorities.iter().map(|x| x.1.clone()).collect(),
+            slash_reward_fraction: Perbill::from_percent(10),
+            .. Default::default()
         }),
         sudo: Some(SudoConfig {
-            key: root_key,
+            key: endowed_accounts[0].clone(),
         }),
         babe: Some(BabeConfig {
-            authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
+            authorities: vec![], 
         }),
         grandpa: Some(GrandpaConfig {
-            authorities: initial_authorities.iter().map(|x| (x.3.clone(), 1)).collect(),
+            authorities: vec![], 
         }),
-		im_online: Some(ImOnlineConfig {
-			gossip_at: 0,
-			last_new_era_start: 0,
-		}),
+        im_online: Some(ImOnlineConfig {
+            keys: vec![],
+        }),
+        authority_discovery: Some(AuthorityDiscoveryConfig{
+            keys: vec![],
+        }),
     }
 }
 
@@ -189,36 +176,43 @@ fn xrt_props() -> Properties {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let aira_babe: BabeId       = hex!["3ae9a59c2c2a0bf06d9a58a47eaef86a6ce8eee356eb5d29574739d0d0c33d30"].unchecked_into();
-    let aira_grandpa: GrandpaId = hex!["30d3114363ff180bb295099c34fb30060e3b2df89617f7d76078b37d4d351cca"].unchecked_into();
-    let aira_stash: AccountId   = hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into();
-    let aira_control: AccountId = hex!["16e4b93d965a27e50de7e27b6e9b8471186b4a463bbad8e2b0a398007098504e"].unchecked_into();
+    let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
+        // airalab
+        hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into(),
+        hex!["16e4b93d965a27e50de7e27b6e9b8471186b4a463bbad8e2b0a398007098504e"].unchecked_into(),
+        hex!["174259e12de764a3d49c63c1b82494d1589f2a6d1547916dc3989bbfa96074ac"].unchecked_into(),
+        hex!["389693262d286dc33a6dbd828d544eb72306e80646985a3c4b5b1f3bd93bc25a"].unchecked_into(),
+        hex!["487faccb600b21904201a97ca8ba9723e850ff6fb45909bc330b030ac508dd4e"].unchecked_into(),
+        ),(
+        // akru
+        hex!["a26253010447e4a0ec7ddce034034a4ebcfb1317440fd458c21c592ddf8d0337"].unchecked_into(),
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
+        hex!["ae29a6e24e3cfdee27ac1d40324d1497dd27839a301e9ce2ea5d93e4bdb49088"].unchecked_into(),
+        hex!["643b13ab6205f0c373c566ad70775253db49287f87f2250539131f274598dd23"].unchecked_into(),
+        hex!["8c131749823ccb3ebbe9f38564da0543ee3e4717a90a8edf67e93c07b5f5b513"].unchecked_into(),
+        )];
 
-    let akru_babe: BabeId       = hex!["0ae0b0afc9783c4e7493e56d9572fc45c024e12bbef7d3abf2534c2d07acb81b"].unchecked_into();
-    let akru_grandpa: GrandpaId = hex!["4327b538c4d3fd84cb875328adeee97ee0754dc1491c5a453c07031a40215b0e"].unchecked_into();
-    let akru_stash: AccountId   = hex!["a26253010447e4a0ec7ddce034034a4ebcfb1317440fd458c21c592ddf8d0337"].unchecked_into();
-    let akru_control: AccountId = hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into();
-
+    let endowed_accounts: Vec<AccountId> = vec![
+        // akru
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
+        ];
     testnet_genesis(
-        vec![
-          (aira_stash, aira_control.clone(), aira_babe, aira_grandpa),
-          (akru_stash, akru_control.clone(), akru_babe, akru_grandpa),
-        ],
-        akru_control.clone(),
-        Some(vec![aira_control, akru_control]),
+        initial_authorities,
+        Some(endowed_accounts),
     )
 }
 
+/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
-        "/ip4/95.216.202.55/tcp/30333/p2p/QmcYrdpTWSGLTVHMCMj27xaGkuqab1sHqXF33YdUrhS9Fp".into(),
+        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into()
     ];
     ChainSpec::from_genesis(
         "Robonomics",
@@ -231,14 +225,12 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
         vec![
             get_authority_keys_from_seed("Alice"),
         ],
-        get_account_id_from_seed("Alice").into(),
         None,
     )
 }
@@ -263,7 +255,6 @@ fn local_testnet_genesis() -> GenesisConfig {
             get_authority_keys_from_seed("Alice"),
             get_authority_keys_from_seed("Bob"),
         ],
-        get_account_id_from_seed("Alice").into(),
         None,
     )
 }

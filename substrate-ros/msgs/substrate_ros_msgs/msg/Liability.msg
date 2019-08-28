@@ -1,4 +1,4 @@
-uint64 id
+string id
 Order  order
 string promisee
 string promisor

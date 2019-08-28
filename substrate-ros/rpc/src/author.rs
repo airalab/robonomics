@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use client::{self, Client};
-use parity_codec::{Encode, Decode};
+use codec::{Encode, Decode};
 use primitives::{Bytes, Blake2Hasher, H256};
 use runtime_primitives::{generic, traits};
 use transaction_pool::{
@@ -69,7 +69,7 @@ impl<B, E, P, RA> Author<B, E, P, RA> where
     }
 
 	fn submit_extrinsic(&self, ext: Bytes) -> Result<ExHashT<P>, &str> {
-		let xt = Decode::decode(&mut &ext[..]).ok_or("Bad extrinsic format")?;
+		let xt = Decode::decode(&mut &ext[..]).map_err(|_| "Bad extrinsic format")?;
 		let best_block_hash = self.client.info().chain.best_hash;
 		self.pool
 			.submit_one(&generic::BlockId::hash(best_block_hash), xt)

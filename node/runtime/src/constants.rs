@@ -44,7 +44,7 @@ pub mod time {
     pub const MILLISECS_PER_BLOCK: Moment = 6000;
     pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
-    pub const SLOT_DURATION: Moment = 1650;
+    pub const SLOT_DURATION: Moment = 6000;
 
     pub const EPOCH_DURATION_IN_BLOCKS: Moment = 10 * MINUTES;
     pub const EPOCH_DURATION_IN_SLOTS: Moment = {
@@ -67,7 +67,7 @@ pub mod time {
 // the ratio that `system` module uses to find normal transaction quota.
 /// Fee-related.
 pub mod fee {
-    pub use runtime_primitives::Perbill;
+    pub use sr_primitives::Perbill;
 
     /// The block saturation level. Fees will be updates based on this value.
     pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);

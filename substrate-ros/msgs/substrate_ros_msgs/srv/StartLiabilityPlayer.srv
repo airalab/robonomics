@@ -1,4 +1,0 @@
-uint64 id
----
-bool success
-string msg
