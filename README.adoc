@@ -46,7 +46,7 @@ curl https://sh.rustup.rs -sSf | sh
 rustup update nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly
 rustup update stable
-cargo install --git https://github.com/alexcrichton/wasm-gc
+cargo +nightly install --git https://github.com/alexcrichton/wasm-gc
 ----
 
 You will also need to install the following packages:
@@ -84,7 +84,7 @@ $env:OPENSSL_STATIC = 'Yes'
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.11
+cargo +nightly install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.11
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
