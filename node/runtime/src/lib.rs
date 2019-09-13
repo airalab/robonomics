@@ -78,7 +78,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
     spec_version: 30,
-    impl_version: 30,
+    impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -307,7 +307,7 @@ construct_runtime!(
         NodeBlock = types::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
-        // Basic stuff; balances is uncallable initially.
+        // Basic stuff.
         System: system::{Module, Call, Storage, Config, Event},
         Timestamp: timestamp::{Module, Call, Storage, Inherent},
 
@@ -315,14 +315,12 @@ construct_runtime!(
         Balances: balances,
         Indices: indices,
 
-        // Must be before session.
-        Babe: babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
-
         // PoS consensus support.
+        Session: session::{Module, Call, Storage, Event, Config<T>},
         Authorship: authorship::{Module, Call, Storage, Inherent},
         Staking: staking::{default, OfflineWorker},
         Offences: offences::{Module, Call, Storage, Event},
-        Session: session::{Module, Call, Storage, Event, Config<T>},
+        Babe: babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
         FinalityTracker: finality_tracker::{Module, Call, Inherent},
         Grandpa: grandpa::{Module, Call, Storage, Config, Event},
         ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},

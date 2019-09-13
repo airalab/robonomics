@@ -169,31 +169,44 @@ pub fn testnet_genesis(
     }
 }
 
+/// Robonomics testnet config. 
+pub fn robonomics_testnet_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
+}
+
 /// XRT token properties.
 fn xrt_props() -> Properties {
     json!({"tokenDecimals": 9, "tokenSymbol": "XRT"}).as_object().unwrap().clone()
 }
 
+/*
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
-        // airalab
-        hex!["0ab623ec23b0346976d8fb4eaf012035fda269077490cbfb6aae15cb31d43777"].unchecked_into(),
-        hex!["16e4b93d965a27e50de7e27b6e9b8471186b4a463bbad8e2b0a398007098504e"].unchecked_into(),
-        hex!["174259e12de764a3d49c63c1b82494d1589f2a6d1547916dc3989bbfa96074ac"].unchecked_into(),
-        hex!["389693262d286dc33a6dbd828d544eb72306e80646985a3c4b5b1f3bd93bc25a"].unchecked_into(),
-        hex!["487faccb600b21904201a97ca8ba9723e850ff6fb45909bc330b030ac508dd4e"].unchecked_into(),
-        ),(
-        // akru
-        hex!["a26253010447e4a0ec7ddce034034a4ebcfb1317440fd458c21c592ddf8d0337"].unchecked_into(),
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
+        // validator-01 
+        hex!["847204aef88ce7693048264d17e6a78656dc14d812a5979abb81742a639f8461"].unchecked_into(),
+        hex!["d61a40b1d11183243afcbaf2b74dfdd5faa8858f95ec401d9ee102db136a9c19"].unchecked_into(),
         hex!["ae29a6e24e3cfdee27ac1d40324d1497dd27839a301e9ce2ea5d93e4bdb49088"].unchecked_into(),
         hex!["643b13ab6205f0c373c566ad70775253db49287f87f2250539131f274598dd23"].unchecked_into(),
         hex!["8c131749823ccb3ebbe9f38564da0543ee3e4717a90a8edf67e93c07b5f5b513"].unchecked_into(),
+        ),(
+        // validator-02
+        hex!["e237342b0088a0dc5103b7985e636c45eb61cf9aca578f74194209eb3c333e10"].unchecked_into(),
+        hex!["426ce030cd1794c92d019b571088126e26e183ed07508c3ab70e231367fc4165"].unchecked_into(),
+        hex!["4bce118897776da9e99bf271d44172ea77bb48fc7e73226d2963302077e0e5f2"].unchecked_into(),
+        hex!["96680f0e3446720e605ea1338ddfca56c1bd0412dd0ff705d24bd243a49f5b2d"].unchecked_into(),
+        hex!["00a8a49ce6ac03a1f08d109f6d61b782efad71f526efa1d02b66bf940963c65e"].unchecked_into(),
+        ),(
+        // validator-03
+        hex!["fc9d09d51b60eba639a694b1b7aacdc96175a1ede2abb38d33104ed7a658282c"].unchecked_into(),
+        hex!["2ce954ca2837694f46c7ffb77ddd58afe5d8e038c8224de3769cdbe4cf0ed41a"].unchecked_into(),
+        hex!["7d2233debe742ad6b57826b39be45eb098875fc02854bd52cda3a061b922c613"].unchecked_into(),
+        hex!["34b9a5af40d2ee4e0b3f2b49f8d8fb7024dfa2670720eed83942e5d36848cc3c"].unchecked_into(),
+        hex!["489859d83afdf7418f8c00540003ae4b9768df30faae731b24808b966c154f37"].unchecked_into(),
         )];
 
     let endowed_accounts: Vec<AccountId> = vec![
-        // akru
+        // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF  
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
         ];
     testnet_genesis(
@@ -202,17 +215,15 @@ fn robonomics_config_genesis() -> GenesisConfig {
     )
 }
 
-/*
-/// Robonomics testnet config. 
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
-}
-*/
-
 /// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
-        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into()
+        // validator-01
+        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into(),
+        // validator-02
+        "/ip4/188.127.249.219/tcp/30363/p2p/QmYp26uKLyDesPzCS5Y3w44NUKZmDz87F3ywJkhHhh9SUf".into(),
+        // validator-03
+        "/ip4/167.71.148.38/tcp/30363/p2p/Qmep2VYsMfiBQnTMHVk6AddygMysiK379VP48hKZCoWtWT".into(),
     ];
     ChainSpec::from_genesis(
         "Robonomics",
@@ -225,6 +236,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Some(xrt_props())
     )
 }
+*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

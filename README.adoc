@@ -18,11 +18,11 @@ This source is a part of AIRA project. It implements their purposes using Substr
 
  . Import https://github.com/airalab/substrate-node-robonomics/blob/master/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
  . Open https://polkadot.js.org/apps/#/settings[Substrate UI]: General settings
- . Set `custom` node endpoint to `wss://robonomics.akru.me/`
+ . Set `custom` node endpoint to `wss://substrate.robonomics.network`
  . Save and reload
- . Get test tokens https://faucets.blockxlabs.com
+ . Get test tokens at https://faucets.blockxlabs.com
 
-When connection is success you can explore `Robonomics testnet` using Substrate UI. Just create account and request test XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
+When connection is success you can explore `Robonomics testnet` using Substrate UI.
 
  - Accounts management: https://polkadot.js.org/apps/#/accounts
  - Looking for network events: https://polkadot.js.org/apps/#/explorer
@@ -121,27 +121,34 @@ You can support the network just by launch the node. Every additional full node 
 
 === Become a validator
 
-For nodes that can be online 24/7 also available most important role on chain - block producers or briefly validator. Robonomics on Substrate use https://github.com/paritytech/substrate/blob/8930f297737db67257f3be1a8b286f8c50189066/srml/staking/Staking.md[NPoS algorithm] for choosing block production accounts. For this reason if you have any stake in test XRT you can try self in block production. You can request test XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
+For nodes that can be online 24/7 also available most important role on chain - block producers or briefly validator. Robonomics on Substrate use https://github.com/paritytech/substrate/blob/8930f297737db67257f3be1a8b286f8c50189066/srml/staking/Staking.md[NPoS algorithm] for choosing block production accounts. For this reason if you have any stake in testnet XRT then you can try self in block production. 
+
+ . Launch node and wait for synchronization.
+[source, shell]
+robonomics
+
+ . Open https://polkadot.js.org/apps/#/settings[Settings] and switch UI to `Local Node` mode (don't foget import https://github.com/airalab/substrate-node-robonomics/blob/master/res/custom_types.json[Custom Types] on https://polkadot.js.org/apps/#/settings/developer[Developer Settings]).
+
+ . Generate session keys during RPC call at https://polkadot.js.org/apps/#/toolbox[Toolbox page]:
+ .. Submit RPC call `author:rotateKeys()` and copy result, it will be required later.
+
+ . Restart node in validator mode.
+[source, shell]
+robonomics --validator
 
  . Generate accounts at https://polkadot.js.org/apps/#/accounts/create[Account page]:
- .. `session` using `Edwards (ed25519)` crypto; 
- .. `stash` usign `Schnorrkel (sr25519)` crypto;
- .. `controller` using `Schnorrkel (sr25519)` crypto.
+ .. create `stash` usign `Schnorrkel (sr25519)` crypto;
+ .. create `controller` using `Schnorrkel (sr25519)` crypto.
 
- . Transfer full amount of test XRT to `stash` and a little bit to `controller` account.
-
- . https://polkadot.js.org/apps/#/extrinsics[Send extrinsic] from `controller` account with module `session` and method `setKey()`:
- .. `session` account address as parameter.
+ . Request testnet XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room] or use https://faucets.blockxlabs.com[Faucet].
+ . Transfer testnet XRT to `stash` and a little bit to `controller` account.
 
  . https://polkadot.js.org/apps/#/staking/actions[Staking actions]:
- .. Run Bond action from `stash` account to `controller` account;
- .. Run Validate action from `controller` account.
+ .. call `New stake` for `stash` and `controller` accounts;
+ .. call `Set Session Key` for result account pair and paste session key given in step before;
+ .. call `Validate` action.
 
- . Launch Robonomics node (set `session` account seed as parameter):
-[source, shell]
-robonomics --validator --key %SESSION_SEED%
-
- . Check https://polkadot.js.org/apps/#/staking[validator list], at new Era validator set will updated.
+ . Check https://polkadot.js.org/apps/#/staking[Validator List], at new Era validator set will updated.
 
 == Robotics integration
 
