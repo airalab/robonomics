@@ -43,6 +43,10 @@ use futures::prelude::*;
 use std::sync::Arc;
 use log::info;
 
+use futures03::channel::mpsc;
+use futures03_util::stream::StreamExt;
+use futures03_util::future::ready;
+
 pub use executor::NativeExecutor;
 native_executor_instance!(
     pub Executor,
@@ -120,10 +124,10 @@ construct_service_factory! {
                             service.transaction_pool(),
                             sr25519::Pair::from_seed_slice(&key.to_raw_vec()).unwrap(),
                         );
-
-                    let (liability_engine_services, liability_engine_subscribers) = ros_robonomics::start_liability_engine().unwrap();
-
                     service.spawn_task(Box::new(api.unit_error().boxed().compat()));
+
+                    let (fut, liability_engine_services, liability_engine_subscribers) = ros_robonomics::start_liability_engine().unwrap();
+                    service.spawn_task(Box::new(fut.unit_error().boxed().compat()));
 
                     let system_info = ros_rpc::system::SystemInfo {
                         chain_name: service.config.chain_spec.name().into(),

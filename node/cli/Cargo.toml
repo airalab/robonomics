@@ -14,6 +14,7 @@ hex-literal = "0.2"
 exit-future = "0.1"
 parking_lot = "0.4"
 futures03 = { package = "futures-preview", version = "0.3.0-alpha.17", features = ["compat"] }
+futures03_util = { package = "futures-util-preview", version = "0.3.0-alpha.17", features = ["compat"] }
 ctrlc = { version = "3.0", features = ["termination"] }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }
