@@ -33,6 +33,7 @@ use sr_primitives::{
     ApplyResult, generic, create_runtime_str, key_types
 };
 use sr_primitives::weights::Weight;
+use sr_primitives::curve::PiecewiseLinear;
 use sr_primitives::transaction_validity::TransactionValidity;
 use sr_primitives::traits::{
     self, BlakeTwo256, Block as BlockT,
@@ -78,7 +79,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
     spec_version: 30,
-    impl_version: 0,
+    impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -221,6 +222,10 @@ impl_opaque_keys! {
 // handler. The number and order of items in `SessionHandler` *MUST* be the same number and order of keys
 // in `SessionKeys`.
 
+parameter_types! {
+    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
+}
+
 impl session::Trait for Runtime {
     type OnSessionEnding = Staking;
     type SessionHandler = SessionHandlers;
@@ -230,6 +235,7 @@ impl session::Trait for Runtime {
     type ValidatorId = AccountId;
     type ValidatorIdOf = staking::StashOf<Self>;
     type SelectInitialValidators = Staking;
+    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 }
 
 impl session::historical::Trait for Runtime {
@@ -237,9 +243,21 @@ impl session::historical::Trait for Runtime {
     type FullIdentificationOf = staking::ExposureOf<Runtime>;
 }
 
+srml_staking_reward_curve::build! {
+    const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
+        min_inflation: 0_025_000,
+        max_inflation: 0_100_000,
+        ideal_stake: 0_500_000,
+        falloff: 0_050_000,
+        max_piece_count: 40,
+        test_precision: 0_005_000,
+    );
+}
+
 parameter_types! {
     pub const SessionsPerEra: sr_staking_primitives::SessionIndex = 6;
     pub const BondingDuration: staking::EraIndex = 24 * 28;
+    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
 impl staking::Trait for Runtime {
@@ -253,6 +271,7 @@ impl staking::Trait for Runtime {
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
+    type RewardCurve = RewardCurve;
 }
 
 impl grandpa::Trait for Runtime {
@@ -283,7 +302,6 @@ impl im_online::Trait for Runtime {
     type AuthorityId = ImOnlineId;
     type SubmitTransaction = SubmitTransaction;
     type ReportUnresponsiveness = Offences;
-    type CurrentElectedSet = staking::CurrentElectedStashAccounts<Runtime>;
 }
 
 impl offences::Trait for Runtime {

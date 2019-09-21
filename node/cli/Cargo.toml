@@ -15,7 +15,7 @@ exit-future = "0.1"
 parking_lot = "0.4"
 jsonrpc-core = "13.1.0"
 ctrlc = { version = "3.0", features = ["termination"] }
-futures03 = { package = "futures-preview", version = "0.3.0-alpha.17", features = ["compat"] }
+futures03 = { package = "futures-preview", version = "0.3.0-alpha.18", features = ["compat"] }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
 im-online = { package = "srml-im-online", git = "https://github.com/paritytech/substrate" }
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }

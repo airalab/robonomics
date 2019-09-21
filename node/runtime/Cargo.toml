@@ -35,6 +35,7 @@ staking = { package = "srml-staking", git = "https://github.com/paritytech/subst
 sudo = { package = "srml-sudo", git = "https://github.com/paritytech/substrate", default-features = false }
 im-online = { package = "srml-im-online", git = "https://github.com/paritytech/substrate", default-features = false }
 offences = { package = "srml-offences", git = "https://github.com/paritytech/substrate", default-features = false }
+srml-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 
 [build-dependencies]
 wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.2" }
