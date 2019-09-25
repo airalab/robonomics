@@ -35,9 +35,7 @@ use msgs::{
 };
 use rosrust::api::error::Error;
 use log::error;
-use futures::executor::block_on;
 
-use crate::rosbag_player::RosbagPlayer;
 use crate::rosbag_player::construct_player;
 
 /// ROS Pub/Sub queue size.
@@ -48,9 +46,7 @@ const LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME: &str = "/liability/prepare";
 const LIABILITY_READY_TOPIC_NAME: &str = "liability/ready";
 const LIABILITY_START_SRV_NAME: &str = "/liability/start";
 
-use msgs::std_msgs;
 use futures::channel::mpsc;
-use std::sync::RwLock;
 
 use futures::channel::oneshot;
 use futures::channel::oneshot::Receiver;

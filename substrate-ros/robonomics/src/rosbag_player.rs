@@ -21,14 +21,20 @@ use std::collections::HashMap;
 use rosbag::{RosBag, Record, RecordsIterator};
 use futures_timer::Delay;
 use std::time;
-use log::debug;
-use log::info;
-
 use msgs::std_msgs;
 
 use futures::{prelude::*, io::AllowStdIo, compat::Stream01CompatExt, Poll};
 use rosbag::record_types::{MessageData, Connection};
-use rosrust::api::Ros;
+use futures::io::Error;
+
+use player_codegen::build_players;
+build_players!(
+    // standard ros messages
+    std_msgs / String,
+    std_msgs / UInt64,
+    std_msgs / Bool,
+    std_msgs / Time,
+);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum WorkerMsg {
@@ -50,10 +56,6 @@ type PlayerConnections<'a> = HashMap<u32, Connection<'a>>;
 type PlayerMessages<'a> = HashMap<u32, Vec<PlayerMessageData<'a>>>;
 type StorageTopics = HashMap<(String, String), Vec<u32>>;
 
-use std::sync::Arc;
-use futures::task::Context;
-use futures::io::{Error, ErrorKind};
-
 #[derive(Debug, Clone)]
 pub struct PlayerMessageData<'a> {
     /// ID for connection on which message arrived
@@ -64,18 +66,14 @@ pub struct PlayerMessageData<'a> {
     pub data: &'a [u8],
 }
 
-const MSG_STRING_TYPE: &str = "std_msgs/String";
-
 pub fn construct_player(path: String) -> Result<impl Future<Output=()>, Error> where
 {
     let bag = RosBag::new(path.as_str()).unwrap();
     let records = bag.records();
 
     let mut player_connections = PlayerConnections::new();
-    let mut player_messages = PlayerMessages::new();
-    //let mut player_messages = HashMap::new();
+    //let mut player_messages = PlayerMessages::new();
     let mut storage_topics = StorageTopics::new();
-    //let mut storage_topics = HashMap::new();
 
     let mut start_msg_timestamp: u64 = 0;
 
@@ -98,20 +96,12 @@ pub fn construct_player(path: String) -> Result<impl Future<Output=()>, Error> w
                 if start_msg_timestamp == 0 || msg_data.time < start_msg_timestamp {
                     start_msg_timestamp = msg_data.time;
                 }
-            }
-
+            },
             _ => ()
         }
     );
 
-    let mut players = vec![];
-    for ((storage_topic_name, topic_type), topics_ids) in storage_topics.iter() {
-        match topic_type.as_str() {
-            MSG_STRING_TYPE => players.push(RosbagPlayer::<std_msgs::String>::new(storage_topic_name, topics_ids.clone(), path.clone(), start_msg_timestamp.clone()).play()),
-            _ => println!("Unsupported topic type")
-        }
-    }
-    return Ok(future::join_all(players).map(|_| ()))
+    return Ok(build_players(storage_topics, path.clone(), start_msg_timestamp.clone()))
 }
 
 impl<T> RosbagPlayer<T> where
@@ -119,11 +109,9 @@ impl<T> RosbagPlayer<T> where
 {
 
     pub fn new(topic: &str, topic_conn_ids: Vec<u32>, path: String, start_msg_timestamp: u64) -> Self {
-        println!("Construct Player with {:?} {:?}", topic, topic_conn_ids);
+        log::info!("Construct Player with {:?} {:?}", topic, topic_conn_ids);
         let publisher = rosrust::publish(topic, 32).unwrap();
-        //let messages : Vec<MessageData<>> = vec![];
         let bag = RosBag::new(path.as_str()).unwrap();
-        //let player = Self{ bag: bag, publisher: publisher, messages: messages};
         let player = Self{ bag: bag, publisher: publisher, topic_conn_ids: topic_conn_ids, start_msg_timestamp: start_msg_timestamp};
         player
     }
@@ -134,27 +122,24 @@ impl<T> RosbagPlayer<T> where
         for record in self.bag.records() {
             match record {
                 Ok(Record::Chunk(chunk)) => {
-                    //let mut prev_msg_timestamp: u64 = 0;
                     for inner in chunk.iter_msgs() {
                         if let Ok(msg) = inner {
+                            if prev_msg_timestamp == self.start_msg_timestamp {
+                                let initial_sleep = time::Duration::from_secs(5);
+                                Delay::new(initial_sleep).await;
+                                prev_msg_timestamp = msg.time;
+                            }
+
                             if self.topic_conn_ids.contains(&msg.conn_id) {
                                 let dcdc: T = rosrust::RosMsg::decode(msg.data).unwrap();
                                 //let publisher_description = self.map.get_mut(&msg.conn_id).unwrap();
                                 //debug!("rosbag_player {}: publish msg {:?} with decoded data {:?} of type {} into topic {}",
                                 //    self.path, msg, dcdc.data, publisher_description.msgtype, publisher_description.rostopic);
-                                let sleep_time_duration = {
-                                    // sleep 5 seconds before 1st message (giving chance to register publishers on master)
-                                    // sleep (current msg timestamp - previous msg timestamp) nanoseconds for all following messages
 
-                                    if prev_msg_timestamp != self.start_msg_timestamp {
-                                        time::Duration::from_nanos(msg.time - prev_msg_timestamp)
-
-                                    } else {
-                                        time::Duration::from_secs(5)
-                                    }
-                                };
+                                let sleep_time_duration = time::Duration::from_nanos(msg.time - prev_msg_timestamp);
                                 prev_msg_timestamp = msg.time;
                                 Delay::new(sleep_time_duration).await;
+
                                 self.publisher.send(dcdc).unwrap();
                             }
                         }
