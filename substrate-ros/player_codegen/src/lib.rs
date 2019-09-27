@@ -29,7 +29,7 @@ use quote::quote;
 use proc_macro::{TokenStream};
 
 #[proc_macro]
-pub fn build_players(input: TokenStream) -> TokenStream {
+pub fn players_builder(input: TokenStream) -> TokenStream {
 
     let mut messages = Vec::new();
     let mut next_item = String::new();
@@ -107,7 +107,7 @@ pub fn build_players(input: TokenStream) -> TokenStream {
         let ptype: syn::Type = syn::parse_str(sr.as_str()).unwrap();
 
         quote! {
-          #pnql => #ident.push(<#ptype>::new(storage_topic_name, topics_ids.clone(), path.clone(), start_msg_timestamp.clone()).play())
+          #pnql => #ident.push(<#ptype>::new(storage_topic_name, topics_ids.clone(), bag.clone(), start_msg_timestamp.clone()).play())
         }
     });
 
@@ -133,11 +133,44 @@ pub fn build_players(input: TokenStream) -> TokenStream {
     );
 
     let global = quote! {
-        //needed as initial impl Future<Output=()> for player's Future joining
-        async fn robonomics_player_codegen_nop() {
-        }
+        fn players_builder(bag: Arc<RosBag>) -> impl Future<Output=()> {
+            //needed as initial impl Future<Output=()> for player's Future joining
+            async fn robonomics_player_codegen_nop() {
+            }
 
-        fn build_players(storage_topics: HashMap<(String, String), Vec<u32>>, path: String, start_msg_timestamp: u64) -> impl Future<Output=()> {
+            let records = bag.records();
+
+            type StorageTopics = HashMap<(String, String), Vec<u32>>;
+            type PlayerConnections<'a> = HashMap<u32, Connection<'a>>;
+
+            let mut player_connections = PlayerConnections::new();
+            let mut storage_topics = StorageTopics::new();
+
+            let mut start_msg_timestamp: u64 = 0;
+
+            records.for_each(|record|
+                match record {
+                    Ok(Record::Connection(conn)) => {
+                        let conn01 = conn.clone();
+                        player_connections.insert(conn01.id.clone(), conn01.clone());
+
+                        match storage_topics.get_mut(&(conn01.storage_topic.to_string(), conn01.tp.to_string())) {
+                            Some(ids) => ids.push(conn01.id.clone()),
+                            None => ({
+                                let ids= vec![conn01.id.clone()];
+                                storage_topics.insert((conn01.storage_topic.to_string(), conn01.tp.to_string()), ids);
+                            }),
+                        }
+                    },
+
+                    Ok(Record::MessageData(msg_data)) => {
+                        if start_msg_timestamp == 0 || msg_data.time < start_msg_timestamp {
+                            start_msg_timestamp = msg_data.time;
+                        }
+                    },
+                    _ => ()
+                }
+            );
             #q_players_by_type
             for ((storage_topic_name, topic_type), topics_ids) in storage_topics.iter() {
                 match topic_type.as_str() {

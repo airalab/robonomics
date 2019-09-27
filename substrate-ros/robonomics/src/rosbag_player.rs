@@ -26,9 +26,10 @@ use msgs::std_msgs;
 use futures::{prelude::*, io::AllowStdIo, compat::Stream01CompatExt, Poll};
 use rosbag::record_types::{MessageData, Connection};
 use futures::io::Error;
+use std::sync::Arc;
 
-use player_codegen::build_players;
-build_players!(
+use player_codegen::players_builder;
+players_builder!(
     // standard ros messages
     std_msgs / String,
     std_msgs / UInt64,
@@ -36,82 +37,27 @@ build_players!(
     std_msgs / Time,
 );
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum WorkerMsg {
-    Stop,
+pub fn build_players(path: &str) -> Result<impl Future<Output=()>, Error> where
+{
+    let bag = Arc::new(RosBag::new(path).unwrap());
+    return Ok(players_builder(bag))
 }
 
-pub struct RosbagPlayer<T> where
+struct RosbagPlayer<T> where
     T: rosrust::Message
 {
-    bag: RosBag,
+    bag: Arc<RosBag>,
     publisher: Publisher<T>,
     topic_conn_ids: Vec<u32>,
     start_msg_timestamp: u64,
-    //messages: Vec<PlayerMessageData<'a>>,
-    //records: &'a RecordsIterator<'a>
-}
-
-type PlayerConnections<'a> = HashMap<u32, Connection<'a>>;
-type PlayerMessages<'a> = HashMap<u32, Vec<PlayerMessageData<'a>>>;
-type StorageTopics = HashMap<(String, String), Vec<u32>>;
-
-#[derive(Debug, Clone)]
-pub struct PlayerMessageData<'a> {
-    /// ID for connection on which message arrived
-    pub conn_id: u32,
-    /// Time at which the message was received in nanoseconds of UNIX epoch
-    pub time: u64,
-    /// Serialized message data in the ROS serialization format
-    pub data: &'a [u8],
-}
-
-pub fn construct_player(path: String) -> Result<impl Future<Output=()>, Error> where
-{
-    let bag = RosBag::new(path.as_str()).unwrap();
-    let records = bag.records();
-
-    let mut player_connections = PlayerConnections::new();
-    //let mut player_messages = PlayerMessages::new();
-    let mut storage_topics = StorageTopics::new();
-
-    let mut start_msg_timestamp: u64 = 0;
-
-    records.for_each(|record|
-        match record {
-            Ok(Record::Connection(conn)) => {
-                let conn01 = conn.clone();
-                player_connections.insert(conn01.id.clone(), conn01.clone());
-
-                match storage_topics.get_mut(&(conn01.storage_topic.to_string(), conn01.tp.to_string())) {
-                    Some(ids) => ids.push(conn01.id.clone()),
-                    None => ({
-                        let ids= vec![conn01.id.clone()];
-                        storage_topics.insert((conn01.storage_topic.to_string(), conn01.tp.to_string()), ids);
-                    }),
-                }
-            },
-
-            Ok(Record::MessageData(msg_data)) => {
-                if start_msg_timestamp == 0 || msg_data.time < start_msg_timestamp {
-                    start_msg_timestamp = msg_data.time;
-                }
-            },
-            _ => ()
-        }
-    );
-
-    return Ok(build_players(storage_topics, path.clone(), start_msg_timestamp.clone()))
 }
 
 impl<T> RosbagPlayer<T> where
     T: rosrust::rosmsg::RosMsg + rosrust::Message
 {
-
-    pub fn new(topic: &str, topic_conn_ids: Vec<u32>, path: String, start_msg_timestamp: u64) -> Self {
-        log::info!("Construct Player with {:?} {:?}", topic, topic_conn_ids);
+    pub fn new(topic: &str, topic_conn_ids: Vec<u32>, bag: Arc<RosBag>, start_msg_timestamp: u64) -> Self {
+        log::debug!("Construct Player with {:?} {:?}", topic, topic_conn_ids);
         let publisher = rosrust::publish(topic, 32).unwrap();
-        let bag = RosBag::new(path.as_str()).unwrap();
         let player = Self{ bag: bag, publisher: publisher, topic_conn_ids: topic_conn_ids, start_msg_timestamp: start_msg_timestamp};
         player
     }
@@ -132,9 +78,6 @@ impl<T> RosbagPlayer<T> where
 
                             if self.topic_conn_ids.contains(&msg.conn_id) {
                                 let dcdc: T = rosrust::RosMsg::decode(msg.data).unwrap();
-                                //let publisher_description = self.map.get_mut(&msg.conn_id).unwrap();
-                                //debug!("rosbag_player {}: publish msg {:?} with decoded data {:?} of type {} into topic {}",
-                                //    self.path, msg, dcdc.data, publisher_description.msgtype, publisher_description.rostopic);
 
                                 let sleep_time_duration = time::Duration::from_nanos(msg.time - prev_msg_timestamp);
                                 prev_msg_timestamp = msg.time;

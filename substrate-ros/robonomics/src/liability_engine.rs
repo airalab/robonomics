@@ -34,9 +34,7 @@ use msgs::{
                          StartLiabilityPlayer, StartLiabilityPlayerRes},
 };
 use rosrust::api::error::Error;
-use log::error;
-
-use crate::rosbag_player::construct_player;
+use crate::rosbag_player::build_players;
 
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
@@ -53,7 +51,7 @@ use futures::channel::oneshot::Receiver;
 
 fn add_liability_stream(
     stream: mpsc::UnboundedReceiver<(Liability, Receiver<()>)>,
-) -> impl Future<Output=()> + 'static {
+) -> impl Future<Output=()> {
 
     let ipfs = IpfsClient::default();
     let liability_ready_pub = rosrust::publish(LIABILITY_READY_TOPIC_NAME, QUEUE_SIZE).unwrap();
@@ -63,9 +61,9 @@ fn add_liability_stream(
         let bag_hash = liability.order.objective;
         let liability_id = liability.id;
 
-        println!("Received liability {:?}", l);
-        let rbplayer = construct_player("/tmp/".to_owned() + &bag_hash).unwrap();
-        println!("construct with {:?}", bag_hash);
+        log::debug!("Received liability {:?}", l);
+        let rbplayer = build_players(("/tmp/".to_owned() + &bag_hash.clone()).as_str()).unwrap();
+        log::debug!("Construct player for {:?}", bag_hash);
         liability_ready_pub.send(l.clone()).unwrap();
         l_lock.then(|_| rbplayer)
     })
