@@ -219,11 +219,13 @@ fn robonomics_config_genesis() -> GenesisConfig {
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
         // validator-01
-        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into(),
+        "/ip4/51.15.132.76/tcp/30363/p2p/QmRg7aTH3ZBbcxmXfMn4CgEEBcnJzeC6UewFco7Dxh2M84".into(),
         // validator-02
         "/ip4/188.127.249.219/tcp/30363/p2p/QmYp26uKLyDesPzCS5Y3w44NUKZmDz87F3ywJkhHhh9SUf".into(),
         // validator-03
         "/ip4/167.71.148.38/tcp/30363/p2p/Qmep2VYsMfiBQnTMHVk6AddygMysiK379VP48hKZCoWtWT".into(),
+        // akru
+        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into(),
     ];
     ChainSpec::from_genesis(
         "Robonomics",
