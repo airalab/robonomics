@@ -18,12 +18,13 @@
 //! This module exports Robonomics API into ROS namespace.
 
 use std::{
+    io::Write,
     fs::File,
     sync::{Arc,
            Mutex},
     collections::HashMap,
 };
-use ipfs_api::IpfsClient;
+use ipfsapi::IpfsApi;
 use futures::{
     prelude::*,
     io::AllowStdIo,
@@ -53,7 +54,6 @@ fn add_liability_stream(
     stream: mpsc::UnboundedReceiver<(Liability, Receiver<()>)>,
 ) -> impl Future<Output=()> {
 
-    let ipfs = IpfsClient::default();
     let liability_ready_pub = rosrust::publish(LIABILITY_READY_TOPIC_NAME, QUEUE_SIZE).unwrap();
 
     stream.for_each_concurrent( 10, move |(liability, l_lock)| {
@@ -62,7 +62,7 @@ fn add_liability_stream(
         let liability_id = liability.id;
 
         log::debug!("Received liability {:?}", l);
-        let rbplayer = build_players(("/tmp/".to_owned() + &bag_hash.clone()).as_str()).unwrap();
+        let rbplayer = build_players(bag_hash.clone().as_str()).unwrap();
         log::debug!("Construct player for {:?}", bag_hash);
         liability_ready_pub.send(l.clone()).unwrap();
         l_lock.then(|_| rbplayer)
@@ -71,6 +71,7 @@ fn add_liability_stream(
 
 pub fn start_liability_engine()
     -> Result<(impl Future<Output=()> + 'static, Vec<rosrust::Service>, Vec<rosrust::Subscriber>), Error> {
+    let api = IpfsApi::new("127.0.0.1", 5001);
     let mut services = vec![];
     let mut subscribers = vec![];
 
@@ -83,11 +84,22 @@ pub fn start_liability_engine()
 
     subscribers.push(
         rosrust::subscribe(LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME, QUEUE_SIZE, move |l: Liability| {
-            let (locks_tx, locks_rx) = oneshot::channel();
-            let mut lhm = locks01.lock().unwrap();
-            if ! lhm.contains_key(&l.id) {
-                liability_tx.unbounded_send((l.clone(), locks_rx)).unwrap();
-                lhm.insert(l.id, locks_tx);
+            let bag_hash = l.order.objective.clone();
+            let bytes = api.cat(bag_hash.as_str());
+            match bytes {
+                Ok(reads) => {
+                    let data = reads.collect::<Vec<_>>();
+                    let mut bag_file = File::create(bag_hash.as_str()).expect(format!("could not create file {}", bag_hash).as_str());
+                    bag_file.write_all(&data);
+
+                    let (locks_tx, locks_rx) = oneshot::channel();
+                    let mut lhm = locks01.lock().unwrap();
+                    if ! lhm.contains_key(&l.id) {
+                        liability_tx.unbounded_send((l.clone(), locks_rx)).unwrap();
+                        lhm.insert(l.id, locks_tx);
+                    }
+                },
+                Err(e) => log::error!("IPFS: Failed to download file {:?}", e)
             }
         }).expect("failed to create incoming liability subscriber")
     );
