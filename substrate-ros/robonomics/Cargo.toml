@@ -9,12 +9,13 @@ log = "0.4"
 bs58 = "0.2"
 rosbag = "0.2"
 rosrust = "0.8"
-ipfs-api = "0.5"
+ipfsapi = "0.3.0"
 futures-timer = "0.2"
 futures01 = { package = "futures", version = "0.1" }
 futures-preview = { version = "0.3.0-alpha.17", features = ["compat", "async-await", "nightly"] }
 robonomics-runtime = { path = "../../node/runtime" }
 msgs = { package = "substrate-ros-msgs", path = "../msgs" }
+player_codegen = { package = "substrate-ros-player_codegen", path = "../player_codegen" }
 system = { package = "srml-system", git = "https://github.com/paritytech/substrate" }
 balances = { package = "srml-balances", git = "https://github.com/paritytech/substrate" }
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }

@@ -18,6 +18,7 @@
 //! This module exports Robonomics API into ROS namespace.
 
 #![feature(async_await)]
+#![feature(async_closure)]
 
 pub mod liability_engine;
 pub mod rosbag_player;

@@ -29,7 +29,8 @@ members = [
   "node/runtime",
   "substrate-ros/rpc",
   "substrate-ros/msgs",
-  "substrate-ros/robonomics"
+  "substrate-ros/robonomics",
+  "substrate-ros/player_codegen"
 ]
 
 [badges]
