@@ -28,7 +28,7 @@ pub mod currency {
 
 /// Time.
 pub mod time {
-    use crate::types::Moment;
+    use crate::types::{Moment, BlockNumber};
 
     /// Since BABE is probabilistic this is the average expected block time that
     /// we are targetting. Blocks will be produced at a minimum duration defined
@@ -44,17 +44,21 @@ pub mod time {
     pub const MILLISECS_PER_BLOCK: Moment = 6000;
     pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
-    pub const SLOT_DURATION: Moment = 6000;
+    pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 
-    pub const EPOCH_DURATION_IN_BLOCKS: Moment = 10 * MINUTES;
-    pub const EPOCH_DURATION_IN_SLOTS: Moment = {
+    // 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
+    pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
+
+    pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
+    pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = {
         const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
-        (EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as Moment
+
+        (EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
     };
 
-    pub const MINUTES: Moment = 60 / SECS_PER_BLOCK;
-    pub const HOURS: Moment = MINUTES * 60;
-    pub const DAYS: Moment = HOURS * 24;
+    pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
+    pub const HOURS: BlockNumber = MINUTES * 60;
+    pub const DAYS: BlockNumber = HOURS * 24;
 }
 
 // CRITICAL NOTE: The system module maintains two constants: a _maximum_ block weight and a

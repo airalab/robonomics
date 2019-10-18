@@ -8,10 +8,7 @@ let
 
 in rec {
   rustWasm = channel.rust.override {
-    targets = [
-      "wasm32-unknown-unknown"
-      "aarch64-unknown-linux-gnu"
-    ];
+    targets = [ "wasm32-unknown-unknown" ];
   };
   msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
   turtlesim = callPackage ./examples/turtlesim_liability { inherit msgs; };

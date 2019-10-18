@@ -24,16 +24,21 @@ use primitives::{Pair, Public, crypto::UncheckedInto};
 use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    AuthorityDiscoveryConfig, SessionKeys, Perbill, StakerStatus, WASM_BINARY,
+    SessionKeys, Perbill, StakerStatus, WASM_BINARY,
 };
 use node_runtime::constants::currency::*;
 use node_runtime::types::{AccountId, Balance};
-use substrate_service::{self, Properties};
-use serde_json::json;
 use hex_literal::hex;
 use telemetry::TelemetryEndpoints;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+const ROBONOMICS_PROPERTIES: &str = r#"
+    {
+        "tokenDecimals": 9,
+        "tokenSymbol": "XRT"
+    }"#;
 
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
 pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
@@ -163,23 +168,14 @@ pub fn testnet_genesis(
         im_online: Some(ImOnlineConfig {
             keys: vec![],
         }),
-        authority_discovery: Some(AuthorityDiscoveryConfig{
-            keys: vec![],
-        }),
     }
 }
 
 /// Robonomics testnet config. 
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
-}
+//pub fn robonomics_testnet_config() -> ChainSpec {
+//    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
+//}
 
-/// XRT token properties.
-fn xrt_props() -> Properties {
-    json!({"tokenDecimals": 9, "tokenSymbol": "XRT"}).as_object().unwrap().clone()
-}
-
-/*
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
@@ -233,12 +229,11 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         robonomics_config_genesis,
         boot_nodes,
         Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
-        None,
-        None,
-        Some(xrt_props())
+        Some(ROBONOMICS_PROTOCOL_ID),
+        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        Default::default(),
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
@@ -257,9 +252,9 @@ pub fn development_config() -> ChainSpec {
         development_config_genesis,
         vec![],
         None,
-        None,
-        None,
-        Some(xrt_props())
+        Some(ROBONOMICS_PROTOCOL_ID),
+        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        Default::default(),
     )
 }
 
@@ -281,8 +276,8 @@ pub fn local_testnet_config() -> ChainSpec {
         local_testnet_genesis,
         vec![],
         None,
-        None,
-        None,
-        Some(xrt_props())
+        Some(ROBONOMICS_PROTOCOL_ID),
+        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        Default::default(),
     )
 }

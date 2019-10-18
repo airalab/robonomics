@@ -11,7 +11,7 @@ serde_json = "1.0"
 futures-timer = "0.2"
 codec = { package = "parity-scale-codec", version = "1.0.0" }
 futures01 = { package = "futures", version = "0.1" }
-futures-preview = { version = "0.3.0-alpha.18", features = ["compat", "async-await", "nightly"] }
+futures-preview = { version = "0.3.0-alpha.19", features = ["compat", "async-await"] }
 msgs = { package = "substrate-ros-msgs", path = "../msgs" }
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
 service = { package = "substrate-service", git = "https://github.com/paritytech/substrate" }

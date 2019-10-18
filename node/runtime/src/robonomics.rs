@@ -23,7 +23,6 @@ use serde_derive::{Serialize, Deserialize};
 use codec::{Encode, Decode};
 use system::ensure_signed;
 use support::{
-    StorageValue, StorageMap,
     decl_module, decl_storage, decl_event, ensure,
     traits::{ReservableCurrency, Currency}, dispatch::Result
 };

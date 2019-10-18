@@ -6,16 +6,16 @@ build = "build.rs"
 edition = "2018"
 
 [dependencies]
-log = "0.4"
-tokio = "0.1"
-futures = "0.1"
+log = "0.4.8"
+tokio = "0.1.22"
+futures = "0.1.29"
+structopt = "0.3.3"
 serde_json = "1.0"
-hex-literal = "0.2"
-exit-future = "0.1"
-parking_lot = "0.4"
-jsonrpc-core = "13.1.0"
+hex-literal = "0.2.1"
+exit-future = "0.1.4"
+jsonrpc-core = "13.2.0"
 ctrlc = { version = "3.0", features = ["termination"] }
-futures03 = { package = "futures-preview", version = "0.3.0-alpha.18", features = ["compat"] }
+futures03 = { package = "futures", version = "0.3.1", features = ["compat"] }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
 im-online = { package = "srml-im-online", git = "https://github.com/paritytech/substrate" }
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }
@@ -43,6 +43,6 @@ node-runtime = { path = "../runtime" }
 default = []
 ros = [ 'ros-rpc', 'ros-robonomics' ]
 
-[build-dependencies]                                                                                                                
+[build-dependencies]
 substrate-cli = { git = "https://github.com/paritytech/substrate" }
-structopt = "0.2"
+structopt = "0.3.3"

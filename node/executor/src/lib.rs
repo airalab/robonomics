@@ -19,7 +19,6 @@
 //! executed is equivalent to the natively compiled code.
 
 pub use substrate_executor::NativeExecutor;
-pub use substrate_executor::RuntimesCache;
 use substrate_executor::native_executor_instance;
 
 native_executor_instance!(

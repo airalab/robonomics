@@ -27,34 +27,32 @@ pub mod types;
 pub mod impls;
 
 use rstd::prelude::*;
-use support::{construct_runtime, parameter_types};
 use primitives::OpaqueMetadata;
-use sr_primitives::{
-    ApplyResult, generic, create_runtime_str, key_types
+use support::{
+    construct_runtime, parameter_types, traits::Randomness
 };
+use sr_primitives::{ApplyResult, generic, create_runtime_str};
 use sr_primitives::weights::Weight;
 use sr_primitives::curve::PiecewiseLinear;
 use sr_primitives::transaction_validity::TransactionValidity;
 use sr_primitives::traits::{
-    self, BlakeTwo256, Block as BlockT,
-    DigestFor, NumberFor, StaticLookup, SaturatedConversion,
+    self, BlakeTwo256, Block as BlockT, NumberFor, StaticLookup,
+    SaturatedConversion, OpaqueKeys,
 };
-use babe::{AuthorityId as BabeId};
-use authority_discovery_primitives::{AuthorityId as EncodedAuthorityId, Signature as EncodedSignature};
-use im_online::sr25519::{AuthorityId as ImOnlineId, AuthoritySignature as ImOnlineSignature};
+use im_online::sr25519::{AuthorityId as ImOnlineId};
+use transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use system::offchain::TransactionSubmitter;
-use grandpa::fg_primitives::{self, ScheduledChange};
-use grandpa::{AuthorityWeight as GrandpaWeight, AuthorityId as GrandpaId};
+use grandpa::fg_primitives;
+use grandpa::AuthorityList as GrandpaAuthorityList;
 use client::{
     block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
     runtime_api, impl_runtime_apis
 };
-use crate::impls::{CurrencyToVoteHandler, WeightMultiplierUpdateHandler, WeightToFee};
+use impls::{CurrencyToVoteHandler, LinearWeightToFee, TargetedFeeAdjustment};
 use crate::constants::{time::*, currency::*};
 use crate::types::{
     Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
-use codec::{Encode, Decode};
 use version::RuntimeVersion;
 #[cfg(feature = "std")]
 use version::NativeVersion;
@@ -103,34 +101,24 @@ parameter_types! {
 impl system::Trait for Runtime {
     type Call = Call;
     type Version = Version;
-    /// The identifier used to distinguish between accounts.
     type AccountId = AccountId;
-    /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
     type Lookup = Indices;
-    /// The index type for storing how many extrinsics an account has signed.
     type Index = Index;
-    /// The index type for blocks.
     type BlockNumber = BlockNumber;
-    /// The type for hashing blocks and tries.
     type Hash = Hash;
-    /// The hashing algorithm used.
     type Hashing = BlakeTwo256;
-    /// The header type.
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// TODO: doc
-    type WeightMultiplierUpdate = WeightMultiplierUpdateHandler;
-    /// The ubiquitous event type.
     type Event = Event;
-    /// The ubiquitous origin type.
     type Origin = Origin;
-    /// TODO: doc
     type BlockHashCount = BlockHashCount;
-    /// TODO: doc
     type MaximumBlockWeight = MaximumBlockWeight;
-    /// TODO: doc
     type MaximumBlockLength = MaximumBlockLength;
-    /// TODO: doc
     type AvailableBlockRatio = AvailableBlockRatio;
+}
+
+impl utility::Trait for Runtime {
+    type Event = Event;
+    type Call = Call;
 }
 
 parameter_types! {
@@ -138,7 +126,6 @@ parameter_types! {
 }
 
 impl timestamp::Trait for Runtime {
-    /// A timestamp: seconds since the unix epoch.
     type Moment = Moment;
     type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
@@ -156,6 +143,7 @@ parameter_types! {
 impl babe::Trait for Runtime {
     type EpochDuration = EpochDuration;
     type ExpectedBlockTime = ExpectedBlockTime;
+    type EpochChangeTrigger = babe::ExternalTrigger;
 }
 
 impl authorship::Trait for Runtime {
@@ -181,8 +169,6 @@ parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
     pub const TransferFee: Balance = 1 * GLUSHKOV;
     pub const CreationFee: Balance = 1 * GLUSHKOV;
-    pub const TransactionBaseFee: Balance = 1 * GLUSHKOV;
-    pub const TransactionByteFee: Balance = 50 * COASE;
 }
 
 impl balances::Trait for Runtime {
@@ -194,33 +180,38 @@ impl balances::Trait for Runtime {
     type OnNewAccount = Indices;
     /// The uniquitous event type.
     type Event = Event;
-    type TransactionPayment = ();
     type DustRemoval = ();
     type TransferPayment = ();
     type ExistentialDeposit = ExistentialDeposit;
     type TransferFee = TransferFee;
     type CreationFee = CreationFee;
-    type TransactionBaseFee = TransactionBaseFee;
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = WeightToFee;
 }
 
-type SessionHandlers = (Grandpa, Babe, ImOnline, AuthorityDiscovery);
+parameter_types! {
+    pub const TransactionBaseFee: Balance = 1 * GLUSHKOV;
+    pub const TransactionByteFee: Balance = 50 * COASE;
+    // setting this to zero will disable the weight fee.
+    pub const WeightFeeCoefficient: Balance = 1_000;
+    // for a sane configuration, this should always be less than `AvailableBlockRatio`.
+    pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
+}
+
+impl transaction_payment::Trait for Runtime {
+    type Currency = Balances;
+    type OnTransactionPayment = ();
+    type TransactionBaseFee = TransactionBaseFee;
+    type TransactionByteFee = TransactionByteFee;
+    type WeightToFee = LinearWeightToFee<WeightFeeCoefficient>;
+    type FeeMultiplierUpdate = TargetedFeeAdjustment<TargetBlockFullness>;
+}
 
 impl_opaque_keys! {
     pub struct SessionKeys {
-        #[id(key_types::GRANDPA)]
-        pub grandpa: GrandpaId,
-        #[id(key_types::BABE)]
-        pub babe: BabeId,
-        #[id(key_types::IM_ONLINE)]
-        pub im_online: ImOnlineId,
+        pub grandpa: Grandpa,
+        pub babe: Babe,
+        pub im_online: ImOnline,
     }
 }
-
-// NOTE: `SessionHandler` and `SessionKeys` are co-dependent: One key will be used for each
-// handler. The number and order of items in `SessionHandler` *MUST* be the same number and order of keys
-// in `SessionKeys`.
 
 parameter_types! {
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
@@ -228,11 +219,11 @@ parameter_types! {
 
 impl session::Trait for Runtime {
     type OnSessionEnding = Staking;
-    type SessionHandler = SessionHandlers;
+    type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type ShouldEndSession = Babe;
     type Event = Event;
     type Keys = SessionKeys;
-    type ValidatorId = AccountId;
+    type ValidatorId = <Self as system::Trait>::AccountId;
     type ValidatorIdOf = staking::StashOf<Self>;
     type SelectInitialValidators = Staking;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
@@ -264,10 +255,10 @@ impl staking::Trait for Runtime {
     type Currency = Balances;
     type Time = Timestamp;
     type CurrencyToVote = CurrencyToVoteHandler;
-    type OnRewardMinted = ();
     type Event = Event;
     type Slash = ();
     type Reward = ();
+    type RewardRemainder = ();
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
@@ -296,12 +287,17 @@ impl sudo::Trait for Runtime {
 
 type SubmitTransaction = TransactionSubmitter<ImOnlineId, Runtime, UncheckedExtrinsic>;
 
+parameter_types! {
+    pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
+}
+
 impl im_online::Trait for Runtime {
     type Call = Call;
     type Event = Event;
     type AuthorityId = ImOnlineId;
     type SubmitTransaction = SubmitTransaction;
     type ReportUnresponsiveness = Offences;
+    type SessionDuration = SessionDuration;
 }
 
 impl offences::Trait for Runtime {
@@ -310,8 +306,6 @@ impl offences::Trait for Runtime {
     type OnOffenceHandler = Staking;
 }
 
-impl authority_discovery::Trait for Runtime {}
-
 impl robonomics::Trait for Runtime {
     /// Native token as processing currency.
     type Currency = Balances;
@@ -319,44 +313,13 @@ impl robonomics::Trait for Runtime {
     type Event = Event;
 }
 
-construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = types::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        // Basic stuff.
-        System: system::{Module, Call, Storage, Config, Event},
-        Timestamp: timestamp::{Module, Call, Storage, Inherent},
-
-        // Native currency and accounts.
-        Balances: balances,
-        Indices: indices,
-
-        // PoS consensus support.
-        Session: session::{Module, Call, Storage, Event, Config<T>},
-        Authorship: authorship::{Module, Call, Storage, Inherent},
-        Staking: staking::{default, OfflineWorker},
-        Offences: offences::{Module, Call, Storage, Event},
-        Babe: babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
-        FinalityTracker: finality_tracker::{Module, Call, Inherent},
-        Grandpa: grandpa::{Module, Call, Storage, Config, Event},
-        ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: authority_discovery::{Module, Call, Config<T>},
-
-        // Robonomics Network support.
-        Robonomics: robonomics::{Module, Call, Storage, Event<T>},
-
-        // Sudo. Usable initially.
-        Sudo: sudo,
-    }
-);
-
 impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
+    type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
 
-    fn create_transaction<F: system::offchain::Signer<AccountId, Self::Signature>>(
+    fn create_transaction<F: system::offchain::Signer<Self::Public, Self::Signature>>(
         call: Call,
+        public: Self::Public,
         account: AccountId,
         index: Index,
     ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
@@ -369,15 +332,52 @@ impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtim
             system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
             system::CheckNonce::<Runtime>::from(index),
             system::CheckWeight::<Runtime>::new(),
-            balances::TakeFees::<Runtime>::from(tip),
+            transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
         let raw_payload = SignedPayload::new(call, extra).ok()?;
-        let signature = F::sign(account.clone(), &raw_payload)?;
+        let signature = F::sign(public, &raw_payload)?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature, extra)))
     }
 }
+
+construct_runtime!(
+    pub enum Runtime where
+        Block = Block,
+        NodeBlock = types::Block,
+        UncheckedExtrinsic = UncheckedExtrinsic
+    {
+        // Basic stuff.
+        System: system::{Module, Call, Storage, Config, Event},
+        Timestamp: timestamp::{Module, Call, Storage, Inherent},
+        Utility: utility::{Module, Call, Event},
+
+        // Native currency and accounts.
+        Indices: indices,
+        Balances: balances::{default, Error},
+        TransactionPayment: transaction_payment::{Module, Storage},
+
+        // Randomness.
+        RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
+
+        // PoS consensus support.
+        Session: session::{Module, Call, Storage, Event, Config<T>},
+        Authorship: authorship::{Module, Call, Storage, Inherent},
+        Staking: staking::{default, OfflineWorker},
+        Offences: offences::{Module, Call, Storage, Event},
+        Babe: babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
+        FinalityTracker: finality_tracker::{Module, Call, Inherent},
+        Grandpa: grandpa::{Module, Call, Storage, Config, Event},
+        ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
+
+        // Robonomics Network support.
+        Robonomics: robonomics::{Module, Call, Storage, Event<T>},
+
+        // Sudo. Usable initially.
+        Sudo: sudo,
+    }
+);
 
 /// The type used as a helper for interpreting the sender of transactions.
 pub type Context = system::ChainContext<Runtime>;
@@ -401,7 +401,7 @@ pub type SignedExtra = (
     system::CheckEra<Runtime>,
     system::CheckNonce<Runtime>,
     system::CheckWeight<Runtime>,
-    balances::TakeFees<Runtime>
+    transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -456,7 +456,7 @@ impl_runtime_apis! {
         }
 
         fn random_seed() -> <Block as BlockT>::Hash {
-            System::random_seed()
+            RandomnessCollectiveFlip::random_seed()
         }
     }
 
@@ -473,81 +473,42 @@ impl_runtime_apis! {
     }
 
     impl fg_primitives::GrandpaApi<Block> for Runtime {
-        fn grandpa_pending_change(digest: &DigestFor<Block>)
-            -> Option<ScheduledChange<NumberFor<Block>>>
-        {
-            Grandpa::pending_change(digest)
-        }
-
-        fn grandpa_forced_change(digest: &DigestFor<Block>)
-            -> Option<(NumberFor<Block>, ScheduledChange<NumberFor<Block>>)>
-        {
-            Grandpa::forced_change(digest)
-        }
-
-        fn grandpa_authorities() -> Vec<(GrandpaId, GrandpaWeight)> {
+        fn grandpa_authorities() -> GrandpaAuthorityList {
             Grandpa::grandpa_authorities()
         }
     }
 
     impl babe_primitives::BabeApi<Block> for Runtime {
-        fn startup_data() -> babe_primitives::BabeConfiguration {
+        fn configuration() -> babe_primitives::BabeConfiguration {
             // The choice of `c` parameter (where `1 - c` represents the
             // probability of a slot being empty), is done in accordance to the
-            // slot duration and expected target block time,
-            // for safely resisting network delays of maximum two seconds.
+            // slot duration and expected target block time, for safely
+            // resisting network delays of maximum two seconds.
             // <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
             babe_primitives::BabeConfiguration {
-                median_required_blocks: 1000,
                 slot_duration: Babe::slot_duration(),
-                c: (278, 1000),
-            }
-        }
-
-        fn epoch() -> babe_primitives::Epoch {
-            babe_primitives::Epoch {
-                start_slot: Babe::epoch_start_slot(),
-                authorities: Babe::authorities(),
-                epoch_index: Babe::epoch_index(),
+                epoch_length: EpochDuration::get(),
+                c: PRIMARY_PROBABILITY,
+                genesis_authorities: Babe::authorities(),
                 randomness: Babe::randomness(),
-                duration: EpochDuration::get(),
-                secondary_slots: Babe::secondary_slots().0,
+                secondary_slots: true,
             }
         }
     }
 
-    impl authority_discovery_primitives::AuthorityDiscoveryApi<Block> for Runtime {
-        fn authorities() -> Vec<EncodedAuthorityId> {
-            AuthorityDiscovery::authorities().into_iter()
-                .map(|id| id.encode())
-                .map(EncodedAuthorityId)
-                .collect()
-        }
-
-        fn sign(payload: &Vec<u8>) -> Option<(EncodedSignature, EncodedAuthorityId)> {
-            AuthorityDiscovery::sign(payload).map(|(sig, id)| {
-                (EncodedSignature(sig.encode()), EncodedAuthorityId(id.encode()))
-            })
-        }
-
-        fn verify(payload: &Vec<u8>, signature: &EncodedSignature, authority_id: &EncodedAuthorityId) -> bool {
-            let signature = match ImOnlineSignature::decode(&mut &signature.0[..]) {
-                Ok(s) => s,
-                _ => return false,
-            };
-
-            let authority_id = match ImOnlineId::decode(&mut &authority_id.0[..]) {
-                Ok(id) => id,
-                _ => return false,
-            };
-
-            AuthorityDiscovery::verify(payload, signature, authority_id)
-        }
-    }
-
-    impl types::AccountNonceApi<Block> for Runtime {
+    impl system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
         fn account_nonce(account: AccountId) -> Index {
             System::account_nonce(account)
+        }
+    }
+
+    impl transaction_payment_rpc_runtime_api::TransactionPaymentApi<
+        Block,
+        Balance,
+        UncheckedExtrinsic,
+    > for Runtime {
+        fn query_info(uxt: UncheckedExtrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
+            TransactionPayment::query_info(uxt, len)
         }
     }
 

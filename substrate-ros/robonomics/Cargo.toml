@@ -8,7 +8,7 @@ edition = "2018"
 log = "0.4"
 bs58 = "0.2"
 rosrust = "0.8"
-futures-preview = { version = "0.3.0-alpha.18" }
+futures-preview = { version = "0.3.0-alpha.19" }
 msgs = { package = "substrate-ros-msgs", path = "../msgs" }
 node-runtime = { path = "../../node/runtime" }
 robonomics-liability = { path = "./liability" }

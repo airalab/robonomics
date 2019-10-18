@@ -46,5 +46,5 @@ fn build_completion(shell: &Shell) {
 
 	fs::create_dir(&path).ok();
 
-	CoreParams::<NoCustom, NoCustom>::clap().gen_completions("robonomics", *shell, &path);
+	CoreParams::<NoCustom, NoCustom>::clap().gen_completions("robonomics-node", *shell, &path);
 }
