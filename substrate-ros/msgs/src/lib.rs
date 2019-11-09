@@ -22,6 +22,8 @@ rosmsg_include!(
     // standard ros messages
     std_msgs / UInt64,
     std_msgs / String,
+    std_msgs / Bool,
+    std_msgs / Time,
 
     // standard ros services
     std_srvs / Trigger,

@@ -16,6 +16,7 @@ exit-future = "0.1.4"
 jsonrpc-core = "13.2.0"
 ctrlc = { version = "3.0", features = ["termination"] }
 futures03 = { package = "futures", version = "0.3.1", features = ["compat"] }
+futures03_util = { package = "futures-util", version = "0.3.1", features = ["compat"] }
 transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
 im-online = { package = "srml-im-online", git = "https://github.com/paritytech/substrate" }
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }

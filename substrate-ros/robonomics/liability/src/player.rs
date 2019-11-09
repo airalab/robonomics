@@ -20,94 +20,75 @@
 
 use rosrust::api::raii::Publisher;
 use std::collections::HashMap;
-use rosbag::{RosBag, Record};
+use rosbag::{RosBag, Record, RecordsIterator};
 use futures_timer::Delay;
 use std::time;
-use log::debug;
-
 use msgs::std_msgs;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum WorkerMsg {
-    Stop,
+use futures::{prelude::*, io::AllowStdIo, compat::Stream01CompatExt, Poll};
+use rosbag::record_types::{MessageData, Connection};
+use futures::io::Error;
+use std::sync::Arc;
+
+use player_codegen::players_builder;
+players_builder!(
+    // standard ros messages
+    std_msgs / String,
+    std_msgs / UInt64,
+    std_msgs / Bool,
+    std_msgs / Time,
+);
+
+pub fn build_players(path: &str) -> Result<impl Future<Output=()>, Error> where
+{
+    let bag = Arc::new(RosBag::new(path).unwrap());
+    return Ok(players_builder(bag))
 }
 
-struct PublisherDesc{
-    publisher: Publisher<std_msgs::String>,
-    rostopic: String,
-    msgtype: String,
+struct RosbagPlayer<T> where
+    T: rosrust::Message
+{
+    bag: Arc<RosBag>,
+    publisher: Publisher<T>,
+    topic_conn_ids: Vec<u32>,
+    start_msg_timestamp: u64,
 }
 
-type Publishers = HashMap<u32, PublisherDesc>;
-
-pub struct RosbagPlayer {
-    path: String,
-    bag: RosBag,
-    map: Publishers,
-}
-
-impl RosbagPlayer{
-    pub fn new(path: String) -> Self {
-        let bag = RosBag::new(path.as_str()).unwrap();
-        let mut player = RosbagPlayer { path, map: HashMap::new(), bag };
-        player.register_topics();
+impl<T> RosbagPlayer<T> where
+    T: rosrust::rosmsg::RosMsg + rosrust::Message
+{
+    pub fn new(topic: &str, topic_conn_ids: Vec<u32>, bag: Arc<RosBag>, start_msg_timestamp: u64) -> Self {
+        log::debug!("Construct Player with {:?} {:?}", topic, topic_conn_ids);
+        let publisher = rosrust::publish(topic, 32).unwrap();
+        let player = Self{ bag: bag, publisher: publisher, topic_conn_ids: topic_conn_ids, start_msg_timestamp: start_msg_timestamp};
         player
     }
 
-
-    fn register_topics(&mut self) -> Result<(), rosbag::Error> {
-        let mut records = self.bag.records();
-
-        let header = match records.next() {
-            Some(Ok(Record::BagHeader(bh))) => bh,
-            _ => panic!("Failed to acquire bag header record"),
-        };
-
-        records.seek(header.index_pos)?;
-        for record in records {
-            match record? {
-                Record::Connection(conn) => {
-                    let topic_publisher = rosrust::publish(conn.topic, 32).unwrap();
-                    let p_desc = PublisherDesc {
-                        publisher: topic_publisher,
-                        rostopic: conn.topic.to_string(),
-                        msgtype: conn.tp.to_string()
-                    };
-                    self.map.insert(conn.id, p_desc);
-                    debug!("rosbag_player {}: id {} with topic {} of type {} inserted to publishers map",
-                          self.path, conn.id, conn.topic, conn.tp);
-                }
-                _ => ()
-            }
-        };
-        Ok(())
-    }
-
-    pub async fn play(&mut self) {
+    pub async fn play(mut self) {
         // create low-level iterator over rosbag records
+        let mut prev_msg_timestamp: u64 = self.start_msg_timestamp;
         for record in self.bag.records() {
             match record {
                 Ok(Record::Chunk(chunk)) => {
-                    let mut prev_msg_timestamp: u64 = 0;
                     for inner in chunk.iter_msgs() {
                         if let Ok(msg) = inner {
-                            let dcdc: std_msgs::String = rosrust::RosMsg::decode(msg.data).unwrap();
-                            let publisher_description = self.map.get_mut(&msg.conn_id).unwrap();
-                            debug!("rosbag_player {}: publish msg {:?} with decoded data {:?} of type {} into topic {}",
-                                self.path, msg, dcdc.data, publisher_description.msgtype, publisher_description.rostopic);
-                            let sleep_time_duration = {
-                                // sleep 5 seconds before 1st message (giving chance to register publishers on master)
-                                // sleep (current msg timestamp - previous msg timestamp) nanoseconds for all following messages
-                                if prev_msg_timestamp != 0 {
-                                    time::Duration::from_nanos(msg.time - prev_msg_timestamp)
-                                } else {
-                                    prev_msg_timestamp = msg.time;
-                                    time::Duration::from_secs(5)
-                                }
-                            };
-                            Delay::new(sleep_time_duration).await;
-                            publisher_description.publisher.send(dcdc).unwrap();
-                    }}
+                            if prev_msg_timestamp == self.start_msg_timestamp {
+                                let initial_sleep = time::Duration::from_secs(5);
+                                Delay::new(initial_sleep).await;
+                                prev_msg_timestamp = msg.time;
+                            }
+
+                            if self.topic_conn_ids.contains(&msg.conn_id) {
+                                let dcdc: T = rosrust::RosMsg::decode(msg.data).unwrap();
+
+                                let sleep_time_duration = time::Duration::from_nanos(msg.time - prev_msg_timestamp);
+                                prev_msg_timestamp = msg.time;
+                                Delay::new(sleep_time_duration).await;
+
+                                self.publisher.send(dcdc).unwrap();
+                            }
+                        }
+                    }
                 },
                 _ => ()
             }

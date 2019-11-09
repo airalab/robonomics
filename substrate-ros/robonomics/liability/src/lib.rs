@@ -18,11 +18,12 @@
 ///! Robonomics liability support module.
 
 use std::{
+    io::Write,
     fs::File,
     sync::{Arc, Mutex},
     collections::HashMap,
 };
-use ipfs_api::IpfsClient;
+use ipfsapi::IpfsApi;
 use futures::{
     prelude::*,
     io::AllowStdIo,
@@ -33,10 +34,7 @@ use msgs::{
                          StartLiabilityPlayer, StartLiabilityPlayerRes},
 };
 use rosrust::api::error::Error;
-use log::error;
-use futures::executor::block_on;
-
-use crate::rosbag_player::RosbagPlayer;
+use crate::rosbag_player::build_players;
 
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
@@ -46,67 +44,73 @@ const LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME: &str = "/liability/prepare";
 const LIABILITY_READY_TOPIC_NAME: &str = "liability/ready";
 const LIABILITY_START_SRV_NAME: &str = "/liability/start";
 
-async fn add_liability(
-    liability: Liability,
-    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>,
-    publisher: &Arc<rosrust::Publisher<Liability>>
-) {
-    let ipfs = IpfsClient::default();
-    let l = liability.clone();
-    let bag_hash = liability.order.objective;
-    let liability_id = liability.id;
-    let mut liabilities = known_liabilities.lock().unwrap();
+use futures::channel::mpsc;
 
-    if ! (liabilities.contains_key(&liability_id)) {
-        let (response, _) = ipfs.cat(bag_hash.as_str()).compat().into_future().await;
-        if let Some(Ok(content)) = response {
-            let bag_file = File::create(bag_hash.as_str()).expect("could not create file");
-            let mut buffer = AllowStdIo::new(bag_file);
-            buffer.write_all(&content).await;
-            buffer.close().await;
+use futures::channel::oneshot;
+use futures::channel::oneshot::Receiver;
 
-            let player = RosbagPlayer::new(bag_hash);
-            liabilities.insert(liability_id, player);
-            publisher.send(l).unwrap();
-        } else {
-            error!("Unable to get IPFS content of {}", bag_hash);
-        }
-    }
+fn add_liability_stream(
+    stream: mpsc::UnboundedReceiver<(Liability, Receiver<()>)>,
+) -> impl Future<Output=()> {
 
-}
+    let liability_ready_pub = rosrust::publish(LIABILITY_READY_TOPIC_NAME, QUEUE_SIZE).unwrap();
 
-/// Simple liability engine.
-async fn launch_liability_player(
-    liability_id: u64,
-    known_liabilities: &Arc<Mutex<HashMap<u64, RosbagPlayer>>>
-) {
-    let mut data = known_liabilities.lock().unwrap();
-    let mut player = data.remove(&liability_id).unwrap();
-    player.play().await;
+    stream.for_each_concurrent( 10, move |(liability, l_lock)| {
+        let l = liability.clone();
+        let bag_hash = liability.order.objective;
+        let liability_id = liability.id;
+
+        log::debug!("Received liability {:?}", l);
+        let rbplayer = build_players(bag_hash.clone().as_str()).unwrap();
+        log::debug!("Construct player for {:?}", bag_hash);
+        liability_ready_pub.send(l.clone()).unwrap();
+        l_lock.then(|_| rbplayer)
+    })
 }
 
 pub fn start_liability_engine()
-    -> Result<(Vec<rosrust::Service>, Vec<rosrust::Subscriber>), Error> {
+    -> Result<(impl Future<Output=()> + 'static, Vec<rosrust::Service>, Vec<rosrust::Subscriber>), Error> {
+    let api = IpfsApi::new("127.0.0.1", 5001);
     let mut services = vec![];
     let mut subscribers = vec![];
 
-    let liability_players = Arc::new(Mutex::new(HashMap::new()));
-    let liability_ready_pub = Arc::new(rosrust::publish(LIABILITY_READY_TOPIC_NAME, QUEUE_SIZE).unwrap());
+    let (liability_tx, liability_rx) = mpsc::unbounded::<(Liability, Receiver<()>)>();
+    let add_liabilities_stream = add_liability_stream(liability_rx);
 
-    let players01 = liability_players.clone();
+    let locks_hash_map00 = Arc::new(Mutex::new(HashMap::new()));
+    let locks01 = Arc::clone(&locks_hash_map00);
+    let locks02 = Arc::clone(&locks_hash_map00);
+
     subscribers.push(
         rosrust::subscribe(LIABILITY_PREPARE_FOR_EXECUTION_TOPIC_NAME, QUEUE_SIZE, move |l: Liability| {
-            block_on(add_liability(l.clone(), &players01, &liability_ready_pub));
+            let bag_hash = l.order.objective.clone();
+            let bytes = api.cat(bag_hash.as_str());
+            match bytes {
+                Ok(reads) => {
+                    let data = reads.collect::<Vec<_>>();
+                    let mut bag_file = File::create(bag_hash.as_str()).expect(format!("could not create file {}", bag_hash).as_str());
+                    bag_file.write_all(&data);
+
+                    let (locks_tx, locks_rx) = oneshot::channel();
+                    let mut lhm = locks01.lock().unwrap();
+                    if ! lhm.contains_key(&l.id) {
+                        liability_tx.unbounded_send((l.clone(), locks_rx)).unwrap();
+                        lhm.insert(l.id, locks_tx);
+                    }
+                },
+                Err(e) => log::error!("IPFS: Failed to download file {:?}", e)
+            }
         }).expect("failed to create incoming liability subscriber")
     );
 
-    let players02 = liability_players.clone();
     services.push(rosrust::service::<StartLiabilityPlayer, _>(LIABILITY_START_SRV_NAME, move |req| {
         let mut res = StartLiabilityPlayerRes::default();
-        block_on(launch_liability_player(req.id, &players02));
+        let mut lhm = locks02.lock().unwrap();
+        let lock_sender = lhm.remove(&req.id).unwrap();
+        lock_sender.send(());
         res.success = true;
         Ok(res)
     })?);
 
-    Ok((services, subscribers))
+    Ok((add_liabilities_stream.map(|_| ()), services, subscribers))
 }
