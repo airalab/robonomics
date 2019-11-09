@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Airalab <research@aira.life>"]
 build = "build.rs"
 edition = "2018"
@@ -22,7 +22,6 @@ im-online = { package = "srml-im-online", git = "https://github.com/paritytech/s
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }
 babe-primitives = { package = "substrate-consensus-babe-primitives", git = "https://github.com/paritytech/substrate" }
 basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate" }
-authority-discovery = { package = "substrate-authority-discovery", git = "https://github.com/paritytech/substrate" }
 grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate" }
 grandpa_primitives = { package = "substrate-finality-grandpa-primitives", git = "https://github.com/paritytech/substrate" }
 primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }

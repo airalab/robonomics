@@ -172,10 +172,11 @@ pub fn testnet_genesis(
 }
 
 /// Robonomics testnet config. 
-//pub fn robonomics_testnet_config() -> ChainSpec {
-//    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
-//}
+pub fn robonomics_testnet_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
+}
 
+/*
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
@@ -234,6 +235,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(
