@@ -13,6 +13,7 @@ serde_json = "1.0"
 hex-literal = "0.2"
 exit-future = "0.1"
 parking_lot = "0.4"
+ipfs-api = "0.5"
 futures03 = { package = "futures-preview", version = "0.3.0-alpha.17", features = ["compat"] }
 futures03_util = { package = "futures-util-preview", version = "0.3.0-alpha.17", features = ["compat"] }
 ctrlc = { version = "3.0", features = ["termination"] }
