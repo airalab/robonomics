@@ -9,8 +9,6 @@ with llvmPackages_latest;
 stdenv.mkDerivation {
   name = "substrate-nix-shell";
   propagatedBuildInputs = [ msgs ];
-  buildInputs = [ rustWasm wasm-gc pkgconfig openssl clang ];
+  buildInputs = [ rustWasm wasm-gc ];
   LIBCLANG_PATH = "${libclang}/lib";
-  # FIXME: we can remove this once prost is updated.
-  PROTOC = "${protobuf}/bin/protoc";
 }

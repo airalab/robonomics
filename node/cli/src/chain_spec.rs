@@ -28,8 +28,8 @@ use node_runtime::{
 };
 use node_runtime::constants::currency::*;
 use node_runtime::types::{AccountId, Balance};
-use hex_literal::hex;
 use telemetry::TelemetryEndpoints;
+use hex_literal::hex;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -53,7 +53,7 @@ pub enum ChainOpt {
     /// Whatever the current runtime is, with simple Alice/Bob auths.
     LocalTestnet,
     /// Robonomics public testnet.
-    Robonomics,
+    RobonomicsTestnet,
 }
 
 impl ChainOpt {
@@ -62,7 +62,7 @@ impl ChainOpt {
         Ok(match self {
             ChainOpt::Development => development_config(),
             ChainOpt::LocalTestnet => local_testnet_config(),
-            ChainOpt::Robonomics => robonomics_testnet_config(),
+            ChainOpt::RobonomicsTestnet => robonomics_testnet_config(),
         })
     }
 
@@ -70,7 +70,7 @@ impl ChainOpt {
         match s {
             "dev" => Some(ChainOpt::Development),
             "local" => Some(ChainOpt::LocalTestnet),
-            "" | "robonomics" => Some(ChainOpt::Robonomics),
+            "" | "robonomics" => Some(ChainOpt::RobonomicsTestnet),
             _ => None,
         }
     }
@@ -142,7 +142,7 @@ pub fn testnet_genesis(
         }),
         session: Some(SessionConfig {
             keys: initial_authorities.iter().map(|x| {
-                (x.1.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone()))
+                (x.0.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone()))
             }).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
@@ -152,7 +152,7 @@ pub fn testnet_genesis(
             stakers: initial_authorities.iter().map(|x| {
                 (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)
             }).collect(),
-            invulnerables: initial_authorities.iter().map(|x| x.1.clone()).collect(),
+            invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
             .. Default::default()
         }),
@@ -180,32 +180,18 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
-        // validator-01 
-        hex!["847204aef88ce7693048264d17e6a78656dc14d812a5979abb81742a639f8461"].unchecked_into(),
-        hex!["d61a40b1d11183243afcbaf2b74dfdd5faa8858f95ec401d9ee102db136a9c19"].unchecked_into(),
-        hex!["ae29a6e24e3cfdee27ac1d40324d1497dd27839a301e9ce2ea5d93e4bdb49088"].unchecked_into(),
-        hex!["643b13ab6205f0c373c566ad70775253db49287f87f2250539131f274598dd23"].unchecked_into(),
-        hex!["8c131749823ccb3ebbe9f38564da0543ee3e4717a90a8edf67e93c07b5f5b513"].unchecked_into(),
-        ),(
-        // validator-02
-        hex!["e237342b0088a0dc5103b7985e636c45eb61cf9aca578f74194209eb3c333e10"].unchecked_into(),
-        hex!["426ce030cd1794c92d019b571088126e26e183ed07508c3ab70e231367fc4165"].unchecked_into(),
-        hex!["4bce118897776da9e99bf271d44172ea77bb48fc7e73226d2963302077e0e5f2"].unchecked_into(),
-        hex!["96680f0e3446720e605ea1338ddfca56c1bd0412dd0ff705d24bd243a49f5b2d"].unchecked_into(),
-        hex!["00a8a49ce6ac03a1f08d109f6d61b782efad71f526efa1d02b66bf940963c65e"].unchecked_into(),
-        ),(
-        // validator-03
-        hex!["fc9d09d51b60eba639a694b1b7aacdc96175a1ede2abb38d33104ed7a658282c"].unchecked_into(),
-        hex!["2ce954ca2837694f46c7ffb77ddd58afe5d8e038c8224de3769cdbe4cf0ed41a"].unchecked_into(),
-        hex!["7d2233debe742ad6b57826b39be45eb098875fc02854bd52cda3a061b922c613"].unchecked_into(),
-        hex!["34b9a5af40d2ee4e0b3f2b49f8d8fb7024dfa2670720eed83942e5d36848cc3c"].unchecked_into(),
-        hex!["489859d83afdf7418f8c00540003ae4b9768df30faae731b24808b966c154f37"].unchecked_into(),
-        )];
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
+        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
+        hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
+        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
+    )];
 
     let endowed_accounts: Vec<AccountId> = vec![
-        // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF  
+        // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
-        ];
+    ];
+
     testnet_genesis(
         initial_authorities,
         Some(endowed_accounts),

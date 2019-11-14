@@ -41,13 +41,11 @@ use sr_primitives::traits::{
 };
 use im_online::sr25519::{AuthorityId as ImOnlineId};
 use transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use inherents::{InherentData, CheckInherentsResult};
 use system::offchain::TransactionSubmitter;
 use grandpa::fg_primitives;
 use grandpa::AuthorityList as GrandpaAuthorityList;
-use client::{
-    block_builder::api::{CheckInherentsResult, InherentData, self as block_builder_api},
-    runtime_api, impl_runtime_apis
-};
+use sr_api::impl_runtime_apis;
 use impls::{CurrencyToVoteHandler, LinearWeightToFee, TargetedFeeAdjustment};
 use crate::constants::{time::*, currency::*};
 use crate::types::{
@@ -150,7 +148,7 @@ impl authorship::Trait for Runtime {
     type FindAuthor = session::FindAccountFromAuthorIndex<Self, Babe>;
     type UncleGenerations = UncleGenerations;
     type FilterUncle = ();
-    type EventHandler = Staking;
+    type EventHandler = (Staking, ImOnline);
 }
 
 impl indices::Trait for Runtime {
@@ -418,7 +416,7 @@ pub type Executive = executive::Executive<Runtime, Block, Context, Runtime, AllM
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-    impl runtime_api::Core<Block> for Runtime {
+    impl sr_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
             VERSION
         }
@@ -432,7 +430,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl runtime_api::Metadata<Block> for Runtime {
+    impl sr_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             Runtime::metadata().into()
         }
@@ -460,7 +458,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
+    impl tx_pool_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             Executive::validate_transaction(tx)
         }
@@ -514,7 +512,6 @@ impl_runtime_apis! {
 
     impl substrate_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            let seed = seed.as_ref().map(|s| rstd::str::from_utf8(&s).expect("Seed is an utf8 string"));
             SessionKeys::generate(seed)
         }
     }

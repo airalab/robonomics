@@ -136,13 +136,12 @@ macro_rules! new_full {
                 transaction_pool: service.transaction_pool(),
             };
 
-            let client = service.client();
             let select_chain = service.select_chain()
                 .ok_or(substrate_service::Error::SelectChainRequired)?;
 
             let babe_config = babe::BabeParams {
                 keystore: service.keystore(),
-                client,
+                client: service.client(),
                 select_chain,
                 env: proposer,
                 block_import,
