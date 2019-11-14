@@ -53,11 +53,11 @@ You will also need to install the following packages:
 
  - Linux:
 [source, shell]
-sudo apt install cmake pkg-config libssl-dev git clang libclang-dev
+sudo apt install cmake git clang libclang-dev
 
  - Mac:
 [source, shell]
-brew install cmake pkg-config openssl git llvm
+brew install cmake pkg-config git llvm
 
  - Windows (PowerShell):
 +
@@ -66,35 +66,22 @@ brew install cmake pkg-config openssl git llvm
 # Install LLVM
 # Download and install the Pre Build Windows binaries
 # of LLVM  from http://releases.llvm.org/download.html
-    
-# Install OpenSSL (through vcpkg)
-mkdir \Tools
-cd \Tools
-git clone https://github.com/Microsoft/vcpkg.git
-cd vcpkg
-.\bootstrap-vcpkg.bat
-.\vcpkg.exe install openssl:x64-windows-static
-    
-$env:OPENSSL_DIR = 'C:\Tools\vcpkg\installed\x64-windows-static'
-$env:OPENSSL_STATIC = 'Yes'
-[System.Environment]::SetEnvironmentVariable('OPENSSL_DIR', $env:OPENSSL_DIR, [System.EnvironmentVariableTarget]::User)
-[System.Environment]::SetEnvironmentVariable('OPENSSL_STATIC', $env:OPENSSL_STATIC, [System.EnvironmentVariableTarget]::User)
 ----
 
 Install robonomics node from git source:
 
 [source, shell]
-cargo +nightly install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.11
+cargo +nightly install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.12
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
 [source, shell]
-robonomics
+robonomics-node
 
 Or run your local development network:
 
 [source, shell]
-robonomics --dev
+robonomics-node --dev
 
 === Building with Nix
 
@@ -125,7 +112,7 @@ For nodes that can be online 24/7 also available most important role on chain - 
 
  . Launch node and wait for synchronization.
 [source, shell]
-robonomics
+robonomics-node
 
  . Open https://polkadot.js.org/apps/#/settings[Settings] and switch UI to `Local Node` mode (don't foget import https://github.com/airalab/substrate-node-robonomics/blob/master/res/custom_types.json[Custom Types] on https://polkadot.js.org/apps/#/settings/developer[Developer Settings]).
 
@@ -134,7 +121,7 @@ robonomics
 
  . Restart node in validator mode.
 [source, shell]
-robonomics --validator
+robonomics-node --validator
 
  . Generate accounts at https://polkadot.js.org/apps/#/accounts/create[Account page]:
  .. create `stash` usign `Schnorrkel (sr25519)` crypto;
