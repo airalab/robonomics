@@ -4,7 +4,7 @@
 :toc:
 :sectnums:
 
-image:https://travis-ci.org/airalab/substrate-node-robonomics.svg?branch=master["Build Status", link="https://travis-ci.org/airalab/substrate-node-robonomics"]
+image:https://github.com/airalab/substrate-node-robonomics/workflows/Integration/badge.svg?branch=master["Integration Status", link="https://github.com/airalab/substrate-node-robonomics/actions"]
 image:https://img.shields.io/github/downloads/airalab/substrate-node-robonomics/total.svg["Downloads", link="https://github.com/airalab/substrate-node-robonomics/releases"]
 image:https://img.shields.io/github/release/airalab/substrate-node-robonomics.svg["Release", link="https://github.com/airalab/substrate-node-robonomics/releases"]
 
