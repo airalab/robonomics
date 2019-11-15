@@ -42,6 +42,7 @@ use primitives::{Pair, sr25519};
 use futures::prelude::*;
 use std::sync::Arc;
 use log::info;
+use ipfs_api::IpfsClient;
 
 use futures03::channel::mpsc;
 use futures03_util::stream::StreamExt;
@@ -126,7 +127,9 @@ construct_service_factory! {
                         );
                     service.spawn_task(Box::new(api.unit_error().boxed().compat()));
 
-                    let (fut, liability_engine_services, liability_engine_subscribers) = ros_robonomics::start_liability_engine().unwrap();
+                    let ipfs_client = Arc::new(IpfsClient::default());
+
+                    let (fut, liability_engine_services, liability_engine_subscribers) = ros_robonomics::start_liability_engine(ipfs_client).unwrap();
                     service.spawn_task(Box::new(fut.unit_error().boxed().compat()));
 
                     let system_info = ros_rpc::system::SystemInfo {
