@@ -19,9 +19,11 @@
 use substrate_cli::{NoCustom, CoreParams};
 use std::{fs, env, path::Path};
 use structopt::{StructOpt, clap::Shell};
+use vergen::{ConstantsFlags, generate_cargo_keys};
 
 fn main() {
 	build_shell_completion();
+    generate_cargo_keys(ConstantsFlags::all()).expect("Failed to generate metadata files");
 }
 
 /// Build shell completion scripts for all known shells

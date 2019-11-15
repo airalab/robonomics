@@ -2,7 +2,7 @@ sudo: false
 language: rust
 cache: cargo
 rust:
-  - nightly
+  - nightly-2019-07-20
 
 matrix:
   include:
@@ -11,7 +11,7 @@ matrix:
   - os: windows
 
 install:
-- rustup target add wasm32-unknown-unknown --toolchain nightly
+- rustup target add wasm32-unknown-unknown --toolchain nightly-2019-07-20
 - cargo install --git https://github.com/alexcrichton/wasm-gc --force
 
 script:

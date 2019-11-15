@@ -20,13 +20,13 @@
 
 use rosrust::api::raii::Publisher;
 use std::collections::HashMap;
-use rosbag::{RosBag, Record, RecordsIterator};
+use rosbag::{RosBag, Record};
 use futures_timer::Delay;
 use std::time;
 use msgs::std_msgs;
 
-use futures::{prelude::*, io::AllowStdIo, compat::Stream01CompatExt, Poll};
-use rosbag::record_types::{MessageData, Connection};
+use futures::prelude::*;
+use rosbag::record_types::Connection;
 use futures::io::Error;
 use std::sync::Arc;
 
@@ -41,8 +41,7 @@ players_builder!(
 
 pub fn build_players(path: &str) -> Result<impl Future<Output=()>, Error> where
 {
-    let bag = Arc::new(RosBag::new(path).unwrap());
-    return Ok(players_builder(bag))
+    RosBag::new(path).map(|rosbag| players_builder(Arc::new(rosbag)))
 }
 
 struct RosbagPlayer<T> where

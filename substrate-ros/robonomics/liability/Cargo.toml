@@ -7,7 +7,8 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 bs58 = "0.2"
-rosbag = "0.2"
-rosrust = "0.8"
-ipfs-api = "0.5"
+rosrust = "0.9"
+futures = "0.3.1"
+ipfs-api = { git = "https://github.com/akru/rust-ipfs-api" }
 msgs = { package = "substrate-ros-msgs", path = "../../msgs" }
+player-codegen = { package = "robonomics-liability-player-codegen", path = "./player-codegen" }

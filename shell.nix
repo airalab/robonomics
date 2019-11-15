@@ -11,4 +11,5 @@ stdenv.mkDerivation {
   propagatedBuildInputs = [ msgs ];
   buildInputs = [ rustWasm wasm-gc ];
   LIBCLANG_PATH = "${libclang}/lib";
+  PROTOC = "${protobuf}/bin/protoc";
 }

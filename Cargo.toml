@@ -5,7 +5,8 @@ members = [
   "substrate-ros/rpc",
   "substrate-ros/msgs",
   "substrate-ros/robonomics",
-  "substrate-ros/player_codegen"
+  "substrate-ros/robonomics/liability",
+  "substrate-ros/robonomics/liability/player-codegen"
 ]
 
 [profile.release]

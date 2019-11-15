@@ -5,4 +5,4 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-rosrust = "0.8"
+rosrust = "0.9"

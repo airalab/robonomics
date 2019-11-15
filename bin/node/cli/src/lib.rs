@@ -18,9 +18,6 @@
 //! Console line interface.
 
 use log::info;
-use std::cell::RefCell;
-use futures::future;
-use futures::sync::oneshot;
 use tokio::prelude::Future;
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use substrate_cli::{informant, parse_and_prepare, NoCustom, ParseAndPrepare};
@@ -113,23 +110,4 @@ fn run_until_exit<T, E>(
     let _ = runtime.shutdown_on_idle().wait();
 
     service_res
-}
-
-// handles ctrl-c
-pub struct Exit;
-impl IntoExit for Exit {
-    type Exit = future::MapErr<oneshot::Receiver<()>, fn(oneshot::Canceled) -> ()>;
-    fn into_exit(self) -> Self::Exit {
-        // can't use signal directly here because CtrlC takes only `Fn`.
-        let (exit_send, exit) = oneshot::channel();
-
-        let exit_send_cell = RefCell::new(Some(exit_send));
-        ctrlc::set_handler(move || {
-            if let Some(exit_send) = exit_send_cell.try_borrow_mut().expect("signal handler not reentrant; qed").take() {
-                exit_send.send(()).expect("Error sending exit notification");
-            }
-        }).expect("Error setting Ctrl-C handler");
-
-        exit.map_err(drop)
-    }
 }

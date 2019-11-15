@@ -121,7 +121,7 @@ impl utility::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+    pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
 }
 
 impl timestamp::Trait for Runtime {
@@ -131,7 +131,7 @@ impl timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const UncleGenerations: u64 = 5;
+    pub const UncleGenerations: BlockNumber = 5;
 }
 
 parameter_types! {

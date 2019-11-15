@@ -22,9 +22,9 @@ is-it-maintained-open-issues = { repository = "airalab/substrate-node-robonomics
 [dependencies]
 # third-party dependencies
 futures = "0.1.29"
-futures03 = { package = "futures", version = "0.3.1", features = ["compat"] }
-futures03_util = { package = "futures-util", version = "0.3.1", features = ["compat"] }
+futures03 = { package = "futures-preview", version = "0.3.0-alpha.19", features = ["compat"] }
 hex-literal = "0.2.1"
+serde_json = "1.0"
 log = "0.4.8"
 structopt = "0.3.3"
 jsonrpc-core = "13.2.0"
@@ -43,6 +43,7 @@ network = { package = "substrate-network", git = "https://github.com/paritytech/
 babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }
 grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate" }
 basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate" }
+authority-discovery = { package = "substrate-authority-discovery", git = "https://github.com/paritytech/substrate" }
 substrate-service = { git = "https://github.com/paritytech/substrate" }
 telemetry = { package = "substrate-telemetry", git = "https://github.com/paritytech/substrate" }
 keystore = { package = "substrate-keystore", git = "https://github.com/paritytech/substrate" }
@@ -67,6 +68,8 @@ ros-robonomics = { package = "substrate-ros-robonomics", path = "../../../substr
 ros-rpc = { package = "substrate-ros-rpc", path = "../../../substrate-ros/rpc", optional = true }
 
 [build-dependencies]
+substrate-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+structopt = "0.3.3"
 vergen = "3.0.4"
 
 [features]

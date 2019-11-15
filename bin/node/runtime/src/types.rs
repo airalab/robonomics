@@ -22,7 +22,7 @@ use sr_primitives::{
 };
 
 /// Index of a block number in the chain.
-pub type BlockNumber = u64;
+pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a signature on the chain.
 pub type Signature = AnySignature;
@@ -39,7 +39,7 @@ pub type AccountIndex = u32;
 pub type Moment = u64;
 
 /// Index of a transaction in the chain.
-pub type Index = u64;
+pub type Index = u32;
 
 /// Balance of an account.
 pub type Balance = u128;

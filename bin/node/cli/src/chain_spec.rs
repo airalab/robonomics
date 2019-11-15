@@ -20,10 +20,12 @@
 use grandpa::AuthorityId as GrandpaId;
 use babe_primitives::AuthorityId as BabeId;
 use im_online::sr25519::AuthorityId as ImOnlineId;
+use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
 use primitives::{Pair, Public, crypto::UncheckedInto};
 use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
+    AuthorityDiscoveryConfig,
     SessionKeys, Perbill, StakerStatus, WASM_BINARY,
 };
 use node_runtime::constants::currency::*;
@@ -84,23 +86,31 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId) {
+pub fn get_authority_keys_from_seed(
+    seed: &str
+) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
     (
         get_from_seed::<AccountId>(&format!("{}//stash", seed)),
         get_from_seed::<AccountId>(seed),
         get_from_seed::<GrandpaId>(seed),
         get_from_seed::<BabeId>(seed),
         get_from_seed::<ImOnlineId>(seed),
+        get_from_seed::<AuthorityDiscoveryId>(seed),
     )
 }
 
-fn session_keys(grandpa: GrandpaId, babe: BabeId, im_online: ImOnlineId) -> SessionKeys {
-    SessionKeys { grandpa, babe, im_online, }
+fn session_keys(
+    grandpa: GrandpaId,
+    babe: BabeId,
+    im_online: ImOnlineId,
+    authority_discovery: AuthorityDiscoveryId,
+) -> SessionKeys {
+    SessionKeys { grandpa, babe, im_online, authority_discovery, }
 }
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)>,
+    initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
     let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
@@ -142,7 +152,7 @@ pub fn testnet_genesis(
         }),
         session: Some(SessionConfig {
             keys: initial_authorities.iter().map(|x| {
-                (x.0.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone()))
+                (x.0.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()))
             }).collect::<Vec<_>>(),
         }),
         staking: Some(StakingConfig {
@@ -168,22 +178,27 @@ pub fn testnet_genesis(
         im_online: Some(ImOnlineConfig {
             keys: vec![],
         }),
+        authority_discovery: Some(AuthorityDiscoveryConfig {
+            keys: vec![],
+        }),
     }
-}
-
-/// Robonomics testnet config. 
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
 }
 
 /*
 /// Robonomics testnet config. 
+pub fn robonomics_testnet_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
+}
+*/
+
+/// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId)> = vec![(
+    let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![(
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
         hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
         hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
+        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
         hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
     )];
 
@@ -221,7 +236,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

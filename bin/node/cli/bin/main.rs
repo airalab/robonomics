@@ -20,7 +20,7 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-
+use std::cell::RefCell;
 use futures::sync::oneshot;
 use futures::{future, Future};
 use substrate_cli::VersionInfo;
@@ -44,19 +44,16 @@ impl substrate_cli::IntoExit for Exit {
     }
 }
 
-fn main() {
+fn main() -> Result<(), substrate_cli::error::Error> {
     let version = VersionInfo {
         name: "Robonomics Node",
-        author: "Airalab <research@aira.life>",
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
+        executable_name: "robonomics-node",
+        author: "Airalab <research@aira.life>",
         description: "Substrate based implementation of Robonomics Network",
         support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
-        executable_name: "robonomics",
     };
 
-    if let Err(e) = node_cli::run(::std::env::args(), cli::Exit, version) {
-        eprintln!("Error starting the node: {}\n\n{:?}", e, e);
-        std::process::exit(1)
-    }
+    node_cli::run(std::env::args(), Exit, version)
 }

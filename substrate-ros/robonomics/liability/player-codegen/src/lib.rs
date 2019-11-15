@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! This module provides macro for build message players and join it in one future
 
-#![feature(async_await)]
 #![feature(async_closure)]
 #![feature(core_intrinsics)]
 #![feature(trace_macros)]
