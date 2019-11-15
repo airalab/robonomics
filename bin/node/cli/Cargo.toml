@@ -1,0 +1,84 @@
+[package]
+name = "node-cli"
+version = "0.12.0"
+authors = ["Airalab <research@aira.life>"]
+description = "Robonomics node implementation in Rust & Substrate."
+build = "build.rs"
+edition = "2018"
+default-run = "robonomics-node"
+
+[[bin]]
+name = "robonomics-node"
+path = "bin/main.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[badges]
+maintenance = { status = "actively-developed" }
+is-it-maintained-issue-resolution = { repository = "airalab/substrate-node-robonomics" }
+is-it-maintained-open-issues = { repository = "airalab/substrate-node-robonomics" }
+
+[dependencies]
+# third-party dependencies
+futures = "0.1.29"
+futures03 = { package = "futures", version = "0.3.1", features = ["compat"] }
+futures03_util = { package = "futures-util", version = "0.3.1", features = ["compat"] }
+hex-literal = "0.2.1"
+log = "0.4.8"
+structopt = "0.3.3"
+jsonrpc-core = "13.2.0"
+
+# primitives
+authority-discovery-primitives = { package = "substrate-authority-discovery-primitives", git = "https://github.com/paritytech/substrate" } 
+babe-primitives = { package = "substrate-consensus-babe-primitives", git = "https://github.com/paritytech/substrate" }
+grandpa-primitives = { package = "substrate-finality-grandpa-primitives", git = "https://github.com/paritytech/substrate" }
+primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
+
+# core dependencies
+client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }
+inherents = { package = "substrate-inherents", git = "https://github.com/paritytech/substrate" }
+transaction_pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate" }
+network = { package = "substrate-network", git = "https://github.com/paritytech/substrate" }
+babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate" }
+grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate" }
+basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate" }
+substrate-service = { git = "https://github.com/paritytech/substrate" }
+telemetry = { package = "substrate-telemetry", git = "https://github.com/paritytech/substrate" }
+keystore = { package = "substrate-keystore", git = "https://github.com/paritytech/substrate" }
+
+# paint dependencies
+im-online = { package = "paint-im-online", git = "https://github.com/paritytech/substrate" }
+
+# node-specific dependencies
+node-runtime = { path = "../runtime" }
+executor = { package = "substrate-executor", git = "https://github.com/paritytech/substrate" }
+node-rpc = { package = "substrate-rpc", git = "https://github.com/paritytech/substrate" }
+node-executor = { path = "../executor" }
+
+# CLI-specific dependencies
+tokio = { version = "0.1.22", optional = true }
+exit-future = { version = "0.1.4", optional = true }
+substrate-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+ctrlc = { version = "3.0", features = ["termination"], optional = true }
+
+# Robonomics-soecific dependencies
+ros-robonomics = { package = "substrate-ros-robonomics", path = "../../../substrate-ros/robonomics", optional = true }
+ros-rpc = { package = "substrate-ros-rpc", path = "../../../substrate-ros/rpc", optional = true }
+
+[build-dependencies]
+vergen = "3.0.4"
+
+[features]
+default = ["cli"]
+cli = [
+    "substrate-cli",
+    "tokio",
+    "exit-future",
+    "ctrlc",
+    "substrate-service/rocksdb",
+]
+## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
+# To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
+# It also require roscore service to be launched.
+ros = [ "ros-rpc", "ros-robonomics" ]

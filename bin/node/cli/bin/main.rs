@@ -20,8 +20,32 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
+
+use futures::sync::oneshot;
+use futures::{future, Future};
+use substrate_cli::VersionInfo;
+
+// handles ctrl-c
+struct Exit;
+impl substrate_cli::IntoExit for Exit {
+    type Exit = future::MapErr<oneshot::Receiver<()>, fn(oneshot::Canceled) -> ()>;
+    fn into_exit(self) -> Self::Exit {
+        // can't use signal directly here because CtrlC takes only `Fn`.
+        let (exit_send, exit) = oneshot::channel();
+
+        let exit_send_cell = RefCell::new(Some(exit_send));
+        ctrlc::set_handler(move || {
+            if let Some(exit_send) = exit_send_cell.try_borrow_mut().expect("signal handler not reentrant; qed").take() {
+                exit_send.send(()).expect("Error sending exit notification");
+            }
+        }).expect("Error setting Ctrl-C handler");
+
+        exit.map_err(drop)
+    }
+}
+
 fn main() {
-    let version = cli::VersionInfo {
+    let version = VersionInfo {
         name: "Robonomics Node",
         author: "Airalab <research@aira.life>",
         commit: env!("VERGEN_SHA_SHORT"),
@@ -31,7 +55,7 @@ fn main() {
         executable_name: "robonomics",
     };
 
-    if let Err(e) = cli::run(::std::env::args(), cli::Exit, version) {
+    if let Err(e) = node_cli::run(::std::env::args(), cli::Exit, version) {
         eprintln!("Error starting the node: {}\n\n{:?}", e, e);
         std::process::exit(1)
     }

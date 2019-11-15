@@ -1,43 +1,12 @@
-[package]
-name = "robonomics-node"
-version = "0.12.0"
-authors = ["Airalab <research@aira.life>"]
-build = "build.rs"
-edition = "2018"
-
-[[bin]]
-name = "robonomics-node"
-path = "node/src/main.rs"
-
-[dependencies]
-cli = { package = "node-cli", path = "node/cli" }
-
-[build-dependencies]
-vergen = "3"
-
-[features]
-default = []
-
-## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
-# To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
-# It also require roscore service to be launched.
-ros = [ 'cli/ros' ]
-
 [workspace]
 members = [
-  "node/cli",
-  "node/runtime",
+  "bin/node/cli",
+  "bin/node/runtime",
   "substrate-ros/rpc",
   "substrate-ros/msgs",
   "substrate-ros/robonomics",
   "substrate-ros/player_codegen"
 ]
-
-[badges]
-travis-ci = { repository = "airalab/substrate-node-robonomics", branch = "master" }
-maintenance = { status = "actively-developed" }
-is-it-maintained-issue-resolution = { repository = "airalab/substrate-node-robonomics" }
-is-it-maintained-open-issues = { repository = "airalab/substrate-node-robonomics" }
 
 [profile.release]
 # Substrate runtime requires unwinding.

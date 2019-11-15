@@ -40,6 +40,7 @@ use sr_primitives::traits::{
     SaturatedConversion, OpaqueKeys,
 };
 use im_online::sr25519::{AuthorityId as ImOnlineId};
+use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
 use transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use inherents::{InherentData, CheckInherentsResult};
 use system::offchain::TransactionSubmitter;
@@ -208,6 +209,7 @@ impl_opaque_keys! {
         pub grandpa: Grandpa,
         pub babe: Babe,
         pub im_online: ImOnline,
+        pub authority_discovery: AuthorityDiscovery,
     }
 }
 
@@ -232,7 +234,7 @@ impl session::historical::Trait for Runtime {
     type FullIdentificationOf = staking::ExposureOf<Runtime>;
 }
 
-srml_staking_reward_curve::build! {
+paint_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
         min_inflation: 0_025_000,
         max_inflation: 0_100_000,
@@ -262,6 +264,8 @@ impl staking::Trait for Runtime {
     type SessionInterface = Self;
     type RewardCurve = RewardCurve;
 }
+
+impl authority_discovery::Trait for Runtime {}
 
 impl grandpa::Trait for Runtime {
     type Event = Event;
@@ -368,6 +372,7 @@ construct_runtime!(
         FinalityTracker: finality_tracker::{Module, Call, Inherent},
         Grandpa: grandpa::{Module, Call, Storage, Config, Event},
         ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
+        AuthorityDiscovery: authority_discovery::{Module, Call, Config},
 
         // Robonomics Network support.
         Robonomics: robonomics::{Module, Call, Storage, Event<T>},
@@ -497,6 +502,12 @@ impl_runtime_apis! {
     impl system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
         fn account_nonce(account: AccountId) -> Index {
             System::account_nonce(account)
+        }
+    }
+
+    impl authority_discovery_primitives::AuthorityDiscoveryApi<Block> for Runtime {
+        fn authorities() -> Vec<AuthorityDiscoveryId> {
+            AuthorityDiscovery::authorities()
         }
     }
 
