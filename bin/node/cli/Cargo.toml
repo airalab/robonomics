@@ -34,6 +34,7 @@ authority-discovery-primitives = { package = "substrate-authority-discovery-prim
 babe-primitives = { package = "substrate-consensus-babe-primitives", git = "https://github.com/paritytech/substrate" }
 grandpa-primitives = { package = "substrate-finality-grandpa-primitives", git = "https://github.com/paritytech/substrate" }
 primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate" }
+sr-primitives = { git = "https://github.com/paritytech/substrate" }
 
 # core dependencies
 client = { package = "substrate-client", git = "https://github.com/paritytech/substrate" }

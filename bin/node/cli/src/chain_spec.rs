@@ -21,15 +21,16 @@ use grandpa::AuthorityId as GrandpaId;
 use babe_primitives::AuthorityId as BabeId;
 use im_online::sr25519::AuthorityId as ImOnlineId;
 use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
-use primitives::{Pair, Public, crypto::UncheckedInto};
+use sr_primitives::{Perbill, traits::{Verify, IdentifyAccount}};
+use primitives::{Pair, Public, crypto::UncheckedInto, sr25519};
 use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     AuthorityDiscoveryConfig,
-    SessionKeys, Perbill, StakerStatus, WASM_BINARY,
+    SessionKeys, StakerStatus, WASM_BINARY,
 };
 use node_runtime::constants::currency::*;
-use node_runtime::types::{AccountId, Balance};
+use node_runtime::types::{AccountId, Balance, Signature};
 use telemetry::TelemetryEndpoints;
 use hex_literal::hex;
 
@@ -41,6 +42,9 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
+
+
+type AccountPublic = <Signature as Verify>::Signer;
 
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
 pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
@@ -85,13 +89,27 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
         .public()
 }
 
+/// Helper function to generate an account ID from seed
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>
+{
+    AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
+
 /// Helper function to generate stash, controller and session key from seed
 pub fn get_authority_keys_from_seed(
     seed: &str
-) -> (AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (
+    AccountId,
+    AccountId,
+    GrandpaId,
+    BabeId,
+    ImOnlineId,
+    AuthorityDiscoveryId
+) {
     (
-        get_from_seed::<AccountId>(&format!("{}//stash", seed)),
-        get_from_seed::<AccountId>(seed),
+        get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
+        get_account_id_from_seed::<sr25519::Public>(seed),
         get_from_seed::<GrandpaId>(seed),
         get_from_seed::<BabeId>(seed),
         get_from_seed::<ImOnlineId>(seed),
@@ -115,18 +133,18 @@ pub fn testnet_genesis(
 ) -> GenesisConfig {
     let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
-            get_from_seed::<AccountId>("Alice"),
-            get_from_seed::<AccountId>("Bob"),
-            get_from_seed::<AccountId>("Charlie"),
-            get_from_seed::<AccountId>("Dave"),
-            get_from_seed::<AccountId>("Eve"),
-            get_from_seed::<AccountId>("Ferdie"),
-            get_from_seed::<AccountId>("Alice//stash"),
-            get_from_seed::<AccountId>("Bob//stash"),
-            get_from_seed::<AccountId>("Charlie//stash"),
-            get_from_seed::<AccountId>("Dave//stash"),
-            get_from_seed::<AccountId>("Eve//stash"),
-            get_from_seed::<AccountId>("Ferdie//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Alice"),
+            get_account_id_from_seed::<sr25519::Public>("Bob"),
+            get_account_id_from_seed::<sr25519::Public>("Charlie"),
+            get_account_id_from_seed::<sr25519::Public>("Dave"),
+            get_account_id_from_seed::<sr25519::Public>("Eve"),
+            get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+            get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+            get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
         ]
     });
 
@@ -194,8 +212,8 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![(
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].unchecked_into(),
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
         hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
         hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
         hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
@@ -204,7 +222,7 @@ fn robonomics_config_genesis() -> GenesisConfig {
 
     let endowed_accounts: Vec<AccountId> = vec![
         // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].unchecked_into(),
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into(),
     ];
 
     testnet_genesis(

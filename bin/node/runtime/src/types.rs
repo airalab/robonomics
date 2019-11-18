@@ -18,18 +18,18 @@
 //! A set of primitive types used in substrate runtime.
 
 use sr_primitives::{
-    generic, traits::{Verify, BlakeTwo256}, OpaqueExtrinsic, AnySignature
+    generic, traits::{Verify, BlakeTwo256, IdentifyAccount}, OpaqueExtrinsic, MultiSignature
 };
 
 /// Index of a block number in the chain.
 pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a signature on the chain.
-pub type Signature = AnySignature;
+pub type Signature = MultiSignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
-pub type AccountId = <Signature as Verify>::Signer;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
@@ -59,13 +59,10 @@ pub type DigestItem = generic::DigestItem<Hash>;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 /// Block type.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
-
-/// Opaque, encoded, unchecked extrinsic.
-pub type UncheckedExtrinsic = OpaqueExtrinsic;
 
 sr_api::decl_runtime_apis! {
     /// The API to query account account nonce (aka index).
