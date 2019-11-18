@@ -3,13 +3,12 @@
 }:
 
 with nixpkgs;
-with release;
 with llvmPackages_latest;
 
 stdenv.mkDerivation {
   name = "substrate-nix-shell";
-  propagatedBuildInputs = [ msgs ];
-  buildInputs = [ rustWasm wasm-gc ];
+  propagatedBuildInputs = [ release.msgs ];
+  buildInputs = [ release.rust wasm-gc ];
   LIBCLANG_PATH = "${libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";
 }

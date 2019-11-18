@@ -5,10 +5,10 @@ authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
 edition = "2018"
-default-run = "robonomics-node"
+default-run = "robonomics"
 
 [[bin]]
-name = "robonomics-node"
+name = "robonomics"
 path = "bin/main.rs"
 
 [lib]

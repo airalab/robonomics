@@ -49,7 +49,7 @@ fn main() -> Result<(), substrate_cli::error::Error> {
         name: "Robonomics Node",
         commit: env!("VERGEN_SHA_SHORT"),
         version: env!("CARGO_PKG_VERSION"),
-        executable_name: "robonomics-node",
+        executable_name: "robonomics",
         author: "Airalab <research@aira.life>",
         description: "Substrate based implementation of Robonomics Network",
         support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
