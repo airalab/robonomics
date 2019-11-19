@@ -15,4 +15,4 @@ jobs:
     - name: Install wasm-gc tool
       run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
     - name: Build Robonomics on Substrate
-      run: cargo build --verbose
+      run: cargo build --verbose --bin robonomics
