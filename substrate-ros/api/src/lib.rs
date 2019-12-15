@@ -19,7 +19,7 @@
 
 use network::{specialization::NetworkSpecialization, NetworkService, ExHashT};
 use transaction_pool::txpool::{ChainApi as PoolChainApi, Pool};
-pub use substrate_rpc::system::helpers::SystemInfo;
+pub use sc_rpc::system::helpers::SystemInfo;
 use runtime_primitives::traits::Block;
 use primitives::{Blake2Hasher, H256};
 use rosrust::api::error::Error;

@@ -15,7 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! This module exports Robonomics API into ROS namespace.
+///! Rust generated ROS messages.
+use rosrust::rosmsg_include;
 
-pub mod ros_api;
-pub use ros_api::start_api;
+rosmsg_include!(
+    // robonomics messages
+    robonomics_msgs / Demand,
+    robonomics_msgs / Offer,
+    robonomics_msgs / Finalize,
+    robonomics_msgs / Liability,
+    robonomics_msgs / StartLiability,
+);

@@ -21,22 +21,17 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
-pub mod robonomics;
 pub mod constants;
-pub mod types;
 pub mod impls;
 
-use rstd::prelude::*;
+use sp_std::prelude::*;
 use primitives::OpaqueMetadata;
-use support::{
-    construct_runtime, parameter_types, traits::Randomness
-};
-use sr_primitives::{ApplyResult, generic, create_runtime_str};
-use sr_primitives::weights::Weight;
-use sr_primitives::curve::PiecewiseLinear;
-use sr_primitives::transaction_validity::TransactionValidity;
-use sr_primitives::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, StaticLookup,
+use support::{construct_runtime, parameter_types, traits::Randomness, weights::Weight,};
+use sp_runtime::{ApplyExtrinsicResult, generic, create_runtime_str,};
+use sp_runtime::curve::PiecewiseLinear;
+use sp_runtime::transaction_validity::TransactionValidity;
+use sp_runtime::traits::{
+    self, BlakeTwo256, Block as BlockT, NumberFor, StaticLookup, Verify,
     SaturatedConversion, OpaqueKeys,
 };
 use im_online::sr25519::{AuthorityId as ImOnlineId};
@@ -46,10 +41,10 @@ use inherents::{InherentData, CheckInherentsResult};
 use system::offchain::TransactionSubmitter;
 use grandpa::fg_primitives;
 use grandpa::AuthorityList as GrandpaAuthorityList;
-use sr_api::impl_runtime_apis;
+use sp_api::impl_runtime_apis;
 use impls::{CurrencyToVoteHandler, LinearWeightToFee, TargetedFeeAdjustment};
 use crate::constants::{time::*, currency::*};
-use crate::types::{
+use node_primitives::{
     Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
 use version::RuntimeVersion;
@@ -60,8 +55,7 @@ use version::NativeVersion;
 #[cfg(any(feature = "std", test))]
 pub use balances::Call as BalancesCall;
 pub use timestamp::Call as TimestampCall;
-pub use robonomics::Call as RobonomicsCall;
-pub use sr_primitives::{Permill, Perbill, impl_opaque_keys};
+pub use sp_runtime::{Permill, Perbill, impl_opaque_keys};
 pub use support::StorageValue;
 pub use staking::StakerStatus;
 pub use system::EventRecord;
@@ -75,8 +69,12 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 50,
-    impl_version: 1,
+    // Per convention: if the runtime behavior changes, increment spec_version
+    // and set impl_version to equal spec_version. If only runtime
+    // implementation changes and behavior does not, then leave spec_version as
+    // is and increment impl_version.
+    spec_version: 60,
+    impl_version: 60,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -234,7 +232,7 @@ impl session::historical::Trait for Runtime {
     type FullIdentificationOf = staking::ExposureOf<Runtime>;
 }
 
-paint_staking_reward_curve::build! {
+pallet_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
         min_inflation: 0_025_000,
         max_inflation: 0_100_000,
@@ -246,8 +244,9 @@ paint_staking_reward_curve::build! {
 }
 
 parameter_types! {
-    pub const SessionsPerEra: sr_staking_primitives::SessionIndex = 6;
+    pub const SessionsPerEra: sp_staking::SessionIndex = 6;
     pub const BondingDuration: staking::EraIndex = 24 * 28;
+	pub const SlashDeferDuration: staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
@@ -259,6 +258,8 @@ impl staking::Trait for Runtime {
     type Slash = ();
     type Reward = ();
     type RewardRemainder = ();
+	type SlashDeferDuration = SlashDeferDuration;
+	type SlashCancelOrigin = system::EnsureRoot<<Self as system::Trait>::AccountId>;
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
@@ -308,10 +309,15 @@ impl offences::Trait for Runtime {
     type OnOffenceHandler = Staking;
 }
 
-impl robonomics::Trait for Runtime {
-    /// Native token as processing currency.
-    type Currency = Balances;
-    /// The uniquitous event type.
+impl liability::Trait for Runtime {
+    type Technics = liability::technics::PureIPFS;
+    type Economics = liability::economics::Communism;
+    type Liability = liability::signed::SignedLiability<
+        Self::Technics,
+        Self::Economics,
+        <Signature as Verify>::Signer,
+        Signature,
+    >;
     type Event = Event;
 }
 
@@ -347,7 +353,7 @@ impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtim
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
-        NodeBlock = types::Block,
+        NodeBlock = node_primitives::Block,
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
@@ -375,7 +381,7 @@ construct_runtime!(
         AuthorityDiscovery: authority_discovery::{Module, Call, Config},
 
         // Robonomics Network support.
-        Robonomics: robonomics::{Module, Call, Storage, Event<T>},
+        Liability: liability::{Module, Call, Storage, Event},
 
         // Sudo. Usable initially.
         Sudo: sudo,
@@ -421,7 +427,7 @@ pub type Executive = executive::Executive<Runtime, Block, Context, Runtime, AllM
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
-    impl sr_api::Core<Block> for Runtime {
+    impl sp_api::Core<Block> for Runtime {
         fn version() -> RuntimeVersion {
             VERSION
         }
@@ -435,14 +441,14 @@ impl_runtime_apis! {
         }
     }
 
-    impl sr_api::Metadata<Block> for Runtime {
+    impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             Runtime::metadata().into()
         }
     }
 
     impl block_builder_api::BlockBuilder<Block> for Runtime {
-        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyResult {
+        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
             Executive::apply_extrinsic(extrinsic)
         }
 
@@ -463,7 +469,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl tx_pool_api::TaggedTransactionQueue<Block> for Runtime {
+    impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
             Executive::validate_transaction(tx)
         }
@@ -499,15 +505,15 @@ impl_runtime_apis! {
         }
     }
 
-    impl system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-        fn account_nonce(account: AccountId) -> Index {
-            System::account_nonce(account)
-        }
-    }
-
     impl authority_discovery_primitives::AuthorityDiscoveryApi<Block> for Runtime {
         fn authorities() -> Vec<AuthorityDiscoveryId> {
             AuthorityDiscovery::authorities()
+        }
+    }
+
+    impl system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
+        fn account_nonce(account: AccountId) -> Index {
+            System::account_nonce(account)
         }
     }
 
@@ -521,7 +527,7 @@ impl_runtime_apis! {
         }
     }
 
-    impl substrate_session::SessionKeys<Block> for Runtime {
+    impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
         }

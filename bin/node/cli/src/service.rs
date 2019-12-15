@@ -23,11 +23,11 @@ use std::sync::Arc;
 use client::{self, LongestChain};
 use grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider};
 use node_executor::Executor;
-use node_runtime::{GenesisConfig, RuntimeApi, types::Block};
-use substrate_service::{
+use node_runtime::{GenesisConfig, RuntimeApi};
+use node_primitives::Block;
+use sc_service::{
     AbstractService, ServiceBuilder, config::Configuration, error::{Error as ServiceError},
 };
-use transaction_pool::{self, txpool::{Pool as TransactionPool}};
 use network::construct_simple_protocol;
 use inherents::InherentDataProviders;
 
@@ -45,18 +45,22 @@ macro_rules! new_full_start {
         let mut import_setup = None;
         let inherent_data_providers = inherents::InherentDataProviders::new();
 
-        let builder = substrate_service::ServiceBuilder::new_full::<
-            node_runtime::types::Block, node_runtime::RuntimeApi, node_executor::Executor
+        let builder = sc_service::ServiceBuilder::new_full::<
+            node_primitives::Block, node_runtime::RuntimeApi, node_executor::Executor
         >($config)?
             .with_select_chain(|_config, backend| {
                 Ok(client::LongestChain::new(backend.clone()))
             })?
-            .with_transaction_pool(|config, client|
-                Ok(transaction_pool::txpool::Pool::new(config, transaction_pool::FullChainApi::new(client)))
-            )?
+			.with_transaction_pool(|config, client, _fetcher| {
+                let pool_api = txpool::FullChainApi::new(client.clone());
+                let pool = txpool::BasicPool::new(config, pool_api);
+                let maintainer = txpool::FullBasicPoolMaintainer::new(pool.pool().clone(), client);
+                let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
+                Ok(maintainable_pool)
+            })?
             .with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
                 let select_chain = select_chain.take()
-                    .ok_or_else(|| substrate_service::Error::SelectChainRequired)?;
+                    .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
                 let (grandpa_block_import, grandpa_link) =
                     grandpa::block_import(
                         client.clone(),
@@ -103,6 +107,7 @@ macro_rules! new_full {
             is_authority,
             force_authoring,
             disable_grandpa,
+            sentry_nodes,
             chain_spec,
         ) = (
             $config.name.clone(),
@@ -111,11 +116,12 @@ macro_rules! new_full {
             $config.roles.is_authority(),
             $config.force_authoring,
             $config.disable_grandpa,
+			$config.network.sentry_nodes.clone(),
             $config.chain_spec.clone(),
         );
-        use futures::sync::mpsc;
+        use futures01::sync::mpsc;
         use network::DhtEvent;
-        use futures03::{
+        use futures::{
             compat::Stream01CompatExt,
             stream::StreamExt,
             future::{FutureExt, TryFutureExt},
@@ -150,12 +156,16 @@ macro_rules! new_full {
                 transaction_pool: service.transaction_pool(),
             };
 
+            let client = service.client();
             let select_chain = service.select_chain()
-                .ok_or(substrate_service::Error::SelectChainRequired)?;
+                .ok_or(sc_service::Error::SelectChainRequired)?;
+
+			let can_author_with =
+				consensus_common::CanAuthorWithNativeVersion::new(client.executor().clone());
 
             let babe_config = babe::BabeParams {
                 keystore: service.keystore(),
-                client: service.client(),
+                client,
                 select_chain,
                 env: proposer,
                 block_import,
@@ -163,6 +173,7 @@ macro_rules! new_full {
                 inherent_data_providers: inherent_data_providers.clone(),
                 force_authoring,
                 babe_link,
+                can_author_with,
             };
 
             let babe = babe::start_babe(babe_config)?;
@@ -174,6 +185,7 @@ macro_rules! new_full {
             let authority_discovery = authority_discovery::AuthorityDiscovery::new(
                 service.client(),
                 service.network(),
+				sentry_nodes,
                 service.keystore(),
                 future03_dht_event_rx,
             );
@@ -283,9 +295,15 @@ pub fn new_light<C: Send + Default + 'static>(
         .with_select_chain(|_config, backend| {
             Ok(LongestChain::new(backend.clone()))
         })?
-        .with_transaction_pool(|config, client|
-            Ok(TransactionPool::new(config, transaction_pool::FullChainApi::new(client)))
-        )?
+		.with_transaction_pool(|config, client, fetcher| {
+			let fetcher = fetcher
+				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+			let pool_api = txpool::LightChainApi::new(client.clone(), fetcher.clone());
+			let pool = txpool::BasicPool::new(config, pool_api);
+			let maintainer = txpool::LightBasicPoolMaintainer::with_defaults(pool.pool().clone(), client, fetcher);
+			let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
+			Ok(maintainable_pool)
+		})?
         .with_import_queue_and_fprb(|_config, client, backend, fetcher, _select_chain, _transaction_pool| {
             let fetch_checker = fetcher 
                 .map(|fetcher| fetcher.checker().clone())

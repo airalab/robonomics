@@ -21,7 +21,7 @@ use grandpa::AuthorityId as GrandpaId;
 use babe_primitives::AuthorityId as BabeId;
 use im_online::sr25519::AuthorityId as ImOnlineId;
 use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
-use sr_primitives::{Perbill, traits::{Verify, IdentifyAccount}};
+use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use primitives::{Pair, Public, crypto::UncheckedInto, sr25519};
 use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
@@ -30,7 +30,7 @@ use node_runtime::{
     SessionKeys, StakerStatus, WASM_BINARY,
 };
 use node_runtime::constants::currency::*;
-use node_runtime::types::{AccountId, Balance, Signature};
+use node_primitives::{AccountId, Balance, Signature};
 use telemetry::TelemetryEndpoints;
 use hex_literal::hex;
 
@@ -47,13 +47,13 @@ const ROBONOMICS_PROPERTIES: &str = r#"
 type AccountPublic = <Signature as Verify>::Signer;
 
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
-pub type ChainSpec = substrate_service::ChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
 
 /// The chain specification option. This is expected to come in from the CLI and
 /// is little more than one of a number of alternatives which can easily be converted
 /// from a string (`--chain=...`) into a `ChainSpec`.
 #[derive(Clone, Debug)]
-pub enum ChainOpt {
+enum ChainOpt {
     /// Whatever the current runtime is, with just Alice as an auth.
     Development,
     /// Whatever the current runtime is, with simple Alice/Bob auths.
@@ -80,6 +80,13 @@ impl ChainOpt {
             _ => None,
         }
     }
+}
+
+pub fn load_spec(id: &str) -> Result<Option<ChainSpec>, String> {
+    Ok(match ChainOpt::from(id) {
+        Some(spec) => Some(spec.load()?),
+        None => None,
+    })
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -202,12 +209,13 @@ pub fn testnet_genesis(
     }
 }
 
+/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_testnet.json")[..]).unwrap()
+    ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![(
@@ -253,7 +261,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

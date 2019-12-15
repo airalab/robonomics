@@ -28,12 +28,6 @@ rosmsg_include!(
     // standard ros services
     std_srvs / Trigger,
 
-    // substrate robonomics
-    substrate_ros_msgs / Demand,
-    substrate_ros_msgs / Offer,
-    substrate_ros_msgs / Finalize,
-    substrate_ros_msgs / Liability,
-
     // substrate rpc
     substrate_ros_msgs / ExHash,
     substrate_ros_msgs / BlockHash,
@@ -58,6 +52,4 @@ rosmsg_include!(
     substrate_ros_msgs / StorageKeys,
     substrate_ros_msgs / StorageQuery,
     substrate_ros_msgs / StorageSize,
-
-    substrate_ros_msgs / StartLiability,
 );

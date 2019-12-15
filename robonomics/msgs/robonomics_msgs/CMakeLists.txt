@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(substrate_ros_msgs)
+project(robonomics_msgs)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -48,38 +48,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
     FILES
-        # RPC data types
-        RawExtrinsic.msg
-        ExHash.msg
-        BlockHash.msg
-        StorageKey.msg
-        SystemHealthInfo.msg
+        # Robonomics messages
+        Order.msg
+        Demand.msg
+        Offer.msg
+        Finalize.msg
+        Liability.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
     FILES
-        # Author RPC
-        SubmitExtrinsic.srv
-        PendingExtrinsics.srv
-        RemoveExtrinsic.srv
-
-        # Chain RPC
-        GetBlock.srv
-        GetBlockHash.srv
-        GetBlockHeader.srv
-        GetBestHead.srv
-        GetFinalizedHead.srv
-
-        # System RPC
-        SystemHealth.srv
-
-        # State RPC
-        StateCall.srv
-        StorageHash.srv
-        StorageKeys.srv
-        StorageQuery.srv
-        StorageSize.srv
+        # Liability engine
+        StartLiability.srv
  )
 
 ## Generate actions in the 'action' folder

@@ -1,12 +1,16 @@
 [workspace]
+default-members = [ "bin/node/cli" ]
 members = [
-  "bin/node/cli",
-  "bin/node/runtime",
-  "substrate-ros/rpc",
-  "substrate-ros/msgs",
-  "substrate-ros/robonomics",
-  "substrate-ros/robonomics/liability",
-  "substrate-ros/robonomics/liability/player-codegen"
+    "bin/node/executor",
+    "bin/node/runtime",
+    "bin/node/cli",
+    "robonomics/liability/player-codegen",
+    "robonomics/liability",
+    "robonomics/frame/liability",
+    "robonomics/ros-api",
+    "robonomics/msgs",
+    "substrate-ros/msgs",
+    "substrate-ros/api",
 ]
 
 [profile.release]

@@ -17,14 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Console line interface.
 
-use log::info;
+pub use sc_cli::VersionInfo;
 use tokio::prelude::Future;
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
-use substrate_cli::{informant, parse_and_prepare, NoCustom, ParseAndPrepare};
-use substrate_service::{AbstractService, Roles as ServiceRoles, Configuration};
-pub use substrate_cli::{VersionInfo, IntoExit, error};
+use sc_cli::{parse_and_prepare, NoCustom, ParseAndPrepare};
+use sc_service::{AbstractService, Roles as ServiceRoles, Configuration};
+use sc_cli::{IntoExit, error};
+use log::info;
 
 mod chain_spec;
+use chain_spec::load_spec;
+
 #[macro_use]
 mod service;
 
@@ -50,33 +53,28 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             match config.roles {
                 ServiceRoles::LIGHT => run_until_exit(
                     runtime,
-                    service::new_light(config).map_err(|e| format!("{:?}", e))?,
+                    service::new_light(config)?,
                     exit
                 ),
                 _ => run_until_exit(
                     runtime,
-                    service::new_full(config).map_err(|e| format!("{:?}", e))?,
+                    service::new_full(config)?,
                     exit
                 ),
-            }.map_err(|e| format!("{:?}", e))
+            }
         }),
         ParseAndPrepare::BuildSpec(cmd) => cmd.run::<NoCustom, _, _, _>(load_spec),
         ParseAndPrepare::ExportBlocks(cmd) => cmd.run_with_builder(|config: Config<_, _>|
             Ok(new_full_start!(config).0), load_spec, exit),
         ParseAndPrepare::ImportBlocks(cmd) => cmd.run_with_builder(|config: Config<_, _>|
             Ok(new_full_start!(config).0), load_spec, exit),
+		ParseAndPrepare::CheckBlock(cmd) => cmd.run_with_builder(|config: Config<_, _>|
+			Ok(new_full_start!(config).0), load_spec, exit),
         ParseAndPrepare::PurgeChain(cmd) => cmd.run(load_spec),
         ParseAndPrepare::RevertChain(cmd) => cmd.run_with_builder(|config: Config<_, _>|
             Ok(new_full_start!(config).0), load_spec),
         ParseAndPrepare::CustomCommand(_) => Ok(()),
     }
-}
-
-fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
-    Ok(match chain_spec::ChainOpt::from(id) {
-        Some(spec) => Some(spec.load()?),
-        None => None,
-    })
 }
 
 fn run_until_exit<T, E>(
@@ -88,26 +86,37 @@ fn run_until_exit<T, E>(
         T: AbstractService,
         E: IntoExit,
 {
-    let (exit_send, exit) = exit_future::signal();
+	use futures::{FutureExt, TryFutureExt, channel::oneshot, future::select, compat::Future01CompatExt};
 
-    let informant = informant::build(&service);
-    runtime.executor().spawn(exit.until(informant).map(|_| ()));
+	let (exit_send, exit) = oneshot::channel();
 
-    // we eagerly drop the service so that the internal exit future is fired,
-    // but we need to keep holding a reference to the global telemetry guard
-    let _telemetry = service.telemetry();
+	let informant = sc_cli::informant::build(&service);
 
-    let service_res = {
-        let exit = e.into_exit().map_err(|_| error::Error::Other("Exit future failed.".into()));
-        let service = service.map_err(|err| error::Error::Service(err));
-        let select = service.select(exit).map(|_| ()).map_err(|(err, _)| err);
-        runtime.block_on(select)
-    };
+	let future = select(informant, exit)
+		.map(|_| Ok(()))
+		.compat();
 
-    exit_send.fire();
+	runtime.executor().spawn(future);
 
-    // TODO [andre]: timeout this future #1318
-    let _ = runtime.shutdown_on_idle().wait();
+	// we eagerly drop the service so that the internal exit future is fired,
+	// but we need to keep holding a reference to the global telemetry guard
+	let _telemetry = service.telemetry();
 
-    service_res
+	let service_res = {
+		let exit = e.into_exit();
+		let service = service
+			.map_err(|err| error::Error::Service(err))
+			.compat();
+		let select = select(service, exit)
+			.map(|_| Ok(()))
+			.compat();
+		runtime.block_on(select)
+	};
+
+	let _ = exit_send.send(());
+
+	// TODO [andre]: timeout this future #1318
+	let _ = runtime.shutdown_on_idle().wait();
+
+	service_res
 }

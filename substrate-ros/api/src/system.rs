@@ -21,7 +21,7 @@ use std::time::Duration;
 use rosrust::api::error::Error;
 use crate::traits::RosRpc;
 use runtime_primitives::traits;
-use substrate_rpc::system::helpers::{Health, Properties};
+use sc_rpc::system::helpers::{Health, Properties};
 use network::{
     specialization::NetworkSpecialization,
     NetworkService, ExHashT,
@@ -35,7 +35,7 @@ use msgs::{
 use futures_timer::Delay;
 use futures::prelude::*;
 
-pub use substrate_rpc::system::helpers::SystemInfo;
+pub use sc_rpc::system::helpers::SystemInfo;
 
 const SYSTEM_NAME_SRV_NAME: &str = "/system/name";
 const SYSTEM_VERSION_SRV_NAME: &str = "/system/version";

@@ -22,7 +22,7 @@ use std::sync::Arc;
 use rosrust::api::error;
 use futures::{prelude::*, channel::mpsc};
 use client::{blockchain::HeaderBackend, BlockchainEvents};
-use sr_primitives::{
+use sp_runtime::{
     codec::{Decode, Encode},
     generic::{BlockId, Era},
     traits::{Header, ProvideRuntimeApi},

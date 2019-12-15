@@ -4,12 +4,14 @@
 with nixpkgs;
 
 let
-  channel = rustChannelOf { date = "2019-09-03"; channel = "nightly"; };
+  channel = rustChannelOf { date = "2019-11-25"; channel = "nightly"; };
   targets = [ "wasm32-unknown-unknown" ];
 in rec {
   rust = channel.rust.override { inherit targets; };
-  msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
-  turtlesim = callPackage ./examples/turtlesim_liability { inherit msgs; };
+  substrate-ros-msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
+  robonomics-msgs = callPackage ./robonomics/msgs/robonomics_msgs { };
+
+  turtlesim = callPackage ./examples/turtlesim_liability { msgs = robonomics-msgs; };
   ros_tutorials = callPackage ./examples/ros_tutorials { };
-  robonomics = callPackage ./. { inherit rust msgs; };
+  node = callPackage ./. { inherit rust substrate-ros-msgs robonomics-msgs; };
 }

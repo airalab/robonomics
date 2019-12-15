@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! This module provides macro for build message players and join it in one future
+//! This module provides macro for build message players and join it in one future.
 
 #![feature(async_closure)]
 #![feature(core_intrinsics)]

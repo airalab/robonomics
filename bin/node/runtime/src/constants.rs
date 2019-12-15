@@ -19,7 +19,7 @@
 
 /// Money matters.
 pub mod currency {
-    use crate::types::Balance;
+    use node_primitives::Balance;
 
     pub const COASE: Balance = 1_000;
     pub const GLUSHKOV: Balance = 1_000 * COASE;
@@ -28,7 +28,7 @@ pub mod currency {
 
 /// Time.
 pub mod time {
-    use crate::types::{Moment, BlockNumber};
+    use node_primitives::{Moment, BlockNumber};
 
     /// Since BABE is probabilistic this is the average expected block time that
     /// we are targetting. Blocks will be produced at a minimum duration defined
@@ -71,7 +71,7 @@ pub mod time {
 // the ratio that `system` module uses to find normal transaction quota.
 /// Fee-related.
 pub mod fee {
-    pub use sr_primitives::Perbill;
+    pub use sp_runtime::Perbill;
 
     /// The block saturation level. Fees will be updates based on this value.
     pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);

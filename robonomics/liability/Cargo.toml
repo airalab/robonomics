@@ -10,5 +10,5 @@ bs58 = "0.2"
 rosrust = "0.9"
 futures = "0.3.1"
 ipfs-api = { git = "https://github.com/akru/rust-ipfs-api" }
-msgs = { package = "substrate-ros-msgs", path = "../../msgs" }
-player-codegen = { package = "robonomics-liability-player-codegen", path = "./player-codegen" }
+robonomics-msgs = { path = "../msgs" }
+player-codegen = { package = "liability-player-codegen", path = "./player-codegen" }

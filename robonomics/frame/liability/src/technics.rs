@@ -15,14 +15,21 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! A `CodeExecutor` specialization which uses natively compiled runtime when the wasm to be
-//! executed is equivalent to the natively compiled code.
+//! Set of approaches to handle technical aspects of agreement.
 
-pub use sc_executor::NativeExecutor;
-use sc_executor::native_executor_instance;
+use sp_std::prelude::Vec;
+use crate::traits::{Technical, RealWorldOracle};
 
-native_executor_instance!(
-    pub Executor,
-    node_runtime::api::dispatch,
-    node_runtime::native_version
-);
+/// Using IPFS to handle technical aspects of agreement without confirmation.
+pub struct PureIPFS;
+impl Technical for PureIPFS {
+    // IPFS hash of objective as parameter for liability.
+    type Parameter = Vec<u8>;
+    // IPFS hash of work results as report for liability. 
+    type Report = Vec<u8>;
+    // No confirmation from real world (unsafe, be careful).
+    type Oracle = ();
+}
+
+/// Noop oracle.
+impl RealWorldOracle for () {}

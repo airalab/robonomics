@@ -1,0 +1,22 @@
+[package]
+name = "robonomics-ros-api"
+version = "0.1.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+bs58 = "0.2"
+rosrust = "0.9"
+futures = "0.3.1"
+futures-timer = "2"
+futures01 = { package = "futures", version = "0.1.29" }
+robonomics-msgs = { path = "../msgs" }
+node-runtime = { path = "../../bin/node/runtime" }
+liability = { package = "robonomics-liability", path = "../liability" }
+system = { package = "frame-system", git = "https://github.com/paritytech/substrate" }
+balances = { package = "pallet-balances", git = "https://github.com/paritytech/substrate" }
+client = { package = "sc-client", git = "https://github.com/paritytech/substrate" }
+primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate" }
+sp-runtime = { git = "https://github.com/paritytech/substrate" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
