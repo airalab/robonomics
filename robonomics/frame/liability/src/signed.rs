@@ -19,9 +19,9 @@
 
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use codec::{Codec, Encode, Decode};
-use support::dispatch;
+use support::{dispatch, traits::ReservableCurrency};
 
-use crate::economics::Communism;
+use crate::economics::{Communism, OpenMarket};
 use crate::traits::*;
 
 /// Agreement that could be proven by asymmetric cryptography.
@@ -41,11 +41,37 @@ pub struct SignedLiability<T: Technical, E: Economical, A, V>
 impl<T: Technical, A, V> Processing for SignedLiability<T, Communism, A, V>
     where V: Verify<Signer=A>,
           A: IdentifyAccount,
-          A::AccountId: Codec
+          A::AccountId: Codec,
 {
     fn on_start(&self) -> dispatch::Result { Ok(()) }
     fn on_finish(&self, _success: bool) -> dispatch::Result { Ok(()) }
 }
+
+impl<T: Technical, A, V, C> Processing for SignedLiability<T, OpenMarket<C, A::AccountId>, A, V>
+    where V: Verify<Signer=A>,
+          A: IdentifyAccount,
+          A::AccountId: Codec,
+          C: ReservableCurrency<A::AccountId>
+{
+    fn on_start(&self) -> dispatch::Result {
+        C::reserve(&self.promisee, self.economics)
+            .map_err(|_| "promisee's balance too low")
+    }
+
+    fn on_finish(&self, success: bool) -> dispatch::Result {
+        if success {
+            C::repatriate_reserved(&self.promisee, &self.promisor, self.economics)
+                .map(|_| ())
+        } else {
+            if C::unreserve(&self.promisee, self.economics) == self.economics {
+                Ok(())
+            } else {
+                Err("reserved less than expected")
+            }
+        }
+    }
+}
+
 
 impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
     where T: Technical,

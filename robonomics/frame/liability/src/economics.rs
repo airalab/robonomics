@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
+use support::traits::Currency;
 use crate::traits::Economical;
 
 ///
@@ -31,50 +32,9 @@ impl Economical for Communism {
     type Parameter = ();
 }
 
-/*
 /// Open market as approach for liability price estimation.
-pub struct OpenMarket<T>(BalanceOf<T>);
-impl<T> Economical for OpenMarket<T> {
+pub struct OpenMarket<T, A>(sp_std::marker::PhantomData<(T, A)>);
+impl<T: Currency<A>, A> Economical for OpenMarket<T, A> {
     // Price as economical parameter for liability.
-    type Parameter = BalanceOf<T>;
-    // Token processing parameter.
-    type Processing = NativeToken<T>;
+    type Parameter = <T as Currency<A>>::Balance;
 }
-
-pub struct NativeToken<T>();
-impl<T> Processing for NativeToken<T> {
-}
-    {
-        if self.using_encoded(|agreement| proof.verify(&mut &agreement[..], account)) {
-            Ok(())
-        } else {
-            // TODO: explain error
-            Err("bad signature")
-        }
-    }
-
-/// Type synonym for balances in processing currency.
-type ProcessingBalanceOf<T> =
-    <<T as Processing>::Currency as Currency<<T as Processing>::AccountId>>::Balance;
-
-impl
-    /// Economical image of parties is their accounts.
-    type AccountId;
-
-    /// Processing currency.
-    type Currency: ReservableCurrency<Self::AccountId>;
-
-        Self::Currency::reserve(&promisee, cost).map_err(|_| "promisee's balance too low")
-        Self::Currency::repatriate_reserved(&promisee, &promisor, cost)
-
-type AccountId<T: Verify> = <T::Signer as IdentifyAccount>::AccountId;
-pub type Proof<T: Verify> = (T, AccountId<T>);
-pub fn verify<T: Verify, L: Lazy<[u8]>>(msg: L, proof: Proof<T>) -> Option<AccountId<T>> {
-    let (signature, account) = proof;
-    if signature.verify(msg, &account) {
-        Some(account)
-    } else {
-        None
-    }
-}
-*/
