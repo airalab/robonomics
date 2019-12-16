@@ -7,6 +7,7 @@ members = [
     "robonomics/liability/player-codegen",
     "robonomics/liability",
     "robonomics/frame/liability",
+    "robonomics/frame/provider",
     "robonomics/ros-api",
     "robonomics/msgs",
     "substrate-ros/msgs",

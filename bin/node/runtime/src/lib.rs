@@ -288,8 +288,6 @@ impl sudo::Trait for Runtime {
     type Event = Event;
 }
 
-type SubmitTransaction = TransactionSubmitter<ImOnlineId, Runtime, UncheckedExtrinsic>;
-
 parameter_types! {
     pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 }
@@ -298,7 +296,7 @@ impl im_online::Trait for Runtime {
     type Call = Call;
     type Event = Event;
     type AuthorityId = ImOnlineId;
-    type SubmitTransaction = SubmitTransaction;
+    type SubmitTransaction = TransactionSubmitter<ImOnlineId, Runtime, UncheckedExtrinsic>;
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
 }
@@ -319,6 +317,12 @@ impl liability::Trait for Runtime {
         Signature,
     >;
     type Event = Event;
+}
+
+impl provider::Trait for Runtime {
+	type Call = Call;
+	type Event = Event;
+	type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
 impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
@@ -369,7 +373,7 @@ construct_runtime!(
         // Randomness.
         RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
 
-        // PoS consensus support.
+        // PoS consensus modules.
         Session: session::{Module, Call, Storage, Event, Config<T>},
         Authorship: authorship::{Module, Call, Storage, Inherent},
         Staking: staking::{default, OfflineWorker},
@@ -380,8 +384,9 @@ construct_runtime!(
         ImOnline: im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
         AuthorityDiscovery: authority_discovery::{Module, Call, Config},
 
-        // Robonomics Network support.
+        // Robonomics Network modules.
         Liability: liability::{Module, Call, Storage, Event},
+        Provider: provider::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: sudo,

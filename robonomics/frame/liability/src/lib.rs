@@ -20,17 +20,11 @@
 
 use sp_std::vec::Vec;
 use codec::{Encode, Decode};
-use system::ensure_signed;
+use system::ensure_none;
 use support::{
     StorageValue, ensure, decl_module, decl_storage, decl_event,
     dispatch::Result,
-    weights::SimpleDispatchInfo,
 };
-
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
 
 /// Import module traits.
 pub mod traits;
@@ -98,7 +92,6 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Create agreement between two parties.
-		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
         fn create(
             origin,
             technics: TechnicalParam<T>,
@@ -108,7 +101,7 @@ decl_module! {
             promisor: AccountId<T>,
             promisor_proof: Proof<T>,
         ) -> Result {
-            let _provider = ensure_signed(origin)?;
+            ensure_none(origin)?;
 
             // Create liability
             let liability = T::Liability::new(technics, economics, promisee, promisor);
@@ -130,16 +123,16 @@ decl_module! {
             Ok(())
         }
 
-        /// Send result to finalize liability.
-		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+        /// Publish technical report of complite works.
         fn finalize(
             origin,
             index: u64,
             report: TechnicalReport<T>,
             proof: Proof<T>,
         ) -> Result {
-            // Ensure we have a signed message, and derive the sender's account id from the signature
-            let _provider = ensure_signed(origin)?;
+            ensure_none(origin)?;
+
+            // Is liability already finalized? 
             ensure!(!<IsFinalized>::get(index), "already finalized");
 
             // Decode liability from storage
@@ -158,5 +151,74 @@ decl_module! {
 
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::technics::PureIPFS;
+    use super::economics::Communism;
+    use super::signed::SignedLiability;
+    use sp_runtime::{Perbill, traits::Verify, testing::Header};
+    use node_primitives::{AccountIndex, AccountId, Signature};
+    use support::{impl_outer_origin, parameter_types};
+    use support::weights::Weight;
+    use primitives::H256;
+    use runtime_io;
+
+    impl_outer_origin!{ pub enum Origin for Runtime {} }
+    #[derive(Clone, PartialEq, Eq, Debug)]
+    pub struct Runtime;
+    parameter_types! {
+	    pub const BlockHashCount: u64 = 250;
+	    pub const MaximumBlockWeight: Weight = 1024;
+	    pub const MaximumBlockLength: u32 = 2 * 1024;
+	    pub const AvailableBlockRatio: Perbill = Perbill::one();
+    }
+    impl system::Trait for Runtime {
+	    type Origin = Origin;
+	    type Index = u64;
+	    type BlockNumber = u64;
+	    type Call = ();
+	    type Hash = H256;
+	    type Hashing = ::sp_runtime::traits::BlakeTwo256;
+	    type AccountId = AccountId;
+        type Lookup = Indices;
+	    type Header = Header;
+	    type Event = ();
+	    type BlockHashCount = BlockHashCount;
+	    type MaximumBlockWeight = MaximumBlockWeight;
+	    type MaximumBlockLength = MaximumBlockLength;
+	    type AvailableBlockRatio = AvailableBlockRatio;
+	    type Version = ();
+    }
+    impl indices::Trait for Runtime {
+        type AccountIndex = AccountIndex;
+        type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
+        type IsDeadAccount = ();
+        type Event = ();
+    }
+    impl Trait for Runtime {
+        type Technics = PureIPFS;
+        type Economics = Communism;
+        type Liability = SignedLiability<Self::Technics, Self::Economics, <Signature as Verify>::Signer, Signature>;
+        type Event = ();
+    }
+
+    fn new_test_ext() -> runtime_io::TestExternalities {
+	    let storage = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+        storage.into()
+    }
+
+    type System = system::Module<Runtime>;
+    type Indices = indices::Module<Runtime>;
+    type Liability = Module<Runtime>;
+
+    #[test]
+    fn test_setup_works() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(Liability::latest_index(), 0);
+        });
     }
 }

@@ -51,6 +51,7 @@ utility = { package = "frame-utility", git = "https://github.com/paritytech/subs
 transaction-payment = { package = "pallet-transaction-payment", git = "https://github.com/paritytech/substrate", default-features = false }
 transaction-payment-rpc-runtime-api = { package = "pallet-transaction-payment-rpc-runtime-api", git = "https://github.com/paritytech/substrate", default-features = false }
 liability = { package = "pallet-robonomics-liability", path = "../../../robonomics/frame/liability", default-features = false }
+provider = { package = "pallet-robonomics-provider", path = "../../../robonomics/frame/provider", default-features = false }
 
 [build-dependencies]
 wasm-builder-runner = { package = "substrate-wasm-builder-runner", version = "1.0.4", git = "https://github.com/paritytech/substrate" }
@@ -97,4 +98,5 @@ std = [
     "sp-transaction-pool/std",
     "inherents/std",
     "liability/std",
+    "provider/std",
 ]
