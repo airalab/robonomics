@@ -171,27 +171,27 @@ mod tests {
     #[derive(Clone, PartialEq, Eq, Debug)]
     pub struct Runtime;
     parameter_types! {
-	    pub const BlockHashCount: u64 = 250;
-	    pub const MaximumBlockWeight: Weight = 1024;
-	    pub const MaximumBlockLength: u32 = 2 * 1024;
-	    pub const AvailableBlockRatio: Perbill = Perbill::one();
+        pub const BlockHashCount: u64 = 250;
+        pub const MaximumBlockWeight: Weight = 1024;
+        pub const MaximumBlockLength: u32 = 2 * 1024;
+        pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
     impl system::Trait for Runtime {
-	    type Origin = Origin;
-	    type Index = u64;
-	    type BlockNumber = u64;
-	    type Call = ();
-	    type Hash = H256;
-	    type Hashing = ::sp_runtime::traits::BlakeTwo256;
-	    type AccountId = AccountId;
+        type Origin = Origin;
+        type Index = u64;
+        type BlockNumber = u64;
+        type Call = ();
+        type Hash = H256;
+        type Hashing = ::sp_runtime::traits::BlakeTwo256;
+        type AccountId = AccountId;
         type Lookup = Indices;
-	    type Header = Header;
-	    type Event = ();
-	    type BlockHashCount = BlockHashCount;
-	    type MaximumBlockWeight = MaximumBlockWeight;
-	    type MaximumBlockLength = MaximumBlockLength;
-	    type AvailableBlockRatio = AvailableBlockRatio;
-	    type Version = ();
+        type Header = Header;
+        type Event = ();
+        type BlockHashCount = BlockHashCount;
+        type MaximumBlockWeight = MaximumBlockWeight;
+        type MaximumBlockLength = MaximumBlockLength;
+        type AvailableBlockRatio = AvailableBlockRatio;
+        type Version = ();
     }
     impl indices::Trait for Runtime {
         type AccountIndex = AccountIndex;
@@ -207,7 +207,7 @@ mod tests {
     }
 
     fn new_test_ext() -> runtime_io::TestExternalities {
-	    let storage = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+        let storage = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
         storage.into()
     }
 

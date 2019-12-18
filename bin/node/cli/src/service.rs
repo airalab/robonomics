@@ -51,7 +51,7 @@ macro_rules! new_full_start {
             .with_select_chain(|_config, backend| {
                 Ok(client::LongestChain::new(backend.clone()))
             })?
-			.with_transaction_pool(|config, client, _fetcher| {
+            .with_transaction_pool(|config, client, _fetcher| {
                 let pool_api = txpool::FullChainApi::new(client.clone());
                 let pool = txpool::BasicPool::new(config, pool_api);
                 let maintainer = txpool::FullBasicPoolMaintainer::new(pool.pool().clone(), client);
@@ -116,7 +116,7 @@ macro_rules! new_full {
             $config.roles.is_authority(),
             $config.force_authoring,
             $config.disable_grandpa,
-			$config.network.sentry_nodes.clone(),
+            $config.network.sentry_nodes.clone(),
             $config.chain_spec.clone(),
         );
         use futures01::sync::mpsc;
@@ -160,8 +160,8 @@ macro_rules! new_full {
             let select_chain = service.select_chain()
                 .ok_or(sc_service::Error::SelectChainRequired)?;
 
-			let can_author_with =
-				consensus_common::CanAuthorWithNativeVersion::new(client.executor().clone());
+            let can_author_with =
+                consensus_common::CanAuthorWithNativeVersion::new(client.executor().clone());
 
             let babe_config = babe::BabeParams {
                 keystore: service.keystore(),
@@ -185,7 +185,7 @@ macro_rules! new_full {
             let authority_discovery = authority_discovery::AuthorityDiscovery::new(
                 service.client(),
                 service.network(),
-				sentry_nodes,
+                sentry_nodes,
                 service.keystore(),
                 future03_dht_event_rx,
             );
@@ -219,7 +219,7 @@ macro_rules! new_full {
                     grandpa_link,
                     service.network(),
                     service.on_exit(),
-					service.spawn_task_handle(),
+                    service.spawn_task_handle(),
                 )?);
             },
             (true, false) => {
@@ -232,7 +232,7 @@ macro_rules! new_full {
                     on_exit: service.on_exit(),
                     telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
                     voting_rule: grandpa::VotingRulesBuilder::default().build(),
-					executor: service.spawn_task_handle(),
+                    executor: service.spawn_task_handle(),
                 };
                 // the GRANDPA voter task is considered infallible, i.e.
                 // if it fails we take down the service with it.
@@ -297,15 +297,15 @@ pub fn new_light<C: Send + Default + 'static>(
         .with_select_chain(|_config, backend| {
             Ok(LongestChain::new(backend.clone()))
         })?
-		.with_transaction_pool(|config, client, fetcher| {
-			let fetcher = fetcher
-				.ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-			let pool_api = txpool::LightChainApi::new(client.clone(), fetcher.clone());
-			let pool = txpool::BasicPool::new(config, pool_api);
-			let maintainer = txpool::LightBasicPoolMaintainer::with_defaults(pool.pool().clone(), client, fetcher);
-			let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
-			Ok(maintainable_pool)
-		})?
+        .with_transaction_pool(|config, client, fetcher| {
+            let fetcher = fetcher
+                .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+            let pool_api = txpool::LightChainApi::new(client.clone(), fetcher.clone());
+            let pool = txpool::BasicPool::new(config, pool_api);
+            let maintainer = txpool::LightBasicPoolMaintainer::with_defaults(pool.pool().clone(), client, fetcher);
+            let maintainable_pool = txpool_api::MaintainableTransactionPool::new(pool, maintainer);
+            Ok(maintainable_pool)
+        })?
         .with_import_queue_and_fprb(|_config, client, backend, fetcher, _select_chain, _transaction_pool| {
             let fetch_checker = fetcher 
                 .map(|fetcher| fetcher.checker().clone())

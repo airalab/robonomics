@@ -22,11 +22,11 @@ use codec::{Encode, Decode};
 use primitives::{Bytes, Blake2Hasher, H256};
 use runtime_primitives::{generic, traits};
 use transaction_pool::{
-	txpool::{
-		ChainApi as PoolChainApi,
-		ExHash as ExHashT,
-		Pool,
-	},
+    txpool::{
+        ChainApi as PoolChainApi,
+        ExHash as ExHashT,
+        Pool,
+    },
 };
 use msgs::substrate_ros_msgs::{
     ExHash, RawExtrinsic,
@@ -50,12 +50,12 @@ pub struct Author<B, E, P, RA> where P: PoolChainApi + Sync + Send + 'static {
 }
 
 impl<B, E, P, RA> Author<B, E, P, RA> where
-	B: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
-	E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
-	P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
-	P::Block: traits::Block<Hash=H256>,
-	P::Error: 'static,
-	RA: Send + Sync + 'static
+    B: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
+    P::Block: traits::Block<Hash=H256>,
+    P::Error: 'static,
+    RA: Send + Sync + 'static
 {
     /// Create new instance of Authoring API.
     pub fn new(
@@ -68,33 +68,33 @@ impl<B, E, P, RA> Author<B, E, P, RA> where
         }
     }
 
-	fn submit_extrinsic(&self, ext: Bytes) -> Result<ExHashT<P>, &str> {
-		let xt = Decode::decode(&mut &ext[..]).map_err(|_| "Bad extrinsic format")?;
-		let best_block_hash = self.client.info().chain.best_hash;
-		self.pool
-			.submit_one(&generic::BlockId::hash(best_block_hash), xt)
-			.map_err(|_| "Extrinsic pool error")
-	}
+    fn submit_extrinsic(&self, ext: Bytes) -> Result<ExHashT<P>, &str> {
+        let xt = Decode::decode(&mut &ext[..]).map_err(|_| "Bad extrinsic format")?;
+        let best_block_hash = self.client.info().chain.best_hash;
+        self.pool
+            .submit_one(&generic::BlockId::hash(best_block_hash), xt)
+            .map_err(|_| "Extrinsic pool error")
+    }
 
-	fn pending_extrinsics(&self) -> Vec<Bytes> {
-		self.pool.ready().map(|tx| tx.data.encode().into()).collect()
-	}
+    fn pending_extrinsics(&self) -> Vec<Bytes> {
+        self.pool.ready().map(|tx| tx.data.encode().into()).collect()
+    }
 
-	fn remove_extrinsic(&self, hashes: Vec<ExHashT<P>>) -> Vec<ExHashT<P>> {
-		self.pool.remove_invalid(&hashes)
-			.into_iter()
-			.map(|tx| tx.hash.clone())
-			.collect()
-	}
+    fn remove_extrinsic(&self, hashes: Vec<ExHashT<P>>) -> Vec<ExHashT<P>> {
+        self.pool.remove_invalid(&hashes)
+            .into_iter()
+            .map(|tx| tx.hash.clone())
+            .collect()
+    }
 }
 
 impl<B, E, P, RA> RosRpc for Author<B, E, P, RA> where
-	B: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
-	E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
-	P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
-	P::Block: traits::Block<Hash=H256>,
-	P::Error: 'static,
-	RA: Send + Sync + 'static
+    B: client::backend::Backend<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    E: client::CallExecutor<<P as PoolChainApi>::Block, Blake2Hasher> + Send + Sync + 'static,
+    P: PoolChainApi<Hash=H256> + Sync + Send + 'static,
+    P::Block: traits::Block<Hash=H256>,
+    P::Error: 'static,
+    RA: Send + Sync + 'static
 {
     fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error> {
         let mut services = vec![];

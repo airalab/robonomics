@@ -68,8 +68,8 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             Ok(new_full_start!(config).0), load_spec, exit),
         ParseAndPrepare::ImportBlocks(cmd) => cmd.run_with_builder(|config: Config<_, _>|
             Ok(new_full_start!(config).0), load_spec, exit),
-		ParseAndPrepare::CheckBlock(cmd) => cmd.run_with_builder(|config: Config<_, _>|
-			Ok(new_full_start!(config).0), load_spec, exit),
+        ParseAndPrepare::CheckBlock(cmd) => cmd.run_with_builder(|config: Config<_, _>|
+            Ok(new_full_start!(config).0), load_spec, exit),
         ParseAndPrepare::PurgeChain(cmd) => cmd.run(load_spec),
         ParseAndPrepare::RevertChain(cmd) => cmd.run_with_builder(|config: Config<_, _>|
             Ok(new_full_start!(config).0), load_spec),
@@ -86,37 +86,37 @@ fn run_until_exit<T, E>(
         T: AbstractService,
         E: IntoExit,
 {
-	use futures::{FutureExt, TryFutureExt, channel::oneshot, future::select, compat::Future01CompatExt};
+    use futures::{FutureExt, TryFutureExt, channel::oneshot, future::select, compat::Future01CompatExt};
 
-	let (exit_send, exit) = oneshot::channel();
+    let (exit_send, exit) = oneshot::channel();
 
-	let informant = sc_cli::informant::build(&service);
+    let informant = sc_cli::informant::build(&service);
 
-	let future = select(informant, exit)
-		.map(|_| Ok(()))
-		.compat();
+    let future = select(informant, exit)
+        .map(|_| Ok(()))
+        .compat();
 
-	runtime.executor().spawn(future);
+    runtime.executor().spawn(future);
 
-	// we eagerly drop the service so that the internal exit future is fired,
-	// but we need to keep holding a reference to the global telemetry guard
-	let _telemetry = service.telemetry();
+    // we eagerly drop the service so that the internal exit future is fired,
+    // but we need to keep holding a reference to the global telemetry guard
+    let _telemetry = service.telemetry();
 
-	let service_res = {
-		let exit = e.into_exit();
-		let service = service
-			.map_err(|err| error::Error::Service(err))
-			.compat();
-		let select = select(service, exit)
-			.map(|_| Ok(()))
-			.compat();
-		runtime.block_on(select)
-	};
+    let service_res = {
+        let exit = e.into_exit();
+        let service = service
+            .map_err(|err| error::Error::Service(err))
+            .compat();
+        let select = select(service, exit)
+            .map(|_| Ok(()))
+            .compat();
+        runtime.block_on(select)
+    };
 
-	let _ = exit_send.send(());
+    let _ = exit_send.send(());
 
-	// TODO [andre]: timeout this future #1318
-	let _ = runtime.shutdown_on_idle().wait();
+    // TODO [andre]: timeout this future #1318
+    let _ = runtime.shutdown_on_idle().wait();
 
-	service_res
+    service_res
 }

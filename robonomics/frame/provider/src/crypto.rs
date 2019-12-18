@@ -18,37 +18,37 @@
 //! Runtime module cryptographic primitives.
 
 pub mod sr25519 {
-	mod app_sr25519 {
-		use app_crypto::{app_crypto, sr25519};
+    mod app_sr25519 {
+        use app_crypto::{app_crypto, sr25519};
         use crate::KEY_TYPE;
-		app_crypto!(sr25519, KEY_TYPE);
-	}
+        app_crypto!(sr25519, KEY_TYPE);
+    }
 
-	/// An i'm online keypair using sr25519 as its crypto.
-	#[cfg(feature = "std")]
-	pub type ProviderPair = app_sr25519::Pair;
+    /// An i'm online keypair using sr25519 as its crypto.
+    #[cfg(feature = "std")]
+    pub type ProviderPair = app_sr25519::Pair;
 
-	/// An i'm online signature using sr25519 as its crypto.
-	pub type ProviderSignature = app_sr25519::Signature;
+    /// An i'm online signature using sr25519 as its crypto.
+    pub type ProviderSignature = app_sr25519::Signature;
 
-	/// An i'm online identifier using sr25519 as its crypto.
-	pub type ProviderId = app_sr25519::Public;
+    /// An i'm online identifier using sr25519 as its crypto.
+    pub type ProviderId = app_sr25519::Public;
 }
 
 pub mod ed25519 {
-	mod app_ed25519 {
-		use app_crypto::{app_crypto, ed25519};
+    mod app_ed25519 {
+        use app_crypto::{app_crypto, ed25519};
         use crate::KEY_TYPE;
-		app_crypto!(ed25519, KEY_TYPE);
-	}
+        app_crypto!(ed25519, KEY_TYPE);
+    }
 
-	/// An i'm online keypair using ed25519 as its crypto.
-	#[cfg(feature = "std")]
-	pub type ProviderPair = app_ed25519::Pair;
+    /// An i'm online keypair using ed25519 as its crypto.
+    #[cfg(feature = "std")]
+    pub type ProviderPair = app_ed25519::Pair;
 
-	/// An i'm online signature using ed25519 as its crypto.
-	pub type ProviderSignature = app_ed25519::Signature;
+    /// An i'm online signature using ed25519 as its crypto.
+    pub type ProviderSignature = app_ed25519::Signature;
 
-	/// An i'm online identifier using ed25519 as its crypto.
-	pub type ProviderId = app_ed25519::Public;
+    /// An i'm online identifier using ed25519 as its crypto.
+    pub type ProviderId = app_ed25519::Public;
 }

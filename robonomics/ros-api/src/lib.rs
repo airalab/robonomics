@@ -69,26 +69,26 @@ fn extrinsic_stream<C, P>(
         let nonce = api.account_nonce(&block_id, key.public()).unwrap(); 
         let check_version = system::CheckVersion::new();
         let check_genesis = system::CheckGenesis::new();
-		let check_era = system::CheckEra::from(Era::Immortal);
-		let check_nonce = system::CheckNonce::from(nonce);
-		let check_weight = system::CheckWeight::new();
-		let take_fees = balances::TakeFees::from(0);
+        let check_era = system::CheckEra::from(Era::Immortal);
+        let check_nonce = system::CheckNonce::from(nonce);
+        let check_weight = system::CheckWeight::new();
+        let take_fees = balances::TakeFees::from(0);
 
-		let extra = (check_version, check_genesis, check_era, check_nonce, check_weight, take_fees); 
-		let raw_payload = (Call::Robonomics(call), extra.clone(), client.info().genesis_hash);
+        let extra = (check_version, check_genesis, check_era, check_nonce, check_weight, take_fees); 
+        let raw_payload = (Call::Robonomics(call), extra.clone(), client.info().genesis_hash);
 
-		let signature = raw_payload.using_encoded(|payload| if payload.len() > 256 {
-			key.sign(&blake2_256(payload)[..])
-		} else {
-			key.sign(payload)
-		});
+        let signature = raw_payload.using_encoded(|payload| if payload.len() > 256 {
+            key.sign(&blake2_256(payload)[..])
+        } else {
+            key.sign(payload)
+        });
 
-		let extrinsic = UncheckedExtrinsic::new_signed(
-			raw_payload.0,
+        let extrinsic = UncheckedExtrinsic::new_signed(
+            raw_payload.0,
             key.public().into(),
-			signature.into(),
-			extra,
-		).encode();
+            signature.into(),
+            extra,
+        ).encode();
         let xt: ExtrinsicFor<P> = Decode::decode(&mut extrinsic.as_slice()).unwrap();
 
         let res = pool.submit_one(&block_id, xt);

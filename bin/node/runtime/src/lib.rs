@@ -246,7 +246,7 @@ pallet_staking_reward_curve::build! {
 parameter_types! {
     pub const SessionsPerEra: sp_staking::SessionIndex = 6;
     pub const BondingDuration: staking::EraIndex = 24 * 28;
-	pub const SlashDeferDuration: staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+    pub const SlashDeferDuration: staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
@@ -258,8 +258,8 @@ impl staking::Trait for Runtime {
     type Slash = ();
     type Reward = ();
     type RewardRemainder = ();
-	type SlashDeferDuration = SlashDeferDuration;
-	type SlashCancelOrigin = system::EnsureRoot<<Self as system::Trait>::AccountId>;
+    type SlashDeferDuration = SlashDeferDuration;
+    type SlashCancelOrigin = system::EnsureRoot<<Self as system::Trait>::AccountId>;
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
@@ -320,9 +320,9 @@ impl liability::Trait for Runtime {
 }
 
 impl provider::Trait for Runtime {
-	type Call = Call;
-	type Event = Event;
-	type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
+    type Call = Call;
+    type Event = Event;
+    type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
 impl system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {

@@ -69,48 +69,48 @@ impl<B, E, Block: BlockT, RA> State<B, E, Block, RA> where
         }
     }
 
-	fn call(&self, method: String, data: Vec<u8>, block: Option<Block::Hash>)
+    fn call(&self, method: String, data: Vec<u8>, block: Option<Block::Hash>)
         -> Result<Vec<u8>, String>
     {
-		self.client
-			.executor()
-			.call(
-				&BlockId::Hash(self.unwrap_or_best(block)),
-				&method, &data, ExecutionStrategy::NativeElseWasm, state_machine::NeverOffchainExt::new(),
-			).map_err(|_| "Call error".to_owned())
-	}
+        self.client
+            .executor()
+            .call(
+                &BlockId::Hash(self.unwrap_or_best(block)),
+                &method, &data, ExecutionStrategy::NativeElseWasm, state_machine::NeverOffchainExt::new(),
+            ).map_err(|_| "Call error".to_owned())
+    }
 
-	fn storage_keys(&self, key_prefix: storage::StorageKey, block: Option<Block::Hash>)
+    fn storage_keys(&self, key_prefix: storage::StorageKey, block: Option<Block::Hash>)
         -> Result<Vec<storage::StorageKey>, String>
     {
-		self.client
+        self.client
             .storage_keys(&BlockId::Hash(self.unwrap_or_best(block)), &key_prefix)
             .map_err(|_| "Storage keys error".to_owned())
-	}
+    }
 
-	fn storage(&self, key: storage::StorageKey, block: Option<Block::Hash>)
+    fn storage(&self, key: storage::StorageKey, block: Option<Block::Hash>)
         -> Result<Option<StorageData>, String>
     {
-		self.client
+        self.client
             .storage(&BlockId::Hash(self.unwrap_or_best(block)), &key)
             .map_err(|_| "Storage query error".to_owned())
-	}
+    }
 
-	fn storage_hash(&self, key: storage::StorageKey, block: Option<Block::Hash>)
+    fn storage_hash(&self, key: storage::StorageKey, block: Option<Block::Hash>)
         -> Result<Option<Block::Hash>, String>
     {
-		self.client
+        self.client
             .storage_hash(&BlockId::Hash(self.unwrap_or_best(block)), &key)
             .map_err(|_| "Storage hash error".to_owned())
-	}
+    }
 
-	fn storage_size(&self, key: storage::StorageKey, block: Option<Block::Hash>)
+    fn storage_size(&self, key: storage::StorageKey, block: Option<Block::Hash>)
         -> Result<Option<u64>, String>
     {
-		self.storage(key, block)
+        self.storage(key, block)
             .map_err(|_| "Storage size error".to_owned())
             .map(|x| x.map(|d| d.0.len() as u64))
-	}
+    }
 }
 
 fn unwrap_hash<Block>(block_msg: BlockHash) -> Option<Block::Hash> where
