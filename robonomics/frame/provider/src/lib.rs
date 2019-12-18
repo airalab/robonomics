@@ -20,15 +20,15 @@
 
 // We have to import a few things
 use sp_std::prelude::*;
-use app_crypto::RuntimeAppPublic;
 use sp_runtime::traits::Member;
 use support::{
     decl_module, decl_event, decl_storage, debug, StorageValue, 
-    dispatch::{Parameter, Result}
+    dispatch::Result
 };
 use system::{ensure_signed, ensure_root};
 use system::offchain::SubmitUnsignedTransaction;
 use codec::{Encode, Decode};
+use liability::{TechnicalParam, EconomicalParam, AccountId, Proof};
 
 /// Provider crypto primitives.
 // XXX: Currently unused.
@@ -48,7 +48,7 @@ use codec::{Encode, Decode};
 //const DB_KEY: &[u8] = b"airalab/robonomics-provider-worker";
 
 /// The module's main configuration trait.
-pub trait Trait: system::Trait  {
+pub trait Trait: liability::Trait  {
     /// A dispatchable call type. We need to define it for the offchain worker
     type Call: From<Call<Self>>;
 
@@ -62,9 +62,9 @@ pub trait Trait: system::Trait  {
 /// The type of requests we can send to the offchain worker
 #[cfg_attr(feature = "std", derive(PartialEq, Eq, Debug))]
 #[derive(Encode, Decode)]
-pub enum OffchainRequest<T: system::Trait> {
-    Demand(T::AccountId),
-    Offer(T::AccountId),
+pub enum OffchainRequest<T: liability::Trait> {
+    Demand(TechnicalParam<T>, EconomicalParam<T>, AccountId<T>, Proof<T>),
+    Offer(TechnicalParam<T>, EconomicalParam<T>, AccountId<T>, Proof<T>),
 }
 
 decl_event!(
@@ -96,15 +96,31 @@ decl_module! {
             <OcRequests<T>>::kill();
         }
 
-        pub fn demand(origin) -> Result {
-            let who = ensure_signed(origin)?;
-            <OcRequests<T>>::mutate(|v| v.push(OffchainRequest::Demand(who)));
+        pub fn demand(
+            origin,
+            technics:  TechnicalParam<T>,
+            economics: EconomicalParam<T>,
+            sender:    AccountId<T>,
+            signature: Proof<T>,
+        ) -> Result {
+            let _ = ensure_signed(origin)?;
+            <OcRequests<T>>::mutate(|v|
+                v.push(OffchainRequest::Demand(technics, economics, sender, signature))
+            );
             Ok(())
         }
 
-        pub fn offer(origin) -> Result {
-            let who = ensure_signed(origin)?;
-            <OcRequests<T>>::mutate(|v| v.push(OffchainRequest::Offer(who)));
+        pub fn offer(
+            origin,
+            technics:  TechnicalParam<T>,
+            economics: EconomicalParam<T>,
+            sender:    AccountId<T>,
+            signature: Proof<T>,
+        ) -> Result {
+            let _ = ensure_signed(origin)?;
+            <OcRequests<T>>::mutate(|v|
+                v.push(OffchainRequest::Offer(technics, economics, sender, signature))
+            );
             Ok(())
         }
 
@@ -123,11 +139,11 @@ impl<T: Trait> Module<T> {
     fn offchain() {
         for e in <OcRequests<T>>::get() {
             match e {
-                OffchainRequest::Demand(who) => {
-                    debug::info!(target: "xrtd", "Get demand from {:?}", who);
-                }
-                OffchainRequest::Offer(who) => {
-                    debug::info!(target: "xrtd", "Get offer from {:?}", who);
+                OffchainRequest::Demand(technics, economics, sender, signature) => {
+                    debug::info!(target: "xrtd", "Get demand from {:?}", sender);
+                },
+                OffchainRequest::Offer(technics, economics, sender, signature) => {
+                    debug::info!(target: "xrtd", "Get offer from {:?}", sender);
                 }
             }
 

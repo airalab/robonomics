@@ -3200,6 +3200,7 @@ dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "node-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-robonomics-liability 0.1.0",
  "parity-scale-codec 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -13,6 +13,7 @@ support = { package = "frame-support", git = "https://github.com/paritytech/subs
 app-crypto = { package = "sp-application-crypto", git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
 primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate", default-features = false }
+liability = { package = "pallet-robonomics-liability", path = "../liability", default-features = false }
 
 [dev-dependencies]
 parking_lot = "0.9"
@@ -30,4 +31,5 @@ std = [
     "app-crypto/std",
     "sp-runtime/std",
     "primitives/std",
+    "liability/std",
 ]

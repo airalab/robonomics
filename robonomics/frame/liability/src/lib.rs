@@ -35,19 +35,19 @@ pub mod technics;
 pub mod economics;
 
 /// Type synonym for technical trait parameter.
-type TechnicalParam<T> = <<T as Trait>::Technics as Technical>::Parameter;
+pub type TechnicalParam<T> = <<T as Trait>::Technics as Technical>::Parameter;
 
 /// Type synonym for technical report trait parameter.
-type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
+pub type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
 
 /// Type synonym for economical trait parameter.
-type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
+pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
 
 /// Type synonym for liability account parameter.
-type AccountId<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::AccountId;
+pub type AccountId<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::AccountId;
 
 /// Type synonym for liability proof parameter.
-type Proof<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
+pub type Proof<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
 
 /// Liability module main trait.
 pub trait Trait: system::Trait {

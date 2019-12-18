@@ -72,7 +72,6 @@ impl<T: Technical, A, V, C> Processing for SignedLiability<T, OpenMarket<C, A::A
     }
 }
 
-
 impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
     where T: Technical,
           E: Economical,
