@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 serde = { version = "1.0", optional = true, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "1.0", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
 system = { package = "frame-system", git = "https://github.com/paritytech/substrate", default-features = false }
 support = { package = "frame-support", git = "https://github.com/paritytech/substrate", default-features = false }
@@ -15,16 +16,12 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", default-features
 primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate", default-features = false }
 liability = { package = "pallet-robonomics-liability", path = "../liability", default-features = false }
 
-[dev-dependencies]
-parking_lot = "0.9"
-runtime-io = { package = "sp-io", git = "https://github.com/paritytech/substrate" }
-node-primitives = { git = "https://github.com/paritytech/substrate" }
-
 [features]
 default = ["std"]
 std = [
     "serde",
     "codec/std",
+    "sp-io/std",
     "sp-std/std",
     "system/std",
     "support/std",

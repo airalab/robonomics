@@ -17,19 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
-use sp_runtime::traits::{Verify, IdentifyAccount};
-use codec::{Codec, Encode, Decode};
+use sp_runtime::{traits::{Verify, IdentifyAccount}, RuntimeDebug};
+use codec::{Encode, Decode};
 use support::{dispatch, traits::ReservableCurrency};
 
 use crate::economics::{Communism, OpenMarket};
 use crate::traits::*;
 
 /// Agreement that could be proven by asymmetric cryptography.
-#[derive(Debug, PartialEq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, RuntimeDebug)]
 pub struct SignedLiability<T: Technical, E: Economical, A, V>
     where V: Verify<Signer=A>,
           A: IdentifyAccount,
-          A::AccountId: Codec
+          A::AccountId: dispatch::Parameter,
 {
     technics:  T::Parameter,
     economics: E::Parameter,
@@ -41,7 +42,7 @@ pub struct SignedLiability<T: Technical, E: Economical, A, V>
 impl<T: Technical, A, V> Processing for SignedLiability<T, Communism, A, V>
     where V: Verify<Signer=A>,
           A: IdentifyAccount,
-          A::AccountId: Codec,
+          A::AccountId: dispatch::Parameter,
 {
     fn on_start(&self) -> dispatch::Result { Ok(()) }
     fn on_finish(&self, _success: bool) -> dispatch::Result { Ok(()) }
@@ -50,7 +51,7 @@ impl<T: Technical, A, V> Processing for SignedLiability<T, Communism, A, V>
 impl<T: Technical, A, V, C> Processing for SignedLiability<T, OpenMarket<C, A::AccountId>, A, V>
     where V: Verify<Signer=A>,
           A: IdentifyAccount,
-          A::AccountId: Codec,
+          A::AccountId: dispatch::Parameter,
           C: ReservableCurrency<A::AccountId>
 {
     fn on_start(&self) -> dispatch::Result {
@@ -101,8 +102,8 @@ impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
         &self,
         target: ProofTarget<T>,
         proof: &Self::Proof
-    ) -> dispatch::Result {
-        if match target {
+    ) -> bool {
+        match target {
             ProofTarget::Promisee => {
                 let order = (self.technics.clone(), self.economics.clone());
                 order.using_encoded(|params| proof.verify(params, &self.promisee))
@@ -113,6 +114,6 @@ impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
             },
             ProofTarget::Report(report) =>
                 report.using_encoded(|params| proof.verify(params, &self.promisor))
-        } { Ok(()) } else { Err("bad signature") }
+        }
     }
 }

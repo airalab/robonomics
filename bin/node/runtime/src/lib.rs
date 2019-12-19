@@ -322,6 +322,7 @@ impl liability::Trait for Runtime {
 impl provider::Trait for Runtime {
     type Call = Call;
     type Event = Event;
+    type Account = AccountId;
     type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
@@ -385,7 +386,7 @@ construct_runtime!(
         AuthorityDiscovery: authority_discovery::{Module, Call, Config},
 
         // Robonomics Network modules.
-        Liability: liability::{Module, Call, Storage, Event},
+        Liability: liability::{Module, Call, Storage, Event, ValidateUnsigned},
         Provider: provider::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.

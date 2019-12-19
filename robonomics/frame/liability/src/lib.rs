@@ -18,12 +18,15 @@
 //! The Robonomics runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::vec::Vec;
+use sp_std::prelude::*;
 use codec::{Encode, Decode};
 use system::ensure_none;
 use support::{
     StorageValue, ensure, decl_module, decl_storage, decl_event,
     dispatch::Result,
+};
+use sp_runtime::transaction_validity::{
+    TransactionValidity, ValidTransaction, InvalidTransaction, TransactionPriority,
 };
 
 /// Import module traits.
@@ -43,11 +46,12 @@ pub type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
 /// Type synonym for economical trait parameter.
 pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
 
+/// Type synonym for liability proof parameter.
+pub type ProofParam<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
+
 /// Type synonym for liability account parameter.
 pub type AccountId<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::AccountId;
 
-/// Type synonym for liability proof parameter.
-pub type Proof<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
 
 /// Liability module main trait.
 pub trait Trait: system::Trait {
@@ -97,18 +101,24 @@ decl_module! {
             technics: TechnicalParam<T>,
             economics: EconomicalParam<T>,
             promisee: AccountId<T>,
-            promisee_proof: Proof<T>,
             promisor: AccountId<T>,
-            promisor_proof: Proof<T>,
+            promisee_proof: ProofParam<T>,
+            promisor_proof: ProofParam<T>,
         ) -> Result {
             ensure_none(origin)?;
 
             // Create liability
             let liability = T::Liability::new(technics, economics, promisee, promisor);
 
-            // Check participants proofs
-            liability.verify(ProofTarget::Promisee, &promisee_proof)?;
-            liability.verify(ProofTarget::Promisor, &promisor_proof)?;
+            // Check promisee proof
+            if !liability.verify(ProofTarget::Promisee, &promisee_proof) {
+                return Err("Bad promisee proof"); 
+            }
+
+            // Check promisor proof
+            if !liability.verify(ProofTarget::Promisor, &promisor_proof) {
+                return Err("Bad promisor proof");
+            }
 
             // Run economical processing
             liability.on_start()?;
@@ -128,7 +138,7 @@ decl_module! {
             origin,
             index: u64,
             report: TechnicalReport<T>,
-            proof: Proof<T>,
+            proof: ProofParam<T>,
         ) -> Result {
             ensure_none(origin)?;
 
@@ -140,7 +150,9 @@ decl_module! {
                 .map_err(|_| "unable decode liability params")?;
 
             // Check report proof
-            liability.verify(ProofTarget::Report(report.clone()), &proof)?;
+            if !liability.verify(ProofTarget::Report(report.clone()), &proof) {
+                return Err("Bad report proof");
+            }
 
             // Run economical processing
             // TODO: switch to oracle
@@ -154,18 +166,61 @@ decl_module! {
     }
 }
 
+#[allow(deprecated)]
+impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
+	type Call = Call<T>;
+
+	fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+        match call {
+            Call::create(technics, economics, promisee, promisor, promisee_proof, promisor_proof) => {
+                let liability = T::Liability::new(
+                    technics.clone(),
+                    economics.clone(),
+                    promisee.clone(),
+                    promisor.clone(),
+                );
+
+                if !liability.verify(ProofTarget::Promisee, promisee_proof) {
+                    return InvalidTransaction::BadProof.into();
+                }
+
+                if !liability.verify(ProofTarget::Promisor, promisor_proof) {
+                    return InvalidTransaction::BadProof.into();
+                }
+            },
+
+            Call::finalize(index, report, proof) =>
+                match T::Liability::decode(&mut &<LiabilityOf>::get(*index)[..]) {
+                    Ok(liability) =>
+                        if !liability.verify(ProofTarget::Report(report.clone()), proof) {
+                            return InvalidTransaction::BadProof.into();
+                        },
+                    _ => return InvalidTransaction::Call.into()
+                },
+
+		    _ => return InvalidTransaction::Call.into()
+        };
+
+		Ok(ValidTransaction {
+			priority: TransactionPriority::max_value(),
+			requires: vec![],
+			provides: vec![],
+			longevity: 64_u64,
+			propagate: true,
+		})
+	}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use super::technics::PureIPFS;
     use super::economics::Communism;
     use super::signed::SignedLiability;
-    use sp_runtime::{Perbill, traits::Verify, testing::Header};
+    use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}, testing::Header};
     use node_primitives::{AccountIndex, AccountId, Signature};
-    use support::{impl_outer_origin, parameter_types};
-    use support::weights::Weight;
-    use primitives::H256;
-    use runtime_io;
+    use support::{impl_outer_origin, parameter_types, weights::Weight};
+    use sp_core::{H256, sr25519, crypto::Pair};
 
     impl_outer_origin!{ pub enum Origin for Runtime {} }
     #[derive(Clone, PartialEq, Eq, Debug)]
@@ -206,7 +261,7 @@ mod tests {
         type Event = ();
     }
 
-    fn new_test_ext() -> runtime_io::TestExternalities {
+    fn new_test_ext() -> sp_io::TestExternalities {
         let storage = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
         storage.into()
     }
@@ -220,5 +275,27 @@ mod tests {
         new_test_ext().execute_with(|| {
             assert_eq!(Liability::latest_index(), 0);
         });
+    }
+
+    #[test]
+    fn test_liability_proofs() {
+        let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
+        let technics = vec![1,2,3];
+        let economics = ();
+        let order = (technics.clone(), economics.clone());
+        let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
+        let params_proof = order.using_encoded(|params| pair.sign(params)).into();
+        let liability = <Runtime as Trait>::Liability::new(
+            technics,
+            economics,
+            sender.clone(),
+            sender,
+        );
+        assert_eq!(liability.verify(ProofTarget::Promisor, &params_proof), true);
+        assert_eq!(liability.verify(ProofTarget::Promisee, &params_proof), true);
+
+        let report = vec![3,2,1];
+        let report_proof = report.using_encoded(|params| pair.sign(params)).into();
+        assert_eq!(liability.verify(ProofTarget::Report(report), &report_proof), true);
     }
 }

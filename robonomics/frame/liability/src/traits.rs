@@ -87,10 +87,10 @@ pub trait Agreement<T: Technical, E: Economical>: Codec {
         promisee:  Self::AccountId,
     ) -> Self;
 
-    /// Check agreement proof for given target.
+    /// Check validity of agreement proof for given target.
     fn verify(
         &self,
         target: ProofTarget<T>,
         proof: &Self::Proof
-    ) -> dispatch::Result;
+    ) -> bool;
 }

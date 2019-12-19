@@ -18,17 +18,22 @@
 //! Robonomics Network provider module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// We have to import a few things
-use sp_std::prelude::*;
-use sp_runtime::traits::Member;
+use codec::{Encode, Decode};
+use sp_std::{
+    prelude::*,
+    collections::btree_map::BTreeMap,
+};
+use sp_runtime::{RuntimeDebug, traits::Hash};
 use support::{
     decl_module, decl_event, decl_storage, debug, StorageValue, 
-    dispatch::Result
+    weights::SimpleDispatchInfo,
+    dispatch::Result,
 };
-use system::{ensure_signed, ensure_root};
-use system::offchain::SubmitUnsignedTransaction;
-use codec::{Encode, Decode};
-use liability::{TechnicalParam, EconomicalParam, AccountId, Proof};
+use system::{ensure_signed, offchain::SubmitUnsignedTransaction};
+use liability::{
+    TechnicalParam, EconomicalParam, ProofParam, AccountId,
+    traits::{Agreement, ProofTarget},
+};
 
 /// Provider crypto primitives.
 // XXX: Currently unused.
@@ -48,23 +53,42 @@ use liability::{TechnicalParam, EconomicalParam, AccountId, Proof};
 //const DB_KEY: &[u8] = b"airalab/robonomics-provider-worker";
 
 /// The module's main configuration trait.
-pub trait Trait: liability::Trait  {
+pub trait Trait: liability::Trait {
     /// A dispatchable call type. We need to define it for the offchain worker
     type Call: From<Call<Self>>;
 
     /// Let's define the helper we use to create signed transactions with
     type SubmitTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
 
+    /// AccountId convertion
+    type Account: Into<AccountId<Self>> + From<<Self as system::Trait>::AccountId>;
+
     /// The regular events type
     type Event:From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 /// The type of requests we can send to the offchain worker
-#[cfg_attr(feature = "std", derive(PartialEq, Eq, Debug))]
-#[derive(Encode, Decode)]
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, RuntimeDebug)]
 pub enum OffchainRequest<T: liability::Trait> {
-    Demand(TechnicalParam<T>, EconomicalParam<T>, AccountId<T>, Proof<T>),
-    Offer(TechnicalParam<T>, EconomicalParam<T>, AccountId<T>, Proof<T>),
+    Demand(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
+    Offer(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, RuntimeDebug)]
+pub struct Order<T: Trait> {
+    technics: TechnicalParam<T>,
+    economics: EconomicalParam<T>,
+    proof: ProofParam<T>,
+    sender: AccountId<T>,
+}
+
+#[derive(Encode, Decode, RuntimeDebug)]
+pub struct WorkerState<T: Trait> {
+    demand_of:   BTreeMap<T::Hash, Vec<Order<T>>>,
+    offer_of:    BTreeMap<T::Hash, Vec<Order<T>>>,
+    last_update: T::BlockNumber,
 }
 
 decl_event!(
@@ -78,8 +102,6 @@ decl_storage! {
     trait Store for Module<T: Trait> as Provider {
         /// Requests made within this block execution
         OcRequests get(oc_requests): Vec<OffchainRequest<T>>;
-        // The current set of keys that may create liabilities 
-        //Providers get(providers) config(): Vec<T::AccountId>;
     }
 }
 
@@ -96,54 +118,89 @@ decl_module! {
             <OcRequests<T>>::kill();
         }
 
-        pub fn demand(
+        /// Send service demand request to network
+		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+        fn demand(
             origin,
             technics:  TechnicalParam<T>,
             economics: EconomicalParam<T>,
-            sender:    AccountId<T>,
-            signature: Proof<T>,
+            proof:     ProofParam<T>,
         ) -> Result {
-            let _ = ensure_signed(origin)?;
-            <OcRequests<T>>::mutate(|v|
-                v.push(OffchainRequest::Demand(technics, economics, sender, signature))
+            let sender = T::Account::from(ensure_signed(origin)?).into();
+            let liability = T::Liability::new(
+                technics.clone(),
+                economics.clone(),
+                sender.clone(),
+                sender.clone()
             );
-            Ok(())
+
+            if !liability.verify(ProofTarget::Promisee, &proof) {
+                Err("Bad signature")
+            } else {
+                <OcRequests<T>>::mutate(|v|
+                    v.push(OffchainRequest::Demand(technics, economics, proof, sender))
+                );
+                Ok(())
+            }
         }
 
-        pub fn offer(
+        /// Send service offer request to network 
+		#[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+        fn offer(
             origin,
             technics:  TechnicalParam<T>,
             economics: EconomicalParam<T>,
-            sender:    AccountId<T>,
-            signature: Proof<T>,
+            proof:     ProofParam<T>,
         ) -> Result {
-            let _ = ensure_signed(origin)?;
-            <OcRequests<T>>::mutate(|v|
-                v.push(OffchainRequest::Offer(technics, economics, sender, signature))
+            let sender = T::Account::from(ensure_signed(origin)?).into();
+            let liability = T::Liability::new(
+                technics.clone(),
+                economics.clone(),
+                sender.clone(),
+                sender.clone(),
             );
-            Ok(())
+
+            if !liability.verify(ProofTarget::Promisee, &proof) {
+                Err("Bad signature")
+            } else {
+                <OcRequests<T>>::mutate(|v|
+                    v.push(OffchainRequest::Offer(technics, economics, proof, sender))
+                );
+                Ok(())
+            }
         }
 
         // Runs after every block within the context and current state of said block.
-        fn offchain_worker(_now: T::BlockNumber) {
+        fn offchain_worker(now: T::BlockNumber) {
             debug::RuntimeLogger::init();
-            Self::offchain();
+
+            if sp_io::offchain::is_validator() {
+                Self::offchain(now);
+            }
         }
     }
 }
 
-
-// We've moved the  helper functions outside of the main declaration for brevity.
 impl<T: Trait> Module<T> {
     /// The main entry point
-    fn offchain() {
+    fn offchain(now: T::BlockNumber) {
         for e in <OcRequests<T>>::get() {
             match e {
-                OffchainRequest::Demand(technics, economics, sender, signature) => {
-                    debug::info!(target: "xrtd", "Get demand from {:?}", sender);
+                OffchainRequest::Demand(technics, economics, proof, sender) => {
+                    let order = Order::<T>{ technics, economics, proof, sender };
+                    let order_id: T::Hash = T::Hashing::hash_of(&order);
+                    debug::info!(
+                        target: "robonomics-provider",
+                        "Get demand {:?} from {:?}", order_id, order.sender
+                    );
                 },
-                OffchainRequest::Offer(technics, economics, sender, signature) => {
-                    debug::info!(target: "xrtd", "Get offer from {:?}", sender);
+                OffchainRequest::Offer(technics, economics, proof, sender) => {
+                    let order = Order::<T>{ technics, economics, proof, sender };
+                    let order_id: T::Hash = T::Hashing::hash_of(&order);
+                    debug::info!(
+                        target: "robonomics-provider",
+                        "Get offer {:?} from {:?}", order_id, order.sender
+                    );
                 }
             }
 
@@ -165,10 +222,9 @@ mod tests {
         traits::{IdentityLookup, BlakeTwo256, Block, Dispatchable},
     };
     use support::{impl_outer_origin, impl_outer_dispatch, parameter_types, assert_ok};
+    use sp_runtime::{traits::{Verify, IdentifyAccount}, MultiSignature};
     use offchain::testing::TestOffchainExt;
-    use primitives::{offchain, H256};
-    use runtime_io;
-    use system;
+    use primitives::{offchain, H256, sr25519, crypto::Pair};
 
     impl_outer_origin!{
         pub enum Origin for Runtime {}
@@ -217,16 +273,29 @@ mod tests {
         type Version = ();
     }
 
+    impl liability::Trait for Runtime {
+        type Event = ();
+        type Technics = liability::technics::PureIPFS;
+        type Economics = liability::economics::Communism;
+        type Liability = liability::signed::SignedLiability<
+            Self::Technics,
+            Self::Economics,
+            <MultiSignature as Verify>::Signer,
+            MultiSignature,
+        >;
+    }
+
     impl Trait for Runtime {
         type Event = ();
         type Call = Call;
+        type AccountId = AccountId;
         type SubmitTransaction = system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
     }
 
     type System = system::Module<Runtime>;
     type Provider = Module<Runtime>;
 
-    pub fn new_test_ext() -> runtime_io::TestExternalities {
+    pub fn new_test_ext() -> sp_io::TestExternalities {
         let t = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
         t.into()
     }
@@ -235,9 +304,14 @@ mod tests {
     #[test]
     fn demand_should_work() {
         new_test_ext().execute_with(|| {
-            assert_ok!(Provider::demand(Origin::signed(1)));
+            let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
+            let sender = <MultiSignature as Verify>::Signer::from(pair.public());
+            let technics = vec![1,2,3];
+            let economics = ();
+            let order = (technics.clone(), economics.clone());
+            let proof= order.using_encoded(|params| pair.sign(params));
+            assert_ok!(Provider::demand(Origin::signed(sender.into_account()), technics, economics, proof.into()));
             assert_eq!(Provider::oc_requests().len(), 1);
-            assert_eq!(Provider::oc_requests()[0], OffchainRequest::Demand(1));
         })
     }
 

@@ -13,8 +13,8 @@ support = { package = "frame-support", git = "https://github.com/paritytech/subs
 indices = { package = "pallet-indices", git = "https://github.com/paritytech/substrate", default-features = false }
 
 [dev-dependencies]
-runtime-io = { package = "sp-io", git = "https://github.com/paritytech/substrate" }
-primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate" }
+sp-io = { git = "https://github.com/paritytech/substrate" }
+sp-core = { git = "https://github.com/paritytech/substrate" }
 node-primitives = { git = "https://github.com/paritytech/substrate" }
 
 [features]
