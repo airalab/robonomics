@@ -16,6 +16,9 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", default-features
 primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate", default-features = false }
 liability = { package = "pallet-robonomics-liability", path = "../liability", default-features = false }
 
+[dev-dependencies]
+node-primitives = { git = "https://github.com/paritytech/substrate" }
+
 [features]
 default = ["std"]
 std = [

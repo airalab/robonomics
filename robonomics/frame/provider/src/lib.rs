@@ -222,8 +222,9 @@ mod tests {
         traits::{IdentityLookup, BlakeTwo256, Block, Dispatchable},
     };
     use support::{impl_outer_origin, impl_outer_dispatch, parameter_types, assert_ok};
-    use sp_runtime::{traits::{Verify, IdentifyAccount}, MultiSignature};
+    use sp_runtime::{traits::{Verify, IdentifyAccount}};
     use offchain::testing::TestOffchainExt;
+    use node_primitives::{AccountId, AccountIndex, Signature};
     use primitives::{offchain, H256, sr25519, crypto::Pair};
 
     impl_outer_origin!{
@@ -241,8 +242,6 @@ mod tests {
 
     // Define some type aliases. We use the simplest form of anything which is not relevant for
     // simplicity, e.g. account ids are just numbers and signed extensions are empty (`()`).
-    type AccountId = u64;
-    type AccountIndex = u64;
     type Extrinsic = TestXt<Call, ()>;
     type NodeBlock = generic::Block<Header, Extrinsic>;
 
@@ -280,15 +279,15 @@ mod tests {
         type Liability = liability::signed::SignedLiability<
             Self::Technics,
             Self::Economics,
-            <MultiSignature as Verify>::Signer,
-            MultiSignature,
+            <Signature as Verify>::Signer,
+            Signature,
         >;
     }
 
     impl Trait for Runtime {
         type Event = ();
         type Call = Call;
-        type AccountId = AccountId;
+        type Account = AccountId;
         type SubmitTransaction = system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
     }
 
@@ -300,85 +299,31 @@ mod tests {
         t.into()
     }
 
-    // Send a ping and verify that the ping struct has been stored in the `OcRequests` storage.
     #[test]
-    fn demand_should_work() {
+    fn test_demand_request() {
         new_test_ext().execute_with(|| {
             let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
-            let sender = <MultiSignature as Verify>::Signer::from(pair.public());
+            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
             let technics = vec![1,2,3];
             let economics = ();
             let order = (technics.clone(), economics.clone());
-            let proof= order.using_encoded(|params| pair.sign(params));
-            assert_ok!(Provider::demand(Origin::signed(sender.into_account()), technics, economics, proof.into()));
+            let proof = order.using_encoded(|params| pair.sign(params));
+            assert_ok!(Provider::demand(Origin::signed(sender), technics, economics, proof.into()));
             assert_eq!(Provider::oc_requests().len(), 1);
         })
     }
 
-/*
-    // Verify that any origin can send a ping and the even is triggered regardless.
     #[test]
-    fn anyone_can_ping() {
-        // Current node is an authority. This does not matter in this test.
-        with_externalities(&mut new_test_ext(vec![49, 10]), || {
-            // An authority (current node) can submit ping.
-            assert_ok!(OffchainCb::ping(Origin::signed(49), 1));
-            // normal key can also submit ping.
-            assert_ok!(OffchainCb::ping(Origin::signed(10), 4));
-
-            // both should be processed.
-            assert_eq!(
-                OffchainCb::oc_requests()[0],
-                offchaincb::OffchainRequest::Ping(1, 49),
-            );
-
-            assert_eq!(
-                OffchainCb::oc_requests()[1],
-                offchaincb::OffchainRequest::Ping(4, 10),
-            );
+    fn test_offer_request() {
+        new_test_ext().execute_with(|| {
+            let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
+            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
+            let technics = vec![1,2,3];
+            let economics = ();
+            let order = (technics.clone(), economics.clone());
+            let proof = order.using_encoded(|params| pair.sign(params));
+            assert_ok!(Provider::offer(Origin::signed(sender), technics, economics, proof.into()));
+            assert_eq!(Provider::oc_requests().len(), 1);
         })
     }
-
-    // Verify that the offchain is executed if the current node is an authority.
-    #[test]
-    fn ping_triggers_ack() {
-        // Assume current node has key 49, hence is an authority.
-        let mut ext = new_test_ext(vec![49]);
-        let (offchain, state) = TestOffchainExt::new();
-        ext.set_offchain_externalities(offchain);
-
-        with_externalities(&mut ext, || {
-            // 2 submits a ping. Assume this is an extrinsic from the outer world.
-            assert_ok!(OffchainCb::ping(Origin::signed(2), 1));
-            assert_eq!(
-                OffchainCb::oc_requests()[0],
-                offchaincb::OffchainRequest::Ping(1, 2),
-            );
-
-            // 49 is an authority (current externality), should be able to call pong.
-            assert!(seal_block(1, state).is_some());
-
-            // which triggers ack
-            assert_eq!(
-                System::events()[0].event,
-                Event::offchaincb(offchaincb::RawEvent::Ack(1, 49)),
-            );
-        })
-    }
-
-    // Verify that a non-authority will not execute the offchain logic.
-    #[test]
-    fn only_authorities_can_pong() {
-        // Current node does not have key 49, hence is not the authority.
-        let mut ext = new_test_ext(vec![69]);
-        let (offchain, state) = TestOffchainExt::new();
-        ext.set_offchain_externalities(offchain);
-
-        with_externalities(&mut ext, || {
-            assert_ok!(OffchainCb::ping(Origin::signed(2), 1));
-            // 69 is not an authority.
-            assert!(seal_block(1, state).is_none());
-        })
-    }
-*/
 }
