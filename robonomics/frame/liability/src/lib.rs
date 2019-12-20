@@ -51,8 +51,11 @@ pub type ProofParam<T> =
     <<T as Trait>::Liability as Agreement<
         <T as Trait>::Technics,
         <T as Trait>::Economics,
-        <T as system::Trait>::AccountId
+        AccountId<T>
     >>::Proof;
+
+/// Current runtime account identificator.
+pub type AccountId<T> = <T as system::Trait>::AccountId;
 
 /// Liability module main trait.
 pub trait Trait: system::Trait {
@@ -63,11 +66,7 @@ pub trait Trait: system::Trait {
     type Economics: Economical;
 
     /// How to make and process agreement between two parties. 
-    type Liability: Processing + Agreement<
-        Self::Technics,
-        Self::Economics,
-        <Self as system::Trait>::AccountId
-    >;
+    type Liability: Processing + Agreement<Self::Technics, Self::Economics, AccountId<Self>>;
 
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
@@ -75,7 +74,7 @@ pub trait Trait: system::Trait {
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as system::Trait>::AccountId,
+    where AccountId = AccountId<T>,
           Technics = TechnicalParam<T>,
           Economics = EconomicalParam<T>,
           Report = TechnicalReport<T>,
@@ -110,8 +109,8 @@ decl_module! {
             origin,
             technics: TechnicalParam<T>,
             economics: EconomicalParam<T>,
-            promisee: <T as system::Trait>::AccountId,
-            promisor: <T as system::Trait>::AccountId,
+            promisee: AccountId<T>,
+            promisor: AccountId<T>,
             promisee_proof: ProofParam<T>,
             promisor_proof: ProofParam<T>,
         ) -> Result {
@@ -198,9 +197,9 @@ decl_module! {
 
 #[allow(deprecated)]
 impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
-	type Call = Call<T>;
+    type Call = Call<T>;
 
-	fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+    fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
         match call {
             Call::create(technics, economics, promisee, promisor, promisee_proof, promisor_proof) => {
                 let liability = T::Liability::new(
@@ -217,28 +216,37 @@ impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
                 if !liability.verify(ProofTarget::Promisor, promisor_proof) {
                     return InvalidTransaction::BadProof.into();
                 }
+
+                Ok(ValidTransaction {
+                    priority: TransactionPriority::max_value(),
+                    requires: vec![],
+                    provides: vec![(technics, economics, promisee, promisor).encode()],
+                    longevity: 64_u64,
+                    propagate: true,
+                })
             },
 
             Call::finalize(index, report, proof) =>
                 match T::Liability::decode(&mut &<ParameterOf>::get(*index)[..]) {
-                    Ok(liability) =>
+                    Ok(liability) => {
                         if !liability.verify(ProofTarget::Report(report.clone()), proof) {
                             return InvalidTransaction::BadProof.into();
-                        },
-                    _ => return InvalidTransaction::Call.into()
+                        }
+
+                        Ok(ValidTransaction {
+                            priority: TransactionPriority::max_value(),
+                            requires: vec![],
+                            provides: vec![(index, report).encode()],
+                            longevity: 64_u64,
+                            propagate: true,
+                        })
+                    },
+                    _ => InvalidTransaction::Call.into()
                 },
 
-		    _ => return InvalidTransaction::Call.into()
-        };
-
-		Ok(ValidTransaction {
-			priority: TransactionPriority::max_value(),
-			requires: vec![],
-			provides: vec![],
-			longevity: 64_u64,
-			propagate: true,
-		})
-	}
+            _ => InvalidTransaction::Call.into()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -255,15 +263,26 @@ mod tests {
     };
     use sp_core::{H256, sr25519, crypto::Pair};
 
-    impl_outer_origin!{ pub enum Origin for Runtime {} }
+    impl_outer_event! {
+        pub enum MetaEvent for Runtime {
+            liability<T>,
+        }
+    }
+
+    impl_outer_origin! {
+        pub enum Origin for Runtime {}
+    }
+
     #[derive(Clone, PartialEq, Eq, Debug)]
     pub struct Runtime;
+
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
         pub const MaximumBlockWeight: Weight = 1024;
         pub const MaximumBlockLength: u32 = 2 * 1024;
         pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
+
     impl system::Trait for Runtime {
         type Origin = Origin;
         type Index = u64;
@@ -274,21 +293,16 @@ mod tests {
         type AccountId = AccountId;
         type Lookup = Indices;
         type Header = Header;
-        type Event = ();
+        type Event = MetaEvent;
         type BlockHashCount = BlockHashCount;
         type MaximumBlockWeight = MaximumBlockWeight;
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
     }
-    impl indices::Trait for Runtime {
-        type AccountIndex = AccountIndex;
-        type ResolveHint = indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
-        type IsDeadAccount = ();
-        type Event = ();
-    }
+
     impl Trait for Runtime {
-        type Event = ();
+        type Event = MetaEvent;
         type Technics = PureIPFS;
         type Economics = Communism;
         type Liability = SignedLiability<

@@ -308,21 +308,21 @@ impl offences::Trait for Runtime {
 }
 
 impl liability::Trait for Runtime {
+    type Event = Event;
     type Technics = liability::technics::PureIPFS;
     type Economics = liability::economics::Communism;
     type Liability = liability::signed::SignedLiability<
         Self::Technics,
         Self::Economics,
-        <Signature as Verify>::Signer,
         Signature,
+        <Signature as Verify>::Signer,
+        AccountId,
     >;
-    type Event = Event;
 }
 
 impl provider::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type Account = AccountId;
     type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
@@ -386,7 +386,7 @@ construct_runtime!(
         AuthorityDiscovery: authority_discovery::{Module, Call, Config},
 
         // Robonomics Network modules.
-        Liability: liability::{Module, Call, Storage, Event, ValidateUnsigned},
+        Liability: liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Provider: provider::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
