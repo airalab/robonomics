@@ -34,8 +34,8 @@ pub struct SignedLiability<T: Technical, E: Economical, A, V>
 {
     technics:  T::Parameter,
     economics: E::Parameter,
-    promisor:  A::AccountId,
     promisee:  A::AccountId,
+    promisor:  A::AccountId,
     _phantom:  sp_std::marker::PhantomData<V>,
 }
 
@@ -86,14 +86,14 @@ impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisor:  Self::AccountId,
         promisee:  Self::AccountId,
+        promisor:  Self::AccountId,
     ) -> Self {
         SignedLiability {
             technics,
             economics,
-            promisor,
             promisee,
+            promisor,
             _phantom: Default::default()
         }
     }

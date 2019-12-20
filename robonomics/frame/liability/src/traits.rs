@@ -83,8 +83,8 @@ pub trait Agreement<T: Technical, E: Economical>: Codec {
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisor:  Self::AccountId,
         promisee:  Self::AccountId,
+        promisor:  Self::AccountId,
     ) -> Self;
 
     /// Check validity of agreement proof for given target.

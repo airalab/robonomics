@@ -83,9 +83,9 @@ decl_storage! {
         /// Latest liability index.
         LatestIndex get(fn latest_index): u64;
         /// Encoded liability parameters list.
-        LiabilityOf get(fn liability_of): map u64 => Vec<u8>;
+        ParameterOf get(fn parameter_of): map u64 => Vec<u8>;
         /// Encoded liability report.
-        ReportOf get(fn report_of): map u64 => Vec<u8>;
+        ReportOf    get(fn report_of): map u64 => Vec<u8>;
         /// Liability finalization flag.
         IsFinalized get(fn is_finalized): map u64 => bool;
     }
@@ -124,11 +124,11 @@ decl_module! {
             liability.on_start()?;
 
             // Store liability params as bytestring 
-            let latest_index = <LatestIndex>::get() + 1;
+            let latest_index = <LatestIndex>::get();
             liability.using_encoded(|params|
-                <LiabilityOf>::insert(latest_index, Vec::from(params))
+                <ParameterOf>::insert(latest_index, Vec::from(params))
             );
-            <LatestIndex>::put(latest_index);
+            <LatestIndex>::put(latest_index + 1);
 
             Ok(())
         }
@@ -146,7 +146,7 @@ decl_module! {
             ensure!(!<IsFinalized>::get(index), "already finalized");
 
             // Decode liability from storage
-            let liability = T::Liability::decode(&mut &<LiabilityOf>::get(index)[..])
+            let liability = T::Liability::decode(&mut &<ParameterOf>::get(index)[..])
                 .map_err(|_| "unable decode liability params")?;
 
             // Check report proof
@@ -160,6 +160,9 @@ decl_module! {
 
             // Store report as bytestring
             report.using_encoded(|bytes| <ReportOf>::insert(index, Vec::from(bytes)));
+
+            // Set finalized flag
+            <IsFinalized>::insert(index, true);
 
             Ok(())
         }
@@ -190,7 +193,7 @@ impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
             },
 
             Call::finalize(index, report, proof) =>
-                match T::Liability::decode(&mut &<LiabilityOf>::get(*index)[..]) {
+                match T::Liability::decode(&mut &<ParameterOf>::get(*index)[..]) {
                     Ok(liability) =>
                         if !liability.verify(ProofTarget::Report(report.clone()), proof) {
                             return InvalidTransaction::BadProof.into();
@@ -219,7 +222,10 @@ mod tests {
     use super::signed::SignedLiability;
     use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}, testing::Header};
     use node_primitives::{AccountIndex, AccountId, Signature};
-    use support::{impl_outer_origin, parameter_types, weights::Weight};
+    use support::{
+        assert_ok, assert_err, impl_outer_origin, parameter_types,
+        weights::Weight,
+    };
     use sp_core::{H256, sr25519, crypto::Pair};
 
     impl_outer_origin!{ pub enum Origin for Runtime {} }
@@ -271,20 +277,34 @@ mod tests {
     type Liability = Module<Runtime>;
 
     #[test]
-    fn test_setup_works() {
+    fn test_initial_setup() {
         new_test_ext().execute_with(|| {
             assert_eq!(Liability::latest_index(), 0);
         });
     }
 
-    #[test]
-    fn test_liability_proofs() {
-        let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
-        let technics = vec![1,2,3];
-        let economics = ();
+    fn get_params_proof(
+        uri: &str,
+        technics: &TechnicalParam<Runtime>,
+        economics: &EconomicalParam<Runtime>,
+    ) -> (AccountId, ProofParam<Runtime>) {
+        let pair: sr25519::Pair = Pair::from_string(uri, None).unwrap();
         let order = (technics.clone(), economics.clone());
         let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-        let params_proof = order.using_encoded(|params| pair.sign(params)).into();
+        let signature = order.using_encoded(|params| pair.sign(params)).into();
+        (sender, signature)
+    }
+
+    fn get_report_proof(uri: &str, report: &TechnicalReport<Runtime>) -> ProofParam<Runtime> {
+        let pair: sr25519::Pair = Pair::from_string(uri, None).unwrap();
+        report.using_encoded(|params| pair.sign(params)).into()
+    }
+
+    #[test]
+    fn test_liability_proofs() {
+        let technics = vec![42,21];
+        let economics = ();
+        let (sender, params_proof) = get_params_proof("//Alice", &technics, &economics);
         let liability = <Runtime as Trait>::Liability::new(
             technics,
             economics,
@@ -294,8 +314,66 @@ mod tests {
         assert_eq!(liability.verify(ProofTarget::Promisor, &params_proof), true);
         assert_eq!(liability.verify(ProofTarget::Promisee, &params_proof), true);
 
-        let report = vec![3,2,1];
-        let report_proof = report.using_encoded(|params| pair.sign(params)).into();
+        let report = vec![3,14,15,92,65];
+        let report_proof = get_report_proof("//Alice", &report);
         assert_eq!(liability.verify(ProofTarget::Report(report), &report_proof), true);
+    }
+
+    #[test]
+    fn test_liability_lifecycle() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(Liability::latest_index(), 0);
+
+            let technics = vec![1,2,3,4,5];
+            let economics = ();
+            let (promisee, promisee_proof) = get_params_proof("//Alice", &technics, &economics);
+            let (promisor, promisor_proof) = get_params_proof("//Bob", &technics, &economics);
+
+            assert_err!(Liability::create(
+                Origin::NONE,
+                technics.clone(),
+                economics.clone(),
+                promisee.clone(),
+                promisor.clone(),
+                promisor_proof.clone(),
+                promisor_proof.clone(),
+            ), "Bad promisee proof");
+            assert_eq!(Liability::latest_index(), 0);
+
+            assert_err!(Liability::create(
+                Origin::NONE,
+                technics.clone(),
+                economics.clone(),
+                promisee.clone(),
+                promisor.clone(),
+                promisee_proof.clone(),
+                promisee_proof.clone(),
+            ), "Bad promisor proof");
+            assert_eq!(Liability::latest_index(), 0);
+
+
+            assert_ok!(Liability::create(
+                Origin::NONE,
+                technics,
+                economics,
+                promisee,
+                promisor,
+                promisee_proof,
+                promisor_proof
+            ));
+            assert_eq!(Liability::latest_index(), 1);
+            assert_eq!(Liability::is_finalized(0), false);
+
+            let report = vec![42];
+            let bad_proof = get_report_proof("//Alice", &report);
+            let good_proof = get_report_proof("//Bob", &report);
+
+            assert_err!(Liability::finalize(Origin::NONE, 0, report.clone(), bad_proof),
+                        "Bad report proof");
+            assert_eq!(Liability::is_finalized(0), false);
+
+            assert_ok!(Liability::finalize(Origin::NONE, 0, report, good_proof));
+            assert_eq!(Liability::is_finalized(0), true);
+        })
     }
 }
