@@ -18,8 +18,8 @@
 //! Signed liability implementation.
 
 use sp_runtime::{traits::{Verify, IdentifyAccount}, RuntimeDebug};
-use codec::{Encode, Decode};
 use support::{dispatch, traits::ReservableCurrency};
+use codec::{Encode, Decode};
 
 use crate::economics::{Communism, OpenMarket};
 use crate::traits::*;
@@ -27,32 +27,32 @@ use crate::traits::*;
 /// Agreement that could be proven by asymmetric cryptography.
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, RuntimeDebug)]
-pub struct SignedLiability<T: Technical, E: Economical, A, V>
+pub struct SignedLiability<T: Technical, E: Economical, V, A, AccountId>
     where V: Verify<Signer=A>,
-          A: IdentifyAccount,
-          A::AccountId: dispatch::Parameter,
+          A: IdentifyAccount<AccountId=AccountId>,
+          AccountId: dispatch::Parameter,
 {
     technics:  T::Parameter,
     economics: E::Parameter,
-    promisee:  A::AccountId,
-    promisor:  A::AccountId,
+    promisee:  AccountId,
+    promisor:  AccountId,
     _phantom:  sp_std::marker::PhantomData<V>,
 }
 
-impl<T: Technical, A, V> Processing for SignedLiability<T, Communism, A, V>
+impl<T: Technical, V, A, AccountId> Processing for SignedLiability<T, Communism, V, A, AccountId>
     where V: Verify<Signer=A>,
-          A: IdentifyAccount,
-          A::AccountId: dispatch::Parameter,
+          A: IdentifyAccount<AccountId=AccountId>,
+          AccountId: dispatch::Parameter,
 {
     fn on_start(&self) -> dispatch::Result { Ok(()) }
     fn on_finish(&self, _success: bool) -> dispatch::Result { Ok(()) }
 }
 
-impl<T: Technical, A, V, C> Processing for SignedLiability<T, OpenMarket<C, A::AccountId>, A, V>
+impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMarket<C, AccountId>, V, A, AccountId>
     where V: Verify<Signer=A>,
-          A: IdentifyAccount,
-          A::AccountId: dispatch::Parameter,
-          C: ReservableCurrency<A::AccountId>
+          A: IdentifyAccount<AccountId=AccountId>,
+          C: ReservableCurrency<AccountId>,
+          AccountId: dispatch::Parameter,
 {
     fn on_start(&self) -> dispatch::Result {
         C::reserve(&self.promisee, self.economics)
@@ -73,21 +73,20 @@ impl<T: Technical, A, V, C> Processing for SignedLiability<T, OpenMarket<C, A::A
     }
 }
 
-impl<T, E, A, V> Agreement<T, E> for SignedLiability<T, E, A, V>
+impl<T, E, V, A, AccountId> Agreement<T, E, AccountId> for SignedLiability<T, E, V, A, AccountId>
     where T: Technical,
           E: Economical,
-          A: IdentifyAccount,
-          A::AccountId: dispatch::Parameter,
+          A: IdentifyAccount<AccountId=AccountId>,
           V: Verify<Signer=A> + dispatch::Parameter,
+          AccountId: dispatch::Parameter,
 {
-    type AccountId = A::AccountId;
     type Proof = V;
 
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisee:  Self::AccountId,
-        promisor:  Self::AccountId,
+        promisee:  AccountId,
+        promisor:  AccountId,
     ) -> Self {
         SignedLiability {
             technics,

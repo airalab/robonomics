@@ -72,10 +72,7 @@ pub enum ProofTarget<T: Technical> {
 }
 
 /// Agreement between two participants around technical/economical aspects.
-pub trait Agreement<T: Technical, E: Economical>: Codec {
-    /// Agreement participants identifier.
-    type AccountId: dispatch::Parameter;
-
+pub trait Agreement<T: Technical, E: Economical, AccountId: dispatch::Parameter>: Codec {
     /// Some that could be used as proof of participants agreement.
     type Proof: dispatch::Parameter;
 
@@ -83,8 +80,8 @@ pub trait Agreement<T: Technical, E: Economical>: Codec {
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisee:  Self::AccountId,
-        promisor:  Self::AccountId,
+        promisee:  AccountId,
+        promisor:  AccountId,
     ) -> Self;
 
     /// Check validity of agreement proof for given target.

@@ -47,11 +47,12 @@ pub type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
 pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
 
 /// Type synonym for liability proof parameter.
-pub type ProofParam<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
-
-/// Type synonym for liability account parameter.
-pub type AccountId<T> = <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::AccountId;
-
+pub type ProofParam<T> =
+    <<T as Trait>::Liability as Agreement<
+        <T as Trait>::Technics,
+        <T as Trait>::Economics,
+        <T as system::Trait>::AccountId
+    >>::Proof;
 
 /// Liability module main trait.
 pub trait Trait: system::Trait {
@@ -62,19 +63,28 @@ pub trait Trait: system::Trait {
     type Economics: Economical;
 
     /// How to make and process agreement between two parties. 
-    type Liability: Agreement<Self::Technics, Self::Economics> + Processing;
+    type Liability: Processing + Agreement<
+        Self::Technics,
+        Self::Economics,
+        <Self as system::Trait>::AccountId
+    >;
 
     /// The overarching event type.
-    type Event: From<Event> + Into<<Self as system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 decl_event! {
-    pub enum Event {
+    pub enum Event<T>
+    where AccountId = <T as system::Trait>::AccountId,
+          Technics = TechnicalParam<T>,
+          Economics = EconomicalParam<T>,
+          Report = TechnicalReport<T>,
+    {
         /// Yay! New liability created.
-        NewLiability(u64),
+        NewLiability(u64, Technics, Economics, AccountId, AccountId),
 
         /// Liability report published.
-        NewReport(u64),
+        NewReport(u64, Report),
     }
 }
 
@@ -100,15 +110,20 @@ decl_module! {
             origin,
             technics: TechnicalParam<T>,
             economics: EconomicalParam<T>,
-            promisee: AccountId<T>,
-            promisor: AccountId<T>,
+            promisee: <T as system::Trait>::AccountId,
+            promisor: <T as system::Trait>::AccountId,
             promisee_proof: ProofParam<T>,
             promisor_proof: ProofParam<T>,
         ) -> Result {
             ensure_none(origin)?;
 
             // Create liability
-            let liability = T::Liability::new(technics, economics, promisee, promisor);
+            let liability = T::Liability::new(
+                technics.clone(),
+                economics.clone(),
+                promisee.clone(),
+                promisor.clone(),
+            );
 
             // Check promisee proof
             if !liability.verify(ProofTarget::Promisee, &promisee_proof) {
@@ -129,6 +144,15 @@ decl_module! {
                 <ParameterOf>::insert(latest_index, Vec::from(params))
             );
             <LatestIndex>::put(latest_index + 1);
+
+            // Emit event
+            Self::deposit_event(RawEvent::NewLiability(
+                latest_index,
+                technics,
+                economics,
+                promisee,
+                promisor,
+            ));
 
             Ok(())
         }
@@ -163,6 +187,9 @@ decl_module! {
 
             // Set finalized flag
             <IsFinalized>::insert(index, true);
+
+            // Emit event
+            Self::deposit_event(RawEvent::NewReport(index, report));
 
             Ok(())
         }
@@ -261,10 +288,16 @@ mod tests {
         type Event = ();
     }
     impl Trait for Runtime {
+        type Event = ();
         type Technics = PureIPFS;
         type Economics = Communism;
-        type Liability = SignedLiability<Self::Technics, Self::Economics, <Signature as Verify>::Signer, Signature>;
-        type Event = ();
+        type Liability = SignedLiability<
+            Self::Technics,
+            Self::Economics,
+            Signature,
+            <Signature as Verify>::Signer,
+            AccountId,
+        >;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
