@@ -345,12 +345,10 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
 mod tests {
     use super::*;
     use crate as provider;
-    use codec::Decode;
-    use std::sync::Arc;
     use sp_runtime::{
-        Perbill, generic, RuntimeAppPublic,
-        testing::{Header, TestXt, UintAuthorityId},
-        traits::{IdentityLookup, BlakeTwo256, Block, Dispatchable},
+        Perbill, generic,
+        testing::{Header, TestXt},
+        traits::{IdentityLookup, BlakeTwo256},
     };
     use support::{
         impl_outer_event,

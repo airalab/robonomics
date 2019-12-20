@@ -252,13 +252,14 @@ impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate as liability;
     use super::technics::PureIPFS;
     use super::economics::Communism;
     use super::signed::SignedLiability;
-    use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}, testing::Header};
+    use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount, IdentityLookup}, testing::Header};
     use node_primitives::{AccountIndex, AccountId, Signature};
     use support::{
-        assert_ok, assert_err, impl_outer_origin, parameter_types,
+        assert_ok, assert_err, impl_outer_event, impl_outer_origin, parameter_types,
         weights::Weight,
     };
     use sp_core::{H256, sr25519, crypto::Pair};
@@ -291,7 +292,7 @@ mod tests {
         type Hash = H256;
         type Hashing = ::sp_runtime::traits::BlakeTwo256;
         type AccountId = AccountId;
-        type Lookup = Indices;
+        type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
         type Event = MetaEvent;
         type BlockHashCount = BlockHashCount;
@@ -320,7 +321,6 @@ mod tests {
     }
 
     type System = system::Module<Runtime>;
-    type Indices = indices::Module<Runtime>;
     type Liability = Module<Runtime>;
 
     #[test]
