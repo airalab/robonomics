@@ -255,7 +255,7 @@ mod tests {
     use super::economics::Communism;
     use super::signed::SignedLiability;
     use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount, IdentityLookup}, testing::Header};
-    use node_primitives::{AccountIndex, AccountId, Signature};
+    use node_primitives::{AccountId, Signature};
     use support::{
         assert_ok, assert_err, impl_outer_event, impl_outer_origin, parameter_types,
         weights::Weight,
@@ -298,6 +298,7 @@ mod tests {
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
+        type ModuleToIndex = ();
     }
 
     impl Trait for Runtime {
