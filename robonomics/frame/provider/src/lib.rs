@@ -27,7 +27,6 @@ use sp_runtime::{RuntimeDebug, traits::Hash};
 use support::{
     decl_module, decl_event, decl_storage, debug, StorageValue, 
     weights::SimpleDispatchInfo,
-    dispatch::Result,
 };
 use primitives::offchain::StorageKind;
 use system::{ensure_signed, offchain::SubmitUnsignedTransaction};
@@ -126,7 +125,7 @@ decl_module! {
             technics:  TechnicalParam<T>,
             economics: EconomicalParam<T>,
             proof:     ProofParam<T>,
-        ) -> Result {
+        ) {
             let sender = ensure_signed(origin)?;
             let liability = T::Liability::new(
                 technics.clone(),
@@ -136,14 +135,13 @@ decl_module! {
             );
 
             if !liability.verify(ProofTarget::Promisee, &proof) {
-                return Err("Bad signature")
+                Err("Bad signature")?
             }
 
             Self::deposit_event(RawEvent::NewDemand(technics.clone(), economics.clone(), sender.clone()));
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Demand(technics, economics, proof, sender))
             );
-            Ok(())
         }
 
         /// Send service offer request to network 
@@ -153,7 +151,7 @@ decl_module! {
             technics:  TechnicalParam<T>,
             economics: EconomicalParam<T>,
             proof:     ProofParam<T>,
-        ) -> Result {
+        ) {
             let sender = ensure_signed(origin)?;
             let liability = T::Liability::new(
                 technics.clone(),
@@ -163,14 +161,13 @@ decl_module! {
             );
 
             if !liability.verify(ProofTarget::Promisee, &proof) {
-                return Err("Bad signature")
+                Err("Bad signature")?
             }
 
             Self::deposit_event(RawEvent::NewOffer(technics.clone(), economics.clone(), sender.clone()));
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Offer(technics, economics, proof, sender))
             );
-            Ok(())
         }
 
         // Runs after every block within the context and current state of said block.

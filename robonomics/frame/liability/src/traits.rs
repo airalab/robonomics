@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics runtime traits definitions.
 
+use sp_runtime::DispatchResult;
 use support::dispatch;
 use codec::Codec;
 
@@ -54,10 +55,10 @@ pub trait Economical {
 /// balance locking and transfers when liability successfully finished.
 pub trait Processing {
     /// This method called each time when liability started.
-    fn on_start(&self) -> dispatch::Result;
+    fn on_start(&self) -> DispatchResult;
 
     /// This method called each time when liability finished.
-    fn on_finish(&self, success: bool) -> dispatch::Result;
+    fn on_finish(&self, success: bool) -> DispatchResult;
 }
 
 /// Specify verification target. Verification is needed to be sure that parameters or

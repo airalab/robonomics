@@ -22,11 +22,12 @@ use sp_std::prelude::*;
 use codec::{Encode, Decode};
 use system::ensure_none;
 use support::{
-    StorageValue, ensure, decl_module, decl_storage, decl_event,
-    dispatch::Result,
+    ensure, decl_module, decl_storage, decl_event, StorageValue,
 };
-use sp_runtime::transaction_validity::{
-    TransactionValidity, ValidTransaction, InvalidTransaction, TransactionPriority,
+use sp_runtime::{
+    transaction_validity::{
+        TransactionValidity, ValidTransaction, InvalidTransaction, TransactionPriority,
+    },
 };
 
 /// Import module traits.
@@ -113,7 +114,7 @@ decl_module! {
             promisor: AccountId<T>,
             promisee_proof: ProofParam<T>,
             promisor_proof: ProofParam<T>,
-        ) -> Result {
+        ) {
             ensure_none(origin)?;
 
             // Create liability
@@ -126,12 +127,12 @@ decl_module! {
 
             // Check promisee proof
             if !liability.verify(ProofTarget::Promisee, &promisee_proof) {
-                return Err("Bad promisee proof"); 
+                Err("Bad promisee proof")?
             }
 
             // Check promisor proof
             if !liability.verify(ProofTarget::Promisor, &promisor_proof) {
-                return Err("Bad promisor proof");
+                Err("Bad promisor proof")?
             }
 
             // Run economical processing
@@ -152,8 +153,6 @@ decl_module! {
                 promisee,
                 promisor,
             ));
-
-            Ok(())
         }
 
         /// Publish technical report of complite works.
@@ -162,35 +161,34 @@ decl_module! {
             index: u64,
             report: TechnicalReport<T>,
             proof: ProofParam<T>,
-        ) -> Result {
+        ) {
             ensure_none(origin)?;
 
             // Is liability already finalized? 
             ensure!(!<IsFinalized>::get(index), "already finalized");
 
             // Decode liability from storage
-            let liability = T::Liability::decode(&mut &<ParameterOf>::get(index)[..])
-                .map_err(|_| "unable decode liability params")?;
+            if let Ok(liability) = T::Liability::decode(&mut &<ParameterOf>::get(index)[..]) {
+                // Check report proof
+                if !liability.verify(ProofTarget::Report(report.clone()), &proof) {
+                    Err("Bad report proof")?
+                }
 
-            // Check report proof
-            if !liability.verify(ProofTarget::Report(report.clone()), &proof) {
-                return Err("Bad report proof");
+                // Run economical processing
+                // TODO: switch to oracle
+                liability.on_finish(true)?;
+
+                // Store report as bytestring
+                report.using_encoded(|bytes| <ReportOf>::insert(index, Vec::from(bytes)));
+
+                // Set finalized flag
+                <IsFinalized>::insert(index, true);
+
+                // Emit event
+                Self::deposit_event(RawEvent::NewReport(index, report));
+            } else {
+                Err("unable decode liability params")?
             }
-
-            // Run economical processing
-            // TODO: switch to oracle
-            liability.on_finish(true)?;
-
-            // Store report as bytestring
-            report.using_encoded(|bytes| <ReportOf>::insert(index, Vec::from(bytes)));
-
-            // Set finalized flag
-            <IsFinalized>::insert(index, true);
-
-            // Emit event
-            Self::deposit_event(RawEvent::NewReport(index, report));
-
-            Ok(())
         }
     }
 }

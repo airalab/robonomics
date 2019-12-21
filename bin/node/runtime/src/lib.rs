@@ -111,6 +111,7 @@ impl system::Trait for Runtime {
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
+    type ModuleToIndex = ();
 }
 
 impl utility::Trait for Runtime {

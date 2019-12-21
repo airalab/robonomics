@@ -17,7 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
-use sp_runtime::{traits::{Verify, IdentifyAccount}, RuntimeDebug};
+use sp_runtime::{
+    traits::{Verify, IdentifyAccount},
+    RuntimeDebug, DispatchResult,
+};
 use support::{dispatch, traits::ReservableCurrency};
 use codec::{Encode, Decode};
 
@@ -44,8 +47,8 @@ impl<T: Technical, V, A, AccountId> Processing for SignedLiability<T, Communism,
           A: IdentifyAccount<AccountId=AccountId>,
           AccountId: dispatch::Parameter,
 {
-    fn on_start(&self) -> dispatch::Result { Ok(()) }
-    fn on_finish(&self, _success: bool) -> dispatch::Result { Ok(()) }
+    fn on_start(&self) -> DispatchResult { Ok(()) }
+    fn on_finish(&self, _success: bool) -> DispatchResult { Ok(()) }
 }
 
 impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMarket<C, AccountId>, V, A, AccountId>
@@ -54,12 +57,11 @@ impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMar
           C: ReservableCurrency<AccountId>,
           AccountId: dispatch::Parameter,
 {
-    fn on_start(&self) -> dispatch::Result {
+    fn on_start(&self) -> DispatchResult {
         C::reserve(&self.promisee, self.economics)
-            .map_err(|_| "promisee's balance too low")
     }
 
-    fn on_finish(&self, success: bool) -> dispatch::Result {
+    fn on_finish(&self, success: bool) -> DispatchResult {
         if success {
             C::repatriate_reserved(&self.promisee, &self.promisor, self.economics)
                 .map(|_| ())
@@ -67,7 +69,7 @@ impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMar
             if C::unreserve(&self.promisee, self.economics) == self.economics {
                 Ok(())
             } else {
-                Err("reserved less than expected")
+                Err("reserved less than expected")?
             }
         }
     }
