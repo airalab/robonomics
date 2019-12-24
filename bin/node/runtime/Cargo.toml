@@ -37,6 +37,7 @@ finality-tracker = { package = "pallet-finality-tracker", git = "https://github.
 grandpa = { package = "pallet-grandpa", git = "https://github.com/paritytech/substrate", default-features = false }
 im-online = { package = "pallet-im-online", git = "https://github.com/paritytech/substrate", default-features = false }
 indices = { package = "pallet-indices", git = "https://github.com/paritytech/substrate", default-features = false }
+nicks = { package = "pallet-nicks", git = "https://github.com/paritytech/substrate", default-features = false }
 offences = { package = "pallet-offences", git = "https://github.com/paritytech/substrate", default-features = false }
 randomness-collective-flip = { package = "pallet-randomness-collective-flip", git = "https://github.com/paritytech/substrate", default-features = false }
 session = { package = "pallet-session", git = "https://github.com/paritytech/substrate", default-features = false }
@@ -72,6 +73,7 @@ std = [
     "grandpa/std",
     "im-online/std",
     "indices/std",
+    "nicks/std",
     "node-primitives/std",
     "offchain-primitives/std",
     "offences/std",

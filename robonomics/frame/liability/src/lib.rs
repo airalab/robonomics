@@ -261,6 +261,7 @@ mod tests {
         weights::Weight,
     };
     use sp_core::{H256, sr25519, crypto::Pair};
+    use base58::FromBase58;
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
@@ -348,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_liability_proofs() {
-        let technics = vec![42,21];
+        let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
         let economics = ();
         let (sender, params_proof) = get_params_proof("//Alice", &technics, &economics);
         let liability = <Runtime as Trait>::Liability::new(
@@ -360,7 +361,7 @@ mod tests {
         assert_eq!(liability.verify(ProofTarget::Promisor, &params_proof), true);
         assert_eq!(liability.verify(ProofTarget::Promisee, &params_proof), true);
 
-        let report = vec![3,14,15,92,65];
+        let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
         let report_proof = get_report_proof("//Alice", &report);
         assert_eq!(liability.verify(ProofTarget::Report(report), &report_proof), true);
     }
@@ -370,8 +371,9 @@ mod tests {
         new_test_ext().execute_with(|| {
             assert_eq!(Liability::latest_index(), 0);
 
-            let technics = vec![1,2,3,4,5];
+            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
             let economics = ();
+
             let (promisee, promisee_proof) = get_params_proof("//Alice", &technics, &economics);
             let (promisor, promisor_proof) = get_params_proof("//Bob", &technics, &economics);
 
@@ -410,7 +412,7 @@ mod tests {
             assert_eq!(Liability::latest_index(), 1);
             assert_eq!(Liability::is_finalized(0), false);
 
-            let report = vec![42];
+            let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
             let bad_proof = get_report_proof("//Alice", &report);
             let good_proof = get_report_proof("//Bob", &report);
 

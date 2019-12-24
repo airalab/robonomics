@@ -73,8 +73,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 60,
-    impl_version: 60,
+    spec_version: 61,
+    impl_version: 61,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -114,9 +114,21 @@ impl system::Trait for Runtime {
     type ModuleToIndex = ();
 }
 
+parameter_types! {
+    // One storage item; value is size 4+4+16+32 bytes = 56 bytes.
+    pub const MultisigDepositBase: Balance = 30 * XRT;
+    // Additional storage item size of 32 bytes.
+    pub const MultisigDepositFactor: Balance = 5 * XRT;
+    pub const MaxSignatories: u16 = 100;
+}
+
 impl utility::Trait for Runtime {
     type Event = Event;
     type Call = Call;
+    type Currency = Balances;
+    type MultisigDepositBase = MultisigDepositBase;
+    type MultisigDepositFactor = MultisigDepositFactor;
+    type MaxSignatories = MaxSignatories;
 }
 
 parameter_types! {
@@ -186,10 +198,10 @@ impl balances::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 1 * GLUSHKOV;
-    pub const TransactionByteFee: Balance = 50 * COASE;
+    pub const TransactionBaseFee: Balance = 50 * GLUSHKOV;
+    pub const TransactionByteFee: Balance = 0;
     // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1_000;
+    pub const WeightFeeCoefficient: Balance = 0;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
 }
@@ -235,17 +247,17 @@ impl session::historical::Trait for Runtime {
 
 pallet_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-        min_inflation: 0_025_000,
-        max_inflation: 0_100_000,
-        ideal_stake: 0_500_000,
+        min_inflation: 0_100_000,
+        max_inflation: 0_800_000,
+        ideal_stake: 0_666_666,
         falloff: 0_050_000,
-        max_piece_count: 40,
+        max_piece_count: 0_000_100,
         test_precision: 0_005_000,
     );
 }
 
 parameter_types! {
-    pub const SessionsPerEra: sp_staking::SessionIndex = 6;
+    pub const SessionsPerEra: sp_staking::SessionIndex = 10;
     pub const BondingDuration: staking::EraIndex = 24 * 28;
     pub const SlashDeferDuration: staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
@@ -282,6 +294,22 @@ impl finality_tracker::Trait for Runtime {
     type OnFinalizationStalled = Grandpa;
     type WindowSize = WindowSize;
     type ReportLatency = ReportLatency;
+}
+
+parameter_types! {
+    pub const ReservationFee: Balance = 1 * XRT;
+    pub const MinLength: usize = 3;
+    pub const MaxLength: usize = 16;
+}
+
+impl nicks::Trait for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type ReservationFee = ReservationFee;
+    type Slashed = ();
+    type ForceOrigin = system::EnsureRoot<<Self as system::Trait>::AccountId>;
+    type MinLength = MinLength;
+    type MaxLength = MaxLength;
 }
 
 impl sudo::Trait for Runtime {
@@ -365,7 +393,8 @@ construct_runtime!(
         // Basic stuff.
         System: system::{Module, Call, Storage, Config, Event},
         Timestamp: timestamp::{Module, Call, Storage, Inherent},
-        Utility: utility::{Module, Call, Event},
+        Utility: utility::{Module, Call, Storage, Event<T>, Error},
+        Nicks: nicks::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
         Indices: indices,

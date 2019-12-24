@@ -17,6 +17,7 @@ primitives = { package = "sp-core", git = "https://github.com/paritytech/substra
 liability = { package = "pallet-robonomics-liability", path = "../liability", default-features = false }
 
 [dev-dependencies]
+base58 = "0.1.0"
 node-primitives = { git = "https://github.com/paritytech/substrate" }
 
 [features]

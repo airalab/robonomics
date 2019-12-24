@@ -139,6 +139,7 @@ decl_module! {
             }
 
             Self::deposit_event(RawEvent::NewDemand(technics.clone(), economics.clone(), sender.clone()));
+
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Demand(technics, economics, proof, sender))
             );
@@ -165,6 +166,7 @@ decl_module! {
             }
 
             Self::deposit_event(RawEvent::NewOffer(technics.clone(), economics.clone(), sender.clone()));
+
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Offer(technics, economics, proof, sender))
             );
@@ -363,6 +365,7 @@ mod tests {
         },
         H256, sr25519, crypto::Pair
     };
+    use base58::FromBase58;
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
@@ -451,7 +454,7 @@ mod tests {
         new_test_ext().execute_with(|| {
             let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
             let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = vec![1,2,3];
+            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
             let economics = ();
             let order = (technics.clone(), economics.clone());
             let proof = order.using_encoded(|params| pair.sign(params));
@@ -465,7 +468,7 @@ mod tests {
         new_test_ext().execute_with(|| {
             let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
             let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = vec![1,2,3];
+            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
             let economics = ();
             let order = (technics.clone(), economics.clone());
             let proof = order.using_encoded(|params| pair.sign(params));
