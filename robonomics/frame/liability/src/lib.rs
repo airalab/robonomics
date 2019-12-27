@@ -22,7 +22,7 @@ use sp_std::prelude::*;
 use codec::{Encode, Decode};
 use system::ensure_none;
 use support::{
-    ensure, decl_module, decl_storage, decl_event, StorageValue,
+    ensure, decl_module, decl_storage, decl_event, decl_error, StorageValue,
 };
 use sp_runtime::{
     transaction_validity::{
@@ -58,6 +58,9 @@ pub type ProofParam<T> =
 /// Current runtime account identificator.
 pub type AccountId<T> = <T as system::Trait>::AccountId;
 
+/// Indexing up to 2^64 liabilities
+pub type LiabilityIndex = u64;
+
 /// Liability module main trait.
 pub trait Trait: system::Trait {
     /// Technical aspects of agreement.
@@ -76,28 +79,41 @@ pub trait Trait: system::Trait {
 decl_event! {
     pub enum Event<T>
     where AccountId = AccountId<T>,
-          Technics = TechnicalParam<T>,
-          Economics = EconomicalParam<T>,
-          Report = TechnicalReport<T>,
+          TechnicalParam = TechnicalParam<T>,
+          EconomicalParam = EconomicalParam<T>,
+          TechnicalReport = TechnicalReport<T>,
     {
         /// Yay! New liability created.
-        NewLiability(u64, Technics, Economics, AccountId, AccountId),
+        NewLiability(LiabilityIndex, TechnicalParam, EconomicalParam, AccountId, AccountId),
 
         /// Liability report published.
-        NewReport(u64, Report),
+        NewReport(LiabilityIndex, TechnicalReport),
+    }
+}
+
+decl_error! {
+    pub enum Error for Module<T: Trait> {
+        /// Promisor agreement proof verification failed
+        BadPromisorProof,
+        /// Promisee agreement proof verification failed
+        BadPromiseeProof,
+        /// Promisor report proof verification failed
+        BadReportProof,
+        /// Unable to decode liability at given index
+        LiabilityDecodeFailure,
     }
 }
 
 decl_storage! {
     trait Store for Module<T: Trait> as Liability {
         /// Latest liability index.
-        LatestIndex get(fn latest_index): u64;
-        /// Encoded liability parameters list.
-        ParameterOf get(fn parameter_of): map u64 => Vec<u8>;
-        /// Encoded liability report.
-        ReportOf    get(fn report_of): map u64 => Vec<u8>;
-        /// Liability finalization flag.
-        IsFinalized get(fn is_finalized): map u64 => bool;
+        LatestIndex get(fn latest_index): LiabilityIndex;
+        /// SCALE-encoded liability parameters.
+        LiabilityOf get(fn liability_of): map LiabilityIndex => Vec<u8>;
+        /// Set `true` when liability report already send.
+        IsFinalized get(fn is_finalized): map LiabilityIndex => bool;
+        /// SCALE-encoded liability report.
+        ReportOf    get(fn report_of): map LiabilityIndex => Vec<u8>;
     }
 }
 
@@ -127,12 +143,12 @@ decl_module! {
 
             // Check promisee proof
             if !liability.verify(ProofTarget::Promisee, &promisee_proof) {
-                Err("Bad promisee proof")?
+                Err(Error::<T>::BadPromiseeProof)?
             }
 
             // Check promisor proof
             if !liability.verify(ProofTarget::Promisor, &promisor_proof) {
-                Err("Bad promisor proof")?
+                Err(Error::<T>::BadPromisorProof)?
             }
 
             // Run economical processing
@@ -140,8 +156,8 @@ decl_module! {
 
             // Store liability params as bytestring 
             let latest_index = <LatestIndex>::get();
-            liability.using_encoded(|params|
-                <ParameterOf>::insert(latest_index, Vec::from(params))
+            liability.using_encoded(|encoded|
+                <LiabilityOf>::insert(latest_index, Vec::from(encoded))
             );
             <LatestIndex>::put(latest_index + 1);
 
@@ -168,14 +184,14 @@ decl_module! {
             ensure!(!<IsFinalized>::get(index), "already finalized");
 
             // Decode liability from storage
-            if let Ok(liability) = T::Liability::decode(&mut &<ParameterOf>::get(index)[..]) {
+            if let Ok(liability) = T::Liability::decode(&mut &<LiabilityOf>::get(index)[..]) {
                 // Check report proof
                 if !liability.verify(ProofTarget::Report(report.clone()), &proof) {
-                    Err("Bad report proof")?
+                    Err(Error::<T>::BadReportProof)?
                 }
 
                 // Run economical processing
-                // TODO: switch to oracle
+                // TODO: get parameter from oracle
                 liability.on_finish(true)?;
 
                 // Store report as bytestring
@@ -187,7 +203,7 @@ decl_module! {
                 // Emit event
                 Self::deposit_event(RawEvent::NewReport(index, report));
             } else {
-                Err("unable decode liability params")?
+                Err(Error::<T>::LiabilityDecodeFailure)?
             }
         }
     }
@@ -225,7 +241,7 @@ impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
             },
 
             Call::finalize(index, report, proof) =>
-                match T::Liability::decode(&mut &<ParameterOf>::get(*index)[..]) {
+                match T::Liability::decode(&mut &<LiabilityOf>::get(*index)[..]) {
                     Ok(liability) => {
                         if !liability.verify(ProofTarget::Report(report.clone()), proof) {
                             return InvalidTransaction::BadProof.into();
@@ -320,7 +336,6 @@ mod tests {
         storage.into()
     }
 
-    type System = system::Module<Runtime>;
     type Liability = Module<Runtime>;
 
     #[test]
@@ -385,7 +400,7 @@ mod tests {
                 promisor.clone(),
                 promisor_proof.clone(),
                 promisor_proof.clone(),
-            ), "Bad promisee proof");
+            ), Error::<Runtime>::BadPromiseeProof);
             assert_eq!(Liability::latest_index(), 0);
 
             assert_err!(Liability::create(
@@ -396,7 +411,7 @@ mod tests {
                 promisor.clone(),
                 promisee_proof.clone(),
                 promisee_proof.clone(),
-            ), "Bad promisor proof");
+            ), Error::<Runtime>::BadPromisorProof);
             assert_eq!(Liability::latest_index(), 0);
 
 
@@ -416,8 +431,10 @@ mod tests {
             let bad_proof = get_report_proof("//Alice", &report);
             let good_proof = get_report_proof("//Bob", &report);
 
-            assert_err!(Liability::finalize(Origin::NONE, 0, report.clone(), bad_proof),
-                        "Bad report proof");
+            assert_err!(
+                Liability::finalize(Origin::NONE, 0, report.clone(), bad_proof),
+                Error::<Runtime>::BadReportProof
+            );
             assert_eq!(Liability::is_finalized(0), false);
 
             assert_ok!(Liability::finalize(Origin::NONE, 0, report, good_proof));
