@@ -21,12 +21,19 @@
 use codec::{Encode, Decode};
 use sp_std::{
     prelude::*,
+    fmt::Debug,
     collections::btree_map::BTreeMap,
 };
-use sp_runtime::{RuntimeDebug, traits::Hash};
+use sp_runtime::{
+    RuntimeDebug,
+    traits::{
+        Member, CheckEqual, MaybeSerializeDeserialize, Hash,
+        MaybeDisplay, SimpleBitOps,
+    },
+};
 use support::{
-    decl_module, decl_event, decl_storage, debug, StorageValue, 
-    weights::SimpleDispatchInfo,
+    decl_module, decl_event, decl_storage, decl_error,
+    debug, StorageValue, weights::SimpleDispatchInfo, dispatch::Parameter, 
 };
 use primitives::offchain::StorageKind;
 use system::{ensure_signed, offchain::SubmitUnsignedTransaction};
@@ -59,6 +66,14 @@ pub trait Trait: liability::Trait {
     /// Let's define the helper we use to create signed transactions with
     type SubmitTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
 
+	/// The output of the `OrderHashing` function.
+	type OrderHash:
+		Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay + SimpleBitOps
+		+ Default + Copy + CheckEqual + sp_std::hash::Hash + AsRef<[u8]> + AsMut<[u8]> + Ord;
+
+	/// The order hashing system (algorithm) being used in the runtime (e.g. Blake2).
+	type OrderHashing: Hash<Output = Self::OrderHash>;
+
     /// The regular events type
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
@@ -81,10 +96,20 @@ pub struct Order<T: Trait> {
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug)]
-pub struct WorkerState<T: Trait> where <T as system::Trait>::Hash: Ord {
-    demand_of:   BTreeMap<T::Hash, Vec<Order<T>>>,
-    offer_of:    BTreeMap<T::Hash, Vec<Order<T>>>,
+pub struct WorkerState<T: Trait> {
+    demand_of:   BTreeMap<T::OrderHash, Vec<Order<T>>>,
+    offer_of:    BTreeMap<T::OrderHash, Vec<Order<T>>>,
     last_update: T::BlockNumber,
+}
+
+impl<T: Trait> Default for WorkerState<T> {
+    fn default() -> WorkerState<T> {
+        WorkerState {
+            demand_of: BTreeMap::new(),
+            offer_of: BTreeMap::new(),
+            last_update: T::BlockNumber::default(),
+        } 
+    }
 }
 
 decl_event!(
@@ -98,15 +123,24 @@ decl_event!(
     }
 );
 
+decl_error! {
+    pub enum Error for Module<T: Trait> {
+        /// Bad demand request proof parameter
+        BadDemandProof,
+        /// Bad offer request proof parameter
+        BadOfferProof,
+    }
+}
+
 decl_storage! {
-    trait Store for Module<T: Trait> as Provider where <T as system::Trait>::Hash: Ord {
+    trait Store for Module<T: Trait> as Provider {
         /// Requests made within this block execution
         OcRequests get(oc_requests): Vec<OffchainRequest<T>>;
     }
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin, <T as system::Trait>::Hash: Ord {
+    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         /// Initializing events
         fn deposit_event() = default;
 
@@ -126,6 +160,10 @@ decl_module! {
             economics: EconomicalParam<T>,
             proof:     ProofParam<T>,
         ) {
+            debug::info!(
+                target: "robonomics-provider",
+                "Demand params: {:?}, {:?}", technics, economics
+            );
             let sender = ensure_signed(origin)?;
             let liability = T::Liability::new(
                 technics.clone(),
@@ -135,10 +173,14 @@ decl_module! {
             );
 
             if !liability.verify(ProofTarget::Promisee, &proof) {
-                Err("Bad signature")?
+                Err(Error::<T>::BadDemandProof)?
             }
 
-            Self::deposit_event(RawEvent::NewDemand(technics.clone(), economics.clone(), sender.clone()));
+            Self::deposit_event(RawEvent::NewDemand(
+                technics.clone(),
+                economics.clone(),
+                sender.clone()
+            ));
 
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Demand(technics, economics, proof, sender))
@@ -162,10 +204,14 @@ decl_module! {
             );
 
             if !liability.verify(ProofTarget::Promisee, &proof) {
-                Err("Bad signature")?
+                Err(Error::<T>::BadOfferProof)?
             }
 
-            Self::deposit_event(RawEvent::NewOffer(technics.clone(), economics.clone(), sender.clone()));
+            Self::deposit_event(RawEvent::NewOffer(
+                technics.clone(),
+                economics.clone(),
+                sender.clone()
+            ));
 
             <OcRequests<T>>::mutate(|requests|
                 requests.push(OffchainRequest::Offer(technics, economics, proof, sender))
@@ -183,15 +229,15 @@ decl_module! {
     }
 }
 
-impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
+impl<T: Trait> Module<T> {
     /// The main entry point
     fn offchain(now: T::BlockNumber) {
         for e in <OcRequests<T>>::get() {
             match e {
                 OffchainRequest::Demand(technics, economics, proof, sender) => {
                     let params = (technics.clone(), economics.clone());
+                    let order_id = T::OrderHashing::hash_of(&params);
                     let order = Order::<T>{ technics, economics, proof, sender };
-                    let order_id: T::Hash = T::Hashing::hash_of(&params);
                     debug::info!(
                         target: "robonomics-provider",
                         "Get demand params {:?} from {:?}", order_id, order.sender
@@ -227,8 +273,8 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
 
                 OffchainRequest::Offer(technics, economics, proof, sender) => {
                     let params = (technics.clone(), economics.clone());
+                    let order_id = T::OrderHashing::hash_of(&params);
                     let order = Order::<T>{ technics, economics, proof, sender };
-                    let order_id: T::Hash = T::Hashing::hash_of(&params);
                     debug::info!(
                         target: "robonomics-provider",
                         "Get offer params {:?} from {:?}", order_id, order.sender
@@ -279,23 +325,15 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
     }
 
     fn storage<A>(f: impl Fn(WorkerState<T>) -> A) -> A {
-        f(
+        f({
             if let Some(db) = sp_io::offchain::local_storage_get(StorageKind::PERSISTENT, DB_KEY) {
                 if let Ok(state) = WorkerState::decode(&mut &db[..]) { state }
-                else { WorkerState {
-                    demand_of: BTreeMap::new(),
-                    offer_of: BTreeMap::new(),
-                    last_update: T::BlockNumber::default(),
-                } }
-            } else { WorkerState {
-                demand_of: BTreeMap::new(),
-                offer_of: BTreeMap::new(),
-                last_update: T::BlockNumber::default(),
-            } }
-        )
+                else { WorkerState::default() }
+            } else { WorkerState::default() }
+        })
     }
 
-    fn get_demand(order_id: <T as system::Trait>::Hash, now: T::BlockNumber) -> Option<Order<T>> {
+    fn get_demand(order_id: T::OrderHash, now: T::BlockNumber) -> Option<Order<T>> {
         Self::storage_mutate(now, |state| {
             let mut new_state = state.clone();
             let result = match new_state.demand_of.get_mut(&order_id) {
@@ -306,7 +344,7 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
         })
     }
 
-    fn get_offer(order_id: <T as system::Trait>::Hash, now: T::BlockNumber) -> Option<Order<T>> {
+    fn get_offer(order_id: T::OrderHash, now: T::BlockNumber) -> Option<Order<T>> {
         Self::storage_mutate(now, |state| {
             let mut new_state = state.clone();
             let result = match new_state.offer_of.get_mut(&order_id) {
@@ -317,7 +355,7 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
         })
     }
 
-    fn put_demand(order_id: <T as system::Trait>::Hash, order: Order<T>, now: T::BlockNumber) {
+    fn put_demand(order_id: T::OrderHash, order: Order<T>, now: T::BlockNumber) {
         Self::storage_mutate(now, |state| {
             let mut new_state = state.clone();
             match new_state.demand_of.get_mut(&order_id) {
@@ -328,7 +366,7 @@ impl<T: Trait> Module<T> where <T as system::Trait>::Hash: Ord {
         })
     }
 
-    fn put_offer(order_id: <T as system::Trait>::Hash, order: Order<T>, now: T::BlockNumber) {
+    fn put_offer(order_id: T::OrderHash, order: Order<T>, now: T::BlockNumber) {
         Self::storage_mutate(now, |state| {
             let mut new_state = state.clone();
             match new_state.offer_of.get_mut(&order_id) {
@@ -438,6 +476,8 @@ mod tests {
         type Event = MetaEvent;
         type Call = Call;
         type SubmitTransaction = system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
+        type OrderHash = <Self as system::Trait>::Hash;
+        type OrderHashing = <Self as system::Trait>::Hashing;
     }
 
     type System = system::Module<Runtime>;

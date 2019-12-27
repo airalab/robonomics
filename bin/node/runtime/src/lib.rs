@@ -111,7 +111,7 @@ impl system::Trait for Runtime {
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ();
+    type ModuleToIndex = ModuleToIndex; 
 }
 
 parameter_types! {
@@ -123,12 +123,12 @@ parameter_types! {
 }
 
 impl utility::Trait for Runtime {
-    type Event = Event;
     type Call = Call;
-    type Currency = Balances;
-    type MultisigDepositBase = MultisigDepositBase;
-    type MultisigDepositFactor = MultisigDepositFactor;
-    type MaxSignatories = MaxSignatories;
+    type Event = Event;
+//    type Currency = Balances;
+//    type MultisigDepositBase = MultisigDepositBase;
+//    type MultisigDepositFactor = MultisigDepositFactor;
+//    type MaxSignatories = MaxSignatories;
 }
 
 parameter_types! {
@@ -352,6 +352,8 @@ impl liability::Trait for Runtime {
 impl provider::Trait for Runtime {
     type Call = Call;
     type Event = Event;
+    type OrderHash = <Self as system::Trait>::Hash;
+    type OrderHashing = <Self as system::Trait>::Hashing;
     type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
@@ -393,7 +395,8 @@ construct_runtime!(
         // Basic stuff.
         System: system::{Module, Call, Storage, Config, Event},
         Timestamp: timestamp::{Module, Call, Storage, Inherent},
-        Utility: utility::{Module, Call, Storage, Event<T>, Error},
+        //Utility: utility::{Module, Call, Storage, Event<T>, Error},
+        Utility: utility::{Module, Call, Event},
         Nicks: nicks::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
