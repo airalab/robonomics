@@ -115,11 +115,11 @@ impl<T: Trait> Default for WorkerState<T> {
 decl_event!(
     pub enum Event<T>
     where AccountId = AccountId<T>,
-          Technics  = TechnicalParam<T>,
-          Economics = EconomicalParam<T>,
+          TechnicalParam = TechnicalParam<T>,
+          EconomicalParam = EconomicalParam<T>,
     {
-        NewDemand(Technics, Economics, AccountId),
-        NewOffer(Technics, Economics, AccountId),
+        NewDemand(TechnicalParam, EconomicalParam, AccountId),
+        NewOffer(TechnicalParam, EconomicalParam, AccountId),
     }
 );
 
@@ -160,10 +160,6 @@ decl_module! {
             economics: EconomicalParam<T>,
             proof:     ProofParam<T>,
         ) {
-            debug::info!(
-                target: "robonomics-provider",
-                "Demand params: {:?}, {:?}", technics, economics
-            );
             let sender = ensure_signed(origin)?;
             let liability = T::Liability::new(
                 technics.clone(),
