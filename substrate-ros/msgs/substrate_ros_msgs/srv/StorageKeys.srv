@@ -1,6 +1,4 @@
 BlockHash  block
 StorageKey prefix
 ---
-bool success
 StorageKey[] keys
-string error

@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///! Substrate API in ROS namespace.
 
+/*
 use network::{specialization::NetworkSpecialization, NetworkService, ExHashT};
 use transaction_pool::txpool::{ChainApi as PoolChainApi, Pool};
 pub use sc_rpc::system::helpers::SystemInfo;
@@ -25,13 +26,14 @@ use primitives::{Blake2Hasher, H256};
 use rosrust::api::error::Error;
 use std::sync::Arc;
 use client::Client;
+*/
 
-pub mod traits;
-pub mod system;
 pub mod author;
+pub mod system;
 pub mod chain;
 pub mod state;
 
+/*
 pub fn start_rpc<B, S, H, F, E, P, A>(
     system_info: SystemInfo,
     service_network: Arc<NetworkService<B, S, H>>,
@@ -67,14 +69,15 @@ pub fn start_rpc<B, S, H, F, E, P, A>(
         service_client,
     ));
 
-    let task = system.start_publishers()?;
+    let publishers = system.publishers()?;
 
-    let services = [
-        system.start_services()?,
-        author.start_services()?,
-        state.start_services()?,
-        chain.start_services()?,
+    let services = vec![
+        system.services()?,
+        author.services()?,
+        state.services()?,
+        chain.services()?,
     ].concat();
 
-    Ok((services, task))
+    Ok((services, publishers))
 }
+*/

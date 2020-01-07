@@ -17,142 +17,99 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use std::sync::Arc;
-use client::{self, Client};
-use primitives::{H256, Blake2Hasher};
-use runtime_primitives::generic::{BlockId, SignedBlock};
-use runtime_primitives::traits::{Block as BlockT, Header};
-use msgs::substrate_ros_msgs::{
-    GetBlock, GetBlockRes,
-    GetBlockHash, GetBlockHashRes,
-    GetBlockHeader, GetBlockHeaderRes,
-    GetBestHead, GetBestHeadRes,
-    GetFinalizedHead, GetFinalizedHeadRes,
+use sp_core::{H256, Blake2Hasher};
+use sc_client_api::{
+    CallExecutor,
+    backend::Backend,
 };
-use rosrust::api::error::Error;
-use crate::traits::RosRpc;
+use sp_runtime::{
+    traits::{self, Header,},
+    generic::BlockId,
+};
+use sc_client::{
+    Client,
+    light::{
+		blockchain::RemoteBlockchain,
+	},
+};
 
-const BLOCK_SRV_NAME: &str = "/chain/block";
-const BLOCK_HASH_SRV_NAME: &str = "/chain/block_hash";
-const BLOCK_HEADER_SRV_NAME: &str = "/chain/block_header";
-const BEST_HEAD_SRV_NAME: &str = "/chain/best_head";
-const FINALIZED_HEAD_SRV_NAME: &str = "/chain/finalized_head";
+mod ros_api;
 
-/// Chain API
-pub struct Chain<B, E, Block: BlockT, RA> {
-    /// Substrate client
+/// Full node chain API.
+pub struct FullChain<B, E, Block: traits::Block, RA> {
+    /// Substrate client.
     client: Arc<Client<B, E, Block, RA>>,
 }
 
-impl<B, E, Block: BlockT, RA> Chain<B, E, Block, RA> where
-    Block: BlockT<Hash=H256> + 'static,
-    B: client::backend::Backend<Block, Blake2Hasher> + Send + Sync + 'static,
-    E: client::CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
-    RA: Send + Sync + 'static
+/// Light node chain API.
+// TODO: implement light node ROS API.
+pub struct LightChain<B, E, Block: traits::Block, RA, F> {
+    /// Substrate client.
+    client: Arc<Client<B, E, Block, RA>>,
+	/// Remote blockchain reference.
+	remote_blockchain: Arc<dyn RemoteBlockchain<Block>>,
+	/// Remote fetcher reference.
+	fetcher: Arc<F>,
+}
+
+impl<B, E, Block, RA> FullChain<B, E, Block, RA> where
+	Block: traits::Block<Hash=H256> + 'static,
+	B: Backend<Block, Blake2Hasher> + Send + Sync + 'static,
+	E: CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
+	RA: Send + Sync + 'static,
 {
-    /// Create new instance of Authoring API.
+    pub fn unwrap_or_best(&self, mb_hash: Option<Block::Hash>) -> Block::Hash {
+        match mb_hash {
+            Some(hash) => hash,
+            None => self.client.chain_info().best_hash
+        }
+    }
+
     pub fn new(
         client: Arc<Client<B, E, Block, RA>>,
     ) -> Self {
-        Chain {
+        FullChain {
             client,
         }
     }
-
-    fn unwrap_or_best(&self, hash: Option<Block::Hash>) -> Block::Hash {
-        match hash.into() {
-            None => self.client.info().chain.best_hash,
-            Some(hash) => hash,
-        }
-    }
-
-    fn header(&self, hash: Option<Block::Hash>) -> Option<Block::Header> {
-        let hash = self.unwrap_or_best(hash);
-        self.client.header(&BlockId::Hash(hash)).unwrap()
-    }
-
-    fn block(&self, hash: Option<Block::Hash>) -> Option<SignedBlock<Block>>
-    {
-        let hash = self.unwrap_or_best(hash);
-        self.client.block(&BlockId::Hash(hash)).unwrap()
-    }
-
-    fn block_hash(&self, number: Option<u32>) -> Option<Block::Hash> where 
-    {
-        match number {
-            None => Some(self.client.info().chain.best_hash),
-            Some(num) => self.client.header(&BlockId::number(num.into())).unwrap().map(|h| h.hash()),
-        }
-    }
-
-    fn finalized_head(&self) -> Block::Hash {
-        self.client.info().chain.finalized_hash
-    }
 }
 
-impl<B, E, Block: BlockT, RA> RosRpc for Chain<B, E, Block, RA> where
-    Block: BlockT<Hash=H256> + 'static,
-    B: client::backend::Backend<Block, Blake2Hasher> + Send + Sync + 'static,
-    E: client::CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
-    RA: Send + Sync + 'static
+
+impl<B, E, Block, RA> ros_api::ChainApi for FullChain<B, E, Block, RA> where
+	Block: traits::Block<Hash=H256> + 'static,
+	B: Backend<Block, Blake2Hasher> + Send + Sync + 'static,
+	E: CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
+	RA: Send + Sync + 'static,
 {
-    fn start(api: Arc<Self>) -> Result<Vec<rosrust::Service>, Error> {
-        let mut services = vec![];
+    fn header(&self, hash: Option<ros_api::Hash>) -> Result<String, String> {
+        let hash = BlockId::Hash(self.unwrap_or_best(hash.map(Into::into)));
+        self.client
+            .header(&hash)
+            .map(|header| serde_json::to_string(&header).unwrap())
+            .map_err(|e| format!("header request error: {}", e))
+    }
 
-        let api1 = api.clone();
-        services.push(
-            rosrust::service::<GetBlockHeader, _>(BLOCK_HEADER_SRV_NAME, move |req| {
-                let mut res = GetBlockHeaderRes::default(); 
-                let hash = if req.hash.data == [0; 32] {
-                    None
-                } else {
-                    Some(req.hash.data.into())
-                };
-                res.header_json = serde_json::to_string(&api1.header(hash)).unwrap();
-                Ok(res)
-            })?
-        );
+    fn block(&self, hash: Option<ros_api::Hash>) -> Result<String, String> {
+        let hash = BlockId::Hash(self.unwrap_or_best(hash.map(Into::into)));
+        self.client
+            .block(&hash)
+            .map(|block| serde_json::to_string(&block).unwrap())
+            .map_err(|e| format!("block request error: {}", e))
+    }
 
-        let api2 = api.clone();
-        services.push(
-            rosrust::service::<GetBlock, _>(BLOCK_SRV_NAME, move |req| {
-                let mut res = GetBlockRes::default();
-                let hash = if req.hash.data == [0; 32] {
-                    None
-                } else {
-                    Some(req.hash.data.into())
-                };
-                res.block_json = serde_json::to_string(&api2.block(hash)).unwrap();
-                Ok(res)
-            })?
-        );
+    fn block_hash(&self, number: Option<u32>) -> Result<ros_api::Hash, String> {
+        let hash = if let Some(num) = number {
+            let block_number = BlockId::number(num.into());
+            let mb_header = self.client.header(&block_number)
+                .map_err(|e| format!("header request error: {}", e))?;
+            mb_header.map_or(Default::default(), |h| h.hash())
+        } else {
+            self.client.chain_info().best_hash
+        };
+        Ok(hash.into())
+    }
 
-        let api3 = api.clone();
-        services.push(
-            rosrust::service::<GetBlockHash, _>(BLOCK_HASH_SRV_NAME, move |req| {
-                let mut res = GetBlockHashRes::default();
-                res.hash.data = api3.block_hash(Some(req.number)).unwrap().into();
-                Ok(res)
-            })?
-        );
-
-        let api4 = api.clone();
-        services.push(
-            rosrust::service::<GetBestHead, _>(BEST_HEAD_SRV_NAME, move |_| {
-                let mut res = GetBestHeadRes::default();
-                res.hash.data = api4.block_hash(None).unwrap().into();
-                Ok(res)
-            })?
-        );
-
-        let api5 = api.clone();
-        services.push(
-            rosrust::service::<GetFinalizedHead, _>(FINALIZED_HEAD_SRV_NAME, move |_| {
-                let mut res = GetFinalizedHeadRes::default();
-                res.hash.data = api5.finalized_head().into();
-                Ok(res)
-            })?
-        );
-
-        Ok(services)
+    fn finalized_head(&self) -> ros_api::Hash {
+        self.client.chain_info().finalized_hash.into()
     }
 }

@@ -2,6 +2,4 @@ string method
 uint8[] data
 BlockHash block
 ---
-bool success
 uint8[] data
-string error
