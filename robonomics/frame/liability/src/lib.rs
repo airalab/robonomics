@@ -20,8 +20,8 @@
 
 use sp_std::prelude::*;
 use codec::{Encode, Decode};
-use system::ensure_none;
-use support::{
+use frame_system::{self as system, ensure_none};
+use frame_support::{
     ensure, decl_module, decl_storage, decl_event, decl_error, StorageValue,
 };
 use sp_runtime::{
@@ -56,13 +56,13 @@ pub type ProofParam<T> =
     >>::Proof;
 
 /// Current runtime account identificator.
-pub type AccountId<T> = <T as system::Trait>::AccountId;
+pub type AccountId<T> = <T as frame_system::Trait>::AccountId;
 
 /// Indexing up to 2^64 liabilities
 pub type LiabilityIndex = u64;
 
 /// Liability module main trait.
-pub trait Trait: system::Trait {
+pub trait Trait: frame_system::Trait {
     /// Technical aspects of agreement.
     type Technics: Technical;
 
@@ -73,7 +73,7 @@ pub trait Trait: system::Trait {
     type Liability: Processing + Agreement<Self::Technics, Self::Economics, AccountId<Self>>;
 
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 decl_event! {
@@ -210,7 +210,7 @@ decl_module! {
 }
 
 #[allow(deprecated)]
-impl<T: Trait> support::unsigned::ValidateUnsigned for Module<T> {
+impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
     fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
@@ -272,7 +272,8 @@ mod tests {
     use super::signed::SignedLiability;
     use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount, IdentityLookup}, testing::Header};
     use node_primitives::{AccountId, Signature};
-    use support::{
+    use frame_system::{self as system};
+    use frame_support::{
         assert_ok, assert_err, impl_outer_event, impl_outer_origin, parameter_types,
         weights::Weight,
     };
@@ -299,7 +300,7 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
-    impl system::Trait for Runtime {
+    impl frame_system::Trait for Runtime {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
@@ -332,7 +333,9 @@ mod tests {
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+        let storage = frame_system::GenesisConfig::default()
+            .build_storage::<Runtime>()
+            .unwrap();
         storage.into()
     }
 

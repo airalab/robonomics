@@ -17,9 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics runtime traits definitions.
 
-use sp_runtime::DispatchResult;
-use support::dispatch;
 use codec::Codec;
+use frame_support::dispatch;
+use sp_runtime::DispatchResult;
 
 /// Technical aspects of agreement between two parties.
 pub trait Technical {

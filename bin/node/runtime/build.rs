@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use wasm_builder_runner::{build_current_project_with_rustflags, WasmBuilderSource};
+use substrate_wasm_builder_runner::{build_current_project_with_rustflags, WasmBuilderSource};
 
 fn main() {
     build_current_project_with_rustflags(

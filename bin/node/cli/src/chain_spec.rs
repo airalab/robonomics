@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use grandpa::AuthorityId as GrandpaId;
-use babe_primitives::AuthorityId as BabeId;
-use im_online::sr25519::AuthorityId as ImOnlineId;
-use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
+use sp_finality_grandpa::AuthorityId as GrandpaId;
+use sp_consensus_babe::AuthorityId as BabeId;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
-use primitives::{Pair, Public, crypto::UncheckedInto, sr25519};
+use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519};
 use node_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
@@ -31,7 +31,7 @@ use node_runtime::{
 };
 use node_runtime::constants::currency::*;
 use node_primitives::{AccountId, Balance, Signature};
-use telemetry::TelemetryEndpoints;
+use sc_telemetry::TelemetryEndpoints;
 use hex_literal::hex;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -159,28 +159,28 @@ pub fn testnet_genesis(
     const STASH: Balance = 1_000 * XRT;
 
     GenesisConfig {
-        system: Some(SystemConfig {
+        frame_system: Some(SystemConfig {
             code: WASM_BINARY.to_vec(),
             changes_trie_config: Default::default(),
         }),
-        indices: Some(IndicesConfig {
+        pallet_indices: Some(IndicesConfig {
             ids: endowed_accounts.iter().cloned()
                 .chain(initial_authorities.iter().map(|x| x.0.clone()))
                 .collect::<Vec<_>>(),
         }),
-        balances: Some(BalancesConfig {
+        pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts.iter().cloned()
                 .map(|k| (k, ENDOWMENT))
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
             vesting: vec![],
         }),
-        session: Some(SessionConfig {
+        pallet_session: Some(SessionConfig {
             keys: initial_authorities.iter().map(|x| {
                 (x.0.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()))
             }).collect::<Vec<_>>(),
         }),
-        staking: Some(StakingConfig {
+        pallet_staking: Some(StakingConfig {
             current_era: 0,
             validator_count: 10,
             minimum_validator_count: 3,
@@ -191,30 +191,31 @@ pub fn testnet_genesis(
             slash_reward_fraction: Perbill::from_percent(10),
             .. Default::default()
         }),
-        sudo: Some(SudoConfig {
+        pallet_babe: Some(BabeConfig {
+            authorities: vec![], 
+        }),
+        pallet_grandpa: Some(GrandpaConfig {
+            authorities: vec![], 
+        }),
+        pallet_im_online: Some(ImOnlineConfig {
+            keys: vec![],
+        }),
+        pallet_authority_discovery: Some(AuthorityDiscoveryConfig {
+            keys: vec![],
+        }),
+        pallet_sudo: Some(SudoConfig {
             key: endowed_accounts[0].clone(),
-        }),
-        babe: Some(BabeConfig {
-            authorities: vec![], 
-        }),
-        grandpa: Some(GrandpaConfig {
-            authorities: vec![], 
-        }),
-        im_online: Some(ImOnlineConfig {
-            keys: vec![],
-        }),
-        authority_discovery: Some(AuthorityDiscoveryConfig {
-            keys: vec![],
         }),
     }
 }
 
+/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
     let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![(
@@ -260,7 +261,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 fn development_config_genesis() -> GenesisConfig {
     testnet_genesis(

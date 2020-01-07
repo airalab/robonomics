@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use crate::{Balances, System, MaximumBlockWeight,};
-use support::{traits::Get, weights::Weight,};
+use frame_support::{traits::Get, weights::Weight,};
 use sp_runtime::traits::{Convert, Saturating,};
 use sp_runtime::{Fixed64, Perbill,};
 use node_primitives::Balance;

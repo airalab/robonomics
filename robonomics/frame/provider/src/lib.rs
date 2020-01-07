@@ -24,6 +24,7 @@ use sp_std::{
     fmt::Debug,
     collections::btree_map::BTreeMap,
 };
+use sp_core::offchain::StorageKind;
 use sp_runtime::{
     RuntimeDebug,
     traits::{
@@ -31,13 +32,12 @@ use sp_runtime::{
         MaybeDisplay, SimpleBitOps,
     },
 };
-use support::{
+use frame_support::{
     decl_module, decl_event, decl_storage, decl_error,
     debug, StorageValue, weights::SimpleDispatchInfo, dispatch::Parameter, 
 };
-use primitives::offchain::StorageKind;
-use system::{ensure_signed, offchain::SubmitUnsignedTransaction};
-use liability::{
+use frame_system::{self as system, ensure_signed, offchain::SubmitUnsignedTransaction};
+use pallet_robonomics_liability::{
     TechnicalParam, EconomicalParam, ProofParam, AccountId,
     traits::{Agreement, ProofTarget},
 };
@@ -59,9 +59,9 @@ use liability::{
 const DB_KEY: &[u8] = b"airalab/robonomics-provider-worker";
 
 /// The module's main configuration trait.
-pub trait Trait: liability::Trait {
+pub trait Trait: pallet_robonomics_liability::Trait {
     /// A dispatchable call type.
-    type Call: From<liability::Call<Self>>;
+    type Call: From<pallet_robonomics_liability::Call<Self>>;
 
     /// Let's define the helper we use to create signed transactions with
     type SubmitTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
@@ -75,13 +75,13 @@ pub trait Trait: liability::Trait {
 	type OrderHashing: Hash<Output = Self::OrderHash>;
 
     /// The regular events type
-    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 /// The type of requests we can send to the offchain worker
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, RuntimeDebug)]
-pub enum OffchainRequest<T: liability::Trait> {
+pub enum OffchainRequest<T: pallet_robonomics_liability::Trait> {
     Demand(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
     Offer(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
 }
@@ -245,7 +245,7 @@ impl<T: Trait> Module<T> {
                             target: "robonomics-provider",
                             "Matched {:?} with {:?}", order.sender, offer.sender
                         );
-                        let call = liability::Call::<T>::create(
+                        let call = pallet_robonomics_liability::Call::<T>::create(
                             order.technics,
                             order.economics,
                             order.sender,
@@ -282,7 +282,7 @@ impl<T: Trait> Module<T> {
                             target: "robonomics-provider",
                             "Matched {:?} with {:?}", order.sender, demand.sender
                         );
-                        let call = liability::Call::<T>::create(
+                        let call = pallet_robonomics_liability::Call::<T>::create(
                             order.technics,
                             order.economics,
                             demand.sender,
@@ -383,7 +383,7 @@ mod tests {
         testing::{Header, TestXt},
         traits::{IdentityLookup, BlakeTwo256},
     };
-    use support::{
+    use frame_support::{
         impl_outer_event,
         impl_outer_origin,
         impl_outer_dispatch,
@@ -392,7 +392,7 @@ mod tests {
     };
     use sp_runtime::{traits::{Verify, IdentifyAccount}};
     use node_primitives::{AccountId, AccountIndex, Signature};
-    use primitives::{
+    use sp_core::{
         offchain::{
             OffchainExt, TransactionPoolExt,
             testing::{TestOffchainExt, TestTransactionPoolExt},
@@ -403,7 +403,7 @@ mod tests {
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
-            liability<T>, provider<T>,
+            pallet_robonomics_liability<T>, provider<T>,
         }
     }
 
@@ -455,11 +455,11 @@ mod tests {
         type ModuleToIndex = ();
     }
 
-    impl liability::Trait for Runtime {
+    impl pallet_robonomics_liability::Trait for Runtime {
         type Event = MetaEvent;
-        type Technics = liability::technics::PureIPFS;
-        type Economics = liability::economics::Communism;
-        type Liability = liability::signed::SignedLiability<
+        type Technics = pallet_robonomics_liability::technics::PureIPFS;
+        type Economics = pallet_robonomics_liability::economics::Communism;
+        type Liability = pallet_robonomics_liability::signed::SignedLiability<
             Self::Technics,
             Self::Economics,
             Signature,
@@ -471,17 +471,17 @@ mod tests {
     impl Trait for Runtime {
         type Event = MetaEvent;
         type Call = Call;
-        type SubmitTransaction = system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
-        type OrderHash = <Self as system::Trait>::Hash;
-        type OrderHashing = <Self as system::Trait>::Hashing;
+        type SubmitTransaction = frame_system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
+        type OrderHash = <Self as frame_system::Trait>::Hash;
+        type OrderHashing = <Self as frame_system::Trait>::Hashing;
     }
 
-    type System = system::Module<Runtime>;
-    type Liability = liability::Module<Runtime>;
+    type System = frame_system::Module<Runtime>;
+    type Liability = pallet_robonomics_liability::Module<Runtime>;
     type Provider = Module<Runtime>;
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
-        let t = system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+        let t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
         t.into()
     }
 

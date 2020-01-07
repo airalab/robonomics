@@ -21,7 +21,7 @@ use sp_runtime::{
     traits::{Verify, IdentifyAccount},
     RuntimeDebug, DispatchResult,
 };
-use support::{dispatch, traits::ReservableCurrency};
+use frame_support::{dispatch, traits::ReservableCurrency};
 use codec::{Encode, Decode};
 
 use crate::economics::{Communism, OpenMarket};

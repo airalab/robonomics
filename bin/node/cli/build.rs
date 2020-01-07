@@ -25,7 +25,7 @@ fn main() {
     build_shell_completion();
     generate_cargo_keys(ConstantsFlags::all()).expect("Failed to generate metadata files");
 
-    build_script_utils::rerun_if_git_head_changed();
+    substrate_build_script_utils::rerun_if_git_head_changed();
 }
 
 /// Build shell completion scripts for all known shells

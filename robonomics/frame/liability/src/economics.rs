@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
-use support::traits::Currency;
+use frame_support::traits::Currency;
 use crate::traits::Economical;
 
 ///
