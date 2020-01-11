@@ -16,6 +16,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+use msgs::std_srvs::{
+    Trigger, TriggerRes,
+};
 use msgs::substrate_ros_msgs::{
     ExHash, RawExtrinsic,
     SubmitExtrinsic, SubmitExtrinsicRes,
@@ -27,7 +30,7 @@ use rosrust::api::error::Error;
 const SUBMIT_SRV_NAME: &str  = "/author/submit_extrinsic";
 const REMOVE_SRV_NAME: &str  = "/author/remove_extrinsic";
 const PENDING_SRV_NAME: &str = "/author/pending_extrinsics";
-const ROTATE_KEYS_NAME: &str = "/author/rotate_keys";
+const ROTATE_KEYS_SRV_NAME: &str = "/author/rotate_keys";
 
 pub type Bytes = Vec<u8>;
 pub type Hash = [u8; 32];
@@ -45,6 +48,20 @@ pub trait AuthorApi {
 
 	/// Remove given extrinsic from the pool and temporarily ban it to prevent reimporting.
     fn remove_extrinsics(&self, hashes: Vec<Hash>) -> Vec<Hash>;
+}
+
+fn rotate_keys<T>(
+    api: T
+) -> Result<rosrust::Service, Error> where
+    T: AuthorApi + Send + Sync + 'static
+{
+    rosrust::service::<Trigger, _>(ROTATE_KEYS_SRV_NAME, move |_| {
+        let mut res = TriggerRes::default();
+        let keys = api.rotate_keys()?;
+        res.success = true;
+        res.message = format!("{}", hex::encode(&keys));
+        Ok(res)
+    })
 }
 
 fn submit_extrinsic<T>(
@@ -94,11 +111,12 @@ fn remove_extrinsics<T>(
 }
 
 pub fn start_services<T>(
-    api: &T
+    api: T
 ) -> Result<Vec<rosrust::Service>, Error> where
     T: AuthorApi + Clone + Send + Sync + 'static
 {
     let services = vec![
+        rotate_keys(api.clone())?,
         submit_extrinsic(api.clone())?,
         pending_extrinsics(api.clone())?,
         remove_extrinsics(api.clone())?,

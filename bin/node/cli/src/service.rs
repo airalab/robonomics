@@ -263,16 +263,22 @@ macro_rules! new_full {
                 service.client(),
                 service.network(),
                 service.transaction_pool(),
-            )?;
-            service.spawn_task(publish_task);
+                service.keystore(),
+            ).expect("Unable to launch ROS API");
 
             let on_exit = service.on_exit().then(move |_| {
                 // Keep ROS services&subscribers alive until on_exit signal reached
                 let _ = ros_services;
                 //let _ = ros_subscribers; 
-                Ok(())
+                futures::future::ready(())
             });
-            service.spawn_task(on_exit);
+
+            let ros_task = futures::future::join(
+                publish_task,
+                on_exit,
+            ).boxed().map(|_| Ok(())).compat();
+
+            service.spawn_task(ros_task);
         } else {
             warn!("ROS integration disabled because of initialization failure");
         } }

@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use msgs::substrate_ros_msgs::{
-    BlockHash, StorageKey,
+    StorageKey,
     StateCall, StateCallRes,
     StorageHash, StorageHashRes,
     StorageKeys, StorageKeysRes,
@@ -150,7 +150,7 @@ fn runtime_version<T>(
 }
 
 pub fn start_services<T>(
-    api: &T
+    api: T
 ) -> Result<Vec<rosrust::Service>, Error> where
     T: StateApi + Clone + Send + Sync + 'static
 {

@@ -17,30 +17,34 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use std::sync::Arc;
-use sp_core::{H256, Blake2Hasher, storage};
+use sp_core::{H256, storage};
 use sc_client_api::{
     CallExecutor,
     backend::Backend,
 };
-use sp_runtime::{
-    traits::{self, Header,},
-    generic::BlockId,
-};
+use sp_runtime::{traits, generic::BlockId};
 use sc_client::Client;
 use sp_state_machine::ExecutionStrategy;
 
 mod ros_api;
+pub use ros_api::start_services;
 
 /// Chain state API
-pub struct State<B, E, Block: traits::Block, RA> {
+pub struct FullState<B, E, Block: traits::Block, RA> {
     /// Substrate full client implementation
     client: Arc<Client<B, E, Block, RA>>,
 }
 
-impl<B, E, Block, RA> State<B, E, Block, RA> where
+impl<B, E, Block: traits::Block, RA> Clone for FullState<B, E, Block, RA> {
+    fn clone(&self) -> FullState<B, E, Block, RA> {
+        FullState { client: self.client.clone() }
+    }
+}
+
+impl<B, E, Block, RA> FullState<B, E, Block, RA> where
     Block: traits::Block<Hash=H256> + 'static,
-    B: Backend<Block, Blake2Hasher> + Send + Sync + 'static,
-    E: CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
+    B: Backend<Block> + Send + Sync + 'static,
+    E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
 {
     pub fn unwrap_or_best(&self, mb_hash: Option<ros_api::Hash>) -> Block::Hash {
@@ -53,16 +57,16 @@ impl<B, E, Block, RA> State<B, E, Block, RA> where
     pub fn new(
         client: Arc<Client<B, E, Block, RA>>,
     ) -> Self {
-        State {
+        FullState {
             client,
         }
     }
 }
 
-impl<B, E, Block, RA> ros_api::StateApi for State<B, E, Block, RA> where
+impl<B, E, Block, RA> ros_api::StateApi for FullState<B, E, Block, RA> where
     Block: traits::Block<Hash=H256> + 'static,
-    B: Backend<Block, Blake2Hasher> + Send + Sync + 'static,
-    E: CallExecutor<Block, Blake2Hasher> + Send + Sync + 'static,
+    B: Backend<Block> + Send + Sync + 'static,
+    E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
 {
     fn call(&self, method: String, data: ros_api::Bytes, block: Option<ros_api::Hash>)

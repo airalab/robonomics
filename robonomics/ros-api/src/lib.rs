@@ -21,7 +21,6 @@ use log::{debug, info};
 use std::sync::Arc;
 use rosrust::api::error;
 use futures::{prelude::*, channel::mpsc};
-use client::{blockchain::HeaderBackend, BlockchainEvents};
 use sp_runtime::{
     codec::{Decode, Encode},
     generic::{BlockId, Era},
@@ -45,11 +44,6 @@ use msgs::std_msgs;
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
 const QUEUE_SIZE: usize = 10;
-
-const BEST_HASH_ROS_TOPIC_NAME: &str = "/chain/best_hash";
-const BEST_NUMBER_ROS_TOPIC_NAME: &str = "/chain/best_number";
-const FINALIZED_HASH_ROS_TOPIC_NAME: &str = "/chain/finalized_hash";
-const FINALIZED_NUMBER_ROS_TOPIC_NAME: &str = "/chain/finalized_number";
 
 /// Robonomics extrinsic sender.
 fn extrinsic_stream<C, P>(
@@ -174,51 +168,8 @@ fn event_stream<C>(
         })
 }
 
-fn import_notification_stream<C>(
-    client: Arc<C>,
-) -> impl Future<Output=()> where
-    C: BlockchainEvents<Block> + HeaderBackend<Block>,
-{
-    let hash_pub = rosrust::publish(BEST_HASH_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
-    let number_pub = rosrust::publish(BEST_NUMBER_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
-
-    client.import_notification_stream().for_each(move |block| {
-        if block.is_new_best {
-            let mut hash_msg = substrate_ros_msgs::BlockHash::default();
-            hash_msg.data = block.hash.into();
-            hash_pub.send(hash_msg).unwrap();
-
-            let mut number_msg = std_msgs::UInt64::default();
-            number_msg.data = (*block.header.number()).into();
-            number_pub.send(number_msg).unwrap();
-        }
-        future::ready(())
-    })
-}
-
-fn finality_notification_stream<C>(
-    client: Arc<C>,
-) -> impl Future<Output=()> where
-    C: BlockchainEvents<Block> + HeaderBackend<Block>,
-{
-    let finalized_number_pub = rosrust::publish(FINALIZED_NUMBER_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
-    let finalized_hash_pub = rosrust::publish(FINALIZED_HASH_ROS_TOPIC_NAME, QUEUE_SIZE).unwrap();
-
-    client.finality_notification_stream().for_each(move |block| {
-        let mut finalized_number_msg = std_msgs::UInt64::default();
-        finalized_number_msg.data = (*block.header.number()).into();
-        finalized_number_pub.send(finalized_number_msg).unwrap();
-
-        let mut finalized_hash_msg = substrate_ros_msgs::BlockHash::default();
-        finalized_hash_msg.data = block.hash.into();
-        finalized_hash_pub.send(finalized_hash_msg).unwrap();
-
-        future::ready(())
-    })
-}
-
 /// ROS API main routine.
-pub fn start_api<C, P>(
+pub fn start<C, P>(
     client: Arc<C>,
     pool: Arc<Pool<P>>,
     key: sr25519::Pair,
@@ -228,7 +179,6 @@ pub fn start_api<C, P>(
     C::Api: AccountNonceApi<Block>,
 {
     info!("ROS API account is {:?}", key.public().to_ss58check());
-    rosrust::try_init_with_options("robonomics", false)?;
 
     // Create extrinsics channel
     let (demand_tx, extrinsic_rx) = mpsc::unbounded();

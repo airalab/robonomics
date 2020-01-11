@@ -199,7 +199,7 @@ fn system_health<T>(
 }
 
 pub fn start_services<T>(
-    api: &T
+    api: T
 ) -> Result<Vec<rosrust::Service>, Error> where
     T: SystemApi + Clone + Send + Sync + 'static
 {
@@ -213,8 +213,10 @@ pub fn start_services<T>(
     Ok(services)
 }
 
-pub fn start_publishers<T>(api: &T) -> Result<impl Future<Output=()>, Error>
-    where T: SystemApi + Clone
+pub fn start_publishers<T>(
+    api: T
+) -> Result<impl Future<Output=()>, Error> where
+    T: SystemApi + Clone
 {
     let task = futures::future::join4(
         publish_system_name(api.clone())?,

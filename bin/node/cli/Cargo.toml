@@ -113,6 +113,7 @@ browser = [
 # To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
 # It also require roscore service to be launched.
 ros = [
+    "rosrust",
     "substrate-ros-api",
 #    "robonomics-ros-api",
 ]

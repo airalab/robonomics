@@ -24,17 +24,29 @@ use msgs::substrate_ros_msgs::{
     GetFinalizedHead, GetFinalizedHeadRes,
     BlockHash,
 };
+use msgs::std_msgs::UInt64;
 use rosrust::api::error::Error;
+use sc_client::BlockchainEvents;
+use sp_runtime::traits::{self, Header};
+use futures::future::{Future, FutureExt, join};
+use futures::stream::StreamExt;
+use sp_core::H256;
 
 const BLOCK_SRV_NAME: &str          = "/chain/block";
 const BLOCK_HASH_SRV_NAME: &str     = "/chain/block_hash";
 const BLOCK_HEADER_SRV_NAME: &str   = "/chain/block_header";
-const BEST_HEAD_SRV_NAME: &str      = "/chain/best_head";
-const FINALIZED_HEAD_SRV_NAME: &str = "/chain/finalized_head";
+const BEST_HASH_SRV_NAME: &str      = "/chain/best_hash";
+const BEST_NUMBER_SRV_NAME: &str    = "/chain/best_number";
+const FINALIZED_HASH_SRV_NAME: &str   = "/chain/finalized_hash";
+const FINALIZED_NUMBER_SRV_NAME: &str = "/chain/finalized_number";
 
 pub type Hash = [u8; 32];
 
-pub trait ChainApi { 
+/// ROS Pub/Sub queue size.
+/// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
+const QUEUE_SIZE: usize = 10;
+
+pub trait ChainApi {
 	/// Get header of a chain block.
     fn header(&self, hash: Option<Hash>) -> Result<String, String>; 
 
@@ -97,32 +109,91 @@ fn get_block_header<T>(
     })
 }
 
-fn get_best_head<T>(
+fn get_best_hash<T>(
     api: T
 ) -> Result<rosrust::Service, Error> where
     T: ChainApi + Send + Sync + 'static
 {
-    rosrust::service::<GetBestHead, _>(BEST_HEAD_SRV_NAME, move |_| {
+    rosrust::service::<GetBestHead, _>(BEST_HASH_SRV_NAME, move |_| {
         let mut res = GetBestHeadRes::default();
         res.hash.data = api.block_hash(None)?;
         Ok(res)
     })
 }
 
-fn get_finalized_head<T>(
+fn get_finalized_hash<T>(
     api: T
 ) -> Result<rosrust::Service, Error> where
     T: ChainApi + Send + Sync + 'static
 {
-    rosrust::service::<GetFinalizedHead, _>(FINALIZED_HEAD_SRV_NAME, move |_| {
+    rosrust::service::<GetFinalizedHead, _>(FINALIZED_HASH_SRV_NAME, move |_| {
         let mut res = GetFinalizedHeadRes::default();
         res.hash.data = api.finalized_head();
         Ok(res)
     })
 }
 
+fn import_notifications<T, Block>(
+    api: T
+) -> Result<impl Future<Output=()>, Error> where
+    T: ChainApi + BlockchainEvents<Block> + Clone + Sync + Send + 'static,
+    Block: traits::Block<Hash=H256>,
+    u64: From<<<Block as traits::Block>::Header as Header>::Number>,
+{
+    let hash_pub = rosrust::publish(BEST_HASH_SRV_NAME, QUEUE_SIZE)?;
+    let number_pub = rosrust::publish(BEST_NUMBER_SRV_NAME, QUEUE_SIZE)?;
+
+    let stream = api.import_notification_stream()
+        .for_each(move |block| {
+            if block.is_new_best {
+                let mut number_msg = UInt64::default();
+                number_msg.data = (*block.header.number()).into();
+                number_pub
+                    .send(number_msg)
+                    .expect("Unable to publish best number");
+
+                let mut hash_msg = BlockHash::default();
+                hash_msg.data = block.hash.into();
+                hash_pub
+                    .send(hash_msg)
+                    .expect("Unable to publish best hash");
+            }
+            futures::future::ready(())
+        });
+    Ok(stream)
+}
+
+fn finality_notifications<T, Block>(
+    api: T
+) -> Result<impl Future<Output=()>, Error> where
+    T: ChainApi + BlockchainEvents<Block> + Clone + Sync + Send + 'static,
+    Block: traits::Block<Hash=H256>,
+    u64: From<<<Block as traits::Block>::Header as Header>::Number>,
+{
+    let finalized_number_pub = rosrust::publish(FINALIZED_NUMBER_SRV_NAME, QUEUE_SIZE)?;
+    let finalized_hash_pub = rosrust::publish(FINALIZED_HASH_SRV_NAME, QUEUE_SIZE)?;
+
+    let stream = api.finality_notification_stream()
+        .for_each(move |block| {
+            let mut finalized_number_msg = UInt64::default();
+            finalized_number_msg.data = (*block.header.number()).into();
+            finalized_number_pub
+                .send(finalized_number_msg)
+                .expect("Unable to publish finalized number");
+
+            let mut finalized_hash_msg = BlockHash::default();
+            finalized_hash_msg.data = block.hash.into();
+            finalized_hash_pub
+                .send(finalized_hash_msg)
+                .expect("Unable to publish finalized hash");
+
+            futures::future::ready(())
+        });
+    Ok(stream)
+}
+
 pub fn start_services<T>(
-    api: &T
+    api: T
 ) -> Result<Vec<rosrust::Service>, Error> where 
     T: ChainApi + Clone + Sync + Send + 'static
 {
@@ -130,8 +201,22 @@ pub fn start_services<T>(
         get_block(api.clone())?,
         get_block_hash(api.clone())?,
         get_block_header(api.clone())?,
-        get_best_head(api.clone())?,
-        get_finalized_head(api.clone())?,
+        get_best_hash(api.clone())?,
+        get_finalized_hash(api)?,
     ];
     Ok(services)
+}
+
+pub fn start_publishers<T, Block>(
+    api: T
+) -> Result<impl Future<Output=()>, Error> where 
+    T: ChainApi + BlockchainEvents<Block> + Clone + Sync + Send + 'static,
+    Block: traits::Block<Hash=H256>,
+    u64: From<<<Block as traits::Block>::Header as Header>::Number>,
+{
+    let task = join(
+        import_notifications(api.clone())?,
+        finality_notifications(api)?,
+    ).map(|_| ());
+    Ok(task)
 }

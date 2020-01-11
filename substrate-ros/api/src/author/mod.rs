@@ -20,14 +20,15 @@ use std::sync::Arc;
 use sc_client::Client;
 use codec::{Decode, Encode};
 use sp_session::SessionKeys;
-use sp_api::ConstructRuntimeApi;
+use sp_api::ProvideRuntimeApi;
 use futures::executor::block_on;
 use sp_blockchain::Error as ClientError;
-use sp_runtime::{generic, traits::{self, ProvideRuntimeApi}};
-use sp_core::{Blake2Hasher, H256, traits::BareCryptoStorePtr};
+use sp_runtime::{generic, traits};
+use sp_core::{H256, traits::BareCryptoStorePtr};
 use sp_transaction_pool::{TransactionPool, InPoolTransaction, TxHash, error::IntoPoolError};
 
 mod ros_api;
+pub use ros_api::start_services;
 
 /// Authoring API
 pub struct Author<B, E, P, Block: traits::Block, RA> {
@@ -37,6 +38,16 @@ pub struct Author<B, E, P, Block: traits::Block, RA> {
 	pool: Arc<P>,
 	/// The key store.
 	keystore: BareCryptoStorePtr,
+}
+
+impl<B, E, P, Block: traits::Block, RA> Clone for Author<B, E, P, Block, RA> {
+    fn clone(&self) -> Author<B, E, P, Block, RA> {
+        Author {
+            client: self.client.clone(),
+            pool: self.pool.clone(),
+            keystore: self.keystore.clone(),
+        }
+    }
 }
 
 impl<B, E, P, Block: traits::Block, RA> Author<B, E, P, Block, RA> {
@@ -54,15 +65,15 @@ impl<B, E, P, Block: traits::Block, RA> Author<B, E, P, Block, RA> {
 	}
 }
 
-impl<B, E, P, Block, RA> ros_api::AuthorApi for Author<B, E, P, Block, RA> where
-	Block: traits::Block<Hash=H256>,
-	B: sc_client_api::backend::Backend<Block, Blake2Hasher> + Send + Sync + 'static,
-	E: sc_client_api::CallExecutor<Block, Blake2Hasher> + Clone + Send + Sync + 'static,
-	P: TransactionPool<Block=Block, Hash=Block::Hash> + Sync + Send + 'static,
-	RA: ConstructRuntimeApi<Block, Client<B, E, Block, RA>> + Send + Sync + 'static,
-	Client<B, E, Block, RA>: ProvideRuntimeApi,
-	<Client<B, E, Block, RA> as ProvideRuntimeApi>::Api:
-		SessionKeys<Block, Error = ClientError>,
+impl<B, E, P, RA> ros_api::AuthorApi for Author<B, E, P, <P as TransactionPool>::Block, RA> where
+	B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
+	E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
+	P: TransactionPool<Hash=H256> + Sync + Send + 'static,
+	RA: Send + Sync + 'static,
+    P::Block: traits::Block<Hash=H256>,
+	Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
+	<Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
+		SessionKeys<P::Block, Error = ClientError>,
 {
 	fn rotate_keys(&self) -> Result<ros_api::Bytes, String> {
 		let best_block_hash = self.client.chain_info().best_hash;

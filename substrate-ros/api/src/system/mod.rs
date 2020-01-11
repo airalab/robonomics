@@ -27,11 +27,23 @@ use sc_network::{
 pub use sc_rpc::system::helpers::SystemInfo;
 
 mod ros_api;
+pub use ros_api::{start_services, start_publishers};
 
-#[derive(Clone)]
+/// Substrate system API.
 pub struct System<B: traits::Block, S: NetworkSpecialization<B>, H: ExHashT + Clone + Sync> {
     info: SystemInfo,
     network: Arc<NetworkService<B, S, H>>,
+}
+
+impl<B, S, H> Clone for System<B, S, H>
+    where B: traits::Block, S: NetworkSpecialization<B>, H: ExHashT + Clone + Sync
+{
+    fn clone(&self) -> System<B, S, H> {
+        System { 
+            info: self.info.clone(),
+            network: self.network.clone(),
+        }
+    }
 }
 
 impl<B: traits::Block, S, H> System<B, S, H> where
