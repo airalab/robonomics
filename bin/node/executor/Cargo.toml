@@ -7,3 +7,11 @@ edition = "2018"
 [dependencies]
 sc-executor = { git = "https://github.com/paritytech/substrate" }
 node-runtime = { path = "../runtime" }
+
+[features]
+wasmtime = [
+    "sc-executor/wasmtime",
+]
+wasmi-errno = [
+    "sc-executor/wasmi-errno",
+]

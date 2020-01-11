@@ -33,7 +33,7 @@ use sp_runtime::{ApplyExtrinsicResult, Perbill, generic, create_runtime_str, imp
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::transaction_validity::TransactionValidity;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, StaticLookup, Verify,
+    self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
     SaturatedConversion, OpaqueKeys,
 };
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
@@ -188,6 +188,7 @@ impl pallet_balances::Trait for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type TransferFee = TransferFee;
     type CreationFee = CreationFee;
+    type OnReapAccount = System;
 }
 
 parameter_types! {
@@ -511,8 +512,8 @@ impl_runtime_apis! {
     }
 
     impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
-        fn offchain_worker(number: NumberFor<Block>) {
-            Executive::offchain_worker(number)
+        fn offchain_worker(header: &<Block as BlockT>::Header) {
+            Executive::offchain_worker(header)
         }
     }
 

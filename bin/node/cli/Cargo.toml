@@ -10,6 +10,7 @@ default-run = "robonomics"
 [[bin]]
 name = "robonomics"
 path = "bin/main.rs"
+required-features = ["cli"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -48,7 +49,7 @@ sc-consensus-babe = { git = "https://github.com/paritytech/substrate" }
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate" }
 sc-basic-authority = { git = "https://github.com/paritytech/substrate" }
 sc-authority-discovery = { git = "https://github.com/paritytech/substrate" }
-sc-service = { git = "https://github.com/paritytech/substrate" }
+sc-service = { git = "https://github.com/paritytech/substrate", default-features = false }
 sc-telemetry = { git = "https://github.com/paritytech/substrate" }
 sc-keystore = { git = "https://github.com/paritytech/substrate" }
 
@@ -64,34 +65,48 @@ sc-rpc = { git = "https://github.com/paritytech/substrate" }
 # CLI-specific dependencies
 tokio = { version = "0.1.22", optional = true }
 exit-future = { version = "0.1.4", optional = true }
-sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
 ctrlc = { version = "3.0", features = ["termination"], optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
 
-# Robonomics-soecific dependencies
-robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
+# Browser bundle build support
+wasm-bindgen = { version = "0.2.57", optional = true }
+wasm-bindgen-futures = { version = "0.4.7", optional = true }
+browser-utils = { git = "https://github.com/paritytech/substrate", optional = true }
+
+# Robonomics-specific dependencies
+rosrust = { version = "0.9.2", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
+robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
 
 [build-dependencies]
-sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate" }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate" }
 structopt = "0.3.3"
 vergen = "3.0.4"
 
 [features]
-default = ["cli"]
-
-## Enable Robonomics Console Line Interface basic features
-cli = [
-    "sc-cli",
-    "tokio",
-    "exit-future",
-    "ctrlc",
-    "sc-service/rocksdb",
+default = ["cli","wasmtime"]
+rocksdb = ["sc-service/rocksdb"]
+wasmtime = [
+    "node-executor/wasmtime",
+    "sc-service/wasmtime",
+    "sc-cli/wasmtime",
 ]
 
-## Enable experimental Polkadot collator mode
-collator = [
-    "node-runtime/parachain"
+## Enable Console Line Interface basic features.
+cli = [
+    "ctrlc",
+    "tokio",
+    "sc-cli",
+    "rocksdb",
+    "exit-future",
+]
+
+## Enable browser bundle features.
+browser = [
+    "wasm-bindgen",
+    "wasm-bindgen-futures",
+    "browser-utils",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
@@ -99,5 +114,5 @@ collator = [
 # It also require roscore service to be launched.
 ros = [
     "substrate-ros-api",
-    "robonomics-ros-api",
+#    "robonomics-ros-api",
 ]

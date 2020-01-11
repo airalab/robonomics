@@ -19,6 +19,7 @@
 
 #![warn(unused_extern_crates)]
 
+use log::warn;
 use std::sync::Arc;
 use node_executor::Executor;
 use node_runtime::{GenesisConfig, RuntimeApi};
@@ -117,9 +118,7 @@ macro_rules! new_full {
             $config.network.sentry_nodes.clone(),
             $config.chain_spec.clone(),
         );
-        use futures01::Stream;
         use futures::{
-            compat::Stream01CompatExt,
             stream::StreamExt,
             future::{FutureExt, TryFutureExt},
         };
@@ -171,19 +170,16 @@ macro_rules! new_full {
             service.spawn_essential_task(babe);
 
             let network = service.network();
-            let dht_event_stream = network.event_stream().filter_map(|e| match e {
+            let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
                 Event::Dht(e) => Some(e),
                 _ => None,
-            });
-            let future03_dht_event_stream = dht_event_stream.compat()
-                .map(|x| x.expect("<mpsc::channel::Receiver as Stream> never returns an error; qed"))
-                .boxed();
+            }}).boxed();
             let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
                 service.client(),
                 network,
                 sentry_nodes,
                 service.keystore(),
-                future03_dht_event_stream,
+                dht_event_stream,
             );
             let future01_authority_discovery = authority_discovery.map(|x| Ok(x)).compat();
 
@@ -245,32 +241,41 @@ macro_rules! new_full {
         }
 
         #[cfg(feature = "ros")]
-        {
-            let (api, subs) = ros_robonomics::start_api(
+        { if rosrust::try_init_with_options("robonomics", false).is_ok() {
+            /*
+            let (robonomics_api, ros_subscribers) = robonomics_ros_api::start(
                 service.client(),
                 service.transaction_pool(),
-                babe_key
+                service.keystore(),
             );
-            service.spawn_task(api.unit_error().boxed().compat());
+            service.spawn_task(robonomics_api);
+            */
     
-            let system_info = ros_rpc::system::SystemInfo {
+            let system_info = substrate_ros_api::system::SystemInfo {
                 chain_name: chain_spec.name().into(),
                 impl_name: impl_name.into(),
                 impl_version: impl_version.into(),
                 properties: chain_spec.properties(),
             };
 
-            let (srvs, pubs)= ros_rpc::traits::start_services(
+            let (ros_services, publish_task) = substrate_ros_api::start(
                 system_info,
-                service.network(),
                 service.client(),
-                service.transaction_pool()
-            );
-            service.spawn_task(pubs.unit_error().boxed().compat());
+                service.network(),
+                service.transaction_pool(),
+            )?;
+            service.spawn_task(publish_task);
 
-            let on_exit = service.on_exit().then(move |_| { let _ = subs; let _ = srvs; Ok(()) });
+            let on_exit = service.on_exit().then(move |_| {
+                // Keep ROS services&subscribers alive until on_exit signal reached
+                let _ = ros_services;
+                //let _ = ros_subscribers; 
+                Ok(())
+            });
             service.spawn_task(on_exit);
-        }
+        } else {
+            warn!("ROS integration disabled because of initialization failure");
+        } }
 
         Ok((service, inherent_data_providers))
     }}
