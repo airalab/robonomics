@@ -15,13 +15,13 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 pub use sc_cli::VersionInfo;
-use tokio::prelude::Future;
 use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use sc_cli::{
     IntoExit, NoCustom, error,
     display_role, parse_and_prepare, ParseAndPrepare
 };
 use sc_service::{AbstractService, Roles as ServiceRoles, Configuration};
+use futures::{channel::oneshot, future::{select, Either}};
 use crate::chain_spec::load_spec;
 use crate::service;
 use log::info;
@@ -43,7 +43,10 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
             info!("Chain specification: {}", config.chain_spec.name());
             info!("Node name: {}", config.name);
             info!("Roles: {:?}", display_role(&config));
-            let runtime = RuntimeBuilder::new().name_prefix("main-tokio-").build()
+            let runtime = RuntimeBuilder::new()
+                .thread_name("main-tokio-")
+                .threaded_scheduler()
+                .build()
                 .map_err(|e| format!("{:?}", e))?;
             match config.roles {
                 ServiceRoles::LIGHT => run_until_exit(
@@ -81,37 +84,24 @@ fn run_until_exit<T, E>(
         T: AbstractService,
         E: IntoExit,
 {
-    use futures::{FutureExt, TryFutureExt, channel::oneshot, future::select, compat::Future01CompatExt};
-
     let (exit_send, exit) = oneshot::channel();
 
     let informant = sc_cli::informant::build(&service);
-
-    let future = select(informant, exit)
-        .map(|_| Ok(()))
-        .compat();
-
-    runtime.executor().spawn(future);
+    let handle = runtime.spawn(select(exit, informant));
 
     // we eagerly drop the service so that the internal exit future is fired,
     // but we need to keep holding a reference to the global telemetry guard
     let _telemetry = service.telemetry();
 
-    let service_res = {
-        let exit = e.into_exit();
-        let service = service
-            .map_err(|err| error::Error::Service(err))
-            .compat();
-        let select = select(service, exit)
-            .map(|_| Ok(()))
-            .compat();
-        runtime.block_on(select)
-    };
+    let exit = e.into_exit();
+    let service_res = runtime.block_on(select(service, exit));
 
     let _ = exit_send.send(());
 
-    // TODO [andre]: timeout this future #1318
-    let _ = runtime.shutdown_on_idle().wait();
+    runtime.block_on(handle);
 
-    service_res
+    match service_res {
+        Either::Left((res, _)) => res.map_err(error::Error::Service),
+        Either::Right((_, _)) => Ok(())
+    }
 }
