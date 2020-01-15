@@ -30,8 +30,7 @@ use rosbag::record_types::Connection;
 use futures::io::Error;
 use std::sync::Arc;
 
-use player_codegen::players_builder;
-players_builder!(
+player_codegen::players_builder!(
     // standard ros messages
     std_msgs / String,
     std_msgs / UInt64,
@@ -39,14 +38,11 @@ players_builder!(
     std_msgs / Time,
 );
 
-pub fn build_players(path: &str) -> Result<impl Future<Output=()>, Error> where
-{
+pub fn build_players(path: &str) -> Result<impl Future<Output=()>, Error> {
     RosBag::new(path).map(|rosbag| players_builder(Arc::new(rosbag)))
 }
 
-struct RosbagPlayer<T> where
-    T: rosrust::Message
-{
+struct RosbagPlayer<T: rosrust::Message> {
     bag: Arc<RosBag>,
     publisher: Publisher<T>,
     topic_conn_ids: Vec<u32>,

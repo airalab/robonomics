@@ -63,7 +63,7 @@ pub trait Trait: pallet_robonomics_liability::Trait {
     /// A dispatchable call type.
     type Call: From<pallet_robonomics_liability::Call<Self>>;
 
-    /// Let's define the helper we use to create signed transactions with
+    /// Let's define the helper we use to create unsigned transactions.
     type SubmitTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
 
 	/// The output of the `OrderHashing` function.
@@ -78,12 +78,11 @@ pub trait Trait: pallet_robonomics_liability::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
-/// The type of requests we can send to the offchain worker
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, RuntimeDebug)]
-pub enum OffchainRequest<T: pallet_robonomics_liability::Trait> {
-    Demand(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
-    Offer(TechnicalParam<T>, EconomicalParam<T>, ProofParam<T>, AccountId<T>),
+pub enum RobonomicsMessage<T: Trait> {
+    Demand(Order<T>),
+    Offer(Order<T>),
 }
 
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
@@ -135,7 +134,7 @@ decl_error! {
 decl_storage! {
     trait Store for Module<T: Trait> as Provider {
         /// Requests made within this block execution
-        OcRequests get(oc_requests): Vec<OffchainRequest<T>>;
+        OcRequests get(oc_requests): Vec<RobonomicsMessage<T>>;
     }
 }
 
@@ -178,8 +177,9 @@ decl_module! {
                 sender.clone()
             ));
 
+            let order = Order { technics, economics, proof, sender };
             <OcRequests<T>>::mutate(|requests|
-                requests.push(OffchainRequest::Demand(technics, economics, proof, sender))
+                requests.push(RobonomicsMessage::Demand(order))
             );
         }
 
@@ -209,8 +209,9 @@ decl_module! {
                 sender.clone()
             ));
 
+            let order = Order { technics, economics, proof, sender };
             <OcRequests<T>>::mutate(|requests|
-                requests.push(OffchainRequest::Offer(technics, economics, proof, sender))
+                requests.push(RobonomicsMessage::Offer(order))
             );
         }
 
@@ -230,10 +231,9 @@ impl<T: Trait> Module<T> {
     fn offchain(now: T::BlockNumber) {
         for e in <OcRequests<T>>::get() {
             match e {
-                OffchainRequest::Demand(technics, economics, proof, sender) => {
-                    let params = (technics.clone(), economics.clone());
+                RobonomicsMessage::Demand(order) => {
+                    let params = (order.technics.clone(), order.economics.clone());
                     let order_id = T::OrderHashing::hash_of(&params);
-                    let order = Order::<T>{ technics, economics, proof, sender };
                     debug::info!(
                         target: "robonomics-provider",
                         "Get demand params {:?} from {:?}", order_id, order.sender
@@ -267,10 +267,9 @@ impl<T: Trait> Module<T> {
                     }
                 },
 
-                OffchainRequest::Offer(technics, economics, proof, sender) => {
-                    let params = (technics.clone(), economics.clone());
+                RobonomicsMessage::Offer(order) => {
+                    let params = (order.technics.clone(), order.economics.clone());
                     let order_id = T::OrderHashing::hash_of(&params);
-                    let order = Order::<T>{ technics, economics, proof, sender };
                     debug::info!(
                         target: "robonomics-provider",
                         "Get offer params {:?} from {:?}", order_id, order.sender

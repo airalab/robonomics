@@ -13,20 +13,6 @@ use futures03::FutureExt;
 
 use log::error;
 
-pub use substrate_executor::NativeExecutor;
-
-// Our native executor instance.
-native_executor_instance!(
-	pub Executor,
-	parachain_runtime::api::dispatch,
-	parachain_runtime::native_version,
-);
-
-construct_simple_protocol! {
-	/// Demo protocol attachment for substrate.
-	pub struct NodeProtocol where Block = Block { }
-}
-
 /// Starts a `ServiceBuilder` for a full service.
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to

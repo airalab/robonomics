@@ -243,14 +243,12 @@ macro_rules! new_full {
 
         #[cfg(feature = "ros")]
         { if rosrust::try_init_with_options("robonomics", false).is_ok() {
-            /*
             let (robonomics_api, ros_subscribers) = robonomics_ros_api::start(
                 service.client(),
                 service.transaction_pool(),
                 service.keystore(),
-            );
+            ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
             service.spawn_task(robonomics_api);
-            */
     
             let system_info = substrate_ros_api::system::SystemInfo {
                 chain_name: chain_spec.name().into(),
@@ -265,19 +263,19 @@ macro_rules! new_full {
                 service.network(),
                 service.transaction_pool(),
                 service.keystore(),
-            ).expect("Unable to launch ROS API");
+            ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
 
             let on_exit = service.on_exit().then(move |_| {
                 // Keep ROS services&subscribers alive until on_exit signal reached
                 let _ = ros_services;
-                //let _ = ros_subscribers; 
+                let _ = ros_subscribers; 
                 futures::future::ready(())
             });
 
             let ros_task = futures::future::join(
                 publish_task,
                 on_exit,
-            ).boxed().map(|_| Ok(()));
+            ).boxed().map(|_| ());
 
             service.spawn_task(ros_task);
         } else {

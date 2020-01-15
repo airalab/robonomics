@@ -109,33 +109,33 @@ pub fn get_authority_keys_from_seed(
 ) -> (
     AccountId,
     AccountId,
-    GrandpaId,
     BabeId,
+    GrandpaId,
     ImOnlineId,
     AuthorityDiscoveryId
 ) {
     (
         get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
         get_account_id_from_seed::<sr25519::Public>(seed),
-        get_from_seed::<GrandpaId>(seed),
         get_from_seed::<BabeId>(seed),
+        get_from_seed::<GrandpaId>(seed),
         get_from_seed::<ImOnlineId>(seed),
         get_from_seed::<AuthorityDiscoveryId>(seed),
     )
 }
 
 fn session_keys(
-    grandpa: GrandpaId,
     babe: BabeId,
+    grandpa: GrandpaId,
     im_online: ImOnlineId,
     authority_discovery: AuthorityDiscoveryId,
 ) -> SessionKeys {
-    SessionKeys { grandpa, babe, im_online, authority_discovery, }
+    SessionKeys { babe, grandpa, im_online, authority_discovery, }
 }
 
 /// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)>,
+    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
     let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
@@ -218,11 +218,12 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 
 /// Robonomics testnet config. 
 fn robonomics_config_genesis() -> GenesisConfig {
-    let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![(
+    let initial_authorities = vec![(
+        // akru.me
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
         hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
+        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
         hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
         hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
     )];

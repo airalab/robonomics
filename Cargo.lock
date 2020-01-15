@@ -3128,6 +3128,8 @@ dependencies = [
  "pallet-nicks 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-randomness-collective-flip 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-robonomics-agent 0.1.0",
+ "pallet-robonomics-agent-runtime-api 0.1.0",
  "pallet-robonomics-liability 0.1.0",
  "pallet-robonomics-provider 0.1.0",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -3441,6 +3443,39 @@ dependencies = [
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "safe-mix 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+]
+
+[[package]]
+name = "pallet-robonomics-agent"
+version = "0.1.0"
+dependencies = [
+ "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "node-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-robonomics-liability 0.1.0",
+ "pallet-robonomics-provider 0.1.0",
+ "parity-scale-codec 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-application-crypto 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+]
+
+[[package]]
+name = "pallet-robonomics-agent-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-robonomics-liability 0.1.0",
+ "pallet-robonomics-provider 0.1.0",
+ "parity-scale-codec 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
@@ -4407,7 +4442,7 @@ dependencies = [
 name = "robonomics-ros-api"
 version = "0.1.0"
 dependencies = [
- "bs58 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base58 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "derive_more 0.99.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -4418,8 +4453,7 @@ dependencies = [
  "node-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
  "node-runtime 0.14.0",
  "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-robonomics-liability 0.1.0",
- "pallet-robonomics-provider 0.1.0",
+ "pallet-robonomics-agent-runtime-api 0.1.0",
  "parity-scale-codec 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "robonomics-liability 0.1.0",
  "robonomics-msgs 0.1.0",
@@ -4427,7 +4461,6 @@ dependencies = [
  "sc-client 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sc-keystore 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-application-crypto 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",

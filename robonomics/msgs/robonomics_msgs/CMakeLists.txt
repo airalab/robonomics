@@ -10,6 +10,7 @@ project(robonomics_msgs)
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   std_msgs
+  substrate_ros_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,11 +50,10 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
     FILES
         # Robonomics messages
-        Order.msg
         Demand.msg
         Offer.msg
-        Finalize.msg
         Liability.msg
+        Report.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -61,6 +61,8 @@ add_service_files(
     FILES
         # Liability engine
         StartLiability.srv
+        SendOrder.srv
+        SendReport.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -74,6 +76,7 @@ add_service_files(
 generate_messages(
     DEPENDENCIES
         std_msgs
+        substrate_ros_msgs
 )
 
 ################################################

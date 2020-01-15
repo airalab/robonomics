@@ -1,2 +1,0 @@
-string id
-string result

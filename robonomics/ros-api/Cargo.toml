@@ -6,17 +6,24 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-bs58 = "0.2"
+base58 = "0.1"
 rosrust = "0.9"
 futures = "0.3.1"
+futures-util = "0.3.1"
 futures-timer = "2"
-futures01 = { package = "futures", version = "0.1.29" }
-robonomics-msgs = { path = "../msgs" }
+derive_more = "0.99"
+msgs = { package = "robonomics-msgs", path = "../msgs" }
+pallet-robonomics-agent-runtime-api = { path = "../frame/agent/runtime-api" }
+robonomics-liability = { path = "../liability" }
 node-runtime = { path = "../../bin/node/runtime" }
-liability = { package = "robonomics-liability", path = "../liability" }
-system = { package = "frame-system", git = "https://github.com/paritytech/substrate" }
-balances = { package = "pallet-balances", git = "https://github.com/paritytech/substrate" }
-client = { package = "sc-client", git = "https://github.com/paritytech/substrate" }
-primitives = { package = "sp-core", git = "https://github.com/paritytech/substrate" }
+codec = { package = "parity-scale-codec", version = "1.0.0" }
+node-primitives = { git = "https://github.com/paritytech/substrate" }
+frame-system = { git = "https://github.com/paritytech/substrate" }
+pallet-balances = { git = "https://github.com/paritytech/substrate" }
+sc-client = { git = "https://github.com/paritytech/substrate" }
+sc-keystore = { git = "https://github.com/paritytech/substrate" }
+sp-api = { git = "https://github.com/paritytech/substrate" }
+sp-core = { git = "https://github.com/paritytech/substrate" }
 sp-runtime = { git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
+frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate" }

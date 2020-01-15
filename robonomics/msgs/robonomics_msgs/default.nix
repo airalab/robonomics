@@ -1,6 +1,6 @@
 { stdenv
-, ros_comm
 , mkRosPackage
+, substrate-ros-msgs
 }:
 
 mkRosPackage rec {
@@ -10,7 +10,7 @@ mkRosPackage rec {
 
   src = ./.;
 
-  propagatedBuildInputs = [ ros_comm ];
+  propagatedBuildInputs = [ substrate-ros-msgs ];
 
   meta = with stdenv.lib; {
     description = "Robonomics module ROS messages";

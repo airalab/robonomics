@@ -1,0 +1,5 @@
+uint64 index
+string report
+string proof
+---
+substrate_ros_msgs/ExHash extrinsic 

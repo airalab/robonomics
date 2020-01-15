@@ -15,17 +15,23 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Rust generated ROS messages.
-use rosrust::rosmsg_include;
+//! This module exports Robonomics API error type.
 
-rosmsg_include!(
-    // Messages
-    robonomics_msgs / Demand,
-    robonomics_msgs / Offer,
-    robonomics_msgs / Liability,
-    robonomics_msgs / Report,
-    // Services
-    robonomics_msgs / StartLiability,
-    robonomics_msgs / SendOrder,
-    robonomics_msgs / SendReport,
-);
+/// Result type.
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// API error type.
+#[derive(Debug, derive_more::Display, derive_more::From)]
+pub enum Error {
+    /// Something wrong with ROS integraction.
+    #[display(fmt="ROS error: {:?}", _0)]
+    RosError(rosrust::api::error::Error),
+    /// Transaction pool error raised.
+    #[display(fmt="Transaction pool error: {:?}", _0)]
+    TransactionPoolError(sp_transaction_pool::error::Error),
+    /// Unable to load key from keystore.
+    #[display(fmt="Unable to load key from keystore: {}", _0)]
+    KeystoreError(String),
+}
+
+impl std::error::Error for Error {}

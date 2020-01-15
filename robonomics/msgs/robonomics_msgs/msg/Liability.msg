@@ -1,5 +1,6 @@
-string id
-Order  order
+uint64 index 
+string technics
+string economics 
 string promisee
 string promisor
-string result
+string report

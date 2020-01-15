@@ -37,6 +37,7 @@ use sp_runtime::traits::{
     SaturatedConversion, OpaqueKeys,
 };
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
+use pallet_robonomics_agent::crypto::sr25519::AgentId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_inherents::{InherentData, CheckInherentsResult};
@@ -45,13 +46,14 @@ use pallet_grandpa::fg_primitives;
 use pallet_grandpa::AuthorityList as GrandpaAuthorityList;
 use sp_api::impl_runtime_apis;
 use impls::{CurrencyToVoteHandler, LinearWeightToFee, TargetedFeeAdjustment};
-use crate::constants::{time::*, currency::*};
 use node_primitives::{
     Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
 use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+
+use crate::constants::{time::*, currency::*};
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -211,8 +213,8 @@ impl pallet_transaction_payment::Trait for Runtime {
 
 impl_opaque_keys! {
     pub struct SessionKeys {
-        pub grandpa: Grandpa,
         pub babe: Babe,
+        pub grandpa: Grandpa,
         pub im_online: ImOnline,
         pub authority_discovery: AuthorityDiscovery,
     }
@@ -351,6 +353,12 @@ impl pallet_robonomics_provider::Trait for Runtime {
     type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
+impl pallet_robonomics_agent::Trait for Runtime {
+    type Call = Call;
+    type Event = Event;
+    type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
+}
+
 impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
@@ -416,8 +424,9 @@ construct_runtime!(
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 
         // Robonomics Network modules.
-        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
-        Provider: pallet_robonomics_provider::{Module, Call, Storage, Event<T>},
+        RobonomicsLiability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
+        RobonomicsProvider: pallet_robonomics_provider::{Module, Call, Storage, Event<T>},
+        RobonomicsAgent: pallet_robonomics_agent::{Module, Call, Storage, Event},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo,
@@ -566,6 +575,49 @@ impl_runtime_apis! {
     impl sp_session::SessionKeys<Block> for Runtime {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
+        }
+    }
+
+    impl pallet_robonomics_agent_runtime_api::RobonomicsAgentApi<Block, AccountId> for Runtime {
+        fn account() -> Option<AccountId> {
+            RobonomicsAgent::account()
+        }
+    }
+
+    impl pallet_robonomics_agent_runtime_api::RobonomicsLiabilityApi<Block, Runtime> for Runtime {
+        fn pull() -> Option<Vec<u8>> {
+            None
+        }
+
+        fn recv() -> Vec<pallet_robonomics_provider::RobonomicsMessage<Runtime>> {
+            vec![]
+        }
+
+        fn send_demand(
+            technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
+            economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
+        ) -> Result<(), ()> {
+            Err(())
+        }
+
+        fn send_offer(
+            technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
+            economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
+        ) -> Result<(), ()> {
+            Err(())
+        }
+
+        fn send_report(
+            index: pallet_robonomics_liability::LiabilityIndex,
+            report: pallet_robonomics_liability::TechnicalReport<Runtime>,
+        ) -> Result<(), ()> {
+            Err(())
+        }
+    }
+
+    impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block> for Runtime {
+        fn send_data(data: Vec<u8>) -> Result<(), ()> {
+            Err(())
         }
     }
 }
