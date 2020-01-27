@@ -7,19 +7,19 @@ edition = "2018"
 [dependencies]
 serde = { version = "1.0", optional = true, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false, features = ["derive"] }
-sp-io = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
+sp-io = { git = "https://github.com/airalab/substrate", default-features = false }
+sp-std = { git = "https://github.com/airalab/substrate", default-features = false }
+sp-core = { git = "https://github.com/airalab/substrate", default-features = false }
+sp-runtime = { git = "https://github.com/airalab/substrate", default-features = false }
+frame-system = { git = "https://github.com/airalab/substrate", default-features = false }
+frame-support = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-robonomics-storage = { path = "../storage", default-features = false }
 pallet-robonomics-provider = { path = "../provider", default-features = false }
 pallet-robonomics-liability = { path = "../liability", default-features = false }
 
 [dev-dependencies]
 base58 = "0.1.0"
-node-primitives = { git = "https://github.com/paritytech/substrate" }
+node-primitives = { git = "https://github.com/airalab/substrate" }
 
 [features]
 default = ["std"]

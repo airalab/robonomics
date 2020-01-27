@@ -5,7 +5,7 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-sc-executor = { git = "https://github.com/paritytech/substrate" }
+sc-executor = { git = "https://github.com/airalab/substrate" }
 robonomics-runtime = { path = "../robonomics-runtime", optional = true }
 ipci-runtime = { path = "../ipci-runtime", optional = true }
 
