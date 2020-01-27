@@ -17,20 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
+use serde::{Serialize, Deserialize};
+use sc_chain_spec::ChainSpecExtension;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519};
-use node_runtime::{
+use node_executor::runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    AuthorityDiscoveryConfig,
-    SessionKeys, StakerStatus, WASM_BINARY,
+    AuthorityDiscoveryConfig, SessionKeys, StakerStatus, WASM_BINARY,
+    constants::currency::*,
 };
-use node_runtime::constants::currency::*;
 use node_primitives::{AccountId, Balance, Signature};
+use node_executor::runtime::Block;
 use sc_telemetry::TelemetryEndpoints;
 use hex_literal::hex;
 
@@ -43,11 +45,32 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenSymbol": "XRT"
     }"#;
 
+const IPCI_PROTOCOL_ID: &str = "mito";
+const IPCI_PROPERTIES: &str = r#"
+    {
+        "tokenSymbol": "MITO"
+    }"#;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
-/// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::ChainSpec<GenesisConfig>;
+/// Node `ChainSpec` extensions.
+///
+/// Additional parameters for some Substrate core modules,
+/// customizable from the chain spec.
+#[derive(Default, Clone, Serialize, Deserialize, ChainSpecExtension)]
+#[serde(rename_all = "camelCase")]
+pub struct Extensions {
+    /// Block numbers with known hashes.
+    pub fork_blocks: sc_client::ForkBlocks<Block>,
+    /// Known bad block hashes.
+    pub bad_blocks: sc_client::BadBlocks<Block>,
+}
+
+/// Specialized `ChainSpec`.
+pub type ChainSpec = sc_service::ChainSpec<
+    GenesisConfig,
+    Extensions,
+>;
 
 /// The chain specification option. This is expected to come in from the CLI and
 /// is little more than one of a number of alternatives which can easily be converted
@@ -60,15 +83,18 @@ enum ChainOpt {
     LocalTestnet,
     /// Robonomics public testnet.
     RobonomicsTestnet,
+    /// IPCI blockchain network.
+    IPCI,
 }
 
 impl ChainOpt {
     /// Get an actual chain config from one of the alternatives.
     pub(crate) fn load(self) -> Result<ChainSpec, String> {
         Ok(match self {
-            ChainOpt::Development => development_config(),
+            ChainOpt::Development => development_testnet_config(),
             ChainOpt::LocalTestnet => local_testnet_config(),
             ChainOpt::RobonomicsTestnet => robonomics_testnet_config(),
+            ChainOpt::IPCI => ipci_config(),
         })
     }
 
@@ -77,6 +103,7 @@ impl ChainOpt {
             "dev" => Some(ChainOpt::Development),
             "local" => Some(ChainOpt::LocalTestnet),
             "" | "robonomics" => Some(ChainOpt::RobonomicsTestnet),
+            "ipci" => Some(ChainOpt::IPCI),
             _ => None,
         }
     }
@@ -133,12 +160,14 @@ fn session_keys(
     SessionKeys { babe, grandpa, im_online, authority_discovery, }
 }
 
-/// Helper function to create GenesisConfig for testing
 pub fn testnet_genesis(
     initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Option<Vec<AccountId>>,
+    sudo_key: AccountId,
 ) -> GenesisConfig {
-    let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
+    const ENDOWMENT: Balance = 1_000_000_000_000_000_000;
+
+    let endowed_accounts: Vec<(AccountId, Balance)> = endowed_accounts.unwrap_or_else(|| {
         vec![
             get_account_id_from_seed::<sr25519::Public>("Alice"),
             get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -153,11 +182,17 @@ pub fn testnet_genesis(
             get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
         ]
-    });
+    }).iter().cloned().map(|acc| (acc, ENDOWMENT)).collect();
+    make_genesis(initial_authorities, endowed_accounts, sudo_key)
+}
 
-    const ENDOWMENT: Balance = 100 * XRT;
-    const STASH: Balance = 1_000 * XRT;
-
+/// Helper function to create GenesisConfig
+pub fn make_genesis(
+    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+    endowed_accounts: Vec<(AccountId, Balance)>,
+    sudo_key: AccountId,
+) -> GenesisConfig {
+    const STASH: Balance = 1_000_000;
     GenesisConfig {
         frame_system: Some(SystemConfig {
             code: WASM_BINARY.to_vec(),
@@ -165,12 +200,12 @@ pub fn testnet_genesis(
         }),
         pallet_indices: Some(IndicesConfig {
             ids: endowed_accounts.iter().cloned()
+                .map(|(acc, _)| acc)
                 .chain(initial_authorities.iter().map(|x| x.0.clone()))
                 .collect::<Vec<_>>(),
         }),
         pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts.iter().cloned()
-                .map(|k| (k, ENDOWMENT))
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
             vesting: vec![],
@@ -204,7 +239,7 @@ pub fn testnet_genesis(
             keys: vec![],
         }),
         pallet_sudo: Some(SudoConfig {
-            key: endowed_accounts[0].clone(),
+            key: sudo_key,
         }),
     }
 }
@@ -216,8 +251,8 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 }
 */
 
-/// Robonomics testnet config. 
-fn robonomics_config_genesis() -> GenesisConfig {
+/// Robonomics testnet genesis. 
+fn robonomics_testnet_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
         // akru.me
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
@@ -228,14 +263,14 @@ fn robonomics_config_genesis() -> GenesisConfig {
         hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
     )];
 
-    let endowed_accounts: Vec<AccountId> = vec![
+    let sudo_key: AccountId =
         // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into(),
-    ];
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
-    testnet_genesis(
+    make_genesis(
         initial_authorities,
-        Some(endowed_accounts),
+        Default::default(),
+        sudo_key,
     )
 }
 
@@ -254,7 +289,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Robonomics",
         "robonomics_testnet",
-        robonomics_config_genesis,
+        robonomics_testnet_genesis,
         boot_nodes,
         Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
         Some(ROBONOMICS_PROTOCOL_ID),
@@ -263,25 +298,76 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     )
 }
 
-fn development_config_genesis() -> GenesisConfig {
+
+/*
+/// IPCI blockchain config. 
+pub fn ipci_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
+}
+*/
+
+/// IPCI blockchain genesis. 
+fn ipci_genesis() -> GenesisConfig {
+    let initial_authorities = vec![(
+        // akru.me
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
+        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
+        hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
+        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
+        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
+        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
+    )];
+
+    let sudo_key: AccountId =
+        // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
+
+    let endowed_accounts: Vec<(AccountId, Balance)> = vec![
+    ];
+
+    make_genesis(
+        initial_authorities,
+        endowed_accounts,
+        sudo_key,
+    )
+}
+
+/// IPCI config.
+pub fn ipci_config() -> ChainSpec {
+    let boot_nodes = vec![
+        // akru
+        "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N".into(),
+    ];
+    ChainSpec::from_genesis(
+        "IPCI",
+        "ipci",
+        ipci_genesis,
+        boot_nodes,
+        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
+        Some(IPCI_PROTOCOL_ID),
+        Some(serde_json::from_str(IPCI_PROPERTIES).unwrap()),
+        Default::default(),
+    )
+}
+
+fn development_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
-        vec![
-            get_authority_keys_from_seed("Alice"),
-        ],
+        vec![get_authority_keys_from_seed("Alice")],
         None,
+        get_account_id_from_seed::<sr25519::Public>("Alice"),
     )
 }
 
 /// Development config (single validator Alice)
-pub fn development_config() -> ChainSpec {
+pub fn development_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Development",
         "dev",
-        development_config_genesis,
+        development_testnet_genesis,
         vec![],
         None,
-        Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
+        None,
         Default::default(),
     )
 }
@@ -293,6 +379,7 @@ fn local_testnet_genesis() -> GenesisConfig {
             get_authority_keys_from_seed("Bob"),
         ],
         None,
+        get_account_id_from_seed::<sr25519::Public>("Alice"),
     )
 }
 
@@ -304,8 +391,8 @@ pub fn local_testnet_config() -> ChainSpec {
         local_testnet_genesis,
         vec![],
         None,
-        Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
+        None,
         Default::default(),
     )
 }

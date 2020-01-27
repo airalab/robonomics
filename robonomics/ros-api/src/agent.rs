@@ -17,24 +17,27 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! This module exports Robonomics API into ROS namespace.
 
-pub mod agent;
-pub mod messages;
-pub mod services;
 
-use crate as robonomics_ros_api;
+use std::sync::Arc;
+use sp_api::ProvideRuntimeApi;
+use sp_blockchain::HeaderBackend;
+use sp_runtime::{traits, generic::BlockId};
+use pallet_robonomics_agent_runtime_api::RobonomicsAgentApi;
 
-#[macro_export]
-macro_rules! start {
-    ($client:expr) => {{
-        robonomics_ros_api::agent::print_account($client.clone());
-        (
-            robonomics_ros_api::messages::receive_stream($client.clone())?,
-            (
-                robonomics_ros_api::services::send_demand($client.clone())?,
-                robonomics_ros_api::services::send_offer($client.clone())?,
-                robonomics_ros_api::services::send_report($client.clone())?,
-                robonomics_ros_api::services::send_record($client.clone())?,
-            )
-        )
-    }}
+#[cfg(not(feature = "agent"))]
+pub fn print_account<C>(_client: C) {}
+
+#[cfg(feature = "agent")]
+pub fn print_account<B: traits::Block, C, T>(client: Arc<C>) where
+    C: ProvideRuntimeApi<B> + HeaderBackend<B>,
+    C::Api: RobonomicsAgentApi<B, T>,
+    T: frame_system::Trait,
+{
+    let best_hash = client.info().best_hash;
+    let block_id = BlockId::Hash(best_hash);
+    let account = client
+            .runtime_api()
+            .account(&block_id)
+            .expect("Runtime communication error");
+    log::info!("Robonomics Agent: {}", account);
 }

@@ -27,20 +27,24 @@ use sp_std::{
 use sp_core::offchain::StorageKind;
 use sp_runtime::{
     RuntimeDebug,
+    app_crypto::{KeyTypeId, AppKey, AppPublic, AppSignature, RuntimeAppPublic},
     traits::{
         Member, CheckEqual, MaybeSerializeDeserialize, Hash,
-        MaybeDisplay, SimpleBitOps,
+        MaybeDisplay, SimpleBitOps, IdentifyAccount,
     },
 };
 use frame_support::{
     decl_module, decl_event, decl_storage, decl_error,
-    debug, StorageValue, weights::SimpleDispatchInfo, dispatch::Parameter, 
+    debug, StorageValue, weights::SimpleDispatchInfo, dispatch::Parameter,
 };
-use frame_system::{self as system, ensure_signed, offchain::SubmitSignedTransaction};
-use sp_application_crypto::KeyTypeId;
+use frame_system::{
+    self as system, ensure_signed,
+    offchain::{SubmitSignedTransaction, Signer}
+};
+use pallet_robonomics_provider::RobonomicsMessage;
 use pallet_robonomics_liability::{
-    TechnicalParam, EconomicalParam, ProofParam, AccountId,
-    traits::{Agreement, ProofTarget},
+    TechnicalParam, EconomicalParam, ProofParam, AccountId, LiabilityIndex,
+    TechnicalReport, traits::ProofBuilder, signed::AppProofSigner,
 };
 
 /// Agent crypto primitives.
@@ -58,12 +62,9 @@ pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"xrta");
 const DB_KEY: &[u8] = b"airalab/robonomics-agent-worker";
 
 /// The module's main configuration trait.
-pub trait Trait: pallet_robonomics_provider::Trait {
-    /// A dispatchable call type.
-    type Call: From<pallet_robonomics_provider::Call<Self>>;
-
-    /// Let's define the helper we use to create signed transactions.
-    type SubmitTransaction: SubmitSignedTransaction<Self, <Self as Trait>::Call>;
+pub trait Trait: system::Trait {
+    /// Runtime application crypto type.
+    type AgentKey: AppPublic + RuntimeAppPublic + From<<Self::AgentKey as AppPublic>::Generic>;
 
     /// The regular events type.
     type Event: From<Event> + Into<<Self as frame_system::Trait>::Event>;
@@ -112,25 +113,113 @@ decl_module! {
         }
 
         // Runs after every block within the context and current state of said block.
-        fn offchain_worker(now: T::BlockNumber) {
+        fn offchain_worker(_now: T::BlockNumber) {
             debug::RuntimeLogger::init();
-            Self::offchain(now);
+            Self::offchain();
         }
     }
 }
 
 impl<T: Trait> Module<T> {
-    /// The main entry point
-    fn offchain(now: T::BlockNumber) {
+    /// The main entry point.
+    fn offchain() {
     }
 
-    pub fn account() -> Option<T::AccountId> {
-        let keys = <T as Trait>::SubmitTransaction::find_all_local_keys();
+    /// Get default worker generic account.
+    pub fn account() -> <T::AgentKey as AppPublic>::Generic {
+        Self::key().into()
+    }
+
+    /// Get default worker signer key.
+    pub fn key() -> T::AgentKey {
+        let keys = <T::AgentKey as RuntimeAppPublic>::all();
         if keys.is_empty() {
-            None
+            <T::AgentKey as RuntimeAppPublic>::generate_pair(None)
         } else {
-            Some(keys[0].0.clone())
-        }
+            keys[0].clone()
+        }.into()
+    }
+}
+
+impl<T: Trait + pallet_robonomics_storage::Agent> Module<T> {
+    /// Send data record using agent interface.
+    pub fn send_record(record: T::Record) -> Result<(), ()> {
+        let call = pallet_robonomics_storage::Call::<T>::record(record);
+        T::SubmitTransaction::submit_signed(call)[0].1
+    }
+}
+
+impl<T: Trait + pallet_robonomics_provider::Agent> Module<T> where
+    <T::AgentKey as RuntimeAppPublic>::Signature: AppSignature +
+        From<<<T::AgentKey as RuntimeAppPublic>::Signature as AppSignature>::Generic>,
+    <<T::AgentKey as RuntimeAppPublic>::Signature as AppSignature>::Generic: Into<ProofParam<T>>,
+{
+    /// Get execution task for liability player.
+    pub fn pull() -> Option<Vec<u8>> {
+        // TODO
+        None
+    }
+
+    /// Get list of incoming robonomics messages.
+    pub fn recv() -> Vec<RobonomicsMessage<T>> {
+        // TODO
+        vec![]
+    }
+
+    /// Send demand request to robonomics provider.
+    pub fn send_demand(
+        technics: TechnicalParam<T>,
+        economics: EconomicalParam<T>,
+    ) -> Result<(), ()> {
+        let proof: <<T::AgentKey as RuntimeAppPublic>::Signature as AppSignature>::Generic
+            = Self::sign_params(&technics, &economics).into();
+        let call = pallet_robonomics_provider::Call::<T>::demand(
+            technics,
+            economics,
+            proof.into(),
+        );
+        <T as pallet_robonomics_provider::Agent>::SubmitTransaction::submit_signed(call)[0].1
+    }
+
+    /// Send demand request to robonomics provider.
+    pub fn send_offer(
+        technics: TechnicalParam<T>,
+        economics: EconomicalParam<T>,
+    ) -> Result<(), ()> {
+        let proof: <<T::AgentKey as RuntimeAppPublic>::Signature as AppSignature>::Generic
+            = Self::sign_params(&technics, &economics).into();
+        let call = pallet_robonomics_provider::Call::<T>::offer(
+            technics,
+            economics,
+            proof.into(),
+        );
+        <T as pallet_robonomics_provider::Agent>::SubmitTransaction::submit_signed(call)[0].1
+    }
+
+    fn sign_params(
+        technics: &TechnicalParam<T>,
+        economics: &EconomicalParam<T>,
+    ) -> <T::AgentKey as RuntimeAppPublic>::Signature {
+        <AppProofSigner<T::AgentKey> as ProofBuilder<
+            <T as pallet_robonomics_liability::Trait>::Technics,
+            <T as pallet_robonomics_liability::Trait>::Economics,
+            LiabilityIndex<T>,
+            _,
+            _,
+            >>::proof_params(technics, economics, Self::key())
+    }
+
+    fn sign_report(
+        index: &LiabilityIndex<T>,
+        report: &TechnicalReport<T>,
+    ) -> <T::AgentKey as RuntimeAppPublic>::Signature {
+        <AppProofSigner<T::AgentKey> as ProofBuilder<
+            <T as pallet_robonomics_liability::Trait>::Technics,
+            <T as pallet_robonomics_liability::Trait>::Economics,
+            LiabilityIndex<T>,
+            _,
+            _,
+            >>::proof_report(index, report, Self::key())
     }
 }
 

@@ -47,18 +47,18 @@ pub type Hash = [u8; 32];
 const QUEUE_SIZE: usize = 10;
 
 pub trait ChainApi {
-	/// Get header of a chain block.
+    /// Get header of a chain block.
     fn header(&self, hash: Option<Hash>) -> Result<String, String>; 
 
-	/// Get header and body of a chain block.
+    /// Get header and body of a chain block.
     fn block(&self, hash: Option<Hash>) -> Result<String, String>;
 
-	/// Get hash of the n-th block in the canon chain.
-	///
-	/// By default returns latest block hash.
+    /// Get hash of the n-th block in the canon chain.
+    ///
+    /// By default returns latest block hash.
     fn block_hash(&self, number: Option<u32>) -> Result<Hash, String>;
 
-	/// Get hash of the last finalized block in the canon chain.
+    /// Get hash of the last finalized block in the canon chain.
     fn finalized_head(&self) -> Hash;
 }
 

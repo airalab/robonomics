@@ -22,55 +22,55 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use pallet_robonomics_provider::RobonomicsMessage;
 use pallet_robonomics_liability::{
     TechnicalParam, EconomicalParam, TechnicalReport, LiabilityIndex,
 };
-use sp_runtime::RuntimeDebug;
-use codec::{Encode, Decode};
+use pallet_robonomics_provider::RobonomicsMessage;
 use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
     #[api_version(1)]
-	pub trait RobonomicsAgentApi<AccountId> where
-        AccountId: codec::Codec,
+    pub trait RobonomicsAgentApi<T> where
+        T: frame_system::Trait
     {
         /// Get Robonomics Agent offchain worker account.
-        fn account() -> Option<AccountId>;
-	}
+        fn account() -> T::AccountId;
+    }
 
     #[api_version(1)]
-    pub trait RobonomicsLiabilityApi<Runtime> where
-        Runtime: pallet_robonomics_provider::Trait,
+    pub trait RobonomicsLiabilityApi<T> where
+        T: pallet_robonomics_liability::Trait
     {
-        /// Pull execution task for a liability player.
-        fn pull() -> Option<Vec<u8>>;
-
         /// Check inbox for a new Robonomics messages.
-        fn recv() -> Vec<RobonomicsMessage<Runtime>>;
+        fn recv() -> Vec<RobonomicsMessage<T>>;
 
         /// Send demand message from agent account.
         fn send_demand(
-            technics: TechnicalParam<Runtime>,
-            economics: EconomicalParam<Runtime>
+            technics: TechnicalParam<T>,
+            economics: EconomicalParam<T>
         ) -> Result<(), ()>;
 
         /// Send offer message from agent account.
         fn send_offer(
-            technics: TechnicalParam<Runtime>,
-            economics: EconomicalParam<Runtime>,
+            technics: TechnicalParam<T>,
+            economics: EconomicalParam<T>,
         ) -> Result<(), ()>;
 
         /// Send report message from agent account.
         fn send_report(
-            index: LiabilityIndex,
-            report: TechnicalReport<Runtime>,
+            index: LiabilityIndex<T>,
+            report: TechnicalReport<T>,
         ) -> Result<(), ()>;
+
+        /// Pull execution task for a liability player.
+        fn pull() -> Option<Vec<u8>>;
     }
 
     #[api_version(1)]
-    pub trait RobonomicsBlockchainApi {
-        /// Send some data to store it in blockchain.
-        fn send_data(data: Vec<u8>) -> Result<(), ()>;
+    pub trait RobonomicsBlockchainApi<T> where
+        T: pallet_robonomics_storage::Trait
+    {
+        /// Send data record to robonomics blockchain storage.
+        fn send_record(record: T::Record) -> Result<(), ()>;
     }
 }

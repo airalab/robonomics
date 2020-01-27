@@ -19,8 +19,11 @@
 
 use sp_runtime::{
     traits::{Verify, IdentifyAccount},
-    RuntimeDebug, DispatchResult,
+    RuntimeDebug, DispatchResult
 };
+#[cfg(feature = "std")]
+use sp_core::crypto::{Pair, Public};
+use frame_system::offchain::Signer;
 use frame_support::{dispatch, traits::ReservableCurrency};
 use codec::{Encode, Decode};
 
@@ -30,32 +33,36 @@ use crate::traits::*;
 /// Agreement that could be proven by asymmetric cryptography.
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, RuntimeDebug)]
-pub struct SignedLiability<T: Technical, E: Economical, V, A, AccountId>
-    where V: Verify<Signer=A>,
-          A: IdentifyAccount<AccountId=AccountId>,
-          AccountId: dispatch::Parameter,
+pub struct SignedLiability<T, E, V, A, I> where
+    T: Technical,
+    E: Economical,
+    V: Verify<Signer=A>,
+    A: IdentifyAccount<AccountId=I>,
+    I: dispatch::Parameter,
 {
     technics:  T::Parameter,
     economics: E::Parameter,
-    promisee:  AccountId,
-    promisor:  AccountId,
+    promisee:  I,
+    promisor:  I,
     _phantom:  sp_std::marker::PhantomData<V>,
 }
 
-impl<T: Technical, V, A, AccountId> Processing for SignedLiability<T, Communism, V, A, AccountId>
-    where V: Verify<Signer=A>,
-          A: IdentifyAccount<AccountId=AccountId>,
-          AccountId: dispatch::Parameter,
+impl<T, V, A, I> Processing for SignedLiability<T, Communism, V, A, I> where
+    T: Technical,
+    V: Verify<Signer=A>,
+    A: IdentifyAccount<AccountId=I>,
+    I: dispatch::Parameter,
 {
     fn on_start(&self) -> DispatchResult { Ok(()) }
     fn on_finish(&self, _success: bool) -> DispatchResult { Ok(()) }
 }
 
-impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMarket<C, AccountId>, V, A, AccountId>
-    where V: Verify<Signer=A>,
-          A: IdentifyAccount<AccountId=AccountId>,
-          C: ReservableCurrency<AccountId>,
-          AccountId: dispatch::Parameter,
+impl<T, V, A, I, C> Processing for SignedLiability<T, OpenMarket<C, I>, V, A, I> where 
+    T: Technical,
+    V: Verify<Signer=A>,
+    A: IdentifyAccount<AccountId=I>,
+    C: ReservableCurrency<I>,
+    I: dispatch::Parameter,
 {
     fn on_start(&self) -> DispatchResult {
         C::reserve(&self.promisee, self.economics)
@@ -75,20 +82,22 @@ impl<T: Technical, V, A, AccountId, C> Processing for SignedLiability<T, OpenMar
     }
 }
 
-impl<T, E, V, A, AccountId> Agreement<T, E, AccountId> for SignedLiability<T, E, V, A, AccountId>
-    where T: Technical,
-          E: Economical,
-          A: IdentifyAccount<AccountId=AccountId>,
-          V: Verify<Signer=A> + dispatch::Parameter,
-          AccountId: dispatch::Parameter,
+impl<T, E, V, A, I> Agreement<T, E> for SignedLiability<T, E, V, A, I> where
+    T: Technical,
+    E: Economical,
+    A: IdentifyAccount<AccountId=I>,
+    V: Verify<Signer=A> + dispatch::Parameter,
+    I: dispatch::Parameter,
 {
+    type Index = u64;
+    type AccountId = I;
     type Proof = V;
 
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisee:  AccountId,
-        promisor:  AccountId,
+        promisee:  I,
+        promisor:  I,
     ) -> Self {
         SignedLiability {
             technics,
@@ -99,22 +108,84 @@ impl<T, E, V, A, AccountId> Agreement<T, E, AccountId> for SignedLiability<T, E,
         }
     }
 
-    fn verify(
+    fn check_params(
         &self,
-        target: ProofTarget<T>,
-        proof: &Self::Proof
+        proof: &Self::Proof,
+        sender: &Self::AccountId,
     ) -> bool {
-        match target {
-            ProofTarget::Promisee => {
-                let order = (self.technics.clone(), self.economics.clone());
-                order.using_encoded(|params| proof.verify(params, &self.promisee))
-            },
-            ProofTarget::Promisor => {
-                let order = (self.technics.clone(), self.economics.clone());
-                order.using_encoded(|params| proof.verify(params, &self.promisor))
-            },
-            ProofTarget::Report(report) =>
-                report.using_encoded(|params| proof.verify(params, &self.promisor))
-        }
+        (self.technics.clone(), self.economics.clone())
+            .using_encoded(|params| proof.verify(params, sender))
+    }
+
+    fn check_report(
+        &self,
+        index: &Self::Index,
+        report: &T::Report,
+        proof: &Self::Proof,
+    ) -> bool {
+        (index.clone(), report.clone())
+            .using_encoded(|params| proof.verify(params, &self.promisor))
+    }
+}
+
+/// Runtime AppCrypto proof builder.
+pub struct AppProofSigner<T>(sp_std::marker::PhantomData<T>);
+impl<T, E, I, AccountId, Signature, AppSigner> ProofBuilder<T, E, I, AccountId, Signature> for AppProofSigner<AppSigner> where
+    T: Technical,
+    E: Economical,
+    I: dispatch::Parameter,
+    AppSigner: Signer<AccountId, Signature>,
+{
+    fn proof_params(
+        technics: &T::Parameter,
+        economics: &E::Parameter,
+        sender: AccountId,
+    ) -> Signature {
+        (technics, economics)
+            .using_encoded(|params| AppSigner::sign(sender, &params))
+            .expect("unable to sign using runtime application key")
+    }
+
+    fn proof_report(
+        index: &I,
+        report: &T::Report, 
+        sender: AccountId,
+    ) -> Signature {
+        (index, report)
+            .using_encoded(|params| AppSigner::sign(sender, &params))
+            .expect("unable to sign using runtime application key")
+    }
+}
+
+/// Core crypto proof builder.
+#[cfg(feature = "std")]
+pub struct ProofSigner<T>(std::marker::PhantomData<T>);
+
+#[cfg(feature = "std")]
+impl<T, E, I, Account, AccountId, Signature, TPair> ProofBuilder<T, E, I, TPair, Signature> for ProofSigner<TPair> where
+    T: Technical,
+    E: Economical,
+    I: dispatch::Parameter,
+    TPair: Pair<Public=Account, Signature=Signature>,
+    Account: IdentifyAccount<AccountId=AccountId> + Public + std::hash::Hash,
+    AccountId: dispatch::Parameter,
+    Signature: dispatch::Parameter + AsRef<[u8]>,
+{
+    fn proof_params(
+        technics: &T::Parameter,
+        economics: &E::Parameter,
+        sender: TPair,
+    ) -> Signature {
+        (technics, economics)
+            .using_encoded(|params| sender.sign(&params))
+    }
+
+    fn proof_report(
+        index: &I,
+        report: &T::Report, 
+        sender: TPair,
+    ) -> Signature {
+        (index, report)
+            .using_encoded(|params| sender.sign(&params))
     }
 }

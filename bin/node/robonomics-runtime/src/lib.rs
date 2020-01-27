@@ -16,10 +16,13 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! The Robonomics runtime. This can be compiled with `#[no_std]`, ready for Wasm.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
+
+// Make the WASM binary available.
+#[cfg(feature = "std")]
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod constants;
 pub mod impls;
@@ -28,22 +31,30 @@ pub use pallet_staking::StakerStatus;
 
 use sp_std::prelude::*;
 use sp_core::OpaqueMetadata;
-use frame_support::{construct_runtime, parameter_types, traits::Randomness, weights::Weight,};
-use sp_runtime::{ApplyExtrinsicResult, Perbill, generic, create_runtime_str, impl_opaque_keys,};
-use sp_runtime::curve::PiecewiseLinear;
+use frame_system::offchain::{
+    SubmitSignedTransaction, TransactionSubmitter,
+};
+use frame_support::{
+    construct_runtime, parameter_types, debug,
+    traits::Randomness, weights::Weight,
+};
+use sp_runtime::{
+    ApplyExtrinsicResult, Perbill, MultiSigner,
+    generic, create_runtime_str, impl_opaque_keys,
+};
+use sp_runtime::app_crypto::{AppPublic, AppSignature, RuntimeAppPublic};
 use sp_runtime::transaction_validity::TransactionValidity;
+use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-    SaturatedConversion, OpaqueKeys,
+    SaturatedConversion, OpaqueKeys, IdentifyAccount,
 };
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
 use pallet_robonomics_agent::crypto::sr25519::AgentId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_inherents::{InherentData, CheckInherentsResult};
-use frame_system::offchain::TransactionSubmitter;
-use pallet_grandpa::fg_primitives;
-use pallet_grandpa::AuthorityList as GrandpaAuthorityList;
+use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use impls::{CurrencyToVoteHandler, LinearWeightToFee, TargetedFeeAdjustment};
 use node_primitives::{
@@ -54,10 +65,6 @@ use sp_version::RuntimeVersion;
 use sp_version::NativeVersion;
 
 use crate::constants::{time::*, currency::*};
-
-// Make the WASM binary available.
-#[cfg(feature = "std")]
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -225,14 +232,13 @@ parameter_types! {
 }
 
 impl pallet_session::Trait for Runtime {
-    type OnSessionEnding = Staking;
+    type SessionManager = Staking;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type ShouldEndSession = Babe;
     type Event = Event;
     type Keys = SessionKeys;
     type ValidatorId = <Self as frame_system::Trait>::AccountId;
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
-    type SelectInitialValidators = Staking;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 }
 
@@ -353,9 +359,24 @@ impl pallet_robonomics_provider::Trait for Runtime {
     type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
 }
 
-impl pallet_robonomics_agent::Trait for Runtime {
+impl pallet_robonomics_provider::Agent for Runtime {
     type Call = Call;
+    type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
+}
+
+impl pallet_robonomics_agent::Trait for Runtime {
     type Event = Event;
+    type AgentKey = AgentId;
+}
+
+impl pallet_robonomics_storage::Trait for Runtime {
+    type Time = Timestamp;
+    type Record = Vec<u8>;
+    type Event = Event;
+}
+
+impl pallet_robonomics_storage::Agent for Runtime {
+    type Call = Call;
     type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
 }
 
@@ -426,6 +447,7 @@ construct_runtime!(
         // Robonomics Network modules.
         RobonomicsLiability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         RobonomicsProvider: pallet_robonomics_provider::{Module, Call, Storage, Event<T>},
+        RobonomicsStorage: pallet_robonomics_storage::{Module, Call, Storage, Event<T>},
         RobonomicsAgent: pallet_robonomics_agent::{Module, Call, Storage, Event},
 
         // Sudo. Usable initially.
@@ -576,11 +598,17 @@ impl_runtime_apis! {
         fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
             SessionKeys::generate(seed)
         }
+
+        fn decode_session_keys(
+            encoded: Vec<u8>,
+        ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
+            SessionKeys::decode_into_raw_public_keys(&encoded)
+        }
     }
 
-    impl pallet_robonomics_agent_runtime_api::RobonomicsAgentApi<Block, AccountId> for Runtime {
-        fn account() -> Option<AccountId> {
-            RobonomicsAgent::account()
+    impl pallet_robonomics_agent_runtime_api::RobonomicsAgentApi<Block, Runtime> for Runtime {
+        fn account() -> AccountId {
+            MultiSigner::from(RobonomicsAgent::account()).into_account()
         }
     }
 
@@ -597,27 +625,29 @@ impl_runtime_apis! {
             technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
             economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
         ) -> Result<(), ()> {
-            Err(())
+            RobonomicsAgent::send_demand(technics, economics)
         }
 
         fn send_offer(
             technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
             economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
         ) -> Result<(), ()> {
-            Err(())
+            RobonomicsAgent::send_offer(technics, economics)
         }
 
         fn send_report(
-            index: pallet_robonomics_liability::LiabilityIndex,
+            index: pallet_robonomics_liability::LiabilityIndex<Runtime>,
             report: pallet_robonomics_liability::TechnicalReport<Runtime>,
         ) -> Result<(), ()> {
-            Err(())
+            unimplemented!()
         }
     }
 
-    impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block> for Runtime {
-        fn send_data(data: Vec<u8>) -> Result<(), ()> {
-            Err(())
+    impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block, Runtime> for Runtime {
+        fn send_record(
+            record: <Runtime as pallet_robonomics_storage::Trait>::Record
+        ) -> Result<(), ()> {
+            RobonomicsAgent::send_record(record)
         }
     }
 }

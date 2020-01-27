@@ -11,9 +11,9 @@ sp-io = { git = "https://github.com/paritytech/substrate", default-features = fa
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
+pallet-robonomics-storage = { path = "../storage", default-features = false }
 pallet-robonomics-provider = { path = "../provider", default-features = false }
 pallet-robonomics-liability = { path = "../liability", default-features = false }
 
@@ -30,9 +30,9 @@ std = [
     "sp-std/std",
     "sp-core/std",
     "sp-runtime/std",
-    "sp-application-crypto/std",
     "frame-system/std",
     "frame-support/std",
+    "pallet-robonomics-storage/std",
     "pallet-robonomics-provider/std",
     "pallet-robonomics-liability/std",
 ]

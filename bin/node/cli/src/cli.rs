@@ -15,13 +15,15 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 pub use sc_cli::VersionInfo;
-use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use sc_cli::{
     IntoExit, NoCustom, error,
     display_role, parse_and_prepare, ParseAndPrepare
 };
+use tokio::runtime::{Builder as RuntimeBuilder, Runtime};
 use sc_service::{AbstractService, Roles as ServiceRoles, Configuration};
 use futures::{channel::oneshot, future::{select, Either}};
+use sc_executor::NativeExecutionDispatch;
+use node_executor::Executor;
 use crate::chain_spec::load_spec;
 use crate::service;
 use log::info;
@@ -36,18 +38,24 @@ pub fn run<I, T, E>(args: I, exit: E, version: VersionInfo) -> error::Result<()>
 
     match parse_and_prepare::<NoCustom, NoCustom, _>(&version, "airalab-robonomics", args) {
         ParseAndPrepare::Run(cmd) => cmd.run(load_spec, exit,
-        |exit, _cli_args, _custom_args, config: Config<_, _>| {
+        |exit, _cli_args, _custom_args, mut config: Config<_, _>| {
             info!("{}", version.name);
             info!("  version {}", config.full_version());
             info!("  by {}, 2018-2020", version.author);
             info!("Chain specification: {}", config.chain_spec.name());
+            info!("Native runtime: {}", Executor::native_version().runtime_version);
             info!("Node name: {}", config.name);
-            info!("Roles: {:?}", display_role(&config));
+            info!("Roles: {}", display_role(&config));
             let runtime = RuntimeBuilder::new()
                 .thread_name("main-tokio-")
                 .threaded_scheduler()
+                .enable_all()
                 .build()
                 .map_err(|e| format!("{:?}", e))?;
+            config.tasks_executor = {
+                let runtime_handle = runtime.handle().clone();
+                Some(Box::new(move |fut| { runtime_handle.spawn(fut); }))
+            };
             match config.roles {
                 ServiceRoles::LIGHT => run_until_exit(
                     runtime,

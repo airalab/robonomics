@@ -21,14 +21,18 @@
 
 use log::warn;
 use std::sync::Arc;
-use node_executor::Executor;
-use node_runtime::{GenesisConfig, RuntimeApi};
+use node_executor::{NativeExecutor, Executor};
+use node_executor::runtime::{GenesisConfig, RuntimeApi};
 use node_primitives::Block;
+use sp_runtime::traits::Block as BlockT;
 use sc_service::{
-    AbstractService, ServiceBuilder,
+    Service, AbstractService, ServiceBuilder, NetworkStatus,
     config::Configuration, error::{Error as ServiceError},
 };
-use sc_network::construct_simple_protocol;
+use sc_network::{construct_simple_protocol, NetworkService};
+use sc_client::{Client, LongestChain, LocalCallExecutor};
+use sc_offchain::OffchainWorkers;
+use sc_client_db::Backend;
 
 construct_simple_protocol! {
     /// Robonomics protocol attachment for substrate.
@@ -45,7 +49,7 @@ macro_rules! new_full_start {
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
         let builder = sc_service::ServiceBuilder::new_full::<
-            node_primitives::Block, node_runtime::RuntimeApi, node_executor::Executor
+            node_primitives::Block, node_executor::runtime::RuntimeApi, node_executor::Executor
         >($config)?
             .with_select_chain(|_config, backend| {
                 Ok(sc_client::LongestChain::new(backend.clone()))
@@ -53,19 +57,16 @@ macro_rules! new_full_start {
             .with_transaction_pool(|config, client, _fetcher| {
                 let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
                 let pool = sc_transaction_pool::BasicPool::new(config, pool_api);
-                let maintainer = sc_transaction_pool::FullBasicPoolMaintainer::new(pool.pool().clone(), client);
-                let maintainable_pool = sp_transaction_pool::MaintainableTransactionPool::new(pool, maintainer);
-                Ok(maintainable_pool)
+                Ok(pool)
             })?
             .with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
                 let select_chain = select_chain.take()
                     .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
-                let (grandpa_block_import, grandpa_link) =
-                    sc_finality_grandpa::block_import(
-                        client.clone(),
-                        &*client,
-                        select_chain
-                    )?;
+                let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
+                    client.clone(),
+                    &*client,
+                    select_chain
+                )?;
                 let justification_import = grandpa_block_import.clone();
 
                 let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
@@ -98,7 +99,7 @@ macro_rules! new_full_start {
 /// We need to use a macro because the test suit doesn't work with an opaque service. It expects
 /// concrete types instead.
 macro_rules! new_full {
-    ($config:expr) => {{
+    ($config:expr, $with_startup_data: expr) => {{
         let (
             name,
             impl_name,
@@ -118,10 +119,7 @@ macro_rules! new_full {
             $config.network.sentry_nodes.clone(),
             $config.chain_spec.clone(),
         );
-        use futures::{
-            prelude::*,
-            compat::Future01CompatExt,
-        };
+        use futures::prelude::*;
         use sc_network::Event;
 
         // sentry nodes announce themselves as authorities to the network
@@ -140,8 +138,10 @@ macro_rules! new_full {
         let (block_import, grandpa_link, babe_link) = import_setup.take()
                 .expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
 
+        ($with_startup_data)(&block_import, &babe_link);
+
         if participates_in_consensus {
-            let proposer = sc_basic_authority::ProposerFactory {
+            let proposer = sc_basic_authorship::ProposerFactory {
                 client: service.client(),
                 transaction_pool: service.transaction_pool(),
             };
@@ -212,7 +212,7 @@ macro_rules! new_full {
                     service.network(),
                     service.on_exit(),
                     service.spawn_task_handle(),
-                )?.compat().map(drop));
+                )?.map(drop));
             },
             (true, false) => {
                 // start the full GRANDPA voter
@@ -229,7 +229,7 @@ macro_rules! new_full {
                 // the GRANDPA voter task is considered infallible, i.e.
                 // if it fails we take down the service with it.
                 service.spawn_essential_task(
-                    sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.compat().map(drop)
+                    sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.map(drop)
                 );
             },
             (_, true) => {
@@ -243,11 +243,8 @@ macro_rules! new_full {
 
         #[cfg(feature = "ros")]
         { if rosrust::try_init_with_options("robonomics", false).is_ok() {
-            let (robonomics_api, ros_subscribers) = robonomics_ros_api::start(
-                service.client(),
-                service.transaction_pool(),
-                service.keystore(),
-            ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
+            let (robonomics_api, robonomics_ros_services) =
+                robonomics_ros_api::start!(service.client());
             service.spawn_task(robonomics_api);
     
             let system_info = substrate_ros_api::system::SystemInfo {
@@ -257,18 +254,19 @@ macro_rules! new_full {
                 properties: chain_spec.properties(),
             };
 
-            let (ros_services, publish_task) = substrate_ros_api::start(
-                system_info,
-                service.client(),
-                service.network(),
-                service.transaction_pool(),
-                service.keystore(),
-            ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
+            let (substrate_ros_services, publish_task) =
+                substrate_ros_api::start(
+                    system_info,
+                    service.client(),
+                    service.network(),
+                    service.transaction_pool(),
+                    service.keystore(),
+                ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
 
             let on_exit = service.on_exit().then(move |_| {
                 // Keep ROS services&subscribers alive until on_exit signal reached
-                let _ = ros_services;
-                let _ = ros_subscribers; 
+                let _ = substrate_ros_services;
+                let _ = robonomics_ros_services; 
                 futures::future::ready(())
             });
 
@@ -283,19 +281,59 @@ macro_rules! new_full {
         } }
 
         Ok((service, inherent_data_providers))
+    }};
+    ($config:expr) => {{
+        new_full!($config, |_, _| {})
     }}
 }
 
+#[allow(dead_code)]
+type ConcreteBlock = node_primitives::Block;
+#[allow(dead_code)]
+type ConcreteClient =
+    Client<
+        Backend<ConcreteBlock>,
+        LocalCallExecutor<Backend<ConcreteBlock>,
+        NativeExecutor<node_executor::Executor>>,
+        ConcreteBlock,
+        node_executor::runtime::RuntimeApi
+    >;
+#[allow(dead_code)]
+type ConcreteBackend = Backend<ConcreteBlock>;
+#[allow(dead_code)]
+type ConcreteTransactionPool = sc_transaction_pool::BasicPool<
+    sc_transaction_pool::FullChainApi<ConcreteClient, ConcreteBlock>,
+    ConcreteBlock
+>;
+
+/// A specialized configuration object for setting up the node..
+pub type NodeConfiguration<C> = Configuration<C, GenesisConfig, crate::chain_spec::Extensions>;
+
 /// Builds a new service for a full client.
-pub fn new_full<C: Send + Default + 'static>(
-    config: Configuration<C, GenesisConfig>
-) -> Result<impl AbstractService, ServiceError> {
+pub fn new_full<C: Send + Default + 'static>(config: NodeConfiguration<C>)
+-> Result<
+    Service<
+        ConcreteBlock,
+        ConcreteClient,
+        LongestChain<ConcreteBackend, ConcreteBlock>,
+        NetworkStatus<ConcreteBlock>,
+        NetworkService<ConcreteBlock, crate::service::NodeProtocol, <ConcreteBlock as BlockT>::Hash>,
+        ConcreteTransactionPool,
+        OffchainWorkers<
+            ConcreteClient,
+            <ConcreteBackend as sc_client_api::backend::Backend<Block>>::OffchainStorage,
+            ConcreteBlock,
+        >
+    >,
+    ServiceError,
+>
+{
     new_full!(config).map(|(service, _)| service)
 }
 
 /// Builds a new service for a light client.
 pub fn new_light<C: Send + Default + 'static>(
-    config: Configuration<C, GenesisConfig>
+    config: NodeConfiguration<C>
 ) -> Result<impl AbstractService, ServiceError> {
 
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
@@ -308,10 +346,10 @@ pub fn new_light<C: Send + Default + 'static>(
             let fetcher = fetcher
                 .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
             let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
-            let pool = sc_transaction_pool::BasicPool::new(config, pool_api);
-            let maintainer = sc_transaction_pool::LightBasicPoolMaintainer::with_defaults(pool.pool().clone(), client, fetcher);
-            let maintainable_pool = sp_transaction_pool::MaintainableTransactionPool::new(pool, maintainer);
-            Ok(maintainable_pool)
+            let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
+                config, pool_api, sc_transaction_pool::RevalidationType::Light,
+            );
+            Ok(pool)
         })?
         .with_import_queue_and_fprb(|_config, client, backend, fetcher, _select_chain, _transaction_pool| {
             let fetch_checker = fetcher 

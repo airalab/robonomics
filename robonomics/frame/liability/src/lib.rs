@@ -19,7 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_std::prelude::*;
-use codec::{Encode, Decode};
+use codec::{Encode, Decode, Codec};
 use frame_system::{self as system, ensure_none};
 use frame_support::{
     ensure, decl_module, decl_storage, decl_event, decl_error, StorageValue,
@@ -52,14 +52,16 @@ pub type ProofParam<T> =
     <<T as Trait>::Liability as Agreement<
         <T as Trait>::Technics,
         <T as Trait>::Economics,
-        AccountId<T>
     >>::Proof;
+
+pub type LiabilityIndex<T> =
+    <<T as Trait>::Liability as Agreement<
+        <T as Trait>::Technics,
+        <T as Trait>::Economics,
+    >>::Index;
 
 /// Current runtime account identificator.
 pub type AccountId<T> = <T as frame_system::Trait>::AccountId;
-
-/// Indexing up to 2^64 liabilities
-pub type LiabilityIndex = u64;
 
 /// Liability module main trait.
 pub trait Trait: frame_system::Trait {
@@ -70,7 +72,8 @@ pub trait Trait: frame_system::Trait {
     type Economics: Economical;
 
     /// How to make and process agreement between two parties. 
-    type Liability: Processing + Agreement<Self::Technics, Self::Economics, AccountId<Self>>;
+    type Liability: Codec + Processing
+                    + Agreement<Self::Technics, Self::Economics, AccountId=AccountId<Self>>;
 
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
@@ -79,6 +82,7 @@ pub trait Trait: frame_system::Trait {
 decl_event! {
     pub enum Event<T>
     where AccountId = AccountId<T>,
+          LiabilityIndex = LiabilityIndex<T>,
           TechnicalParam = TechnicalParam<T>,
           EconomicalParam = EconomicalParam<T>,
           TechnicalReport = TechnicalReport<T>,
@@ -107,13 +111,13 @@ decl_error! {
 decl_storage! {
     trait Store for Module<T: Trait> as Liability {
         /// Latest liability index.
-        LatestIndex get(fn latest_index): LiabilityIndex;
+        LatestIndex get(fn latest_index): LiabilityIndex<T>;
         /// SCALE-encoded liability parameters.
-        LiabilityOf get(fn liability_of): map LiabilityIndex => Vec<u8>;
+        LiabilityOf get(fn liability_of): map LiabilityIndex<T> => Vec<u8>;
         /// Set `true` when liability report already send.
-        IsFinalized get(fn is_finalized): map LiabilityIndex => bool;
+        IsFinalized get(fn is_finalized): map LiabilityIndex<T> => bool;
         /// SCALE-encoded liability report.
-        ReportOf    get(fn report_of): map LiabilityIndex => Vec<u8>;
+        ReportOf    get(fn report_of): map LiabilityIndex<T> => Vec<u8>;
     }
 }
 
@@ -142,12 +146,12 @@ decl_module! {
             );
 
             // Check promisee proof
-            if !liability.verify(ProofTarget::Promisee, &promisee_proof) {
+            if !liability.check_params(&promisee_proof, &promisee) {
                 Err(Error::<T>::BadPromiseeProof)?
             }
 
             // Check promisor proof
-            if !liability.verify(ProofTarget::Promisor, &promisor_proof) {
+            if !liability.check_params(&promisor_proof, &promisor) {
                 Err(Error::<T>::BadPromisorProof)?
             }
 
@@ -155,11 +159,11 @@ decl_module! {
             liability.on_start()?;
 
             // Store liability params as bytestring 
-            let latest_index = <LatestIndex>::get();
+            let latest_index = <LatestIndex<T>>::get();
             liability.using_encoded(|encoded|
-                <LiabilityOf>::insert(latest_index, Vec::from(encoded))
+                <LiabilityOf<T>>::insert(latest_index, Vec::from(encoded))
             );
-            <LatestIndex>::put(latest_index + 1);
+            <LatestIndex<T>>::put(latest_index + 1.into());
 
             // Emit event
             Self::deposit_event(RawEvent::NewLiability(
@@ -174,19 +178,19 @@ decl_module! {
         /// Publish technical report of complite works.
         fn finalize(
             origin,
-            index: u64,
+            index: LiabilityIndex<T>,
             report: TechnicalReport<T>,
             proof: ProofParam<T>,
         ) {
             ensure_none(origin)?;
 
             // Is liability already finalized? 
-            ensure!(!<IsFinalized>::get(index), "already finalized");
+            ensure!(!<IsFinalized<T>>::get(index), "already finalized");
 
             // Decode liability from storage
-            if let Ok(liability) = T::Liability::decode(&mut &<LiabilityOf>::get(index)[..]) {
+            if let Ok(liability) = T::Liability::decode(&mut &<LiabilityOf<T>>::get(index)[..]) {
                 // Check report proof
-                if !liability.verify(ProofTarget::Report(report.clone()), &proof) {
+                if !liability.check_report(&index, &report, &proof) {
                     Err(Error::<T>::BadReportProof)?
                 }
 
@@ -195,10 +199,10 @@ decl_module! {
                 liability.on_finish(true)?;
 
                 // Store report as bytestring
-                report.using_encoded(|bytes| <ReportOf>::insert(index, Vec::from(bytes)));
+                report.using_encoded(|bytes| <ReportOf<T>>::insert(index, Vec::from(bytes)));
 
                 // Set finalized flag
-                <IsFinalized>::insert(index, true);
+                <IsFinalized<T>>::insert(index, true);
 
                 // Emit event
                 Self::deposit_event(RawEvent::NewReport(index, report));
@@ -223,11 +227,11 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                     promisor.clone(),
                 );
 
-                if !liability.verify(ProofTarget::Promisee, promisee_proof) {
+                if !liability.check_params(promisee_proof, promisee) {
                     return InvalidTransaction::BadProof.into();
                 }
 
-                if !liability.verify(ProofTarget::Promisor, promisor_proof) {
+                if !liability.check_params(promisor_proof, promisor) {
                     return InvalidTransaction::BadProof.into();
                 }
 
@@ -241,9 +245,9 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
             },
 
             Call::finalize(index, report, proof) =>
-                match T::Liability::decode(&mut &<LiabilityOf>::get(*index)[..]) {
+                match T::Liability::decode(&mut &<LiabilityOf<T>>::get(*index)[..]) {
                     Ok(liability) => {
-                        if !liability.verify(ProofTarget::Report(report.clone()), proof) {
+                        if !liability.check_report(index, report, proof) {
                             return InvalidTransaction::BadProof.into();
                         }
 
@@ -269,7 +273,7 @@ mod tests {
     use crate as liability;
     use super::technics::PureIPFS;
     use super::economics::Communism;
-    use super::signed::SignedLiability;
+    use super::signed::{SignedLiability, ProofSigner};
     use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount, IdentityLookup}, testing::Header};
     use node_primitives::{AccountId, Signature};
     use frame_system::{self as system};
@@ -353,16 +357,31 @@ mod tests {
         technics: &TechnicalParam<Runtime>,
         economics: &EconomicalParam<Runtime>,
     ) -> (AccountId, ProofParam<Runtime>) {
-        let pair: sr25519::Pair = Pair::from_string(uri, None).unwrap();
-        let order = (technics.clone(), economics.clone());
+        let pair = sr25519::Pair::from_string(uri, None).unwrap();
         let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-        let signature = order.using_encoded(|params| pair.sign(params)).into();
+        let signature = <ProofSigner<sr25519::Pair> as ProofBuilder< 
+            <Runtime as Trait>::Technics,
+            <Runtime as Trait>::Economics,
+            LiabilityIndex<Runtime>,
+            _,
+            _,
+        >>::proof_params(technics, economics, pair).into();
         (sender, signature)
     }
 
-    fn get_report_proof(uri: &str, report: &TechnicalReport<Runtime>) -> ProofParam<Runtime> {
-        let pair: sr25519::Pair = Pair::from_string(uri, None).unwrap();
-        report.using_encoded(|params| pair.sign(params)).into()
+    fn get_report_proof(
+        uri: &str,
+        index: &LiabilityIndex<Runtime>,
+        report: &TechnicalReport<Runtime>
+    ) -> ProofParam<Runtime> {
+        let pair = sr25519::Pair::from_string(uri, None).unwrap();
+        <ProofSigner<sr25519::Pair> as ProofBuilder<
+            <Runtime as Trait>::Technics,
+            <Runtime as Trait>::Economics,
+            LiabilityIndex<Runtime>,
+            _,
+            _
+        >>::proof_report(index, report, pair).into()
     }
 
     #[test]
@@ -374,14 +393,14 @@ mod tests {
             technics,
             economics,
             sender.clone(),
-            sender,
+            sender.clone(),
         );
-        assert_eq!(liability.verify(ProofTarget::Promisor, &params_proof), true);
-        assert_eq!(liability.verify(ProofTarget::Promisee, &params_proof), true);
+        assert_eq!(liability.check_params(&params_proof, &sender), true);
 
+        let index = 1;
         let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
-        let report_proof = get_report_proof("//Alice", &report);
-        assert_eq!(liability.verify(ProofTarget::Report(report), &report_proof), true);
+        let report_proof = get_report_proof("//Alice", &index, &report);
+        assert_eq!(liability.check_report(&index, &report, &report_proof), true);
     }
 
     #[test]
@@ -430,9 +449,10 @@ mod tests {
             assert_eq!(Liability::latest_index(), 1);
             assert_eq!(Liability::is_finalized(0), false);
 
+            let index = 0;
             let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
-            let bad_proof = get_report_proof("//Alice", &report);
-            let good_proof = get_report_proof("//Bob", &report);
+            let bad_proof = get_report_proof("//Alice", &index, &report);
+            let good_proof = get_report_proof("//Bob", &index, &report);
 
             assert_err!(
                 Liability::finalize(Origin::NONE, 0, report.clone(), bad_proof),

@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 sc-executor = { git = "https://github.com/paritytech/substrate" }
-node-runtime = { path = "../runtime" }
+robonomics-runtime = { path = "../robonomics-runtime", optional = true }
+ipci-runtime = { path = "../ipci-runtime", optional = true }
 
 [features]
 wasmtime = [

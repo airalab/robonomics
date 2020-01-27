@@ -15,18 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Rust generated ROS messages.
-use rosrust::rosmsg_include;
 
-rosmsg_include!(
-    // Messages
-    robonomics_msgs / Demand,
-    robonomics_msgs / Offer,
-    robonomics_msgs / Liability,
-    robonomics_msgs / Report,
-    // Services
-    robonomics_msgs / StartLiability,
-    robonomics_msgs / SendOrder,
-    robonomics_msgs / SendReport,
-    robonomics_msgs / SendRecord,
-);
+use substrate_wasm_builder_runner::{build_current_project_with_rustflags, WasmBuilderSource};
+
+fn main() {
+    build_current_project_with_rustflags(
+        "wasm_binary.rs",
+        WasmBuilderSource::Crates("1.0.8"),
+        // This instructs LLD to export __heap_base as a global variable, which is used by the
+        // external memory allocator.
+        "-Clink-arg=--export=__heap_base",
+    );
+}

@@ -46,7 +46,7 @@ pub trait AuthorApi {
     /// Returns all pending extrinsics, potentially grouped by sender.
     fn pending_extrinsics(&self) -> Vec<Bytes>;
 
-	/// Remove given extrinsic from the pool and temporarily ban it to prevent reimporting.
+    /// Remove given extrinsic from the pool and temporarily ban it to prevent reimporting.
     fn remove_extrinsics(&self, hashes: Vec<Hash>) -> Vec<Hash>;
 }
 

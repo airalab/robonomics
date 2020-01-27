@@ -21,8 +21,22 @@
 pub use sc_executor::NativeExecutor;
 use sc_executor::native_executor_instance;
 
+#[cfg(feature = "robonomics-runtime")]
 native_executor_instance!(
     pub Executor,
-    node_runtime::api::dispatch,
-    node_runtime::native_version
+    robonomics_runtime::api::dispatch,
+    robonomics_runtime::native_version
 );
+
+#[cfg(feature = "robonomics-runtime")]
+pub use robonomics_runtime as runtime;
+
+#[cfg(feature = "ipci-runtime")]
+native_executor_instance!(
+    pub Executor,
+    ipci_runtime::api::dispatch,
+    ipci_runtime::native_version
+);
+
+#[cfg(feature = "ipci-runtime")]
+pub use ipci_runtime as runtime;

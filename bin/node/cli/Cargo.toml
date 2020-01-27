@@ -23,6 +23,7 @@ is-it-maintained-open-issues = { repository = "airalab/substrate-node-robonomics
 [dependencies]
 # third-party dependencies
 futures = { version = "0.3.1", features = ["compat"] }
+serde = { version = "1.0.102", features = ["derive"]}
 hex-literal = "0.2.1"
 serde_json = "1.0"
 log = "0.4.8"
@@ -42,11 +43,15 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 
 # client dependencies
 sc-client = { git = "https://github.com/paritytech/substrate" }
+sc-client-db = { git = "https://github.com/paritytech/substrate" }
+sc-client-api = { git = "https://github.com/paritytech/substrate" }
+sc-chain-spec = { git = "https://github.com/paritytech/substrate" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 sc-network = { git = "https://github.com/paritytech/substrate" }
+sc-offchain = { git = "https://github.com/paritytech/substrate" }
 sc-consensus-babe = { git = "https://github.com/paritytech/substrate" }
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate" }
-sc-basic-authority = { git = "https://github.com/paritytech/substrate" }
+sc-basic-authorship = { git = "https://github.com/paritytech/substrate" }
 sc-authority-discovery = { git = "https://github.com/paritytech/substrate" }
 sc-service = { git = "https://github.com/paritytech/substrate", default-features = false }
 sc-telemetry = { git = "https://github.com/paritytech/substrate" }
@@ -56,7 +61,6 @@ sc-keystore = { git = "https://github.com/paritytech/substrate" }
 pallet-im-online = { git = "https://github.com/paritytech/substrate" }
 
 # node-specific dependencies
-node-runtime = { path = "../runtime" }
 node-executor = { path = "../executor" }
 sc-executor = { git = "https://github.com/paritytech/substrate" }
 sc-rpc = { git = "https://github.com/paritytech/substrate" }
@@ -84,7 +88,7 @@ structopt = "0.3.3"
 vergen = "3.0.4"
 
 [features]
-default = ["cli","wasmtime"]
+default = ["cli","wasmtime","robonomics"]
 rocksdb = ["sc-service/rocksdb"]
 wasmtime = [
     "node-executor/wasmtime",
@@ -115,4 +119,20 @@ ros = [
     "rosrust",
     "substrate-ros-api",
     "robonomics-ros-api",
+]
+
+## Build native runtime for Robonomics Testnet. (default)
+robonomics = [
+    "node-executor/robonomics-runtime",
+    "robonomics-ros-api/liability",
+    "robonomics-ros-api/blockchain",
+]
+
+## Build native runtime for IPCI blockchain.
+# DAO "Integral Platform for Climate Initiatives" is opensource project that build 
+# public programmable blockchain ecosystem for carbon markets, societal cost mitigation instruments,
+# environmental assets, rights and liabilities. https://ipci.io 
+ipci = [
+    "node-executor/ipci-runtime",
+    "robonomics-ros-api/blockchain",
 ]

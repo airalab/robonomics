@@ -19,35 +19,34 @@
 
 pub mod sr25519 {
     mod app_sr25519 {
-        use sp_application_crypto::{app_crypto, sr25519};
+        use sp_runtime::app_crypto::{app_crypto, sr25519};
         app_crypto!(sr25519, crate::KEY_TYPE);
     }
 
-    /// An i'm online keypair using sr25519 as its crypto.
+    /// An agent keypair using sr25519 as its crypto.
     #[cfg(feature = "std")]
     pub type AgentPair = app_sr25519::Pair;
 
-    /// An i'm online signature using sr25519 as its crypto.
+    /// An agent signature using sr25519 as its crypto.
     pub type AgentSignature = app_sr25519::Signature;
 
-    /// An i'm online identifier using sr25519 as its crypto.
+    /// An agent identifier using sr25519 as its crypto.
     pub type AgentId = app_sr25519::Public;
 }
 
 pub mod ed25519 {
     mod app_ed25519 {
-        use sp_application_crypto::{app_crypto, ed25519};
-        use crate::KEY_TYPE;
+        use sp_runtime::app_crypto::{app_crypto, ed25519};
         app_crypto!(ed25519, crate::KEY_TYPE);
     }
 
-    /// An i'm online keypair using ed25519 as its crypto.
+    /// An agent keypair using ed25519 as its crypto.
     #[cfg(feature = "std")]
     pub type AgentPair = app_ed25519::Pair;
 
-    /// An i'm online signature using ed25519 as its crypto.
+    /// An agent signature using ed25519 as its crypto.
     pub type AgentSignature = app_ed25519::Signature;
 
-    /// An i'm online identifier using ed25519 as its crypto.
+    /// An agent identifier using ed25519 as its crypto.
     pub type AgentId = app_ed25519::Public;
 }

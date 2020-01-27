@@ -56,18 +56,18 @@ impl<B, E, Block: traits::Block, RA> Clone for FullChain<B, E, Block, RA> {
 pub struct LightChain<B, E, Block: traits::Block, RA, F> {
     /// Substrate client.
     client: Arc<Client<B, E, Block, RA>>,
-	/// Remote blockchain reference.
-	remote_blockchain: Arc<dyn RemoteBlockchain<Block>>,
-	/// Remote fetcher reference.
-	fetcher: Arc<F>,
+    /// Remote blockchain reference.
+    remote_blockchain: Arc<dyn RemoteBlockchain<Block>>,
+    /// Remote fetcher reference.
+    fetcher: Arc<F>,
 }
 */
 
 impl<B, E, Block, RA> FullChain<B, E, Block, RA> where
-	Block: traits::Block<Hash=H256> + 'static,
-	B: Backend<Block> + Send + Sync + 'static,
-	E: CallExecutor<Block> + Send + Sync + 'static,
-	RA: Send + Sync + 'static,
+    Block: traits::Block<Hash=H256> + 'static,
+    B: Backend<Block> + Send + Sync + 'static,
+    E: CallExecutor<Block> + Send + Sync + 'static,
+    RA: Send + Sync + 'static,
 {
     pub fn unwrap_or_best(&self, mb_hash: Option<Block::Hash>) -> Block::Hash {
         match mb_hash {
@@ -86,33 +86,33 @@ impl<B, E, Block, RA> FullChain<B, E, Block, RA> where
 }
 
 impl<B, E, Block, RA> BlockchainEvents<Block> for FullChain<B, E, Block, RA> where
-	Block: traits::Block<Hash=H256> + 'static,
-	B: Backend<Block> + Send + Sync + 'static,
-	E: CallExecutor<Block> + Send + Sync + 'static,
-	RA: Send + Sync + 'static,
+    Block: traits::Block<Hash=H256> + 'static,
+    B: Backend<Block> + Send + Sync + 'static,
+    E: CallExecutor<Block> + Send + Sync + 'static,
+    RA: Send + Sync + 'static,
 {
-	fn import_notification_stream(&self) -> ImportNotifications<Block> {
+    fn import_notification_stream(&self) -> ImportNotifications<Block> {
         self.client.import_notification_stream()
     }
 
-	fn finality_notification_stream(&self) -> FinalityNotifications<Block> {
+    fn finality_notification_stream(&self) -> FinalityNotifications<Block> {
         self.client.finality_notification_stream()
     }
 
-	fn storage_changes_notification_stream(
-		&self,
-		filter_keys: Option<&[StorageKey]>,
-		child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
-	) -> sp_blockchain::Result<StorageEventStream<Block::Hash>> {
+    fn storage_changes_notification_stream(
+        &self,
+        filter_keys: Option<&[StorageKey]>,
+        child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
+    ) -> sp_blockchain::Result<StorageEventStream<Block::Hash>> {
         self.client.storage_changes_notification_stream(filter_keys, child_filter_keys)
     }
 }
 
 impl<B, E, Block, RA> ros_api::ChainApi for FullChain<B, E, Block, RA> where
-	Block: traits::Block<Hash=H256> + 'static,
-	B: Backend<Block> + Send + Sync + 'static,
-	E: CallExecutor<Block> + Send + Sync + 'static,
-	RA: Send + Sync + 'static,
+    Block: traits::Block<Hash=H256> + 'static,
+    B: Backend<Block> + Send + Sync + 'static,
+    E: CallExecutor<Block> + Send + Sync + 'static,
+    RA: Send + Sync + 'static,
 {
     fn header(&self, hash: Option<ros_api::Hash>) -> Result<String, String> {
         let hash = BlockId::Hash(self.unwrap_or_best(hash.map(Into::into)));

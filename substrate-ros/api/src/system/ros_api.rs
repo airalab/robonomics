@@ -42,23 +42,23 @@ const SEND_MESSAGE_ERROR: &str = "Unable send message to ROS topic";
 const QUEUE_SIZE: usize = 10;
 
 pub trait SystemApi {
-	/// Get the node's implementation name. Plain old string.
+    /// Get the node's implementation name. Plain old string.
     fn system_name(&self) -> String;
 
-	/// Get the node implementation's version. Should be a semver string.
+    /// Get the node implementation's version. Should be a semver string.
     fn system_version(&self) -> String;
 
-	/// Get the chain's type. Given as a string identifier.
+    /// Get the chain's type. Given as a string identifier.
     fn system_chain(&self) -> String;
 
-	/// Get a custom set of properties as a JSON object, defined in the chain spec.
+    /// Get a custom set of properties as a JSON object, defined in the chain spec.
     fn system_properties(&self) -> Properties;
 
-	/// Return health status of the node.
-	///
-	/// Node is considered healthy if it is:
-	/// - connected to some peers (unless running in dev mode)
-	/// - not performing a major sync
+    /// Return health status of the node.
+    ///
+    /// Node is considered healthy if it is:
+    /// - connected to some peers (unless running in dev mode)
+    /// - not performing a major sync
     fn system_health(&self) -> Health;
 }
 

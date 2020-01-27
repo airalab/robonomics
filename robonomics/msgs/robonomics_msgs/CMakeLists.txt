@@ -63,6 +63,7 @@ add_service_files(
         StartLiability.srv
         SendOrder.srv
         SendReport.srv
+        SendRecord.srv
  )
 
 ## Generate actions in the 'action' folder

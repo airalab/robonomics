@@ -15,85 +15,89 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! This module publish Robonomics runtime events into ROS namespace.
-
-use sp_core::{
-    twox_128,
-    storage::{StorageKey, StorageData},
-    crypto::Ss58Codec
-};
-use rosrust::api::error::Error as RosError;
-use sp_runtime::traits::{self, Header};
-use futures_util::stream::StreamExt;
-use base58::{FromBase58, ToBase58};
-use sp_runtime::generic::BlockId;
-use sc_client::BlockchainEvents;
-use frame_system::EventRecord;
-use sp_api::ProvideRuntimeApi;
-use futures::future::Future;
-use std::sync::Arc;
-use codec::Decode;
-use log::debug;
+//! This module publish Robonomics runtime messages into ROS namespace.
 
 use msgs::robonomics_msgs::{Demand, Offer, Liability, Report};
-use pallet_robonomics_runtime_api::SystemEventsApi;
+use pallet_robonomics_agent_runtime_api::RobonomicsLiabilityApi;
+use pallet_robonomics_liability::traits::Technical;
 use pallet_robonomics_liability as liability;
 use pallet_robonomics_provider as provider;
-use node_runtime::Event;
+use rosrust::api::error::Error as RosError;
+use sp_runtime::{traits, generic::BlockId};
+use futures_util::stream::StreamExt;
+use sc_client::BlockchainEvents;
+use sp_core::crypto::Ss58Codec;
+use sp_api::ProvideRuntimeApi;
+use futures::future::Future;
+use base58::ToBase58;
+use std::sync::Arc;
+use log::debug;
 
 /// ROS Pub/Sub queue size.
 /// http://wiki.ros.org/roscpp/Overview/Publishers%20and%20Subscribers#Queueing_and_Lazy_Deserialization
 const QUEUE_SIZE: usize = 10;
 
+#[cfg(not(feature = "liability"))]
+pub fn receive_stream<C>(_client: C)
+    -> Result<impl Future<Output=()>, String> { Ok(futures::future::ready(())) }
+
 /// Finalized event listener.
-pub fn finalized_event_stream<B, C>(
+#[cfg(feature = "liability")]
+pub fn receive_stream<B: traits::Block, T, C>(
     client: Arc<C>,
-) -> Result<impl Future<Output=()>, RosError> where 
-    B: traits::Block,
+) -> Result<impl Future<Output=()>, String> where 
+    T: liability::Trait,
+    <T as frame_system::Trait>::AccountId: Ss58Codec,
+    <<T as liability::Trait>::Technics as Technical>::Parameter: AsRef<[u8]>,
     C: BlockchainEvents<B> + ProvideRuntimeApi<B> + 'static,
-    C::Api: SystemEventsApi<B, Event>,
+    C::Api: RobonomicsLiabilityApi<B, T>,
 {
-    let demand_pub    = rosrust::publish("liability/demand", QUEUE_SIZE)?;
-    let offer_pub     = rosrust::publish("liability/offer", QUEUE_SIZE)?;
-    let liability_pub = rosrust::publish("liability/new", QUEUE_SIZE)?;
-    let report_pub    = rosrust::publish("liability/report", QUEUE_SIZE)?;
+    let demand_pub    = rosrust::publish("liability/demand", QUEUE_SIZE)
+        .map_err(|e| format!("ROS error: {}", e))?;
+    let offer_pub     = rosrust::publish("liability/offer", QUEUE_SIZE)
+        .map_err(|e| format!("ROS error: {}", e))?;
+    //let liability_pub = rosrust::publish("liability/new", QUEUE_SIZE)?;
+    //let report_pub    = rosrust::publish("liability/report", QUEUE_SIZE)?;
 
     let stream = client.finality_notification_stream()
         .for_each(move |notify| {
             let block_id = BlockId::Hash(notify.hash);
-            let events = client
+            let messages = client
                 .runtime_api()
-                .events(&block_id)
+                .recv(&block_id)
                 .expect("Runtime communication error");
-            debug!("Events at {}: {:?}", notify.hash, events);
 
             // Iterate and dispatch events
-            for event in events { match event {
-                Event::pallet_robonomics_provider(e) => match e {
-                    provider::RawEvent::NewDemand(technics, economics, sender) => {
-                        debug!("NewDemand: {:?} {:?} from {:?}", technics, economics, sender);
+            for msg in messages { match msg {
+                provider::RobonomicsMessage::Demand(provider::Order { technics, economics, sender, .. }) => {
+                    debug!("New message => Demand {:?} {:?} from {:?}", technics, economics, sender);
 
-                        let mut msg = Demand::default();
-                        msg.technics  = technics.to_base58();
-                        msg.sender    = sender.to_ss58check();
-                        demand_pub
-                            .send(msg)
-                            .expect("unable to publish ROS message");
-                    },
-
-                    provider::RawEvent::NewOffer(technics, economics, sender) => {
-                        debug!("NewOffer: {:?} {:?} from {:?}", technics, economics, sender);
-
-                        let mut msg = Offer::default();
-                        msg.technics  = technics.to_base58();
-                        msg.sender    = sender.to_ss58check();
-                        offer_pub
-                            .send(msg)
-                            .expect("unable to publish ROS message");
-                    },
+                    let mut msg  = Demand::default();
+                    msg.technics = technics.as_ref().to_base58();
+                    msg.sender   = sender.to_ss58check();
+                    demand_pub
+                        .send(msg)
+                        .expect("unable to publish ROS message");
                 },
 
-                Event::pallet_robonomics_liability(e) => match e {
+                provider::RobonomicsMessage::Offer(provider::Order { technics, economics, sender, .. }) => {
+                    debug!("New message => Offer {:?} {:?} from {:?}", technics, economics, sender);
+
+                    let mut msg  = Offer::default();
+                    msg.technics = technics.as_ref().to_base58();
+                    msg.sender   = sender.to_ss58check();
+                    offer_pub
+                        .send(msg)
+                        .expect("unable to publish ROS message");
+                },
+            }}
+
+            futures::future::ready(())
+        });
+
+    Ok(stream)
+}
+                /*
                     liability::RawEvent::NewLiability(index, technics, economics, promisee, promisor) => {
                         debug!("NewLiability: {:?} {:?} {:?} {:?} {:?}",
                                index, technics, economics, promisee, promisor);
@@ -121,9 +125,4 @@ pub fn finalized_event_stream<B, C>(
                 },
 
                 _ => ()
-            }}
-
-            futures::future::ready(())
-        });
-    Ok(stream)
-}
+            */

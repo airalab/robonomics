@@ -32,12 +32,12 @@ pub use ros_api::start_services;
 
 /// Authoring API
 pub struct Author<B, E, P, Block: traits::Block, RA> {
-	/// Substrate client
-	client: Arc<Client<B, E, Block, RA>>,
-	/// Transactions pool
-	pool: Arc<P>,
-	/// The key store.
-	keystore: BareCryptoStorePtr,
+    /// Substrate client
+    client: Arc<Client<B, E, Block, RA>>,
+    /// Transactions pool
+    pool: Arc<P>,
+    /// The key store.
+    keystore: BareCryptoStorePtr,
 }
 
 impl<B, E, P, Block: traits::Block, RA> Clone for Author<B, E, P, Block, RA> {
@@ -51,62 +51,62 @@ impl<B, E, P, Block: traits::Block, RA> Clone for Author<B, E, P, Block, RA> {
 }
 
 impl<B, E, P, Block: traits::Block, RA> Author<B, E, P, Block, RA> {
-	/// Create new instance of Authoring API.
-	pub fn new(
-		client: Arc<Client<B, E, Block, RA>>,
-		pool: Arc<P>,
-		keystore: BareCryptoStorePtr,
-	) -> Self {
-		Author {
-			client,
-			pool,
-			keystore,
-		}
-	}
+    /// Create new instance of Authoring API.
+    pub fn new(
+        client: Arc<Client<B, E, Block, RA>>,
+        pool: Arc<P>,
+        keystore: BareCryptoStorePtr,
+    ) -> Self {
+        Author {
+            client,
+            pool,
+            keystore,
+        }
+    }
 }
 
 impl<B, E, P, RA> ros_api::AuthorApi for Author<B, E, P, <P as TransactionPool>::Block, RA> where
-	B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
-	E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
-	P: TransactionPool<Hash=H256> + Sync + Send + 'static,
-	RA: Send + Sync + 'static,
+    B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
+    E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
+    P: TransactionPool<Hash=H256> + Sync + Send + 'static,
+    RA: Send + Sync + 'static,
     P::Block: traits::Block<Hash=H256>,
-	Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
-	<Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
-		SessionKeys<P::Block, Error = ClientError>,
+    Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
+    <Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
+        SessionKeys<P::Block, Error = ClientError>,
 {
-	fn rotate_keys(&self) -> Result<ros_api::Bytes, String> {
-		let best_block_hash = self.client.chain_info().best_hash;
-		self.client.runtime_api().generate_session_keys(
-			&generic::BlockId::Hash(best_block_hash),
-			None,
-		)
+    fn rotate_keys(&self) -> Result<ros_api::Bytes, String> {
+        let best_block_hash = self.client.chain_info().best_hash;
+        self.client.runtime_api().generate_session_keys(
+            &generic::BlockId::Hash(best_block_hash),
+            None,
+        )
             .map(Into::into)
             .map_err(|e| format!("{:?}", e))
-	}
+    }
 
-	fn submit_extrinsic(&self, ext: ros_api::Bytes) -> Result<ros_api::Hash, String> {
-		let xt = Decode::decode(&mut &ext[..])
+    fn submit_extrinsic(&self, ext: ros_api::Bytes) -> Result<ros_api::Hash, String> {
+        let xt = Decode::decode(&mut &ext[..])
             .map_err(|e| format!("Extrinsic decode failure: {:?}", e))?;
-		let best_block_hash = self.client.chain_info().best_hash;
+        let best_block_hash = self.client.chain_info().best_hash;
         block_on(self.pool.submit_one(&generic::BlockId::hash(best_block_hash), xt))
             .map(Into::into)
-			.map_err(|e| format!("{:?}", e.into_pool_error()))
-	}
+            .map_err(|e| format!("{:?}", e.into_pool_error()))
+    }
 
-	fn pending_extrinsics(&self) -> Vec<ros_api::Bytes> {
-		self.pool.ready().map(|tx| tx.data().encode().into()).collect()
-	}
+    fn pending_extrinsics(&self) -> Vec<ros_api::Bytes> {
+        self.pool.ready().map(|tx| tx.data().encode().into()).collect()
+    }
 
-	fn remove_extrinsics(
-		&self,
-		hashes: Vec<ros_api::Hash>,
-	) -> Vec<ros_api::Hash> {
+    fn remove_extrinsics(
+        &self,
+        hashes: Vec<ros_api::Hash>,
+    ) -> Vec<ros_api::Hash> {
         let hashes: Vec<TxHash<P>> = hashes.iter().map(Into::into).collect();
-		self.pool
-			.remove_invalid(&hashes)
-			.into_iter()
-			.map(|tx| tx.hash().clone().into())
-			.collect()
-	}
+        self.pool
+            .remove_invalid(&hashes)
+            .into_iter()
+            .map(|tx| tx.hash().clone().into())
+            .collect()
+    }
 }

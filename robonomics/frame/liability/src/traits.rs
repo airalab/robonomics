@@ -17,9 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics runtime traits definitions.
 
-use codec::Codec;
 use frame_support::dispatch;
-use sp_runtime::DispatchResult;
+use sp_runtime::{DispatchResult, traits::Member};
+use sp_arithmetic::traits::SimpleArithmetic;
 
 /// Technical aspects of agreement between two parties.
 pub trait Technical {
@@ -61,19 +61,14 @@ pub trait Processing {
     fn on_finish(&self, success: bool) -> DispatchResult;
 }
 
-/// Specify verification target. Verification is needed to be sure that parameters or
-/// report provided by specified parties of agreement.
-pub enum ProofTarget<T: Technical> {
-    /// Check promisee agreement proof.
-    Promisee,
-    /// Check promisor agreement proof.
-    Promisor,
-    /// Check report proof.
-    Report(T::Report),
-}
-
 /// Agreement between two participants around technical/economical aspects.
-pub trait Agreement<T: Technical, E: Economical, AccountId: dispatch::Parameter>: Codec {
+pub trait Agreement<T: Technical, E: Economical> {
+    /// Indexing type.
+    type Index: dispatch::Parameter + SimpleArithmetic + Member + Copy + Default;
+
+    /// Pariticipant account address.
+    type AccountId: dispatch::Parameter;
+
     /// Some that could be used as proof of participants agreement.
     type Proof: dispatch::Parameter;
 
@@ -81,14 +76,39 @@ pub trait Agreement<T: Technical, E: Economical, AccountId: dispatch::Parameter>
     fn new(
         technics:  T::Parameter,
         economics: E::Parameter,
-        promisee:  AccountId,
-        promisor:  AccountId,
+        promisee:  Self::AccountId,
+        promisor:  Self::AccountId,
     ) -> Self;
 
-    /// Check validity of agreement proof for given target.
-    fn verify(
+    /// Check validity of agreement params proof.
+    fn check_params(
         &self,
-        target: ProofTarget<T>,
-        proof: &Self::Proof
+        proof: &Self::Proof,
+        sender: &Self::AccountId,
     ) -> bool;
+
+    /// Check validity of agreement report proof.
+    fn check_report(
+        &self,
+        index: &Self::Index,
+        report: &T::Report,
+        proof: &Self::Proof,
+    ) -> bool;
+}
+
+/// Agreement proovement maker.
+pub trait ProofBuilder<T: Technical, E: Economical, Index, Account, Proof> {
+    /// Make proof of technical and economical agreement parameters.
+    fn proof_params(
+        technics: &T::Parameter,
+        economics: &E::Parameter,
+        sender: Account,
+    ) -> Proof;
+
+    /// Make proof of technical report agrement parameter.
+    fn proof_report(
+        index: &Index,
+        report: &T::Report, 
+        sender: Account,
+    ) -> Proof;
 }

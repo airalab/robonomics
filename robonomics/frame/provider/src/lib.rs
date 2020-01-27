@@ -36,10 +36,13 @@ use frame_support::{
     decl_module, decl_event, decl_storage, decl_error,
     debug, StorageValue, weights::SimpleDispatchInfo, dispatch::Parameter, 
 };
-use frame_system::{self as system, ensure_signed, offchain::SubmitUnsignedTransaction};
+use frame_system::{
+    self as system, ensure_signed,
+    offchain::{SubmitUnsignedTransaction, SubmitSignedTransaction},
+};
 use pallet_robonomics_liability::{
     TechnicalParam, EconomicalParam, ProofParam, AccountId,
-    traits::{Agreement, ProofTarget},
+    traits::{Agreement},
 };
 
 /// Provider crypto primitives.
@@ -66,32 +69,38 @@ pub trait Trait: pallet_robonomics_liability::Trait {
     /// Let's define the helper we use to create unsigned transactions.
     type SubmitTransaction: SubmitUnsignedTransaction<Self, <Self as Trait>::Call>;
 
-	/// The output of the `OrderHashing` function.
-	type OrderHash:
-		Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay + SimpleBitOps
-		+ Default + Copy + CheckEqual + sp_std::hash::Hash + AsRef<[u8]> + AsMut<[u8]> + Ord;
+    /// The output of the `OrderHashing` function.
+    type OrderHash:
+        Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay + SimpleBitOps
+        + Default + Copy + CheckEqual + sp_std::hash::Hash + AsRef<[u8]> + AsMut<[u8]> + Ord;
 
-	/// The order hashing system (algorithm) being used in the runtime (e.g. Blake2).
-	type OrderHashing: Hash<Output = Self::OrderHash>;
+    /// The order hashing system (algorithm) being used in the runtime (e.g. Blake2).
+    type OrderHashing: Hash<Output = Self::OrderHash>;
 
     /// The regular events type
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
+/// Provider module agent trait.
+pub trait Agent: Trait {
+    type Call: From<Call<Self>>;
+    type SubmitTransaction: SubmitSignedTransaction<Self, <Self as Agent>::Call>;
+}
+
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, RuntimeDebug)]
-pub enum RobonomicsMessage<T: Trait> {
+pub enum RobonomicsMessage<T: pallet_robonomics_liability::Trait> {
     Demand(Order<T>),
     Offer(Order<T>),
 }
 
 #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
 #[derive(Encode, Decode, Clone, RuntimeDebug)]
-pub struct Order<T: Trait> {
-    technics:  TechnicalParam<T>,
-    economics: EconomicalParam<T>,
-    proof:     ProofParam<T>,
-    sender:    AccountId<T>,
+pub struct Order<T: pallet_robonomics_liability::Trait> {
+    pub technics:  TechnicalParam<T>,
+    pub economics: EconomicalParam<T>,
+    pub proof:     ProofParam<T>,
+    pub sender:    AccountId<T>,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug)]
@@ -167,7 +176,7 @@ decl_module! {
                 sender.clone()
             );
 
-            if !liability.verify(ProofTarget::Promisee, &proof) {
+            if !liability.check_params(&proof, &sender) {
                 Err(Error::<T>::BadDemandProof)?
             }
 
@@ -199,7 +208,7 @@ decl_module! {
                 sender.clone(),
             );
 
-            if !liability.verify(ProofTarget::Promisee, &proof) {
+            if !liability.check_params(&proof, &sender) {
                 Err(Error::<T>::BadOfferProof)?
             }
 

@@ -40,23 +40,23 @@ pub type Hash = [u8; 32];
 pub type Bytes = Vec<u8>;
 
 pub trait StateApi {
-	/// Call a module at a block's state.
+    /// Call a module at a block's state.
     fn call(&self, method: String, data: Bytes, block: Option<Hash>) -> Result<Bytes, String>;
 
-	/// Returns the keys with prefix, leave empty to get all the keys
+    /// Returns the keys with prefix, leave empty to get all the keys
     fn storage_keys(&self, key_prefix: Bytes, block: Option<Hash>) -> Result<Vec<Bytes>, String>;
 
-	/// Returns a storage entry at a specific block's state.
+    /// Returns a storage entry at a specific block's state.
     fn storage(&self, key: Bytes, block: Option<Hash>) -> Result<Option<Bytes>, String>;
 
-	/// Returns the hash of a storage entry at a block's state.
+    /// Returns the hash of a storage entry at a block's state.
     fn storage_hash(&self, key: Bytes, block: Option<Hash>) -> Result<Option<Hash>, String>;
 
-	/// Returns the size of a storage entry at a block's state.
+    /// Returns the size of a storage entry at a block's state.
     fn storage_size(&self, key: Bytes, block: Option<Hash>) -> Result<Option<u64>, String>;
 
-	/// Get the runtime version.
-	fn runtime_version(&self, hash: Option<Hash>) -> Result<String, String>;
+    /// Get the runtime version.
+    fn runtime_version(&self, hash: Option<Hash>) -> Result<String, String>;
 }
 
 fn zero_guard(mb_zero: Hash) -> Option<Hash> {

@@ -45,14 +45,14 @@ pub fn start<B, E, RA, P, S, H>(
     service_transaction_pool: Arc<P>,
     service_keystore: BareCryptoStorePtr,
 ) -> Result<(Vec<rosrust::Service>, impl Future<Output=()>), Error> where
-	B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
-	E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
-	P: TransactionPool<Hash=H256> + Sync + Send + 'static,
-	RA: Send + Sync + 'static,
-	P::Block: traits::Block<Hash=H256>,
-	Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
-	<Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
-		SessionKeys<P::Block, Error = ClientError>,
+    B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
+    E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
+    P: TransactionPool<Hash=H256> + Sync + Send + 'static,
+    RA: Send + Sync + 'static,
+    P::Block: traits::Block<Hash=H256>,
+    Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
+    <Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
+        SessionKeys<P::Block, Error = ClientError>,
     S: NetworkSpecialization<P::Block>,
     H: ExHashT + Clone + Sync,
     u64: From<<<P::Block as traits::Block>::Header as traits::Header>::Number>,
