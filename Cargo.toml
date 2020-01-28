@@ -1,6 +1,7 @@
 [workspace]
 default-members = [ "bin/node/cli" ]
 members = [
+    "bin/subkey",
     "bin/node/cli",
     "bin/node/executor",
     "bin/node/ipci-runtime",

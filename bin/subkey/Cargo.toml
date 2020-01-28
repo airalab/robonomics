@@ -1,0 +1,34 @@
+[package]
+name = "subkey"
+version = "2.0.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+futures = "0.1.29"
+sp-core = { git = "https://github.com/airalab/substrate" } 
+sp-runtime = { git = "https://github.com/airalab/substrate" } 
+node-primitives = { git = "https://github.com/airalab/substrate" }
+node-executor = { path = "../node/executor" } 
+rand = "0.7.2"
+clap = "2.33.0"
+tiny-bip39 = "0.6.2"
+rustc-hex = "2.0.1"
+substrate-bip39 = "0.3.1"
+hex = "0.4.0"
+hex-literal = "0.2.1"
+codec = { package = "parity-scale-codec", version = "1.0.0" }
+frame-system = { git = "https://github.com/airalab/substrate" } 
+pallet-balances = { git = "https://github.com/airalab/substrate" } 
+pallet-transaction-payment = { git = "https://github.com/airalab/substrate" } 
+rpassword = "4.0.1"
+itertools = "0.8.2"
+derive_more = { version = "0.99.2" }
+sc-rpc = { git = "https://github.com/airalab/substrate" } 
+jsonrpc-core-client = { version = "14.0.3", features = ["http"] }
+hyper = "0.12.35"
+
+[features]
+bench = []
+ipci = ["node-executor/ipci-runtime"]
+robonomics = ["node-executor/robonomics-runtime"]
