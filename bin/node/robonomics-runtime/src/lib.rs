@@ -42,7 +42,6 @@ use sp_runtime::{
     ApplyExtrinsicResult, Perbill, MultiSigner,
     generic, create_runtime_str, impl_opaque_keys,
 };
-use sp_runtime::app_crypto::{AppPublic, AppSignature, RuntimeAppPublic};
 use sp_runtime::transaction_validity::TransactionValidity;
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
@@ -639,13 +638,13 @@ impl_runtime_apis! {
             index: pallet_robonomics_liability::LiabilityIndex<Runtime>,
             report: pallet_robonomics_liability::TechnicalReport<Runtime>,
         ) -> Result<(), ()> {
-            unimplemented!()
+            RobonomicsAgent::send_report(index, report)
         }
     }
 
     impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block, Runtime> for Runtime {
         fn send_record(
-            record: <Runtime as pallet_robonomics_storage::Trait>::Record
+            record: Vec<u8> 
         ) -> Result<(), ()> {
             RobonomicsAgent::send_record(record)
         }

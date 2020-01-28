@@ -583,7 +583,7 @@ impl_runtime_apis! {
 
     impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block, Runtime> for Runtime {
         fn send_record(
-            record: <Runtime as pallet_robonomics_storage::Trait>::Record
+            record: Vec<u8> 
         ) -> Result<(), ()> {
             RobonomicsAgent::send_record(record)
         }

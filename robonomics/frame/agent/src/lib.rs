@@ -15,14 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network provider module. This can be compiled with `#[no_std]`, ready for Wasm.
+//! Robonomics Network Agent module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Encode, Decode};
 use sp_std::{
     prelude::*,
     fmt::Debug,
-    collections::btree_map::BTreeMap,
 };
 use sp_core::offchain::StorageKind;
 use sp_runtime::{
@@ -39,7 +38,7 @@ use frame_support::{
 };
 use frame_system::{
     self as system, ensure_signed,
-    offchain::{SubmitSignedTransaction, Signer}
+    offchain::{SubmitSignedTransaction, SubmitUnsignedTransaction, Signer}
 };
 use pallet_robonomics_provider::RobonomicsMessage;
 use pallet_robonomics_liability::{
@@ -196,6 +195,21 @@ impl<T: Trait + pallet_robonomics_provider::Agent> Module<T> where
         <T as pallet_robonomics_provider::Agent>::SubmitTransaction::submit_signed(call)[0].1
     }
 
+    /// Send report of liability.
+    pub fn send_report(
+        index: LiabilityIndex<T>,
+        report: TechnicalReport<T>,
+    ) -> Result<(), ()> {
+        let proof: <<T::AgentKey as RuntimeAppPublic>::Signature as AppSignature>::Generic
+            = Self::sign_report(&index, &report).into();
+        let call = pallet_robonomics_liability::Call::<T>::finalize(
+            index,
+            report,
+            proof.into(),
+        );
+        <T as pallet_robonomics_provider::Trait>::SubmitTransaction::submit_unsigned(call)
+    }
+
     fn sign_params(
         technics: &TechnicalParam<T>,
         economics: &EconomicalParam<T>,
@@ -220,173 +234,5 @@ impl<T: Trait + pallet_robonomics_provider::Agent> Module<T> where
             _,
             _,
             >>::proof_report(index, report, Self::key())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate as provider;
-    use sp_runtime::{
-        Perbill, generic,
-        testing::{Header, TestXt},
-        traits::{IdentityLookup, BlakeTwo256},
-    };
-    use frame_support::{
-        impl_outer_event,
-        impl_outer_origin,
-        impl_outer_dispatch,
-        parameter_types,
-        assert_ok
-    };
-    use sp_runtime::{traits::{Verify, IdentifyAccount}};
-    use node_primitives::{AccountId, AccountIndex, Signature};
-    use sp_core::{
-        offchain::{
-            OffchainExt, TransactionPoolExt,
-            testing::{TestOffchainExt, TestTransactionPoolExt},
-        },
-        H256, sr25519, crypto::Pair
-    };
-    use base58::FromBase58;
-
-    impl_outer_event! {
-        pub enum MetaEvent for Runtime {
-            pallet_robonomics_liability<T>, provider<T>,
-        }
-    }
-
-    impl_outer_origin!{
-        pub enum Origin for Runtime {}
-    }
-
-    impl_outer_dispatch! {
-        pub enum Call for Runtime where origin: Origin {
-            system::System,
-            liability::Liability,
-            provider::Provider,
-        }
-    }
-
-    #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct Runtime;
-
-    // Define some type aliases. We use the simplest form of anything which is not relevant for
-    // simplicity, e.g. account ids are just numbers and signed extensions are empty (`()`).
-    type Extrinsic = TestXt<Call, ()>;
-    type NodeBlock = generic::Block<Header, Extrinsic>;
-
-    // Define the required constants for system module,
-    parameter_types! {
-        pub const BlockHashCount: u64 = 250;
-        pub const MaximumBlockWeight: u32 = 1024;
-        pub const MaximumBlockLength: u32 = 2 * 1024;
-        pub const AvailableBlockRatio: Perbill = Perbill::one();
-    }
-
-    // and add it to our test runtime.
-    impl system::Trait for Runtime {
-        type Origin = Origin;
-        type Index = AccountIndex;
-        type BlockNumber = u64;
-        type Call = Call;
-        type Hash = H256;
-        type Hashing = BlakeTwo256;
-        type AccountId = AccountId;
-        type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = MetaEvent;
-        type BlockHashCount = BlockHashCount;
-        type MaximumBlockWeight = MaximumBlockWeight;
-        type MaximumBlockLength = MaximumBlockLength;
-        type AvailableBlockRatio = AvailableBlockRatio;
-        type Version = ();
-        type ModuleToIndex = ();
-    }
-
-    impl pallet_robonomics_liability::Trait for Runtime {
-        type Event = MetaEvent;
-        type Technics = pallet_robonomics_liability::technics::PureIPFS;
-        type Economics = pallet_robonomics_liability::economics::Communism;
-        type Liability = pallet_robonomics_liability::signed::SignedLiability<
-            Self::Technics,
-            Self::Economics,
-            Signature,
-            <Signature as Verify>::Signer,
-            AccountId,
-        >;
-    }
-
-    impl Trait for Runtime {
-        type Event = MetaEvent;
-        type Call = Call;
-        type SubmitTransaction = frame_system::offchain::TransactionSubmitter<(), Call, Extrinsic>;
-        type OrderHash = <Self as frame_system::Trait>::Hash;
-        type OrderHashing = <Self as frame_system::Trait>::Hashing;
-    }
-
-    type System = frame_system::Module<Runtime>;
-    type Liability = pallet_robonomics_liability::Module<Runtime>;
-    type Provider = Module<Runtime>;
-
-    pub fn new_test_ext() -> sp_io::TestExternalities {
-        let t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
-        t.into()
-    }
-
-    #[test]
-    fn test_demand_request() {
-        new_test_ext().execute_with(|| {
-            let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
-            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
-            let economics = ();
-            let order = (technics.clone(), economics.clone());
-            let proof = order.using_encoded(|params| pair.sign(params));
-            assert_ok!(Provider::demand(Origin::signed(sender), technics, economics, proof.into()));
-            assert_eq!(Provider::oc_requests().len(), 1);
-        })
-    }
-
-    #[test]
-    fn test_offer_request() {
-        new_test_ext().execute_with(|| {
-            let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
-            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
-            let economics = ();
-            let order = (technics.clone(), economics.clone());
-            let proof = order.using_encoded(|params| pair.sign(params));
-            assert_ok!(Provider::offer(Origin::signed(sender), technics, economics, proof.into()));
-            assert_eq!(Provider::oc_requests().len(), 1);
-        })
-    }
-
-    #[test]
-    fn test_offchain_worker() {
-        let mut ext = new_test_ext();
-        let (offchain, _state) = TestOffchainExt::new();
-        let (pool, state) = TestTransactionPoolExt::new();
-        ext.register_extension(OffchainExt::new(offchain));
-        ext.register_extension(TransactionPoolExt::new(pool));
-        ext.execute_with(|| {
-            System::set_block_number(1);
-
-            let pair: sr25519::Pair = Pair::from_string("//Alice", None).unwrap();
-            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = vec![1,2,3];
-            let economics = ();
-            let order = (technics.clone(), economics.clone());
-            let proof = order.using_encoded(|params| pair.sign(params));
-            assert_ok!(Provider::offer(Origin::signed(sender), technics, economics, proof.into()));
-
-            let pair: sr25519::Pair = Pair::from_string("//Bob", None).unwrap();
-            let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-            let technics = vec![1,2,3];
-            let economics = ();
-            let order = (technics.clone(), economics.clone());
-            let proof = order.using_encoded(|params| pair.sign(params));
-            assert_ok!(Provider::demand(Origin::signed(sender), technics, economics, proof.into()));
-        })
     }
 }

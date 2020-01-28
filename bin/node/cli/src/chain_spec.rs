@@ -29,7 +29,6 @@ use node_executor::runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     AuthorityDiscoveryConfig, SessionKeys, StakerStatus, WASM_BINARY,
-    constants::currency::*,
 };
 use node_primitives::{AccountId, Balance, Signature};
 use node_executor::runtime::Block;
@@ -299,13 +298,12 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 }
 
 
-/*
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
-*/
 
+/*
 /// IPCI blockchain genesis. 
 fn ipci_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -322,12 +320,9 @@ fn ipci_genesis() -> GenesisConfig {
         // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
-    let endowed_accounts: Vec<(AccountId, Balance)> = vec![
-    ];
-
     make_genesis(
         initial_authorities,
-        endowed_accounts,
+        crate::token_holders::ipci(),
         sudo_key,
     )
 }
@@ -349,6 +344,7 @@ pub fn ipci_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/
 
 fn development_testnet_genesis() -> GenesisConfig {
     testnet_genesis(

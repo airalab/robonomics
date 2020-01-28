@@ -105,8 +105,7 @@ fn run_until_exit<T, E>(
     let service_res = runtime.block_on(select(service, exit));
 
     let _ = exit_send.send(());
-
-    runtime.block_on(handle);
+    let _ = runtime.block_on(handle);
 
     match service_res {
         Either::Left((res, _)) => res.map_err(error::Error::Service),
