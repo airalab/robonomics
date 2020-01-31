@@ -56,7 +56,7 @@ macro_rules! new_full_start {
             })?
             .with_transaction_pool(|config, client, _fetcher| {
                 let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
-                let pool = sc_transaction_pool::BasicPool::new(config, pool_api);
+                let pool = sc_transaction_pool::BasicPool::new(config, std::sync::Arc::new(pool_api));
                 Ok(pool)
             })?
             .with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
@@ -167,7 +167,7 @@ macro_rules! new_full {
             };
 
             let babe = sc_consensus_babe::start_babe(babe_config)?;
-            service.spawn_essential_task(babe);
+            service.spawn_essential_task("babe-proposer", babe);
 
             let network = service.network();
             let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
@@ -182,7 +182,7 @@ macro_rules! new_full {
                 dht_event_stream,
             );
 
-            service.spawn_task(authority_discovery);
+            service.spawn_task("authority-discovery", authority_discovery);
         }
 
         // if the node isn't actively participating in consensus then it doesn't
@@ -206,7 +206,7 @@ macro_rules! new_full {
         match (is_authority, disable_grandpa) {
             (false, false) => {
                 // start the lightweight GRANDPA observer
-                service.spawn_task(sc_finality_grandpa::run_grandpa_observer(
+                service.spawn_task("grandpa-observer", sc_finality_grandpa::run_grandpa_observer(
                     config,
                     grandpa_link,
                     service.network(),
@@ -229,6 +229,7 @@ macro_rules! new_full {
                 // the GRANDPA voter task is considered infallible, i.e.
                 // if it fails we take down the service with it.
                 service.spawn_essential_task(
+                    "grandpa-voter",
                     sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.map(drop)
                 );
             },
@@ -245,7 +246,7 @@ macro_rules! new_full {
         { if rosrust::try_init_with_options("robonomics", false).is_ok() {
             let (robonomics_api, robonomics_ros_services) =
                 robonomics_ros_api::start!(service.client());
-            service.spawn_task(robonomics_api);
+            service.spawn_task("robonomics-ros", robonomics_api);
     
             let system_info = substrate_ros_api::system::SystemInfo {
                 chain_name: chain_spec.name().into(),
@@ -275,10 +276,12 @@ macro_rules! new_full {
                 on_exit,
             ).boxed().map(|_| ());
 
-            service.spawn_task(ros_task);
+            service.spawn_task("substrate-ros", ros_task);
         } else {
             warn!("ROS integration disabled because of initialization failure");
         } }
+
+        warn!("genesis hash: {}", service.client().chain_info().genesis_hash);
 
         Ok((service, inherent_data_providers))
     }};
@@ -307,10 +310,10 @@ type ConcreteTransactionPool = sc_transaction_pool::BasicPool<
 >;
 
 /// A specialized configuration object for setting up the node..
-pub type NodeConfiguration<C> = Configuration<C, GenesisConfig, crate::chain_spec::Extensions>;
+pub type NodeConfiguration = Configuration<GenesisConfig, crate::chain_spec::Extensions>;
 
 /// Builds a new service for a full client.
-pub fn new_full<C: Send + Default + 'static>(config: NodeConfiguration<C>)
+pub fn new_full(config: NodeConfiguration)
 -> Result<
     Service<
         ConcreteBlock,
@@ -332,9 +335,8 @@ pub fn new_full<C: Send + Default + 'static>(config: NodeConfiguration<C>)
 }
 
 /// Builds a new service for a light client.
-pub fn new_light<C: Send + Default + 'static>(
-    config: NodeConfiguration<C>
-) -> Result<impl AbstractService, ServiceError> {
+pub fn new_light(config: NodeConfiguration)
+-> Result<impl AbstractService, ServiceError> {
 
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
@@ -347,7 +349,7 @@ pub fn new_light<C: Send + Default + 'static>(
                 .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
             let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
             let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-                config, pool_api, sc_transaction_pool::RevalidationType::Light,
+                config, Arc::new(pool_api), sc_transaction_pool::RevalidationType::Light,
             );
             Ok(pool)
         })?

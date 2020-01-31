@@ -35,7 +35,7 @@ use frame_system::offchain::{
     SubmitSignedTransaction, TransactionSubmitter,
 };
 use frame_support::{
-    construct_runtime, parameter_types, debug,
+    construct_runtime, parameter_types,
     traits::Randomness, weights::Weight,
 };
 use sp_runtime::{

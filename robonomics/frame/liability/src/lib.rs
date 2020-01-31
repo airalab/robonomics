@@ -113,11 +113,14 @@ decl_storage! {
         /// Latest liability index.
         LatestIndex get(fn latest_index): LiabilityIndex<T>;
         /// SCALE-encoded liability parameters.
-        LiabilityOf get(fn liability_of): map LiabilityIndex<T> => Vec<u8>;
+        LiabilityOf get(fn liability_of): map hasher(blake2_256)
+                                          LiabilityIndex<T> => Vec<u8>;
         /// Set `true` when liability report already send.
-        IsFinalized get(fn is_finalized): map LiabilityIndex<T> => bool;
+        IsFinalized get(fn is_finalized): map hasher(blake2_256)
+                                          LiabilityIndex<T> => bool;
         /// SCALE-encoded liability report.
-        ReportOf    get(fn report_of): map LiabilityIndex<T> => Vec<u8>;
+        ReportOf    get(fn report_of): map hasher(blake2_256)
+                                       LiabilityIndex<T> => Vec<u8>;
     }
 }
 

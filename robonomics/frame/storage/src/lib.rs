@@ -67,7 +67,8 @@ decl_error! {
 decl_storage! {
     trait Store for Module<T: Trait> as Storage {
         /// Time tagged data of given account.
-        DataLog get(fn datalog): linked_map T::AccountId => Vec<(MomentOf<T>, T::Record)>;
+        DataLog get(fn datalog): linked_map hasher(blake2_256)
+                                 T::AccountId => Vec<(MomentOf<T>, T::Record)>;
     }
 }
 
