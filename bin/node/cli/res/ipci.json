@@ -12,7 +12,8 @@
   ],
   "protocolId": "mito",
   "properties": {
-    "tokenSymbol": "MITO"
+    "tokenSymbol": "MITO",
+    "tokenDecimals": 15
   },
   "forkBlocks": null,
   "badBlocks": null,
