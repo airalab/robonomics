@@ -21,9 +21,8 @@
 pub mod currency {
     use node_primitives::Balance;
 
-    pub const pMITO: Balance = 1;
-    pub const uMITO: Balance = 1_000_000 * pMITO;
-    pub const MITO: Balance = 1_000_000 * uMITO;
+    pub const U_MITO: Balance = 1_000_000;
+    pub const MITO: Balance = 1_000_000 * U_MITO;
 }
 
 /// Time.

@@ -31,25 +31,22 @@ pub use pallet_staking::StakerStatus;
 
 use sp_std::prelude::*;
 use sp_core::OpaqueMetadata;
-use frame_system::offchain::{
-    SubmitSignedTransaction, TransactionSubmitter,
-};
+use frame_system::offchain::TransactionSubmitter;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::Randomness, weights::Weight,
 };
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill, MultiSigner,
+    ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str, impl_opaque_keys,
 };
 use sp_runtime::transaction_validity::TransactionValidity;
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-    SaturatedConversion, OpaqueKeys, IdentifyAccount,
+    SaturatedConversion, OpaqueKeys,
 };
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
-use pallet_robonomics_agent::crypto::sr25519::AgentId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_inherents::{InherentData, CheckInherentsResult};
@@ -74,8 +71,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 61,
-    impl_version: 61,
+    spec_version: 70,
+    impl_version: 70,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -113,6 +110,9 @@ impl frame_system::Trait for Runtime {
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
     type ModuleToIndex = ModuleToIndex; 
+    type AccountData = pallet_balances::AccountData<Balance>;
+    type OnNewAccount = ();
+    type OnReapAccount = (Balances, Staking, Session);
 }
 
 parameter_types! {
@@ -164,15 +164,14 @@ impl pallet_authorship::Trait for Runtime {
     type EventHandler = (Staking, ImOnline);
 }
 
+parameter_types! {
+    pub const IndexDeposit: Balance = 1 * GLUSHKOV;
+}
+
 impl pallet_indices::Trait for Runtime {
-    /// The type for recording indexing into the account enumeration. If this ever overflows,
-    /// there will be problems!
     type AccountIndex = AccountIndex;
-    /// Use the standard means of resolving an index hint from an id.
-    type ResolveHint = pallet_indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
-    /// Determine whether an account is dead.
-    type IsDeadAccount = Balances;
-    /// The uniquitous event type.
+    type Currency = Balances;
+    type Deposit = IndexDeposit;
     type Event = Event;
 }
 
@@ -183,20 +182,11 @@ parameter_types! {
 }
 
 impl pallet_balances::Trait for Runtime {
-    /// The type for recording an account's balance.
     type Balance = Balance;
-    /// What to do if an account's free balance gets zeroed.
-    type OnFreeBalanceZero = (Staking, Session);
-    /// What to do if a new account is created.
-    type OnNewAccount = Indices;
-    /// The uniquitous event type.
-    type Event = Event;
     type DustRemoval = ();
-    type TransferPayment = ();
+    type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
-    type TransferFee = TransferFee;
-    type CreationFee = CreationFee;
-    type OnReapAccount = System;
+    type AccountStore = frame_system::Module<Runtime>;
 }
 
 parameter_types! {
@@ -303,19 +293,56 @@ parameter_types! {
     pub const MaxLength: usize = 16;
 }
 
-impl pallet_nicks::Trait for Runtime {
+parameter_types! {
+    pub const BasicDeposit: Balance = 10 * XRT;       // 258 bytes on-chain
+    pub const FieldDeposit: Balance = 250 * COASE;    // 66 bytes on-chain
+    pub const SubAccountDeposit: Balance = 2 * XRT;   // 53 bytes on-chain
+    pub const MaxSubAccounts: u32 = 100;
+    pub const MaxAdditionalFields: u32 = 100;
+}
+
+impl pallet_identity::Trait for Runtime {
     type Event = Event;
     type Currency = Balances;
-    type ReservationFee = ReservationFee;
+    type BasicDeposit = BasicDeposit;
+    type FieldDeposit = FieldDeposit;
+    type SubAccountDeposit = SubAccountDeposit;
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxAdditionalFields = MaxAdditionalFields;
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type MinLength = MinLength;
-    type MaxLength = MaxLength;
+    type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
+}
+
+parameter_types! {
+    pub const CandidateDeposit: Balance = 10 * XRT;
+    pub const WrongSideDeduction: Balance = 2 * XRT;
+    pub const MaxStrikes: u32 = 10;
+    pub const RotationPeriod: BlockNumber = 80 * HOURS;
+    pub const PeriodSpend: Balance = 500 * XRT;
+    pub const MaxLockDuration: BlockNumber = 36 * 30 * DAYS;
+    pub const ChallengePeriod: BlockNumber = 7 * DAYS;
+}
+
+impl pallet_society::Trait for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type Randomness = RandomnessCollectiveFlip;
+    type CandidateDeposit = CandidateDeposit;
+    type WrongSideDeduction = WrongSideDeduction;
+    type MaxStrikes = MaxStrikes;
+    type PeriodSpend = PeriodSpend;
+    type MembershipChanged = ();
+    type RotationPeriod = RotationPeriod;
+    type MaxLockDuration = MaxLockDuration;
+    type FounderSetOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
+    type SuspensionJudgementOrigin = pallet_society::EnsureFounder<Runtime>;
+    type ChallengePeriod = ChallengePeriod;
 }
 
 impl pallet_sudo::Trait for Runtime {
-    type Proposal = Call;
     type Event = Event;
+    type Call = Call;
 }
 
 parameter_types! {
@@ -350,33 +377,10 @@ impl pallet_robonomics_liability::Trait for Runtime {
     >;
 }
 
-impl pallet_robonomics_provider::Trait for Runtime {
-    type Call = Call;
-    type Event = Event;
-    type OrderHash = <Self as frame_system::Trait>::Hash;
-    type OrderHashing = <Self as frame_system::Trait>::Hashing;
-    type SubmitTransaction = TransactionSubmitter<(), Runtime, UncheckedExtrinsic>;
-}
-
-impl pallet_robonomics_provider::Agent for Runtime {
-    type Call = Call;
-    type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
-}
-
-impl pallet_robonomics_agent::Trait for Runtime {
-    type Event = Event;
-    type AgentKey = AgentId;
-}
-
 impl pallet_robonomics_storage::Trait for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
-}
-
-impl pallet_robonomics_storage::Agent for Runtime {
-    type Call = Call;
-    type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
 }
 
 impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
@@ -394,7 +398,9 @@ impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for 
             .checked_next_power_of_two()
             .map(|c| c / 2)
             .unwrap_or(2) as u64;
-        let current_block = System::block_number().saturated_into::<u64>();
+        let current_block = System::block_number()
+            .saturated_into::<u64>()
+            .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
             frame_system::CheckVersion::<Runtime>::new(),
@@ -419,14 +425,17 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Storage, Config, Event},
+        System: frame_system::{Module, Call, Config, Storage, Event<T>},
         Utility: pallet_utility::{Module, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Nicks: pallet_nicks::{Module, Call, Storage, Event<T>},
+
+        // Social stuff.
+        Identity: pallet_identity::{Module, Call, Storage, Event<T>},
+        Society: pallet_society::{Module, Call, Storage, Event<T>, Config<T>},
 
         // Native currency and accounts.
-        Indices: pallet_indices,
-        Balances: pallet_balances,
+        Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
         // Randomness.
@@ -435,7 +444,7 @@ construct_runtime!(
         // PoS consensus modules.
         Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
-        Staking: pallet_staking,
+        Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
         FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
@@ -445,12 +454,10 @@ construct_runtime!(
 
         // Robonomics Network modules.
         RobonomicsLiability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
-        RobonomicsProvider: pallet_robonomics_provider::{Module, Call, Storage, Event<T>},
         RobonomicsStorage: pallet_robonomics_storage::{Module, Call, Storage, Event<T>},
-        RobonomicsAgent: pallet_robonomics_agent::{Module, Call, Storage, Event},
 
         // Sudo. Usable initially.
-        Sudo: pallet_sudo,
+        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
     }
 );
 
@@ -518,6 +525,10 @@ impl_runtime_apis! {
             Executive::apply_extrinsic(extrinsic)
         }
 
+        fn apply_trusted_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
+            Executive::apply_trusted_extrinsic(extrinsic)
+        }
+
         fn finalize_block() -> <Block as BlockT>::Header {
             Executive::finalize_block()
         }
@@ -569,6 +580,10 @@ impl_runtime_apis! {
                 secondary_slots: true,
             }
         }
+
+        fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
+            Babe::current_epoch_start()
+        }
     }
 
     impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
@@ -602,51 +617,6 @@ impl_runtime_apis! {
             encoded: Vec<u8>,
         ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
             SessionKeys::decode_into_raw_public_keys(&encoded)
-        }
-    }
-
-    impl pallet_robonomics_agent_runtime_api::RobonomicsAgentApi<Block, Runtime> for Runtime {
-        fn account() -> AccountId {
-            MultiSigner::from(RobonomicsAgent::account()).into_account()
-        }
-    }
-
-    impl pallet_robonomics_agent_runtime_api::RobonomicsLiabilityApi<Block, Runtime> for Runtime {
-        fn pull() -> Option<Vec<u8>> {
-            None
-        }
-
-        fn recv() -> Vec<pallet_robonomics_provider::RobonomicsMessage<Runtime>> {
-            vec![]
-        }
-
-        fn send_demand(
-            technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
-            economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
-        ) -> Result<(), ()> {
-            RobonomicsAgent::send_demand(technics, economics)
-        }
-
-        fn send_offer(
-            technics: pallet_robonomics_liability::TechnicalParam<Runtime>,
-            economics: pallet_robonomics_liability::EconomicalParam<Runtime>,
-        ) -> Result<(), ()> {
-            RobonomicsAgent::send_offer(technics, economics)
-        }
-
-        fn send_report(
-            index: pallet_robonomics_liability::LiabilityIndex<Runtime>,
-            report: pallet_robonomics_liability::TechnicalReport<Runtime>,
-        ) -> Result<(), ()> {
-            RobonomicsAgent::send_report(index, report)
-        }
-    }
-
-    impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block, Runtime> for Runtime {
-        fn send_record(
-            record: Vec<u8> 
-        ) -> Result<(), ()> {
-            RobonomicsAgent::send_record(record)
         }
     }
 }

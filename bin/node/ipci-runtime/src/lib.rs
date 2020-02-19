@@ -33,21 +33,20 @@ use sp_std::prelude::*;
 use sp_core::OpaqueMetadata;
 use frame_system::offchain::TransactionSubmitter;
 use frame_support::{
-    construct_runtime, parameter_types, debug,
+    construct_runtime, parameter_types,
     traits::Randomness, weights::Weight,
 };
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill, MultiSigner,
+    ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str, impl_opaque_keys,
 };
 use sp_runtime::transaction_validity::TransactionValidity;
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-    SaturatedConversion, OpaqueKeys, IdentifyAccount,
+    self, BlakeTwo256, Block as BlockT, StaticLookup,
+    SaturatedConversion, OpaqueKeys,
 };
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
-use pallet_robonomics_agent::crypto::sr25519::AgentId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_inherents::{InherentData, CheckInherentsResult};
@@ -111,6 +110,9 @@ impl frame_system::Trait for Runtime {
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
     type ModuleToIndex = ModuleToIndex; 
+    type AccountData = pallet_balances::AccountData<Balance>;
+    type OnNewAccount = ();
+    type OnReapAccount = (Balances, Staking, Session);
 }
 
 parameter_types! {
@@ -162,46 +164,36 @@ impl pallet_authorship::Trait for Runtime {
     type EventHandler = (Staking, ImOnline);
 }
 
+parameter_types! {
+    pub const IndexDeposit: Balance = 1 * U_MITO;
+}
+
 impl pallet_indices::Trait for Runtime {
-    /// The type for recording indexing into the account enumeration. If this ever overflows,
-    /// there will be problems!
     type AccountIndex = AccountIndex;
-    /// Use the standard means of resolving an index hint from an id.
-    type ResolveHint = pallet_indices::SimpleResolveHint<Self::AccountId, Self::AccountIndex>;
-    /// Determine whether an account is dead.
-    type IsDeadAccount = Balances;
-    /// The uniquitous event type.
+    type Currency = Balances;
+    type Deposit = IndexDeposit;
     type Event = Event;
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = uMITO;
-    pub const TransferFee: Balance = 10 * uMITO;
-    pub const CreationFee: Balance = 10 * uMITO;
+    pub const ExistentialDeposit: Balance = U_MITO;
+    pub const TransferFee: Balance = 10 * U_MITO;
+    pub const CreationFee: Balance = 10 * U_MITO;
 }
 
 impl pallet_balances::Trait for Runtime {
-    /// The type for recording an account's balance.
     type Balance = Balance;
-    /// What to do if an account's free balance gets zeroed.
-    type OnFreeBalanceZero = (Staking, Session);
-    /// What to do if a new account is created.
-    type OnNewAccount = Indices;
-    /// The uniquitous event type.
-    type Event = Event;
     type DustRemoval = ();
-    type TransferPayment = ();
+    type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
-    type TransferFee = TransferFee;
-    type CreationFee = CreationFee;
-    type OnReapAccount = System;
+    type AccountStore = frame_system::Module<Runtime>;
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 50 * uMITO;
-    pub const TransactionByteFee: Balance = pMITO;
+    pub const TransactionBaseFee: Balance = 50 * U_MITO;
+    pub const TransactionByteFee: Balance = 1;
     // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = pMITO;
+    pub const WeightFeeCoefficient: Balance = 1;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
 }
@@ -296,24 +288,29 @@ impl pallet_finality_tracker::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const ReservationFee: Balance = MITO;
-    pub const MinLength: usize = 3;
-    pub const MaxLength: usize = 16;
+    pub const BasicDeposit: Balance = 10 * MITO;       // 258 bytes on-chain
+    pub const FieldDeposit: Balance = 250 * U_MITO;    // 66 bytes on-chain
+    pub const SubAccountDeposit: Balance = 2 * MITO;   // 53 bytes on-chain
+    pub const MaxSubAccounts: u32 = 100;
+    pub const MaxAdditionalFields: u32 = 100;
 }
 
-impl pallet_nicks::Trait for Runtime {
+impl pallet_identity::Trait for Runtime {
     type Event = Event;
     type Currency = Balances;
-    type ReservationFee = ReservationFee;
+    type BasicDeposit = BasicDeposit;
+    type FieldDeposit = FieldDeposit;
+    type SubAccountDeposit = SubAccountDeposit;
+    type MaxSubAccounts = MaxSubAccounts;
+    type MaxAdditionalFields = MaxAdditionalFields;
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type MinLength = MinLength;
-    type MaxLength = MaxLength;
+    type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
 }
 
 impl pallet_sudo::Trait for Runtime {
-    type Proposal = Call;
     type Event = Event;
+    type Call = Call;
 }
 
 parameter_types! {
@@ -335,20 +332,10 @@ impl pallet_offences::Trait for Runtime {
     type OnOffenceHandler = Staking;
 }
 
-impl pallet_robonomics_agent::Trait for Runtime {
-    type Event = Event;
-    type AgentKey = AgentId;
-}
-
 impl pallet_robonomics_storage::Trait for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
-}
-
-impl pallet_robonomics_storage::Agent for Runtime {
-    type Call = Call;
-    type SubmitTransaction = TransactionSubmitter<AgentId, Runtime, UncheckedExtrinsic>;
 }
 
 impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
@@ -391,14 +378,14 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Storage, Config, Event},
+        System: frame_system::{Module, Call, Storage, Config, Event<T>},
         Utility: pallet_utility::{Module, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Nicks: pallet_nicks::{Module, Call, Storage, Event<T>},
+        Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
-        Indices: pallet_indices,
-        Balances: pallet_balances,
+        Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
+        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
         // Randomness.
@@ -407,7 +394,7 @@ construct_runtime!(
         // PoS consensus modules.
         Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
-        Staking: pallet_staking,
+        Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
         FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
@@ -416,11 +403,10 @@ construct_runtime!(
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 
         // Robonomics Network modules.
-        RobonomicsAgent: pallet_robonomics_agent::{Module, Call, Storage, Event},
         RobonomicsStorage: pallet_robonomics_storage::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
-        Sudo: pallet_sudo,
+        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
     }
 );
 
@@ -488,6 +474,10 @@ impl_runtime_apis! {
             Executive::apply_extrinsic(extrinsic)
         }
 
+        fn apply_trusted_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
+            Executive::apply_trusted_extrinsic(extrinsic)
+        }
+
         fn finalize_block() -> <Block as BlockT>::Header {
             Executive::finalize_block()
         }
@@ -539,6 +529,10 @@ impl_runtime_apis! {
                 secondary_slots: true,
             }
         }
+
+        fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
+            Babe::current_epoch_start()
+        }
     }
 
     impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
@@ -572,20 +566,6 @@ impl_runtime_apis! {
             encoded: Vec<u8>,
         ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
             SessionKeys::decode_into_raw_public_keys(&encoded)
-        }
-    }
-
-    impl pallet_robonomics_agent_runtime_api::RobonomicsAgentApi<Block, Runtime> for Runtime {
-        fn account() -> AccountId {
-            MultiSigner::from(RobonomicsAgent::account()).into_account()
-        }
-    }
-
-    impl pallet_robonomics_agent_runtime_api::RobonomicsBlockchainApi<Block, Runtime> for Runtime {
-        fn send_record(
-            record: Vec<u8> 
-        ) -> Result<(), ()> {
-            RobonomicsAgent::send_record(record)
         }
     }
 }

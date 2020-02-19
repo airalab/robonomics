@@ -37,7 +37,7 @@ pallet-finality-tracker = { git = "https://github.com/airalab/substrate", defaul
 pallet-grandpa = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-im-online = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-indices = { git = "https://github.com/airalab/substrate", default-features = false }
-pallet-nicks = { git = "https://github.com/airalab/substrate", default-features = false }
+pallet-identity = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-offences = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-session = { git = "https://github.com/airalab/substrate", default-features = false }
@@ -51,7 +51,6 @@ pallet-utility = { git = "https://github.com/airalab/substrate", default-feature
 pallet-timestamp = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/airalab/substrate", default-features = false }
-pallet-robonomics-agent = { path = "../../../robonomics/frame/agent", default-features = false }
 pallet-robonomics-agent-runtime-api = { path = "../../../robonomics/frame/agent/runtime-api", default-features = false }
 pallet-robonomics-storage = { path = "../../../robonomics/frame/storage", default-features = false }
 
@@ -76,7 +75,7 @@ std = [
     "pallet-grandpa/std",
     "pallet-im-online/std",
     "pallet-indices/std",
-    "pallet-nicks/std",
+    "pallet-identity/std",
     "node-primitives/std",
     "sp-offchain/std",
     "pallet-offences/std",
@@ -102,7 +101,5 @@ std = [
     "sp-block-builder/std",
     "sp-transaction-pool/std",
     "sp-inherents/std",
-    "pallet-robonomics-agent/std",
-    "pallet-robonomics-agent-runtime-api/std",
     "pallet-robonomics-storage/std",
 ]
