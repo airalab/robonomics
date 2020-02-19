@@ -314,32 +314,6 @@ impl pallet_identity::Trait for Runtime {
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
 }
 
-parameter_types! {
-    pub const CandidateDeposit: Balance = 10 * XRT;
-    pub const WrongSideDeduction: Balance = 2 * XRT;
-    pub const MaxStrikes: u32 = 10;
-    pub const RotationPeriod: BlockNumber = 80 * HOURS;
-    pub const PeriodSpend: Balance = 500 * XRT;
-    pub const MaxLockDuration: BlockNumber = 36 * 30 * DAYS;
-    pub const ChallengePeriod: BlockNumber = 7 * DAYS;
-}
-
-impl pallet_society::Trait for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type Randomness = RandomnessCollectiveFlip;
-    type CandidateDeposit = CandidateDeposit;
-    type WrongSideDeduction = WrongSideDeduction;
-    type MaxStrikes = MaxStrikes;
-    type PeriodSpend = PeriodSpend;
-    type MembershipChanged = ();
-    type RotationPeriod = RotationPeriod;
-    type MaxLockDuration = MaxLockDuration;
-    type FounderSetOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type SuspensionJudgementOrigin = pallet_society::EnsureFounder<Runtime>;
-    type ChallengePeriod = ChallengePeriod;
-}
-
 impl pallet_sudo::Trait for Runtime {
     type Event = Event;
     type Call = Call;
@@ -428,10 +402,7 @@ construct_runtime!(
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
         Utility: pallet_utility::{Module, Call, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-
-        // Social stuff.
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
-        Society: pallet_society::{Module, Call, Storage, Event<T>, Config<T>},
 
         // Native currency and accounts.
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},

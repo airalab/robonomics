@@ -16,35 +16,38 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 use sc_cli::{VersionInfo, error};
-use crate::{Cli, Subcommand, service, load_spec};
+use crate::{
+    Cli, Subcommand, IsIpci, load_spec,
+    service::{
+        new_robonomics_full, new_robonomics_light,
+        new_ipci_full, new_ipci_light,
+        new_robonomics_chain_ops,
+        new_ipci_chain_ops,
+    },
+};
 
 /// Parse command line arguments into service configuration.
-pub fn run<I, T>(args: I, version: VersionInfo) -> error::Result<()>
-where
-    I: Iterator<Item = T>,
-    T: Into<std::ffi::OsString> + Clone,
-{
-    let args: Vec<_> = args.collect();
-    let opt = sc_cli::from_iter::<Cli, _>(args.clone(), &version);
+pub fn run(version: VersionInfo) -> error::Result<()> {
+    let opt = sc_cli::from_args::<Cli>(&version);
 
     let mut config = sc_service::Configuration::default();
-    config.impl_name = "airalab-robonomics";
+    let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
+    config.impl_name = if is_ipci { "airalab-ipci" } else { "airalab-robonomics" };
 
     match opt.subcommand {
-        None => sc_cli::run(
-            config,
-            opt.run,
-            service::new_light,
-            service::new_full,
-            load_spec,
-            &version,
-        ),
-        Some(Subcommand::Base(subcommand)) => sc_cli::run_subcommand(
-            config,
-            subcommand,
-            load_spec,
-            |config: service::NodeConfiguration| Ok(new_full_start!(config).0),
-            &version,
-        ),
+        None => if is_ipci {
+            sc_cli::run(
+                config, opt.run, new_ipci_full, new_ipci_light, load_spec, &version
+            )
+        } else {
+            sc_cli::run(
+                config, opt.run, new_robonomics_full, new_robonomics_light, load_spec, &version
+            )
+        },
+        Some(Subcommand::Base(cmd)) => if is_ipci {
+            sc_cli::run_subcommand(config, cmd, load_spec, new_ipci_chain_ops, &version)
+        } else {
+            sc_cli::run_subcommand(config, cmd, load_spec, new_robonomics_chain_ops, &version)
+        }
     }
 }

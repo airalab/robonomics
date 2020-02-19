@@ -24,10 +24,11 @@ is-it-maintained-open-issues = { repository = "airalab/substrate-node-robonomics
 # third-party dependencies
 futures = { version = "0.3.1", features = ["compat"] }
 serde = { version = "1.0.102", features = ["derive"]}
+codec = { package = "parity-scale-codec", version = "1.0.0" }
 hex-literal = "0.2.1"
 serde_json = "1.0"
 log = "0.4.8"
-structopt = "0.3.3"
+structopt = { version = "0.3.8", optional = true }
 jsonrpc-core = "13.2.0"
 
 # primitives
@@ -35,10 +36,15 @@ node-primitives = { git = "https://github.com/airalab/substrate", default-featur
 sp-authority-discovery = { git = "https://github.com/airalab/substrate" } 
 sp-consensus-babe = { git = "https://github.com/airalab/substrate" }
 sp-finality-grandpa = { git = "https://github.com/airalab/substrate" }
+sp-api = { git = "https://github.com/airalab/substrate" }
 sp-core = { git = "https://github.com/airalab/substrate" }
+sp-session = { git = "https://github.com/airalab/substrate" }
 sp-runtime = { git = "https://github.com/airalab/substrate" }
+sp-offchain = { git = "https://github.com/airalab/substrate" }
 sp-consensus = { git = "https://github.com/airalab/substrate" }
 sp-inherents = { git = "https://github.com/airalab/substrate" }
+sp-blockchain = { git = "https://github.com/airalab/substrate" }
+sp-block-builder = { git = "https://github.com/airalab/substrate" }
 sp-transaction-pool = { git = "https://github.com/airalab/substrate" }
 
 # client dependencies
@@ -59,16 +65,16 @@ sc-keystore = { git = "https://github.com/airalab/substrate" }
 
 # frame dependencies
 pallet-im-online = { git = "https://github.com/airalab/substrate" }
+frame-system-rpc-runtime-api = { git = "https://github.com/airalab/substrate" }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/airalab/substrate" }
 
 # node-specific dependencies
-node-executor = { path = "../executor" }
+robonomics-runtime = { path = "../robonomics-runtime" }
+ipci-runtime = { path = "../ipci-runtime" }
 sc-executor = { git = "https://github.com/airalab/substrate" }
 sc-rpc = { git = "https://github.com/airalab/substrate" }
 
 # CLI-specific dependencies
-tokio = { version = "0.2", features = ["rt-threaded"], optional = true }
-exit-future = { version = "0.1.4", optional = true }
-ctrlc = { version = "3.0", features = ["termination"], optional = true }
 sc-cli = { git = "https://github.com/airalab/substrate", optional = true }
 
 # Browser bundle build support
@@ -82,27 +88,26 @@ substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
 
 [build-dependencies]
-sc-cli = { git = "https://github.com/airalab/substrate" }
+sc-cli = { git = "https://github.com/airalab/substrate", optional = true }
 substrate-build-script-utils = { git = "https://github.com/airalab/substrate" }
-structopt = "0.3.3"
-vergen = "3.0.4"
+vergen = { version = "3.0.4", optional = true }
+structopt = { version = "0.3.8", optional = true }
 
 [features]
-default = ["cli","wasmtime","robonomics"]
-rocksdb = ["sc-service/rocksdb"]
+default = ["wasmtime"]
+
 wasmtime = [
-    "node-executor/wasmtime",
     "sc-service/wasmtime",
     "sc-cli/wasmtime",
+    "cli",
 ]
 
 ## Enable Console Line Interface basic features.
 cli = [
-    "ctrlc",
-    "tokio",
     "sc-cli",
-    "rocksdb",
-    "exit-future",
+    "vergen",
+    "structopt",
+    "sc-service/rocksdb",
 ]
 
 ## Enable browser bundle features.
@@ -123,7 +128,6 @@ ros = [
 
 ## Build native runtime for Robonomics Testnet. (default)
 robonomics = [
-    "node-executor/robonomics-runtime",
     "robonomics-ros-api/liability",
     "robonomics-ros-api/blockchain",
 ]
@@ -133,6 +137,5 @@ robonomics = [
 # public programmable blockchain ecosystem for carbon markets, societal cost mitigation instruments,
 # environmental assets, rights and liabilities. https://ipci.io 
 ipci = [
-    "node-executor/ipci-runtime",
     "robonomics-ros-api/blockchain",
 ]

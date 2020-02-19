@@ -35,6 +35,11 @@ pub use cli::*;
 #[cfg(feature = "cli")]
 pub use command::*;
 
+/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
+pub trait IsIpci {
+    fn is_ipci(&self) -> bool;
+}
+
 /// The chain specification option.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ChainSpec {
@@ -45,7 +50,7 @@ pub enum ChainSpec {
     /// Robonomics public testnet.
     RobonomicsTestnet,
     /// IPCI blockchain network.
-    IPCI,
+    Ipci,
 }
 
 impl ChainSpec {
@@ -55,16 +60,16 @@ impl ChainSpec {
             ChainSpec::Development       => chain_spec::development_testnet_config(),
             ChainSpec::LocalTestnet      => chain_spec::local_testnet_config(),
             ChainSpec::RobonomicsTestnet => chain_spec::robonomics_testnet_config(),
-            ChainSpec::IPCI              => chain_spec::ipci_config(),
+            ChainSpec::Ipci              => chain_spec::ipci_config(),
         }
     }
 
     pub(crate) fn from(s: &str) -> Option<Self> {
         match s {
-            "dev" => Some(ChainSpec::Development),
-            "local" => Some(ChainSpec::LocalTestnet),
+            "dev"             => Some(ChainSpec::Development),
+            "local"           => Some(ChainSpec::LocalTestnet),
+            "ipci"            => Some(ChainSpec::Ipci),
             "" | "robonomics" => Some(ChainSpec::RobonomicsTestnet),
-            "ipci" => Some(ChainSpec::IPCI),
             _ => None,
         }
     }

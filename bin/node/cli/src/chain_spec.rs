@@ -23,16 +23,17 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
-use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519};
-use node_executor::runtime::{
+use sp_runtime::{Perbill, MultiSigner, traits::{Verify, IdentifyAccount}};
+use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519, ecdsa};
+use robonomics_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    AuthorityDiscoveryConfig, SessionKeys, StakerStatus, WASM_BINARY,
+    AuthorityDiscoveryConfig, SessionKeys, StakerStatus,
 };
-use node_primitives::{AccountId, Balance, Signature};
-use node_executor::runtime::Block;
+use ipci_runtime::constants::currency::MITO;
+use node_primitives::{AccountId, Balance, Signature, Block};
 use sc_telemetry::TelemetryEndpoints;
+use std::convert::TryInto;
 use hex_literal::hex;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -49,6 +50,12 @@ const IPCI_PROPERTIES: &str = r#"
     {
         "tokenSymbol": "MITO"
     }"#;
+
+impl crate::IsIpci for ChainSpec {
+    fn is_ipci(&self) -> bool {
+        self.name().starts_with("IPCI")
+    }
+}
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -138,7 +145,13 @@ pub fn testnet_genesis(
             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
         ]
     }).iter().cloned().map(|acc| (acc, ENDOWMENT)).collect();
-    make_genesis(initial_authorities, endowed_accounts, sudo_key)
+
+    make_genesis(
+        initial_authorities,
+        endowed_accounts,
+        sudo_key,
+        robonomics_runtime::WASM_BINARY.to_vec(),
+    )
 }
 
 /// Helper function to create GenesisConfig
@@ -146,24 +159,21 @@ pub fn make_genesis(
     initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
+    code: Vec<u8>,
 ) -> GenesisConfig {
     const STASH: Balance = 1_000_000;
     GenesisConfig {
         frame_system: Some(SystemConfig {
-            code: WASM_BINARY.to_vec(),
+            code,
             changes_trie_config: Default::default(),
         }),
         pallet_indices: Some(IndicesConfig {
-            ids: endowed_accounts.iter().cloned()
-                .map(|(acc, _)| acc)
-                .chain(initial_authorities.iter().map(|x| x.0.clone()))
-                .collect::<Vec<_>>(),
+            indices: vec![],
         }),
         pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts.iter().cloned()
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
-            vesting: vec![],
         }),
         pallet_session: Some(SessionConfig {
             keys: initial_authorities.iter().map(|x| {
@@ -226,6 +236,7 @@ fn robonomics_testnet_genesis() -> GenesisConfig {
         initial_authorities,
         Default::default(),
         sudo_key,
+        robonomics_runtime::WASM_BINARY.to_vec(),
     )
 }
 
@@ -253,13 +264,13 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     )
 }
 
-
+/*
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
+*/
 
-/*
 /// IPCI blockchain genesis. 
 fn ipci_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -280,6 +291,7 @@ fn ipci_genesis() -> GenesisConfig {
         initial_authorities,
         holders_ipci(),
         sudo_key,
+        ipci_runtime::WASM_BINARY.to_vec(),
     )
 }
 
@@ -300,7 +312,6 @@ pub fn ipci_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 fn development_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
@@ -349,7 +360,6 @@ pub fn local_testnet_config() -> ChainSpec {
     )
 }
 
-#[cfg(feature = "ipci")]
 fn holders_ipci() -> Vec<(AccountId, Balance)> {
     let holders: Vec<(ecdsa::Public, Balance)> = vec![
         (hex!["776f5f06e1271d6deabb776b93a0062c6fea8afabc4864a5b46a38d5dd33f2df0794118ef774512d125b4b7a5b53e333c6c6d54fe09f432115acaf5e1793decc"][..].try_into().unwrap(), 10000 * MITO),

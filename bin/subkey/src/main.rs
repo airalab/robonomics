@@ -24,7 +24,7 @@ use codec::{Decode, Encode};
 use hex_literal::hex;
 use itertools::Itertools;
 use node_primitives::{Balance, Hash, Index, AccountId, Signature};
-use node_executor::runtime::{Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
+use ipci_runtime::{Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
 use sp_core::{
     crypto::{set_default_ss58_version, Ss58AddressFormat, Ss58Codec},
     ed25519, sr25519, ecdsa, Pair, Public, H256, hexdisplay::HexDisplay,

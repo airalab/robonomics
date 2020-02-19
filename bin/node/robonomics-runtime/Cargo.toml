@@ -38,7 +38,6 @@ pallet-grandpa = { git = "https://github.com/airalab/substrate", default-feature
 pallet-im-online = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-indices = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-identity = { git = "https://github.com/airalab/substrate", default-features = false }
-pallet-society = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-offences = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/airalab/substrate", default-features = false }
 pallet-session = { git = "https://github.com/airalab/substrate", default-features = false }
@@ -80,7 +79,6 @@ std = [
     "pallet-im-online/std",
     "pallet-indices/std",
     "pallet-identity/std",
-    "pallet-society/std",
     "node-primitives/std",
     "sp-offchain/std",
     "pallet-offences/std",

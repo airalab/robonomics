@@ -21,35 +21,113 @@
 
 use log::warn;
 use std::sync::Arc;
-use node_executor::{NativeExecutor, Executor};
-use node_executor::runtime::{GenesisConfig, RuntimeApi};
-use node_primitives::Block;
-use sp_runtime::traits::Block as BlockT;
+use sp_core::Blake2Hasher;
+use sp_api::ConstructRuntimeApi;
 use sc_service::{
-    Service, AbstractService, ServiceBuilder, NetworkStatus,
-    config::Configuration, error::{Error as ServiceError},
+    AbstractService, ServiceBuilderCommand,
+    TFullClient, TFullBackend, TFullCallExecutor,
+    TLightBackend, TLightCallExecutor,
+    error::{Error as ServiceError},
 };
-use sc_network::{construct_simple_protocol, NetworkService};
-use sc_client::{Client, LongestChain, LocalCallExecutor};
-use sc_offchain::OffchainWorkers;
-use sc_client_db::Backend;
+use sc_executor::{
+    NativeExecutionDispatch, native_executor_instance,
+};
+use sc_network::construct_simple_protocol;
+use sc_client::LongestChain;
+use node_primitives::{Block, AccountId, Index, Balance};
+
+/// A specialized configuration object for setting up the node.
+pub type Configuration = sc_service::Configuration<
+    robonomics_runtime::GenesisConfig,
+    crate::chain_spec::Extensions
+>;
 
 construct_simple_protocol! {
     /// Robonomics protocol attachment for substrate.
-    pub struct NodeProtocol where Block = Block { }
+    pub struct RobonomicsProtocol where Block = Block { }
 }
+
+native_executor_instance!(
+    pub RobonomicsExecutor,
+    robonomics_runtime::api::dispatch,
+    robonomics_runtime::native_version
+);
+
+native_executor_instance!(
+    pub IpciExecutor,
+    ipci_runtime::api::dispatch,
+    ipci_runtime::native_version
+);
+
+/// A set of APIs that robonomics-like runtimes must implement.
+pub trait RuntimeApiCollection<Extrinsic: codec::Codec + Send + Sync + 'static> :
+    sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
+    + sp_api::ApiExt<Block, Error = sp_blockchain::Error>
+    + sp_consensus_babe::BabeApi<Block>
+    + sp_block_builder::BlockBuilder<Block>
+    + frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
+    + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance, Extrinsic>
+    + sp_api::Metadata<Block>
+    + sp_offchain::OffchainWorkerApi<Block>
+    + sp_session::SessionKeys<Block>
+    + sp_authority_discovery::AuthorityDiscoveryApi<Block>
+where
+    Extrinsic: RuntimeExtrinsic,
+    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+{}
+
+impl<Api, Extrinsic> RuntimeApiCollection<Extrinsic> for Api
+where
+    Api:
+    sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
+    + sp_api::ApiExt<Block, Error = sp_blockchain::Error>
+    + sp_consensus_babe::BabeApi<Block>
+    + sp_block_builder::BlockBuilder<Block>
+    + frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
+    + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance, Extrinsic>
+    + sp_api::Metadata<Block>
+    + sp_offchain::OffchainWorkerApi<Block>
+    + sp_session::SessionKeys<Block>
+    + sp_authority_discovery::AuthorityDiscoveryApi<Block>,
+    Extrinsic: RuntimeExtrinsic,
+    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+{}
+
+pub trait RuntimeExtrinsic: codec::Codec + Send + Sync + 'static
+{}
+
+impl<E> RuntimeExtrinsic for E where E: codec::Codec + Send + Sync + 'static
+{}
+
+// We can't use service::TLightClient due to
+// Rust bug: https://github.com/rust-lang/rust/issues/43580
+type TLightClient<Runtime, Dispatch> = sc_client::Client<
+    sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, sp_core::Blake2Hasher>,
+    sc_client::light::call_executor::GenesisCallExecutor<
+        sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, sp_core::Blake2Hasher>,
+        sc_client::LocalCallExecutor<
+            sc_client::light::backend::Backend<
+                sc_client_db::light::LightStorage<Block>,
+                sp_core::Blake2Hasher
+            >,
+            sc_executor::NativeExecutor<Dispatch>
+        >
+    >,
+    Block,
+    Runtime
+>;
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
 macro_rules! new_full_start {
-    ($config:expr) => {{
+    ($config:expr, $runtime:ty, $executor:ty) => {{
         let mut import_setup = None;
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
         let builder = sc_service::ServiceBuilder::new_full::<
-            node_primitives::Block, node_executor::runtime::RuntimeApi, node_executor::Executor
+            node_primitives::Block, $runtime, $executor
         >($config)?
             .with_select_chain(|_config, backend| {
                 Ok(sc_client::LongestChain::new(backend.clone()))
@@ -94,254 +172,309 @@ macro_rules! new_full_start {
     }}
 }
 
-/// Creates a full service from the configuration.
-///
-/// We need to use a macro because the test suit doesn't work with an opaque service. It expects
-/// concrete types instead.
-macro_rules! new_full {
-    ($config:expr, $with_startup_data: expr) => {{
-        let (
-            name,
-            impl_name,
-            impl_version,
-            is_authority,
-            force_authoring,
-            disable_grandpa,
-            sentry_nodes,
-            chain_spec,
-        ) = (
-            $config.name.clone(),
-            $config.impl_name.clone(),
-            $config.impl_version.clone(),
-            $config.roles.is_authority(),
-            $config.force_authoring,
-            $config.disable_grandpa,
-            $config.network.sentry_nodes.clone(),
-            $config.chain_spec.clone(),
-        );
-        use futures::prelude::*;
-        use sc_network::Event;
-
-        // sentry nodes announce themselves as authorities to the network
-        // and should run the same protocols authorities do, but it should
-        // never actively participate in any consensus process.
-        let participates_in_consensus = is_authority && !$config.sentry_mode;
-
-        let (builder, mut import_setup, inherent_data_providers) = new_full_start!($config);
-
-        let service = builder.with_network_protocol(|_| Ok(crate::service::NodeProtocol::new()))?
-            .with_finality_proof_provider(|client, backend|
-                Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
-            )?
-            .build()?;
-
-        let (block_import, grandpa_link, babe_link) = import_setup.take()
-                .expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
-
-        ($with_startup_data)(&block_import, &babe_link);
-
-        if participates_in_consensus {
-            let proposer = sc_basic_authorship::ProposerFactory {
-                client: service.client(),
-                transaction_pool: service.transaction_pool(),
-            };
-
-            let client = service.client();
-            let select_chain = service.select_chain()
-                .ok_or(sc_service::Error::SelectChainRequired)?;
-
-            let can_author_with =
-                sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
-
-            let babe_config = sc_consensus_babe::BabeParams {
-                keystore: service.keystore(),
-                client,
-                select_chain,
-                env: proposer,
-                block_import,
-                sync_oracle: service.network(),
-                inherent_data_providers: inherent_data_providers.clone(),
-                force_authoring,
-                babe_link,
-                can_author_with,
-            };
-
-            let babe = sc_consensus_babe::start_babe(babe_config)?;
-            service.spawn_essential_task("babe-proposer", babe);
-
-            let network = service.network();
-            let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
-                Event::Dht(e) => Some(e),
-                _ => None,
-            }}).boxed();
-            let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
-                service.client(),
-                network,
-                sentry_nodes,
-                service.keystore(),
-                dht_event_stream,
-            );
-
-            service.spawn_task("authority-discovery", authority_discovery);
-        }
-
-        // if the node isn't actively participating in consensus then it doesn't
-        // need a keystore, regardless of which protocol we use below.
-        let keystore = if participates_in_consensus {
-            Some(service.keystore())
-        } else {
-            None
-        };
-
-        let config = sc_finality_grandpa::Config {
-            // FIXME #1578 make this available through chainspec
-            gossip_duration: std::time::Duration::from_millis(333),
-            justification_period: 512,
-            name: Some(name),
-            observer_enabled: true,
-            keystore,
-            is_authority,
-        };
-
-        match (is_authority, disable_grandpa) {
-            (false, false) => {
-                // start the lightweight GRANDPA observer
-                service.spawn_task("grandpa-observer", sc_finality_grandpa::run_grandpa_observer(
-                    config,
-                    grandpa_link,
-                    service.network(),
-                    service.on_exit(),
-                    service.spawn_task_handle(),
-                )?.map(drop));
-            },
-            (true, false) => {
-                // start the full GRANDPA voter
-                let grandpa_config = sc_finality_grandpa::GrandpaParams {
-                    config: config,
-                    link: grandpa_link,
-                    network: service.network(),
-                    inherent_data_providers: inherent_data_providers.clone(),
-                    on_exit: service.on_exit(),
-                    telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
-                    voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-                    executor: service.spawn_task_handle(),
-                };
-                // the GRANDPA voter task is considered infallible, i.e.
-                // if it fails we take down the service with it.
-                service.spawn_essential_task(
-                    "grandpa-voter",
-                    sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.map(drop)
-                );
-            },
-            (_, true) => {
-                sc_finality_grandpa::setup_disabled_grandpa(
-                    service.client(),
-                    &inherent_data_providers,
-                    service.network(),
-                )?;
-            },
-        }
-
-        #[cfg(feature = "ros")]
-        { if rosrust::try_init_with_options("robonomics", false).is_ok() {
-            let (robonomics_api, robonomics_ros_services) =
-                robonomics_ros_api::start!(service.client());
-            service.spawn_task("robonomics-ros", robonomics_api);
-    
-            let system_info = substrate_ros_api::system::SystemInfo {
-                chain_name: chain_spec.name().into(),
-                impl_name: impl_name.into(),
-                impl_version: impl_version.into(),
-                properties: chain_spec.properties(),
-            };
-
-            let (substrate_ros_services, publish_task) =
-                substrate_ros_api::start(
-                    system_info,
-                    service.client(),
-                    service.network(),
-                    service.transaction_pool(),
-                    service.keystore(),
-                ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
-
-            let on_exit = service.on_exit().then(move |_| {
-                // Keep ROS services&subscribers alive until on_exit signal reached
-                let _ = substrate_ros_services;
-                let _ = robonomics_ros_services; 
-                futures::future::ready(())
-            });
-
-            let ros_task = futures::future::join(
-                publish_task,
-                on_exit,
-            ).boxed().map(|_| ());
-
-            service.spawn_task("substrate-ros", ros_task);
-        } else {
-            warn!("ROS integration disabled because of initialization failure");
-        } }
-
-        warn!("genesis hash: {}", service.client().chain_info().genesis_hash);
-
-        Ok((service, inherent_data_providers))
-    }};
-    ($config:expr) => {{
-        new_full!($config, |_, _| {})
-    }}
+/// Builds a new IPCI object suitable for chain operations.
+pub fn new_ipci_chain_ops(
+    config: Configuration,
+) -> Result<impl ServiceBuilderCommand<Block=Block>, ServiceError> {
+    new_chain_ops::<
+        ipci_runtime::RuntimeApi,
+        IpciExecutor,
+        ipci_runtime::UncheckedExtrinsic,
+    >(config)
 }
 
-#[allow(dead_code)]
-type ConcreteBlock = node_primitives::Block;
-#[allow(dead_code)]
-type ConcreteClient =
-    Client<
-        Backend<ConcreteBlock>,
-        LocalCallExecutor<Backend<ConcreteBlock>,
-        NativeExecutor<node_executor::Executor>>,
-        ConcreteBlock,
-        node_executor::runtime::RuntimeApi
-    >;
-#[allow(dead_code)]
-type ConcreteBackend = Backend<ConcreteBlock>;
-#[allow(dead_code)]
-type ConcreteTransactionPool = sc_transaction_pool::BasicPool<
-    sc_transaction_pool::FullChainApi<ConcreteClient, ConcreteBlock>,
-    ConcreteBlock
->;
-
-/// A specialized configuration object for setting up the node..
-pub type NodeConfiguration = Configuration<GenesisConfig, crate::chain_spec::Extensions>;
-
-/// Builds a new service for a full client.
-pub fn new_full(config: NodeConfiguration)
--> Result<
-    Service<
-        ConcreteBlock,
-        ConcreteClient,
-        LongestChain<ConcreteBackend, ConcreteBlock>,
-        NetworkStatus<ConcreteBlock>,
-        NetworkService<ConcreteBlock, crate::service::NodeProtocol, <ConcreteBlock as BlockT>::Hash>,
-        ConcreteTransactionPool,
-        OffchainWorkers<
-            ConcreteClient,
-            <ConcreteBackend as sc_client_api::backend::Backend<Block>>::OffchainStorage,
-            ConcreteBlock,
-        >
-    >,
-    ServiceError,
->
+/// Create a new IPCI service for a full node.
+pub fn new_ipci_full(
+    config: Configuration,
+) -> Result<
+    impl AbstractService<
+        Block = Block,
+        RuntimeApi = ipci_runtime::RuntimeApi,
+        Backend = TFullBackend<Block>,
+        SelectChain = LongestChain<TFullBackend<Block>, Block>,
+        CallExecutor = TFullCallExecutor<Block, IpciExecutor>,
+    >, ServiceError>
 {
-    new_full!(config).map(|(service, _)| service)
+    new_full(config)
+}
+
+/// Create a new IPCI service for a light client.
+pub fn new_ipci_light(
+    config: Configuration,
+) -> Result<impl AbstractService<
+        Block = Block,
+        RuntimeApi = ipci_runtime::RuntimeApi,
+        Backend = TLightBackend<Block>,
+        SelectChain = LongestChain<TLightBackend<Block>, Block>,
+        CallExecutor = TLightCallExecutor<Block, IpciExecutor>,
+    >, ServiceError>
+{
+    new_light(config)
+}
+
+/// Builds a new Robonomics object suitable for chain operations.
+pub fn new_robonomics_chain_ops(
+    config: Configuration,
+) -> Result<impl ServiceBuilderCommand<Block=Block>, ServiceError> {
+    new_chain_ops::<
+        robonomics_runtime::RuntimeApi,
+        RobonomicsExecutor,
+        robonomics_runtime::UncheckedExtrinsic,
+    >(config)
+}
+
+/// Create a new Robonomics service for a full node.
+pub fn new_robonomics_full(
+    config: Configuration,
+) -> Result<
+    impl AbstractService<
+        Block = Block,
+        RuntimeApi = robonomics_runtime::RuntimeApi,
+        Backend = TFullBackend<Block>,
+        SelectChain = LongestChain<TFullBackend<Block>, Block>,
+        CallExecutor = TFullCallExecutor<Block, RobonomicsExecutor>,
+    >, ServiceError>
+{
+    new_full(config)
+}
+
+/// Create a new Robonomics service for a light client.
+pub fn new_robonomics_light(
+    config: Configuration,
+)
+    -> Result<impl AbstractService<
+        Block = Block,
+        RuntimeApi = robonomics_runtime::RuntimeApi,
+        Backend = TLightBackend<Block>,
+        SelectChain = LongestChain<TLightBackend<Block>, Block>,
+        CallExecutor = TLightCallExecutor<Block, RobonomicsExecutor>,
+    >, ServiceError>
+{
+    new_light(config)
+}
+
+/// Builds a new object suitable for chain operations.
+pub fn new_chain_ops<Runtime, Dispatch, Extrinsic>(
+    mut config: Configuration
+) -> Result<impl ServiceBuilderCommand<Block=Block>, ServiceError> where
+    Runtime: ConstructRuntimeApi<Block, TFullClient<Block, Runtime, Dispatch>> + Send + Sync + 'static,
+    Runtime::RuntimeApi:
+    RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>,
+    Dispatch: NativeExecutionDispatch + 'static,
+    Extrinsic: RuntimeExtrinsic,
+    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+{
+    config.keystore = sc_service::config::KeystoreConfig::InMemory;
+    Ok(new_full_start!(config, Runtime, Dispatch).0)
+}
+
+/// Creates a full service from the configuration.
+pub fn new_full<Runtime, Dispatch, Extrinsic>(
+    config: Configuration
+) -> Result<
+    impl AbstractService<
+        Block = Block,
+        RuntimeApi = Runtime,
+        Backend = TFullBackend<Block>,
+        SelectChain = LongestChain<TFullBackend<Block>, Block>,
+        CallExecutor = TFullCallExecutor<Block, Dispatch>,
+>, ServiceError> where 
+    Runtime: ConstructRuntimeApi<Block, TFullClient<Block, Runtime, Dispatch>> + Send + Sync + 'static,
+    Runtime::RuntimeApi:
+    RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>,
+    Dispatch: NativeExecutionDispatch + 'static,
+    Extrinsic: RuntimeExtrinsic,
+    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+{
+    use futures::prelude::*;
+
+    let name = config.name.clone();
+    let is_authority = config.roles.is_authority();
+    let disable_grandpa = config.disable_grandpa;
+    let force_authoring = config.force_authoring;
+    let sentry_nodes = config.network.sentry_nodes.clone();
+
+    // sentry nodes announce themselves as authorities to the network
+    // and should run the same protocols authorities do, but it should
+    // never actively participate in any consensus process.
+    let participates_in_consensus = is_authority && !config.sentry_mode;
+
+    let (builder, mut import_setup, inherent_data_providers) =
+        new_full_start!(config, Runtime, Dispatch);
+
+    let service = builder.with_network_protocol(|_| Ok(RobonomicsProtocol::new()))?
+        .with_finality_proof_provider(|client, backend|
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
+        )?
+        .build()?;
+
+    let (block_import, grandpa_link, babe_link) = import_setup.take()
+            .expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
+
+    if participates_in_consensus {
+        let proposer = sc_basic_authorship::ProposerFactory {
+            client: service.client(),
+            transaction_pool: service.transaction_pool(),
+        };
+
+        let client = service.client();
+        let select_chain = service.select_chain()
+            .ok_or(sc_service::Error::SelectChainRequired)?;
+
+        let can_author_with =
+            sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
+
+        let babe_config = sc_consensus_babe::BabeParams {
+            keystore: service.keystore(),
+            client,
+            select_chain,
+            env: proposer,
+            block_import,
+            sync_oracle: service.network(),
+            inherent_data_providers: inherent_data_providers.clone(),
+            force_authoring,
+            babe_link,
+            can_author_with,
+        };
+
+        let babe = sc_consensus_babe::start_babe(babe_config)?;
+        service.spawn_essential_task("babe-proposer", babe);
+
+        let network = service.network();
+        let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
+            sc_network::Event::Dht(e) => Some(e),
+            _ => None,
+        }}).boxed();
+        let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
+            service.client(),
+            network,
+            sentry_nodes,
+            service.keystore(),
+            dht_event_stream,
+        );
+
+        service.spawn_task("authority-discovery", authority_discovery);
+    }
+
+    // if the node isn't actively participating in consensus then it doesn't
+    // need a keystore, regardless of which protocol we use below.
+    let keystore = if participates_in_consensus {
+        Some(service.keystore())
+    } else {
+        None
+    };
+
+    let config = sc_finality_grandpa::Config {
+        // FIXME #1578 make this available through chainspec
+        gossip_duration: std::time::Duration::from_millis(333),
+        justification_period: 512,
+        name: Some(name),
+        observer_enabled: true,
+        keystore,
+        is_authority,
+    };
+
+    match (is_authority, disable_grandpa) {
+        (false, false) => {
+            // start the lightweight GRANDPA observer
+            service.spawn_task("grandpa-observer", sc_finality_grandpa::run_grandpa_observer(
+                config,
+                grandpa_link,
+                service.network(),
+                service.on_exit(),
+            )?.map(drop));
+        },
+        (true, false) => {
+            // start the full GRANDPA voter
+            let grandpa_config = sc_finality_grandpa::GrandpaParams {
+                config: config,
+                link: grandpa_link,
+                network: service.network(),
+                inherent_data_providers: inherent_data_providers.clone(),
+                on_exit: service.on_exit(),
+                telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
+                voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
+            };
+            // the GRANDPA voter task is considered infallible, i.e.
+            // if it fails we take down the service with it.
+            service.spawn_essential_task(
+                "grandpa-voter",
+                sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.map(drop)
+            );
+        },
+        (_, true) => {
+            sc_finality_grandpa::setup_disabled_grandpa(
+                service.client(),
+                &inherent_data_providers,
+                service.network(),
+            )?;
+        },
+    }
+
+    #[cfg(feature = "ros")]
+    { if rosrust::try_init_with_options("robonomics", false).is_ok() {
+        let (robonomics_api, robonomics_ros_services) =
+            robonomics_ros_api::start!(service.client());
+        service.spawn_task("robonomics-ros", robonomics_api);
+    
+        let system_info = substrate_ros_api::system::SystemInfo {
+            chain_name: config.chain_spec.name().into(),
+            impl_name: config.impl_name.into(),
+            impl_version: config.impl_version.into(),
+            properties: config.chain_spec.properties(),
+        };
+
+        let (substrate_ros_services, publish_task) =
+            substrate_ros_api::start(
+                system_info,
+                service.client(),
+                service.network(),
+                service.transaction_pool(),
+                service.keystore(),
+            ).map_err(|e| ServiceError::Other(format!("{}", e)))?;
+
+        let on_exit = service.on_exit().then(move |_| {
+            // Keep ROS services&subscribers alive until on_exit signal reached
+            let _ = substrate_ros_services;
+            let _ = robonomics_ros_services; 
+            futures::future::ready(())
+        });
+
+        let ros_task = futures::future::join(
+            publish_task,
+            on_exit,
+        ).boxed().map(|_| ());
+
+        service.spawn_task("substrate-ros", ros_task);
+    } else {
+        warn!("ROS integration disabled because of initialization failure");
+    } }
+
+    Ok(service)
 }
 
 /// Builds a new service for a light client.
-pub fn new_light(config: NodeConfiguration)
--> Result<impl AbstractService, ServiceError> {
-
+pub fn new_light<Runtime, Dispatch, Extrinsic>(
+    config: Configuration
+) -> Result<impl AbstractService<
+        Block = Block,
+        RuntimeApi = Runtime,
+        Backend = TLightBackend<Block>,
+        SelectChain = LongestChain<TLightBackend<Block>, Block>,
+        CallExecutor = TLightCallExecutor<Block, Dispatch>,
+    >, ServiceError>
+where
+    Runtime: Send + Sync + 'static,
+    Runtime::RuntimeApi:
+    RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TLightBackend<Block>, Block>>,
+    Dispatch: NativeExecutionDispatch + 'static,
+    Extrinsic: RuntimeExtrinsic,
+    Runtime: sp_api::ConstructRuntimeApi<Block, TLightClient<Runtime, Dispatch>>,
+{
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let service = ServiceBuilder::new_light::<Block, RuntimeApi, Executor>(config)?
-        .with_select_chain(|_config, backend| {
+    sc_service::ServiceBuilder::new_light::<Block, Runtime, Dispatch>(config)?
+        .with_select_chain(|_, backend| {
             Ok(sc_client::LongestChain::new(backend.clone()))
         })?
         .with_transaction_pool(|config, client, fetcher| {
@@ -353,15 +486,12 @@ pub fn new_light(config: NodeConfiguration)
             );
             Ok(pool)
         })?
-        .with_import_queue_and_fprb(|_config, client, backend, fetcher, _select_chain, _transaction_pool| {
+        .with_import_queue_and_fprb(|_, client, backend, fetcher, _, _| {
             let fetch_checker = fetcher 
                 .map(|fetcher| fetcher.checker().clone())
                 .ok_or_else(|| "Trying to start light import queue without active fetch checker")?;
-            let grandpa_block_import = sc_finality_grandpa::light_block_import::<_, _, _, RuntimeApi>(
-                client.clone(),
-                backend,
-                &*client,
-                Arc::new(fetch_checker),
+            let grandpa_block_import = sc_finality_grandpa::light_block_import::<_, _, _, Runtime>(
+                client.clone(), backend, &*client, Arc::new(fetch_checker)
             )?;
 
             let finality_proof_import = grandpa_block_import.clone();
@@ -387,11 +517,9 @@ pub fn new_light(config: NodeConfiguration)
 
             Ok((import_queue, finality_proof_request_builder))
         })?
-        .with_network_protocol(|_| Ok(NodeProtocol::new()))?
+        .with_network_protocol(|_| Ok(RobonomicsProtocol::new()))?
         .with_finality_proof_provider(|client, backend|
             Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
         )?
-        .build()?;
-
-    Ok(service)
+        .build()
 }

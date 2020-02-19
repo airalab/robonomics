@@ -20,6 +20,7 @@
 
 use codec::{Encode, Decode};
 use sp_std::{
+    vec,
     prelude::*,
     fmt::Debug,
     collections::btree_map::BTreeMap,

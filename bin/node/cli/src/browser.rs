@@ -33,22 +33,22 @@ async fn start_inner(wasm_ext: Transport) -> Result<Client, Box<dyn std::error::
     set_console_error_panic_hook();
     init_console_log(log::Level::Info)?;
 
-    let chain_spec = chain_spec::load_spec("robonomics")
+    let chain_spec = crate::load_spec("robonomics")
         .map_err(|e| format!("{:?}", e))?
         .expect("spec loaded");
 
-    let config: Configuration<(), _, _> = browser_configuration(wasm_ext, chain_spec)
+    let config: Configuration<_, _> = browser_configuration(wasm_ext, chain_spec)
         .await?;
 
     info!("Robonomics browser node");
     info!("  version {}", config.full_version());
     info!("  by Airalab, 2018-2020");
-    info!("Chain specification: {}", config.chain_spec.name());
+    info!("Chain specification: {}", config.expect_chain_spec().name());
     info!("Node name: {}", config.name);
     info!("Roles: {:?}", config.roles);
 
     // Create the service. This is the most heavy initialization step.
-    let service = crate::service::new_light(config)
+    let service = crate::service::new_robonomics_light(config)
         .map_err(|e| format!("{:?}", e))?;
 
     Ok(browser_utils::start_client(service))
