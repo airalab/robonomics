@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
+use codec::{Encode, Decode};
 use sp_runtime::{
     traits::{Verify, IdentifyAccount},
     RuntimeDebug, DispatchResult
@@ -24,8 +25,7 @@ use sp_runtime::{
 #[cfg(feature = "std")]
 use sp_core::crypto::{Pair, Public};
 use frame_system::offchain::Signer;
-use frame_support::{dispatch, traits::ReservableCurrency};
-use codec::{Encode, Decode};
+use frame_support::{dispatch, traits::{ReservableCurrency, BalanceStatus}};
 
 use crate::economics::{Communism, OpenMarket};
 use crate::traits::*;
@@ -70,8 +70,12 @@ impl<T, V, A, I, C> Processing for SignedLiability<T, OpenMarket<C, I>, V, A, I>
 
     fn on_finish(&self, success: bool) -> DispatchResult {
         if success {
-            C::repatriate_reserved(&self.promisee, &self.promisor, self.economics)
-                .map(|_| ())
+            C::repatriate_reserved(
+                &self.promisee,
+                &self.promisor,
+                self.economics,
+                BalanceStatus::Free,
+            ).map(|_| ())
         } else {
             if C::unreserve(&self.promisee, self.economics) == self.economics {
                 Ok(())

@@ -19,7 +19,7 @@
 
 use frame_support::dispatch;
 use sp_runtime::{DispatchResult, traits::Member};
-use sp_arithmetic::traits::SimpleArithmetic;
+use sp_arithmetic::traits::BaseArithmetic;
 
 /// Technical aspects of agreement between two parties.
 pub trait Technical {
@@ -64,7 +64,7 @@ pub trait Processing {
 /// Agreement between two participants around technical/economical aspects.
 pub trait Agreement<T: Technical, E: Economical> {
     /// Indexing type.
-    type Index: dispatch::Parameter + SimpleArithmetic + Member + Copy + Default;
+    type Index: dispatch::Parameter + BaseArithmetic + Member + Copy + Default;
 
     /// Pariticipant account address.
     type AccountId: dispatch::Parameter;

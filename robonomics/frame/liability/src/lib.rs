@@ -18,7 +18,7 @@
 //! The Robonomics runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
+use sp_std::{vec, prelude::*};
 use codec::{Encode, Decode, Codec};
 use frame_system::{self as system, ensure_none};
 use frame_support::{
@@ -240,7 +240,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
                 Ok(ValidTransaction {
                     priority: TransactionPriority::max_value(),
-                    requires: vec![],
+                    requires: Default::default(),
                     provides: vec![(technics, economics, promisee, promisor).encode()],
                     longevity: 64_u64,
                     propagate: true,
@@ -256,7 +256,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
                         Ok(ValidTransaction {
                             priority: TransactionPriority::max_value(),
-                            requires: vec![],
+                            requires: Default::default(),
                             provides: vec![(index, report).encode()],
                             longevity: 64_u64,
                             propagate: true,
