@@ -13,43 +13,48 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 use log::info;
-use crate::chain_spec;
+use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 use sc_service::Configuration;
 use browser_utils::{
     Transport, Client,
     browser_configuration, set_console_error_panic_hook, init_console_log,
 };
+use crate::{IsIpci, chain_spec::ChainSpec};
 
 /// Starts the client.
 #[wasm_bindgen]
-pub async fn start_client(wasm_ext: Transport) -> Result<Client, JsValue> {
-    start_inner(wasm_ext)
+pub async fn start_client(chain_spec: String, log_level: String, wasm_ext: Transport) -> Result<Client, JsValue> {
+    start_inner(chain_spec, log_level, wasm_ext)
         .await
         .map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
-async fn start_inner(wasm_ext: Transport) -> Result<Client, Box<dyn std::error::Error>> {
+async fn start_inner(chain_spec: String, log_level: String, wasm_ext: Transport) -> Result<Client, Box<dyn std::error::Error>> {
     set_console_error_panic_hook();
-    init_console_log(log::Level::Info)?;
-
-    let chain_spec = crate::load_spec("robonomics")
-        .map_err(|e| format!("{:?}", e))?
-        .expect("spec loaded");
+    init_console_log(log::Level::from_str(&log_level)?)?;
+    let chain_spec = ChainSpec::from_json_bytes(chain_spec.as_bytes().to_vec())
+        .map_err(|e| format!("{:?}", e))?;
 
     let config: Configuration<_, _> = browser_configuration(wasm_ext, chain_spec)
         .await?;
 
-    info!("Robonomics browser node");
+    info!("Robonomics Web Node");
     info!("  version {}", config.full_version());
-    info!("  by Airalab, 2018-2020");
+    info!("  by Airalab <research@aira.life>, 2018-2020");
     info!("Chain specification: {}", config.expect_chain_spec().name());
     info!("Node name: {}", config.name);
     info!("Roles: {:?}", config.roles);
 
+    let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
     // Create the service. This is the most heavy initialization step.
-    let service = crate::service::new_robonomics_light(config)
-        .map_err(|e| format!("{:?}", e))?;
-
-    Ok(browser_utils::start_client(service))
+    if is_ipci {
+        let service = crate::service::new_ipci_light(config)
+            .map_err(|e| format!("{:?}", e))?;
+        Ok(browser_utils::start_client(service))
+    } else {
+        let service = crate::service::new_robonomics_light(config)
+            .map_err(|e| format!("{:?}", e))?;
+        Ok(browser_utils::start_client(service))
+    }
 }

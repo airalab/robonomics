@@ -33,5 +33,5 @@ fn main() -> Result<(), sc_cli::error::Error> {
 		copyright_start_year: 2018,
 	};
 
-	node_cli::run(std::env::args(), version)
+	node_cli::run(version)
 }
