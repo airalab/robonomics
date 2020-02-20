@@ -23,18 +23,15 @@ use log::warn;
 use std::sync::Arc;
 use sp_core::Blake2Hasher;
 use sp_api::ConstructRuntimeApi;
+use sc_client::LongestChain;
 use sc_service::{
     AbstractService, ServiceBuilderCommand,
     TFullClient, TFullBackend, TFullCallExecutor,
     TLightBackend, TLightCallExecutor,
     error::{Error as ServiceError},
 };
-use sc_executor::{
-    NativeExecutionDispatch, native_executor_instance,
-};
-use sc_network::construct_simple_protocol;
-use sc_client::LongestChain;
 use node_primitives::{Block, AccountId, Index, Balance};
+pub use sc_executor::NativeExecutionDispatch;
 
 /// A specialized configuration object for setting up the node.
 pub type Configuration = sc_service::Configuration<
@@ -42,18 +39,18 @@ pub type Configuration = sc_service::Configuration<
     crate::chain_spec::Extensions
 >;
 
-construct_simple_protocol! {
+sc_network::construct_simple_protocol! {
     /// Robonomics protocol attachment for substrate.
     pub struct RobonomicsProtocol where Block = Block { }
 }
 
-native_executor_instance!(
+sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
     robonomics_runtime::api::dispatch,
     robonomics_runtime::native_version
 );
 
-native_executor_instance!(
+sc_executor::native_executor_instance!(
     pub IpciExecutor,
     ipci_runtime::api::dispatch,
     ipci_runtime::native_version

@@ -15,10 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+
+use log::info;
 use sc_cli::{VersionInfo, error};
+use sc_service::Roles;
 use crate::{
     Cli, Subcommand, IsIpci, load_spec,
     service::{
+        RobonomicsExecutor, IpciExecutor, NativeExecutionDispatch,
         new_robonomics_full, new_robonomics_light,
         new_ipci_full, new_ipci_light,
         new_robonomics_chain_ops,
@@ -30,24 +34,47 @@ use crate::{
 pub fn run(version: VersionInfo) -> error::Result<()> {
     let opt = sc_cli::from_args::<Cli>(&version);
 
-    let mut config = sc_service::Configuration::default();
-    let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
-    config.impl_name = if is_ipci { "airalab-ipci" } else { "airalab-robonomics" };
+    let mut config = sc_service::Configuration::new(&version);
+    config.impl_name = "airalab-robonomics" ;
 
     match opt.subcommand {
-        None => if is_ipci {
-            sc_cli::run(
-                config, opt.run, new_ipci_full, new_ipci_light, load_spec, &version
-            )
-        } else {
-            sc_cli::run(
-                config, opt.run, new_robonomics_full, new_robonomics_light, load_spec, &version
-            )
+        None => {
+            sc_cli::init(&opt.run.shared_params, &version)?;
+            sc_cli::init_config(&mut config, &opt.run.shared_params, &version, load_spec)?;
+            sc_cli::update_config_for_running_node(&mut config, opt.run)?;
+
+            info!("{}", version.name);
+            info!("  version {}", config.full_version());
+            info!("  by {}, {}~", version.author, version.copyright_start_year);
+            info!("Chain specification: {}", config.expect_chain_spec().name());
+            info!("Node name: {}", config.name);
+            info!("Roles: {}", sc_cli::display_role(&config));
+
+            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
+            if is_ipci {
+                info!("Native runtime: {}", IpciExecutor::native_version().runtime_version);
+                match config.roles {
+                    Roles::LIGHT => sc_cli::run_service_until_exit(config, new_ipci_light),
+                    _            => sc_cli::run_service_until_exit(config, new_ipci_full),
+                }
+            } else {
+                info!("Native runtime: {}", RobonomicsExecutor::native_version().runtime_version);
+                match config.roles {
+                    Roles::LIGHT => sc_cli::run_service_until_exit(config, new_robonomics_light),
+                    _            => sc_cli::run_service_until_exit(config, new_robonomics_full),
+                }
+            }
         },
-        Some(Subcommand::Base(cmd)) => if is_ipci {
-            sc_cli::run_subcommand(config, cmd, load_spec, new_ipci_chain_ops, &version)
-        } else {
-            sc_cli::run_subcommand(config, cmd, load_spec, new_robonomics_chain_ops, &version)
+        Some(Subcommand::Base(cmd)) => {
+            sc_cli::init(cmd.get_shared_params(), &version)?;
+            sc_cli::init_config(&mut config, &cmd.get_shared_params(), &version, load_spec)?;
+
+            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
+            if is_ipci {
+                cmd.run(config, new_ipci_chain_ops)
+            } else {
+                cmd.run(config, new_robonomics_chain_ops)
+            }
         }
     }
 }
