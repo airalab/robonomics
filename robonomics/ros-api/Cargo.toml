@@ -14,14 +14,14 @@ futures-timer = "2"
 derive_more = "0.99"
 codec = { package = "parity-scale-codec", version = "1.0.0" }
 msgs = { package = "robonomics-msgs", path = "../msgs" }
-sc-client = { git = "https://github.com/airalab/substrate" }
-sc-keystore = { git = "https://github.com/airalab/substrate" }
-sp-api = { git = "https://github.com/airalab/substrate" }
-sp-core = { git = "https://github.com/airalab/substrate" }
-sp-runtime = { git = "https://github.com/airalab/substrate" }
-sp-blockchain = { git = "https://github.com/airalab/substrate" }
-sp-transaction-pool = { git = "https://github.com/airalab/substrate" }
-frame-system = { git = "https://github.com/airalab/substrate" }
+sc-client = { git = "https://github.com/paritytech/substrate" }
+sc-keystore = { git = "https://github.com/paritytech/substrate" }
+sp-api = { git = "https://github.com/paritytech/substrate" }
+sp-core = { git = "https://github.com/paritytech/substrate" }
+sp-runtime = { git = "https://github.com/paritytech/substrate" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
+frame-system = { git = "https://github.com/paritytech/substrate" }
 pallet-robonomics-storage = { path = "../frame/storage" }
 pallet-robonomics-provider = { path = "../frame/provider" }
 pallet-robonomics-liability = { path = "../frame/liability" }

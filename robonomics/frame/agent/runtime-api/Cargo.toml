@@ -6,11 +6,11 @@ edition = "2018"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false }
-sp-std = { git = "https://github.com/airalab/substrate", default-features = false }
-sp-api = { git = "https://github.com/airalab/substrate", default-features = false }
-sp-runtime = { git = "https://github.com/airalab/substrate", default-features = false }
-frame-system = { git = "https://github.com/airalab/substrate", default-features = false }
-frame-support = { git = "https://github.com/airalab/substrate", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-robonomics-storage = { path = "../../storage", default-features = false }
 pallet-robonomics-provider = { path = "../../provider", default-features = false }
 pallet-robonomics-liability = { path = "../../liability", default-features = false }
