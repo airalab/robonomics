@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use log::info;
-use sc_cli::{VersionInfo, error};
+use sc_cli::VersionInfo;
 use sc_service::Roles;
 use crate::{
     Cli, Subcommand, IsIpci, load_spec,
@@ -31,24 +31,23 @@ use crate::{
 };
 
 /// Parse command line arguments into service configuration.
-pub fn run(version: VersionInfo) -> error::Result<()> {
+pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
     let opt = sc_cli::from_args::<Cli>(&version);
 
-    let mut config = sc_service::Configuration::new(&version);
+    let mut config = sc_service::Configuration::from_version(&version);
     config.impl_name = "airalab-robonomics" ;
 
     match opt.subcommand {
         None => {
-            sc_cli::init(&opt.run.shared_params, &version)?;
-            sc_cli::init_config(&mut config, &opt.run.shared_params, &version, load_spec)?;
-            sc_cli::update_config_for_running_node(&mut config, opt.run)?;
+            opt.run.init(&version)?;
+            opt.run.update_config(&mut config, load_spec, &version)?;
 
             info!("{}", version.name);
             info!("  version {}", config.full_version());
             info!("  by {}, {}~", version.author, version.copyright_start_year);
             info!("Chain specification: {}", config.expect_chain_spec().name());
             info!("Node name: {}", config.name);
-            info!("Roles: {}", sc_cli::display_role(&config));
+            info!("Roles: {}", config.display_role());
 
             let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
             if is_ipci {
@@ -66,8 +65,8 @@ pub fn run(version: VersionInfo) -> error::Result<()> {
             }
         },
         Some(Subcommand::Base(cmd)) => {
-            sc_cli::init(cmd.get_shared_params(), &version)?;
-            sc_cli::init_config(&mut config, &cmd.get_shared_params(), &version, load_spec)?;
+            cmd.init(&version)?;
+            cmd.update_config(&mut config, load_spec, &version)?;
 
             let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
             if is_ipci {

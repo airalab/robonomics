@@ -16,11 +16,11 @@ async function start() {
 	log('Loading WASM');
 	await init('./pkg/node_cli_bg.wasm');
 	log('Fetching chain spec');
-	const chain_spec_response = await fetch("https://raw.githubusercontent.com/airalab/substrate-node-robonomics/master/bin/node/cli/res/robonomics_testnet.json");
+	const chain_spec_response = await fetch("https://raw.githubusercontent.com/airalab/substrate-node-robonomics/master/bin/node/cli/res/ipci.json");
 	const chain_spec_text = await chain_spec_response.text();
 
 	// Build our client.
-	let client = await start_client(chain_spec_text, 'info', ws());
+	let client = await start_client(chain_spec_text, 'debug', ws());
 	log('Client started');
 
 	client.rpcSubscribe('{"method":"chain_subscribeNewHead","params":[],"id":1,"jsonrpc":"2.0"}',

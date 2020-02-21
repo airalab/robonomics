@@ -71,7 +71,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.14
+cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.15
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 

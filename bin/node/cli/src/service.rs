@@ -39,11 +39,6 @@ pub type Configuration = sc_service::Configuration<
     crate::chain_spec::Extensions
 >;
 
-sc_network::construct_simple_protocol! {
-    /// Robonomics protocol attachment for substrate.
-    pub struct RobonomicsProtocol where Block = Block { }
-}
-
 sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
     robonomics_runtime::api::dispatch,
@@ -148,7 +143,6 @@ macro_rules! new_full_start {
                     sc_consensus_babe::Config::get_or_compute(&*client)?,
                     grandpa_block_import,
                     client.clone(),
-                    client.clone(),
                 )?;
 
                 let import_queue = sc_consensus_babe::import_queue(
@@ -156,7 +150,6 @@ macro_rules! new_full_start {
                     babe_block_import.clone(),
                     Some(Box::new(justification_import)),
                     None,
-                    client.clone(),
                     client,
                     inherent_data_providers.clone(),
                 )?;
@@ -299,7 +292,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     let (builder, mut import_setup, inherent_data_providers) =
         new_full_start!(config, Runtime, Dispatch);
 
-    let service = builder.with_network_protocol(|_| Ok(RobonomicsProtocol::new()))?
+    let service = builder
         .with_finality_proof_provider(|client, backend|
             Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
         )?
@@ -371,41 +364,34 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         is_authority,
     };
 
-    match (is_authority, disable_grandpa) {
-        (false, false) => {
-            // start the lightweight GRANDPA observer
-            service.spawn_task("grandpa-observer", sc_finality_grandpa::run_grandpa_observer(
-                config,
-                grandpa_link,
-                service.network(),
-                service.on_exit(),
-            )?.map(drop));
-        },
-        (true, false) => {
-            // start the full GRANDPA voter
-            let grandpa_config = sc_finality_grandpa::GrandpaParams {
-                config: config,
-                link: grandpa_link,
-                network: service.network(),
-                inherent_data_providers: inherent_data_providers.clone(),
-                on_exit: service.on_exit(),
-                telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
-                voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-            };
-            // the GRANDPA voter task is considered infallible, i.e.
-            // if it fails we take down the service with it.
-            service.spawn_essential_task(
-                "grandpa-voter",
-                sc_finality_grandpa::run_grandpa_voter(grandpa_config)?.map(drop)
-            );
-        },
-        (_, true) => {
-            sc_finality_grandpa::setup_disabled_grandpa(
-                service.client(),
-                &inherent_data_providers,
-                service.network(),
-            )?;
-        },
+    if disable_grandpa {
+        sc_finality_grandpa::setup_disabled_grandpa(
+            service.client(),
+            &inherent_data_providers,
+            service.network(),
+        )?;
+    } else {
+        // start the full GRANDPA voter
+        // NOTE: non-authorities could run the GRANDPA observer protocol, but at
+        // this point the full voter should provide better guarantees of block
+        // and vote data availability than the observer. The observer has not
+        // been tested extensively yet and having most nodes in a network run it
+        // could lead to finality stalls.
+        let grandpa_config = sc_finality_grandpa::GrandpaParams {
+            config: config,
+            link: grandpa_link,
+            network: service.network(),
+            inherent_data_providers: inherent_data_providers.clone(),
+            on_exit: service.on_exit(),
+            telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
+            voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
+        };
+        // the GRANDPA voter task is considered infallible, i.e.
+        // if it fails we take down the service with it.
+        service.spawn_essential_task(
+            "grandpa-voter",
+            sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
+        );
     }
 
     #[cfg(feature = "ros")]
@@ -499,7 +485,6 @@ where
                 sc_consensus_babe::Config::get_or_compute(&*client)?,
                 grandpa_block_import,
                 client.clone(),
-                client.clone(),
             )?;
 
             let import_queue = sc_consensus_babe::import_queue(
@@ -507,14 +492,12 @@ where
                 babe_block_import,
                 None,
                 Some(Box::new(finality_proof_import)),
-                client.clone(),
                 client,
                 inherent_data_providers.clone(),
             )?;
 
             Ok((import_queue, finality_proof_request_builder))
         })?
-        .with_network_protocol(|_| Ok(RobonomicsProtocol::new()))?
         .with_finality_proof_provider(|client, backend|
             Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
         )?

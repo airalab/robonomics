@@ -24,10 +24,18 @@ jobs:
       run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
     - name: Build optimized binary
       run: cargo build --release --verbose
-    - name: Upload binary into IPFS
+    - name: Upload binary archive into IPFS
+      if: runner.os != 'Windows'
       run: |
-        tar cfJ robonomics-${{ matrix.os }}-x86_64.tar.xz target/release/robonomics
-        curl -F file=@robonomics-#{{ matrix.os }}-x86_64.tar.xz https://ipfs.infura.io:5001/api/v0/add
+        cd target/release
+        tar cfJ robonomics-${{ matrix.os }}-x86_64.tar.xz robonomics
+        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.tar.xz
+    - name: Upload binary archive into IPFS (windows only)
+      if: runner.os == 'Windows'
+      run: |
+        cd target/release
+        zip robonomics-${{ matrix.os }}-x86_64.zip robonomics.exe
+        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.zip
 
   wasm:
     runs-on: ubuntu-latest
@@ -49,5 +57,5 @@ jobs:
     - name: Upload Web Node into IPFS
       run: |
         cd bin/node/browser
-        FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\";filename=\"" $0 "\"" q}')
-        curl "https://ipfs.infura.io:5001/api/v0/add?pin=true&recursive=true&wrap-with-directory=true" -X POST -H "Content-Type: multipart/form-data" $FILES
+        FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\"" q}')
+        curl "https://ipfs.infura.io:5001/api/v0/add?wrap-with-directory=true" $FILES

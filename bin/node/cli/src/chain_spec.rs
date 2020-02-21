@@ -209,13 +209,12 @@ pub fn make_genesis(
     }
 }
 
-/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
-*/
 
+/*
 /// Robonomics testnet genesis. 
 fn robonomics_testnet_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -263,14 +262,14 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/
 
-/*
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
-*/
 
+/*
 /// IPCI blockchain genesis. 
 fn ipci_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -312,6 +311,7 @@ pub fn ipci_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/
 
 fn development_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
