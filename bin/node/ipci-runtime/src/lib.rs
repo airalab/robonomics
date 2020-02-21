@@ -176,24 +176,22 @@ impl pallet_indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = U_MITO;
-    pub const TransferFee: Balance = 10 * U_MITO;
-    pub const CreationFee: Balance = 10 * U_MITO;
+    pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee 
 }
 
 impl pallet_balances::Trait for Runtime {
+    type Event = Event;
     type Balance = Balance;
     type DustRemoval = ();
-    type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 50 * U_MITO;
-    pub const TransactionByteFee: Balance = 1;
+    pub const TransactionBaseFee: Balance = 50_000 * U_MITO; // 50 mMITO
+    pub const TransactionByteFee: Balance = 1 * U_MITO;      // 1 uMITO
     // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1;
+    pub const WeightFeeCoefficient: Balance = 1 * U_MITO;    // 1 uMITO
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
 }
