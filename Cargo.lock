@@ -2094,7 +2094,7 @@ dependencies = [
 
 [[package]]
 name = "ipci-runtime"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -3182,13 +3182,13 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "browser-utils 0.8.0 (git+https://github.com/paritytech/substrate)",
  "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex-literal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ipci-runtime 0.14.0",
+ "ipci-runtime 0.15.0",
  "jsonrpc-core 13.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -3196,7 +3196,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "robonomics-ros-api 0.1.0",
- "robonomics-runtime 0.14.0",
+ "robonomics-runtime 0.15.0",
  "rosrust 0.9.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "sc-authority-discovery 0.8.0 (git+https://github.com/paritytech/substrate)",
  "sc-basic-authorship 0.8.0 (git+https://github.com/paritytech/substrate)",
@@ -4595,7 +4595,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -6541,7 +6541,7 @@ dependencies = [
  "hex 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex-literal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "ipci-runtime 0.14.0",
+ "ipci-runtime 0.15.0",
  "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core-client 14.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",

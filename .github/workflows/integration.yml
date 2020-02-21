@@ -22,8 +22,6 @@ jobs:
       run: rustup target list --installed
     - name: Install build tools
       run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
-    - name: Test packages
-      run: cargo test --verbose --all
     - name: Build optimized binary
       run: cargo build --release --verbose
     - name: Upload binary into IPFS
@@ -48,3 +46,8 @@ jobs:
         cargo install --git https://github.com/rustwasm/wasm-pack --force
     - name: Build Web Node
       run: make pkg --directory bin/node/browser
+    - name: Upload Web Node into IPFS
+      run: |
+        cd bin/node/browser
+        FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\";filename=\"" $0 "\"" q}')
+        curl "https://ipfs.infura.io:5001/api/v0/add?pin=true&recursive=true&wrap-with-directory=true" -X POST -H "Content-Type: multipart/form-data" $FILES
