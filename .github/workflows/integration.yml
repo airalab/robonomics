@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly'
+        rust-version: 'nightly-2020-02-02'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
@@ -25,7 +25,7 @@ jobs:
     steps:
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly'
+        rust-version: 'nightly-2020-02-02'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
