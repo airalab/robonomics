@@ -17,6 +17,9 @@ jobs:
       run: rustup target list --installed
     - name: Install wasm-gc tool
       run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
+    - name: Install LLVM (windows only)
+      if: runner.os == 'Windows'
+      run: choco install llvm 
     - name: Build Robonomics binary
       run: cargo build --verbose
 
