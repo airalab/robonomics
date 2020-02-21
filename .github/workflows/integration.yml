@@ -1,5 +1,7 @@
-name: Integration
 on: [push]
+
+name: Integration
+
 jobs:
   native:
     runs-on: ${{ matrix.os }}
@@ -7,6 +9,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
+    - name: Install LLVM (windows only)
+      if: runner.os == 'Windows'
+      run: choco install llvm
     - uses: hecrj/setup-rust-action@v1
       with:
         rust-version: 'nightly-2020-02-02'
@@ -15,13 +20,16 @@ jobs:
       uses: actions/checkout@master
     - name: Check targets are installed correctly
       run: rustup target list --installed
-    - name: Install wasm-gc tool
+    - name: Install build tools
       run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
-    - name: Install LLVM (windows only)
-      if: runner.os == 'Windows'
-      run: choco install llvm 
-    - name: Build Robonomics binary
-      run: cargo build --verbose
+    - name: Test packages
+      run: cargo test --verbose --all
+    - name: Build optimized binary
+      run: cargo build --release --verbose
+    - name: Upload binary into IPFS
+      run: |
+        tar cfJ robonomics-${{ matrix.os }}-x86_64.tar.xz target/release/robonomics
+        curl -F file=@robonomics-#{{ matrix.os }}-x86_64.tar.xz https://ipfs.infura.io:5001/api/v0/add
 
   wasm:
     runs-on: ubuntu-latest
@@ -34,9 +42,9 @@ jobs:
       uses: actions/checkout@master
     - name: Check targets are installed correctly
       run: rustup target list --installed
-    - name: Install wasm-gc tool
-      run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
-    - name: Install wasm-pack tool
-      run: cargo install --git https://github.com/rustwasm/wasm-pack --force
-    - name: Build Robonomics Web Node
+    - name: Install build tools
+      run: |
+        cargo install --git https://github.com/alexcrichton/wasm-gc --force
+        cargo install --git https://github.com/rustwasm/wasm-pack --force
+    - name: Build Web Node
       run: make pkg --directory bin/node/browser
