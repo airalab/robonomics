@@ -388,7 +388,7 @@ mod tests {
     use super::*;
     use crate as provider;
     use sp_runtime::{
-        Perbill, generic,
+        Perbill,
         testing::{Header, TestXt},
         traits::{IdentityLookup, BlakeTwo256},
     };
@@ -412,7 +412,7 @@ mod tests {
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
-            pallet_robonomics_liability<T>, provider<T>,
+            system<T>, pallet_robonomics_liability<T>, provider<T>,
         }
     }
 
@@ -434,7 +434,6 @@ mod tests {
     // Define some type aliases. We use the simplest form of anything which is not relevant for
     // simplicity, e.g. account ids are just numbers and signed extensions are empty (`()`).
     type Extrinsic = TestXt<Call, ()>;
-    type NodeBlock = generic::Block<Header, Extrinsic>;
 
     // Define the required constants for system module,
     parameter_types! {
@@ -462,6 +461,9 @@ mod tests {
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type ModuleToIndex = ();
+        type AccountData = ();
+        type OnNewAccount = ();
+        type OnKilledAccount = ();
     }
 
     impl pallet_robonomics_liability::Trait for Runtime {
@@ -526,7 +528,7 @@ mod tests {
     fn test_offchain_worker() {
         let mut ext = new_test_ext();
         let (offchain, _state) = TestOffchainExt::new();
-        let (pool, state) = TestTransactionPoolExt::new();
+        let (pool, _state) = TestTransactionPoolExt::new();
         ext.register_extension(OffchainExt::new(offchain));
         ext.register_extension(TransactionPoolExt::new(pool));
         ext.execute_with(|| {

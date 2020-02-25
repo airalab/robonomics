@@ -20,7 +20,6 @@ use std::sync::Arc;
 use sp_runtime::traits;
 use sc_rpc::system::helpers::{Health, Properties};
 use sc_network::{
-    specialization::NetworkSpecialization,
     NetworkService, ExHashT,
 };
 
@@ -30,15 +29,15 @@ mod ros_api;
 pub use ros_api::{start_services, start_publishers};
 
 /// Substrate system API.
-pub struct System<B: traits::Block, S: NetworkSpecialization<B>, H: ExHashT + Clone + Sync> {
+pub struct System<B: traits::Block, H: ExHashT + Clone + Sync> {
     info: SystemInfo,
-    network: Arc<NetworkService<B, S, H>>,
+    network: Arc<NetworkService<B, H>>,
 }
 
-impl<B, S, H> Clone for System<B, S, H>
-    where B: traits::Block, S: NetworkSpecialization<B>, H: ExHashT + Clone + Sync
+impl<B, H> Clone for System<B, H>
+    where B: traits::Block, H: ExHashT + Clone + Sync
 {
-    fn clone(&self) -> System<B, S, H> {
+    fn clone(&self) -> System<B, H> {
         System { 
             info: self.info.clone(),
             network: self.network.clone(),
@@ -46,20 +45,18 @@ impl<B, S, H> Clone for System<B, S, H>
     }
 }
 
-impl<B: traits::Block, S, H> System<B, S, H> where
-    S: NetworkSpecialization<B>,
+impl<B: traits::Block, H> System<B, H> where
     H: ExHashT + Clone + Sync
 {
     pub fn new(
         info: SystemInfo,
-        network: Arc<NetworkService<B, S, H>>,
+        network: Arc<NetworkService<B, H>>,
     ) -> Self {
         System { info, network }
     }
 }
 
-impl<B: traits::Block, S, H> ros_api::SystemApi for System<B, S, H> where
-    S: NetworkSpecialization<B>,
+impl<B: traits::Block, H> ros_api::SystemApi for System<B, H> where
     H: ExHashT + Clone + Sync
 {
     fn system_name(&self) -> String {

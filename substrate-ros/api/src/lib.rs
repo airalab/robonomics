@@ -19,7 +19,6 @@
 
 pub use sc_rpc::system::helpers::SystemInfo;
 use sc_network::{
-    specialization::NetworkSpecialization,
     NetworkService, ExHashT
 };
 use sp_core::{H256, traits::BareCryptoStorePtr};
@@ -38,10 +37,10 @@ pub mod system;
 pub mod chain;
 pub mod state;
 
-pub fn start<B, E, RA, P, S, H>(
+pub fn start<B, E, RA, P, H>(
     system_info: SystemInfo,
     service_client: Arc<Client<B, E, P::Block, RA>>,
-    service_network: Arc<NetworkService<P::Block, S, H>>,
+    service_network: Arc<NetworkService<P::Block, H>>,
     service_transaction_pool: Arc<P>,
     service_keystore: BareCryptoStorePtr,
 ) -> Result<(Vec<rosrust::Service>, impl Future<Output=()>), Error> where
@@ -53,7 +52,6 @@ pub fn start<B, E, RA, P, S, H>(
     Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
     <Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
         SessionKeys<P::Block, Error = ClientError>,
-    S: NetworkSpecialization<P::Block>,
     H: ExHashT + Clone + Sync,
     u64: From<<<P::Block as traits::Block>::Header as traits::Header>::Number>,
 {

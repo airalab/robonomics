@@ -289,7 +289,7 @@ mod tests {
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
-            liability<T>,
+            system<T>, liability<T>,
         }
     }
 
@@ -324,6 +324,9 @@ mod tests {
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type ModuleToIndex = ();
+        type AccountData = ();
+        type OnNewAccount = ();
+        type OnKilledAccount = ();
     }
 
     impl Trait for Runtime {
