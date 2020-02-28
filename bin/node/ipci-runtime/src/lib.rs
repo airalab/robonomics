@@ -191,7 +191,7 @@ parameter_types! {
     pub const TransactionBaseFee: Balance = 50_000 * U_MITO; // 50 mMITO
     pub const TransactionByteFee: Balance = 1 * U_MITO;      // 1 uMITO
     // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1 * U_MITO;    // 1 uMITO
+    pub const WeightFeeCoefficient: Balance = 1_000;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
 }
@@ -236,8 +236,8 @@ impl pallet_session::historical::Trait for Runtime {
 
 pallet_staking_reward_curve::build! {
     const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-        min_inflation: 0_100_000,
-        max_inflation: 0_800_000,
+        min_inflation: 0_050_000,
+        max_inflation: 0_150_000,
         ideal_stake: 0_666_666,
         falloff: 0_050_000,
         max_piece_count: 0_000_100,
