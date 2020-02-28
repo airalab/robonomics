@@ -18,26 +18,27 @@
 
 use structopt::StructOpt;
 
-#[allow(missing_docs)]
+/// An overarching CLI command definition.
 #[derive(Clone, Debug, StructOpt)]
-#[structopt(settings = &[
-	structopt::clap::AppSettings::GlobalVersion,
-	structopt::clap::AppSettings::ArgsNegateSubcommands,
-	structopt::clap::AppSettings::SubcommandsNegateReqs,
-])]
 pub struct Cli {
-	#[allow(missing_docs)]
-	#[structopt(subcommand)]
-	pub subcommand: Option<Subcommand>,
-	#[allow(missing_docs)]
-	#[structopt(flatten)]
-	pub run: sc_cli::RunCmd,
+    /// Possible subcommand with parameters.
+    #[structopt(subcommand)]
+    pub subcommand: Option<Subcommand>,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub run: sc_cli::RunCmd,
 }
 
-#[allow(missing_docs)]
+/// Possible subcommands of the main binary.
 #[derive(Clone, Debug, StructOpt)]
 pub enum Subcommand {
-	#[allow(missing_docs)]
-	#[structopt(flatten)]
-	Base(sc_cli::Subcommand),
+    /// A set of base subcommands handled by `sc_cli`.
+    #[structopt(flatten)]
+    Base(sc_cli::Subcommand),
+    /// The custom benchmark subcommmand benchmarking runtime pallets.
+    #[structopt(
+        name = "benchmark",
+        about = "Benchmark runtime pallets."
+    )]
+    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 }

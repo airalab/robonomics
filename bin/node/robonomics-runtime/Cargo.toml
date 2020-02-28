@@ -45,6 +45,7 @@ pallet-staking = { git = "https://github.com/paritytech/substrate", default-feat
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -91,6 +92,7 @@ std = [
     "sp-session/std",
     "pallet-sudo/std",
     "frame-support/std",
+    "frame-benchmarking/std",
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "pallet-utility/std",

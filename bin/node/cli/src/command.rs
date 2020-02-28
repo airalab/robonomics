@@ -64,6 +64,17 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
                 }
             }
         },
+        Some(Subcommand::Benchmark(cmd)) => {
+            cmd.init(&version)?;
+            cmd.update_config(&mut config, load_spec, &version)?;
+
+            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
+            if is_ipci {
+                cmd.run::<_, _, node_primitives::Block, IpciExecutor>(config)
+            } else {
+                cmd.run::<_, _, node_primitives::Block, RobonomicsExecutor>(config)
+            }
+        },
         Some(Subcommand::Base(cmd)) => {
             cmd.init(&version)?;
             cmd.update_config(&mut config, load_spec, &version)?;

@@ -37,7 +37,7 @@ use frame_support::{
     traits::Randomness, weights::Weight,
 };
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill,
+    ApplyExtrinsicResult, Perbill, RuntimeString,
     generic, create_runtime_str, impl_opaque_keys,
 };
 use sp_runtime::transaction_validity::TransactionValidity;
@@ -589,5 +589,86 @@ impl_runtime_apis! {
         ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
             SessionKeys::decode_into_raw_public_keys(&encoded)
         }
+    }
+
+    impl frame_benchmarking::Benchmark<Block> for Runtime {
+        fn dispatch_benchmark(
+            module: Vec<u8>,
+            extrinsic: Vec<u8>,
+            steps: Vec<u32>,
+            repeat: u32,
+        ) -> Result<Vec<frame_benchmarking::BenchmarkResults>, RuntimeString> {
+            use frame_benchmarking::Benchmarking;
+
+            let result = match module.as_slice() {
+                b"pallet-balances" | b"balances" => Balances::run_benchmark(extrinsic, steps, repeat),
+                b"pallet-identity" | b"identity" => Identity::run_benchmark(extrinsic, steps, repeat),
+                b"pallet-timestamp" | b"timestamp" => Timestamp::run_benchmark(extrinsic, steps, repeat),
+                _ => Err("Benchmark not found for this pallet."),
+            };
+
+            result.map_err(|e| e.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use frame_system::offchain::{SignAndSubmitTransaction, SubmitSignedTransaction};
+
+    #[test]
+    fn validate_transaction_submitter_bounds() {
+        fn is_submit_signed_transaction<T>() where
+            T: SubmitSignedTransaction<
+                Runtime,
+                Call,
+            >,
+        {}
+
+        fn is_sign_and_submit_transaction<T>() where
+            T: SignAndSubmitTransaction<
+                Runtime,
+                Call,
+                Extrinsic=UncheckedExtrinsic,
+                CreateTransaction=Runtime,
+                Signer=ImOnlineId,
+            >,
+        {}
+
+        is_submit_signed_transaction::<SubmitTransaction>();
+        is_sign_and_submit_transaction::<SubmitTransaction>();
+    }
+
+    #[test]
+    fn block_hooks_weight_should_not_exceed_limits() {
+        use frame_support::weights::WeighBlock;
+        let check_for_block = |b| {
+            let block_hooks_weight =
+                <AllModules as WeighBlock<BlockNumber>>::on_initialize(b) +
+                <AllModules as WeighBlock<BlockNumber>>::on_finalize(b);
+
+            assert_eq!(
+                block_hooks_weight,
+                0,
+                "This test might fail simply because the value being compared to has increased to a \
+                module declaring a new weight for a hook or call. In this case update the test and \
+                happily move on.",
+            );
+
+            // Invariant. Always must be like this to have a sane chain.
+            assert!(block_hooks_weight < MaximumBlockWeight::get());
+
+            // Warning.
+            if block_hooks_weight > MaximumBlockWeight::get() / 2 {
+                println!(
+                    "block hooks weight is consuming more than a block's capacity. You probably want \
+                    to re-think this. This test will fail now."
+                );
+                assert!(false);
+            }
+        };
+
+        let _ = (0..100_000).for_each(check_for_block);
     }
 }

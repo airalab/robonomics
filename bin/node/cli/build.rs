@@ -24,8 +24,8 @@ fn main() {
 #[cfg(feature = "cli")]
 mod cli {
     include!("src/cli.rs");
+	use structopt::clap::Shell;
 	use std::{fs, env, path::Path};
-	use sc_cli::{structopt::clap::Shell, RunCmd};
 	use vergen::{ConstantsFlags, generate_cargo_keys};
 
 	pub fn main() {
@@ -57,6 +57,6 @@ mod cli {
 
 		fs::create_dir(&path).ok();
 
-		RunCmd::clap().gen_completions("robonomics", *shell, &path);
+		sc_cli::RunCmd::clap().gen_completions("robonomics", *shell, &path);
 	}
 }
