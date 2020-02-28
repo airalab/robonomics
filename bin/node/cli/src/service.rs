@@ -42,13 +42,15 @@ pub type Configuration = sc_service::Configuration<
 sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
     robonomics_runtime::api::dispatch,
-    robonomics_runtime::native_version
+    robonomics_runtime::native_version,
+    frame_benchmarking::benchmarking::HostFunctions,
 );
 
 sc_executor::native_executor_instance!(
     pub IpciExecutor,
     ipci_runtime::api::dispatch,
-    ipci_runtime::native_version
+    ipci_runtime::native_version,
+    frame_benchmarking::benchmarking::HostFunctions,
 );
 
 /// A set of APIs that robonomics-like runtimes must implement.

@@ -66,6 +66,7 @@ sc-keystore = { git = "https://github.com/paritytech/substrate" }
 
 # frame dependencies
 pallet-im-online = { git = "https://github.com/paritytech/substrate" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate" }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate" }
 

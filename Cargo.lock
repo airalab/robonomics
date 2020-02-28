@@ -3174,6 +3174,7 @@ dependencies = [
 name = "node-cli"
 version = "0.15.0"
 dependencies = [
+ "frame-benchmarking 2.0.0-alpha.3 (git+https://github.com/paritytech/substrate)",
  "frame-benchmarking-cli 2.0.0-alpha.3 (git+https://github.com/paritytech/substrate)",
  "frame-system-rpc-runtime-api 2.0.0-alpha.3 (git+https://github.com/paritytech/substrate)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
