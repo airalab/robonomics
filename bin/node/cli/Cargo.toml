@@ -81,7 +81,7 @@ sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
-browser-utils = { git = "https://github.com/paritytech/substrate", optional = true }
+browser-utils = { package = "substrate-browser-utils", git = "https://github.com/paritytech/substrate", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9.2", optional = true }
