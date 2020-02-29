@@ -4,9 +4,9 @@
 :toc:
 :sectnums:
 
-image:https://github.com/airalab/substrate-node-robonomics/workflows/Integration/badge.svg?branch=master["Integration Status", link="https://github.com/airalab/substrate-node-robonomics/actions"]
-image:https://img.shields.io/github/downloads/airalab/substrate-node-robonomics/total.svg["Downloads", link="https://github.com/airalab/substrate-node-robonomics/releases"]
-image:https://img.shields.io/github/release/airalab/substrate-node-robonomics.svg["Release", link="https://github.com/airalab/substrate-node-robonomics/releases"]
+image:https://github.com/airalab/robonomics/workflows/Integration/badge.svg?branch=master["Integration Status", link="https://github.com/airalab/robonomics/actions"]
+image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
+image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
 
 == Intro
 
@@ -16,7 +16,7 @@ This source is a part of AIRA project. It implements their purposes using Substr
 
 == Try it out
 
- . Import https://github.com/airalab/substrate-node-robonomics/blob/master/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
+ . Import https://github.com/airalab/robonomics/blob/master/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
  . Open https://polkadot.js.org/apps/#/settings[Substrate UI]: General settings
  . Set `custom` node endpoint to `wss://substrate.robonomics.network`
  . Save and reload
@@ -31,7 +31,7 @@ When connection is success you can explore `Robonomics testnet` using Substrate 
 
 == Install node
 
-Robonomics on Substrate binary blobs available as an assets in https://github.com/airalab/substrate-node-robonomics/releases[releases]. Latest version you can try to build from source code.
+Robonomics on Substrate binary blobs available as an assets in https://github.com/airalab/robonomics/releases[releases]. Latest version you can try to build from source code.
 
 === Building from source
 
@@ -71,7 +71,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/substrate-node-robonomics --tag v0.15
+cargo install --force --git https://github.com/airalab/robonomics --tag v0.15 -p node-cli
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
@@ -94,7 +94,7 @@ Run in Nix shell:
 
 [source, shell]
 ----
-git clone https://github.com/airalab/substrate-node-robonomics && cd substrate-node-robonomics
+git clone https://github.com/airalab/robonomics && cd robonomics
 nix-shell --run "cargo run --release"
 ----
 
@@ -104,7 +104,7 @@ Currently Robonomics on Substrate https://telemetry.polkadot.io/#/Robonomics[tes
 
 === Full node
 
-You can support the network just by launch the node. Every additional full node of blockchain helps it to be more sustainable and fault tolerant. Robonomics node binaries is available on https://github.com/airalab/substrate-node-robonomics/releases[releases] or could be <<building-from-source,build from source>>.
+You can support the network just by launch the node. Every additional full node of blockchain helps it to be more sustainable and fault tolerant. Robonomics node binaries is available on https://github.com/airalab/robonomics/releases[releases] or could be <<building-from-source,build from source>>.
 
 === Become a validator
 
@@ -114,7 +114,7 @@ For nodes that can be online 24/7 also available most important role on chain - 
 [source, shell]
 robonomics
 
- . Open https://polkadot.js.org/apps/#/settings[Settings] and switch UI to `Local Node` mode (don't foget import https://github.com/airalab/substrate-node-robonomics/blob/master/res/custom_types.json[Custom Types] on https://polkadot.js.org/apps/#/settings/developer[Developer Settings]).
+ . Open https://polkadot.js.org/apps/#/settings[Settings] and switch UI to `Local Node` mode (don't foget import https://github.com/airalab/robonomics/blob/master/res/custom_types.json[Custom Types] on https://polkadot.js.org/apps/#/settings/developer[Developer Settings]).
 
  . Generate session keys during RPC call at https://polkadot.js.org/apps/#/toolbox[Toolbox page]:
  .. Submit RPC call `author:rotateKeys()` and copy result, it will be required later.
