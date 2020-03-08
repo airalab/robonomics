@@ -12,6 +12,6 @@ rustPlatform.buildRustPackage rec {
   src = ./.;
   cargoSha256 = null; 
   propagatedBuildInputs = [ substrate-msgs robonomics-msgs ];
-  buildInputs = [ rust wasm-gc ];
+  buildInputs = [ rust ];
   LIBCLANG_PATH = "${libclang}/lib";
 }
