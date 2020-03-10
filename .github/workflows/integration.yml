@@ -72,3 +72,10 @@ jobs:
         FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\"" q}')
         curl "https://ipfs.infura.io:5001/api/v0/add?wrap-with-directory=true" $FILES
         echo "Done"
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v7
+    - run: nix-shell --option sandbox false --run "cargo build --release"
