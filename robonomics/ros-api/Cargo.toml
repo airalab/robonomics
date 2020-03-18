@@ -22,10 +22,9 @@ sp-runtime = { git = "https://github.com/paritytech/substrate" }
 sp-blockchain = { git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
 frame-system = { git = "https://github.com/paritytech/substrate" }
-pallet-robonomics-storage = { path = "../frame/storage" }
+pallet-robonomics-datalog = { path = "../frame/datalog" }
 pallet-robonomics-provider = { path = "../frame/provider" }
 pallet-robonomics-liability = { path = "../frame/liability" }
-pallet-robonomics-agent-runtime-api = { path = "../frame/agent/runtime-api" }
 
 [features]
 default = ["agent"]

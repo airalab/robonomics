@@ -113,13 +113,13 @@ decl_storage! {
         /// Latest liability index.
         LatestIndex get(fn latest_index): LiabilityIndex<T>;
         /// SCALE-encoded liability parameters.
-        LiabilityOf get(fn liability_of): map hasher(blake2_256)
+        LiabilityOf get(fn liability_of): map hasher(blake2_128_concat)
                                           LiabilityIndex<T> => Vec<u8>;
         /// Set `true` when liability report already send.
-        IsFinalized get(fn is_finalized): map hasher(blake2_256)
+        IsFinalized get(fn is_finalized): map hasher(blake2_128_concat)
                                           LiabilityIndex<T> => bool;
         /// SCALE-encoded liability report.
-        ReportOf    get(fn report_of): map hasher(blake2_256)
+        ReportOf    get(fn report_of): map hasher(blake2_128_concat)
                                        LiabilityIndex<T> => Vec<u8>;
     }
 }
@@ -324,6 +324,7 @@ mod tests {
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type ModuleToIndex = ();
+        type MigrateAccount = ();
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();

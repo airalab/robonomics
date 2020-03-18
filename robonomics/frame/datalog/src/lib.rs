@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Simple Robonomics storage runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
+//! Simple Robonomics datalog runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{EncodeLike, Codec};
@@ -24,23 +24,23 @@ use sp_runtime::traits::Member;
 use frame_system::{self as system, ensure_signed, offchain::SubmitSignedTransaction};
 use frame_support::{
     decl_module, decl_storage, decl_event, decl_error,
-    weights::SimpleDispatchInfo, traits::Time, 
+    weights::SimpleDispatchInfo, traits::{Time, MigrateAccount},
 };
 
 /// Type synonym for timestamp data type.
 pub type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
 
-/// Storage module main trait.
+/// Datalog module main trait.
 pub trait Trait: system::Trait {
     /// Timestamp source.
     type Time: Time;
-    /// Storage record data type.
+    /// Datalog record data type.
     type Record: Codec + EncodeLike + Member;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
-/// Storage module agent trait.
+/// Datalog module agent trait.
 pub trait Agent: Trait {
     type Call: From<Call<Self>>;
     type SubmitTransaction: SubmitSignedTransaction<Self, <Self as Agent>::Call>;
@@ -65,9 +65,9 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Storage {
+    trait Store for Module<T: Trait> as Datalog {
         /// Time tagged data of given account.
-        DataLog get(fn datalog): linked_map hasher(blake2_256)
+        Datalog get(fn datalog): map hasher(blake2_128_concat)
                                  T::AccountId => Vec<(MomentOf<T>, T::Record)>;
     }
 }
@@ -81,7 +81,7 @@ decl_module! {
         fn record(origin, record: T::Record) {
             let sender = ensure_signed(origin)?;
             let now = T::Time::now();
-            <DataLog<T>>::mutate(
+            <Datalog<T>>::mutate(
                 sender.clone(),
                 |m| m.push((now.clone(), record.clone()))
             );
@@ -92,9 +92,15 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
         fn erase(origin) {
             let sender = ensure_signed(origin)?;
-            <DataLog<T>>::remove(sender.clone());
+            <Datalog<T>>::remove(sender.clone());
             Self::deposit_event(RawEvent::Erased(sender));
         }
+    }
+}
+
+impl<T: Trait> MigrateAccount<T::AccountId> for Module<T> {
+    fn migrate_account(account: &T::AccountId) {
+        Datalog::<T>::migrate_key_from_blake(account);
     }
 }
 
@@ -148,6 +154,7 @@ mod tests {
         type Version = ();
         type ModuleToIndex = ();
         type AccountData = ();
+        type MigrateAccount = Datalog; 
         type OnNewAccount = ();
         type OnKilledAccount = ();
     }
@@ -176,15 +183,15 @@ mod tests {
     }
 
     type Timestamp = pallet_timestamp::Module<Runtime>;
-    type Storage = Module<Runtime>;
+    type Datalog = Module<Runtime>;
 
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = vec![42];
-            assert_ok!(Storage::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Storage::datalog(sender), vec![(0, record)]);
+            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            assert_eq!(Datalog::datalog(sender), vec![(0, record)]);
         })
     }
 
@@ -193,17 +200,17 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = vec![1,2,3];
-            assert_ok!(Storage::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Storage::datalog(sender), vec![(0, record)]);
-            assert_ok!(Storage::erase(Origin::signed(sender)));
-            assert_eq!(Storage::datalog(sender).is_empty(), true);
+            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            assert_eq!(Datalog::datalog(sender), vec![(0, record)]);
+            assert_ok!(Datalog::erase(Origin::signed(sender)));
+            assert_eq!(Datalog::datalog(sender).is_empty(), true);
         })
     }
 
     #[test]
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
-            assert_err!(Storage::record(Origin::NONE, vec![]), DispatchError::BadOrigin);
+            assert_err!(Datalog::record(Origin::NONE, vec![]), DispatchError::BadOrigin);
         })
     }
 
@@ -212,17 +219,17 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
-            assert_ok!(Storage::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Storage::datalog(sender), vec![(0, record.clone())]);
+            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            assert_eq!(Datalog::datalog(sender), vec![(0, record.clone())]);
             let record2 = "zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta".from_base58().unwrap();
-            assert_ok!(Storage::record(Origin::signed(sender), record2.clone()));
-            assert_eq!(Storage::datalog(sender), vec![
+            assert_ok!(Datalog::record(Origin::signed(sender), record2.clone()));
+            assert_eq!(Datalog::datalog(sender), vec![
                        (0, record.clone()),
                        (0, record2.clone()),
             ]);
             let record3 = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2".from_base58().unwrap();
-            assert_ok!(Storage::record(Origin::signed(sender), record3.clone()));
-            assert_eq!(Storage::datalog(sender), vec![
+            assert_ok!(Datalog::record(Origin::signed(sender), record3.clone()));
+            assert_eq!(Datalog::datalog(sender), vec![
                        (0, record),
                        (0, record2),
                        (0, record3),
