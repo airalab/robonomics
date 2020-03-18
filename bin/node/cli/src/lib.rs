@@ -40,6 +40,12 @@ pub trait IsIpci {
     fn is_ipci(&self) -> bool;
 }
 
+impl IsIpci for &dyn sc_chain_spec::ChainSpec {
+    fn is_ipci(&self) -> bool {
+        self.id().starts_with("ipci")
+    }
+}
+
 /// The chain specification option.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ChainSpec {
@@ -75,9 +81,9 @@ impl ChainSpec {
     }
 }
 
-pub fn load_spec(id: &str) -> Result<Option<chain_spec::ChainSpec>, String> {
+pub fn load_spec(id: &str) -> Result<Box<dyn sc_chain_spec::ChainSpec>, String> {
     Ok(match ChainSpec::from(id) {
-        Some(spec) => Some(spec.load()),
-        None => None,
+        Some(spec) => Box::new(spec.load()),
+        None => Box::new(ChainSpec::Ipci.load()),
     })
 }

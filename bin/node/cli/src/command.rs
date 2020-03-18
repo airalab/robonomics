@@ -17,8 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use log::info;
-use sc_cli::VersionInfo;
 use sc_service::Roles;
+use sc_cli::VersionInfo;
+use node_primitives::Block;
 use crate::{
     Cli, Subcommand, IsIpci, load_spec,
     service::{
@@ -49,8 +50,7 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             info!("Node name: {}", config.name);
             info!("Roles: {}", config.display_role());
 
-            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
-            if is_ipci {
+            if config.expect_chain_spec().is_ipci() {
                 info!("Native runtime: {}", IpciExecutor::native_version().runtime_version);
                 match config.roles {
                     Roles::LIGHT => sc_cli::run_service_until_exit(config, new_ipci_light),
@@ -68,19 +68,17 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             cmd.init(&version)?;
             cmd.update_config(&mut config, load_spec, &version)?;
 
-            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
-            if is_ipci {
-                cmd.run::<_, _, node_primitives::Block, IpciExecutor>(config)
+            if config.expect_chain_spec().is_ipci() {
+                cmd.run::<Block, IpciExecutor>(config)
             } else {
-                cmd.run::<_, _, node_primitives::Block, RobonomicsExecutor>(config)
+                cmd.run::<Block, RobonomicsExecutor>(config)
             }
         },
         Some(Subcommand::Base(cmd)) => {
             cmd.init(&version)?;
             cmd.update_config(&mut config, load_spec, &version)?;
 
-            let is_ipci = config.chain_spec.as_ref().map_or(false, |s| s.is_ipci());
-            if is_ipci {
+            if config.expect_chain_spec().is_ipci() {
                 cmd.run(config, new_ipci_chain_ops)
             } else {
                 cmd.run(config, new_robonomics_chain_ops)

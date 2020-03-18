@@ -41,18 +41,19 @@ pallet-identity = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-offences = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false }
+pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 pallet-staking = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-robonomics-storage = { path = "../../../robonomics/frame/storage", default-features = false }
+pallet-robonomics-datalog= { path = "../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../../robonomics/frame/liability", default-features = false }
 
 [build-dependencies]
@@ -103,6 +104,14 @@ std = [
     "sp-block-builder/std",
     "sp-transaction-pool/std",
     "sp-inherents/std",
-    "pallet-robonomics-storage/std",
+    "pallet-robonomics-datalog/std",
     "pallet-robonomics-liability/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "pallet-session-benchmarking",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-identity/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
 ]

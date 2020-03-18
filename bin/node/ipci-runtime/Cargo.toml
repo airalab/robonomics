@@ -10,6 +10,8 @@ build = "build.rs"
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
 codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false, features = ["derive"] }
+lazy_static = { version = "1.4.0", optional = true }
+hex-literal = "0.2.1"
 
 # primitives
 node-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -41,18 +43,19 @@ pallet-identity = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-offences = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false }
+pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 pallet-staking = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-robonomics-storage = { path = "../../../robonomics/frame/storage", default-features = false }
+pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder-runner = { version = "1.0.4", git = "https://github.com/paritytech/substrate" }
@@ -63,6 +66,7 @@ ipci = []
 parachain = []
 std = [
     "codec/std",
+    "lazy_static",
     "sp-authority-discovery/std",
     "pallet-authority-discovery/std",
     "pallet-authorship/std",
@@ -102,5 +106,13 @@ std = [
     "sp-block-builder/std",
     "sp-transaction-pool/std",
     "sp-inherents/std",
-    "pallet-robonomics-storage/std",
+    "pallet-robonomics-datalog/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "pallet-session-benchmarking",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-identity/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-staking/runtime-benchmarks",
 ]

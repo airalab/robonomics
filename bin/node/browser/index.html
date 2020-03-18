@@ -2,11 +2,10 @@
 <html>
   <head>
 	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
-	<title>Robonomics Web Node</title>
+	<title>Robonomics Browser Node</title>
 	<link rel="shortcut icon" href="/favicon.ico" />
 	<script type="module">
 import { start_client, default as init } from './pkg/node_cli.js';
-import ws from './ws.js';
 
 function log(msg) {
 	document.getElementsByTagName('body')[0].innerHTML += msg + '\n';
@@ -20,7 +19,7 @@ async function start() {
 	const chain_spec_text = await chain_spec_response.text();
 
 	// Build our client.
-	let client = await start_client(chain_spec_text, 'debug', ws());
+	let client = await start_client(chain_spec_text, 'debug');
 	log('Client started');
 
 	client.rpcSubscribe('{"method":"chain_subscribeNewHead","params":[],"id":1,"jsonrpc":"2.0"}',

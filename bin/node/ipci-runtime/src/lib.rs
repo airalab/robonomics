@@ -37,7 +37,7 @@ use frame_support::{
     traits::Randomness, weights::Weight,
 };
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill, RuntimeString,
+    ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str, impl_opaque_keys,
 };
 use sp_runtime::transaction_validity::TransactionValidity;
@@ -111,6 +111,7 @@ impl frame_system::Trait for Runtime {
     type AvailableBlockRatio = AvailableBlockRatio;
     type ModuleToIndex = ModuleToIndex; 
     type AccountData = pallet_balances::AccountData<Balance>;
+    type MigrateAccount = (Balances, Identity, ImOnline, Session, Staking, Datalog);
     type OnNewAccount = ();
     type OnKilledAccount = ();
 }
@@ -250,6 +251,7 @@ parameter_types! {
     pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
     pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
+    pub const MaxNominatorRewardedPerValidator: u32 = 64;
 }
 
 impl pallet_staking::Trait for Runtime {
@@ -266,6 +268,7 @@ impl pallet_staking::Trait for Runtime {
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
     type RewardCurve = RewardCurve;
+    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 }
 
 impl pallet_authority_discovery::Trait for Runtime {}
@@ -330,7 +333,7 @@ impl pallet_offences::Trait for Runtime {
     type OnOffenceHandler = Staking;
 }
 
-impl pallet_robonomics_storage::Trait for Runtime {
+impl pallet_robonomics_datalog::Trait for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
@@ -401,7 +404,7 @@ construct_runtime!(
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 
         // Robonomics Network modules.
-        RobonomicsStorage: pallet_robonomics_storage::{Module, Call, Storage, Event<T>},
+        Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
@@ -470,10 +473,6 @@ impl_runtime_apis! {
     impl sp_block_builder::BlockBuilder<Block> for Runtime {
         fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
             Executive::apply_extrinsic(extrinsic)
-        }
-
-        fn apply_trusted_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
-            Executive::apply_trusted_extrinsic(extrinsic)
         }
 
         fn finalize_block() -> <Block as BlockT>::Header {
@@ -567,19 +566,60 @@ impl_runtime_apis! {
         }
     }
 
+    #[cfg(feature = "runtime-benchmarks")]
     impl frame_benchmarking::Benchmark<Block> for Runtime {
         fn dispatch_benchmark(
             module: Vec<u8>,
             extrinsic: Vec<u8>,
+            lowest_range_values: Vec<u32>,
+            highest_range_values: Vec<u32>,
             steps: Vec<u32>,
             repeat: u32,
-        ) -> Result<Vec<frame_benchmarking::BenchmarkResults>, RuntimeString> {
+        ) -> Result<Vec<frame_benchmarking::BenchmarkResults>, sp_runtime::RuntimeString> {
             use frame_benchmarking::Benchmarking;
+            // Trying to add benchmarks directly to the Session Pallet caused cyclic
+            // dependency issues.
+            // To get around that, we separated the Session benchmarks into its own crate,
+            // which is why we need these two lines below.
+            use pallet_session_benchmarking::Module as SessionBench;
+            impl pallet_session_benchmarking::Trait for Runtime {}
 
             let result = match module.as_slice() {
-                b"pallet-balances" | b"balances" => Balances::run_benchmark(extrinsic, steps, repeat),
-                b"pallet-identity" | b"identity" => Identity::run_benchmark(extrinsic, steps, repeat),
-                b"pallet-timestamp" | b"timestamp" => Timestamp::run_benchmark(extrinsic, steps, repeat),
+                b"pallet-balances" | b"balances" => Balances::run_benchmark(
+                    extrinsic,
+                    lowest_range_values,
+                    highest_range_values,
+                    steps,
+                    repeat,
+                ),
+                b"pallet-identity" | b"identity" => Identity::run_benchmark(
+                    extrinsic,
+                    lowest_range_values,
+                    highest_range_values,
+                    steps,
+                    repeat,
+                ),
+                b"pallet-timestamp" | b"timestamp" => Timestamp::run_benchmark(
+                    extrinsic,
+                    lowest_range_values,
+                    highest_range_values,
+                    steps,
+                    repeat,
+                ),
+                b"pallet-session" | b"session" => SessionBench::<Runtime>::run_benchmark(
+                    extrinsic,
+                    lowest_range_values,
+                    highest_range_values,
+                    steps,
+                    repeat,
+                ),
+                b"pallet-staking" | b"staking" => Staking::run_benchmark(
+                    extrinsic,
+                    lowest_range_values,
+                    highest_range_values,
+                    steps,
+                    repeat,
+                ),
                 _ => Err("Benchmark not found for this pallet."),
             };
 

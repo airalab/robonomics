@@ -130,3 +130,7 @@ ros = [
     "substrate-ros-api",
     "robonomics-ros-api",
 ]
+runtime-benchmarks = [
+    "robonomics-runtime/runtime-benchmarks",
+    "ipci-runtime/runtime-benchmarks",
+]

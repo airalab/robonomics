@@ -21,23 +21,20 @@
 
 use log::warn;
 use std::sync::Arc;
-use sp_core::Blake2Hasher;
+use futures::prelude::*;
 use sp_api::ConstructRuntimeApi;
+use sp_runtime::traits::BlakeTwo256;
 use sc_client::LongestChain;
+use sc_client_api::ExecutorProvider;
 use sc_service::{
     AbstractService, ServiceBuilderCommand,
     TFullClient, TFullBackend, TFullCallExecutor,
     TLightBackend, TLightCallExecutor,
     error::{Error as ServiceError},
+    config::Configuration,
 };
 use node_primitives::{Block, AccountId, Index, Balance};
 pub use sc_executor::NativeExecutionDispatch;
-
-/// A specialized configuration object for setting up the node.
-pub type Configuration = sc_service::Configuration<
-    robonomics_runtime::GenesisConfig,
-    crate::chain_spec::Extensions
->;
 
 sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
@@ -67,7 +64,7 @@ pub trait RuntimeApiCollection<Extrinsic: codec::Codec + Send + Sync + 'static> 
     + sp_authority_discovery::AuthorityDiscoveryApi<Block>
 where
     Extrinsic: RuntimeExtrinsic,
-    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {}
 
 impl<Api, Extrinsic> RuntimeApiCollection<Extrinsic> for Api
@@ -84,7 +81,7 @@ where
     + sp_session::SessionKeys<Block>
     + sp_authority_discovery::AuthorityDiscoveryApi<Block>,
     Extrinsic: RuntimeExtrinsic,
-    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {}
 
 pub trait RuntimeExtrinsic: codec::Codec + Send + Sync + 'static
@@ -96,13 +93,13 @@ impl<E> RuntimeExtrinsic for E where E: codec::Codec + Send + Sync + 'static
 // We can't use service::TLightClient due to
 // Rust bug: https://github.com/rust-lang/rust/issues/43580
 type TLightClient<Runtime, Dispatch> = sc_client::Client<
-    sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, sp_core::Blake2Hasher>,
+    sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, BlakeTwo256>,
     sc_client::light::call_executor::GenesisCallExecutor<
-        sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, sp_core::Blake2Hasher>,
+        sc_client::light::backend::Backend<sc_client_db::light::LightStorage<Block>, BlakeTwo256>,
         sc_client::LocalCallExecutor<
             sc_client::light::backend::Backend<
                 sc_client_db::light::LightStorage<Block>,
-                sp_core::Blake2Hasher
+                BlakeTwo256
             >,
             sc_executor::NativeExecutor<Dispatch>
         >
@@ -136,7 +133,7 @@ macro_rules! new_full_start {
                     .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
                 let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
                     client.clone(),
-                    &*client,
+                    &(client.clone() as Arc<_>),
                     select_chain
                 )?;
                 let justification_import = grandpa_block_import.clone();
@@ -254,7 +251,7 @@ pub fn new_chain_ops<Runtime, Dispatch, Extrinsic>(
     RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>,
     Dispatch: NativeExecutionDispatch + 'static,
     Extrinsic: RuntimeExtrinsic,
-    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
     config.keystore = sc_service::config::KeystoreConfig::InMemory;
     Ok(new_full_start!(config, Runtime, Dispatch).0)
@@ -276,10 +273,8 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>,
     Dispatch: NativeExecutionDispatch + 'static,
     Extrinsic: RuntimeExtrinsic,
-    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<Blake2Hasher>,
+    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
-    use futures::prelude::*;
-
     let name = config.name.clone();
     let is_authority = config.roles.is_authority();
     let disable_grandpa = config.disable_grandpa;
@@ -295,9 +290,11 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         new_full_start!(config, Runtime, Dispatch);
 
     let service = builder
-        .with_finality_proof_provider(|client, backend|
-            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
-        )?
+        .with_finality_proof_provider(|client, backend| {
+            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, provider)) as _)
+        })?
         .build()?;
 
     let (block_import, grandpa_link, babe_link) = import_setup.take()
@@ -343,6 +340,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
             sentry_nodes,
             service.keystore(),
             dht_event_stream,
+            service.prometheus_registry(),
         );
 
         service.spawn_task("authority-discovery", authority_discovery);
@@ -384,9 +382,9 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
             link: grandpa_link,
             network: service.network(),
             inherent_data_providers: inherent_data_providers.clone(),
-            on_exit: service.on_exit(),
             telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
             voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
+            prometheus_registry: service.prometheus_registry(),
         };
         // the GRANDPA voter task is considered infallible, i.e.
         // if it fails we take down the service with it.
@@ -476,7 +474,10 @@ where
                 .map(|fetcher| fetcher.checker().clone())
                 .ok_or_else(|| "Trying to start light import queue without active fetch checker")?;
             let grandpa_block_import = sc_finality_grandpa::light_block_import(
-                client.clone(), backend, &*client, Arc::new(fetch_checker)
+                client.clone(),
+                backend,
+                &(client.clone() as Arc<_>),
+                Arc::new(fetch_checker)
             )?;
 
             let finality_proof_import = grandpa_block_import.clone();
@@ -500,8 +501,10 @@ where
 
             Ok((import_queue, finality_proof_request_builder))
         })?
-        .with_finality_proof_provider(|client, backend|
-            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, client)) as _)
-        )?
+        .with_finality_proof_provider(|client, backend| {
+            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, provider)) as _)
+        })?
         .build()
 }
