@@ -111,7 +111,6 @@ impl frame_system::Trait for Runtime {
     type AvailableBlockRatio = AvailableBlockRatio;
     type ModuleToIndex = ModuleToIndex; 
     type AccountData = pallet_balances::AccountData<Balance>;
-    type MigrateAccount = (Balances, Identity, ImOnline, Session, Staking, Datalog);
     type OnNewAccount = ();
     type OnKilledAccount = ();
 }

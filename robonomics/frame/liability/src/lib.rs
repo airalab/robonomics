@@ -324,7 +324,6 @@ mod tests {
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type ModuleToIndex = ();
-        type MigrateAccount = ();
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();

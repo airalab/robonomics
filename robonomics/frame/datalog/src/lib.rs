@@ -24,7 +24,7 @@ use sp_runtime::traits::Member;
 use frame_system::{self as system, ensure_signed, offchain::SubmitSignedTransaction};
 use frame_support::{
     decl_module, decl_storage, decl_event, decl_error,
-    weights::SimpleDispatchInfo, traits::{Time, MigrateAccount},
+    weights::SimpleDispatchInfo, traits::Time,
 };
 
 /// Type synonym for timestamp data type.
@@ -98,12 +98,6 @@ decl_module! {
     }
 }
 
-impl<T: Trait> MigrateAccount<T::AccountId> for Module<T> {
-    fn migrate_account(account: &T::AccountId) {
-        Datalog::<T>::migrate_key_from_blake(account);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,7 +148,6 @@ mod tests {
         type Version = ();
         type ModuleToIndex = ();
         type AccountData = ();
-        type MigrateAccount = Datalog; 
         type OnNewAccount = ();
         type OnKilledAccount = ();
     }
