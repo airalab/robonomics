@@ -4579,6 +4579,8 @@ dependencies = [
  "frame-support 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",
  "frame-system-rpc-runtime-api 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",
+ "hex-literal 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-primitives 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",
  "pallet-authority-discovery 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",
  "pallet-authorship 2.0.0-alpha.4 (git+https://github.com/paritytech/substrate)",

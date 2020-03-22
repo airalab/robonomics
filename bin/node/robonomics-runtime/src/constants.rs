@@ -19,12 +19,23 @@
 
 /// Money matters.
 pub mod currency {
-    use node_primitives::Balance;
+    use sp_std::vec;
+    use hex_literal::hex;
+    use node_primitives::{Balance, AccountId};
 
     pub const COASE: Balance = 1_000;
     pub const GLUSHKOV: Balance = 1_000 * COASE;
     pub const XRT: Balance = 1_000 * GLUSHKOV;
+
+    #[cfg(feature = "std")]
+    lazy_static::lazy_static! {
+        pub static ref STAKE_HOLDERS: Vec<(AccountId, Balance)> = vec![
+//     5FvJfouVa2y2LFMSG5sRPzxrTQ2Vd8NhzovsoUKYG9n2hQtK
+        (hex!["aa88ea58465ffbcf716c3d57fab7c29b6d7c7243133b024e61556b92512a4765"].into(), 1 * XRT),
+    ];
+    }
 }
+
 
 /// Time.
 pub mod time {

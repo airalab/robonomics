@@ -199,32 +199,35 @@ pub fn make_genesis(
         }),
     }
 }
+/*
 
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet genesis. 
 fn robonomics_testnet_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
-        // akru.me
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
-        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
+//     5FyXbH8PgKRrveqXJYjSLnLSeHiK6pov8kQKaUVGN5XHy4MA
+        hex!["acfe268b8276a4ed8924aef1441eb05334522f6c6c7487c12d71b0fb2ab28d37"].into(),
+//     5C7d35rhGpKP8UzXFwgdRzFnu6e5AiPx765XBytu7xakaHor
+        hex!["0239825db490fce751ee12d6cf67a59e1278f52fd82d5a9033f773924a709348"].into(),
+
+        hex!["304d073f2c918bff832e6f61949e1b7ac38fb8d57da1157f30d10e1406cc9137"].unchecked_into(),
+        hex!["85ddf5a932937c65694146577b50375668055ff435400310ca5344edf0f50b83"].unchecked_into(),
+        hex!["64063c2394c0a8250e5dc03286ead10e2efcda342467fbcbdf5f03d0e39aae19"].unchecked_into(),
+        hex!["926165922b8174c8446503a9bdc6581f4a658393169ea890c291fa2ad6b0b345"].unchecked_into(),
     )];
 
     let sudo_key: AccountId =
-        // 5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
+//     5FvJfouVa2y2LFMSG5sRPzxrTQ2Vd8NhzovsoUKYG9n2hQtK
+        hex!["aa88ea58465ffbcf716c3d57fab7c29b6d7c7243133b024e61556b92512a4765"].into();
 
     make_genesis(
         initial_authorities,
-        Default::default(),
+        robonomics_runtime::constants::currency::STAKE_HOLDERS.to_vec(),
         sudo_key,
         robonomics_runtime::WASM_BINARY.to_vec(),
     )
@@ -236,7 +239,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         // validator-01
         "/ip4/51.15.132.76/tcp/30363/p2p/QmRg7aTH3ZBbcxmXfMn4CgEEBcnJzeC6UewFco7Dxh2M84".into(),
         // validator-02
-        "/ip4/188.127.249.219/tcp/30363/p2p/QmYp26uKLyDesPzCS5Y3w44NUKZmDz87F3ywJkhHhh9SUf".into(),
+        "/ip4/188.127.249.219/tcp/30363/p2p/QmepKcvG1henJm4SxnRfr17Uq2A2t5mYDZZDRYBqHohSND".into(),
         // validator-03
         "/ip4/167.71.148.38/tcp/30363/p2p/Qmep2VYsMfiBQnTMHVk6AddygMysiK379VP48hKZCoWtWT".into(),
         // akru
@@ -253,7 +256,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 /*
 /// IPCI blockchain config. 
