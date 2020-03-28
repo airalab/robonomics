@@ -23,10 +23,12 @@ use codec::{Encode, Decode, Codec};
 use frame_system::{self as system, ensure_none};
 use frame_support::{
     ensure, decl_module, decl_storage, decl_event, decl_error, StorageValue,
+    weights::SimpleDispatchInfo,
 };
 use sp_runtime::{
     transaction_validity::{
-        TransactionValidity, ValidTransaction, InvalidTransaction, TransactionPriority,
+        TransactionValidity,
+        ValidTransaction, InvalidTransaction, TransactionPriority,
     },
 };
 
@@ -129,6 +131,7 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Create agreement between two parties.
+        #[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
         fn create(
             origin,
             technics: TechnicalParam<T>,
@@ -179,6 +182,7 @@ decl_module! {
         }
 
         /// Publish technical report of complite works.
+        #[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
         fn finalize(
             origin,
             index: LiabilityIndex<T>,
@@ -220,7 +224,9 @@ decl_module! {
 impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
-    fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+    fn validate_unsigned(
+        call: &Self::Call
+    ) -> TransactionValidity {
         match call {
             Call::create(technics, economics, promisee, promisor, promisee_proof, promisor_proof) => {
                 let liability = T::Liability::new(

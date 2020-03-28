@@ -27,51 +27,44 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod constants;
 pub mod impls;
 
-pub use pallet_staking::StakerStatus;
-
 use sp_std::prelude::*;
+use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
-use frame_system::offchain::TransactionSubmitter;
+use sp_version::RuntimeVersion;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+use sp_runtime::{
+    ApplyExtrinsicResult, Perbill,
+    generic, create_runtime_str,
+    transaction_validity::TransactionValidity,
+    traits::{
+        self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
+        SaturatedConversion,
+    },
+};
+
 use frame_support::{
     construct_runtime, parameter_types,
     traits::Randomness, weights::Weight,
 };
-use sp_runtime::{
-    ApplyExtrinsicResult, Perbill,
-    generic, create_runtime_str, impl_opaque_keys,
-};
-use sp_runtime::transaction_validity::TransactionValidity;
-use sp_runtime::curve::PiecewiseLinear;
-use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-    SaturatedConversion, OpaqueKeys,
-};
-use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
-use sp_inherents::{InherentData, CheckInherentsResult};
-use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
-use sp_api::impl_runtime_apis;
 use node_primitives::{
     Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
-use sp_version::RuntimeVersion;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
 
-use crate::constants::{time::*, currency::*};
+use constants::{time::*, currency::*};
 
-/// This runtime version.
+/// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("robonomics"),
-    impl_name: create_runtime_str!("robonomics-airalab"),
+    spec_name: create_runtime_str!("robonomics-parachain"),
+    impl_name: create_runtime_str!("robonomics-parachain-airalab"),
     authoring_version: 1,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 70,
-    impl_version: 70,
+    spec_version: 1,
+    impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -137,30 +130,8 @@ parameter_types! {
 
 impl pallet_timestamp::Trait for Runtime {
     type Moment = Moment;
-    type OnTimestampSet = Babe;
+    type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
-}
-
-parameter_types! {
-    pub const UncleGenerations: BlockNumber = 5;
-}
-
-parameter_types! {
-    pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
-    pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
-}
-
-impl pallet_babe::Trait for Runtime {
-    type EpochDuration = EpochDuration;
-    type ExpectedBlockTime = ExpectedBlockTime;
-    type EpochChangeTrigger = pallet_babe::ExternalTrigger;
-}
-
-impl pallet_authorship::Trait for Runtime {
-    type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
-    type UncleGenerations = UncleGenerations;
-    type FilterUncle = ();
-    type EventHandler = (Staking, ImOnline);
 }
 
 parameter_types! {
@@ -206,88 +177,6 @@ impl pallet_transaction_payment::Trait for Runtime {
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
 }
 
-impl_opaque_keys! {
-    pub struct SessionKeys {
-        pub babe: Babe,
-        pub grandpa: Grandpa,
-        pub im_online: ImOnline,
-        pub authority_discovery: AuthorityDiscovery,
-    }
-}
-
-parameter_types! {
-    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
-}
-
-impl pallet_session::Trait for Runtime {
-    type SessionManager = Staking;
-    type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
-    type ShouldEndSession = Babe;
-    type Event = Event;
-    type Keys = SessionKeys;
-    type ValidatorId = <Self as frame_system::Trait>::AccountId;
-    type ValidatorIdOf = pallet_staking::StashOf<Self>;
-    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
-}
-
-impl pallet_session::historical::Trait for Runtime {
-    type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
-    type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
-}
-
-pallet_staking_reward_curve::build! {
-    const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-        min_inflation: 0_100_000,
-        max_inflation: 0_800_000,
-        ideal_stake: 0_666_666,
-        falloff: 0_050_000,
-        max_piece_count: 0_000_100,
-        test_precision: 0_005_000,
-    );
-}
-
-parameter_types! {
-    pub const SessionsPerEra: sp_staking::SessionIndex = 10;
-    pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-    pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
-    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-    pub const MaxNominatorRewardedPerValidator: u32 = 64;
-}
-
-impl pallet_staking::Trait for Runtime {
-    type Currency = Balances;
-    type Time = Timestamp;
-    type CurrencyToVote = impls::CurrencyToVoteHandler;
-    type Event = Event;
-    type Slash = ();
-    type Reward = ();
-    type RewardRemainder = ();
-    type SlashDeferDuration = SlashDeferDuration;
-    type SlashCancelOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type SessionsPerEra = SessionsPerEra;
-    type BondingDuration = BondingDuration;
-    type SessionInterface = Self;
-    type RewardCurve = RewardCurve;
-    type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
-}
-
-impl pallet_authority_discovery::Trait for Runtime {}
-
-impl pallet_grandpa::Trait for Runtime {
-    type Event = Event;
-}
-
-parameter_types! {
-    pub const WindowSize: BlockNumber = 101;
-    pub const ReportLatency: BlockNumber = 1000;
-}
-
-impl pallet_finality_tracker::Trait for Runtime {
-    type OnFinalizationStalled = Grandpa;
-    type WindowSize = WindowSize;
-    type ReportLatency = ReportLatency;
-}
-
 parameter_types! {
     pub const BasicDeposit: Balance = 10 * XRT;       // 258 bytes on-chain
     pub const FieldDeposit: Balance = 250 * COASE;    // 66 bytes on-chain
@@ -312,25 +201,6 @@ impl pallet_identity::Trait for Runtime {
 impl pallet_sudo::Trait for Runtime {
     type Event = Event;
     type Call = Call;
-}
-
-parameter_types! {
-    pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
-}
-
-impl pallet_im_online::Trait for Runtime {
-    type Call = Call;
-    type Event = Event;
-    type AuthorityId = ImOnlineId;
-    type SubmitTransaction = TransactionSubmitter<ImOnlineId, Runtime, UncheckedExtrinsic>;
-    type ReportUnresponsiveness = Offences;
-    type SessionDuration = SessionDuration;
-}
-
-impl pallet_offences::Trait for Runtime {
-    type Event = Event;
-    type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
-    type OnOffenceHandler = Staking;
 }
 
 impl pallet_robonomics_liability::Trait for Runtime {
@@ -387,7 +257,7 @@ impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for 
     }
 }
 
-construct_runtime!(
+construct_runtime! {
     pub enum Runtime where
         Block = Block,
         NodeBlock = node_primitives::Block,
@@ -407,17 +277,6 @@ construct_runtime!(
         // Randomness.
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 
-        // PoS consensus modules.
-        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
-        Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
-        Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
-        Offences: pallet_offences::{Module, Call, Storage, Event},
-        Babe: pallet_babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
-        FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
-        Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
-        ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
-
         // Robonomics Network modules.
         Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
@@ -425,7 +284,7 @@ construct_runtime!(
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
     }
-);
+}
 
 /// The type used as a helper for interpreting the sender of transactions.
 pub type Context = frame_system::ChainContext<Runtime>;
@@ -495,11 +354,11 @@ impl_runtime_apis! {
             Executive::finalize_block()
         }
 
-        fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+        fn inherent_extrinsics(data: sp_inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
             data.create_extrinsics()
         }
 
-        fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+        fn check_inherents(block: Block, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
             data.check_extrinsics(&block)
         }
 
@@ -509,7 +368,9 @@ impl_runtime_apis! {
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
+        fn validate_transaction(
+            tx: <Block as BlockT>::Extrinsic,
+        ) -> TransactionValidity {
             Executive::validate_transaction(tx)
         }
     }
@@ -517,40 +378,6 @@ impl_runtime_apis! {
     impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
         fn offchain_worker(header: &<Block as BlockT>::Header) {
             Executive::offchain_worker(header)
-        }
-    }
-
-    impl fg_primitives::GrandpaApi<Block> for Runtime {
-        fn grandpa_authorities() -> GrandpaAuthorityList {
-            Grandpa::grandpa_authorities()
-        }
-    }
-
-    impl sp_consensus_babe::BabeApi<Block> for Runtime {
-        fn configuration() -> sp_consensus_babe::BabeConfiguration {
-            // The choice of `c` parameter (where `1 - c` represents the
-            // probability of a slot being empty), is done in accordance to the
-            // slot duration and expected target block time, for safely
-            // resisting network delays of maximum two seconds.
-            // <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
-            sp_consensus_babe::BabeConfiguration {
-                slot_duration: Babe::slot_duration(),
-                epoch_length: EpochDuration::get(),
-                c: PRIMARY_PROBABILITY,
-                genesis_authorities: Babe::authorities(),
-                randomness: Babe::randomness(),
-                secondary_slots: true,
-            }
-        }
-
-        fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
-            Babe::current_epoch_start()
-        }
-    }
-
-    impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
-        fn authorities() -> Vec<AuthorityDiscoveryId> {
-            AuthorityDiscovery::authorities()
         }
     }
 
@@ -569,138 +396,6 @@ impl_runtime_apis! {
             TransactionPayment::query_info(uxt, len)
         }
     }
-
-    impl sp_session::SessionKeys<Block> for Runtime {
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            SessionKeys::generate(seed)
-        }
-
-        fn decode_session_keys(
-            encoded: Vec<u8>,
-        ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
-            SessionKeys::decode_into_raw_public_keys(&encoded)
-        }
-    }
-
-	#[cfg(feature = "runtime-benchmarks")]
-    impl frame_benchmarking::Benchmark<Block> for Runtime {
-        fn dispatch_benchmark(
-            module: Vec<u8>,
-            extrinsic: Vec<u8>,
-            lowest_range_values: Vec<u32>,
-            highest_range_values: Vec<u32>,
-            steps: Vec<u32>,
-            repeat: u32,
-        ) -> Result<Vec<frame_benchmarking::BenchmarkResults>, sp_runtime::RuntimeString> {
-            use frame_benchmarking::Benchmarking;
-            // Trying to add benchmarks directly to the Session Pallet caused cyclic
-            // dependency issues.
-            // To get around that, we separated the Session benchmarks into its own crate,
-            // which is why we need these two lines below.
-            use pallet_session_benchmarking::Module as SessionBench;
-            impl pallet_session_benchmarking::Trait for Runtime {}
-
-            let result = match module.as_slice() {
-                b"pallet-balances" | b"balances" => Balances::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-identity" | b"identity" => Identity::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-timestamp" | b"timestamp" => Timestamp::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-session" | b"session" => SessionBench::<Runtime>::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-staking" | b"staking" => Staking::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                _ => Err("Benchmark not found for this pallet."),
-            };
-
-            result.map_err(|e| e.into())
-        }
-    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use frame_system::offchain::{SignAndSubmitTransaction, SubmitSignedTransaction};
-
-    #[test]
-    fn validate_transaction_submitter_bounds() {
-        fn is_submit_signed_transaction<T>() where
-            T: SubmitSignedTransaction<
-                Runtime,
-                Call,
-            >,
-        {}
-
-        fn is_sign_and_submit_transaction<T>() where
-            T: SignAndSubmitTransaction<
-                Runtime,
-                Call,
-                Extrinsic=UncheckedExtrinsic,
-                CreateTransaction=Runtime,
-                Signer=ImOnlineId,
-            >,
-        {}
-
-        is_submit_signed_transaction::<SubmitTransaction>();
-        is_sign_and_submit_transaction::<SubmitTransaction>();
-    }
-
-    #[test]
-    fn block_hooks_weight_should_not_exceed_limits() {
-        use frame_support::weights::WeighBlock;
-        let check_for_block = |b| {
-            let block_hooks_weight =
-                <AllModules as WeighBlock<BlockNumber>>::on_initialize(b) +
-                <AllModules as WeighBlock<BlockNumber>>::on_finalize(b);
-
-            assert_eq!(
-                block_hooks_weight,
-                0,
-                "This test might fail simply because the value being compared to has increased to a \
-                module declaring a new weight for a hook or call. In this case update the test and \
-                happily move on.",
-            );
-
-            // Invariant. Always must be like this to have a sane chain.
-            assert!(block_hooks_weight < MaximumBlockWeight::get());
-
-            // Warning.
-            if block_hooks_weight > MaximumBlockWeight::get() / 2 {
-                println!(
-                    "block hooks weight is consuming more than a block's capacity. You probably want \
-                    to re-think this. This test will fail now."
-                );
-                assert!(false);
-            }
-        };
-
-        let _ = (0..100_000).for_each(check_for_block);
-    }
-}
+cumulus_runtime::register_validate_block!(Block, Executive);
