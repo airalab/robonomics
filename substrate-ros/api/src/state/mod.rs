@@ -18,13 +18,14 @@
 
 use std::sync::Arc;
 use sp_core::{H256, storage};
+use sp_state_machine::ExecutionStrategy;
 use sc_client_api::{
     CallExecutor,
-    backend::Backend,
+    backend::{Backend, StorageProvider},
+    call_executor::ExecutorProvider,
 };
 use sp_runtime::{traits, generic::BlockId};
 use sc_client::Client;
-use sp_state_machine::ExecutionStrategy;
 
 mod ros_api;
 pub use ros_api::start_services;

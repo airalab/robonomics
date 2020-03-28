@@ -41,4 +41,10 @@ pub enum Subcommand {
         about = "Benchmark runtime pallets."
     )]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+    /// This subcommand runs node in message router mode.
+    #[structopt(
+        name = "pubsub",
+        about = "Run node in pubsub(gossipsub) router mode."
+    )]
+    PubSub(robonomics_protocol::PubSubCmd),
 }

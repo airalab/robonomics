@@ -9,9 +9,9 @@ build = "build.rs"
 # third-party dependencies
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
-codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false, features = ["derive"] }
-lazy_static = { version = "1.4.0", optional = true }
-hex-literal = "0.2.1"
+codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive"] }
+lazy_static = { version = "1.4", optional = true }
+hex-literal = "0.2"
 
 # primitives
 node-primitives = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -43,7 +43,7 @@ pallet-identity = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-offences = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
+#pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 pallet-staking = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -110,7 +110,7 @@ std = [
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
-    "pallet-session-benchmarking",
+#    "pallet-session-benchmarking",
     "pallet-timestamp/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",

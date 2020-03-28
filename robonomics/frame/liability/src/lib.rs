@@ -26,7 +26,8 @@ use frame_support::{
 };
 use sp_runtime::{
     transaction_validity::{
-        TransactionValidity, ValidTransaction, InvalidTransaction, TransactionPriority,
+        TransactionSource, TransactionValidity,
+        ValidTransaction, InvalidTransaction, TransactionPriority,
     },
 };
 
@@ -129,6 +130,7 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Create agreement between two parties.
+        #[weight = frame_support::weights::SimpleDispatchInfo::default()]
         fn create(
             origin,
             technics: TechnicalParam<T>,
@@ -179,6 +181,7 @@ decl_module! {
         }
 
         /// Publish technical report of complite works.
+        #[weight = frame_support::weights::SimpleDispatchInfo::default()]
         fn finalize(
             origin,
             index: LiabilityIndex<T>,
@@ -216,11 +219,13 @@ decl_module! {
     }
 }
 
-#[allow(deprecated)]
 impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
-    fn validate_unsigned(call: &Self::Call) -> TransactionValidity {
+    fn validate_unsigned(
+        _source: TransactionSource,
+        call: &Self::Call
+    ) -> TransactionValidity {
         match call {
             Call::create(technics, economics, promisee, promisor, promisee_proof, promisor_proof) => {
                 let liability = T::Liability::new(

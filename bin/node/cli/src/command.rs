@@ -83,6 +83,9 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             } else {
                 cmd.run(config, new_robonomics_chain_ops)
             }
+        },
+        Some(Subcommand::PubSub(cmd)) => {
+            cmd.run().map_err(|e| sc_cli::Error::Other(format!("error: {}", e)))
         }
     }
 }
