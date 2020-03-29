@@ -27,7 +27,7 @@ use frame_support::{
 };
 use sp_runtime::{
     transaction_validity::{
-        TransactionValidity,
+        TransactionSource, TransactionValidity,
         ValidTransaction, InvalidTransaction, TransactionPriority,
     },
 };
@@ -220,11 +220,11 @@ decl_module! {
     }
 }
 
-#[allow(deprecated)]
 impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
     fn validate_unsigned(
+        _source: TransactionSource,
         call: &Self::Call
     ) -> TransactionValidity {
         match call {
