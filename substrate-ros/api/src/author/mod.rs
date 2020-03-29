@@ -25,7 +25,10 @@ use futures::executor::block_on;
 use sp_blockchain::Error as ClientError;
 use sp_runtime::{generic, traits};
 use sp_core::{H256, traits::BareCryptoStorePtr};
-use sp_transaction_pool::{TransactionPool, InPoolTransaction, TxHash, error::IntoPoolError};
+use sp_transaction_pool::{
+    TransactionSource, TransactionPool, InPoolTransaction, TxHash,
+    error::IntoPoolError
+};
 
 mod ros_api;
 pub use ros_api::start_services;
@@ -89,7 +92,11 @@ impl<B, E, P, RA> ros_api::AuthorApi for Author<B, E, P, <P as TransactionPool>:
         let xt = Decode::decode(&mut &ext[..])
             .map_err(|e| format!("Extrinsic decode failure: {:?}", e))?;
         let best_block_hash = self.client.chain_info().best_hash;
-        block_on(self.pool.submit_one(&generic::BlockId::hash(best_block_hash), xt))
+        block_on(self.pool.submit_one(
+                &generic::BlockId::hash(best_block_hash),
+                TransactionSource::External,
+                xt
+            ))
             .map(Into::into)
             .map_err(|e| format!("{:?}", e.into_pool_error()))
     }
