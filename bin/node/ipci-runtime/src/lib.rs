@@ -580,8 +580,8 @@ impl_runtime_apis! {
             // dependency issues.
             // To get around that, we separated the Session benchmarks into its own crate,
             // which is why we need these two lines below.
-            use pallet_session_benchmarking::Module as SessionBench;
-            impl pallet_session_benchmarking::Trait for Runtime {}
+            //use pallet_session_benchmarking::Module as SessionBench;
+            //impl pallet_session_benchmarking::Trait for Runtime {}
 
             let result = match module.as_slice() {
                 b"pallet-balances" | b"balances" => Balances::run_benchmark(
@@ -605,6 +605,7 @@ impl_runtime_apis! {
                     steps,
                     repeat,
                 ),
+                /*
                 b"pallet-session" | b"session" => SessionBench::<Runtime>::run_benchmark(
                     extrinsic,
                     lowest_range_values,
@@ -612,6 +613,7 @@ impl_runtime_apis! {
                     steps,
                     repeat,
                 ),
+                */
                 b"pallet-staking" | b"staking" => Staking::run_benchmark(
                     extrinsic,
                     lowest_range_values,

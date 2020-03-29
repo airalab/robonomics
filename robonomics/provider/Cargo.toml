@@ -1,19 +1,20 @@
 [package]
-name = "pallet-robonomics-provider"
-version = "0.2.0"
+name = "robonomics-provider"
+description = "Robonomics Network service provider"
+version = "0.1.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 serde = { version = "1.0", optional = true, features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "1.0.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive"] }
 sp-io = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-robonomics-liability = { path = "../liability", default-features = false }
+pallet-robonomics-liability = { path = "../frame/liability", default-features = false }
 
 [dev-dependencies]
 base58 = "0.1.0"

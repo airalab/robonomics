@@ -34,12 +34,20 @@ use sc_service::{
     config::Configuration,
 };
 use node_primitives::{Block, AccountId, Index, Balance};
+//pub use polkadot_primitives::parachain::Id as ParaId;
 pub use sc_executor::NativeExecutionDispatch;
 
 sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
     robonomics_runtime::api::dispatch,
     robonomics_runtime::native_version,
+    frame_benchmarking::benchmarking::HostFunctions,
+);
+
+sc_executor::native_executor_instance!(
+    pub RobonomicsParachainExecutor,
+    robonomics_parachain_runtime::api::dispatch,
+    robonomics_parachain_runtime::native_version,
     frame_benchmarking::benchmarking::HostFunctions,
 );
 
@@ -160,6 +168,38 @@ macro_rules! new_full_start {
         (builder, import_setup, inherent_data_providers)
     }}
 }
+
+/*
+/// Starts a `ServiceBuilder` for a collator service.
+///
+/// Use this macro if you don't actually need the full service, but just the builder in order to
+/// be able to perform chain operations.
+macro_rules! new_collator_start {
+    ($config:expr, $runtime:ty, $executor:ty) => {{
+        let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+
+        let builder = sc_service::ServiceBuilder::new_full::<
+            node_primitives::Block, $runtime, $executor
+        >($config)?
+            .with_select_chain(|_config, backend| Ok(sc_client::LongestChain::new(backend.clone())))?
+            .with_transaction_pool(|config, client, _| {
+                let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
+                let pool = sc_transaction_pool::BasicPool::new(config, pool_api);
+                Ok(pool)
+            })?
+            .with_import_queue(|_config, client, _, _| {
+                let import_queue = cumulus_consensus::import_queue::import_queue(
+                    client.clone(),
+                    client,
+                    inherent_data_providers.clone(),
+                )?;
+                Ok(import_queue)
+            })?;
+
+        (builder, inherent_data_providers)
+    }};
+}
+*/
 
 /// Builds a new IPCI object suitable for chain operations.
 pub fn new_ipci_chain_ops(
@@ -508,3 +548,66 @@ where
         })?
         .build()
 }
+
+/*
+pub fn new_collator<Runtime, Dispatch, Extrinsic>(
+    para_id: ParaId,
+    parachain_config: Configuration,
+    key: Arc<CollatorPair>,
+    mut polkadot_config: polkadot_collator::Configuration,
+) -> Result<
+    impl AbstractService<
+        Block = Block,
+        RuntimeApi = Runtime,
+        Backend = TFullBackend<Block>,
+        SelectChain = LongestChain<TFullBackend<Block>, Block>,
+        CallExecutor = TFullCallExecutor<Block, Dispatch>,
+>, ServiceError> where 
+    Runtime: ConstructRuntimeApi<Block, TFullClient<Block, Runtime, Dispatch>> + Send + Sync + 'static,
+    Runtime::RuntimeApi:
+    RuntimeApiCollection<Extrinsic, StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>>,
+    Dispatch: NativeExecutionDispatch + 'static,
+    Extrinsic: RuntimeExtrinsic,
+    <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
+{
+    polkadot_config.task_executor = parachain_config.task_executor.clone();
+
+    let (builder, inherent_data_providers) = new_collator_start!(parachain_config);
+    inherent_data_providers
+        .register_provider(sp_timestamp::InherentDataProvider)
+        .unwrap();
+
+    let service = builder
+        .with_finality_proof_provider(|client, backend| {
+            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+            let provider = client as Arc<dyn StorageAndProofProvider<_, _>>;
+            Ok(Arc::new(GrandpaFinalityProofProvider::new(backend, provider)) as _)
+        })?
+        .build()?;
+
+    let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+        service.client(),
+        service.transaction_pool(),
+    );
+
+    let block_import = service.client();
+    let client = service.client();
+    let builder = CollatorBuilder::new(
+        proposer_factory,
+        inherent_data_providers,
+        block_import,
+        para_id,
+        client,
+    );
+
+    let polkadot_future = polkadot_collator::start_collator(
+        builder,
+        para_id,
+        key,
+        polkadot_config,
+    ).map(|_| ());
+    service.spawn_essential_task("polkadot", polkadot_future);
+
+    Ok(service)
+}
+*/
