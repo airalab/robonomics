@@ -37,6 +37,7 @@ use node_primitives::{Block, AccountId, Index, Balance};
 //pub use polkadot_primitives::parachain::Id as ParaId;
 pub use sc_executor::NativeExecutionDispatch;
 
+#[cfg(feature = "frame-benchmarking")]
 sc_executor::native_executor_instance!(
     pub RobonomicsExecutor,
     robonomics_runtime::api::dispatch,
@@ -44,11 +45,26 @@ sc_executor::native_executor_instance!(
     frame_benchmarking::benchmarking::HostFunctions,
 );
 
+#[cfg(feature = "frame-benchmarking")]
 sc_executor::native_executor_instance!(
     pub IpciExecutor,
     ipci_runtime::api::dispatch,
     ipci_runtime::native_version,
     frame_benchmarking::benchmarking::HostFunctions,
+);
+
+#[cfg(not(feature = "frame-benchmarking"))]
+sc_executor::native_executor_instance!(
+    pub RobonomicsExecutor,
+    robonomics_runtime::api::dispatch,
+    robonomics_runtime::native_version,
+);
+
+#[cfg(not(feature = "frame-benchmarking"))]
+sc_executor::native_executor_instance!(
+    pub IpciExecutor,
+    ipci_runtime::api::dispatch,
+    ipci_runtime::native_version,
 );
 
 /// A set of APIs that robonomics-like runtimes must implement.

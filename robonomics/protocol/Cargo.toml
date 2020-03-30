@@ -1,14 +1,29 @@
 [package]
 name = "robonomics-protocol"
-description = "Robonomics Network protocol on libp2p"
+description = "Robonomics Network protocol on libp2p."
 version = "0.1.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-derive_more = "0.99"
-structopt = "0.3.8"
-async-std = "1.5"
-futures = "0.3"
 libp2p = "0.16"
 log = "0.4"
+
+# cli specified
+derive_more = { version = "0.99", optional = true }
+structopt = { version = "0.3.8", optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+async-std = { version = "1.5", optional = true }
+futures = { version = "0.3", optional = true }
+
+[features]
+default = ["cli"]
+
+## Enables console interface components.
+cli = [
+    "derive_more",
+    "structopt",
+    "async-std",
+    "futures",
+    "sc-cli",
+]

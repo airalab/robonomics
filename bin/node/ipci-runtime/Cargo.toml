@@ -43,7 +43,7 @@ pallet-identity = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-offences = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", default-features = false }
-#pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
+pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true }
 pallet-staking = { git = "https://github.com/paritytech/substrate", default-features = false }
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false }
@@ -62,8 +62,6 @@ substrate-wasm-builder-runner = { version = "1.0.4", git = "https://github.com/p
 
 [features]
 default = ["std"]
-ipci = []
-parachain = []
 std = [
     "codec/std",
     "lazy_static",
@@ -110,7 +108,7 @@ std = [
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
-#    "pallet-session-benchmarking",
+    "pallet-session-benchmarking",
     "pallet-timestamp/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",

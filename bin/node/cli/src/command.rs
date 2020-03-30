@@ -19,7 +19,6 @@
 use log::info;
 use sc_service::Roles;
 use sc_cli::VersionInfo;
-use node_primitives::Block;
 use crate::{
     Cli, Subcommand, IsIpci, load_spec,
     service::{
@@ -64,16 +63,6 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
                 }
             }
         },
-        Some(Subcommand::Benchmark(cmd)) => {
-            cmd.init(&version)?;
-            cmd.update_config(&mut config, load_spec, &version)?;
-
-            if config.expect_chain_spec().is_ipci() {
-                cmd.run::<Block, IpciExecutor>(config)
-            } else {
-                cmd.run::<Block, RobonomicsExecutor>(config)
-            }
-        },
         Some(Subcommand::Base(cmd)) => {
             cmd.init(&version)?;
             cmd.update_config(&mut config, load_spec, &version)?;
@@ -85,7 +74,20 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             }
         },
         Some(Subcommand::PubSub(cmd)) => {
-            cmd.run().map_err(|e| sc_cli::Error::Other(format!("error: {}", e)))
-        }
+            cmd.init(&version)?;
+            cmd.run()
+                .map_err(|e| sc_cli::Error::Other(format!("error: {}", e)))
+        },
+        #[cfg(feature = "benchmarking-cli")]
+        Some(Subcommand::Benchmark(cmd)) => {
+            cmd.init(&version)?;
+            cmd.update_config(&mut config, load_spec, &version)?;
+
+            if config.expect_chain_spec().is_ipci() {
+                cmd.run::<node_primitives::Block, IpciExecutor>(config)
+            } else {
+                cmd.run::<node_primitives::Block, RobonomicsExecutor>(config)
+            }
+        },
     }
 }

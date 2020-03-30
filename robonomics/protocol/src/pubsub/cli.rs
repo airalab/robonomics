@@ -15,42 +15,43 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network agent functionality.
+//! Robonomics Network publisher/subscriber module console interface.
 
-use std::collections::hash_map::DefaultHasher;
+use libp2p::gossipsub::GossipsubEvent;
+use libp2p::{Swarm, Multiaddr};
 use std::task::{Context, Poll};
-use std::hash::{Hash, Hasher};
-use std::time::Duration;
-
 use futures::prelude::*;
 use async_std::task;
 
-use libp2p::gossipsub::{
-    GossipsubConfigBuilder, Topic, Gossipsub,
-    GossipsubMessage, GossipsubEvent,
-    protocol::MessageId,
-};
-use libp2p::{Swarm, Multiaddr};
-
 use crate::error::Result;
-
-/// Gossipsub heartbeat interval
-const HEARDBEAT_SECS: u64 = 10;
 
 /// The PubSub command for pubsub router mode.
 #[derive(Debug, structopt::StructOpt, Clone)]
 pub struct PubSubCmd {
-    #[structopt(short, long)]
+    /// Bind PubSub router to given topic name.
+    #[structopt(long, value_name = "TOPIC_NAME")]
     pub topic: String,
-    #[structopt(short, long)]
+    /// Listen address for incoming connections.
+    #[structopt(long, value_name = "MULTIADDR")]
     pub listen: Multiaddr,
-    #[structopt(short, long, use_delimiter = true)]
+    /// Indicates node for first connections to build the mesh.
+    #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
     pub bootnodes: Vec<Multiaddr>,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub shared_params: sc_cli::SharedParams,
 }
 
+#[cfg(feature = "cli")]
 impl PubSubCmd {
+    /// Initialize
+    pub fn init(&self, version: &sc_cli::VersionInfo) -> sc_cli::Result<()> {
+        self.shared_params.init(version)
+    }
+
+    /// Runs the command and node as pubsub router.
     pub fn run(&self) -> Result<()> {
-        let mut swarm = new_pubsub(self.topic.clone())?;
+        let mut swarm = crate::pubsub::new_pubsub(self.topic.clone())?;
 
         let listener = Swarm::listen_on(&mut swarm, self.listen.clone())?;
         log::info!(target: "robonomics-pubsub",
@@ -90,36 +91,4 @@ impl PubSubCmd {
             Poll::Pending
         }))
     }
-}
-
-/// To content-address message,
-/// we can take the hash of message and use it as an ID.
-fn message_id(message: &GossipsubMessage) -> MessageId {
-    let mut s = DefaultHasher::new();
-    message.data.hash(&mut s);
-    MessageId(s.finish().to_string())
-}
-
-pub fn new_pubsub(
-    topic_name: String,
-) -> Result<Swarm<Gossipsub>> {
-    let (local_key, peer_id) = crate::crypto::random_id();
-
-    // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-    let transport = libp2p::build_tcp_ws_secio_mplex_yamux(local_key)?;
-
-    // Set custom gossipsub
-    let gossipsub_config = GossipsubConfigBuilder::new()
-        .heartbeat_interval(Duration::from_secs(HEARDBEAT_SECS))
-        .message_id_fn(message_id)
-        .build();
-
-    // Build a gossipsub network behaviour
-    let mut gossipsub = Gossipsub::new(peer_id.clone(), gossipsub_config);
-
-    // Subscribe to topic
-    gossipsub.subscribe(Topic::new(topic_name));
-
-    // Create a Swarm to manage peers and events
-    Ok(Swarm::new(transport, gossipsub, peer_id))
 }

@@ -22,4 +22,5 @@ pub mod crypto;
 pub mod pubsub;
 pub mod services;
 
-pub use pubsub::PubSubCmd;
+#[cfg(feature = "cli")]
+pub use pubsub::cli::PubSubCmd;

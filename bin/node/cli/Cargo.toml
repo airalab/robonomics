@@ -66,7 +66,7 @@ sc-keystore = { git = "https://github.com/paritytech/substrate" }
 
 # frame dependencies
 pallet-im-online = { git = "https://github.com/paritytech/substrate" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", optional = true }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate" }
 
@@ -125,7 +125,6 @@ cli = [
     "vergen",
     "structopt",
     "sc-service/rocksdb",
-    "frame-benchmarking-cli",
 ]
 
 ## Enable browser bundle features.
@@ -144,8 +143,10 @@ ros = [
     "robonomics-ros-api",
 ]
 
-## Enable runtime benchmarking.
+## Enable runtime benchmarking support.
 runtime-benchmarks = [
     "robonomics-runtime/runtime-benchmarks",
     "ipci-runtime/runtime-benchmarks",
+    "frame-benchmarking-cli",
+    "frame-benchmarking",
 ]
