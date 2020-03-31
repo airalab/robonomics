@@ -15,4 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network services.
+//! Robonomics Network node identity.
+
+use libp2p::identity::Keypair;
+use libp2p::PeerId;
+
+pub fn random() -> Keypair {
+    let key = Keypair::generate_ed25519();
+    let peer_id = PeerId::from(key.public());
+    log::info!(target: "robonomics-identity",
+               "Generated random peer id: {}", peer_id.to_base58());
+    key
+}

@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Errors that can occur during the protocol operation.
+//! Errors that can occur during the protocol operations.
 
 use libp2p::core::transport::TransportError;
 
@@ -28,7 +28,11 @@ pub enum Error {
     /// IO error.
     Io(std::io::Error),
     /// Libp2p transport error.
-    Libp2p(TransportError<std::io::Error>),
+    Transport(TransportError<std::io::Error>),
+    /// Codec error.
+    Codec(bincode::Error),
+    /// Synchronization error.
+    SyncError,
     /// Other error.
     Other(String),
 }
@@ -43,7 +47,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Io(ref err) => Some(err),
-            Error::Libp2p(ref err) => Some(err),
+            Error::Transport(ref err) => Some(err),
             _ => None,
         }
     }

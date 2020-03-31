@@ -15,54 +15,44 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network publisher/subscriber module.
+///! Robonomics Publisher/Subscriber protocol implements broadcasting layer.
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::time::Duration;
-use libp2p::gossipsub::{
-    GossipsubConfigBuilder, Topic, Gossipsub,
-    GossipsubMessage, protocol::MessageId,
-};
-use libp2p::Swarm;
-
+use libp2p::{PeerId, Multiaddr};
+use libp2p::core::nodes::ListenerId;
 use crate::error::Result;
 
+/// Console line interface support.
 #[cfg(feature = "cli")]
 pub mod cli;
 
-/// Gossipsub heartbeat interval
-const HEARDBEAT_SECS: u64 = 10;
+/// PubSub implementation using libp2p gossipsub.
+pub mod gossipsub;
 
-/// To content-address message,
-/// we can take the hash of message and use it as an ID.
-fn message_id(message: &GossipsubMessage) -> MessageId {
-    let mut s = DefaultHasher::new();
-    message.data.hash(&mut s);
-    MessageId(s.finish().to_string())
-}
+/// Robonomics Publisher/Subscriber interface.
+pub trait PubSub {
+    /// Returns PubSub peer ID.
+    fn peer_id(&self) -> PeerId;
 
-/// Create new gossipsub swarm and subscribe to topic argument.
-pub fn new_pubsub(
-    topic_name: String,
-) -> Result<Swarm<Gossipsub>> {
-    let (local_key, peer_id) = crate::crypto::random_id();
+    /// Listen address for incoming connections.
+    fn listen(&mut self, address: &Multiaddr) -> Result<ListenerId>;
 
-    // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-    let transport = libp2p::build_tcp_ws_secio_mplex_yamux(local_key)?;
+    /// Returns list of addresses we're listening on.
+    fn listeners(&self) -> Vec<Multiaddr>;
 
-    // Set custom gossipsub
-    let gossipsub_config = GossipsubConfigBuilder::new()
-        .heartbeat_interval(Duration::from_secs(HEARDBEAT_SECS))
-        .message_id_fn(message_id)
-        .build();
+    /// Connect to peer and add it into swarm.
+    fn connect(&mut self, address: &Multiaddr) -> Result<()>;
 
-    // Build a gossipsub network behaviour
-    let mut gossipsub = Gossipsub::new(peer_id.clone(), gossipsub_config);
+    /// Subscribe and set handler for topic with given name.
+    ///
+    /// Returns true if the subscription worked. Returns false if we were already subscribed.
+    fn subscribe<T, F>(&mut self, topic_name: T, callback: F) -> bool
+        where T: ToString, F: FnMut(PeerId, Vec<u8>) + 'static;
 
-    // Subscribe to topic
-    gossipsub.subscribe(Topic::new(topic_name));
+    /// Unsubscribe and remove handler for given topic name.
+    ///
+    /// Returns true if we were subscribed to this topic.
+    fn unsubscribe<T: ToString>(&mut self, topic_name: T) -> bool;
 
-    // Create a Swarm to manage peers and events
-    Ok(Swarm::new(transport, gossipsub, peer_id))
+    /// Publish message into the topic.
+    fn publish<T: ToString, M: Into<Vec<u8>>>(&mut self, topic_name: T, message: M);
 }

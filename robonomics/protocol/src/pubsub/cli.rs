@@ -17,25 +17,33 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network publisher/subscriber module console interface.
 
-use libp2p::gossipsub::GossipsubEvent;
-use libp2p::{Swarm, Multiaddr};
-use std::task::{Context, Poll};
-use futures::prelude::*;
 use async_std::task;
-
+use libp2p::Multiaddr;
+use super::PubSub;
 use crate::error::Result;
 
 /// The PubSub command for pubsub router mode.
 #[derive(Debug, structopt::StructOpt, Clone)]
 pub struct PubSubCmd {
-    /// Bind PubSub router to given topic name.
-    #[structopt(long, value_name = "TOPIC_NAME")]
-    pub topic: String,
-    /// Listen address for incoming connections.
-    #[structopt(long, value_name = "MULTIADDR")]
+    /// Topic name for subscribe and publish.
+    #[structopt(
+        long,
+        value_name = "TOPIC_NAME",
+    )]
+    pub topic: Option<String>,
+    /// Listen address for incoming PubSub connections,
+    #[structopt(
+        long,
+        value_name = "MULTIADDR",
+        default_value = "/ip4/0.0.0.0/tcp/0",
+    )]
     pub listen: Multiaddr,
-    /// Indicates node for first connections to build the mesh.
-    #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
+    /// Indicates PubSub nodes for first connections
+    #[structopt(
+        long,
+        value_name = "MULTIADDR",
+        use_delimiter = true,
+    )]
     pub bootnodes: Vec<Multiaddr>,
     #[allow(missing_docs)]
     #[structopt(flatten)]
@@ -51,44 +59,26 @@ impl PubSubCmd {
 
     /// Runs the command and node as pubsub router.
     pub fn run(&self) -> Result<()> {
-        let mut swarm = crate::pubsub::new_pubsub(self.topic.clone())?;
+        let mut pubsub = super::gossipsub::PubSub::new()?;
 
-        let listener = Swarm::listen_on(&mut swarm, self.listen.clone())?;
-        log::info!(target: "robonomics-pubsub",
-                   "listener for address {} created: {:?}", self.listen, listener);
+        // Listen address
+        pubsub.listen(&self.listen)?;
 
-        for addr in self.bootnodes.clone() {
-            Swarm::dial_addr(&mut swarm, addr.clone())?;
+        // Connect to bootnodes
+        for addr in &self.bootnodes {
+            pubsub.connect(addr)?;
         }
 
-        task::block_on(future::poll_fn(move |cx: &mut Context| {
-            loop {
-                match swarm.poll_next_unpin(cx) {
-                    Poll::Ready(Some(gossip_event)) => match gossip_event {
-                        GossipsubEvent::Message(peer_id, id, message) => log::info!(
-                            target: "robonomics-pubsub",
-                            "got message: {} with id: {} from peer: {:?}",
-                            String::from_utf8_lossy(&message.data),
-                            id,
-                            peer_id
-                        ),
-                        _ => {}
-                    },
-                    Poll::Ready(None) | Poll::Pending => break,
-                }
-            }
+        // Subscribe on topic topic and print received content
+        match self.topic.clone() {
+            Some(topic_name) => {
+                pubsub.subscribe(topic_name, |_, msg|
+                    println!("RECEIVED: {}", String::from_utf8_lossy(&msg))
+                );
+            },
+            _ => (),
+        }
 
-            for a in Swarm::external_addresses(&swarm) {
-                log::info!(target: "robonomics-pubsub",
-                           "external address {}", a);
-            }
-
-            for addr in libp2p::Swarm::listeners(&swarm) {
-                log::info!(target: "robonomics-pubsub",
-                           "listening on {:?}", addr);
-            }
-
-            Poll::Pending
-        }))
+        Ok(task::block_on(pubsub.start()))
     }
 }

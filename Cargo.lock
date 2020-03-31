@@ -5012,11 +5012,12 @@ name = "robonomics-protocol"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "bincode",
  "derive_more",
- "futures 0.3.4",
  "libp2p",
  "log 0.4.8",
  "sc-cli",
+ "serde",
  "structopt",
 ]
 
