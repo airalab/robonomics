@@ -25,7 +25,7 @@ use hex_literal::hex;
 use itertools::Itertools;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use node_primitives::{Balance, Hash, Index, AccountId, Signature};
-use node_runtime::{BalancesCall, Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
+use ipci_runtime::{Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
 use serde_json::json;
 use sp_core::{
 	crypto::{set_default_ss58_version, Ss58AddressFormat, Ss58Codec},
@@ -280,7 +280,7 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 				.about("Author and sign a Node pallet_balances::Transfer transaction with a given (secret) key")
 				.args_from_usage("
 					<genesis> -g, --genesis <genesis> 'The genesis hash or a recognized \
-											chain identifier (dev, elm, alex).'
+											chain identifier (ipci).'
 					<from> 'The signing secret key URI.'
 					<to> 'The destination account public key URI.'
 					<amount> 'The number of units to transfer.'
@@ -461,7 +461,7 @@ where
 
 			let to: AccountId = read_account_id(matches.value_of("to"));
 			let amount = read_required_parameter::<Balance>(matches, "amount")?;
-			let function = Call::Balances(BalancesCall::transfer(to.into(), amount));
+			let function = Call::Balances(pallet_balances::Call::transfer(to.into(), amount));
 
 			let extrinsic = create_extrinsic::<C>(function, index, signer, genesis_hash);
 
@@ -567,9 +567,8 @@ fn read_required_parameter<T: FromStr>(matches: &ArgMatches, name: &str) -> Resu
 }
 
 fn read_genesis_hash(matches: &ArgMatches) -> Result<H256, Error> {
-	let genesis_hash: Hash = match matches.value_of("genesis").unwrap_or("alex") {
-		"elm" => hex!["10c08714a10c7da78f40a60f6f732cf0dba97acfb5e2035445b032386157d5c3"].into(),
-		"alex" => hex!["dcd1346701ca8396496e52aa2785b1748deb6db09551b72159dcb3e08991025b"].into(),
+	let genesis_hash: Hash = match matches.value_of("genesis").unwrap_or("ipci") {
+		"ipci" => hex!["85768fb5c6884aafe92a96b2c8187d11281390f28e23731263871b51024f9921"].into(),
 		h => Decode::decode(&mut &decode_hex(h)?[..])
 			.expect("Invalid genesis hash or unrecognized chain identifier"),
 	};
@@ -682,8 +681,6 @@ fn create_extrinsic<C: Crypto>(
 			frame_system::CheckNonce::<Runtime>::from(i),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(f),
-			Default::default(),
-			Default::default(),
 		)
 	};
 	let raw_payload = SignedPayload::from_raw(
@@ -693,8 +690,6 @@ fn create_extrinsic<C: Crypto>(
 			VERSION.spec_version as u32,
 			genesis_hash,
 			genesis_hash,
-			(),
-			(),
 			(),
 			(),
 			(),

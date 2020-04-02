@@ -29,7 +29,6 @@ use std::ops::DerefMut;
 use serde::{Serialize, Deserialize};
 use libp2p::{Swarm, PeerId, Multiaddr};
 use libp2p::core::nodes::ListenerId;
-//use libp2p::futures::prelude::*;
 use libp2p::gossipsub::{
     GossipsubConfigBuilder, Gossipsub,
     GossipsubMessage, GossipsubEvent,

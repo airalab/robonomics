@@ -39,6 +39,7 @@ const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const ROBONOMICS_PROPERTIES: &str = r#"
     {
+        "ss58Format": 32,
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
@@ -46,6 +47,8 @@ const ROBONOMICS_PROPERTIES: &str = r#"
 const IPCI_PROTOCOL_ID: &str = "mito";
 const IPCI_PROPERTIES: &str = r#"
     {
+        "ss58Format": 32,
+        "tokenDecimals": 12,
         "tokenSymbol": "MITO"
     }"#;
 
@@ -255,13 +258,12 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     )
 }
 
-/*
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
-*/
 
+/*
 /// IPCI blockchain genesis. 
 fn ipci_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -303,6 +305,7 @@ pub fn ipci_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/
 
 fn development_testnet_genesis() -> GenesisConfig {
     testnet_genesis(
