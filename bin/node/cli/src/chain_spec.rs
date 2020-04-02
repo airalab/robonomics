@@ -200,12 +200,13 @@ pub fn make_genesis(
     }
 }
 
+/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet genesis. 
 fn robonomics_testnet_genesis() -> GenesisConfig {
     let initial_authorities = vec![(
@@ -247,13 +248,12 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         "robonomics_testnet",
         robonomics_testnet_genesis,
         boot_nodes,
-        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
+        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Default::default(),
     )
 }
-*/
 
 /*
 /// IPCI blockchain config. 
@@ -297,7 +297,7 @@ pub fn ipci_config() -> ChainSpec {
         "ipci",
         ipci_genesis,
         boot_nodes,
-        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])),
+        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
         Some(IPCI_PROTOCOL_ID),
         Some(serde_json::from_str(IPCI_PROPERTIES).unwrap()),
         Default::default(),

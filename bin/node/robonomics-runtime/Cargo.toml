@@ -61,8 +61,6 @@ substrate-wasm-builder-runner = { version = "1.0.4", git = "https://github.com/p
 
 [features]
 default = ["std"]
-ipci = []
-parachain = []
 std = [
     "codec/std",
     "sp-authority-discovery/std",
