@@ -24,16 +24,15 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
-use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519};
+use sp_core::{Pair, Public, sr25519};
 use robonomics_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
     AuthorityDiscoveryConfig, SessionKeys, StakerStatus,
 };
 use node_primitives::{AccountId, Balance, Signature, Block};
-use sc_telemetry::TelemetryEndpoints;
-use hex_literal::hex;
 
+/*
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
@@ -51,6 +50,7 @@ const IPCI_PROPERTIES: &str = r#"
         "tokenDecimals": 12,
         "tokenSymbol": "MITO"
     }"#;
+*/
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -203,15 +203,17 @@ pub fn make_genesis(
     }
 }
 
-/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
-*/
 
+/*
 /// Robonomics testnet genesis. 
 fn robonomics_testnet_genesis() -> GenesisConfig {
+    use hex_literal::hex;
+    use sp_core::crypto::UncheckedInto;
+
     let initial_authorities = vec![(
         // akru.me
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
@@ -251,12 +253,13 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         "robonomics_testnet",
         robonomics_testnet_genesis,
         boot_nodes,
-        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
+        Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Default::default(),
     )
 }
+*/
 
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
@@ -266,6 +269,9 @@ pub fn ipci_config() -> ChainSpec {
 /*
 /// IPCI blockchain genesis. 
 fn ipci_genesis() -> GenesisConfig {
+    use hex_literal::hex;
+    use sp_core::crypto::UncheckedInto;
+
     let initial_authorities = vec![(
         // akru.me
         hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
@@ -299,7 +305,7 @@ pub fn ipci_config() -> ChainSpec {
         "ipci",
         ipci_genesis,
         boot_nodes,
-        Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
+        Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
         Some(IPCI_PROTOCOL_ID),
         Some(serde_json::from_str(IPCI_PROPERTIES).unwrap()),
         Default::default(),
