@@ -73,6 +73,7 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
                 cmd.run(config, new_robonomics_chain_ops)
             }
         },
+        #[cfg(feature = "robonomics-protocol")]
         Some(Subcommand::PubSub(cmd)) => {
             cmd.init(&version)?;
             cmd.run()

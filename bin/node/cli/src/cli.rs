@@ -36,6 +36,7 @@ pub enum Subcommand {
     #[structopt(flatten)]
     Base(sc_cli::Subcommand),
     /// This subcommand runs node in message router mode.
+    #[cfg(feature = "robonomics-protocol")]
     #[structopt(
         name = "pubsub",
         about = "Run node in pubsub(gossipsub) router mode."
