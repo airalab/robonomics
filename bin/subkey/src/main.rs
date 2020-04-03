@@ -279,7 +279,7 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 			SubCommand::with_name("transfer")
 				.about("Author and sign a Node pallet_balances::Transfer transaction with a given (secret) key")
 				.args_from_usage("
-					<genesis> -g, --genesis <genesis> 'The genesis hash or a recognized \
+                    [genesis] -g, --genesis [genesis] 'The genesis hash or a recognized \
 											chain identifier (ipci).'
 					<from> 'The signing secret key URI.'
 					<to> 'The destination account public key URI.'
