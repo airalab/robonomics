@@ -2,7 +2,10 @@
   "name": "IPCI",
   "id": "ipci",
   "bootNodes": [
-    "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N"
+    "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N",
+    "/ip4/142.93.161.226/tcp/30333/p2p/QmUrsaZBJNi3DBYVgmqg2CJyMQZBCGN41ci5BZAEK2Luyw",
+    "/ip4/134.209.183.170/tcp/30333/p2p/QmYPR5pXTc16Y5cTbzrTzTU8Rp2xEn2Jp834ngmfMQUtBe",
+    "/ip4/128.199.253.99/tcp/30333/p2p/QmdTLAYKYSEhYnVSaxQHonGpzW724oNitGzHzjBt5wYcgK"
   ],
   "telemetryEndpoints": [
     [

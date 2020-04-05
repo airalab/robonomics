@@ -293,15 +293,9 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
     let name = config.name.clone();
-    let is_authority = config.roles.is_authority();
+    let role = config.role.clone();
     let disable_grandpa = config.disable_grandpa;
     let force_authoring = config.force_authoring;
-    let sentry_nodes = config.network.sentry_nodes.clone();
-
-    // sentry nodes announce themselves as authorities to the network
-    // and should run the same protocols authorities do, but it should
-    // never actively participate in any consensus process.
-    let participates_in_consensus = is_authority && !config.sentry_mode;
 
     let (builder, mut import_setup, inherent_data_providers) =
         new_full_start!(config, Runtime, Dispatch);
@@ -317,7 +311,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     let (block_import, grandpa_link, babe_link) = import_setup.take()
             .expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
 
-    if participates_in_consensus {
+    if let sc_service::config::Role::Authority { sentry_nodes } = &role {
         let proposer = sc_basic_authorship::ProposerFactory::new(
             service.client(),
             service.transaction_pool(),
@@ -354,7 +348,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
             service.client(),
             network,
-            sentry_nodes,
+            sentry_nodes.clone(),
             service.keystore(),
             dht_event_stream,
             service.prometheus_registry(),
@@ -365,7 +359,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
 
     // if the node isn't actively participating in consensus then it doesn't
     // need a keystore, regardless of which protocol we use below.
-    let keystore = if participates_in_consensus {
+    let keystore = if role.is_authority() {
         Some(service.keystore())
     } else {
         None
@@ -378,7 +372,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         name: Some(name),
         observer_enabled: true,
         keystore,
-        is_authority,
+        is_authority: role.is_network_authority(),
     };
 
     if disable_grandpa {
