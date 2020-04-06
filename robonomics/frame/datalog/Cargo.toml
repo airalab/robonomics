@@ -7,17 +7,17 @@ edition = "2018"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive"] }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false }
+sp-std = { git = "https://github.com/akru/substrate", default-features = false }
+sp-runtime = { git = "https://github.com/akru/substrate", default-features = false }
+frame-system = { git = "https://github.com/akru/substrate", default-features = false }
+frame-support = { git = "https://github.com/akru/substrate", default-features = false }
+pallet-timestamp = { git = "https://github.com/akru/substrate", default-features = false }
 
 [dev-dependencies]
 base58 = "0.1.0"
-sp-io = { git = "https://github.com/paritytech/substrate" }
-sp-core = { git = "https://github.com/paritytech/substrate" }
-node-primitives = { git = "https://github.com/paritytech/substrate" }
+sp-io = { git = "https://github.com/akru/substrate" }
+sp-core = { git = "https://github.com/akru/substrate" }
+node-primitives = { git = "https://github.com/akru/substrate" }
 
 [features]
 default = ["std"]

@@ -14,7 +14,7 @@ log = "0.4"
 
 # cli specified
 structopt = { version = "0.3.8", optional = true }
-sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+sc-cli = { git = "https://github.com/akru/substrate", optional = true }
 async-std = { version = "1.5", optional = true }
 
 [features]

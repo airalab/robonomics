@@ -5,14 +5,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 license = "GPL-3.0"
 homepage = "https://substrate.dev"
-repository = "https://github.com/paritytech/substrate/"
+repository = "https://github.com/akru/substrate/"
 
 [dependencies]
 futures = "0.1.29"
-sp-core = { git = "https://github.com/paritytech/substrate" }
+sp-core = { git = "https://github.com/akru/substrate" }
 ipci-runtime = { path = "../node/ipci-runtime" }
-node-primitives = { git = "https://github.com/paritytech/substrate" }
-sp-runtime = { git = "https://github.com/paritytech/substrate" }
+node-primitives = { git = "https://github.com/akru/substrate" }
+sp-runtime = { git = "https://github.com/akru/substrate" }
 rand = "0.7.2"
 clap = "2.33.0"
 tiny-bip39 = "0.7"
@@ -20,13 +20,13 @@ substrate-bip39 = "0.4.1"
 hex = "0.4.0"
 hex-literal = "0.2.1"
 codec = { package = "parity-scale-codec", version = "1.3" }
-frame-system = { git = "https://github.com/paritytech/substrate" }
-pallet-balances = { git = "https://github.com/paritytech/substrate" }
-pallet-transaction-payment = { git = "https://github.com/paritytech/substrate" }
+frame-system = { git = "https://github.com/akru/substrate" }
+pallet-balances = { git = "https://github.com/akru/substrate" }
+pallet-transaction-payment = { git = "https://github.com/akru/substrate" }
 rpassword = "4.0.1"
 itertools = "0.8.2"
 derive_more = { version = "0.99.2" }
-sc-rpc = { git = "https://github.com/paritytech/substrate" }
+sc-rpc = { git = "https://github.com/akru/substrate" }
 jsonrpc-core-client = { version = "14.0.3", features = ["http"] }
 hyper = "0.12.35"
 libp2p = "0.16.2"
