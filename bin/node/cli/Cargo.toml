@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.16.2"
+version = "0.16.3"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"

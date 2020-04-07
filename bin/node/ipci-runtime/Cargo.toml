@@ -1,6 +1,6 @@
 [package]
 name = "ipci-runtime"
-version = "0.16.2"
+version = "0.16.3"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"

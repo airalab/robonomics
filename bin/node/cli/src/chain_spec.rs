@@ -32,9 +32,9 @@ use robonomics_runtime::{
 };
 use node_primitives::{AccountId, Balance, Signature, Block};
 
+/*
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
-/*
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const ROBONOMICS_PROPERTIES: &str = r#"
     {
@@ -42,7 +42,6 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
-*/
 
 const IPCI_PROTOCOL_ID: &str = "mito";
 const IPCI_PROPERTIES: &str = r#"
@@ -51,6 +50,7 @@ const IPCI_PROPERTIES: &str = r#"
         "tokenDecimals": 12,
         "tokenSymbol": "MITO"
     }"#;
+*/
 
 type AccountPublic = <Signature as Verify>::Signer;
 
