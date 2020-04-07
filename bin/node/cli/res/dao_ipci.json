@@ -1,6 +1,6 @@
 {
   "name": "DAO IPCI",
-  "id": "dao_ipci",
+  "id": "ipci",
   "bootNodes": [
       "/ip4/142.93.161.226/tcp/30333/p2p/QmUrsaZBJNi3DBYVgmqg2CJyMQZBCGN41ci5BZAEK2Luyw",
       "/ip4/134.209.183.170/tcp/30333/p2p/QmYPR5pXTc16Y5cTbzrTzTU8Rp2xEn2Jp834ngmfMQUtBe",
