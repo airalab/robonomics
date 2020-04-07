@@ -136,7 +136,7 @@ pub mod currency {
           , (MultiSigner::from(Public::from_full(&hex!["a937a9892a050012e9026147d175412db7adb7de9e42d557b944e317aab2314cab6efe263280c65c09acea5be3d183bfa5a96939ae6ad4666e3f04c569a773ef"][..]).unwrap()).into_account(), 6660 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["4ba278a155a985874f1e7e8be6593d20259c15da7a070ea9ed33b41726ca222abef79d34aacb6ee0dbaa8bfd2290d5ac1d4bb028b211896025dd3e3eaa529c31"][..]).unwrap()).into_account(), 788 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["f727cb26438acda0f81b81a2e73bacd2958ae33c21a3ac1518c8bd4fbc86e683a3c64861102e5f9bc6bfec17e060b97bb2f66d184e892e77dda3dc207f7e4230"][..]).unwrap()).into_account(), 5000 * MITO)
-          , (MultiSigner::from(Public::from_full(&hex!["27e7e0aade2514f8bffee3cd8b17d18c9c1a785be83b1b2ac6a68e5d9c2895d6d6f5a84f323c625a20372064060693c8376c2ebfae9457305de707daae624bab"][..]).unwrap()).into_account(), 300632 * MITO)
+          , (MultiSigner::from(Public::from_full(&hex!["27e7e0aade2514f8bffee3cd8b17d18c9c1a785be83b1b2ac6a68e5d9c2895d6d6f5a84f323c625a20372064060693c8376c2ebfae9457305de707daae624bab"][..]).unwrap()).into_account(), 30632 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["2dd186240543b760b020217877fe41f1ec55b5fe433fdd68c5045ca1f4c1043a0a86a9a643c46032e7ee56460f810a1ba35e8b4bbee64b9b8d73bdf1cd84e398"][..]).unwrap()).into_account(), 400 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["03665631b5e2e0fdebe0ba175a830583d5c07dfdb1ed06f81455b3cabc086a7817efa73b590a5315bfda1e9543d24a70d96c2c3cc44ed322e7b35930e860ddd7"][..]).unwrap()).into_account(), 13050 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["680ab85ffdb0746a05e9221f39ffb0120d29afa6c175e0966e12c8825339694a3d709bece4afd8d24aafa341ee043b5a7fe0d01049887d812f23928e21cfc5f1"][..]).unwrap()).into_account(), 300 * MITO)
@@ -246,10 +246,10 @@ pub mod currency {
           , (MultiSigner::from(Public::from_full(&hex!["18704b1d1a43af1811bdd5c990bea0e0bdc2eb316fd65ed5f11896d3d20c77db5bf289264f9d71bdeaa995483d107a6dd61e8d07f5d8dff8b4a1879857f805ec"][..]).unwrap()).into_account(), 3001 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["d5921387da8d3380bd0867eac8c8380c58735e9275dd673f13cb3f8267af13d6bc49f758afbe1356d9adc536d4f92b5ef156e5c531428bd10910d295cc778ede"][..]).unwrap()).into_account(), 1000 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["af636de12bb6ce76038e89b6734da6545e55da8f127ba637449f6d872b7b64790e8354927b000d0d76231304d82b7f82d0a8e1695b376b411aeeade71dfebe80"][..]).unwrap()).into_account(), 2549 * MITO)
-          , (MultiSigner::from(Public::from_full(&hex!["be7992ce5d40dee66f5d2efd0e25020a7f612a94805c6e6075521a393b27ba6bcbcf98396b9cbcafbb13d78f834c7d5563e5eac7cbf2d3a712e1946a3ee28f15"][..]).unwrap()).into_account(), 2998 * MITO)
+          , (MultiSigner::from(Public::from_full(&hex!["be7992ce5d40dee66f5d2efd0e25020a7f612a94805c6e6075521a393b27ba6bcbcf98396b9cbcafbb13d78f834c7d5563e5eac7cbf2d3a712e1946a3ee28f15"][..]).unwrap()).into_account(), 12998 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["b34db548cb75baecbabd7f7cd7b1f4641f1e5756ca5b1f09cc9f14f438121d5670a991e40e4c0aa25f386b6d8cccfc90671a14b4604f6a56f448e12bf285489e"][..]).unwrap()).into_account(), 3200 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["9c80f1ab28128630682cc4304008a79774d4139b1cb481d37cc7a4fc15c1f69968c04a37af93db0162ebe76372fb8d60e2e70a4ec4ec302080d67688b3f43ce2"][..]).unwrap()).into_account(), 14978 * MITO)
-          , (MultiSigner::from(Public::from_full(&hex!["6ea7ce4e190ef7a8848db2f3ad52bd9509349cfbf4596ba7e8bb355be9b3770695bcbdfb7606b5b710c14ecc40773f676d83cb4722fc1066c8b544d2192c885e"][..]).unwrap()).into_account(), 1002 * MITO)
+          , (MultiSigner::from(Public::from_full(&hex!["6ea7ce4e190ef7a8848db2f3ad52bd9509349cfbf4596ba7e8bb355be9b3770695bcbdfb7606b5b710c14ecc40773f676d83cb4722fc1066c8b544d2192c885e"][..]).unwrap()).into_account(), 11002 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["a9894ec1eab96d46216c7b56deb80e3fa6e6a3d5233d2fb5455aa063be8840210d55c8ffd9bc01b63c112425575bb0fb0d85001157a665116fd0e7aff577465c"][..]).unwrap()).into_account(), 196793 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["5f272240adf3a93bfcc7ccb2a28a1a4ebc146f7d31835590fda7b066bdf8452e8fa1fdfc264548c95d05eaaf7c39a6449b76573a0f0cd478d43fd10d28a7f8bf"][..]).unwrap()).into_account(), 249 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["66f1ce502c9225fcba7bde31e81754d5fbb8cfe49f9db579be520bae765f57873c86adda013761713a7ff43591cabf5a364fe4d1d102e13d006b7b08ec49e49e"][..]).unwrap()).into_account(), 2001 * MITO)
@@ -278,6 +278,7 @@ pub mod currency {
           , (MultiSigner::from(Public::from_full(&hex!["8c3e3d1d4503f43bf6e624e71bbeb76c871f8c67473f7cd68c62ffbcbb381e35dcdc3809eab706aeee390b67fd9192e7e1f9046f58b9afb00fcaa79f3c6f25fe"][..]).unwrap()).into_account(), 324 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["e2477d19e4fe4e8277e8a36f6dcb2934bf05714d6eb1bc6af5283914187ed97be1209a6c0b88ce941915046ce2c3627748d88b05a4ebd508e7514c8de5373550"][..]).unwrap()).into_account(), 956 * MITO)
           , (MultiSigner::from(Public::from_full(&hex!["c8758c068df9893f750680c0d4e683fa73691c1712d6cbb6d7c8664c403550690eb9d42ba87c04cf835eee224260f77cd05242eb56a99be8171d78586274a2b9"][..]).unwrap()).into_account(), 500 * MITO)
+          , (MultiSigner::from(Public::from_full(&hex!["da0dc3a8f3151b15c4cf8290b518e052b3091176468671b00da06429443e32c3dfcebf444e65e74a3ca057edac2c0c48ae26de461670746e40a6905abe351e64"][..]).unwrap()).into_account(), 4049 * MITO)
         ];
     }
 }

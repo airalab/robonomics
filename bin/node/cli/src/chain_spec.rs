@@ -32,9 +32,9 @@ use robonomics_runtime::{
 };
 use node_primitives::{AccountId, Balance, Signature, Block};
 
-/*
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
+/*
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const ROBONOMICS_PROPERTIES: &str = r#"
     {
@@ -42,6 +42,7 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
+*/
 
 const IPCI_PROTOCOL_ID: &str = "mito";
 const IPCI_PROPERTIES: &str = r#"
@@ -50,7 +51,6 @@ const IPCI_PROPERTIES: &str = r#"
         "tokenDecimals": 12,
         "tokenSymbol": "MITO"
     }"#;
-*/
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -262,7 +262,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
+    ChainSpec::from_json_bytes(&include_bytes!("../res/dao_ipci.json")[..]).unwrap()
 }
 
 /*
@@ -297,8 +297,8 @@ fn ipci_genesis() -> GenesisConfig {
 pub fn ipci_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "IPCI",
-        "ipci",
+        "DAO IPCI",
+        "dao_ipci",
         ipci_genesis,
         boot_nodes,
         Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
