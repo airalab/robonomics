@@ -2,11 +2,13 @@
   "name": "DAO IPCI",
   "id": "ipci",
   "bootNodes": [
-      "/ip4/142.93.161.226/tcp/30333/p2p/QmUrsaZBJNi3DBYVgmqg2CJyMQZBCGN41ci5BZAEK2Luyw",
+      "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N",
+      "/ip4/95.216.138.52/tcp/30363/p2p/QmbycNXRbLWkhwKnJbRpsJXvAXyn8AS94b1qw5BNceZ8L8",
+      "/ip4/142.93.161.226/tcp/30333/p2p/QmVuE9WuzHAPPW3pX2jjxcQbGr3Ur17TgLQ3JEXi4Yt6Se",
       "/ip4/134.209.183.170/tcp/30333/p2p/QmYPR5pXTc16Y5cTbzrTzTU8Rp2xEn2Jp834ngmfMQUtBe",
       "/ip4/128.199.253.99/tcp/30333/p2p/QmdTLAYKYSEhYnVSaxQHonGpzW724oNitGzHzjBt5wYcgK",
-      "/ip4/95.216.202.55/tcp/30363/p2p/QmPrm3QaNv4Ls2DdAmsS1AoEbbYGrtqiyjxAVdc6mjEY5N",
-      "/ip4/95.216.138.52/tcp/30363/p2p/QmbycNXRbLWkhwKnJbRpsJXvAXyn8AS94b1qw5BNceZ8L8"
+      "/ip4/209.97.169.193/tcp/30333/p2p/QmQDJBcnjpvo4tk58X96gg4aoAJtYmfEzQXuzBa8zMEJuP",
+      "/ip4/68.183.95.120/tcp/30333/p2p/QmU3qAouzohnWiTjJ22z51emKdA45zvGJYhUVtPEiTrMt1"
   ],
   "telemetryEndpoints": [
     [
