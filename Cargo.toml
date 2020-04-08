@@ -11,7 +11,6 @@ members = [
     "robonomics/frame/datalog",
     "robonomics/frame/liability",
     "robonomics/protocol",
-    "robonomics/provider",
     "robonomics/ros-api",
     "robonomics/ros-api/msgs",
     "substrate-ros/api",

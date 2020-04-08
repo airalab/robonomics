@@ -17,9 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use log::info;
-use sc_service::Roles;
+use sc_service::Role;
 use sc_cli::VersionInfo;
-use node_primitives::Block;
 use crate::{
     Cli, Subcommand, IsIpci, load_spec,
     service::{
@@ -48,30 +47,20 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             info!("  by {}, {}~", version.author, version.copyright_start_year);
             info!("Chain specification: {}", config.expect_chain_spec().name());
             info!("Node name: {}", config.name);
-            info!("Roles: {}", config.display_role());
+            info!("Role: {}", config.display_role());
 
             if config.expect_chain_spec().is_ipci() {
                 info!("Native runtime: {}", IpciExecutor::native_version().runtime_version);
-                match config.roles {
-                    Roles::LIGHT => sc_cli::run_service_until_exit(config, new_ipci_light),
-                    _            => sc_cli::run_service_until_exit(config, new_ipci_full),
+                match config.role {
+                    Role::Light => sc_cli::run_service_until_exit(config, new_ipci_light),
+                    _           => sc_cli::run_service_until_exit(config, new_ipci_full),
                 }
             } else {
                 info!("Native runtime: {}", RobonomicsExecutor::native_version().runtime_version);
-                match config.roles {
-                    Roles::LIGHT => sc_cli::run_service_until_exit(config, new_robonomics_light),
-                    _            => sc_cli::run_service_until_exit(config, new_robonomics_full),
+                match config.role {
+                    Role::Light => sc_cli::run_service_until_exit(config, new_robonomics_light),
+                    _           => sc_cli::run_service_until_exit(config, new_robonomics_full),
                 }
-            }
-        },
-        Some(Subcommand::Benchmark(cmd)) => {
-            cmd.init(&version)?;
-            cmd.update_config(&mut config, load_spec, &version)?;
-
-            if config.expect_chain_spec().is_ipci() {
-                cmd.run::<Block, IpciExecutor>(config)
-            } else {
-                cmd.run::<Block, RobonomicsExecutor>(config)
             }
         },
         Some(Subcommand::Base(cmd)) => {
@@ -83,6 +72,23 @@ pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
             } else {
                 cmd.run(config, new_robonomics_chain_ops)
             }
-        }
+        },
+        #[cfg(feature = "robonomics-protocol")]
+        Some(Subcommand::PubSub(cmd)) => {
+            cmd.init(&version)?;
+            cmd.run()
+                .map_err(|e| sc_cli::Error::Other(format!("error: {}", e)))
+        },
+        #[cfg(feature = "benchmarking-cli")]
+        Some(Subcommand::Benchmark(cmd)) => {
+            cmd.init(&version)?;
+            cmd.update_config(&mut config, load_spec, &version)?;
+
+            if config.expect_chain_spec().is_ipci() {
+                cmd.run::<node_primitives::Block, IpciExecutor>(config)
+            } else {
+                cmd.run::<node_primitives::Block, RobonomicsExecutor>(config)
+            }
+        },
     }
 }

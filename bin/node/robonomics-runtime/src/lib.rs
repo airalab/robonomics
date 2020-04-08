@@ -40,7 +40,7 @@ use sp_runtime::{
     ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str, impl_opaque_keys,
 };
-use sp_runtime::transaction_validity::TransactionValidity;
+use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
@@ -70,8 +70,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 70,
-    impl_version: 70,
+    spec_version: 81,
+    impl_version: 81,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -83,6 +83,9 @@ pub fn native_version() -> NativeVersion {
         can_author_with: Default::default(),
     }
 }
+
+/// A transaction submitter with the given key type.
+pub type TransactionSubmitterOf<KeyType> = TransactionSubmitter<KeyType, Runtime, UncheckedExtrinsic>;
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
@@ -228,6 +231,7 @@ impl pallet_session::Trait for Runtime {
     type ValidatorId = <Self as frame_system::Trait>::AccountId;
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
+    type NextSessionRotation = Babe;
 }
 
 impl pallet_session::historical::Trait for Runtime {
@@ -252,12 +256,13 @@ parameter_types! {
     pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 64;
+    pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.
 }
 
 impl pallet_staking::Trait for Runtime {
     type Currency = Balances;
-    type Time = Timestamp;
     type CurrencyToVote = impls::CurrencyToVoteHandler;
+    type UnixTime = Timestamp;
     type Event = Event;
     type Slash = ();
     type Reward = ();
@@ -269,6 +274,10 @@ impl pallet_staking::Trait for Runtime {
     type SessionInterface = Self;
     type RewardCurve = RewardCurve;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type NextNewSession = Session;
+    type ElectionLookahead = ElectionLookahead;
+    type Call = Call;
+    type SubmitTransaction = TransactionSubmitterOf<()>;
 }
 
 impl pallet_authority_discovery::Trait for Runtime {}
@@ -322,7 +331,7 @@ impl pallet_im_online::Trait for Runtime {
     type Call = Call;
     type Event = Event;
     type AuthorityId = ImOnlineId;
-    type SubmitTransaction = TransactionSubmitter<ImOnlineId, Runtime, UncheckedExtrinsic>;
+    type SubmitTransaction = TransactionSubmitterOf<ImOnlineId>;
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
 }
@@ -509,8 +518,11 @@ impl_runtime_apis! {
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-        fn validate_transaction(tx: <Block as BlockT>::Extrinsic) -> TransactionValidity {
-            Executive::validate_transaction(tx)
+        fn validate_transaction(
+            source: TransactionSource,
+            tx: <Block as BlockT>::Extrinsic
+        ) -> TransactionValidity {
+            Executive::validate_transaction(source, tx)
         }
     }
 
@@ -668,39 +680,7 @@ mod tests {
             >,
         {}
 
-        is_submit_signed_transaction::<SubmitTransaction>();
-        is_sign_and_submit_transaction::<SubmitTransaction>();
-    }
-
-    #[test]
-    fn block_hooks_weight_should_not_exceed_limits() {
-        use frame_support::weights::WeighBlock;
-        let check_for_block = |b| {
-            let block_hooks_weight =
-                <AllModules as WeighBlock<BlockNumber>>::on_initialize(b) +
-                <AllModules as WeighBlock<BlockNumber>>::on_finalize(b);
-
-            assert_eq!(
-                block_hooks_weight,
-                0,
-                "This test might fail simply because the value being compared to has increased to a \
-                module declaring a new weight for a hook or call. In this case update the test and \
-                happily move on.",
-            );
-
-            // Invariant. Always must be like this to have a sane chain.
-            assert!(block_hooks_weight < MaximumBlockWeight::get());
-
-            // Warning.
-            if block_hooks_weight > MaximumBlockWeight::get() / 2 {
-                println!(
-                    "block hooks weight is consuming more than a block's capacity. You probably want \
-                    to re-think this. This test will fail now."
-                );
-                assert!(false);
-            }
-        };
-
-        let _ = (0..100_000).for_each(check_for_block);
+        is_submit_signed_transaction::<TransactionSubmitterOf<ImOnlineId>>();
+        is_sign_and_submit_transaction::<TransactionSubmitterOf<ImOnlineId>>();
     }
 }

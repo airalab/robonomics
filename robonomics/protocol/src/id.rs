@@ -15,11 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol components.
+//! Robonomics Network node identity.
 
-pub mod id;
-pub mod error;
-pub mod pubsub;
+use libp2p::identity::Keypair;
+use libp2p::PeerId;
 
-#[cfg(feature = "cli")]
-pub use pubsub::cli::PubSubCmd;
+pub fn random() -> Keypair {
+    let key = Keypair::generate_ed25519();
+    let peer_id = PeerId::from(key.public());
+    log::info!(target: "robonomics-identity",
+               "Generated random peer id: {}", peer_id.to_base58());
+    key
+}

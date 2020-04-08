@@ -36,7 +36,7 @@ use sp_version::NativeVersion;
 use sp_runtime::{
     ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str,
-    transaction_validity::TransactionValidity,
+    transaction_validity::{TransactionSource, TransactionValidity},
     traits::{
         self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
         SaturatedConversion,
@@ -369,9 +369,10 @@ impl_runtime_apis! {
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(
-            tx: <Block as BlockT>::Extrinsic,
+            source: TransactionSource,
+            tx: <Block as BlockT>::Extrinsic
         ) -> TransactionValidity {
-            Executive::validate_transaction(tx)
+            Executive::validate_transaction(source, tx)
         }
     }
 
