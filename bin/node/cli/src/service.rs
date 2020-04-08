@@ -169,7 +169,6 @@ macro_rules! new_full_start {
     }}
 }
 
-/*
 /// Starts a `ServiceBuilder` for a collator service.
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
@@ -199,7 +198,6 @@ macro_rules! new_collator_start {
         (builder, inherent_data_providers)
     }};
 }
-*/
 
 /// Builds a new IPCI object suitable for chain operations.
 pub fn new_ipci_chain_ops(
@@ -549,7 +547,6 @@ where
         .build()
 }
 
-/*
 pub fn new_collator<Runtime, Dispatch, Extrinsic>(
     para_id: ParaId,
     parachain_config: Configuration,
@@ -610,4 +607,3 @@ pub fn new_collator<Runtime, Dispatch, Extrinsic>(
 
     Ok(service)
 }
-*/
