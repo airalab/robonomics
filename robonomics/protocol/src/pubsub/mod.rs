@@ -17,20 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///! Robonomics Publisher/Subscriber protocol implements broadcasting layer.
 
+use libp2p::core::connection::ListenerId;
 use libp2p::{PeerId, Multiaddr};
-use libp2p::core::nodes::ListenerId;
 use crate::error::Result;
 
-/// Console line interface support.
-#[cfg(feature = "cli")]
-pub mod cli;
-
-/// PubSub implementation using libp2p gossipsub.
+/// PubSub implementation using libp2p Gossipsub.
 pub mod gossipsub;
+pub use gossipsub::PubSub as Gossipsub;
 
-/// Robonomics Publisher/Subscriber interface.
+/// Robonomics Publisher/Subscriber.
 pub trait PubSub {
-    /// Returns PubSub peer ID.
+    /// Returns node local peer ID.
     fn peer_id(&self) -> PeerId;
 
     /// Listen address for incoming connections.

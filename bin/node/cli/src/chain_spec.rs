@@ -25,6 +25,7 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use sp_core::{Pair, Public, sr25519};
+use sc_service::ChainType;
 use robonomics_runtime::{
     GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
     IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
@@ -250,6 +251,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Robonomics",
         "robonomics_testnet",
+        ChainType::Live,
         robonomics_testnet_genesis,
         boot_nodes,
         Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
@@ -299,6 +301,7 @@ pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "DAO IPCI",
         "dao_ipci",
+        ChainType::Live,
         ipci_genesis,
         boot_nodes,
         Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
@@ -322,6 +325,7 @@ pub fn development_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Development",
         "dev",
+        ChainType::Development,
         development_testnet_genesis,
         vec![],
         None,
@@ -347,6 +351,7 @@ pub fn local_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Local Testnet",
         "local_testnet",
+        ChainType::Local,
         local_testnet_genesis,
         vec![],
         None,

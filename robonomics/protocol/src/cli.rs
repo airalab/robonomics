@@ -15,11 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network publisher/subscriber module console interface.
+//! Robonomics Network console interface.
 
 use async_std::task;
 use libp2p::Multiaddr;
-use super::PubSub;
+use crate::pubsub::*;
 use crate::error::Result;
 
 /// The PubSub command for pubsub router mode.
@@ -48,18 +48,25 @@ pub struct PubSubCmd {
     #[allow(missing_docs)]
     #[structopt(flatten)]
     pub shared_params: sc_cli::SharedParams,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub import_params: sc_cli::ImportParams,
 }
 
-#[cfg(feature = "cli")]
-impl PubSubCmd {
-    /// Initialize
-    pub fn init(&self, version: &sc_cli::VersionInfo) -> sc_cli::Result<()> {
-        self.shared_params.init(version)
+impl sc_cli::CliConfiguration for PubSubCmd {
+    fn shared_params(&self) -> &sc_cli::SharedParams {
+        &self.shared_params
     }
 
+    fn import_params(&self) -> Option<&sc_cli::ImportParams> {
+        Some(&self.import_params)
+    }
+}
+
+impl PubSubCmd {
     /// Runs the command and node as pubsub router.
     pub fn run(&self) -> Result<()> {
-        let mut pubsub = super::gossipsub::PubSub::new()?;
+        let mut pubsub = Gossipsub::new()?;
 
         // Listen address
         pubsub.listen(&self.listen)?;
@@ -73,7 +80,10 @@ impl PubSubCmd {
         match self.topic.clone() {
             Some(topic_name) => {
                 pubsub.subscribe(topic_name, |_, msg|
-                    println!("RECEIVED: {}", String::from_utf8_lossy(&msg))
+                    log::info!(
+                        target: "robonomics-pubsub",
+                        "RECEIVED: {}", String::from_utf8_lossy(&msg)
+                    )
                 );
             },
             _ => (),

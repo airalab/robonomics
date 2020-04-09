@@ -18,6 +18,7 @@
 //! Errors that can occur during the protocol operations.
 
 use libp2p::core::transport::TransportError;
+use libp2p::core::connection::ConnectionLimit;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -29,6 +30,8 @@ pub enum Error {
     Io(std::io::Error),
     /// Libp2p transport error.
     Transport(TransportError<std::io::Error>),
+    /// Libp2p connection limit error.
+    ConnectionLimit(ConnectionLimit),
     /// Codec error.
     Codec(bincode::Error),
     /// Synchronization error.

@@ -21,16 +21,5 @@
 #![warn(missing_docs)]
 
 fn main() -> sc_cli::Result<()> {
-    let version = sc_cli::VersionInfo {
-        name: "Robonomics Node",
-        commit: env!("VERGEN_SHA_SHORT"),
-        version: env!("CARGO_PKG_VERSION"),
-        executable_name: "robonomics",
-        author: "Airalab <research@aira.life>",
-        description: "Substrate based implementation of Robonomics Network",
-        support_url: "https://github.com/airalab/substrate-node-robonomics/issues",
-        copyright_start_year: 2018,
-    };
-
-    node_cli::run(version)
+    node_cli::run()
 }
