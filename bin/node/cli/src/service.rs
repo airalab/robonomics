@@ -329,7 +329,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     Extrinsic: RuntimeExtrinsic,
     <Runtime::RuntimeApi as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
-    let name = config.name.clone();
+    let name = config.network.node_name.clone();
     let role = config.role.clone();
     let disable_grandpa = config.disable_grandpa;
     let force_authoring = config.force_authoring;

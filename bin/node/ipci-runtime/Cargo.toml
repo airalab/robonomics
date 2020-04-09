@@ -1,6 +1,6 @@
 [package]
 name = "ipci-runtime"
-version = "0.16.4"
+version = "0.17.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
@@ -41,9 +41,10 @@ pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-offences = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+#pallet-offences-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-#pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
+pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
 pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
@@ -108,9 +109,15 @@ std = [
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
-#    "pallet-session-benchmarking",
+    "sp-runtime/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
+    "pallet-im-online/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
     "pallet-staking/runtime-benchmarks",
+    "pallet-utility/runtime-benchmarks",
+    "pallet-session-benchmarking",
+#    "pallet-offences-benchmarking",
 ]

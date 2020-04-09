@@ -22,4 +22,4 @@ pub mod error;
 pub mod pubsub;
 
 #[cfg(feature = "cli")]
-pub use pubsub::cli::PubSubCmd;
+pub mod cli;

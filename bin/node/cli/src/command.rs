@@ -16,13 +16,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use log::info;
-use sc_service::Role;
-use sc_cli::VersionInfo;
+use sc_cli::SubstrateCli;
 use crate::{
-    Cli, Subcommand, IsIpci, load_spec,
+    Cli, Subcommand, chain_spec,
     service::{
-        RobonomicsExecutor, IpciExecutor, NativeExecutionDispatch,
         new_robonomics_full, new_robonomics_light,
         new_ipci_full, new_ipci_light,
         new_robonomics_chain_ops,
@@ -30,65 +27,101 @@ use crate::{
     },
 };
 
+/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
+pub trait IsIpci {
+    fn is_ipci(&self) -> bool;
+}
+
+impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
+    fn is_ipci(&self) -> bool {
+        self.id().starts_with("ipci")
+    }
+}
+
+impl SubstrateCli for Cli {
+    fn impl_name() -> &'static str {
+        "airalab-robonomics"
+    }
+
+    fn impl_version() -> &'static str {
+        env!("ROBONOMICS_IMPL_VERSION")
+    }
+
+    fn description() -> &'static str {
+        env!("CARGO_PKG_DESCRIPTION")
+    }
+
+    fn author() -> &'static str {
+        env!("CARGO_PKG_AUTHORS")
+    }
+
+    fn support_url() -> &'static str {
+        "https://github.com/airalab/robonomics/issues/new"
+    }
+
+    fn copyright_start_year() -> i32 {
+        2018
+    }
+
+    fn executable_name() -> &'static str {
+        "robonomics"
+    }
+
+    fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+        Ok(match id {
+            "dev" => Box::new(chain_spec::development_testnet_config()),
+            "local" => Box::new(chain_spec::local_testnet_config()),
+            "" | "robonomics_testnet" => Box::new(chain_spec::robonomics_testnet_config()),
+            "ipci" => Box::new(chain_spec::ipci_config()),
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
+        })
+    }
+}
+
 /// Parse command line arguments into service configuration.
-pub fn run(version: VersionInfo) -> sc_cli::Result<()> {
-    let opt = sc_cli::from_args::<Cli>(&version);
+pub fn run() -> sc_cli::Result<()> {
+    sc_cli::reset_signal_pipe_handler()?;
 
-    let mut config = sc_service::Configuration::from_version(&version);
-    config.impl_name = "airalab-robonomics" ;
-
-    match opt.subcommand {
+    let cli = Cli::from_args();
+    match &cli.subcommand {
         None => {
-            opt.run.init(&version)?;
-            opt.run.update_config(&mut config, load_spec, &version)?;
+            let runner = cli.create_runner(&cli.run)?;
 
-            info!("{}", version.name);
-            info!("  version {}", config.full_version());
-            info!("  by {}, {}~", version.author, version.copyright_start_year);
-            info!("Chain specification: {}", config.expect_chain_spec().name());
-            info!("Node name: {}", config.name);
-            info!("Role: {}", config.display_role());
-
-            if config.expect_chain_spec().is_ipci() {
-                info!("Native runtime: {}", IpciExecutor::native_version().runtime_version);
-                match config.role {
-                    Role::Light => sc_cli::run_service_until_exit(config, new_ipci_light),
-                    _           => sc_cli::run_service_until_exit(config, new_ipci_full),
-                }
+            if runner.config().chain_spec.is_ipci() {
+                runner.run_node(new_ipci_light, new_ipci_full)
             } else {
-                info!("Native runtime: {}", RobonomicsExecutor::native_version().runtime_version);
-                match config.role {
-                    Role::Light => sc_cli::run_service_until_exit(config, new_robonomics_light),
-                    _           => sc_cli::run_service_until_exit(config, new_robonomics_full),
-                }
+                runner.run_node(new_robonomics_light, new_robonomics_full)
             }
-        },
-        Some(Subcommand::Base(cmd)) => {
-            cmd.init(&version)?;
-            cmd.update_config(&mut config, load_spec, &version)?;
+        }
+        Some(Subcommand::Base(subcommand)) => {
+            let runner = cli.create_runner(subcommand)?;
 
-            if config.expect_chain_spec().is_ipci() {
-                cmd.run(config, new_ipci_chain_ops)
+            if runner.config().chain_spec.is_ipci() {
+                runner.run_subcommand(subcommand, |config| new_ipci_chain_ops(config))
             } else {
-                cmd.run(config, new_robonomics_chain_ops)
+                runner.run_subcommand(subcommand, |config| new_robonomics_chain_ops(config))
             }
-        },
+        }
         #[cfg(feature = "robonomics-protocol")]
-        Some(Subcommand::PubSub(cmd)) => {
-            cmd.init(&version)?;
-            cmd.run()
-                .map_err(|e| sc_cli::Error::Other(format!("error: {}", e)))
-        },
+        Some(Subcommand::PubSub(subcommand)) => {
+            let runner = cli.create_runner(subcommand)?;
+            runner.sync_run(|_|
+                subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
+        }
         #[cfg(feature = "benchmarking-cli")]
-        Some(Subcommand::Benchmark(cmd)) => {
-            cmd.init(&version)?;
-            cmd.update_config(&mut config, load_spec, &version)?;
+        Some(Subcommand::Benchmark(subcommand)) => {
+            use crate::service::{RobonomicsExecutor, IpciExecutor};
 
-            if config.expect_chain_spec().is_ipci() {
-                cmd.run::<node_primitives::Block, IpciExecutor>(config)
+            let runner = cli.create_runner(subcommand)?;
+            if runner.config().chain_spec.is_ipci() {
+                runner.sync_run(|config|
+                    subcommand.run::<node_primitives::Block, IpciExecutor>(config))
             } else {
-                cmd.run::<node_primitives::Block, RobonomicsExecutor>(config)
+                runner.sync_run(|config|
+                    subcommand.run::<node_primitives::Block, RobonomicsExecutor>(config))
             }
-        },
+        }
     }
 }

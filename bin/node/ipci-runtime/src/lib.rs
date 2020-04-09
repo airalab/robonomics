@@ -40,7 +40,11 @@ use sp_runtime::{
     ApplyExtrinsicResult, Perbill,
     generic, create_runtime_str, impl_opaque_keys,
 };
-use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
+use sp_runtime::transaction_validity::{
+    TransactionSource,
+    TransactionValidity,
+    TransactionPriority,
+};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, StaticLookup,
@@ -70,8 +74,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 2,
-    impl_version: 2,
+    spec_version: 3,
+    impl_version: 3,
     apis: RUNTIME_API_VERSIONS,
 };
 
@@ -276,6 +280,7 @@ impl pallet_staking::Trait for Runtime {
     type ElectionLookahead = ElectionLookahead;
     type Call = Call;
     type SubmitTransaction = TransactionSubmitterOf<()>;
+    type UnsignedPriority = StakingUnsignedPriority;
 }
 
 impl pallet_authority_discovery::Trait for Runtime {}
@@ -323,6 +328,9 @@ impl pallet_sudo::Trait for Runtime {
 
 parameter_types! {
     pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
+    pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+    /// We prioritize im-online heartbeats over phragmen solution submission.
+    pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
 }
 
 impl pallet_im_online::Trait for Runtime {
@@ -332,6 +340,7 @@ impl pallet_im_online::Trait for Runtime {
     type SubmitTransaction = TransactionSubmitterOf<ImOnlineId>;
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
+    type UnsignedPriority = ImOnlineUnsignedPriority;
 }
 
 impl pallet_offences::Trait for Runtime {
@@ -579,65 +588,40 @@ impl_runtime_apis! {
     #[cfg(feature = "runtime-benchmarks")]
     impl frame_benchmarking::Benchmark<Block> for Runtime {
         fn dispatch_benchmark(
-            module: Vec<u8>,
-            extrinsic: Vec<u8>,
+            pallet: Vec<u8>,
+            benchmark: Vec<u8>,
             lowest_range_values: Vec<u32>,
             highest_range_values: Vec<u32>,
             steps: Vec<u32>,
             repeat: u32,
-        ) -> Result<Vec<frame_benchmarking::BenchmarkResults>, sp_runtime::RuntimeString> {
-            use frame_benchmarking::Benchmarking;
-            // Trying to add benchmarks directly to the Session Pallet caused cyclic
-            // dependency issues.
-            // To get around that, we separated the Session benchmarks into its own crate,
-            // which is why we need these two lines below.
-            //use pallet_session_benchmarking::Module as SessionBench;
-            //impl pallet_session_benchmarking::Trait for Runtime {}
+        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+            use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+            // Trying to add benchmarks directly to the Session Pallet caused cyclic dependency issues.
+            // To get around that, we separated the Session benchmarks into its own crate, which is why
+            // we need these two lines below.
+            use pallet_session_benchmarking::Module as SessionBench;
+            use pallet_offences_benchmarking::Module as OffencesBench;
 
-            let result = match module.as_slice() {
-                b"pallet-balances" | b"balances" => Balances::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-identity" | b"identity" => Identity::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                b"pallet-timestamp" | b"timestamp" => Timestamp::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                /*
-                b"pallet-session" | b"session" => SessionBench::<Runtime>::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                */
-                b"pallet-staking" | b"staking" => Staking::run_benchmark(
-                    extrinsic,
-                    lowest_range_values,
-                    highest_range_values,
-                    steps,
-                    repeat,
-                ),
-                _ => Err("Benchmark not found for this pallet."),
-            };
+            impl pallet_session_benchmarking::Trait for Runtime {}
+            impl pallet_offences_benchmarking::Trait for Runtime {}
 
-            result.map_err(|e| e.into())
+            let mut batches = Vec::<BenchmarkBatch>::new();
+            let params = (&pallet, &benchmark, &lowest_range_values, &highest_range_values, &steps, repeat);
+
+            add_benchmark!(params, batches, b"balances", Balances);
+            add_benchmark!(params, batches, b"identity", Identity);
+            add_benchmark!(params, batches, b"im-online", ImOnline);
+            add_benchmark!(params, batches, b"session", SessionBench::<Runtime>);
+            add_benchmark!(params, batches, b"staking", Staking);
+            add_benchmark!(params, batches, b"timestamp", Timestamp);
+            add_benchmark!(params, batches, b"utility", Utility);
+            add_benchmark!(params, batches, b"offences", OffencesBench::<Runtime>);
+
+            if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+            Ok(batches)
         }
     }
+
 }
 
 #[cfg(test)]

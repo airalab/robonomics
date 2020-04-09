@@ -41,7 +41,7 @@ pub enum Subcommand {
         name = "pubsub",
         about = "Run node in pubsub(gossipsub) router mode."
     )]
-    PubSub(robonomics_protocol::PubSubCmd),
+    PubSub(robonomics_protocol::cli::PubSubCmd),
     /// The custom benchmark subcommmand benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     #[structopt(

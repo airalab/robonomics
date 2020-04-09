@@ -16,11 +16,10 @@ This source is a part of AIRA project. It implements their purposes using Substr
 
 == Try it out
 
- . Import https://github.com/airalab/robonomics/blob/master/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
+ . Import https://github.com/airalab/robonomics/blob/master/bin/node/cli/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
  . Open https://polkadot.js.org/apps/#/settings[Substrate UI]: General settings
  . Set `custom` node endpoint to `wss://substrate.robonomics.network`
  . Save and reload
- . Get test tokens at https://faucets.blockxlabs.com
 
 When connection is success you can explore `Robonomics testnet` using Substrate UI.
 
@@ -71,7 +70,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v0.16 -p node-cli
+cargo install --force --git https://github.com/airalab/robonomics --tag v0.17 -p node-cli
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
