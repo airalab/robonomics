@@ -264,7 +264,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
 
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/dao_ipci.json")[..]).unwrap()
+    ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
 
 /*

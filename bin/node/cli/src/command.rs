@@ -40,7 +40,7 @@ impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
-        "Robonomics Node"
+        "airalab-robonomics"
     }
 
     fn impl_version() -> &'static str {
