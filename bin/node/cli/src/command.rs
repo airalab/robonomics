@@ -20,7 +20,6 @@ use sc_cli::SubstrateCli;
 use crate::{
     Cli, Subcommand, chain_spec,
     service::{
-        RobonomicsExecutor, IpciExecutor, NativeExecutionDispatch,
         new_robonomics_full, new_robonomics_light,
         new_ipci_full, new_ipci_light,
         new_robonomics_chain_ops,
@@ -45,7 +44,7 @@ impl SubstrateCli for Cli {
     }
 
     fn impl_version() -> &'static str {
-        env!("SUBSTRATE_CLI_IMPL_VERSION")
+        env!("ROBONOMICS_IMPL_VERSION")
     }
 
     fn description() -> &'static str {
@@ -67,16 +66,6 @@ impl SubstrateCli for Cli {
     fn executable_name() -> &'static str {
         "robonomics"
     }
-
-	fn client_id() -> String {
-		format!(
-            "{}/v{} ({}, {})",
-            Self::impl_name(),
-            Self::impl_version(),
-            IpciExecutor::native_version().runtime_version,
-            RobonomicsExecutor::native_version().runtime_version,
-        )
-	}
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
@@ -123,6 +112,8 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
+            use crate::service::{RobonomicsExecutor, IpciExecutor};
+
             let runner = cli.create_runner(subcommand)?;
             if runner.config().chain_spec.is_ipci() {
                 runner.sync_run(|config|

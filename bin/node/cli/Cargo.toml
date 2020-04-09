@@ -99,12 +99,15 @@ robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
 robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
 
 [build-dependencies]
+ipci-runtime = { path = "../ipci-runtime" }
+robonomics-runtime = { path = "../robonomics-runtime" }
+robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
 sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", optional = true }
-robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate" }
 vergen = { version = "3.0.4", optional = true }
 structopt = { version = "0.3.8", optional = true }
+platforms = { version = "0.2.1", optional = true }
 
 [features]
 default = ["wasmtime"]
@@ -121,6 +124,7 @@ cli = [
     "sc-cli",
     "vergen",
     "structopt",
+    "platforms",
     "sc-service/rocksdb",
     "robonomics-protocol/cli",
 ]

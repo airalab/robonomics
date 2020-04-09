@@ -17,45 +17,96 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 fn main() {
-	#[cfg(feature = "cli")]
-	cli::main();
+    #[cfg(feature = "cli")]
+    cli::main();
 }
 
 #[cfg(feature = "cli")]
 mod cli {
     include!("src/cli.rs");
-	use structopt::clap::Shell;
-	use std::{fs, env, path::Path};
-    use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
+    use structopt::clap::Shell;
+    use std::{fs, env, path::Path, borrow::Cow, process::Command};
+    use substrate_build_script_utils::rerun_if_git_head_changed;
+    use platforms::*;
 
-	pub fn main() {
-		build_shell_completion();
-		generate_cargo_keys();
+    pub fn main() {
+        build_shell_completion();
+        generate_cargo_keys();
         rerun_if_git_head_changed();
-	}
+    }
 
-	/// Build shell completion scripts for all known shells
-	/// Full list in https://github.com/kbknapp/clap-rs/blob/e9d0562a1dc5dfe731ed7c767e6cee0af08f0cf9/src/app/parser.rs#L123
-	fn build_shell_completion() {
-		for shell in &[Shell::Bash, Shell::Fish, Shell::Zsh, Shell::Elvish, Shell::PowerShell] {
-			build_completion(shell);
-		}
-	}
+    /// Build shell completion scripts for all known shells
+    /// Full list in https://github.com/kbknapp/clap-rs/blob/e9d0562a1dc5dfe731ed7c767e6cee0af08f0cf9/src/app/parser.rs#L123
+    fn build_shell_completion() {
+        for shell in &[Shell::Bash, Shell::Fish, Shell::Zsh, Shell::Elvish, Shell::PowerShell] {
+            build_completion(shell);
+        }
+    }
 
-	/// Build the shell auto-completion for a given Shell
-	fn build_completion(shell: &Shell) {
-		let outdir = match env::var_os("OUT_DIR") {
-			None => return,
-			Some(dir) => dir,
-		};
-		let path = Path::new(&outdir)
-			.parent().unwrap()
-			.parent().unwrap()
-			.parent().unwrap()
-			.join("completion-scripts");
+    /// Build the shell auto-completion for a given Shell
+    fn build_completion(shell: &Shell) {
+        let outdir = match env::var_os("OUT_DIR") {
+            None => return,
+            Some(dir) => dir,
+        };
+        let path = Path::new(&outdir)
+            .parent().unwrap()
+            .parent().unwrap()
+            .parent().unwrap()
+            .join("completion-scripts");
 
-		fs::create_dir(&path).ok();
+        fs::create_dir(&path).ok();
 
-		Cli::clap().gen_completions("robonomics", *shell, &path);
-	}
+        Cli::clap().gen_completions("robonomics", *shell, &path);
+    }
+
+    /// Generate the `cargo:` key output
+    fn generate_cargo_keys() {
+        let output = Command::new("git")
+            .args(&["rev-parse", "--short", "HEAD"])
+            .output();
+
+        let commit = match output {
+            Ok(o) if o.status.success() => {
+                let sha = String::from_utf8_lossy(&o.stdout).trim().to_owned();
+                Cow::from(sha)
+            }
+            Ok(o) => {
+                println!("cargo:warning=Git command failed with status: {}", o.status);
+                Cow::from("unknown-commit")
+            }
+            Err(err) => {
+                println!("cargo:warning=Failed to execute git command: {}", err);
+                Cow::from("unknown-commit")
+            }
+        };
+
+        println!("cargo:rustc-env=ROBONOMICS_IMPL_VERSION={}", get_version(&commit))
+    }
+
+    fn get_platform() -> String {
+        let env_dash = if TARGET_ENV.is_some() { "-" } else { "" };
+
+        format!(
+            "{}-{}{}{}",
+            TARGET_ARCH.as_str(),
+            TARGET_OS.as_str(),
+            env_dash,
+            TARGET_ENV.map(|x| x.as_str()).unwrap_or(""),
+        )
+    }
+
+    fn get_version(impl_commit: &str) -> String {
+        let commit_dash = if impl_commit.is_empty() { "" } else { "-" };
+
+        format!(
+            "{}{}{}-{}/robonomics-{}/ipci-{}",
+            std::env::var("CARGO_PKG_VERSION").unwrap_or_default(),
+            commit_dash,
+            impl_commit,
+            get_platform(),
+            robonomics_runtime::VERSION.spec_version,
+            ipci_runtime::VERSION.spec_version,
+        )
+    }
 }
