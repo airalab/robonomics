@@ -110,6 +110,12 @@ pub fn run() -> sc_cli::Result<()> {
             runner.sync_run(|_|
                 subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
         }
+        #[cfg(feature = "robonomics-protocol")]
+        Some(Subcommand::Datalog(subcommand)) => {
+            let runner = cli.create_runner(subcommand)?;
+            runner.sync_run(|_|
+                subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
+        }
         #[cfg(feature = "benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             use crate::service::{RobonomicsExecutor, IpciExecutor};

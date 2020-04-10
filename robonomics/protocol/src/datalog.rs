@@ -15,13 +15,27 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol components.
 
-pub mod id;
-pub mod error;
-pub mod pubsub;
-pub mod datalog;
-pub mod runtime;
+use crate::error::Result;
+use crate::runtime::Robonomics;
+use crate::runtime::pallet_datalog;
+use sp_core::crypto::Pair;
 
-#[cfg(feature = "cli")]
-pub mod cli;
+/// Main
+pub async fn submit<T: Pair>(signer: T, remote: &str, record: Vec<u8>) -> Result<()>
+    where sp_runtime::MultiSigner: From<<T as Pair>::Public>,
+          sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
+          <T as Pair>::Signature: codec::Codec,
+{
+    let xt_hash = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .set_url(remote)
+        .build().await?
+        .xt(signer, None).await?
+        .submit(pallet_datalog::record::<Robonomics>(record))
+        .await?;
+    log::info!(
+        target: "robonomics-datalog",
+        "Data record submited in extrinsic with hash {}", xt_hash
+    );
+    Ok(())
+}

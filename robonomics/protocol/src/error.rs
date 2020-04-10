@@ -19,6 +19,7 @@
 
 use libp2p::core::transport::TransportError;
 use libp2p::core::connection::ConnectionLimit;
+use sp_core::crypto::SecretStringError;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -32,6 +33,11 @@ pub enum Error {
     Transport(TransportError<std::io::Error>),
     /// Libp2p connection limit error.
     ConnectionLimit(ConnectionLimit),
+    /// Transaction sending error.
+    SubmitFailure(substrate_subxt::Error),
+    /// Private key loading error.
+    #[display(fmt = "secret string error: {:?}", _0)]
+    PrivateKeyFailure(SecretStringError),
     /// Codec error.
     Codec(bincode::Error),
     /// Synchronization error.

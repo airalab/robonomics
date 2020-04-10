@@ -15,13 +15,28 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol components.
+//! SubXt compatible robonomics-datalog pallet abstration.
 
-pub mod id;
-pub mod error;
-pub mod pubsub;
-pub mod datalog;
-pub mod runtime;
+use codec::{EncodeLike, Codec};
+use sp_runtime::traits::Member;
+use substrate_subxt::{system, Call};
 
-#[cfg(feature = "cli")]
-pub mod cli;
+/// The subset of the `pallet_balances::Trait` that a client must implement.
+pub trait Datalog: system::System {
+    type Record: Codec + EncodeLike + Member;
+}
+
+const MODULE: &str = "Datalog";
+const TRANSFER: &str = "record";
+
+/// Arguments for transferring a balance
+#[derive(codec::Encode)]
+pub struct TransferArgs<T: Datalog> {
+    record: <T as Datalog>::Record
+}
+
+pub fn record<T: Datalog>(
+    record: <T as Datalog>::Record,
+) -> Call<TransferArgs<T>> {
+    Call::new(MODULE, TRANSFER, TransferArgs { record })
+}

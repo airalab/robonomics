@@ -102,14 +102,14 @@ impl PubSub {
             self.swarm.deref_mut().publish(&topic, bincode::serialize(&message).unwrap());
             log::info!(
                 target: "robonomics-pubsub",
-                "discovery message sended: {:?}", message
+                "Discovery message sended: {:?}", message
             );
 
             match self.swarm.next().await {
                 GossipsubEvent::Message(peer_id, id, message) => {
                     log::info!(
                         target: "robonomics-pubsub",
-                        "got message with id: {} from peer: {}", id, peer_id.to_base58()
+                        "Received message with id: {} from peer: {}", id, peer_id.to_base58()
                     );
 
                     // Dispatch handlers by topic name hash

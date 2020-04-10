@@ -42,6 +42,13 @@ pub enum Subcommand {
         about = "Run node in pubsub(gossipsub) router mode."
     )]
     PubSub(robonomics_protocol::cli::PubSubCmd),
+    /// This subcommand store hex-encoded data to Datalog pallet.
+    #[cfg(feature = "robonomics-protocol")]
+    #[structopt(
+        name = "datalog",
+        about = "Store hex-encoded data on blockchain."
+    )]
+    Datalog(robonomics_protocol::cli::DatalogCmd),
     /// The custom benchmark subcommmand benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     #[structopt(

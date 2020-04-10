@@ -18,11 +18,13 @@
 //! Robonomics Network console interface.
 
 use async_std::task;
+use sp_core::{sr25519, crypto::{Pair, Ss58Codec}};
 use libp2p::Multiaddr;
+use crate::datalog;
 use crate::pubsub::*;
 use crate::error::Result;
 
-/// The PubSub command for pubsub router mode.
+/// Command for pubsub router mode.
 #[derive(Debug, structopt::StructOpt, Clone)]
 pub struct PubSubCmd {
     /// Topic name for subscribe and publish.
@@ -79,10 +81,12 @@ impl PubSubCmd {
         // Subscribe on topic topic and print received content
         match self.topic.clone() {
             Some(topic_name) => {
-                pubsub.subscribe(topic_name, |_, msg|
+                pubsub.subscribe(topic_name, |from, msg|
                     log::info!(
                         target: "robonomics-pubsub",
-                        "RECEIVED: {}", String::from_utf8_lossy(&msg)
+                        "Received message from {}: {}",
+                        from.to_base58(),
+                        String::from_utf8_lossy(&msg)
                     )
                 );
             },
@@ -90,5 +94,51 @@ impl PubSubCmd {
         }
 
         Ok(task::block_on(pubsub.start()))
+    }
+}
+
+/// Wrapper type for byte vector.
+type Bytes = Vec<u8>;
+
+/// Command for data blockchainization.
+#[derive(Debug, structopt::StructOpt, Clone)]
+pub struct DatalogCmd {
+    /// Substrate node WebSocket endpoint
+    #[structopt(long, default_value = "ws://localhost:9944")]
+    remote: String,
+    /// Sender account seed URI
+    #[structopt(short)]
+    suri: String,
+    /// Hex encoded data record to send (without 0x prefix)
+    #[structopt(short, parse(try_from_str = hex::decode))]
+    record: Bytes,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub shared_params: sc_cli::SharedParams,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub import_params: sc_cli::ImportParams,
+}
+
+impl sc_cli::CliConfiguration for DatalogCmd {
+    fn shared_params(&self) -> &sc_cli::SharedParams {
+        &self.shared_params
+    }
+
+    fn import_params(&self) -> Option<&sc_cli::ImportParams> {
+        Some(&self.import_params)
+    }
+}
+
+impl DatalogCmd {
+    /// Runs the command and node as pubsub router.
+    pub fn run(&self) -> Result<()> {
+        let signer = sr25519::Pair::from_string(self.suri.as_str(), None)?;
+        log::info!(
+            target: "robonomics-datalog",
+            "Key loaded: {}", signer.public().to_ss58check(),
+        );
+
+        task::block_on(datalog::submit(signer, self.remote.as_str(), self.record.clone()))
     }
 }
