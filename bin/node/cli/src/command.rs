@@ -18,7 +18,7 @@
 
 use sc_cli::SubstrateCli;
 use crate::{
-    Cli, Subcommand, chain_spec,
+    IsIpci, Cli, Subcommand, chain_spec,
     service::{
         new_robonomics_full, new_robonomics_light,
         new_ipci_full, new_ipci_light,
@@ -26,17 +26,6 @@ use crate::{
         new_ipci_chain_ops,
     },
 };
-
-/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
-pub trait IsIpci {
-    fn is_ipci(&self) -> bool;
-}
-
-impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
-    fn is_ipci(&self) -> bool {
-        self.id().starts_with("ipci")
-    }
-}
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {

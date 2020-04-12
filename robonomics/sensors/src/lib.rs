@@ -15,33 +15,4 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Console line interface.
-
-pub mod chain_spec;
-
-#[macro_use]
-mod service;
-#[cfg(feature = "browser")]
-mod browser;
-#[cfg(feature = "cli")]
-mod cli;
-#[cfg(feature = "cli")]
-mod command;
-
-#[cfg(feature = "browser")]
-pub use browser::*;
-#[cfg(feature = "cli")]
-pub use cli::*;
-#[cfg(feature = "cli")]
-pub use command::*;
-
-/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
-pub trait IsIpci {
-    fn is_ipci(&self) -> bool;
-}
-
-impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
-    fn is_ipci(&self) -> bool {
-        self.id().starts_with("ipci")
-    }
-}
+//! Robonomics Network supported sensors.

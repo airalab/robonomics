@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -86,6 +86,7 @@ sc-rpc = { git = "https://github.com/paritytech/substrate" }
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+parity-util-mem = { version = "*", default-features = false, optional = true }
 
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.57", optional = true }
@@ -126,6 +127,7 @@ cli = [
     "structopt",
     "platforms",
     "sc-service/rocksdb",
+    "parity-util-mem/jemalloc-global",
     "robonomics-protocol/cli",
 ]
 

@@ -14,7 +14,7 @@ sp-runtime = "2.0.0-alpha.5"
 pallet-indices = "2.0.0-alpha.5"
 derive_more = "0.99"
 bincode = "1.2"
-libp2p = "0.17"
+libp2p = "0.18"
 log = "0.4"
 hex = "0.4"
 

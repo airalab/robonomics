@@ -42,14 +42,14 @@ async fn start_inner(chain_spec: String, log_level: String) -> Result<Client, Bo
     let config = browser_configuration(chain_spec).await?;
 
     info!("Robonomics browser node");
-    info!("  version {}", config.full_version());
+    info!("  version {}", config.impl_version);
     info!("  by Airalab, 2018-2020");
-    info!("Chain specification: {}", config.expect_chain_spec().name());
-    info!("Node name: {}", config.name);
+    info!("Chain specification: {}", config.chain_spec.name());
+    info!("Node name: {}", config.network.node_name);
     info!("Role: {:?}", config.role);
 
     // Create the service. This is the most heavy initialization step.
-    if config.expect_chain_spec().is_ipci() {
+    if config.chain_spec.is_ipci() {
         let service = crate::service::new_ipci_light(config)
             .map_err(|e| format!("{:?}", e))?;
         Ok(browser_utils::start_client(service))

@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-runtime"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
