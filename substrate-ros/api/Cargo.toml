@@ -11,19 +11,19 @@ rosrust = "0.9"
 futures = "0.3"
 futures-timer = "2"
 serde_json = "1.0"
-codec = { package = "parity-scale-codec", version = "1.3" }
+codec = { package = "parity-scale-codec", version = "1.3.0" }
 
-sp-api = { git = "https://github.com/paritytech/substrate" }
-sp-core = { git = "https://github.com/paritytech/substrate" }
-sp-runtime = { git = "https://github.com/paritytech/substrate" }
-sp-session = { git = "https://github.com/paritytech/substrate" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate" }
-sp-state-machine = { git = "https://github.com/paritytech/substrate" }
+sp-api = "2.0.0-alpha.6"
+sp-core = "2.0.0-alpha.6"
+sp-runtime = "2.0.0-alpha.6"
+sp-session = "2.0.0-alpha.6"
+sp-blockchain = "2.0.0-alpha.6"
+sp-state-machine = "0.8.0-alpha.6"
 
-sc-rpc = { git = "https://github.com/paritytech/substrate" }
-sc-client = { git = "https://github.com/paritytech/substrate" }
-sc-client-api = { git = "https://github.com/paritytech/substrate" }
-sc-network = { git = "https://github.com/paritytech/substrate" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }
+sc-rpc = "2.0.0-alpha.6"
+sc-client = "0.8.0-alpha.6"
+sc-client-api = "2.0.0-alpha.6"
+sc-network = "0.8.0-alpha.6"
+sp-transaction-pool = "2.0.0-alpha.6"
 
 msgs = { package = "substrate-ros-msgs", path = "../msgs" }

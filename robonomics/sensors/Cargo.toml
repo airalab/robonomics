@@ -9,7 +9,7 @@ edition = "2018"
 robonomics-protocol = { path = "../protocol" }
 
 # cli specified
-sc-cli = { git = "https://github.com/paritytech/substrate", optional = true }
+sc-cli = { version = "0.8.0-alpha.6", optional = true }
 structopt = { version = "0.3.8", optional = true }
 async-std = { version = "1.5", optional = true }
 

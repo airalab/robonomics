@@ -92,10 +92,10 @@ jobs:
         cargo install --git https://github.com/alexcrichton/wasm-gc --force
         cargo install --git https://github.com/rustwasm/wasm-pack --force
     - name: Build Web Node
-      run: make pkg --directory bin/node/browser
+      run: make pkg --directory bin/node/cli/browser
     - name: Upload Web Node into IPFS
       run: |
-        cd bin/node/browser
+        cd bin/node/cli/browser
         FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\"" q}')
         curl "https://ipfs.infura.io:5001/api/v0/add?wrap-with-directory=true" $FILES
         echo "Done"

@@ -18,7 +18,7 @@
 
 use crate::{IsIpci, chain_spec::ChainSpec};
 use wasm_bindgen::prelude::*;
-use browser_utils::{
+use substrate_browser_utils::{
     Client,
     browser_configuration, set_console_error_panic_hook, init_console_log,
 };
@@ -52,10 +52,10 @@ async fn start_inner(chain_spec: String, log_level: String) -> Result<Client, Bo
     if config.chain_spec.is_ipci() {
         let service = crate::service::new_ipci_light(config)
             .map_err(|e| format!("{:?}", e))?;
-        Ok(browser_utils::start_client(service))
+        Ok(substrate_browser_utils::start_client(service))
     } else {
         let service = crate::service::new_robonomics_light(config)
             .map_err(|e| format!("{:?}", e))?;
-        Ok(browser_utils::start_client(service))
+        Ok(substrate_browser_utils::start_client(service))
     }
 }

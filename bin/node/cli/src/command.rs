@@ -33,7 +33,7 @@ impl SubstrateCli for Cli {
     }
 
     fn impl_version() -> &'static str {
-        env!("ROBONOMICS_IMPL_VERSION")
+        env!("SUBSTRATE_CLI_IMPL_VERSION")
     }
 
     fn description() -> &'static str {
@@ -79,9 +79,17 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
 
             if runner.config().chain_spec.is_ipci() {
-                runner.run_node(new_ipci_light, new_ipci_full)
+                runner.run_node(
+                    new_ipci_light,
+                    new_ipci_full,
+                    ipci_runtime::VERSION,
+                )
             } else {
-                runner.run_node(new_robonomics_light, new_robonomics_full)
+                runner.run_node(
+                    new_robonomics_light,
+                    new_robonomics_full,
+                    robonomics_runtime::VERSION
+                )
             }
         }
         Some(Subcommand::Base(subcommand)) => {

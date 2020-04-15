@@ -341,10 +341,15 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         service.spawn_essential_task("babe-proposer", babe);
 
         let network = service.network();
-        let dht_event_stream = network.event_stream().filter_map(|e| async move { match e {
-            sc_network::Event::Dht(e) => Some(e),
-            _ => None,
-        }}).boxed();
+        let dht_event_stream = network
+            .event_stream("authority-discovery")
+            .filter_map(|e| async move {
+                match e {
+                    sc_network::Event::Dht(e) => Some(e),
+                    _ => None,
+                }
+            })
+            .boxed();
         let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
             service.client(),
             network,
