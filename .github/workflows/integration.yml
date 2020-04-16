@@ -90,7 +90,7 @@ jobs:
     - name: Install build tools
       run: |
         cargo install --git https://github.com/alexcrichton/wasm-gc --force
-        cargo install --git https://github.com/rustwasm/wasm-pack --force
+        cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
     - name: Build Web Node
       run: make pkg --directory bin/node/cli/browser
     - name: Upload Web Node into IPFS
