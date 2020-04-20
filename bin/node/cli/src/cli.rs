@@ -49,6 +49,12 @@ pub enum Subcommand {
         about = "Store hex-encoded data on blockchain."
     )]
     Datalog(robonomics_protocol::cli::DatalogCmd),
+    #[cfg(feature = "robonomics-protocol")]
+    #[structopt(
+        name = "sensors",
+        about = "Reads data from sensor."
+    )]
+    Sensor(robonomics_sensors::cli::SensorCmd),
     /// The custom benchmark subcommmand benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     #[structopt(

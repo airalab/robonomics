@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,9 +15,25 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network supported sensors.
+use robonomics_protocol::error::Result;
+use std::thread::sleep;
+use std::time::Duration;
+use sds011::SDS011;
 
-pub mod sensor;
+pub async fn read_loop(port: &str) -> Result<()> {
+    match SDS011::new(port) {
+        Ok(mut sensor) => {
+            sensor.set_work_period(5u8).unwrap();
 
-#[cfg(feature = "cli")]
-pub mod cli;
+            loop {
+                if let Some(m) = sensor.query() {
+                    println!("{:?}", m);
+                }
+
+                sleep(Duration::from_secs(5u64 * 60));
+            }
+        },
+        Err(e) => println!("{:?}", e.description),
+    };
+    Ok(())
+}
