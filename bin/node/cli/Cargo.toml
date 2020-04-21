@@ -96,11 +96,13 @@ rosrust = { version = "0.9", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
 robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
+robonomics-sensors = { path = "../../../robonomics/sensors", optional = true }
 
 [build-dependencies]
 ipci-runtime = { path = "../ipci-runtime" }
 robonomics-runtime = { path = "../robonomics-runtime" }
 robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
+robonomics-sensors = { path = "../../../robonomics/sensors", optional = true }
 sc-cli = { version = "0.8.0-alpha.6", optional = true }
 frame-benchmarking-cli = { version = "2.0.0-alpha.6", optional = true }
 substrate-build-script-utils = "2.0.0-alpha.6"
@@ -125,6 +127,7 @@ cli = [
     "sc-service/rocksdb",
     "parity-util-mem/jemalloc-global",
     "robonomics-protocol/cli",
+    "robonomics-sensors/cli",
 ]
 
 ## Enable browser bundle features.

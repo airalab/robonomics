@@ -12,6 +12,9 @@ robonomics-protocol = { path = "../protocol" }
 sc-cli = { version = "0.8.0-alpha.6", optional = true }
 structopt = { version = "0.3.8", optional = true }
 async-std = { version = "1.5", optional = true }
+sds011 = "0.1"
+log = "0.4"
+serialport = "3.3.0"
 
 [features]
 default = []

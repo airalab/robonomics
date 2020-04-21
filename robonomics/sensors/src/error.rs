@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,10 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network supported sensors.
+//! Errors that can occur during the sensor reading operations.
 
-pub mod sensor;
-pub mod error;
+use serialport::{Error};
 
-#[cfg(feature = "cli")]
-pub mod cli;
+/// Sensor Result typedef.
+pub type Result<T> = std::result::Result<T, Error>;
