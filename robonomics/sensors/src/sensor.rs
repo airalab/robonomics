@@ -15,25 +15,29 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-use robonomics_protocol::error::Result;
+use crate::error::Result;
 use std::thread::sleep;
 use std::time::Duration;
 use sds011::SDS011;
 
-pub async fn read_loop(port: &str) -> Result<()> {
+pub async fn read_loop(port: &str, work_period: u8) -> Result<()> {
     match SDS011::new(port) {
         Ok(mut sensor) => {
-            sensor.set_work_period(5u8).unwrap();
+            sensor.set_work_period(work_period)?;
 
             loop {
                 if let Some(m) = sensor.query() {
-                    println!("{:?}", m);
+                    //let mut wtr = Writer::from_writer(vec![]);
+                    //wtr.serialize(m)?;
+                    //let show = String::from_utf8(wtr.into_inner()?)?;
+                    log::info!(target: "robonomics-sensors", "{:?}", m);
                 }
 
-                sleep(Duration::from_secs(5u64 * 60));
+                sleep(Duration::from_secs(work_period as u64 * 60));
             }
         },
-        Err(e) => println!("{:?}", e.description),
+        Err(e) => log::error!(
+            target: "robonomics-sensors", "{:?}", e.description),
     };
     Ok(())
 }

@@ -113,7 +113,7 @@ pub fn run() -> sc_cli::Result<()> {
             runner.sync_run(|_|
                 subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
         }
-        #[cfg(feature = "robonomics-protocol")]
+        #[cfg(feature = "robonomics-sensors")]
         Some(Subcommand::Sensor(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             runner.sync_run(|_|

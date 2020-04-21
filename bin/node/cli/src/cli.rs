@@ -49,7 +49,7 @@ pub enum Subcommand {
         about = "Store hex-encoded data on blockchain."
     )]
     Datalog(robonomics_protocol::cli::DatalogCmd),
-    #[cfg(feature = "robonomics-protocol")]
+    #[cfg(feature = "robonomics-sensors")]
     #[structopt(
         name = "sensors",
         about = "Reads data from sensor."

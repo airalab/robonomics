@@ -5861,9 +5861,11 @@ name = "robonomics-sensors"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "log 0.4.8",
  "robonomics-protocol",
  "sc-cli",
  "sds011",
+ "serialport",
  "structopt",
 ]
 

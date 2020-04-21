@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-use robonomics_protocol::error::Result;
+use crate::error::Result;
 use async_std::task;
 use crate::sensor;
 
@@ -23,9 +23,11 @@ use crate::sensor;
 #[derive(Debug, structopt::StructOpt, Clone)]
 pub struct SensorCmd {
     /// Sensor serial port
-    #[structopt(long, default_value = "/dev/ttyUSB0")]
+    #[structopt(short, long, default_value = "/dev/ttyUSB0")]
     port: String,
-
+    /// Sensor work period in minutes
+    #[structopt(short, long, default_value = "5")]
+    work_period: u8,
     #[allow(missing_docs)]
     #[structopt(flatten)]
     pub shared_params: sc_cli::SharedParams,
@@ -47,6 +49,8 @@ impl sc_cli::CliConfiguration for SensorCmd {
 impl SensorCmd {
     /// Runs the command and node as sensor reader
     pub fn run(&self) -> Result<()> {
-        task::block_on(sensor::read_loop(self.port.to_string().as_ref()))
+        task::block_on(
+            sensor::read_loop(self.port.to_string().as_ref(), self.work_period)
+        )
     }
 }
