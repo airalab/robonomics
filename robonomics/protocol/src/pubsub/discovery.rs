@@ -18,8 +18,8 @@
 ///! Robonomics Publisher/Subscriber protocol node discovery extension.
 
 use futures::{Future, FutureExt, StreamExt, future};
+use std::time::{Duration, SystemTime};
 use serde::{Serialize, Deserialize};
-use std::time::Duration;
 use libp2p::Multiaddr;
 use std::sync::Arc;
 use super::PubSub;
@@ -28,6 +28,7 @@ use super::PubSub;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct DiscoveryMessage {
     peer_id: String,
+    timestamp: u64,
     listeners: Vec<Multiaddr>,
 }
 
@@ -50,6 +51,13 @@ pub fn start<T: PubSub>(pubsub: Arc<T>) -> impl Future<Output = ()> {
     ).map(|_| ())
 }
 
+fn timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|t| t.as_secs())
+        .unwrap_or(0)
+}
+
 async fn discovery<T: PubSub>(pubsub: Arc<T>) {
     let minute = Duration::from_secs(60);
 
@@ -58,6 +66,7 @@ async fn discovery<T: PubSub>(pubsub: Arc<T>) {
             if listeners.len() > 0 {
                 let message = DiscoveryMessage {
                     peer_id: pubsub.peer_id().to_base58(),
+                    timestamp: timestamp(), 
                     listeners,
                 };
 
