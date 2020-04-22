@@ -21,22 +21,22 @@ use codec::{EncodeLike, Codec};
 use sp_runtime::traits::Member;
 use substrate_subxt::{system, Call};
 
-/// The subset of the `pallet_balances::Trait` that a client must implement.
+/// The subset of the `pallet_robonomics_datalog::Trait` that a client must implement.
 pub trait Datalog: system::System {
     type Record: Codec + EncodeLike + Member;
 }
 
 const MODULE: &str = "Datalog";
-const TRANSFER: &str = "record";
+const RECORD: &str = "record";
 
-/// Arguments for transferring a balance
+/// Arguments for datalog record call. 
 #[derive(codec::Encode)]
-pub struct TransferArgs<T: Datalog> {
+pub struct RecordArgs<T: Datalog> {
     record: <T as Datalog>::Record
 }
 
 pub fn record<T: Datalog>(
     record: <T as Datalog>::Record,
-) -> Call<TransferArgs<T>> {
-    Call::new(MODULE, TRANSFER, TransferArgs { record })
+) -> Call<RecordArgs<T>> {
+    Call::new(MODULE, RECORD, RecordArgs { record })
 }

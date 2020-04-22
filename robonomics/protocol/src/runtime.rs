@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! SubXt compatible Robonomics Network abstration.
+//! SubXt compatible Robonomics Network runtime abstration.
 
 use sp_runtime::{
     traits::{BlakeTwo256, Verify, IdentifyAccount}, generic::Header,

@@ -17,9 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network console interface.
 
-use async_std::task;
 use sp_core::{sr25519, crypto::{Pair, Ss58Codec}};
+use futures::{future, StreamExt};
 use libp2p::Multiaddr;
+use async_std::task;
 use crate::datalog;
 use crate::pubsub::*;
 use crate::error::Result;
@@ -27,26 +28,29 @@ use crate::error::Result;
 /// Command for pubsub router mode.
 #[derive(Debug, structopt::StructOpt, Clone)]
 pub struct PubSubCmd {
-    /// Topic name for subscribe and publish.
+    /// Subscribe for given topic name and print received messages.
     #[structopt(
         long,
         value_name = "TOPIC_NAME",
     )]
-    pub topic: Option<String>,
-    /// Listen address for incoming PubSub connections,
+    pub subscribe: Option<String>,
+    /// Publish stdin lines into given topic name.
     #[structopt(
         long,
-        value_name = "MULTIADDR",
+        value_name = "TOPIC_NAME",
         default_value = "/ip4/0.0.0.0/tcp/0",
     )]
     pub listen: Multiaddr,
-    /// Indicates PubSub nodes for first connections
+    /// Indicates PubSub nodes for first connections.
     #[structopt(
         long,
         value_name = "MULTIADDR",
         use_delimiter = true,
     )]
     pub bootnodes: Vec<Multiaddr>,
+    /// Disable Robonomics PubSub peer discovery. 
+    #[structopt(long)]
+    pub disable_discovery: bool,
     #[allow(missing_docs)]
     #[structopt(flatten)]
     pub shared_params: sc_cli::SharedParams,
@@ -68,32 +72,37 @@ impl sc_cli::CliConfiguration for PubSubCmd {
 impl PubSubCmd {
     /// Runs the command and node as pubsub router.
     pub fn run(&self) -> Result<()> {
-        let mut pubsub = Gossipsub::new()?;
+        let (pubsub, worker) = Gossipsub::new()?;
 
         // Listen address
-        pubsub.listen(&self.listen)?;
+        let _ = pubsub.listen(self.listen.clone());
 
         // Connect to bootnodes
         for addr in &self.bootnodes {
-            pubsub.connect(addr)?;
+            let _ = pubsub.connect(addr.clone());
         }
 
         // Subscribe on topic topic and print received content
-        match self.topic.clone() {
+        match self.subscribe.clone() {
             Some(topic_name) => {
-                pubsub.subscribe(topic_name, |from, msg|
-                    log::info!(
-                        target: "robonomics-pubsub",
-                        "Received message from {}: {}",
-                        from.to_base58(),
-                        String::from_utf8_lossy(&msg)
-                    )
-                );
-            },
+                task::spawn(pubsub.subscribe(&topic_name).for_each(|msg| {
+                    println!(
+                        "{}: {}",
+                        msg.from.to_base58(),
+                        String::from_utf8_lossy(&msg.data[..]),
+                    );
+                    future::ready(())
+                }));
+            }
             _ => (),
         }
 
-        Ok(task::block_on(pubsub.start()))
+        // Enable peer discovery if not disabled
+        if !self.disable_discovery {
+            task::spawn(discovery::start(pubsub.clone()));
+        }
+
+        task::block_on(worker)
     }
 }
 

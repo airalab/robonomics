@@ -17,39 +17,55 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///! Robonomics Publisher/Subscriber protocol implements broadcasting layer.
 
-use libp2p::core::connection::ListenerId;
 use libp2p::{PeerId, Multiaddr};
-use crate::error::Result;
+use futures::Stream;
+use crate::error::FutureResult;
 
 /// PubSub implementation using libp2p Gossipsub.
 pub mod gossipsub;
 pub use gossipsub::PubSub as Gossipsub;
 
+/// Simple PubSub based node discovery.
+pub mod discovery;
+
+/// Robonomics PubSub message.
+#[derive(PartialEq, Eq, Clone)]
+pub struct Message {
+    pub from: PeerId,
+    pub data: Vec<u8>,
+}
+
 /// Robonomics Publisher/Subscriber.
 pub trait PubSub {
-    /// Returns node local peer ID.
+    /// Stream of incoming messages.
+    type Inbox: Stream<Item = Message> + Sized;
+
+    /// Returns local peer ID.
     fn peer_id(&self) -> PeerId;
 
     /// Listen address for incoming connections.
-    fn listen(&mut self, address: &Multiaddr) -> Result<ListenerId>;
+    ///
+    /// Returns true when successful bind and false in case of error.
+    fn listen(&self, address: Multiaddr) -> FutureResult<bool>;
 
-    /// Returns list of addresses we're listening on.
-    fn listeners(&self) -> Vec<Multiaddr>;
+    /// Returns a list of node addresses.
+    fn listeners(&self) -> FutureResult<Vec<Multiaddr>>;
 
     /// Connect to peer and add it into swarm.
-    fn connect(&mut self, address: &Multiaddr) -> Result<()>;
-
-    /// Subscribe and set handler for topic with given name.
     ///
-    /// Returns true if the subscription worked. Returns false if we were already subscribed.
-    fn subscribe<T, F>(&mut self, topic_name: T, callback: F) -> bool
-        where T: ToString, F: FnMut(PeerId, Vec<u8>) + 'static;
+    /// Returns true when connected and false in case of error.
+    fn connect(&self, address: Multiaddr) -> FutureResult<bool>;
 
-    /// Unsubscribe and remove handler for given topic name.
+    /// Subscribe for a topic with given name.
     ///
-    /// Returns true if we were subscribed to this topic.
-    fn unsubscribe<T: ToString>(&mut self, topic_name: T) -> bool;
+    /// Returns stream of incoming messages.
+    fn subscribe<T: ToString>(&self, topic_name: &T) -> Self::Inbox;
 
-    /// Publish message into the topic.
-    fn publish<T: ToString, M: Into<Vec<u8>>>(&mut self, topic_name: T, message: M);
+    /// Unsubscribe for incoming messages from topic.
+    ///
+    /// Returns true when success.
+    fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool>;
+
+    /// Publish message into the topic by name.
+    fn publish<T: ToString, M: Into<Vec<u8>>>(&self, topic_name: &T, message: M);
 }
