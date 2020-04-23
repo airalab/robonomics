@@ -15,10 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network supported sensors.
+//! Robonomics Framework I/O operations.
 
+pub mod actuator;
 pub mod sensor;
 pub mod error;
 
 pub use sensor::Sensor;
-pub use sensor::serial::*;
+pub use actuator::Actuator;

@@ -15,30 +15,38 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics sensing subsystem. 
+///! Virtual sensors collection.
+///
+/// This module contains:
+/// - Stdin: Standart input stream. 
+///
 
-use serde::Serialize;
-use futures::Stream;
+use futures::channel::mpsc;
 use crate::error::Result;
+use std::io::BufRead;
+use super::Sensor;
+use std::thread;
 
-/// Collection of serial port sensors.
-pub mod serial;
+/// Simple standart input.
+pub struct Stdin;
 
-/// Sensor is an hardware device that provide that cold provide some data of external world.
-pub trait Sensor: Sized {
-    /// Sensor initial parameters.
-    type Config;
+impl Sensor for Stdin {
+    type Config = ();
+    type Measure = String;
+    type Stream = mpsc::UnboundedReceiver<Self::Measure>;
 
-    /// Sensor data type.
-    type Measure: Serialize + Send + Sync;
+    fn new(_config: Self::Config) -> Result<Self> {
+        Ok(Stdin)
+    }
 
-    /// Stream of measurements in the future.
-    type Stream: Stream<Item = Self::Measure> + Sized;
-
-    /// Create new sensor instance.
-    fn new(config: Self::Config) -> Result<Self>;
-
-    /// Read a data from sensor.
-    /// Note: this method cannot be run twice.
-    fn read(self) -> Self::Stream;
+    fn read(self) -> Self::Stream {
+        let (tx, rx) = mpsc::unbounded();
+        thread::spawn(move || {
+            let input = std::io::stdin();
+            for line in input.lock().lines() {
+                let _ = tx.unbounded_send(line.expect("unable to read line from stdio"));
+            }
+        });
+        rx
+    }
 }

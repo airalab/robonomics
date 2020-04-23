@@ -15,31 +15,37 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Errors that can occur during the sensor reading operations.
+///! Virtual actuators collection.
+///
+/// This module contains:
+/// - Stdout: Standart output stream. 
+///
 
-/// Sensor Result typedef.
-pub type Result<T> = std::result::Result<T, Error>;
+use futures::{future, Stream, Future, StreamExt};
+use std::io::{self, Write};
+use crate::error::Result;
+use super::Actuator;
 
-/// Robonomics sensors errors.
-#[derive(Debug, derive_more::Display, derive_more::From)]
-pub enum Error {
-    /// Serial port I/O error.
-    Serial(serialport::Error),
-    /// Other error.
-    Other(String),
-}
+/// Simple standart output.
+pub struct Stdout;
 
-impl<'a> From<&'a str> for Error {
-    fn from(s: &'a str) -> Self {
-        Error::Other(s.into())
+impl Actuator for Stdout {
+    type Config = ();
+    type Control = String;
+
+    fn new(_config: Self::Config) -> Result<Self> {
+        Ok(Stdout)
     }
-}
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::Serial(ref err) => Some(err),
-            _ => None,
-        }
+    fn write<'a, T: Stream<Item = Self::Control> + 'a>(
+        self,
+        control: T, 
+    ) -> Box<dyn Future<Output = ()> + 'a> {
+        Box::new(control.for_each(|msg| {
+            io::stdout()
+                .write_all(msg.as_bytes())
+                .expect("unable to write string");
+            future::ready(())
+        }))
     }
 }
