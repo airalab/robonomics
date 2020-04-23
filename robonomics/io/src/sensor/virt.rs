@@ -21,10 +21,15 @@
 /// - Stdin: Standart input stream. 
 ///
 
+use robonomics_protocol::pubsub::{
+    self, Multiaddr, PubSub as PubSubT,
+};
 use futures::channel::mpsc;
 use crate::error::Result;
 use std::io::BufRead;
+use async_std::task;
 use super::Sensor;
+use std::sync::Arc;
 use std::thread;
 
 /// Simple standart input.
@@ -48,5 +53,46 @@ impl Sensor for Stdin {
             }
         });
         rx
+    }
+}
+
+pub struct PubSub {
+    pubsub: Arc<pubsub::Gossipsub>,
+    topic_name: String,
+}
+
+pub struct PubSubConfig {
+    pub listen: Multiaddr,
+    pub bootnodes: Vec<Multiaddr>,
+    pub topic_name: String,
+}
+
+impl Sensor for PubSub {
+    type Config = PubSubConfig;
+    type Measure = pubsub::Message;
+    type Stream = Box<mpsc::UnboundedReceiver<Self::Measure>>;
+
+    fn new(config: Self::Config) -> Result<Self> {
+        let (pubsub, worker) = pubsub::Gossipsub::new().unwrap();
+
+        // Listen address
+        let _ = pubsub.listen(config.listen.clone());
+
+        // Connect to bootnodes
+        for addr in config.bootnodes {
+            let _ = pubsub.connect(addr);
+        }
+
+        // Spawn peer discovery
+        task::spawn(pubsub::discovery::start(pubsub.clone()));
+
+        // Spawn network worker
+        task::spawn(worker);
+
+        Ok(Self { pubsub, topic_name: config.topic_name })
+    }
+
+    fn read(self) -> Self::Stream {
+        self.pubsub.subscribe(&self.topic_name)
     }
 }

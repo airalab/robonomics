@@ -10,5 +10,7 @@ serde = "1.0.106"
 futures = "0.3.4"
 derive_more = "0.99"
 serialport = "3.3"
+async-std = "1.5"
 sds011 = "0.1"
 log = "0.4"
+robonomics-protocol = { path = "../protocol" }

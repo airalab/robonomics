@@ -15,32 +15,16 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics sensing subsystem. 
+///! Robonomics I/O CLI interface.
 
-use futures::Stream;
 use crate::error::Result;
 
-/// Collection of serial port sensors.
-pub mod serial;
+#[derive(structopt::StructOpt, Clone, Debug)]
+pub enum ProcessorCmd {
+}
 
-/// Collection of virtual sensors (like stdin).
-pub mod virt;
-
-/// Sensor is an hardware device that provide that cold provide some data of external world.
-pub trait Sensor: Sized {
-    /// Sensor initial parameters.
-    type Config;
-
-    /// Sensor data type.
-    type Measure;
-
-    /// Stream of measurements in the future.
-    type Stream: Stream<Item = Self::Measure> + Sized;
-
-    /// Create new sensor instance.
-    fn new(config: Self::Config) -> Result<Self>;
-
-    /// Read a data from sensor.
-    /// Note: this method cannot be run twice.
-    fn read(self) -> Self::Stream;
+impl ProcessorCmd {
+    pub fn run(&self) -> Result<()> {
+        Ok(())
+    }
 }

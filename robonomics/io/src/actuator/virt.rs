@@ -21,7 +21,7 @@
 /// - Stdout: Standart output stream. 
 ///
 
-use futures::{future, Stream, Future, StreamExt};
+use futures::{future, Future, Stream, StreamExt};
 use std::io::{self, Write};
 use crate::error::Result;
 use super::Actuator;
@@ -31,16 +31,15 @@ pub struct Stdout;
 
 impl Actuator for Stdout {
     type Config = ();
-    type Control = String;
+    type Action = String;
+    type Control = Box<dyn Stream<Item = Self::Action> + Unpin>;
+    type Task = Box<dyn Future<Output = ()> + Unpin>;
 
     fn new(_config: Self::Config) -> Result<Self> {
         Ok(Stdout)
     }
 
-    fn write<'a, T: Stream<Item = Self::Control> + 'a>(
-        self,
-        control: T, 
-    ) -> Box<dyn Future<Output = ()> + 'a> {
+    fn write<'a>(self, control: Self::Control) -> Self::Task {
         Box::new(control.for_each(|msg| {
             io::stdout()
                 .write_all(msg.as_bytes())

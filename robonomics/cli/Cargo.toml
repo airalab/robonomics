@@ -1,0 +1,28 @@
+[package]
+name = "robonomics-cli"
+description = "Robonomics Framework console line interfaces."
+version = "0.1.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "1.3", features = ["derive"] }
+robonomics-protocol = { path = "../protocol" }
+robonomics-io = { path = "../io" }
+substrate-subxt = "0.6"
+sp-core = "2.0.0-alpha.6"
+sp-runtime = "2.0.0-alpha.6"
+pallet-indices = "2.0.0-alpha.6"
+derive_more = "0.99"
+futures-timer = "3.0"
+futures = "0.3.4"
+bincode = "1.2"
+libp2p = "0.18"
+log = "0.4"
+hex = "0.4"
+
+# cli specified
+sc-cli = { version = "0.8.0-alpha.6" }
+structopt = { version = "0.3.8" }
+async-std = { version = "1.5" }
