@@ -23,14 +23,14 @@ use sp_runtime::{
 };
 use substrate_subxt::{system, balances};
 
-/// Datalog pallet support.
+/// Robonomics Datalog pallet.
 pub mod pallet_datalog;
 
-/// Robonomics family runtimes.
+/// Robonomics Network family runtimes.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Robonomics;
 
-/// Robonomics account id is MultiSignature account.
+/// Robonomics account is MultiSignature account.
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 impl system::System for Robonomics {

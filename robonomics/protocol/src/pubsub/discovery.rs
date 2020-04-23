@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Publisher/Subscriber protocol node discovery extension.
+///! Robonomics Publisher/Subscriber protocol node discovery.
 
 use futures::{Future, FutureExt, StreamExt, future};
 use std::time::{Duration, SystemTime};

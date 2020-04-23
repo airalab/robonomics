@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Publisher/Subscriber protocol implements broadcasting layer.
+///! Robonomics Network broadcasting layer.
 
 use libp2p::{PeerId, Multiaddr};
 use futures::Stream;

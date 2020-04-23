@@ -18,8 +18,6 @@
 ///! Robonomics Gossipsub protocol.
 ///
 /// This implementation use libp2p Gossipsub for effective message delivery.
-/// It also implements automatic peer discovery mechanism to build sustainable
-/// and high available pubsub swarm.
 ///
 
 use std::{

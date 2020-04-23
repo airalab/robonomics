@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-protocol"
-description = "Robonomics Network protocol on libp2p."
-version = "0.4.0"
+description = "Robonomics Network protocol library."
+version = "0.4.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -16,21 +16,6 @@ derive_more = "0.99"
 futures-timer = "3.0"
 futures = "0.3.4"
 bincode = "1.2"
-libp2p = "0.18"
+libp2p = "0.18.1"
 log = "0.4"
 hex = "0.4"
-
-# cli specified
-sc-cli = { version = "0.8.0-alpha.6", optional = true }
-structopt = { version = "0.3.8", optional = true }
-async-std = { version = "1.5", optional = true }
-
-[features]
-default = []
-
-## Enables console interface components.
-cli = [
-    "structopt",
-    "async-std",
-    "sc-cli",
-]

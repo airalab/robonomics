@@ -15,13 +15,10 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol components.
+//! Robonomics Network protocol.
 
 pub mod id;
 pub mod error;
 pub mod pubsub;
 pub mod datalog;
 pub mod runtime;
-
-#[cfg(feature = "cli")]
-pub mod cli;
