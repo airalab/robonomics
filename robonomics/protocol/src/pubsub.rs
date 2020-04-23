@@ -17,9 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///! Robonomics Network broadcasting layer.
 
-use libp2p::{PeerId, Multiaddr};
 use futures::Stream;
 use crate::error::FutureResult;
+
+pub use libp2p::{PeerId, Multiaddr};
 
 /// PubSub implementation using libp2p Gossipsub.
 pub mod gossipsub;

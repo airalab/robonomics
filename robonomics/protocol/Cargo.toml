@@ -6,8 +6,8 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "1.3", features = ["derive"] }
+serde = { version = "1.0.106", features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "1.3.0", features = ["derive"] }
 substrate-subxt = "0.6"
 sp-core = "2.0.0-alpha.6"
 sp-runtime = "2.0.0-alpha.6"

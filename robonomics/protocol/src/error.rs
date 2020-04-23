@@ -19,7 +19,6 @@
 
 use libp2p::core::transport::TransportError;
 use libp2p::core::connection::ConnectionLimit;
-use sp_core::crypto::SecretStringError;
 use futures::channel::oneshot;
 use futures::Future;
 
@@ -43,9 +42,6 @@ pub enum Error {
     ConnectionLimit(ConnectionLimit),
     /// Transaction sending error.
     SubmitFailure(substrate_subxt::Error),
-    /// Private key loading error.
-    #[display(fmt = "secret string error: {:?}", _0)]
-    PrivateKeyFailure(SecretStringError),
     /// Codec error.
     Codec(bincode::Error),
     /// Other error.
