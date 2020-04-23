@@ -20,5 +20,5 @@
 pub mod sensor;
 pub mod error;
 
-#[cfg(feature = "cli")]
-pub mod cli;
+pub use sensor::Sensor;
+pub use sensor::serial::*;

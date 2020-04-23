@@ -15,29 +15,30 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Robonomics sensing subsystem. 
+
+use serde::Serialize;
+use futures::Stream;
 use crate::error::Result;
-use std::thread::sleep;
-use std::time::Duration;
-use sds011::SDS011;
 
-pub async fn read_loop(port: &str, work_period: u8) -> Result<()> {
-    match SDS011::new(port) {
-        Ok(mut sensor) => {
-            sensor.set_work_period(work_period)?;
+/// Collection of serial port sensors.
+pub mod serial;
 
-            loop {
-                if let Some(m) = sensor.query() {
-                    //let mut wtr = Writer::from_writer(vec![]);
-                    //wtr.serialize(m)?;
-                    //let show = String::from_utf8(wtr.into_inner()?)?;
-                    log::info!(target: "robonomics-sensors", "{:?}", m);
-                }
+/// Sensor is an hardware device that provide that cold provide some data of external world.
+pub trait Sensor: Sized {
+    /// Sensor initial parameters.
+    type Config;
 
-                sleep(Duration::from_secs(work_period as u64 * 60));
-            }
-        },
-        Err(e) => log::error!(
-            target: "robonomics-sensors", "{:?}", e.description),
-    };
-    Ok(())
+    /// Sensor data type.
+    type Measure: Serialize + Send + Sync;
+
+    /// Stream of measurements in the future.
+    type Stream: Stream<Item = Self::Measure> + Sized;
+
+    /// Create new sensor instance.
+    fn new(config: Self::Config) -> Result<Self>;
+
+    /// Read a data from sensor.
+    /// Note: this method cannot be run twice.
+    fn read(self) -> Self::Stream;
 }
