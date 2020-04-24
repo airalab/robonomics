@@ -45,7 +45,16 @@ pub enum ActuatorCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
-    }
+    },
+    /// Data blockchainization subsystem command.
+    Datalog {
+        /// Substrate node WebSocket endpoint
+        #[structopt(long, default_value = "ws://localhost:9944")]
+        remote: String,
+        /// Sender account seed URI
+        #[structopt(short)]
+        suri: String,
+    },
 }
 
 impl ActuatorCmd {
@@ -54,6 +63,10 @@ impl ActuatorCmd {
         match self.clone() {
             ActuatorCmd::PubSub { topic_name, listen, bootnodes } => {
                 let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
+                Ok(task::block_on(device.consume(Box::new(stdin))))
+            }
+            ActuatorCmd::Datalog { remote, suri } => {
+                let device = virt::Datalog::new(remote, suri).unwrap();
                 Ok(task::block_on(device.consume(Box::new(stdin))))
             }
         }

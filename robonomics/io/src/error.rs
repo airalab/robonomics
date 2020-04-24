@@ -17,6 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the I/O operations.
 
+use sp_core::crypto::SecretStringError;
+
 /// Sensor Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -25,6 +27,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Serial port I/O error.
     Serial(serialport::Error),
+    /// Private key loading error.
+    #[display(fmt = "secret string error: {:?}", _0)]
+    PrivateKeyFailure(SecretStringError),
+    /// Protocol error.
+    Protocol(robonomics_protocol::error::Error),
     /// Other error.
     Other(String),
 }

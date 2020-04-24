@@ -22,26 +22,11 @@ use robonomics_protocol::datalog;
 use async_std::task;
 use crate::error::Result;
 
-/// Wrapper type for byte vector.
-type Bytes = Vec<u8>;
-
-/// Data blockchainization subsystem command.
-#[derive(structopt::StructOpt, Clone, Debug)]
-pub struct DatalogCmd {
-    /// Substrate node WebSocket endpoint
-    #[structopt(long, default_value = "ws://localhost:9944")]
-    remote: String,
-    /// Sender account seed URI
-    #[structopt(short)]
-    suri: String,
-    /// Hex encoded data record to send (without 0x prefix)
-    #[structopt(parse(try_from_str = hex::decode))]
-    record: Option<Bytes>,
-}
+pub stt
 
 impl DatalogCmd {
     /// Send data record into blockchain.
-    pub fn run(&self) -> Result<()> {
+    pub fn new(&self) -> Result<()> {
         let signer = sr25519::Pair::from_string(self.suri.as_str(), None)?;
         log::info!(
             target: "robonomics-cli",

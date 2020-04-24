@@ -21,10 +21,12 @@
 /// - Stdout: Standart output stream. 
 ///
 
+use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
 use futures::{Stream, StreamExt, Future, future};
+use sp_core::{sr25519, crypto::Pair};
 use std::io::{self, Write};
 use crate::pipe::Consumer;
 use crate::error::Result;
@@ -92,6 +94,37 @@ impl Consumer for PubSub {
     fn consume(self, input: Self::In) -> Self::Out {
         Box::new(input.for_each(move |msg| {
             self.pubsub.publish(&self.topic_name, msg);
+            future::ready(())
+        }))
+    }
+}
+
+/// Datalog submitter.
+pub struct Datalog {
+    remote: String,
+    pair: sr25519::Pair,
+}
+
+impl Datalog {
+    pub fn new(remote: String, suri: String) -> Result<Self> {
+        let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
+        Ok(Self { remote, pair })
+    }
+}
+
+impl Consumer for Datalog {
+    type In = Box<dyn Stream<Item = String> + Unpin>;
+    type Out = Box<dyn Future<Output = ()> + Unpin>;
+
+    fn consume(self, input: Self::In) -> Self::Out {
+        Box::new(input.for_each(move |record| {
+            let _ = task::block_on(
+                datalog::submit(
+                    self.pair.clone(),
+                    self.remote.as_str(),
+                    record.as_bytes().to_vec(),
+                )
+            );
             future::ready(())
         }))
     }

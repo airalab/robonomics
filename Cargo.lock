@@ -5775,6 +5775,7 @@ dependencies = [
  "sds011",
  "serde",
  "serialport",
+ "sp-core",
 ]
 
 [[package]]

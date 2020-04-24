@@ -69,9 +69,7 @@ impl SensorCmd {
             }
             SensorCmd::PubSub { topic_name, listen, bootnodes } => {
                 let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
-                let measure = device.map(|m|
-                    format!("{}: {}", m.from.to_base58(), String::from_utf8_lossy(&m.data[..]))
-                );
+                let measure = device.map(|m| format!("{:?}", m.data));
                 task::block_on(stdout.consume(Box::new(measure)))
             }
 

@@ -17,8 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the cli operations.
 
-use sp_core::crypto::SecretStringError;
-
 /// Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -27,9 +25,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Protocol error.
     ProtocolFailure(robonomics_protocol::error::Error),
-    /// Private key loading error.
-    #[display(fmt = "secret string error: {:?}", _0)]
-    PrivateKeyFailure(SecretStringError),
     /// Other error.
     Other(String),
 }
