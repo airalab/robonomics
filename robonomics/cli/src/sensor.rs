@@ -19,11 +19,11 @@
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::{Sensor, Actuator};
 use robonomics_io::sensor::{virt, serial};
 use robonomics_io::actuator::virt::Stdout;
-use async_std::task;
+use robonomics_io::Consumer;
 use futures::StreamExt;
+use async_std::task;
 
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum SensorCmd {
@@ -44,7 +44,7 @@ pub enum SensorCmd {
         /// Listen address for incoming connections. 
         #[structopt(
             long,
-            value_name = "TOPIC_NAME",
+            value_name = "MULTIADDR",
             default_value = "/ip4/0.0.0.0/tcp/0",
         )]
         listen: Multiaddr,
@@ -60,25 +60,19 @@ pub enum SensorCmd {
 
 impl SensorCmd {
     pub fn run(&self) -> Result<()> {
-        let stdout: Stdout = Actuator::new(()).unwrap();
+        let stdout = Stdout::new();
         match self.clone() {
             SensorCmd::SDS011 { port, period } => {
-                let config = serial::SDS011Config { port, period };
-                let sensor = serial::SDS011::new(config).unwrap();
-                let measure = sensor.read().map(|m| format!("{:?}", m));
-                task::block_on(stdout.write(Box::new(measure)))
+                let sensor = serial::SDS011::new(port, period).unwrap();
+                let measure = sensor.map(|m| format!("{:?}", m));
+                task::block_on(stdout.consume(Box::new(measure)))
             }
             SensorCmd::PubSub { topic_name, listen, bootnodes } => {
-                let config = virt::PubSubConfig { topic_name, listen, bootnodes };
-                let sensor = virt::PubSub::new(config).unwrap();
-                let measure = sensor.read().map(|m|
-                    format!(
-                        "{}: {}",
-                        m.from.to_base58(),
-                        String::from_utf8_lossy(&m.data[..]),
-                    )
+                let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
+                let measure = device.map(|m|
+                    format!("{}: {}", m.from.to_base58(), String::from_utf8_lossy(&m.data[..]))
                 );
-                task::block_on(stdout.write(Box::new(measure)))
+                task::block_on(stdout.consume(Box::new(measure)))
             }
 
         }

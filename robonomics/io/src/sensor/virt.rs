@@ -25,26 +25,19 @@ use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
 use futures::channel::mpsc;
+use futures::{Stream, StreamExt};
 use crate::error::Result;
 use std::io::BufRead;
 use async_std::task;
-use super::Sensor;
-use std::sync::Arc;
+use std::task::{Context, Poll};
+use std::pin::Pin;
 use std::thread;
 
 /// Simple standart input.
-pub struct Stdin;
+pub struct Stdin(Box<dyn Stream<Item = String> + Unpin>);
 
-impl Sensor for Stdin {
-    type Config = ();
-    type Measure = String;
-    type Stream = mpsc::UnboundedReceiver<Self::Measure>;
-
-    fn new(_config: Self::Config) -> Result<Self> {
-        Ok(Stdin)
-    }
-
-    fn read(self) -> Self::Stream {
+impl Stdin {
+    pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded();
         thread::spawn(move || {
             let input = std::io::stdin();
@@ -52,34 +45,34 @@ impl Sensor for Stdin {
                 let _ = tx.unbounded_send(line.expect("unable to read line from stdio"));
             }
         });
-        rx
+        Self(Box::new(rx))
     }
 }
 
-pub struct PubSub {
-    pubsub: Arc<pubsub::Gossipsub>,
-    topic_name: String,
+impl Stream for Stdin {
+    type Item = String;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.0.poll_next_unpin(cx)
+    }
 }
 
-pub struct PubSubConfig {
-    pub listen: Multiaddr,
-    pub bootnodes: Vec<Multiaddr>,
-    pub topic_name: String,
-}
+/// PubSub subscription.
+pub struct PubSub(Box<dyn Stream<Item = pubsub::Message> + Unpin>);
 
-impl Sensor for PubSub {
-    type Config = PubSubConfig;
-    type Measure = pubsub::Message;
-    type Stream = Box<mpsc::UnboundedReceiver<Self::Measure>>;
-
-    fn new(config: Self::Config) -> Result<Self> {
+impl PubSub {
+    pub fn new(
+        listen: Multiaddr,
+        bootnodes: Vec<Multiaddr>,
+        topic_name: String,
+    ) -> Result<Self> {
         let (pubsub, worker) = pubsub::Gossipsub::new().unwrap();
 
         // Listen address
-        let _ = pubsub.listen(config.listen.clone());
+        let _ = pubsub.listen(listen);
 
         // Connect to bootnodes
-        for addr in config.bootnodes {
+        for addr in bootnodes {
             let _ = pubsub.connect(addr);
         }
 
@@ -89,10 +82,15 @@ impl Sensor for PubSub {
         // Spawn network worker
         task::spawn(worker);
 
-        Ok(Self { pubsub, topic_name: config.topic_name })
+        // Subscribe to given topic
+        Ok(Self(pubsub.subscribe(&topic_name))) 
     }
+}
 
-    fn read(self) -> Self::Stream {
-        self.pubsub.subscribe(&self.topic_name)
+impl Stream for PubSub {
+    type Item = pubsub::Message;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.0.poll_next_unpin(cx)
     }
 }

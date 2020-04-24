@@ -21,29 +21,77 @@
 /// - Stdout: Standart output stream. 
 ///
 
-use futures::{future, Future, Stream, StreamExt};
+use robonomics_protocol::pubsub::{
+    self, Multiaddr, PubSub as PubSubT,
+};
+use futures::{Stream, StreamExt, Future, future};
 use std::io::{self, Write};
+use crate::pipe::Consumer;
 use crate::error::Result;
-use super::Actuator;
+use async_std::task;
+use std::sync::Arc;
 
 /// Simple standart output.
 pub struct Stdout;
 
-impl Actuator for Stdout {
-    type Config = ();
-    type Action = String;
-    type Control = Box<dyn Stream<Item = Self::Action> + Unpin>;
-    type Task = Box<dyn Future<Output = ()> + Unpin>;
+impl Stdout {
+    pub fn new() -> Self { Self }
+}
 
-    fn new(_config: Self::Config) -> Result<Self> {
-        Ok(Stdout)
-    }
+impl Consumer for Stdout {
+    type In = Box<dyn Stream<Item = String> + Unpin>;
+    type Out = Box<dyn Future<Output = ()> + Unpin>;
 
-    fn write<'a>(self, control: Self::Control) -> Self::Task {
-        Box::new(control.for_each(|msg| {
+    fn consume(self, input: Self::In) -> Self::Out {
+        Box::new(input.for_each(|msg| {
             io::stdout()
                 .write_all(msg.as_bytes())
-                .expect("unable to write string");
+                .expect("unable to write to stdout");
+            future::ready(())
+        }))
+    }
+}
+
+/// PubSub publisher.
+pub struct PubSub {
+    pubsub: Arc<pubsub::Gossipsub>,
+    topic_name: String,
+}
+
+impl PubSub {
+    pub fn new(
+        listen: Multiaddr,
+        bootnodes: Vec<Multiaddr>,
+        topic_name: String,
+    ) -> Result<Self> {
+        let (pubsub, worker) = pubsub::Gossipsub::new().unwrap();
+
+        // Listen address
+        let _ = pubsub.listen(listen);
+
+        // Connect to bootnodes
+        for addr in bootnodes {
+            let _ = pubsub.connect(addr);
+        }
+
+        // Spawn peer discovery
+        task::spawn(pubsub::discovery::start(pubsub.clone()));
+
+        // Spawn network worker
+        task::spawn(worker);
+
+        // Subscribe to given topic
+        Ok(Self { pubsub, topic_name }) 
+    }
+}
+
+impl Consumer for PubSub {
+    type In = Box<dyn Stream<Item = String> + Unpin>;
+    type Out = Box<dyn Future<Output = ()> + Unpin>;
+
+    fn consume(self, input: Self::In) -> Self::Out {
+        Box::new(input.for_each(move |msg| {
+            self.pubsub.publish(&self.topic_name, msg);
             future::ready(())
         }))
     }

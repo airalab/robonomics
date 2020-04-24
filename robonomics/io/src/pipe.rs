@@ -15,11 +15,24 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Framework I/O operations.
+//! Stream based pipes.
 
-pub mod actuator;
-pub mod sensor;
-pub mod error;
-pub mod pipe;
+use futures::{Stream, Future};
 
-pub use pipe::{Pipe, Consumer};
+/// Pipe joins two streams.
+pub trait Pipe {
+    type In: Stream + Sized;
+    type Out: Stream + Sized;
+
+    /// Run stream processing.
+    fn pipe(self, input: Self::In) -> Self::Out;
+}
+
+/// Consumer read input stream and handle value in returned future.
+pub trait Consumer {
+    type In: Stream + Sized;
+    type Out: Future + Sized;
+
+    /// Run stream consumption. 
+    fn consume(self, input: Self::In) -> Self::Out;
+}

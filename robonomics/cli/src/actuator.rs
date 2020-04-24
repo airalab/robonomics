@@ -18,13 +18,44 @@
 ///! Robonomics I/O CLI interface.
 
 use crate::error::Result;
+use robonomics_protocol::pubsub::Multiaddr;
+use robonomics_io::sensor::virt::Stdin;
+use robonomics_io::actuator::virt;
+use robonomics_io::Consumer;
+use async_std::task;
 
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum ActuatorCmd {
+    /// Broadcast data into PubSub topic.
+    #[structopt(name = "pubsub")]
+    PubSub {
+        /// Publish data into given topic name.
+        topic_name: String,
+        /// Listen address for incoming connections. 
+        #[structopt(
+            long,
+            value_name = "MULTIADDR",
+            default_value = "/ip4/0.0.0.0/tcp/0",
+        )]
+        listen: Multiaddr,
+        /// Indicates PubSub nodes for first connections.
+        #[structopt(
+            long,
+            value_name = "MULTIADDR",
+            use_delimiter = true,
+        )]
+        bootnodes: Vec<Multiaddr>,
+    }
 }
 
 impl ActuatorCmd {
     pub fn run(&self) -> Result<()> {
-        Ok(())
+        let stdin = Stdin::new();
+        match self.clone() {
+            ActuatorCmd::PubSub { topic_name, listen, bootnodes } => {
+                let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
+                Ok(task::block_on(device.consume(Box::new(stdin))))
+            }
+        }
     }
 }
