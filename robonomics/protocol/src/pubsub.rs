@@ -15,11 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Publisher/Subscriber protocol implements broadcasting layer.
+///! Robonomics Network broadcasting layer.
 
-use libp2p::{PeerId, Multiaddr};
+use std::pin::Pin;
 use futures::Stream;
 use crate::error::FutureResult;
+
+pub use libp2p::{PeerId, Multiaddr};
 
 /// PubSub implementation using libp2p Gossipsub.
 pub mod gossipsub;
@@ -29,17 +31,17 @@ pub use gossipsub::PubSub as Gossipsub;
 pub mod discovery;
 
 /// Robonomics PubSub message.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Message {
     pub from: PeerId,
     pub data: Vec<u8>,
 }
 
+/// Stream of incoming messages.
+pub type Inbox = Pin<Box<dyn Stream<Item = Message> + Send>>;
+
 /// Robonomics Publisher/Subscriber.
 pub trait PubSub {
-    /// Stream of incoming messages.
-    type Inbox: Stream<Item = Message> + Sized;
-
     /// Returns local peer ID.
     fn peer_id(&self) -> PeerId;
 
@@ -59,7 +61,7 @@ pub trait PubSub {
     /// Subscribe for a topic with given name.
     ///
     /// Returns stream of incoming messages.
-    fn subscribe<T: ToString>(&self, topic_name: &T) -> Self::Inbox;
+    fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox;
 
     /// Unsubscribe for incoming messages from topic.
     ///

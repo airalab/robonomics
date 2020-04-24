@@ -22,13 +22,13 @@ use crate::runtime::pallet_datalog;
 use sp_core::crypto::Pair;
 
 /// Main
-pub async fn submit<T: Pair>(signer: T, remote: &str, record: Vec<u8>) -> Result<()>
+pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Result<()>
     where sp_runtime::MultiSigner: From<<T as Pair>::Public>,
           sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
           <T as Pair>::Signature: codec::Codec,
 {
     let xt_hash = substrate_subxt::ClientBuilder::<Robonomics>::new()
-        .set_url(remote)
+        .set_url(remote.as_str())
         .build().await?
         .xt(signer, None).await?
         .submit(pallet_datalog::record::<Robonomics>(record))

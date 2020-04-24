@@ -101,23 +101,11 @@ pub fn run() -> sc_cli::Result<()> {
                 runner.run_subcommand(subcommand, |config| new_robonomics_chain_ops(config))
             }
         }
-        #[cfg(feature = "robonomics-protocol")]
-        Some(Subcommand::PubSub(subcommand)) => {
+        #[cfg(feature = "robonomics-cli")]
+        Some(Subcommand::Io(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             runner.sync_run(|_|
                 subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
-        }
-        #[cfg(feature = "robonomics-protocol")]
-        Some(Subcommand::Datalog(subcommand)) => {
-            let runner = cli.create_runner(subcommand)?;
-            runner.sync_run(|_|
-                subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 
-        }
-        #[cfg(feature = "robonomics-sensors")]
-        Some(Subcommand::Sensor(subcommand)) => {
-            let runner = cli.create_runner(subcommand)?;
-            runner.sync_run(|_|
-                subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string())))
         }
         #[cfg(feature = "benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {

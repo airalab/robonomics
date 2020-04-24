@@ -15,10 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Robonomics Framework I/O operations.
 
-pub mod id;
+pub mod source;
 pub mod error;
-pub mod pubsub;
-pub mod datalog;
-pub mod runtime;
+pub mod sink;
+pub mod pipe;
+
+pub use pipe::{Pipe, Consumer};

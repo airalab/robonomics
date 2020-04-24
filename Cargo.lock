@@ -4236,10 +4236,9 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "parity-util-mem",
- "robonomics-protocol",
+ "robonomics-cli",
  "robonomics-ros-api",
  "robonomics-runtime",
- "robonomics-sensors",
  "rosrust",
  "sc-authority-discovery",
  "sc-basic-authorship",
@@ -5741,6 +5740,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "robonomics-cli"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "bincode",
+ "derive_more",
+ "futures 0.3.4",
+ "futures-timer 3.0.2",
+ "hex",
+ "libp2p 0.18.1",
+ "log 0.4.8",
+ "pallet-indices",
+ "parity-scale-codec",
+ "robonomics-io",
+ "robonomics-protocol",
+ "sc-cli",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "structopt",
+ "substrate-subxt",
+]
+
+[[package]]
+name = "robonomics-io"
+version = "0.3.0"
+dependencies = [
+ "async-std",
+ "derive_more",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "robonomics-protocol",
+ "sds011",
+ "serde",
+ "serialport",
+ "sp-core",
+]
+
+[[package]]
 name = "robonomics-liability"
 version = "0.1.0"
 dependencies = [
@@ -5755,9 +5793,8 @@ dependencies = [
 
 [[package]]
 name = "robonomics-protocol"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
- "async-std",
  "bincode",
  "derive_more",
  "futures 0.3.4",
@@ -5767,11 +5804,9 @@ dependencies = [
  "log 0.4.8",
  "pallet-indices",
  "parity-scale-codec",
- "sc-cli",
  "serde",
  "sp-core",
  "sp-runtime",
- "structopt",
  "substrate-subxt",
 ]
 
@@ -5856,19 +5891,6 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder-runner",
-]
-
-[[package]]
-name = "robonomics-sensors"
-version = "0.1.0"
-dependencies = [
- "async-std",
- "log 0.4.8",
- "robonomics-protocol",
- "sc-cli",
- "sds011",
- "serialport",
- "structopt",
 ]
 
 [[package]]

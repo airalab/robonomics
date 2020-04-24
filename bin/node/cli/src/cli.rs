@@ -35,26 +35,13 @@ pub enum Subcommand {
     /// A set of base subcommands handled by `sc_cli`.
     #[structopt(flatten)]
     Base(sc_cli::Subcommand),
-    /// This subcommand runs node in message router mode.
-    #[cfg(feature = "robonomics-protocol")]
+    /// Robonomics Framework I/O operations. 
+    #[cfg(feature = "robonomics-cli")]
     #[structopt(
-        name = "pubsub",
-        about = "Run node in pubsub(gossipsub) router mode."
+        name = "io",
+        about = "Run I/O actions using Robonomics Framework."
     )]
-    PubSub(robonomics_protocol::cli::PubSubCmd),
-    /// This subcommand store hex-encoded data to Datalog pallet.
-    #[cfg(feature = "robonomics-protocol")]
-    #[structopt(
-        name = "datalog",
-        about = "Store hex-encoded data on blockchain."
-    )]
-    Datalog(robonomics_protocol::cli::DatalogCmd),
-    #[cfg(feature = "robonomics-sensors")]
-    #[structopt(
-        name = "sensors",
-        about = "Reads data from sensor."
-    )]
-    Sensor(robonomics_sensors::cli::SensorCmd),
+    Io(robonomics_cli::IoCmd),
     /// The custom benchmark subcommmand benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     #[structopt(

@@ -15,29 +15,38 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Robonomics I/O CLI interface.
+
 use crate::error::Result;
-use std::thread::sleep;
-use std::time::Duration;
-use sds011::SDS011;
 
-pub async fn read_loop(port: &str, work_period: u8) -> Result<()> {
-    match SDS011::new(port) {
-        Ok(mut sensor) => {
-            sensor.set_work_period(work_period)?;
+/// Substrate friendly CLI I/O subsystem interaction command.
+#[derive(structopt::StructOpt, Clone, Debug)]
+pub struct IoCmd {
+    #[structopt(subcommand)]
+    pub operation: Operation,
+	#[allow(missing_docs)]
+	#[structopt(flatten)]
+	pub shared_params: sc_cli::SharedParams,
+}
 
-            loop {
-                if let Some(m) = sensor.query() {
-                    //let mut wtr = Writer::from_writer(vec![]);
-                    //wtr.serialize(m)?;
-                    //let show = String::from_utf8(wtr.into_inner()?)?;
-                    log::info!(target: "robonomics-sensors", "{:?}", m);
-                }
+impl sc_cli::CliConfiguration for IoCmd {
+	fn shared_params(&self) -> &sc_cli::SharedParams {
+		&self.shared_params
+	}
+}
 
-                sleep(Duration::from_secs(work_period as u64 * 60));
-            }
-        },
-        Err(e) => log::error!(
-            target: "robonomics-sensors", "{:?}", e.description),
-    };
-    Ok(())
+impl IoCmd {
+    pub fn run(&self) -> Result<()> {
+        match &self.operation {
+            Operation::Read(source) => source.run(),
+            Operation::Write(sink)  => sink.run(),
+        }
+    }
+}
+
+/// I/O operation command.
+#[derive(structopt::StructOpt, Clone, Debug)]
+pub enum Operation {
+    Read(super::SourceCmd),
+    Write(super::SinkCmd),
 }

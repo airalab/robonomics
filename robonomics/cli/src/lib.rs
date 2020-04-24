@@ -15,10 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Robonomics Framework console line interface.
 
-pub mod id;
 pub mod error;
-pub mod pubsub;
-pub mod datalog;
-pub mod runtime;
+
+mod io;
+mod sink;
+mod source;
+
+pub use io::IoCmd;
+pub use sink::SinkCmd;
+pub use source::SourceCmd;

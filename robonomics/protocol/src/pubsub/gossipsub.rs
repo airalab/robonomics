@@ -18,8 +18,6 @@
 ///! Robonomics Gossipsub protocol.
 ///
 /// This implementation use libp2p Gossipsub for effective message delivery.
-/// It also implements automatic peer discovery mechanism to build sustainable
-/// and high available pubsub swarm.
 ///
 
 use std::{
@@ -253,8 +251,6 @@ impl PubSub {
 }
 
 impl super::PubSub for PubSub {
-    type Inbox = Box<mpsc::UnboundedReceiver<super::Message>>;
-
     fn peer_id(&self) -> PeerId {
         self.peer_id.clone()
     }
@@ -262,31 +258,31 @@ impl super::PubSub for PubSub {
     fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
         let _ = self.to_worker.unbounded_send(ToWorkerMsg::Listen(address, sender));
-        Box::new(receiver)
+        receiver.boxed()
     }
 
     fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
         let (sender, receiver) = oneshot::channel();
         let _ = self.to_worker.unbounded_send(ToWorkerMsg::Listeners(sender));
-        Box::new(receiver)
+        receiver.boxed()
     }
 
     fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
         let _ = self.to_worker.unbounded_send(ToWorkerMsg::Connect(address, sender));
-        Box::new(receiver)
+        receiver.boxed()
     }
 
-    fn subscribe<T: ToString>(&self, topic_name: &T) -> Self::Inbox {
+    fn subscribe<T: ToString>(&self, topic_name: &T) -> super::Inbox {
         let (sender, receiver) = mpsc::unbounded();
         let _ = self.to_worker.unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
-        Box::new(receiver)
+        receiver.boxed()
     }
 
     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
         let _ = self.to_worker.unbounded_send(ToWorkerMsg::Unsubscribe(topic_name.to_string(), sender));
-        Box::new(receiver)
+        receiver.boxed()
     }
 
     fn publish<T: ToString, M: Into<Vec<u8>>>(&self, topic_name: &T, message: M) {

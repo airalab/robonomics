@@ -19,9 +19,9 @@
 
 use libp2p::core::transport::TransportError;
 use libp2p::core::connection::ConnectionLimit;
-use sp_core::crypto::SecretStringError;
 use futures::channel::oneshot;
 use futures::Future;
+use std::pin::Pin;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -30,7 +30,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 type OneshotResult<T> = std::result::Result<T, oneshot::Canceled>;
 
 /// Async version of protocol Result typedef.
-pub type FutureResult<T> = Box<dyn Future<Output = OneshotResult<T>> + Send + Sync + Unpin>;
+pub type FutureResult<T> = Pin<Box<dyn Future<Output = OneshotResult<T>> + Send>>;
 
 /// Robonomics protocol errors.
 #[derive(Debug, derive_more::Display, derive_more::From)]
@@ -43,9 +43,6 @@ pub enum Error {
     ConnectionLimit(ConnectionLimit),
     /// Transaction sending error.
     SubmitFailure(substrate_subxt::Error),
-    /// Private key loading error.
-    #[display(fmt = "secret string error: {:?}", _0)]
-    PrivateKeyFailure(SecretStringError),
     /// Codec error.
     Codec(bincode::Error),
     /// Other error.
