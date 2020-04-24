@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics action subsystem.
+//! Robonomics actions subsystem.
 
 // Collection of virtual actuators (like stdout).
 pub mod virt;

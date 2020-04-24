@@ -38,9 +38,9 @@ impl sc_cli::CliConfiguration for IoCmd {
 impl IoCmd {
     pub fn run(&self) -> Result<()> {
         match &self.operation {
-            Operation::In(sensor) => sensor.run(),
-            Operation::Out(actuator) => actuator.run(),
-            Operation::Proc(processor) => processor.run(),
+            Operation::In(source) => source.run(),
+            Operation::Out(sink)  => sink.run(),
+            Operation::Proc(proc) => proc.run(),
         }
     }
 }
@@ -48,7 +48,7 @@ impl IoCmd {
 /// I/O operation command.
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum Operation {
-    In(super::SensorCmd),
-    Out(super::ActuatorCmd),
+    In(super::SourceCmd),
+    Out(super::SinkCmd),
     Proc(super::ProcessorCmd),
 }

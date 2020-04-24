@@ -15,31 +15,22 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics I/O CLI interface.
+///! Robonomics data sinks.
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::sensor::{virt, serial};
-use robonomics_io::actuator::virt::Stdout;
+use robonomics_io::source::virt::Stdin;
+use robonomics_io::sink::virt;
 use robonomics_io::Consumer;
 use futures::StreamExt;
 use async_std::task;
 
 #[derive(structopt::StructOpt, Clone, Debug)]
-pub enum SensorCmd {
-    /// Nova SDS011 particle sensor.
-    SDS011 {
-        /// Serial port that sensor connected for.
-        #[structopt(long, default_value = "/dev/ttyUSB0")]
-        port: String,
-        /// Request interval in minutes.
-        #[structopt(long, default_value = "5")]
-        period: u8,
-    },
-    /// Subscribe for broadcasing data.
+pub enum SinkCmd {
+    /// Broadcast data into PubSub topic.
     #[structopt(name = "pubsub")]
     PubSub {
-        /// Subscribe for given topic name and print received messages.
+        /// Publish data into given topic name.
         topic_name: String,
         /// Listen address for incoming connections. 
         #[structopt(
@@ -55,24 +46,31 @@ pub enum SensorCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
-    }
+    },
+    /// Data blockchainization subsystem command.
+    Datalog {
+        /// Substrate node WebSocket endpoint
+        #[structopt(long, default_value = "ws://localhost:9944")]
+        remote: String,
+        /// Sender account seed URI
+        #[structopt(short)]
+        suri: String,
+    },
 }
 
-impl SensorCmd {
+impl SinkCmd {
     pub fn run(&self) -> Result<()> {
-        let stdout = Stdout::new();
+        let stdin = Stdin::new().boxed();
         match self.clone() {
-            SensorCmd::SDS011 { port, period } => {
-                let sensor = serial::SDS011::new(port, period).unwrap();
-                let measure = sensor.map(|m| format!("{:?}", m));
-                task::block_on(stdout.consume(Box::new(measure)))
-            }
-            SensorCmd::PubSub { topic_name, listen, bootnodes } => {
+            SinkCmd::PubSub { topic_name, listen, bootnodes } => {
                 let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
-                let measure = device.map(|m| format!("{:?}", m.data));
-                task::block_on(stdout.consume(Box::new(measure)))
+                task::block_on(device.consume(stdin))
             }
-
+            SinkCmd::Datalog { remote, suri } => {
+                let device = virt::Datalog::new(remote, suri).unwrap();
+                let bytestream = stdin.map(|s| Vec::from(s.as_bytes())).boxed();
+                task::block_on(device.consume(bytestream))
+            }
         }
         Ok(())
     }

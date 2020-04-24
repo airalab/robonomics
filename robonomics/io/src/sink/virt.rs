@@ -25,34 +25,32 @@ use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
-use futures::{Stream, StreamExt, Future, future};
+use futures::{future, FutureExt};
 use sp_core::{sr25519, crypto::Pair};
 use std::io::{self, Write};
-use crate::pipe::Consumer;
 use crate::error::Result;
+use crate::pipe::{Pipe, PipeFuture, Consumer};
 use async_std::task;
 use std::sync::Arc;
 
 /// Simple standart output.
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Stdout;
 
 impl Stdout {
     pub fn new() -> Self { Self }
 }
 
-impl Consumer for Stdout {
-    type In = Box<dyn Stream<Item = String> + Unpin>;
-    type Out = Box<dyn Future<Output = ()> + Unpin>;
-
-    fn consume(self, input: Self::In) -> Self::Out {
-        Box::new(input.for_each(|msg| {
-            io::stdout()
-                .write_all(msg.as_bytes())
-                .expect("unable to write to stdout");
-            future::ready(())
-        }))
+impl<'a> Pipe<'a, String, ()> for Stdout {
+    fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
+        io::stdout()
+            .write_all(input.as_bytes())
+            .expect("unable to write to stdout");
+        Box::pin(future::ready(()))
     }
 }
+
+impl<'a> Consumer<'a, String> for Stdout {}
 
 /// PubSub publisher.
 pub struct PubSub {
@@ -87,17 +85,14 @@ impl PubSub {
     }
 }
 
-impl Consumer for PubSub {
-    type In = Box<dyn Stream<Item = String> + Unpin>;
-    type Out = Box<dyn Future<Output = ()> + Unpin>;
-
-    fn consume(self, input: Self::In) -> Self::Out {
-        Box::new(input.for_each(move |msg| {
-            self.pubsub.publish(&self.topic_name, msg);
-            future::ready(())
-        }))
+impl<'a> Pipe<'a, String, ()> for PubSub {
+    fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
+        self.pubsub.publish(&self.topic_name, input);
+        Box::pin(future::ready(()))
     }
 }
+
+impl<'a> Consumer<'a, String> for PubSub {}
 
 /// Datalog submitter.
 pub struct Datalog {
@@ -112,20 +107,14 @@ impl Datalog {
     }
 }
 
-impl Consumer for Datalog {
-    type In = Box<dyn Stream<Item = String> + Unpin>;
-    type Out = Box<dyn Future<Output = ()> + Unpin>;
-
-    fn consume(self, input: Self::In) -> Self::Out {
-        Box::new(input.for_each(move |record| {
-            let _ = task::block_on(
-                datalog::submit(
-                    self.pair.clone(),
-                    self.remote.as_str(),
-                    record.as_bytes().to_vec(),
-                )
-            );
-            future::ready(())
-        }))
+impl<'a> Pipe<'a, Vec<u8>, ()> for Datalog {
+    fn exec(&mut self, input: Vec<u8>) -> PipeFuture<'a, ()> {
+        Box::pin(datalog::submit(
+            self.pair.clone(),
+            self.remote.clone(),
+            input,
+        ).map(|_| ()))
     }
 }
+
+impl<'a> Consumer<'a, Vec<u8>> for Datalog {}

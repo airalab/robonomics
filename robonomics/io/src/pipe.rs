@@ -17,22 +17,29 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Stream based pipes.
 
-use futures::{Stream, Future};
+use futures::{future, Stream, Future, StreamExt};
+use std::pin::Pin;
+
+/// Common stream type for pipes.
+pub type PipeStream<'a, T> = Pin<Box<dyn Stream<Item = T> + Send + 'a>>;
+
+/// Result of transition function.
+pub type PipeFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Pipe joins two streams.
-pub trait Pipe {
-    type In: Stream + Sized;
-    type Out: Stream + Sized;
+pub trait Pipe<'a, A: 'a, B: 'a>: Sized + Send + 'a {
+    /// Asynchronous transition function with state.
+    fn exec(&mut self, input: A) -> PipeFuture<'a, B>;
 
-    /// Run stream processing.
-    fn pipe(self, input: Self::In) -> Self::Out;
+    /// Launch stream processing.
+    /// Note: it could be launch only once.
+    fn pipe(mut self, input: PipeStream<'a, A>) -> PipeStream<'a, B> {
+        input.then(move |v| self.exec(v)).boxed()
+    }
 }
 
-/// Consumer read input stream and handle value in returned future.
-pub trait Consumer {
-    type In: Stream + Sized;
-    type Out: Future + Sized;
-
-    /// Run stream consumption. 
-    fn consume(self, input: Self::In) -> Self::Out;
+pub trait Consumer<'a, T: 'a>: Pipe<'a, T, ()> {
+    fn consume(self, input: PipeStream<'a, T>) -> PipeFuture<'a, ()> {
+        Box::pin(self.pipe(input).for_each(|_| future::ready(())))
+    }
 }

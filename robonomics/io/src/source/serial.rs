@@ -29,7 +29,7 @@ use std::pin::Pin;
 use std::thread;
 
 /// Nova SDS011 particle sensor.
-pub struct SDS011(Box<dyn Stream<Item = sds011::Message> + Unpin>);
+pub struct SDS011(Pin<Box<dyn Stream<Item = sds011::Message> + Send>>);
 
 impl SDS011 {
     /// Returns Nova SDS011 sensor instance.
@@ -52,7 +52,7 @@ impl SDS011 {
         let (sender, receiver) = mpsc::unbounded();
         thread::spawn(move || sds011_worker(device, work_period_secs, sender));
 
-        Ok(Self(Box::new(receiver)))
+        Ok(Self(receiver.boxed()))
     }
 }
 

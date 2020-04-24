@@ -34,7 +34,7 @@ use std::pin::Pin;
 use std::thread;
 
 /// Simple standart input.
-pub struct Stdin(Box<dyn Stream<Item = String> + Unpin>);
+pub struct Stdin(Pin<Box<dyn Stream<Item = String> + Send>>);
 
 impl Stdin {
     pub fn new() -> Self {
@@ -45,20 +45,19 @@ impl Stdin {
                 let _ = tx.unbounded_send(line.expect("unable to read line from stdio"));
             }
         });
-        Self(Box::new(rx))
+        Self(rx.boxed())
     }
 }
 
 impl Stream for Stdin {
     type Item = String;
-
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.0.poll_next_unpin(cx)
     }
 }
 
 /// PubSub subscription.
-pub struct PubSub(Box<dyn Stream<Item = pubsub::Message> + Unpin>);
+pub struct PubSub(Pin<Box<dyn Stream<Item = pubsub::Message> + Send>>);
 
 impl PubSub {
     pub fn new(
@@ -89,7 +88,6 @@ impl PubSub {
 
 impl Stream for PubSub {
     type Item = pubsub::Message;
-
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.0.poll_next_unpin(cx)
     }

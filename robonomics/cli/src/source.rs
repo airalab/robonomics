@@ -15,21 +15,31 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics I/O CLI interface.
+///! Robonomics data source interface.
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::sensor::virt::Stdin;
-use robonomics_io::actuator::virt;
+use robonomics_io::source::{virt, serial};
+use robonomics_io::sink::virt::Stdout;
 use robonomics_io::Consumer;
+use futures::{future, StreamExt};
 use async_std::task;
 
 #[derive(structopt::StructOpt, Clone, Debug)]
-pub enum ActuatorCmd {
-    /// Broadcast data into PubSub topic.
+pub enum SourceCmd {
+    /// Nova SDS011 particle sensor.
+    SDS011 {
+        /// Serial port that sensor connected for.
+        #[structopt(long, default_value = "/dev/ttyUSB0")]
+        port: String,
+        /// Request interval in minutes.
+        #[structopt(long, default_value = "5")]
+        period: u8,
+    },
+    /// Subscribe for broadcasing data.
     #[structopt(name = "pubsub")]
     PubSub {
-        /// Publish data into given topic name.
+        /// Subscribe for given topic name and print received messages.
         topic_name: String,
         /// Listen address for incoming connections. 
         #[structopt(
@@ -45,30 +55,24 @@ pub enum ActuatorCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
-    },
-    /// Data blockchainization subsystem command.
-    Datalog {
-        /// Substrate node WebSocket endpoint
-        #[structopt(long, default_value = "ws://localhost:9944")]
-        remote: String,
-        /// Sender account seed URI
-        #[structopt(short)]
-        suri: String,
-    },
+    }
 }
 
-impl ActuatorCmd {
+impl SourceCmd {
     pub fn run(&self) -> Result<()> {
-        let stdin = Stdin::new();
+        let stdout = Stdout::new();
         match self.clone() {
-            ActuatorCmd::PubSub { topic_name, listen, bootnodes } => {
+            SourceCmd::SDS011 { port, period } => {
+                let device = serial::SDS011::new(port, period).unwrap().map(|m| format!("{:?}", m));
+                task::block_on(stdout.consume(device.boxed()))
+            }
+            SourceCmd::PubSub { topic_name, listen, bootnodes } => {
                 let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
-                Ok(task::block_on(device.consume(Box::new(stdin))))
+                let measure = device.then(|m| future::ready(format!("{:?}", m))).boxed();
+                task::block_on(stdout.consume(measure))
             }
-            ActuatorCmd::Datalog { remote, suri } => {
-                let device = virt::Datalog::new(remote, suri).unwrap();
-                Ok(task::block_on(device.consume(Box::new(stdin))))
-            }
+
         }
+        Ok(())
     }
 }

@@ -17,9 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Framework I/O operations.
 
-pub mod actuator;
-pub mod sensor;
+pub mod source;
 pub mod error;
+pub mod sink;
 pub mod pipe;
 
 pub use pipe::{Pipe, Consumer};

@@ -20,11 +20,11 @@
 pub mod error;
 
 mod io;
-mod sensor;
-mod actuator;
+mod sink;
+mod source;
 mod processor;
 
 pub use io::IoCmd;
-pub use sensor::SensorCmd;
-pub use actuator::ActuatorCmd;
+pub use sink::SinkCmd;
+pub use source::SourceCmd;
 pub use processor::ProcessorCmd;
