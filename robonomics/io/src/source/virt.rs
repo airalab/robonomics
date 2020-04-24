@@ -19,6 +19,7 @@
 ///
 /// This module contains:
 /// - Stdin: Standart input stream. 
+/// - Pubsub: Subscribe for topic data.
 ///
 
 use robonomics_protocol::pubsub::{

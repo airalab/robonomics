@@ -22,9 +22,7 @@ pub mod error;
 mod io;
 mod sink;
 mod source;
-mod processor;
 
 pub use io::IoCmd;
 pub use sink::SinkCmd;
 pub use source::SourceCmd;
-pub use processor::ProcessorCmd;

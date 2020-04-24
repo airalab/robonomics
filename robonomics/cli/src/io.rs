@@ -38,9 +38,8 @@ impl sc_cli::CliConfiguration for IoCmd {
 impl IoCmd {
     pub fn run(&self) -> Result<()> {
         match &self.operation {
-            Operation::In(source) => source.run(),
-            Operation::Out(sink)  => sink.run(),
-            Operation::Proc(proc) => proc.run(),
+            Operation::Read(source) => source.run(),
+            Operation::Write(sink)  => sink.run(),
         }
     }
 }
@@ -48,7 +47,6 @@ impl IoCmd {
 /// I/O operation command.
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum Operation {
-    In(super::SourceCmd),
-    Out(super::SinkCmd),
-    Proc(super::ProcessorCmd),
+    Read(super::SourceCmd),
+    Write(super::SinkCmd),
 }

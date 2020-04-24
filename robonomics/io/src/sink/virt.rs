@@ -19,6 +19,8 @@
 ///
 /// This module contains:
 /// - Stdout: Standart output stream. 
+/// - Pubsub: Publish data into PubSub topic.
+/// - Datalog: Send data into blockchain.
 ///
 
 use robonomics_protocol::datalog;
@@ -27,7 +29,6 @@ use robonomics_protocol::pubsub::{
 };
 use futures::{future, FutureExt};
 use sp_core::{sr25519, crypto::Pair};
-use std::io::{self, Write};
 use crate::error::Result;
 use crate::pipe::{Pipe, PipeFuture, Consumer};
 use async_std::task;
@@ -43,9 +44,7 @@ impl Stdout {
 
 impl<'a> Pipe<'a, String, ()> for Stdout {
     fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
-        io::stdout()
-            .write_all(input.as_bytes())
-            .expect("unable to write to stdout");
+        println!("{}", input);
         Box::pin(future::ready(()))
     }
 }
