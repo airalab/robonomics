@@ -18,7 +18,7 @@
 ///! Virtual actuators collection.
 ///
 /// This module contains:
-/// - Stdout: Standart output stream. 
+/// - Stdout: Standart output stream.
 /// - Pubsub: Publish data into PubSub topic.
 /// - Datalog: Send data into blockchain.
 ///
@@ -33,6 +33,7 @@ use crate::error::Result;
 use crate::pipe::{Pipe, PipeFuture, Consumer};
 use async_std::task;
 use std::sync::Arc;
+use crate::sink::ipfs;
 
 /// Simple standart output.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -80,7 +81,7 @@ impl PubSub {
         task::spawn(worker);
 
         // Subscribe to given topic
-        Ok(Self { pubsub, topic_name }) 
+        Ok(Self { pubsub, topic_name })
     }
 }
 
@@ -117,3 +118,22 @@ impl<'a> Pipe<'a, Vec<u8>, ()> for Datalog {
 }
 
 impl<'a> Consumer<'a, Vec<u8>> for Datalog {}
+
+/// IPFS file publisher
+pub struct IPFS { }
+
+impl IPFS {
+    pub fn new() -> Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl<'a> Pipe<'a, Vec<u8>, ()> for IPFS {
+    fn exec(&mut self, input: Vec<u8>) -> PipeFuture<'a, ()> {
+        ipfs::add_file(input);
+        //Box::pin(ipfs::add_file(input).map(|_| ()))
+        Box::pin(future::ready(()))
+    }
+}
+
+impl<'a> Consumer<'a, Vec<u8>> for IPFS { }

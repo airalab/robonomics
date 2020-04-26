@@ -32,7 +32,7 @@ pub enum SinkCmd {
     PubSub {
         /// Publish data into given topic name.
         topic_name: String,
-        /// Listen address for incoming connections. 
+        /// Listen address for incoming connections.
         #[structopt(
             long,
             value_name = "MULTIADDR",
@@ -56,6 +56,11 @@ pub enum SinkCmd {
         #[structopt(short)]
         suri: String,
     },
+    /// IPFS
+    #[structopt(name = "ipfs")]
+    IPFS {
+
+    },
 }
 
 impl SinkCmd {
@@ -68,6 +73,11 @@ impl SinkCmd {
             }
             SinkCmd::Datalog { remote, suri } => {
                 let device = virt::Datalog::new(remote, suri).unwrap();
+                let bytestream = stdin.map(|s| Vec::from(s.as_bytes())).boxed();
+                task::block_on(device.consume(bytestream))
+            }
+            SinkCmd::IPFS { } => {
+                let device = virt::IPFS::new().unwrap();
                 let bytestream = stdin.map(|s| Vec::from(s.as_bytes())).boxed();
                 task::block_on(device.consume(bytestream))
             }

@@ -15,8 +15,23 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics actions subsystem.
+use crate::error::{Result, Error};
+use std::io::Cursor;
+use ipfs_api::IpfsClient;
 
-// Collection of virtual actuators (like stdout).
-pub mod virt;
-pub mod ipfs;
+#[tokio::main]
+pub async fn add_file(input: Vec<u8>) -> Result<()> {
+    let client = IpfsClient::default();
+    let data = Cursor::new(input);
+
+    match client.add(data).await {
+        Ok(res) => {
+            println!("{}", res.hash);
+            Ok(())
+        },
+        Err(e) => {
+            log::error!("error adding file: {}", e);
+            Err(Error::Other(String::from("Error adding file")))
+        }
+    }
+}

@@ -12,6 +12,8 @@ derive_more = "0.99"
 serialport = "3.3"
 async-std = "1.5"
 sds011 = "0.1"
+ipfs-api = "0.7.1"
+tokio = { version = "0.2", features = ["full"] }
 log = "0.4"
 robonomics-protocol = { path = "../protocol" }
 sp-core = "2.0.0-alpha.6"
