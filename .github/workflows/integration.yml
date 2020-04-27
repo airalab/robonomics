@@ -1,7 +1,5 @@
-on: [push]
-
 name: Integration
-
+on: [push]
 jobs:
   native:
     runs-on: ${{ matrix.os }}
