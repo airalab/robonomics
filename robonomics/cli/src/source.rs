@@ -23,6 +23,7 @@ use robonomics_io::source::{virt, serial};
 use robonomics_io::sink::virt::Stdout;
 use robonomics_io::Consumer;
 use futures::{future, StreamExt};
+use std::time::Duration;
 use async_std::task;
 
 #[derive(structopt::StructOpt, Clone, Debug)]
@@ -55,6 +56,13 @@ pub enum SourceCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
+        /// How often node should check another nodes availability, in secs.
+        #[structopt(
+            long,
+            value_name = "HEARTBEAT_SECS",
+            default_value = "5",
+        )]
+        hearbeat_secs: u64
     }
 }
 
@@ -66,8 +74,9 @@ impl SourceCmd {
                 let device = serial::SDS011::new(port, period).unwrap().map(|m| format!("{:?}", m));
                 task::block_on(stdout.consume(device.boxed()))
             }
-            SourceCmd::PubSub { topic_name, listen, bootnodes } => {
-                let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
+            SourceCmd::PubSub { topic_name, listen, bootnodes, hearbeat_secs } => {
+                let hearbeat = Duration::from_secs(hearbeat_secs);
+                let device = virt::PubSub::new(listen, bootnodes, topic_name, hearbeat).unwrap();
                 let measure = device.then(|m| future::ready(format!("{:?}", m))).boxed();
                 task::block_on(stdout.consume(measure))
             }

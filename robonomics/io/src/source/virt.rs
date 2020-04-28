@@ -26,6 +26,7 @@ use crate::error::Result;
 use std::io::BufRead;
 use async_std::task;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use std::pin::Pin;
 use std::thread;
 
@@ -60,8 +61,9 @@ impl PubSub {
         listen: Multiaddr,
         bootnodes: Vec<Multiaddr>,
         topic_name: String,
+        heartbeat: Duration,
     ) -> Result<Self> {
-        let (pubsub, worker) = pubsub::Gossipsub::new().unwrap();
+        let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
 
         // Listen address
         let _ = pubsub.listen(listen);

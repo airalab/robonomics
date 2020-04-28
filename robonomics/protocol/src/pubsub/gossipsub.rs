@@ -41,9 +41,6 @@ use libp2p::gossipsub::{
 
 use crate::error::{Result, FutureResult};
 
-/// Gossipsub heartbeat interval
-const HEARTBEAT_SECS: u64 = 10;
-
 enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
     Connect(Multiaddr, oneshot::Sender<bool>),
@@ -62,7 +59,7 @@ struct PubSubWorker {
 
 impl PubSubWorker {
     /// Create new PubSub Worker instance
-    pub fn new() -> Result<Self> {
+    pub fn new(heartbeat_interval: Duration) -> Result<Self> {
         // XXX: temporary random local id.
         let local_key = crate::id::random();
         let peer_id = PeerId::from(local_key.public());
@@ -72,7 +69,7 @@ impl PubSubWorker {
 
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::new()
-            .heartbeat_interval(Duration::from_secs(HEARTBEAT_SECS))
+            .heartbeat_interval(heartbeat_interval)
             .message_id_fn(|message: &GossipsubMessage| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.
@@ -226,7 +223,6 @@ impl Future for PubSubWorker {
 }
 
 /// LibP2P Gossipsub based publisher/subscriber service.
-/// Note: it's thread safe.
 pub struct PubSub {
     peer_id: PeerId,
     to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
@@ -246,8 +242,11 @@ impl PubSub {
     ///     ... in different thread
     ///     pubsub.publish("test-topic", "hello world!".as_bytes())
     /// ```
-    pub fn new() -> Result<(Arc<Self>, impl Future<Output = Result<()>>)> {
-        PubSubWorker::new().map(|worker| (worker.service.clone(), worker))
+    pub fn new(
+        heartbeat_interval: Duration,
+    ) -> Result<(Arc<Self>, impl Future<Output = Result<()>>)> {
+        PubSubWorker::new(heartbeat_interval)
+            .map(|worker| (worker.service.clone(), worker))
     }
 }
 

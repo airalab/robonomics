@@ -22,6 +22,7 @@ use robonomics_protocol::pubsub::Multiaddr;
 use robonomics_io::source::virt::Stdin;
 use robonomics_io::sink::virt;
 use robonomics_io::Consumer;
+use std::time::Duration;
 use futures::StreamExt;
 use async_std::task;
 
@@ -46,6 +47,13 @@ pub enum SinkCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
+        /// How often node should check another nodes availability, in secs.
+        #[structopt(
+            long,
+            value_name = "HEARTBEAT_SECS",
+            default_value = "5",
+        )]
+        hearbeat_secs: u64
     },
     /// Data blockchainization subsystem command.
     Datalog {
@@ -62,8 +70,9 @@ impl SinkCmd {
     pub fn run(&self) -> Result<()> {
         let stdin = Stdin::new().boxed();
         match self.clone() {
-            SinkCmd::PubSub { topic_name, listen, bootnodes } => {
-                let device = virt::PubSub::new(listen, bootnodes, topic_name).unwrap();
+            SinkCmd::PubSub { topic_name, listen, bootnodes, hearbeat_secs } => {
+                let hearbeat = Duration::from_secs(hearbeat_secs);
+                let device = virt::PubSub::new(listen, bootnodes, topic_name, hearbeat).unwrap();
                 task::block_on(device.consume(stdin))
             }
             SinkCmd::Datalog { remote, suri } => {

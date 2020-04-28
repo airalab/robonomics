@@ -25,6 +25,7 @@ use futures::{future, FutureExt};
 use sp_core::{sr25519, crypto::Pair};
 use crate::error::Result;
 use crate::pipe::{Pipe, PipeFuture, Consumer};
+use std::time::Duration;
 use async_std::task;
 use std::sync::Arc;
 
@@ -56,8 +57,9 @@ impl PubSub {
         listen: Multiaddr,
         bootnodes: Vec<Multiaddr>,
         topic_name: String,
+        heartbeat: Duration,
     ) -> Result<Self> {
-        let (pubsub, worker) = pubsub::Gossipsub::new().unwrap();
+        let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
 
         // Listen address
         let _ = pubsub.listen(listen);
