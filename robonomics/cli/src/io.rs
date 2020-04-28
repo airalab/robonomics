@@ -17,11 +17,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics I/O CLI interface.
 
+#![deny(missing_docs)]
+
 use crate::error::Result;
 
-/// Substrate friendly CLI I/O subsystem interaction command.
+/// Substrate friendly CLI I/O subsystem interaction.
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub struct IoCmd {
+    /// I/O device operation to run.
     #[structopt(subcommand)]
     pub operation: Operation,
 	#[allow(missing_docs)]
@@ -36,6 +39,7 @@ impl sc_cli::CliConfiguration for IoCmd {
 }
 
 impl IoCmd {
+    /// Run I/O operation on device.
     pub fn run(&self) -> Result<()> {
         match &self.operation {
             Operation::Read(source) => source.run(),
@@ -47,6 +51,8 @@ impl IoCmd {
 /// I/O operation command.
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum Operation {
+    /// Read information from device.
     Read(super::SourceCmd),
+    /// Write information into device.
     Write(super::SinkCmd),
 }

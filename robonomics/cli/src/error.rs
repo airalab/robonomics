@@ -23,8 +23,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Robonomics CLI errors.
 #[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum Error {
-    /// Protocol error.
+    /// Robonomics orotocol error.
     ProtocolFailure(robonomics_protocol::error::Error),
+    /// Robonomics I/O error.
+    IoFailure(robonomics_io::error::Error),
     /// Other error.
     Other(String),
 }

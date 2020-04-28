@@ -17,6 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics data sink interface.
 
+#![deny(missing_docs)]
+
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
 use robonomics_io::source::virt::Stdin;
@@ -26,6 +28,7 @@ use std::time::Duration;
 use futures::StreamExt;
 use async_std::task;
 
+/// Sink device commands.
 #[derive(structopt::StructOpt, Clone, Debug)]
 pub enum SinkCmd {
     /// Broadcast data into PubSub topic.
@@ -67,6 +70,7 @@ pub enum SinkCmd {
 }
 
 impl SinkCmd {
+    /// Write data into sink device.
     pub fn run(&self) -> Result<()> {
         let stdin = Stdin::new().boxed();
         match self.clone() {
