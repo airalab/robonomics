@@ -15,7 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Publisher/Subscriber protocol node discovery.
+//! Robonomics Publisher/Subscriber protocol node discovery.
+//!
+//! Simple node discovery algorithm consist of following steps:
+//! 1. All nodes subscribed for DISCOVERY_TOPIC_NAME.
+//! 2. Each node periodically send listened addresses into DISCOVERY_TOPIC_NAME.
+//! 3. If node received discovery message then try to connect remove node.
+//!
 
 use futures::{Future, FutureExt, StreamExt, future};
 use std::time::{Duration, SystemTime};
@@ -35,11 +41,7 @@ pub struct DiscoveryMessage {
 /// Peer discovery topic name.
 pub const DISCOVERY_TOPIC_NAME: &str = "_robonomics_pubsub_peer_discovery";
 
-/// Simple node discovery algorithm.
-///
-/// 1. All nodes subscribed for DISCOVERY_TOPIC_NAME.
-/// 2. Each node periodically send listened addresses into DISCOVERY_TOPIC_NAME.
-/// 3. If node received discovery message then try to connect remove node.
+/// Start peer discovery service.
 pub fn start<T: PubSub>(pubsub: Arc<T>) -> impl Future<Output = ()> {
     future::join(
         // Message broadcasting task 

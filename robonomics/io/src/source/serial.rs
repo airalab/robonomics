@@ -15,11 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Serial port sensors collection.
-///
-/// This module contains:
-/// - SDS011: Nova laser particle sensor.
-///
+//! Serial port sensors collection.
 
 use futures::{Stream, StreamExt, channel::mpsc};
 use crate::error::Result;

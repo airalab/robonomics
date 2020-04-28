@@ -38,7 +38,7 @@ pub trait Pipe<'a, A: 'a, B: 'a>: Sized + Send + 'a {
     }
 }
 
-/// Consumer is a pipe that returns empty data.
+/// Consumer is a pipe that consume some data and returns empty type `()`.
 pub trait Consumer<'a, T: 'a>: Pipe<'a, T, ()> {
     fn consume(self, input: PipeStream<'a, T>) -> PipeFuture<'a, ()> {
         Box::pin(self.pipe(input).for_each(|_| future::ready(())))

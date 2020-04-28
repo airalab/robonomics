@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics data sinks.
+//! Robonomics data sink interface.
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;

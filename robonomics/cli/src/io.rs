@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics I/O CLI interface.
+//! Robonomics I/O CLI interface.
 
 use crate::error::Result;
 

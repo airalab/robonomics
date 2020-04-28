@@ -15,13 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+//! Robonomics data blockchainization.
 
 use crate::error::Result;
 use crate::runtime::Robonomics;
 use crate::runtime::pallet_datalog;
 use sp_core::crypto::Pair;
 
-/// Main
+/// Sign datalog record and send using remote Robonomics node.
 pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Result<()>
     where sp_runtime::MultiSigner: From<<T as Pair>::Public>,
           sp_runtime::MultiSignature: From<<T as Pair>::Signature>,

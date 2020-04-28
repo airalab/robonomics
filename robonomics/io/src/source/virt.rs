@@ -15,12 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Virtual sensors collection.
-///
-/// This module contains:
-/// - Stdin: Standart input stream. 
-/// - Pubsub: Subscribe for topic data.
-///
+//! Virtual sensors collection.
 
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
@@ -34,7 +29,7 @@ use std::task::{Context, Poll};
 use std::pin::Pin;
 use std::thread;
 
-/// Simple standart input.
+/// Standart input stream (console).
 pub struct Stdin(Pin<Box<dyn Stream<Item = String> + Send>>);
 
 impl Stdin {
@@ -57,7 +52,7 @@ impl Stream for Stdin {
     }
 }
 
-/// PubSub subscription.
+/// Subscribe for data from PubSub topic.
 pub struct PubSub(Pin<Box<dyn Stream<Item = pubsub::Message> + Send>>);
 
 impl PubSub {

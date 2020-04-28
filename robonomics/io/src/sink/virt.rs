@@ -15,13 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Virtual actuators collection.
-///
-/// This module contains:
-/// - Stdout: Standart output stream. 
-/// - Pubsub: Publish data into PubSub topic.
-/// - Datalog: Send data into blockchain.
-///
+//! Collection of virtual devices (like stdout).
 
 use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{
@@ -34,7 +28,7 @@ use crate::pipe::{Pipe, PipeFuture, Consumer};
 use async_std::task;
 use std::sync::Arc;
 
-/// Simple standart output.
+/// Standart console output.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Stdout;
 
@@ -51,7 +45,7 @@ impl<'a> Pipe<'a, String, ()> for Stdout {
 
 impl<'a> Consumer<'a, String> for Stdout {}
 
-/// PubSub publisher.
+/// Publish data into PubSub topic. 
 pub struct PubSub {
     pubsub: Arc<pubsub::Gossipsub>,
     topic_name: String,
@@ -93,7 +87,7 @@ impl<'a> Pipe<'a, String, ()> for PubSub {
 
 impl<'a> Consumer<'a, String> for PubSub {}
 
-/// Datalog submitter.
+/// Submit signed data record into blockchain.
 pub struct Datalog {
     remote: String,
     pair: sr25519::Pair,

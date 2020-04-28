@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Network broadcasting layer.
+//! Robonomics Network broadcasting layer.
 
 use std::pin::Pin;
 use futures::Stream;
@@ -23,12 +23,10 @@ use crate::error::FutureResult;
 
 pub use libp2p::{PeerId, Multiaddr};
 
-/// PubSub implementation using libp2p Gossipsub.
 pub mod gossipsub;
-pub use gossipsub::PubSub as Gossipsub;
-
-/// Simple PubSub based node discovery.
 pub mod discovery;
+
+pub use gossipsub::PubSub as Gossipsub;
 
 /// Robonomics PubSub message.
 #[derive(PartialEq, Eq, Clone, Debug)]

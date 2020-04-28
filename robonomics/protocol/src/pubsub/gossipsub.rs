@@ -15,10 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics Gossipsub protocol.
-///
-/// This implementation use libp2p Gossipsub for effective message delivery.
-///
+//! PubSub implementation using libp2p Gossipsub.
+//!
+//! This code is fully asynchronous and threadsafe.
+//! It implemented using libp2p Gossipsub for effective message delivery.
+//!
 
 use std::{
     collections::hash_map::{HashMap, DefaultHasher},
