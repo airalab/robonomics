@@ -19,7 +19,8 @@
 use futures::prelude::*;
 use std::time::Duration;
 use futures_timer::Delay;
-use sc_rpc::system::helpers::{Health, Properties};
+use sc_rpc::system::helpers::Health;
+use sp_chain_spec::Properties;
 use rosrust::api::error::Error;
 use msgs::{
     std_srvs::{Trigger, TriggerRes},

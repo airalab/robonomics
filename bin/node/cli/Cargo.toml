@@ -94,7 +94,6 @@ substrate-browser-utils = { version = "0.8.0-alpha.6", optional = true }
 # Robonomics-specific dependencies
 rosrust = { version = "0.9", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
-robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
@@ -138,7 +137,6 @@ browser = [
 ros = [
     "rosrust",
     "substrate-ros-api",
-    "robonomics-ros-api",
 ]
 
 ## Enable runtime benchmarking support.

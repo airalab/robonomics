@@ -296,6 +296,14 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
     let role = config.role.clone();
     let disable_grandpa = config.disable_grandpa;
     let force_authoring = config.force_authoring;
+    #[cfg(feature = "ros")]
+    let system_info = substrate_ros_api::system::SystemInfo {
+        impl_name: config.impl_name.into(),
+        impl_version: config.impl_version.into(),
+        chain_name: config.chain_spec.name().into(),
+        chain_type: config.chain_spec.chain_type().clone(),
+        properties: config.chain_spec.properties().clone(),
+    };
 
     let (builder, mut import_setup, inherent_data_providers) =
         new_full_start!(config, Runtime, Dispatch);
@@ -370,16 +378,6 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         None
     };
 
-    let config = sc_finality_grandpa::Config {
-        // FIXME #1578 make this available through chainspec
-        gossip_duration: std::time::Duration::from_millis(333),
-        justification_period: 512,
-        name: Some(name),
-        observer_enabled: true,
-        keystore,
-        is_authority: role.is_network_authority(),
-    };
-
     if disable_grandpa {
         sc_finality_grandpa::setup_disabled_grandpa(
             service.client(),
@@ -387,6 +385,16 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
             service.network(),
         )?;
     } else {
+        let config = sc_finality_grandpa::Config {
+            // FIXME #1578 make this available through chainspec
+            gossip_duration: std::time::Duration::from_millis(333),
+            justification_period: 512,
+            name: Some(name),
+            observer_enabled: true,
+            keystore,
+            is_authority: role.is_network_authority(),
+        };
+
         // start the full GRANDPA voter
         // NOTE: non-authorities could run the GRANDPA observer protocol, but at
         // this point the full voter should provide better guarantees of block
@@ -394,7 +402,7 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         // been tested extensively yet and having most nodes in a network run it
         // could lead to finality stalls.
         let grandpa_config = sc_finality_grandpa::GrandpaParams {
-            config: config,
+            config,
             link: grandpa_link,
             network: service.network(),
             inherent_data_providers: inherent_data_providers.clone(),
@@ -412,17 +420,6 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
 
     #[cfg(feature = "ros")]
     { if rosrust::try_init_with_options("robonomics", false).is_ok() {
-        let (robonomics_api, robonomics_ros_services) =
-            robonomics_ros_api::start!(service.client());
-        service.spawn_task("robonomics-ros", robonomics_api);
-    
-        let system_info = substrate_ros_api::system::SystemInfo {
-            chain_name: config.chain_spec.name().into(),
-            impl_name: config.impl_name.into(),
-            impl_version: config.impl_version.into(),
-            properties: config.chain_spec.properties(),
-        };
-
         let (substrate_ros_services, publish_task) =
             substrate_ros_api::start(
                 system_info,
@@ -435,7 +432,6 @@ pub fn new_full<Runtime, Dispatch, Extrinsic>(
         let on_exit = service.on_exit().then(move |_| {
             // Keep ROS services&subscribers alive until on_exit signal reached
             let _ = substrate_ros_services;
-            let _ = robonomics_ros_services; 
             futures::future::ready(())
         });
 

@@ -18,6 +18,7 @@ sp-core = "2.0.0-alpha.6"
 sp-runtime = "2.0.0-alpha.6"
 sp-session = "2.0.0-alpha.6"
 sp-blockchain = "2.0.0-alpha.6"
+sp-chain-spec = "2.0.0-alpha.6"
 sp-state-machine = "0.8.0-alpha.6"
 
 sc-rpc = "2.0.0-alpha.6"
