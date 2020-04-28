@@ -67,12 +67,14 @@ fn sds011_worker(
 ) {
     let delay = Duration::from_secs(work_period_secs);
     loop {
-        if let Some(message) = device.query() {
-            log::debug!(
-                target: "robonomics-io",
-                "SDS011: data read {:?}", message
-            );
-            let _ = result.unbounded_send(message);
+        match device.query() {
+            Ok(message) => {
+                log::debug!(target: "robonomics-io", "SDS011 read data: {:?}", message);
+                let _ = result.unbounded_send(message);
+            }
+            Err(e) => {
+                log::error!(target: "robonomics-io", "SDS011 read error: {}", e);
+            }
         }
         thread::sleep(delay);
     }

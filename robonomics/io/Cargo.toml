@@ -1,17 +1,17 @@
 [package]
 name = "robonomics-io"
 description = "Robonomics framework I/O operations."
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-serde = "1.0.106"
-futures = "0.3.4"
+robonomics-protocol = { path = "../protocol" }
+sp-core = "2.0.0-alpha.6"
 derive_more = "0.99"
 serialport = "3.3"
 async-std = "1.5"
-sds011 = "0.1"
+futures = "0.3.4"
+sds011 = "0.1.4"
+serde = "1.0.106"
 log = "0.4"
-robonomics-protocol = { path = "../protocol" }
-sp-core = "2.0.0-alpha.6"
