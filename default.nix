@@ -1,7 +1,6 @@
 { nixpkgs ? import ./nixpkgs.nix { }
 , rust
 , substrate-ros-msgs
-, robonomics-msgs
 }:
 
 with nixpkgs;
@@ -11,7 +10,7 @@ rustPlatform.buildRustPackage rec {
   name = "robonomics";
   src = ./.;
   cargoSha256 = null; 
-  propagatedBuildInputs = [ substrate-msgs robonomics-msgs ];
+  propagatedBuildInputs = [ substrate-msgs ];
   buildInputs = [ rust ];
   LIBCLANG_PATH = "${libclang}/lib";
 }

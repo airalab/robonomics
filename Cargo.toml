@@ -1,18 +1,16 @@
 [workspace]
 default-members = [ "bin/node/cli" ]
 members = [
-#    "bin/subkey",
+    "bin/subkey",
     "bin/node/cli",
     "bin/node/ipci-runtime",
     "bin/node/robonomics-runtime",
     "bin/node/robonomics-runtime/parachain",
-    "robonomics/liability",
-    "robonomics/liability/player-codegen",
     "robonomics/frame/datalog",
     "robonomics/frame/liability",
     "robonomics/protocol",
-    "robonomics/ros-api",
-    "robonomics/ros-api/msgs",
+    "robonomics/cli",
+    "robonomics/io",
     "substrate-ros/api",
     "substrate-ros/msgs",
 ]

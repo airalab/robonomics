@@ -19,11 +19,20 @@
 
 use libp2p::core::transport::TransportError;
 use libp2p::core::connection::ConnectionLimit;
+use futures::channel::oneshot;
+use futures::Future;
+use std::pin::Pin;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Service errors.
+/// Oneshot channel result.
+type OneshotResult<T> = std::result::Result<T, oneshot::Canceled>;
+
+/// Async version of protocol Result typedef.
+pub type FutureResult<T> = Pin<Box<dyn Future<Output = OneshotResult<T>> + Send>>;
+
+/// Robonomics protocol errors.
 #[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum Error {
     /// IO error.
@@ -32,10 +41,10 @@ pub enum Error {
     Transport(TransportError<std::io::Error>),
     /// Libp2p connection limit error.
     ConnectionLimit(ConnectionLimit),
+    /// Transaction sending error.
+    SubmitFailure(substrate_subxt::Error),
     /// Codec error.
     Codec(bincode::Error),
-    /// Synchronization error.
-    SyncError,
     /// Other error.
     Other(String),
 }

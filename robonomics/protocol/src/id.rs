@@ -20,6 +20,7 @@
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
 
+/// Generate random ED25519 keypair for node identity.
 pub fn random() -> Keypair {
     let key = Keypair::generate_ed25519();
     let peer_id = PeerId::from(key.public());

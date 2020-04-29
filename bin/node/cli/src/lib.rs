@@ -34,3 +34,14 @@ pub use browser::*;
 pub use cli::*;
 #[cfg(feature = "cli")]
 pub use command::*;
+
+/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
+pub trait IsIpci {
+    fn is_ipci(&self) -> bool;
+}
+
+impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
+    fn is_ipci(&self) -> bool {
+        self.id().starts_with("ipci")
+    }
+}

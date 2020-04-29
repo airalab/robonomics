@@ -1,4 +1,0 @@
-uint64 index
-string report
----
-substrate_ros_msgs/ExHash extrinsic 
