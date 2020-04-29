@@ -118,7 +118,11 @@ impl SourceCmd {
                     topic_name,
                     Duration::from_secs(hearbeat),
                 )?;
-                let measure = device.then(|m| future::ready(format!("{:?}", m))).boxed();
+                let measure = device.then(|m| {
+                    let data_str = String::from_utf8(m.data)
+                        .unwrap_or("<not_a_string>".to_string());
+                    future::ready(data_str)
+                }).boxed();
                 task::block_on(stdout.consume(measure))
             }
 
