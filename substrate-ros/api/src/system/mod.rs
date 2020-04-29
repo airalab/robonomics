@@ -18,7 +18,8 @@
 
 use std::sync::Arc;
 use sp_runtime::traits;
-use sc_rpc::system::helpers::{Health, Properties};
+use sc_rpc::system::helpers::Health;
+use sp_chain_spec::Properties;
 use sc_network::{
     NetworkService, ExHashT,
 };

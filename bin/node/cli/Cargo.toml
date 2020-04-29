@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -15,10 +15,8 @@ maintenance = { status = "actively-developed" }
 is-it-maintained-issue-resolution = { repository = "airalab/robonomics" }
 is-it-maintained-open-issues = { repository = "airalab/robonomics" }
 
-[package.metadata.wasm-pack.profile.release]
-# `wasm-opt` has some problems on linux, see
-# https://github.com/rustwasm/wasm-pack/issues/781 etc.
-wasm-opt = false
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [[bin]]
 name = "robonomics"
@@ -30,9 +28,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # third-party dependencies
-futures = { version = "0.3" }
-serde = { version = "1.0", features = ["derive"]}
-codec = { package = "parity-scale-codec", version = "1.3" }
+futures = { version = "0.3.4" }
+serde = { version = "1.0.106", features = ["derive"]}
+codec = { package = "parity-scale-codec", version = "1.3.0" }
 hex-literal = "0.2"
 serde_json = "1.0"
 log = "0.4"
@@ -81,10 +79,10 @@ cumulus-consensus = { git = "https://github.com/paritytech/cumulus" }
 cumulus-collator = { git = "https://github.com/paritytech/cumulus" }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot" }
-polkadot-collator = { git = "https://github.com/paritytech/polkadot" }
-polkadot-service = { git = "https://github.com/paritytech/polkadot" }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot" }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch" }
+polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch" }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch" }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch" }
 
 # node-specific dependencies
 robonomics-runtime = { path = "../robonomics-runtime" }
@@ -95,17 +93,17 @@ sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "cumulus-br
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
+parity-util-mem = { version = "*", default-features = false, optional = true }
 
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
-browser-utils = { package = "substrate-browser-utils", git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
+substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
-robonomics-ros-api = { path = "../../../robonomics/ros-api", optional = true }
-robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
 ipci-runtime = { path = "../ipci-runtime" }
@@ -114,9 +112,9 @@ robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 vergen = { version = "3.0.4", optional = true }
 structopt = { version = "0.3.8", optional = true }
-platforms = { version = "0.2.1", optional = true }
 
 [features]
 default = ["wasmtime"]
@@ -133,16 +131,16 @@ cli = [
     "sc-cli",
     "vergen",
     "structopt",
-    "platforms",
     "sc-service/db",
-    "robonomics-protocol/cli",
+    "parity-util-mem/jemalloc-global",
+    "robonomics-cli",
 ]
 
 ## Enable browser bundle features.
 browser = [
     "wasm-bindgen",
     "wasm-bindgen-futures",
-    "browser-utils",
+    "substrate-browser-utils",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
@@ -151,7 +149,6 @@ browser = [
 ros = [
     "rosrust",
     "substrate-ros-api",
-    "robonomics-ros-api",
 ]
 
 ## Enable runtime benchmarking support.

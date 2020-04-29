@@ -18,7 +18,7 @@
 
 use sc_cli::SubstrateCli;
 use crate::{
-    Cli, Subcommand, chain_spec,
+    IsIpci, Cli, Subcommand, chain_spec,
     service::{
         new_robonomics_full, new_robonomics_light,
         new_ipci_full, new_ipci_light,
@@ -27,24 +27,13 @@ use crate::{
     },
 };
 
-/// Can be called for a `Configuration` to check if it is a configuration for IPCI network.
-pub trait IsIpci {
-    fn is_ipci(&self) -> bool;
-}
-
-impl IsIpci for Box<dyn sc_chain_spec::ChainSpec> {
-    fn is_ipci(&self) -> bool {
-        self.id().starts_with("ipci")
-    }
-}
-
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
         "airalab-robonomics"
     }
 
     fn impl_version() -> &'static str {
-        env!("ROBONOMICS_IMPL_VERSION")
+        env!("SUBSTRATE_CLI_IMPL_VERSION")
     }
 
     fn description() -> &'static str {
@@ -90,9 +79,17 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
 
             if runner.config().chain_spec.is_ipci() {
-                runner.run_node(new_ipci_light, new_ipci_full)
+                runner.run_node(
+                    new_ipci_light,
+                    new_ipci_full,
+                    ipci_runtime::VERSION,
+                )
             } else {
-                runner.run_node(new_robonomics_light, new_robonomics_full)
+                runner.run_node(
+                    new_robonomics_light,
+                    new_robonomics_full,
+                    robonomics_runtime::VERSION
+                )
             }
         }
         Some(Subcommand::Base(subcommand)) => {
@@ -104,8 +101,8 @@ pub fn run() -> sc_cli::Result<()> {
                 runner.run_subcommand(subcommand, |config| new_robonomics_chain_ops(config))
             }
         }
-        #[cfg(feature = "robonomics-protocol")]
-        Some(Subcommand::PubSub(subcommand)) => {
+        #[cfg(feature = "robonomics-cli")]
+        Some(Subcommand::Io(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             runner.sync_run(|_|
                 subcommand.run().map_err(|e| sc_cli::Error::Other(e.to_string()))) 

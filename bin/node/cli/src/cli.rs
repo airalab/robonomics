@@ -35,13 +35,13 @@ pub enum Subcommand {
     /// A set of base subcommands handled by `sc_cli`.
     #[structopt(flatten)]
     Base(sc_cli::Subcommand),
-    /// This subcommand runs node in message router mode.
-    #[cfg(feature = "robonomics-protocol")]
+    /// Robonomics Framework I/O operations. 
+    #[cfg(feature = "robonomics-cli")]
     #[structopt(
-        name = "pubsub",
-        about = "Run node in pubsub(gossipsub) router mode."
+        name = "io",
+        about = "Run I/O actions using Robonomics Framework."
     )]
-    PubSub(robonomics_protocol::cli::PubSubCmd),
+    Io(robonomics_cli::IoCmd),
     /// The custom benchmark subcommmand benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     #[structopt(
