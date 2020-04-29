@@ -21,10 +21,10 @@
 use codec::{EncodeLike, Codec};
 use sp_std::prelude::*;
 use sp_runtime::traits::Member;
-use frame_system::{self as system, ensure_signed, offchain::SubmitSignedTransaction};
+use frame_system::{self as system, ensure_signed};
 use frame_support::{
     decl_module, decl_storage, decl_event, decl_error,
-    weights::SimpleDispatchInfo, traits::Time,
+    traits::Time,
 };
 
 /// Type synonym for timestamp data type.
@@ -38,12 +38,6 @@ pub trait Trait: system::Trait {
     type Record: Codec + EncodeLike + Member;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
-}
-
-/// Datalog module agent trait.
-pub trait Agent: Trait {
-    type Call: From<Call<Self>>;
-    type SubmitTransaction: SubmitSignedTransaction<Self, <Self as Agent>::Call>;
 }
 
 decl_event! {
@@ -77,7 +71,7 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Store new data into blockchain.
-        #[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+        #[weight = 5_000_000]
         fn record(origin, record: T::Record) {
             let sender = ensure_signed(origin)?;
             let now = T::Time::now();
@@ -89,7 +83,7 @@ decl_module! {
         }
 
         /// Clear account datalog.
-        #[weight = SimpleDispatchInfo::FixedNormal(1_000_000)]
+        #[weight = 100_000]
         fn erase(origin) {
             let sender = ensure_signed(origin)?;
             <Datalog<T>>::remove(sender.clone());

@@ -21,7 +21,6 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate" }
 sp-state-machine = { git = "https://github.com/paritytech/substrate" }
 
 sc-rpc = { git = "https://github.com/paritytech/substrate" }
-sc-client = { git = "https://github.com/paritytech/substrate" }
 sc-client-api = { git = "https://github.com/paritytech/substrate" }
 sc-network = { git = "https://github.com/paritytech/substrate" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate" }

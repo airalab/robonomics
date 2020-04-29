@@ -27,6 +27,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod constants;
 pub mod impls;
 
+use codec::Encode;
 use sp_std::prelude::*;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
@@ -34,7 +35,7 @@ use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill,
+    ApplyExtrinsicResult, Perbill, Perquintill,
     generic, create_runtime_str,
     transaction_validity::{TransactionSource, TransactionValidity},
     traits::{
@@ -44,8 +45,8 @@ use sp_runtime::{
 };
 
 use frame_support::{
-    construct_runtime, parameter_types,
-    traits::Randomness, weights::Weight,
+    construct_runtime, parameter_types, debug,
+    traits::Randomness, weights::{Weight, RuntimeDbWeight},
 };
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use node_primitives::{
@@ -66,6 +67,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_version: 1,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
+    transaction_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -79,10 +81,16 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-    pub const MaximumBlockWeight: Weight = 1_000_000_000;
+    /// We allow for 2 seconds of compute with a 6 second average block time.
+    pub const MaximumBlockWeight: Weight = 2_000_000_000_000;
+    pub const ExtrinsicBaseWeight: Weight = 10_000_000;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
     pub const Version: RuntimeVersion = VERSION;
+    pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight {
+        read: 60_000_000, // ~0.06 ms = ~60 µs
+        write: 200_000_000, // ~0.2 ms = 200 µs
+    };
 }
 
 impl frame_system::Trait for Runtime {
@@ -97,6 +105,9 @@ impl frame_system::Trait for Runtime {
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     type Event = Event;
     type Origin = Origin;
+    type DbWeight = DbWeight;
+    type BlockExecutionWeight = ();
+    type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type BlockHashCount = BlockHashCount;
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
@@ -160,18 +171,16 @@ impl pallet_balances::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 50 * GLUSHKOV;
-    pub const TransactionByteFee: Balance = 0;
+    pub const TransactionByteFee: Balance = 1;
     // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 0;
+    pub const WeightFeeCoefficient: Balance = 1;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
-    pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
+    pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
     type Currency = Balances;
     type OnTransactionPayment = ();
-    type TransactionBaseFee = TransactionBaseFee;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = impls::LinearWeightToFee<WeightFeeCoefficient>;
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
@@ -183,6 +192,7 @@ parameter_types! {
     pub const SubAccountDeposit: Balance = 2 * XRT;   // 53 bytes on-chain
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
+    pub const MaxRegistrars: u32 = 20;
 }
 
 impl pallet_identity::Trait for Runtime {
@@ -193,6 +203,7 @@ impl pallet_identity::Trait for Runtime {
     type SubAccountDeposit = SubAccountDeposit;
     type MaxSubAccounts = MaxSubAccounts;
     type MaxAdditionalFields = MaxAdditionalFields;
+    type MaxRegistrars = MaxRegistrars;
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
@@ -222,15 +233,14 @@ impl pallet_robonomics_datalog::Trait for Runtime {
     type Event = Event;
 }
 
-impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
-    type Public = <Signature as traits::Verify>::Signer;
-    type Signature = Signature;
-
-    fn create_transaction<F: frame_system::offchain::Signer<Self::Public, Self::Signature>>(
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime where
+    Call: From<LocalCall>,
+{
+    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
         call: Call,
-        public: Self::Public,
+        public: <Signature as traits::Verify>::Signer,
         account: AccountId,
-        index: Index,
+        nonce: Index,
     ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
         // take the biggest period possible.
         let period = BlockHashCount::get()
@@ -239,22 +249,40 @@ impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for 
             .unwrap_or(2) as u64;
         let current_block = System::block_number()
             .saturated_into::<u64>()
+            // The `System::block_number` is initialized with `n+1`,
+            // so the actual block number is `n`.
             .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
             frame_system::CheckVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-            frame_system::CheckNonce::<Runtime>::from(index),
+            frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra).ok()?;
-        let signature = F::sign(public, &raw_payload)?;
+        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
+            debug::warn!("Unable to create signed payload: {:?}", e);
+        }).ok()?;
+        let signature = raw_payload.using_encoded(|payload| {
+            C::sign(payload, public)
+        })?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature, extra)))
+        Some((call, (address, signature.into(), extra)))
     }
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+    type Public = <Signature as traits::Verify>::Signer;
+    type Signature = Signature;
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
+    Call: From<C>,
+{
+    type OverarchingCall = Call;
+    type Extrinsic = UncheckedExtrinsic;
 }
 
 construct_runtime! {

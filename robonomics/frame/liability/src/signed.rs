@@ -24,7 +24,7 @@ use sp_runtime::{
 };
 #[cfg(feature = "std")]
 use sp_core::crypto::{Pair, Public};
-use frame_system::offchain::Signer;
+use frame_system::offchain::AppCrypto;
 use frame_support::{dispatch, traits::{ReservableCurrency, BalanceStatus}};
 
 use crate::economics::{Communism, OpenMarket};
@@ -138,7 +138,7 @@ impl<T, E, I, AccountId, Signature, AppSigner> ProofBuilder<T, E, I, AccountId, 
     T: Technical,
     E: Economical,
     I: dispatch::Parameter,
-    AppSigner: Signer<AccountId, Signature>,
+    AppSigner: AppCrypto<AccountId, Signature>,
 {
     fn proof_params(
         technics: &T::Parameter,
@@ -146,7 +146,7 @@ impl<T, E, I, AccountId, Signature, AppSigner> ProofBuilder<T, E, I, AccountId, 
         sender: AccountId,
     ) -> Signature {
         (technics, economics)
-            .using_encoded(|params| AppSigner::sign(sender, &params))
+            .using_encoded(|params| AppSigner::sign(&params, sender))
             .expect("unable to sign using runtime application key")
     }
 
@@ -156,7 +156,7 @@ impl<T, E, I, AccountId, Signature, AppSigner> ProofBuilder<T, E, I, AccountId, 
         sender: AccountId,
     ) -> Signature {
         (index, report)
-            .using_encoded(|params| AppSigner::sign(sender, &params))
+            .using_encoded(|params| AppSigner::sign(&params, sender))
             .expect("unable to sign using runtime application key")
     }
 }

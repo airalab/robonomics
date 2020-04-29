@@ -56,7 +56,6 @@ sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 
 # client dependencies
-sc-client = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
@@ -135,7 +134,7 @@ cli = [
     "vergen",
     "structopt",
     "platforms",
-    "sc-service/rocksdb",
+    "sc-service/db",
     "robonomics-protocol/cli",
 ]
 

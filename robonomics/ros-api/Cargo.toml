@@ -15,7 +15,6 @@ futures-timer = "2"
 derive_more = "0.99"
 codec = { package = "parity-scale-codec", version = "1.3" }
 msgs = { package = "robonomics-ros-msgs", path = "msgs" }
-sc-client = { git = "https://github.com/paritytech/substrate" }
 sc-keystore = { git = "https://github.com/paritytech/substrate" }
 sp-api = { git = "https://github.com/paritytech/substrate" }
 sp-core = { git = "https://github.com/paritytech/substrate" }

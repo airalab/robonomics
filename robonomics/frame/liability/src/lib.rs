@@ -130,7 +130,7 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Create agreement between two parties.
-        #[weight = frame_support::weights::SimpleDispatchInfo::default()]
+        #[weight = 200_000_000]
         fn create(
             origin,
             technics: TechnicalParam<T>,
@@ -181,7 +181,7 @@ decl_module! {
         }
 
         /// Publish technical report of complite works.
-        #[weight = frame_support::weights::SimpleDispatchInfo::default()]
+        #[weight = 200_000_000]
         fn finalize(
             origin,
             index: LiabilityIndex<T>,
