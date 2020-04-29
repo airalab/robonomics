@@ -2345,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "ipci-runtime"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4055,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -4116,7 +4116,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "pretty_assertions",
  "sp-core",
@@ -5625,7 +5625,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
