@@ -15,8 +15,29 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-///! Robonomics sensing subsystem.
+use crate::error::{Result, Error};
+use futures::TryStreamExt;
+use std::io::{self, Write};
+use ipfs_api::IpfsClient;
 
-pub mod serial;
-pub mod virt;
-pub mod ipfs;
+#[tokio::main]
+pub async fn read_file(_input: String) -> Result<()> {
+    log::debug!("read_file");
+    let client = IpfsClient::default();
+
+    match client.cat("QmcAdHc6DDRHHsBxi2iccCMzZ5ihtwuWUKDzeW6MtUN24Y")
+        .map_ok(|chunk| chunk.to_vec()).try_concat()
+        .await {
+        Ok(res) => {
+            let out = io::stdout();
+            let mut out = out.lock();
+
+            out.write_all(&res).unwrap();
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("error getting file: {}", e);
+            Err(Error::Other(String::from("Error getting file")))
+        }
+    }
+}

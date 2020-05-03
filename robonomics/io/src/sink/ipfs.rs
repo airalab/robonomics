@@ -19,7 +19,6 @@ use crate::error::{Result, Error};
 use std::io::Cursor;
 use ipfs_api::IpfsClient;
 
-#[tokio::main]
 pub async fn add_file(input: Vec<u8>) -> Result<()> {
     let client = IpfsClient::default();
     let data = Cursor::new(input);

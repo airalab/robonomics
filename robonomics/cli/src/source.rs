@@ -19,9 +19,10 @@
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::source::{virt, serial};
+use robonomics_io::source::{virt, serial, ipfs};
 use robonomics_io::sink::virt::Stdout;
-use robonomics_io::Consumer;
+use robonomics_io::source::virt::Stdin;
+use robonomics_io::{Consumer, Pipe};
 use futures::{future, StreamExt};
 use async_std::task;
 
@@ -41,7 +42,7 @@ pub enum SourceCmd {
     PubSub {
         /// Subscribe for given topic name and print received messages.
         topic_name: String,
-        /// Listen address for incoming connections. 
+        /// Listen address for incoming connections.
         #[structopt(
             long,
             value_name = "MULTIADDR",
@@ -55,12 +56,18 @@ pub enum SourceCmd {
             use_delimiter = true,
         )]
         bootnodes: Vec<Multiaddr>,
+    },
+    /// IPFS
+    #[structopt(name = "ipfs")]
+    IPFS {
+
     }
 }
 
 impl SourceCmd {
     pub fn run(&self) -> Result<()> {
         let stdout = Stdout::new();
+        let stdin = Stdin::new();
         match self.clone() {
             SourceCmd::SDS011 { port, period } => {
                 let device = serial::SDS011::new(port, period).unwrap().map(|m| format!("{:?}", m));
@@ -71,7 +78,17 @@ impl SourceCmd {
                 let measure = device.then(|m| future::ready(format!("{:?}", m))).boxed();
                 task::block_on(stdout.consume(measure))
             }
-
+            SourceCmd::IPFS { } => {
+                log::debug!("IPFS read call");
+                let device = virt::IPFS::new().unwrap();
+                task::block_on(
+                    stdout.consume(
+                        device.pipe(
+                            stdin.boxed()
+                        ).map(|_| String::from("")).boxed()
+                    )
+                )
+            }
         }
         Ok(())
     }

@@ -27,13 +27,15 @@ use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
-use futures::{future, FutureExt};
+use futures::{future, FutureExt, TryFutureExt};
 use sp_core::{sr25519, crypto::Pair};
 use crate::error::Result;
 use crate::pipe::{Pipe, PipeFuture, Consumer};
 use async_std::task;
 use std::sync::Arc;
 use crate::sink::ipfs;
+use ipfs_api::IpfsClient;
+use std::io::Cursor;
 
 /// Simple standart output.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -120,19 +122,22 @@ impl<'a> Pipe<'a, Vec<u8>, ()> for Datalog {
 impl<'a> Consumer<'a, Vec<u8>> for Datalog {}
 
 /// IPFS file publisher
-pub struct IPFS { }
+pub struct IPFS {
+    client: IpfsClient,
+}
 
 impl IPFS {
     pub fn new() -> Result<Self> {
-        Ok(Self {})
+        let client = IpfsClient::default();
+        Ok(Self {client})
     }
 }
 
 impl<'a> Pipe<'a, Vec<u8>, ()> for IPFS {
     fn exec(&mut self, input: Vec<u8>) -> PipeFuture<'a, ()> {
-        ipfs::add_file(input);
-        //Box::pin(ipfs::add_file(input).map(|_| ()))
-        Box::pin(future::ready(()))
+        //let data = Cursor::new(input);
+        //Box::pin((&self.client).add(data).map(|_| ()))
+        Box::pin(ipfs::add_file(input).map(|_| ()))
     }
 }
 

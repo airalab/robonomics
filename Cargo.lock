@@ -7176,9 +7176,9 @@ dependencies = [
 
 [[package]]
 name = "sds011"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8c26193ca65135a27d5ac9afd4aaa3b95b2c2a9ccda81244469db979e257d7"
+checksum = "64ca4aa97a73f961e63e61c1d663fdb982b8ea45568c2fc88317b5f05a59f466"
 dependencies = [
  "clap",
  "csv",

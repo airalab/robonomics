@@ -18,7 +18,7 @@
 ///! Virtual sensors collection.
 ///
 /// This module contains:
-/// - Stdin: Standart input stream. 
+/// - Stdin: Standart input stream.
 /// - Pubsub: Subscribe for topic data.
 ///
 
@@ -26,13 +26,16 @@ use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
 use futures::channel::mpsc;
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, FutureExt, TryStreamExt};
 use crate::error::Result;
 use std::io::BufRead;
 use async_std::task;
 use std::task::{Context, Poll};
 use std::pin::Pin;
 use std::thread;
+use crate::pipe::{Pipe, PipeFuture};
+use crate::source::ipfs;
+use ipfs_api::IpfsClient;
 
 /// Simple standart input.
 pub struct Stdin(Pin<Box<dyn Stream<Item = String> + Send>>);
@@ -83,7 +86,7 @@ impl PubSub {
         task::spawn(worker);
 
         // Subscribe to given topic
-        Ok(Self(pubsub.subscribe(&topic_name))) 
+        Ok(Self(pubsub.subscribe(&topic_name)))
     }
 }
 
@@ -91,5 +94,36 @@ impl Stream for PubSub {
     type Item = pubsub::Message;
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.0.poll_next_unpin(cx)
+    }
+}
+
+pub struct IPFS(Pin<Box<dyn Stream<Item = String> + Send>>, IpfsClient);
+
+impl IPFS {
+    pub fn new() -> Result<Self> {
+        log::debug!("ipfs new");
+        let (tx, rx) = mpsc::unbounded();
+        let ipfs = IpfsClient::default();
+        Ok(Self(rx.boxed(), ipfs))
+    }
+}
+
+impl Stream for IPFS {
+    type Item = String;
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        log::debug!("ipfs poll_next");
+        self.0.poll_next_unpin(cx)
+    }
+}
+
+impl<'a> Pipe<'a, String, ()> for IPFS {
+    fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
+        log::debug!("ipfs pipe exec");
+        Box::pin(
+            self.1.cat(
+                input.as_str()
+            ).map_ok(|chunk| chunk.to_vec()).try_concat()
+                .map(|_| ())
+        )
     }
 }
