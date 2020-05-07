@@ -19,6 +19,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "cumulus-b
 sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-version = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
@@ -64,6 +65,7 @@ std = [
     "serde",
     "serde_derive",
     "sp-runtime/std",
+    "sp-session/std",
     "pallet-sudo/std",
     "frame-support/std",
     "frame-system/std",

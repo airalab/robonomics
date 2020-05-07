@@ -36,7 +36,7 @@ use sp_version::RuntimeVersion;
 use sp_version::NativeVersion;
 use sp_runtime::{
     ApplyExtrinsicResult, Perbill, Perquintill,
-    generic, create_runtime_str,
+    generic, create_runtime_str, impl_opaque_keys,
     transaction_validity::{TransactionSource, TransactionValidity},
     traits::{
         self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
@@ -78,6 +78,11 @@ pub fn native_version() -> NativeVersion {
         can_author_with: Default::default(),
     }
 }
+
+impl_opaque_keys! {
+    pub struct SessionKeys {}
+}
+
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
@@ -423,6 +428,18 @@ impl_runtime_apis! {
     > for Runtime {
         fn query_info(uxt: UncheckedExtrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
+        }
+    }
+
+    impl sp_session::SessionKeys<Block> for Runtime {
+        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+            SessionKeys::generate(seed)
+        }
+
+        fn decode_session_keys(
+            encoded: Vec<u8>,
+        ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
+            SessionKeys::decode_into_raw_public_keys(&encoded)
         }
     }
 }

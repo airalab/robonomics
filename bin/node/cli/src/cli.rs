@@ -20,13 +20,24 @@ use structopt::StructOpt;
 
 /// An overarching CLI command definition.
 #[derive(Clone, Debug, StructOpt)]
+#[structopt(settings = &[
+    structopt::clap::AppSettings::GlobalVersion,
+    structopt::clap::AppSettings::ArgsNegateSubcommands,
+    structopt::clap::AppSettings::SubcommandsNegateReqs,
+])]
 pub struct Cli {
     /// Possible subcommand with parameters.
     #[structopt(subcommand)]
     pub subcommand: Option<Subcommand>,
+
     #[allow(missing_docs)]
     #[structopt(flatten)]
     pub run: sc_cli::RunCmd,
+
+    /// Polkadot relaychain arguments.
+    #[cfg(feature = "parachain")]
+    #[structopt(raw = true)]
+    pub relaychain_args: Vec<String>,
 }
 
 /// Possible subcommands of the main binary.
@@ -37,16 +48,17 @@ pub enum Subcommand {
     Base(sc_cli::Subcommand),
     /// Robonomics Framework I/O operations. 
     #[cfg(feature = "robonomics-cli")]
-    #[structopt(
-        name = "io",
-        about = "Run I/O actions using Robonomics Framework."
-    )]
     Io(robonomics_cli::IoCmd),
-    /// The custom benchmark subcommmand benchmarking runtime pallets.
+    /// Benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
-    #[structopt(
-        name = "benchmark",
-        about = "Benchmark runtime pallets."
-    )]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+    /// Print hex-encoded genesis state of the parachain.
+    #[cfg(feature = "parachain")]
+    ExportGenesisState(ExportGenesisState),
+}
+
+#[derive(Clone, Debug, StructOpt)]
+pub struct ExportGenesisState {
+    /// Genesis state path
+    pub head_file: Option<std::path::PathBuf>,
 }

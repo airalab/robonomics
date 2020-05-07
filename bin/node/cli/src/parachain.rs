@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2020 Airalab <research@aira.life> 
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,19 +15,8 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics data sink.
-//!
-//! In terms of Robonomics Framework `sink` is an object that designed for `write`
-//! operations. For example, `Stdout` object should print incoming data into console.
-//!
+//! Robonomics Node parachain support functionality.
 
-pub mod virt;
-
-use futures::Future;
-use std::pin::Pin;
-
-type ImplFuture<T> = Pin<Box<dyn Future<Output = T>>>;
-
-pub trait AsyncSink<A, B> {
-    fn sink(&mut self, input: A) -> ImplFuture<B>;
-}
+pub mod chain_spec;
+pub mod collator;
+pub mod command;

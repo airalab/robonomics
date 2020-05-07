@@ -29,15 +29,15 @@ pub mod impls;
 
 pub use pallet_staking::StakerStatus;
 
+use codec::Encode;
 use sp_std::prelude::*;
 use sp_core::OpaqueMetadata;
-use frame_system::offchain::TransactionSubmitter;
 use frame_support::{
-    construct_runtime, parameter_types,
-    traits::Randomness, weights::Weight,
+    construct_runtime, parameter_types, debug,
+    traits::Randomness, weights::{Weight, RuntimeDbWeight},
 };
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill,
+    ApplyExtrinsicResult, Perbill, Perquintill,
     generic, create_runtime_str, impl_opaque_keys,
 };
 use sp_runtime::transaction_validity::{
@@ -74,9 +74,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 5,
-    impl_version: 5,
+    spec_version: 6,
+    impl_version: 6,
     apis: RUNTIME_API_VERSIONS,
+    transaction_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -88,15 +89,18 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
-/// A transaction submitter with the given key type.
-pub type TransactionSubmitterOf<KeyType> = TransactionSubmitter<KeyType, Runtime, UncheckedExtrinsic>;
-
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-    pub const MaximumBlockWeight: Weight = 1_000_000_000;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+    /// We allow for 2 seconds of compute with a 6 second average block time.
+    pub const MaximumBlockWeight: Weight = 2_000_000_000_000;
+    pub const ExtrinsicBaseWeight: Weight = 10_000_000;
     pub const Version: RuntimeVersion = VERSION;
+    pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight {
+        read: 60_000_000, // ~0.06 ms = ~60 µs
+        write: 200_000_000, // ~0.2 ms = 200 µs
+    };
 }
 
 impl frame_system::Trait for Runtime {
@@ -111,6 +115,9 @@ impl frame_system::Trait for Runtime {
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     type Event = Event;
     type Origin = Origin;
+    type DbWeight = DbWeight;
+    type BlockExecutionWeight = ();
+    type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type BlockHashCount = BlockHashCount;
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
@@ -194,18 +201,16 @@ impl pallet_balances::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionBaseFee: Balance = 50_000 * U_MITO; // 50 mMITO
-    pub const TransactionByteFee: Balance = 1 * U_MITO;      // 1 uMITO
+    pub const TransactionByteFee: Balance = 1 * U_MITO;
     // setting this to zero will disable the weight fee.
     pub const WeightFeeCoefficient: Balance = 1_000;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
-    pub const TargetBlockFullness: Perbill = Perbill::from_percent(25);
+    pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
     type Currency = Balances;
     type OnTransactionPayment = ();
-    type TransactionBaseFee = TransactionBaseFee;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = impls::LinearWeightToFee<WeightFeeCoefficient>;
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
@@ -258,7 +263,8 @@ parameter_types! {
     pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 64;
-    pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.                                          
+    pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.
+    pub const MaxIterations: u32 = 5;
 }
 
 impl pallet_staking::Trait for Runtime {
@@ -275,11 +281,11 @@ impl pallet_staking::Trait for Runtime {
     type BondingDuration = BondingDuration;
     type SessionInterface = Self;
     type RewardCurve = RewardCurve;
+    type MaxIterations = MaxIterations;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type NextNewSession = Session;
     type ElectionLookahead = ElectionLookahead;
     type Call = Call;
-    type SubmitTransaction = TransactionSubmitterOf<()>;
     type UnsignedPriority = StakingUnsignedPriority;
 }
 
@@ -306,6 +312,7 @@ parameter_types! {
     pub const SubAccountDeposit: Balance = 2 * MITO;   // 53 bytes on-chain
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
+    pub const MaxRegistrars: u32 = 20;
 }
 
 impl pallet_identity::Trait for Runtime {
@@ -316,6 +323,7 @@ impl pallet_identity::Trait for Runtime {
     type SubAccountDeposit = SubAccountDeposit;
     type MaxSubAccounts = MaxSubAccounts;
     type MaxAdditionalFields = MaxAdditionalFields;
+    type MaxRegistrars = MaxRegistrars;
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
@@ -334,10 +342,8 @@ parameter_types! {
 }
 
 impl pallet_im_online::Trait for Runtime {
-    type Call = Call;
     type Event = Event;
     type AuthorityId = ImOnlineId;
-    type SubmitTransaction = TransactionSubmitterOf<ImOnlineId>;
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
     type UnsignedPriority = ImOnlineUnsignedPriority;
@@ -355,37 +361,56 @@ impl pallet_robonomics_datalog::Trait for Runtime {
     type Event = Event;
 }
 
-impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for Runtime {
-    type Public = <Signature as traits::Verify>::Signer;
-    type Signature = Signature;
-
-    fn create_transaction<F: frame_system::offchain::Signer<Self::Public, Self::Signature>>(
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime where
+    Call: From<LocalCall>,
+{
+    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
         call: Call,
-        public: Self::Public,
+        public: <Signature as traits::Verify>::Signer,
         account: AccountId,
-        index: Index,
+        nonce: Index,
     ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
         // take the biggest period possible.
         let period = BlockHashCount::get()
             .checked_next_power_of_two()
             .map(|c| c / 2)
             .unwrap_or(2) as u64;
-        let current_block = System::block_number().saturated_into::<u64>();
+        let current_block = System::block_number()
+            .saturated_into::<u64>()
+            // The `System::block_number` is initialized with `n+1`,
+            // so the actual block number is `n`.
+            .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
             frame_system::CheckVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-            frame_system::CheckNonce::<Runtime>::from(index),
+            frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra).ok()?;
-        let signature = F::sign(public, &raw_payload)?;
+        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
+            debug::warn!("Unable to create signed payload: {:?}", e);
+        }).ok()?;
+        let signature = raw_payload.using_encoded(|payload| {
+            C::sign(payload, public)
+        })?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature, extra)))
+        Some((call, (address, signature.into(), extra)))
     }
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+    type Public = <Signature as traits::Verify>::Signer;
+    type Signature = Signature;
+}
+
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
+    Call: From<C>,
+{
+    type OverarchingCall = Call;
+    type Extrinsic = UncheckedExtrinsic;
 }
 
 construct_runtime!(
@@ -530,19 +555,19 @@ impl_runtime_apis! {
     }
 
     impl sp_consensus_babe::BabeApi<Block> for Runtime {
-        fn configuration() -> sp_consensus_babe::BabeConfiguration {
+        fn configuration() -> sp_consensus_babe::BabeGenesisConfiguration {
             // The choice of `c` parameter (where `1 - c` represents the
             // probability of a slot being empty), is done in accordance to the
             // slot duration and expected target block time, for safely
             // resisting network delays of maximum two seconds.
             // <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
-            sp_consensus_babe::BabeConfiguration {
+            sp_consensus_babe::BabeGenesisConfiguration {
                 slot_duration: Babe::slot_duration(),
                 epoch_length: EpochDuration::get(),
                 c: PRIMARY_PROBABILITY,
                 genesis_authorities: Babe::authorities(),
                 randomness: Babe::randomness(),
-                secondary_slots: true,
+                allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
             }
         }
 
@@ -624,31 +649,3 @@ impl_runtime_apis! {
 
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use frame_system::offchain::{SignAndSubmitTransaction, SubmitSignedTransaction};
-
-    #[test]
-    fn validate_transaction_submitter_bounds() {
-        fn is_submit_signed_transaction<T>() where
-            T: SubmitSignedTransaction<
-                Runtime,
-                Call,
-            >,
-        {}
-
-        fn is_sign_and_submit_transaction<T>() where
-            T: SignAndSubmitTransaction<
-                Runtime,
-                Call,
-                Extrinsic=UncheckedExtrinsic,
-                CreateTransaction=Runtime,
-                Signer=ImOnlineId,
-            >,
-        {}
-
-        is_submit_signed_transaction::<TransactionSubmitterOf<ImOnlineId>>();
-        is_sign_and_submit_transaction::<TransactionSubmitterOf<ImOnlineId>>();
-    }
-}

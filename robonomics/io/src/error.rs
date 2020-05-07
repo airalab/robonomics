@@ -18,6 +18,7 @@
 //! Errors that can occur during the I/O operations.
 
 use sp_core::crypto::SecretStringError;
+use ipfs_api::response::Error as IpfsError;
 
 /// Sensor Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -32,6 +33,8 @@ pub enum Error {
     PrivateKeyFailure(SecretStringError),
     /// Protocol error.
     Protocol(robonomics_protocol::error::Error),
+    /// Ipfs client error.
+    Ipfs(IpfsError),
     /// Other error.
     Other(String),
 }

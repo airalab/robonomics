@@ -21,30 +21,14 @@ use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
-use futures::{future, FutureExt};
+use futures::{future, Future, FutureExt, StreamExt};
 use sp_core::{sr25519, crypto::Pair};
 use crate::error::Result;
-use crate::pipe::{Pipe, PipeFuture, Consumer};
+use ipfs_api::IpfsClient;
 use std::time::Duration;
+use std::io::Cursor;
 use async_std::task;
 use std::sync::Arc;
-
-/// Standart console output.
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Stdout;
-
-impl Stdout {
-    pub fn new() -> Self { Self }
-}
-
-impl<'a> Pipe<'a, String, ()> for Stdout {
-    fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
-        println!("{}", input);
-        Box::pin(future::ready(()))
-    }
-}
-
-impl<'a> Consumer<'a, String> for Stdout {}
 
 /// Publish data into PubSub topic. 
 pub struct PubSub {
@@ -80,14 +64,12 @@ impl PubSub {
     }
 }
 
-impl<'a> Pipe<'a, String, ()> for PubSub {
-    fn exec(&mut self, input: String) -> PipeFuture<'a, ()> {
+impl super::AsyncSink<String, ()> for PubSub {
+    fn sink(&mut self, input: String) -> super::ImplFuture<()> { 
         self.pubsub.publish(&self.topic_name, input);
         Box::pin(future::ready(()))
     }
 }
-
-impl<'a> Consumer<'a, String> for PubSub {}
 
 /// Submit signed data record into blockchain.
 pub struct Datalog {
@@ -102,8 +84,8 @@ impl Datalog {
     }
 }
 
-impl<'a> Pipe<'a, Vec<u8>, ()> for Datalog {
-    fn exec(&mut self, input: Vec<u8>) -> PipeFuture<'a, ()> {
+impl super::AsyncSink<Vec<u8>, ()> for Datalog {
+    fn sink(&mut self, input: Vec<u8>) -> super::ImplFuture<()> {
         Box::pin(datalog::submit(
             self.pair.clone(),
             self.remote.clone(),
@@ -112,4 +94,20 @@ impl<'a> Pipe<'a, Vec<u8>, ()> for Datalog {
     }
 }
 
-impl<'a> Consumer<'a, Vec<u8>> for Datalog {}
+pub struct Ipfs(IpfsClient);
+
+impl Ipfs {
+    pub fn new(uri: &str) -> Self {
+        let client = IpfsClient::new_from_uri(uri)
+            .expect("IPFS API uri should be valid");
+        Ipfs(client)
+    }
+}
+
+impl super::AsyncSink<Vec<u8>, Result<String>> for Ipfs {
+    fn sink(&mut self, input: Vec<u8>) -> super::ImplFuture<Result<String>> {
+        self.0
+            .add(Cursor::new(input))
+            .map(|item| item.map(|value| value.hash).map_err(Into::into))
+    }
+}

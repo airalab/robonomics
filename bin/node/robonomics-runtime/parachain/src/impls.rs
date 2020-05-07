@@ -16,12 +16,12 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use core::num::NonZeroI128;
 use crate::{System, MaximumBlockWeight};
 use frame_support::{traits::Get, weights::Weight};
 use sp_runtime::traits::{Convert, Saturating};
 use sp_runtime::{Fixed128, Perquintill};
 use node_primitives::Balance;
+use core::num::NonZeroI128;
 
 /// Convert from weight to balance via a simple coefficient multiplication
 /// The associated type C encapsulates a constant in units of balance per weight

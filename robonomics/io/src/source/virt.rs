@@ -20,38 +20,12 @@
 use robonomics_protocol::pubsub::{
     self, Multiaddr, PubSub as PubSubT,
 };
-use futures::channel::mpsc;
 use futures::{Stream, StreamExt};
 use crate::error::Result;
-use std::io::BufRead;
 use async_std::task;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use std::pin::Pin;
-use std::thread;
-
-/// Standart input stream (console).
-pub struct Stdin(Pin<Box<dyn Stream<Item = String> + Send>>);
-
-impl Stdin {
-    pub fn new() -> Self {
-        let (tx, rx) = mpsc::unbounded();
-        thread::spawn(move || {
-            let input = std::io::stdin();
-            for line in input.lock().lines() {
-                let _ = tx.unbounded_send(line.expect("unable to read line from stdio"));
-            }
-        });
-        Self(rx.boxed())
-    }
-}
-
-impl Stream for Stdin {
-    type Item = String;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.0.poll_next_unpin(cx)
-    }
-}
 
 /// Subscribe for data from PubSub topic.
 pub struct PubSub(Pin<Box<dyn Stream<Item = pubsub::Message> + Send>>);
