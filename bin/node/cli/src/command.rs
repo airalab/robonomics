@@ -18,10 +18,15 @@
 
 use sc_cli::{SubstrateCli, CliConfiguration};
 use crate::{
-    Cli, Subcommand, service::{executor, ipci, robonomics}, chain_spec::*,
+    Cli, Subcommand,
+    service::{executor, ipci, robonomics}, chain_spec::*,
 };
 #[cfg(feature = "parachain")]
-use crate::parachain;
+use crate::parachain::{
+    command as parachain_command,
+    executor as parachain_executor,
+    chain_spec as parachain_spec,
+};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -58,7 +63,7 @@ impl SubstrateCli for Cli {
             "local" => Box::new(local_testnet_config()),
             "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            "parachain" => Box::new(parachain::chain_spec::robonomics_parachain_config()),
+            "parachain" => Box::new(parachain_spec::robonomics_parachain_config()),
             "" | "robonomics_testnet" => Box::new(robonomics_testnet_config()),
             path => Box::new(ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
@@ -92,8 +97,8 @@ pub fn run() -> sc_cli::Result<()> {
                 RobonomicsFamily::Parachain => {
                     let base_path = cli.run.base_path()?;
                     runner.run_node(
-                        |config| parachain::command::run(config, &base_path, &cli.relaychain_args),
-                        |config| parachain::command::run(config, &base_path, &cli.relaychain_args),
+                        |config| parachain_command::run(config, &base_path, &cli.relaychain_args),
+                        |config| parachain_command::run(config, &base_path, &cli.relaychain_args),
                         robonomics_parachain_runtime::VERSION,
                     )
                 }
@@ -122,6 +127,16 @@ pub fn run() -> sc_cli::Result<()> {
                     ).0)
                 }),
 
+                #[cfg(feature = "parachain")]
+                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
+                    config.keystore = sc_service::config::KeystoreConfig::InMemory;
+                    Ok(new_parachain!(
+                        config,
+                        robonomics_parachain_runtime::RuntimeApi,
+                        parachain_executor::Robonomics
+                    ).0)
+                }),
+
                 _ => Err(format!("unsupported chain spec: {}", runner.config().chain_spec.id()))?,
             }
         }
@@ -144,6 +159,6 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) =>
-             parachain::command::export_genesis_state(&params.head_file),
+             parachain_command::export_genesis_state(&params.head_file),
     }
 }

@@ -291,7 +291,7 @@ pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_genesis(
         "Robonomics Testnet",
         ROBONOMICS_TESTNET_ID,
-        ChainType::Live,
+        ChainType::Local,
         robonomics_testnet_genesis,
         boot_nodes,
         Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),

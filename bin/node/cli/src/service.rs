@@ -108,9 +108,6 @@ macro_rules! new_full_start {
     }}
 }
 
-/*
-*/
-
 /// Creates a full service from the configuration.
 #[macro_export]
 macro_rules! new_full {
