@@ -3,7 +3,9 @@
   "id": "robonomics",
   "chainType": "Live",
   "bootNodes": [
-      "/ip4/95.217.189.148/tcp/30363/p2p/12D3KooWL9AZYx1y2Lr6HGDsSdZZSqUqhcBM24zxnRcLCALFcgpK"
+      "/ip4/95.217.189.148/tcp/30363/p2p/12D3KooWL9AZYx1y2Lr6HGDsSdZZSqUqhcBM24zxnRcLCALFcgpK",
+      "/ip4/37.139.7.229/tcp/30363/p2p/12D3KooWBWqkchbhrcpqNaSMJgJaxk5iW9WVXUuyziitcmWe8Hzo",
+      "/ip4/104.248.22.55/tcp/30363/p2p/12D3KooWNPRkjGn67cbED4GMw2Xgp7SzUPNoiMEgXoYqwC9oV7wH"
   ],
   "telemetryEndpoints": [
     [
