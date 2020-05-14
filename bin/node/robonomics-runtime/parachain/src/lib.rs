@@ -83,7 +83,6 @@ impl_opaque_keys! {
     pub struct SessionKeys {}
 }
 
-
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
     /// We allow for 2 seconds of compute with a 6 second average block time.
@@ -290,6 +289,14 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
     type Extrinsic = UncheckedExtrinsic;
 }
 
+/*
+impl cumulus_parachain_upgrade::Trait for Runtime {
+    type Event = Event;
+    type Version = Version;
+    type OnValidationFunctionParams = ();
+}
+*/
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -313,6 +320,9 @@ construct_runtime! {
         // Robonomics Network modules.
         Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
+
+        // Parachain modules.
+        //ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Event},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
