@@ -289,13 +289,10 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
     type Extrinsic = UncheckedExtrinsic;
 }
 
-/*
 impl cumulus_parachain_upgrade::Trait for Runtime {
     type Event = Event;
-    type Version = Version;
     type OnValidationFunctionParams = ();
 }
-*/
 
 construct_runtime! {
     pub enum Runtime where
@@ -322,7 +319,7 @@ construct_runtime! {
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
-        //ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Event},
+        ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
