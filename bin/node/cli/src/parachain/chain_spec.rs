@@ -92,7 +92,7 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     mk_genesis(
-        vec![(sudo_key.clone(), 1_000 * XRT)],
+        vec![(sudo_key.clone(), 10_000_000 * XRT)],
         sudo_key,
         WASM_BINARY.to_vec(),
     )
