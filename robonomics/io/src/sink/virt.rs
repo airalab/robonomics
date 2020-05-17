@@ -82,7 +82,7 @@ pub fn datalog<T: Into<Vec<u8>>>(
     Ok((sender.sink_map_err(Into::into), hashes))
 }
 
-/// Submit some data into IPFS network.
+/// Upload some data into IPFS network.
 ///
 /// Returns IPFS hash of consumed data objects.
 pub fn ipfs<T>(

@@ -21,7 +21,7 @@
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::stream::virt::stdin;
+use robonomics_io::source::virt::stdin;
 use robonomics_io::sink::virt;
 use std::time::Duration;
 use futures::prelude::*;
@@ -69,9 +69,9 @@ pub enum SinkCmd {
     /// Upload data into IPFS storage.
     Ipfs {
         /// IPFS node API endpoint.
-        #[structopt(long, default_value = "https://127.0.0.1:5001")]
+        #[structopt(long, default_value = "http://127.0.0.1:5001")]
         remote: String,
-    }
+    },
 }
 
 impl SinkCmd {

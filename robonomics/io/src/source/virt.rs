@@ -18,11 +18,13 @@
 //! Virtual sensors collection.
 
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
+use ipfs_api::{IpfsClient, TryFromUri};
+use futures::channel::mpsc;
 use async_std::{io, task};
 use futures::prelude::*;
 use std::time::Duration;
 
-use crate::error::Result;
+use crate::error::{Result, Error};
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
@@ -55,4 +57,21 @@ pub fn pubsub(
 
     // Subscribe to given topic
     Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
+}
+
+/// Download some data from IPFS network.
+///
+/// Returns IPFS data objects.
+pub fn ipfs(
+    uri: &str,
+) -> Result<(impl Sink<String, Error = Error>, impl Stream<Item = Result<Vec<u8>>>)> {
+    let client = IpfsClient::from_str(uri).expect("unvalid uri");
+    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
+
+    let (sender, receiver) = mpsc::unbounded();
+    let datas = receiver.map(move |msg: String|
+        runtime.block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
+            .map_err(Into::into)
+    );
+    Ok((sender.sink_map_err(Into::into), datas))
 }

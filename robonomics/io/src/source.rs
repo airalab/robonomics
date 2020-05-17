@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Collection of I/O devices that implements `futures::stream::Stream` trait. 
+//! Collection of I/O devices designed to provide some data.
 
 pub mod serial;
 pub mod virt;

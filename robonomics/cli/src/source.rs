@@ -21,7 +21,7 @@
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::stream::{virt, serial};
+use robonomics_io::source::{virt, serial};
 use robonomics_io::sink::virt::stdout;
 use structopt::clap::arg_enum;
 use std::time::Duration;
@@ -74,7 +74,13 @@ pub enum SourceCmd {
             default_value = "5",
         )]
         hearbeat: u64
-    }
+    },
+    /// Download data from IPFS storage.
+    Ipfs {
+        /// IPFS node API endpoint.
+        #[structopt(long, default_value = "http://127.0.0.1:5001")]
+        remote: String,
+    },
 }
 
 arg_enum! {
@@ -119,6 +125,13 @@ impl SourceCmd {
 
                 task::block_on(pubsub.map(|m|
                     m.map(|msg| String::from_utf8(msg.data).unwrap_or("<no string>".to_string()))
+                ).forward(stdout()))?;
+            }
+            SourceCmd::Ipfs { remote } => {
+                let (download, data) = virt::ipfs(remote.as_str())?;
+                task::spawn(virt::stdin().forward(download));
+                task::block_on(data.map(|m|
+                    m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
                 ).forward(stdout()))?;
             }
 

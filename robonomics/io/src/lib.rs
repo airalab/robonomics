@@ -17,6 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Framework I/O operations.
 
-pub mod stream;
+pub mod source;
 pub mod error;
 pub mod sink;

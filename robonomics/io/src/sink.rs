@@ -15,6 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Collections of I/O devices that implements `futures::sink::Sink` trait.
+//! Collections of I/O devices designed for consume data.
 
 pub mod virt;
