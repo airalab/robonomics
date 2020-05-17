@@ -17,50 +17,42 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sensors collection.
 
-use robonomics_protocol::pubsub::{
-    self, Multiaddr, PubSub as PubSubT,
-};
-use futures::{Stream, StreamExt};
-use crate::error::Result;
-use async_std::task;
-use std::task::{Context, Poll};
+use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
+use async_std::{io, task};
+use futures::prelude::*;
 use std::time::Duration;
-use std::pin::Pin;
 
-/// Subscribe for data from PubSub topic.
-pub struct PubSub(Pin<Box<dyn Stream<Item = pubsub::Message> + Send>>);
+use crate::error::Result;
 
-impl PubSub {
-    pub fn new(
-        listen: Multiaddr,
-        bootnodes: Vec<Multiaddr>,
-        topic_name: String,
-        heartbeat: Duration,
-    ) -> Result<Self> {
-        let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
-
-        // Listen address
-        let _ = pubsub.listen(listen);
-
-        // Connect to bootnodes
-        for addr in bootnodes {
-            let _ = pubsub.connect(addr);
-        }
-
-        // Spawn peer discovery
-        task::spawn(pubsub::discovery::start(pubsub.clone()));
-
-        // Spawn network worker
-        task::spawn(worker);
-
-        // Subscribe to given topic
-        Ok(Self(pubsub.subscribe(&topic_name))) 
-    }
+/// Read line from standard console input.
+pub fn stdin() -> impl Stream<Item = Result<String>> {
+    let lines = io::BufReader::new(io::stdin()).lines();
+    lines.map(|r| r.map_err(Into::into))
 }
 
-impl Stream for PubSub {
-    type Item = pubsub::Message;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.0.poll_next_unpin(cx)
+/// Subscribe for data from PubSub topic.
+pub fn pubsub(
+    listen: Multiaddr,
+    bootnodes: Vec<Multiaddr>,
+    topic_name: String,
+    heartbeat: Duration,
+) -> Result<impl Stream<Item = Result<pubsub::Message>>> {
+    let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
+
+    // Listen address
+    let _ = pubsub.listen(listen);
+
+    // Connect to bootnodes
+    for addr in bootnodes {
+        let _ = pubsub.connect(addr);
     }
+
+    // Spawn peer discovery
+    task::spawn(pubsub::discovery::start(pubsub.clone()));
+
+    // Spawn network worker
+    task::spawn(worker);
+
+    // Subscribe to given topic
+    Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
 }

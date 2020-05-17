@@ -15,99 +15,89 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Collection of virtual devices (like stdout).
+//! Virtual sinkable devices.
 
-use robonomics_protocol::datalog;
-use robonomics_protocol::pubsub::{
-    self, Multiaddr, PubSub as PubSubT,
-};
-use futures::{future, Future, FutureExt, StreamExt};
+use robonomics_protocol::{pubsub::{self, Multiaddr, PubSub as _}, datalog};
+use ipfs_api::{IpfsClient, TryFromUri};
 use sp_core::{sr25519, crypto::Pair};
-use crate::error::Result;
-use ipfs_api::IpfsClient;
+use futures::channel::mpsc;
+use async_std::{io, task};
+use futures::prelude::*;
 use std::time::Duration;
 use std::io::Cursor;
-use async_std::task;
-use std::sync::Arc;
+
+use crate::error::{Result, Error};
+
+/// Print on standard console output.
+pub fn stdout() -> impl Sink<String, Error = Error> {
+    io::BufWriter::new(io::stdout()).into_sink().sink_map_err(Into::into)
+}
 
 /// Publish data into PubSub topic. 
-pub struct PubSub {
-    pubsub: Arc<pubsub::Gossipsub>,
+pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
+    listen: Multiaddr,
+    bootnodes: Vec<Multiaddr>,
     topic_name: String,
-}
+    heartbeat: Duration,
+) -> Result<impl Sink<T, Error = Error>> {
+    let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
 
-impl PubSub {
-    pub fn new(
-        listen: Multiaddr,
-        bootnodes: Vec<Multiaddr>,
-        topic_name: String,
-        heartbeat: Duration,
-    ) -> Result<Self> {
-        let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
+    // Listen address
+    let _ = pubsub.listen(listen);
 
-        // Listen address
-        let _ = pubsub.listen(listen);
-
-        // Connect to bootnodes
-        for addr in bootnodes {
-            let _ = pubsub.connect(addr);
-        }
-
-        // Spawn peer discovery
-        task::spawn(pubsub::discovery::start(pubsub.clone()));
-
-        // Spawn network worker
-        task::spawn(worker);
-
-        // Subscribe to given topic
-        Ok(Self { pubsub, topic_name }) 
+    // Connect to bootnodes
+    for addr in bootnodes {
+        let _ = pubsub.connect(addr);
     }
-}
 
-impl super::AsyncSink<String, ()> for PubSub {
-    fn sink(&mut self, input: String) -> super::ImplFuture<()> { 
-        self.pubsub.publish(&self.topic_name, input);
-        Box::pin(future::ready(()))
-    }
+    // Spawn peer discovery
+    task::spawn(pubsub::discovery::start(pubsub.clone()));
+
+    // Spawn network worker
+    task::spawn(worker);
+
+    // Spawn message publisher task
+    let (sender, receiver) = mpsc::unbounded();
+    task::spawn(receiver.for_each(move |msg|
+        future::ready(pubsub.publish(&topic_name, msg))
+    ));
+
+    Ok(sender.sink_map_err(Into::into))
 }
 
 /// Submit signed data record into blockchain.
-pub struct Datalog {
+///
+/// Returns hash of sended datalog extrinsic.
+pub fn datalog<T: Into<Vec<u8>>>(
     remote: String,
-    pair: sr25519::Pair,
+    suri: String,
+) -> Result<(impl Sink<T, Error = Error>, impl Stream<Item = Result<[u8; 32]>>)> {
+    let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
+
+    let (sender, receiver) = mpsc::unbounded();
+    let hashes = receiver.then(move |msg: T|
+        datalog::submit(pair.clone(), remote.clone(), msg.into())
+            .map(|r| r.map_err(Into::into))
+    );
+    Ok((sender.sink_map_err(Into::into), hashes))
 }
 
-impl Datalog {
-    pub fn new(remote: String, suri: String) -> Result<Self> {
-        let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
-        Ok(Self { remote, pair })
-    }
-}
+/// Submit some data into IPFS network.
+///
+/// Returns IPFS hash of consumed data objects.
+pub fn ipfs<T>(
+    uri: &str,
+) -> Result<(impl Sink<T, Error = Error>, impl Stream<Item = Result<String>>)> where
+    T: AsRef<[u8]> + Send + Sync + 'static,
+{
+    let client = IpfsClient::from_str(uri).expect("unvalid uri");
+    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
 
-impl super::AsyncSink<Vec<u8>, ()> for Datalog {
-    fn sink(&mut self, input: Vec<u8>) -> super::ImplFuture<()> {
-        Box::pin(datalog::submit(
-            self.pair.clone(),
-            self.remote.clone(),
-            input,
-        ).map(|_| ()))
-    }
-}
-
-pub struct Ipfs(IpfsClient);
-
-impl Ipfs {
-    pub fn new(uri: &str) -> Self {
-        let client = IpfsClient::new_from_uri(uri)
-            .expect("IPFS API uri should be valid");
-        Ipfs(client)
-    }
-}
-
-impl super::AsyncSink<Vec<u8>, Result<String>> for Ipfs {
-    fn sink(&mut self, input: Vec<u8>) -> super::ImplFuture<Result<String>> {
-        self.0
-            .add(Cursor::new(input))
-            .map(|item| item.map(|value| value.hash).map_err(Into::into))
-    }
+    let (sender, receiver) = mpsc::unbounded();
+    let hashes = receiver.map(move |msg: T|
+        runtime.block_on(client.add(Cursor::new(msg)))
+            .map(|value| value.hash)
+            .map_err(Into::into)
+    );
+    Ok((sender.sink_map_err(Into::into), hashes))
 }

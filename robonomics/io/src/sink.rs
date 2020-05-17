@@ -15,19 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics data sink.
-//!
-//! In terms of Robonomics Framework `sink` is an object that designed for `write`
-//! operations. For example, `Stdout` object should print incoming data into console.
-//!
+//! Collections of I/O devices that implements `futures::sink::Sink` trait.
 
 pub mod virt;
-
-use futures::Future;
-use std::pin::Pin;
-
-type ImplFuture<T> = Pin<Box<dyn Future<Output = T>>>;
-
-pub trait AsyncSink<A, B> {
-    fn sink(&mut self, input: A) -> ImplFuture<B>;
-}

@@ -135,7 +135,7 @@ cli = [
     "vergen",
     "structopt",
     "sc-service/db",
-#    "robonomics-cli",
+    "robonomics-cli",
     "parity-util-mem/jemalloc-global",
 ]
 
