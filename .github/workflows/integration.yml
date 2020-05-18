@@ -25,7 +25,7 @@ jobs:
       run: sudo apt update && sudo apt install libudev-dev
     - name: Install ROS Melodic
       if: matrix.os == 'ubuntu-latest'
-      run: ./ros_installation.sh
+      run: ./scripts/ros-install.sh
     - name: Build optimized binary
       run: cargo build --release --verbose
 

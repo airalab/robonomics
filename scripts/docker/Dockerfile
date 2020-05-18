@@ -30,7 +30,7 @@ RUN apt-get update && \
 # add user
 	useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics
 
-# add polkadot binary to docker image
+# add binary to docker image
 COPY ./robonomics /usr/local/bin
 
 USER robonomics
