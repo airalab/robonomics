@@ -39,57 +39,56 @@ jsonrpc-core = "13.2.0"
 
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
-sp-authority-discovery = "2.0.0-alpha.6"
-sp-api = "2.0.0-alpha.6"
-sp-blockchain = "2.0.0-alpha.6"
-sp-block-builder = "2.0.0-alpha.6"
-sp-consensus = "0.8.0-alpha.6"
-sp-consensus-babe = "0.8.0-alpha.6"
-sp-core = "2.0.0-alpha.6"
-sp-finality-grandpa = "2.0.0-alpha.6"
-sp-inherents = "2.0.0-alpha.6"
-sp-offchain = "2.0.0-alpha.6"
-sp-runtime = "2.0.0-alpha.6"
-sp-session = "2.0.0-alpha.6"
-sp-transaction-pool = "2.0.0-alpha.6"
+sp-authority-discovery = "2.0.0-alpha.8"
+sp-api = "2.0.0-alpha.8"
+sp-blockchain = "2.0.0-alpha.8"
+sp-block-builder = "2.0.0-alpha.8"
+sp-consensus = "0.8.0-alpha.8"
+sp-consensus-babe = "0.8.0-alpha.8"
+sp-core = "2.0.0-alpha.8"
+sp-finality-grandpa = "2.0.0-alpha.8"
+sp-inherents = "2.0.0-alpha.8"
+sp-offchain = "2.0.0-alpha.8"
+sp-runtime = "2.0.0-alpha.8"
+sp-session = "2.0.0-alpha.8"
+sp-transaction-pool = "2.0.0-alpha.8"
 
 # client dependencies
-sc-authority-discovery = "0.8.0-alpha.6"
-sc-basic-authorship = "0.8.0-alpha.6"
-sc-client = "0.8.0-alpha.6"
-sc-client-db = "0.8.0-alpha.6"
-sc-client-api = "2.0.0-alpha.6"
-sc-chain-spec = "2.0.0-alpha.6"
-sc-consensus-babe = "0.8.0-alpha.6"
-sc-finality-grandpa = "0.8.0-alpha.6"
-sc-transaction-pool = "2.0.0-alpha.6"
-sc-keystore = "2.0.0-alpha.6"
-sc-network = "0.8.0-alpha.6"
-sc-offchain = "2.0.0-alpha.6"
-sc-service = { version = "0.8.0-alpha.6", default-features = false }
-sc-telemetry = "2.0.0-alpha.6"
+sc-authority-discovery = "0.8.0-alpha.8"
+sc-basic-authorship = "0.8.0-alpha.8"
+sc-client-db = "0.8.0-alpha.8"
+sc-client-api = "2.0.0-alpha.8"
+sc-chain-spec = "2.0.0-alpha.8"
+sc-consensus-babe = "0.8.0-alpha.8"
+sc-finality-grandpa = "0.8.0-alpha.8"
+sc-transaction-pool = "2.0.0-alpha.8"
+sc-keystore = "2.0.0-alpha.8"
+sc-network = "0.8.0-alpha.8"
+sc-offchain = "2.0.0-alpha.8"
+sc-service = { version = "0.8.0-alpha.8", default-features = false }
+sc-telemetry = "2.0.0-alpha.8"
 
 # frame dependencies
-pallet-im-online = "2.0.0-alpha.6"
-frame-benchmarking = { version = "2.0.0-alpha.6", optional = true }
-frame-system-rpc-runtime-api = "2.0.0-alpha.6"
-pallet-transaction-payment-rpc-runtime-api = "2.0.0-alpha.6"
+pallet-im-online = "2.0.0-alpha.8"
+frame-benchmarking = { version = "2.0.0-alpha.8", optional = true }
+frame-system-rpc-runtime-api = "2.0.0-alpha.8"
+pallet-transaction-payment-rpc-runtime-api = "2.0.0-alpha.8"
 
 # node-specific dependencies
 robonomics-runtime = { path = "../robonomics-runtime" }
 ipci-runtime = { path = "../ipci-runtime" }
-sc-executor = "0.8.0-alpha.6"
-sc-rpc = "2.0.0-alpha.6"
+sc-executor = "0.8.0-alpha.8"
+sc-rpc = "2.0.0-alpha.8"
 
 # CLI-specific dependencies
-sc-cli = { version = "0.8.0-alpha.6", optional = true }
-frame-benchmarking-cli = { version = "2.0.0-alpha.6", optional = true }
+sc-cli = { version = "0.8.0-alpha.8", optional = true }
+frame-benchmarking-cli = { version = "2.0.0-alpha.8", optional = true }
 parity-util-mem = { version = "*", default-features = false, optional = true }
 
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
-substrate-browser-utils = { version = "0.8.0-alpha.6", optional = true }
+substrate-browser-utils = { version = "0.8.0-alpha.8", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9", optional = true }
@@ -98,9 +97,9 @@ robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
-sc-cli = { version = "0.8.0-alpha.6", optional = true }
-frame-benchmarking-cli = { version = "2.0.0-alpha.6", optional = true }
-substrate-build-script-utils = "2.0.0-alpha.6"
+sc-cli = { version = "0.8.0-alpha.8", optional = true }
+frame-benchmarking-cli = { version = "2.0.0-alpha.8", optional = true }
+substrate-build-script-utils = "2.0.0-alpha.8"
 vergen = { version = "3.0.4", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
@@ -119,7 +118,7 @@ cli = [
     "sc-cli",
     "vergen",
     "structopt",
-    "sc-service/rocksdb",
+    "sc-service/db",
     "parity-util-mem/jemalloc-global",
     "robonomics-cli",
 ]
