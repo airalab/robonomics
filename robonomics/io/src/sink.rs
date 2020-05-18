@@ -15,11 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics data sink.
-//!
-//! In terms of Robonomics Framework `sink` is an object that designed for `write`
-//! operations. For example, `Stdout` object should print incoming data into console.
-//!
+//! Collections of I/O devices designed for consume data.
 
 pub mod virt;
-

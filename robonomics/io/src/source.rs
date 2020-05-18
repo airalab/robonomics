@@ -15,12 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics data sources.
-//! 
-//! In terms of Robonomics Framework data source could be used as a `Stream` of
-//! data. It could be as real devices like `SDS011` particle sensor as same as
-//! virtual data sources like a PubSub topic subscription.
-//!
+//! Collection of I/O devices designed to provide some data.
 
 pub mod serial;
 pub mod virt;

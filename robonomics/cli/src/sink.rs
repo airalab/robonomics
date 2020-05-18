@@ -21,11 +21,10 @@
 
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::source::virt::Stdin;
+use robonomics_io::source::virt::stdin;
 use robonomics_io::sink::virt;
-use robonomics_io::Consumer;
 use std::time::Duration;
-use futures::StreamExt;
+use futures::prelude::*;
 use async_std::task;
 
 /// Sink device commands.
@@ -60,29 +59,40 @@ pub enum SinkCmd {
     },
     /// Data blockchainization subsystem command.
     Datalog {
-        /// Substrate node WebSocket endpoint
+        /// Substrate node WebSocket endpoint.
         #[structopt(long, default_value = "ws://localhost:9944")]
         remote: String,
-        /// Sender account seed URI
+        /// Sender account seed URI.
         #[structopt(short)]
         suri: String,
+    },
+    /// Upload data into IPFS storage.
+    Ipfs {
+        /// IPFS node API endpoint.
+        #[structopt(long, default_value = "http://127.0.0.1:5001")]
+        remote: String,
     },
 }
 
 impl SinkCmd {
     /// Write data into sink device.
     pub fn run(&self) -> Result<()> {
-        let stdin = Stdin::new().boxed();
         match self.clone() {
             SinkCmd::PubSub { topic_name, listen, bootnodes, hearbeat_secs } => {
                 let hearbeat = Duration::from_secs(hearbeat_secs);
-                let device = virt::PubSub::new(listen, bootnodes, topic_name, hearbeat).unwrap();
-                task::block_on(device.consume(stdin))
+                let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
+                task::block_on(stdin().forward(pubsub))?;
             }
             SinkCmd::Datalog { remote, suri } => {
-                let device = virt::Datalog::new(remote, suri).unwrap();
-                let bytestream = stdin.map(|s| Vec::from(s.as_bytes())).boxed();
-                task::block_on(device.consume(bytestream))
+                let (submit, hashes) = virt::datalog(remote, suri)?;
+                task::spawn(stdin().forward(submit));
+                let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
+                task::block_on(hex_encoded.forward(virt::stdout()))?;
+            }
+            SinkCmd::Ipfs { remote } => {
+                let (upload, hashes) = virt::ipfs(remote.as_str())?;
+                task::spawn(stdin().forward(upload));
+                task::block_on(hashes.forward(virt::stdout()))?;
             }
         }
         Ok(())

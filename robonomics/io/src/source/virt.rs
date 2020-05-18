@@ -17,76 +17,61 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sensors collection.
 
-use robonomics_protocol::pubsub::{
-    self, Multiaddr, PubSub as PubSubT,
-};
+use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
+use ipfs_api::{IpfsClient, TryFromUri};
 use futures::channel::mpsc;
-use futures::{Stream, StreamExt};
-use crate::error::Result;
-use std::io::BufRead;
-use async_std::task;
-use std::task::{Context, Poll};
+use async_std::{io, task};
+use futures::prelude::*;
 use std::time::Duration;
-use std::pin::Pin;
-use std::thread;
 
-/// Standart input stream (console).
-pub struct Stdin(Pin<Box<dyn Stream<Item = String> + Send>>);
+use crate::error::{Result, Error};
 
-impl Stdin {
-    pub fn new() -> Self {
-        let (tx, rx) = mpsc::unbounded();
-        thread::spawn(move || {
-            let input = std::io::stdin();
-            for line in input.lock().lines() {
-                let _ = tx.unbounded_send(line.expect("unable to read line from stdio"));
-            }
-        });
-        Self(rx.boxed())
-    }
-}
-
-impl Stream for Stdin {
-    type Item = String;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.0.poll_next_unpin(cx)
-    }
+/// Read line from standard console input.
+pub fn stdin() -> impl Stream<Item = Result<String>> {
+    let lines = io::BufReader::new(io::stdin()).lines();
+    lines.map(|r| r.map_err(Into::into))
 }
 
 /// Subscribe for data from PubSub topic.
-pub struct PubSub(Pin<Box<dyn Stream<Item = pubsub::Message> + Send>>);
+pub fn pubsub(
+    listen: Multiaddr,
+    bootnodes: Vec<Multiaddr>,
+    topic_name: String,
+    heartbeat: Duration,
+) -> Result<impl Stream<Item = Result<pubsub::Message>>> {
+    let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
 
-impl PubSub {
-    pub fn new(
-        listen: Multiaddr,
-        bootnodes: Vec<Multiaddr>,
-        topic_name: String,
-        heartbeat: Duration,
-    ) -> Result<Self> {
-        let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
+    // Listen address
+    let _ = pubsub.listen(listen);
 
-        // Listen address
-        let _ = pubsub.listen(listen);
-
-        // Connect to bootnodes
-        for addr in bootnodes {
-            let _ = pubsub.connect(addr);
-        }
-
-        // Spawn peer discovery
-        task::spawn(pubsub::discovery::start(pubsub.clone()));
-
-        // Spawn network worker
-        task::spawn(worker);
-
-        // Subscribe to given topic
-        Ok(Self(pubsub.subscribe(&topic_name))) 
+    // Connect to bootnodes
+    for addr in bootnodes {
+        let _ = pubsub.connect(addr);
     }
+
+    // Spawn peer discovery
+    task::spawn(pubsub::discovery::start(pubsub.clone()));
+
+    // Spawn network worker
+    task::spawn(worker);
+
+    // Subscribe to given topic
+    Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
 }
 
-impl Stream for PubSub {
-    type Item = pubsub::Message;
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.0.poll_next_unpin(cx)
-    }
+/// Download some data from IPFS network.
+///
+/// Returns IPFS data objects.
+pub fn ipfs(
+    uri: &str,
+) -> Result<(impl Sink<String, Error = Error>, impl Stream<Item = Result<Vec<u8>>>)> {
+    let client = IpfsClient::from_str(uri).expect("unvalid uri");
+    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
+
+    let (sender, receiver) = mpsc::unbounded();
+    let datas = receiver.map(move |msg: String|
+        runtime.block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
+            .map_err(Into::into)
+    );
+    Ok((sender.sink_err_into(), datas))
 }

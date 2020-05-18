@@ -18,6 +18,7 @@
 //! Errors that can occur during the I/O operations.
 
 use sp_core::crypto::SecretStringError;
+use ipfs_api::response::Error as IpfsError;
 
 /// Sensor Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -27,11 +28,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Serial port I/O error.
     Serial(serialport::Error),
+    /// Sync channel send error.
+    ChannelSend(futures::channel::mpsc::SendError),
     /// Private key loading error.
     #[display(fmt = "secret string error: {:?}", _0)]
     PrivateKeyFailure(SecretStringError),
     /// Protocol error.
     Protocol(robonomics_protocol::error::Error),
+    /// Ipfs client error.
+    Ipfs(IpfsError),
+    /// Standard I/O error.
+    Io(std::io::Error),
     /// Other error.
     Other(String),
 }
@@ -45,7 +52,6 @@ impl<'a> From<&'a str> for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Serial(ref err) => Some(err),
             _ => None,
         }
     }

@@ -22,11 +22,10 @@
 use crate::error::Result;
 use robonomics_protocol::pubsub::Multiaddr;
 use robonomics_io::source::{virt, serial};
-use robonomics_io::sink::virt::Stdout;
-use robonomics_io::Consumer;
-use futures::{future, StreamExt};
+use robonomics_io::sink::virt::stdout;
 use structopt::clap::arg_enum;
 use std::time::Duration;
+use futures::prelude::*;
 use async_std::task;
 
 /// Source device commands.
@@ -75,7 +74,13 @@ pub enum SourceCmd {
             default_value = "5",
         )]
         hearbeat: u64
-    }
+    },
+    /// Download data from IPFS storage.
+    Ipfs {
+        /// IPFS node API endpoint.
+        #[structopt(long, default_value = "http://127.0.0.1:5001")]
+        remote: String,
+    },
 }
 
 arg_enum! {
@@ -91,11 +96,11 @@ arg_enum! {
 impl SourceCmd {
     /// Read data from source device.
     pub fn run(&self) -> Result<()> {
-        let stdout = Stdout::new();
         match self.clone() {
             SourceCmd::SDS011 { port, period, encoding } => {
-                let device = serial::SDS011::new(port, period)?;
-                let encoded = device.map(|msg| {
+                let sensor = serial::sds011(port, period)?;
+
+                task::block_on(sensor.map(|m| m.map(|msg|
                     match encoding {
                         Encoding::Csv => {
                             let mut wtr = csv::WriterBuilder::new()
@@ -107,23 +112,27 @@ impl SourceCmd {
                         Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
                         Encoding::Json => serde_json::to_string(&msg).unwrap(),
                         Encoding::Debug => format!("{:?}", msg),
-                    }
-                });
-                task::block_on(stdout.consume(encoded.boxed()))
+                    })
+                ).forward(stdout()))?;
             }
             SourceCmd::PubSub { topic_name, listen, bootnodes, hearbeat} => {
-                let device = virt::PubSub::new(
+                let pubsub = virt::pubsub(
                     listen,
                     bootnodes,
                     topic_name,
                     Duration::from_secs(hearbeat),
                 )?;
-                let measure = device.then(|m| {
-                    let data_str = String::from_utf8(m.data)
-                        .unwrap_or("<not_a_string>".to_string());
-                    future::ready(data_str)
-                }).boxed();
-                task::block_on(stdout.consume(measure))
+
+                task::block_on(pubsub.map(|m|
+                    m.map(|msg| String::from_utf8(msg.data).unwrap_or("<no string>".to_string()))
+                ).forward(stdout()))?;
+            }
+            SourceCmd::Ipfs { remote } => {
+                let (download, data) = virt::ipfs(remote.as_str())?;
+                task::spawn(virt::stdin().forward(download));
+                task::block_on(data.map(|m|
+                    m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
+                ).forward(stdout()))?;
             }
 
         }

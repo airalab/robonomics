@@ -20,6 +20,3 @@
 pub mod source;
 pub mod error;
 pub mod sink;
-pub mod pipe;
-
-pub use pipe::{Pipe, Consumer};

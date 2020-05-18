@@ -17,65 +17,37 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Serial port sensors collection.
 
-use futures::{Stream, StreamExt, channel::mpsc};
-use crate::error::Result;
+use futures::prelude::*;
+use futures::channel::mpsc;
+use futures_timer::Delay;
 use std::time::Duration;
-use std::task::{Context, Poll};
-use std::pin::Pin;
-use std::thread;
+use async_std::task;
+
+use crate::error::Result;
 
 /// Nova SDS011 particle sensor.
-pub struct SDS011(Pin<Box<dyn Stream<Item = sds011::Message> + Send>>);
+///
+/// # Arguments
+/// * `port` - Serial port that connected sensor, for example: `/dev/ttyUSB0` or `COM11`
+/// * `period` - Working period in minutes, must be in interval (0..30)
+///
+/// Returns Nova SDS011 sensor instance.
+pub fn sds011(port: String, period: u8) -> Result<impl Stream<Item = Result<sds011::Message>>> {
+    let mut device = sds011::SDS011::new(port.as_str())?;
+    device.set_work_period(period)?;
+    log::debug!(
+        target: "robonomics-io",
+        "SDS011: created for port {} with period {} min", port, period
+    );
 
-impl SDS011 {
-    /// Returns Nova SDS011 sensor instance.
-    ///
-    /// # Arguments
-    /// * `port` - Serial port that connected sensor, for example: `/dev/ttyUSB0` or `COM11`
-    /// * `period` - Working period in minutes, must be in interval (0..30)
-    ///
-    pub fn new(
-        port: String,
-        period: u8,
-    ) -> Result<Self> {
-        let mut device = sds011::SDS011::new(port.as_str())?;
-        device.set_work_period(period)?;
-        log::debug!(
-            target: "robonomics-io",
-            "SDS011: created for port {} with period {} min", port, period
-        );
-        let work_period_secs = period as u64 * 60;
-        let (sender, receiver) = mpsc::unbounded();
-        thread::spawn(move || sds011_worker(device, work_period_secs, sender));
-
-        Ok(Self(receiver.boxed()))
-    }
-}
-
-impl Stream for SDS011 {
-    type Item = sds011::Message;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.0.poll_next_unpin(cx)
-    }
-}
-
-fn sds011_worker(
-    mut device: sds011::SDS011,
-    work_period_secs: u64,
-    result: mpsc::UnboundedSender<sds011::Message>,
-) {
-    let delay = Duration::from_secs(work_period_secs);
-    loop {
-        match device.query() {
-            Ok(message) => {
-                log::debug!(target: "robonomics-io", "SDS011 read data: {:?}", message);
-                let _ = result.unbounded_send(message);
-            }
-            Err(e) => {
-                log::error!(target: "robonomics-io", "SDS011 read error: {}", e);
-            }
+    let delay = Duration::from_secs(period as u64 * 60);
+    let (sender, receiver) = mpsc::unbounded();
+    task::spawn(async move {
+        loop {
+            let _ = sender.unbounded_send(device.query().map_err(Into::into));
+            Delay::new(delay).await;
         }
-        thread::sleep(delay);
-    }
+    });
+
+    Ok(receiver)
 }

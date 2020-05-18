@@ -23,7 +23,7 @@ use crate::runtime::pallet_datalog;
 use sp_core::crypto::Pair;
 
 /// Sign datalog record and send using remote Robonomics node.
-pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Result<()>
+pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Result<[u8; 32]>
     where sp_runtime::MultiSigner: From<<T as Pair>::Public>,
           sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
           <T as Pair>::Signature: codec::Codec,
@@ -34,9 +34,9 @@ pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Resu
         .xt(signer, None).await?
         .submit(pallet_datalog::record::<Robonomics>(record))
         .await?;
-    log::info!(
+    log::debug!(
         target: "robonomics-datalog",
         "Data record submited in extrinsic with hash {}", xt_hash
     );
-    Ok(())
+    Ok(xt_hash.into())
 }
