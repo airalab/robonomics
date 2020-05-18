@@ -73,5 +73,5 @@ pub fn ipfs(
         runtime.block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
             .map_err(Into::into)
     );
-    Ok((sender.sink_map_err(Into::into), datas))
+    Ok((sender.sink_err_into(), datas))
 }

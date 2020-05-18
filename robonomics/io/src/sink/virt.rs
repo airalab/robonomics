@@ -30,7 +30,13 @@ use crate::error::{Result, Error};
 
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
-    io::BufWriter::new(io::stdout()).into_sink().sink_map_err(Into::into)
+    io::BufWriter::new(io::stdout())
+        .into_sink()
+        .with(|s| {
+            let line: Result<String> = Ok(format!("{}\n", s));
+            futures::future::ready(line)
+        })
+        .sink_err_into()
 }
 
 /// Publish data into PubSub topic. 
@@ -62,7 +68,7 @@ pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
         future::ready(pubsub.publish(&topic_name, msg))
     ));
 
-    Ok(sender.sink_map_err(Into::into))
+    Ok(sender.sink_err_into())
 }
 
 /// Submit signed data record into blockchain.
@@ -79,7 +85,7 @@ pub fn datalog<T: Into<Vec<u8>>>(
         datalog::submit(pair.clone(), remote.clone(), msg.into())
             .map(|r| r.map_err(Into::into))
     );
-    Ok((sender.sink_map_err(Into::into), hashes))
+    Ok((sender.sink_err_into(), hashes))
 }
 
 /// Upload some data into IPFS network.
@@ -99,5 +105,5 @@ pub fn ipfs<T>(
             .map(|value| value.hash)
             .map_err(Into::into)
     );
-    Ok((sender.sink_map_err(Into::into), hashes))
+    Ok((sender.sink_err_into(), hashes))
 }
