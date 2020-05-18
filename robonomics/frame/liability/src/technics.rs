@@ -18,7 +18,7 @@
 //! Set of approaches to handle technical aspects of agreement.
 
 use crate::traits::{RealWorldOracle, Technical};
-use sp_std::prelude::Vec;
+use sp_std::prelude::*;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
 pub struct PureIPFS;

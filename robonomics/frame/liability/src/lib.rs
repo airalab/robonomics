@@ -25,7 +25,7 @@ use sp_runtime::transaction_validity::{
     InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
     ValidTransaction,
 };
-use sp_std::{prelude::*, vec};
+use sp_std::prelude::*;
 
 /// Import module traits.
 pub mod traits;
