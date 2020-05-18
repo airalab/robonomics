@@ -26,16 +26,45 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 use sp_core::{Pair, Public, sr25519};
 use sc_service::ChainType;
-use robonomics_runtime::{
-    GenesisConfig, SystemConfig, SessionConfig, BabeConfig, StakingConfig,
-    IndicesConfig, ImOnlineConfig, BalancesConfig, GrandpaConfig, SudoConfig,
-    AuthorityDiscoveryConfig, SessionKeys, StakerStatus,
-};
 use node_primitives::{AccountId, Balance, Signature, Block};
+use robonomics_runtime::{
+    GenesisConfig, SystemConfig, IndicesConfig, BalancesConfig, SessionConfig, StakingConfig,
+    BabeConfig, GrandpaConfig, ImOnlineConfig, AuthorityDiscoveryConfig, SudoConfig,
+    SessionKeys, StakerStatus, WASM_BINARY,
+};
 
-/*
+/// Robonomics runtime family chains.
+pub enum RobonomicsFamily {
+    /// Unknown chain type.
+    Unknown,
+    /// DAO IPCI (ipci.io) network (https://telemetry.polkadot.io/#list/DAO%20IPCI).
+    DaoIpci,
+    /// Robonomics Testnet (https://telemetry.polkadot.io/#list/Robonomics%20Testnet).
+    Testnet,
+}
+
+/// Robonomics family chains idetify.
+pub trait RobonomicsChain {
+    fn family(&self) -> RobonomicsFamily;
+}
+
+impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
+    fn family(&self) -> RobonomicsFamily {
+        if self.id() == DAO_IPCI_ID {
+            return RobonomicsFamily::DaoIpci;
+        }
+
+        if self.id() == ROBONOMICS_TESTNET_ID {
+            return RobonomicsFamily::Testnet;
+        }
+
+        RobonomicsFamily::Unknown
+    }
+}
+
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
+const ROBONOMICS_TESTNET_ID: &str = "robonomics_testnet";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const ROBONOMICS_PROPERTIES: &str = r#"
     {
@@ -44,6 +73,8 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenSymbol": "XRT"
     }"#;
 
+const DAO_IPCI_ID: &str = "ipci";
+/*
 const IPCI_PROTOCOL_ID: &str = "mito";
 const IPCI_PROPERTIES: &str = r#"
     {
@@ -63,9 +94,9 @@ type AccountPublic = <Signature as Verify>::Signer;
 #[serde(rename_all = "camelCase")]
 pub struct Extensions {
     /// Block numbers with known hashes.
-    pub fork_blocks: sc_client::ForkBlocks<Block>,
+    pub fork_blocks: sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
-    pub bad_blocks: sc_client::BadBlocks<Block>,
+    pub bad_blocks: sc_client_api::BadBlocks<Block>,
 }
 
 /// Specialized `ChainSpec`.
@@ -75,21 +106,21 @@ pub type ChainSpec = sc_service::GenericChainSpec<
 >;
 
 /// Helper function to generate a crypto pair from seed
-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
     TPublic::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()
 }
 
 /// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
+fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
     AccountPublic: From<<TPublic::Pair as Pair>::Public>
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys_from_seed(
+fn get_authority_keys_from_seed(
     seed: &str
 ) -> (
     AccountId,
@@ -118,7 +149,7 @@ fn session_keys(
     SessionKeys { babe, grandpa, im_online, authority_discovery, }
 }
 
-pub fn testnet_genesis(
+fn testnet_genesis(
     initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Option<Vec<AccountId>>,
     sudo_key: AccountId,
@@ -142,16 +173,16 @@ pub fn testnet_genesis(
         ]
     }).iter().cloned().map(|acc| (acc, ENDOWMENT)).collect();
 
-    make_genesis(
+    mk_genesis(
         initial_authorities,
         endowed_accounts,
         sudo_key,
-        robonomics_runtime::WASM_BINARY.to_vec(),
+        WASM_BINARY.to_vec(),
     )
 }
 
 /// Helper function to create GenesisConfig
-pub fn make_genesis(
+fn mk_genesis(
     initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
     endowed_accounts: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
@@ -204,12 +235,13 @@ pub fn make_genesis(
     }
 }
 
+/*
 /// Robonomics testnet config. 
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics testnet genesis. 
 fn robonomics_testnet_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -237,7 +269,7 @@ fn robonomics_testnet_genesis() -> GenesisConfig {
         // pad1a
         hex!["aa88ea58465ffbcf716c3d57fab7c29b6d7c7243133b024e61556b92512a4765"].into();
 
-    make_genesis(
+    mk_genesis(
         initial_authorities,
         vec![(sudo_key.clone(), 1 * robonomics_runtime::constants::currency::XRT)],
         sudo_key,
@@ -249,9 +281,9 @@ fn robonomics_testnet_genesis() -> GenesisConfig {
 pub fn robonomics_testnet_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "Robonomics",
-        "robonomics_testnet",
-        ChainType::Live,
+        "Robonomics Testnet",
+        ROBONOMICS_TESTNET_ID,
+        ChainType::Local,
         robonomics_testnet_genesis,
         boot_nodes,
         Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
@@ -260,7 +292,6 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/
 
 /// IPCI blockchain config. 
 pub fn ipci_config() -> ChainSpec {
@@ -287,7 +318,7 @@ fn ipci_genesis() -> GenesisConfig {
         // akru 
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
-    make_genesis(
+    mk_genesis(
         initial_authorities,
         ipci_runtime::constants::currency::STAKE_HOLDERS.to_vec(),
         sudo_key,
@@ -300,7 +331,7 @@ pub fn ipci_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "DAO IPCI",
-        "dao_ipci",
+        DAO_IPCI_ID,
         ChainType::Live,
         ipci_genesis,
         boot_nodes,

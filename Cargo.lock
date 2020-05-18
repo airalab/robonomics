@@ -2710,16 +2710,6 @@ dependencies = [
 
 [[package]]
 name = "kvdb"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cad096c6849b2ef027fabe35c4aed356d0e3d3f586d0a8361e5e17f1e50a7ce5"
-dependencies = [
- "parity-util-mem",
- "smallvec 1.4.0",
-]
-
-[[package]]
-name = "kvdb"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e763b2a9b500ba47948061d1e8bc3b5f03a8a1f067dbcf822a4d2c84d2b54a3a"
@@ -2734,7 +2724,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73027d5e228de6f503b5b7335d530404fc26230a6ae3e09b33ec6e45408509a4"
 dependencies = [
- "kvdb 0.6.0",
+ "kvdb",
  "parity-util-mem",
  "parking_lot 0.10.2",
 ]
@@ -2746,7 +2736,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84384eca250c7ff67877eda5336f28a86586aaee24acb945643590671f6bfce1"
 dependencies = [
  "fs-swap",
- "kvdb 0.6.0",
+ "kvdb",
  "log 0.4.8",
  "num_cpus",
  "owning_ref",
@@ -2765,7 +2755,7 @@ checksum = "6c7f36acb1841d4c701d30ae1f2cfd242e805991443f75f6935479ed3de64903"
 dependencies = [
  "futures 0.3.5",
  "js-sys",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "log 0.4.8",
  "parity-util-mem",
@@ -6233,42 +6223,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sc-client"
-version = "0.8.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9908c438f8e60d07c97a7f1d4ea8c6d31a498f283373c533f2006c032b9a4971"
-dependencies = [
- "derive_more",
- "fnv",
- "futures 0.3.5",
- "hash-db",
- "hex-literal",
- "kvdb 0.5.0",
- "log 0.4.8",
- "parity-scale-codec",
- "parking_lot 0.10.2",
- "sc-block-builder",
- "sc-client-api",
- "sc-executor",
- "sc-telemetry",
- "sp-api",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-externalities",
- "sp-inherents",
- "sp-keyring",
- "sp-runtime",
- "sp-state-machine",
- "sp-std",
- "sp-trie",
- "sp-utils",
- "sp-version",
- "substrate-prometheus-endpoint",
- "tracing",
-]
-
-[[package]]
 name = "sc-client-api"
 version = "2.0.0-alpha.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6279,7 +6233,7 @@ dependencies = [
  "futures 0.3.5",
  "hash-db",
  "hex-literal",
- "kvdb 0.6.0",
+ "kvdb",
  "lazy_static",
  "log 0.4.8",
  "parity-scale-codec",
@@ -6313,7 +6267,7 @@ checksum = "b0987a05f0c4905197eec4e9819657fe6e107550deb6afc5895009c9d0814fac"
 dependencies = [
  "blake2-rfc",
  "hash-db",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "kvdb-rocksdb",
  "linked-hash-map",
@@ -7579,7 +7533,7 @@ version = "2.0.0-alpha.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6ba5b65f8aea3031f7150ed35f458c70a072f594f9def3259702c2e02b36d9b"
 dependencies = [
- "kvdb 0.6.0",
+ "kvdb",
  "parking_lot 0.10.2",
 ]
 
@@ -8161,7 +8115,6 @@ dependencies = [
  "log 0.4.8",
  "parity-scale-codec",
  "rosrust",
- "sc-client",
  "sc-client-api",
  "sc-network",
  "sc-rpc",
