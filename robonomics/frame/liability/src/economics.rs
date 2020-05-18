@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
-use frame_support::traits::Currency;
 use crate::traits::Economical;
+use frame_support::traits::Currency;
 
 ///
 /// Well, when we get communism it'll all be fucking great.

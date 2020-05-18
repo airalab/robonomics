@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network broadcasting layer.
 
-use std::pin::Pin;
-use futures::Stream;
 use crate::error::FutureResult;
+use futures::Stream;
+use std::pin::Pin;
 
-pub use libp2p::{PeerId, Multiaddr};
+pub use libp2p::{Multiaddr, PeerId};
 
-pub mod gossipsub;
 pub mod discovery;
+pub mod gossipsub;
 
 pub use gossipsub::PubSub as Gossipsub;
 

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 //! The IPCI runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -29,41 +29,32 @@ pub mod impls;
 
 pub use pallet_staking::StakerStatus;
 
-use sp_std::prelude::*;
-use sp_core::OpaqueMetadata;
+use frame_support::{construct_runtime, parameter_types, traits::Randomness, weights::Weight};
 use frame_system::offchain::TransactionSubmitter;
-use frame_support::{
-    construct_runtime, parameter_types,
-    traits::Randomness, weights::Weight,
+use node_primitives::{
+    AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use sp_runtime::{
-    ApplyExtrinsicResult, Perbill,
-    generic, create_runtime_str, impl_opaque_keys,
-};
-use sp_runtime::transaction_validity::{
-    TransactionSource,
-    TransactionValidity,
-    TransactionPriority,
-};
+use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use sp_api::impl_runtime_apis;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_core::OpaqueMetadata;
+use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, StaticLookup,
-    SaturatedConversion, OpaqueKeys,
+    self, BlakeTwo256, Block as BlockT, OpaqueKeys, SaturatedConversion, StaticLookup,
 };
-use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
-use sp_inherents::{InherentData, CheckInherentsResult};
-use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
-use sp_api::impl_runtime_apis;
-use node_primitives::{
-    Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
+use sp_runtime::transaction_validity::{
+    TransactionPriority, TransactionSource, TransactionValidity,
 };
-use sp_version::RuntimeVersion;
+use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, Perbill};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
 
-use constants::{time::*, currency::*};
+use constants::{currency::*, time::*};
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -89,7 +80,8 @@ pub fn native_version() -> NativeVersion {
 }
 
 /// A transaction submitter with the given key type.
-pub type TransactionSubmitterOf<KeyType> = TransactionSubmitter<KeyType, Runtime, UncheckedExtrinsic>;
+pub type TransactionSubmitterOf<KeyType> =
+    TransactionSubmitter<KeyType, Runtime, UncheckedExtrinsic>;
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
@@ -115,7 +107,7 @@ impl frame_system::Trait for Runtime {
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex; 
+    type ModuleToIndex = ModuleToIndex;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -182,7 +174,7 @@ impl pallet_indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee 
+    pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee
 }
 
 impl pallet_balances::Trait for Runtime {
@@ -258,7 +250,7 @@ parameter_types! {
     pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 64;
-    pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.                                          
+    pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.
 }
 
 impl pallet_staking::Trait for Runtime {
@@ -364,7 +356,10 @@ impl frame_system::offchain::CreateTransaction<Runtime, UncheckedExtrinsic> for 
         public: Self::Public,
         account: AccountId,
         index: Index,
-    ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+    ) -> Option<(
+        Call,
+        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
+    )> {
         // take the biggest period possible.
         let period = BlockHashCount::get()
             .checked_next_power_of_two()
@@ -631,22 +626,23 @@ mod tests {
 
     #[test]
     fn validate_transaction_submitter_bounds() {
-        fn is_submit_signed_transaction<T>() where
-            T: SubmitSignedTransaction<
-                Runtime,
-                Call,
-            >,
-        {}
+        fn is_submit_signed_transaction<T>()
+        where
+            T: SubmitSignedTransaction<Runtime, Call>,
+        {
+        }
 
-        fn is_sign_and_submit_transaction<T>() where
+        fn is_sign_and_submit_transaction<T>()
+        where
             T: SignAndSubmitTransaction<
                 Runtime,
                 Call,
-                Extrinsic=UncheckedExtrinsic,
-                CreateTransaction=Runtime,
-                Signer=ImOnlineId,
+                Extrinsic = UncheckedExtrinsic,
+                CreateTransaction = Runtime,
+                Signer = ImOnlineId,
             >,
-        {}
+        {
+        }
 
         is_submit_signed_transaction::<TransactionSubmitterOf<ImOnlineId>>();
         is_sign_and_submit_transaction::<TransactionSubmitterOf<ImOnlineId>>();

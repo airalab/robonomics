@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! SubXt compatible robonomics-datalog pallet abstration.
 
-use codec::{EncodeLike, Codec};
+use codec::{Codec, EncodeLike};
 use sp_runtime::traits::Member;
 use substrate_subxt::{system, Call};
 
@@ -29,14 +29,12 @@ pub trait Datalog: system::System {
 const MODULE: &str = "Datalog";
 const RECORD: &str = "record";
 
-/// Arguments for datalog record call. 
+/// Arguments for datalog record call.
 #[derive(codec::Encode)]
 pub struct RecordArgs<T: Datalog> {
-    record: <T as Datalog>::Record
+    record: <T as Datalog>::Record,
 }
 
-pub fn record<T: Datalog>(
-    record: <T as Datalog>::Record,
-) -> Call<RecordArgs<T>> {
+pub fn record<T: Datalog>(record: <T as Datalog>::Record) -> Call<RecordArgs<T>> {
     Call::new(MODULE, RECORD, RecordArgs { record })
 }

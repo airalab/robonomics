@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,20 +17,23 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use serde::{Serialize, Deserialize};
-use sc_chain_spec::ChainSpecExtension;
-use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_consensus_babe::AuthorityId as BabeId;
+use node_primitives::{AccountId, Balance, Block, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
-use sp_core::{Pair, Public, sr25519};
-use sc_service::ChainType;
-use node_primitives::{AccountId, Balance, Signature, Block};
 use robonomics_runtime::{
-    GenesisConfig, SystemConfig, IndicesConfig, BalancesConfig, SessionConfig, StakingConfig,
-    BabeConfig, GrandpaConfig, ImOnlineConfig, AuthorityDiscoveryConfig, SudoConfig,
-    SessionKeys, StakerStatus, WASM_BINARY,
+    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
+    ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig,
+    SudoConfig, SystemConfig, WASM_BINARY,
+};
+use sc_chain_spec::ChainSpecExtension;
+use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_consensus_babe::AuthorityId as BabeId;
+use sp_core::{sr25519, Pair, Public};
+use sp_finality_grandpa::AuthorityId as GrandpaId;
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    Perbill,
 };
 
 /// Robonomics runtime family chains.
@@ -100,10 +103,7 @@ pub struct Extensions {
 }
 
 /// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<
-    GenesisConfig,
-    Extensions,
->;
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -113,22 +113,23 @@ fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public
 }
 
 /// Helper function to generate an account ID from seed
-fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId where
-    AccountPublic: From<<TPublic::Pair as Pair>::Public>
+fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
 /// Helper function to generate stash, controller and session key from seed
 fn get_authority_keys_from_seed(
-    seed: &str
+    seed: &str,
 ) -> (
     AccountId,
     AccountId,
     BabeId,
     GrandpaId,
     ImOnlineId,
-    AuthorityDiscoveryId
+    AuthorityDiscoveryId,
 ) {
     (
         get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
@@ -146,32 +147,49 @@ fn session_keys(
     im_online: ImOnlineId,
     authority_discovery: AuthorityDiscoveryId,
 ) -> SessionKeys {
-    SessionKeys { babe, grandpa, im_online, authority_discovery, }
+    SessionKeys {
+        babe,
+        grandpa,
+        im_online,
+        authority_discovery,
+    }
 }
 
 fn testnet_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+    initial_authorities: Vec<(
+        AccountId,
+        AccountId,
+        BabeId,
+        GrandpaId,
+        ImOnlineId,
+        AuthorityDiscoveryId,
+    )>,
     endowed_accounts: Option<Vec<AccountId>>,
     sudo_key: AccountId,
 ) -> GenesisConfig {
     const ENDOWMENT: Balance = 1_000_000_000_000_000_000;
 
-    let endowed_accounts: Vec<(AccountId, Balance)> = endowed_accounts.unwrap_or_else(|| {
-        vec![
-            get_account_id_from_seed::<sr25519::Public>("Alice"),
-            get_account_id_from_seed::<sr25519::Public>("Bob"),
-            get_account_id_from_seed::<sr25519::Public>("Charlie"),
-            get_account_id_from_seed::<sr25519::Public>("Dave"),
-            get_account_id_from_seed::<sr25519::Public>("Eve"),
-            get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-            get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-            get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-            get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-            get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-            get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-            get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-        ]
-    }).iter().cloned().map(|acc| (acc, ENDOWMENT)).collect();
+    let endowed_accounts: Vec<(AccountId, Balance)> = endowed_accounts
+        .unwrap_or_else(|| {
+            vec![
+                get_account_id_from_seed::<sr25519::Public>("Alice"),
+                get_account_id_from_seed::<sr25519::Public>("Bob"),
+                get_account_id_from_seed::<sr25519::Public>("Charlie"),
+                get_account_id_from_seed::<sr25519::Public>("Dave"),
+                get_account_id_from_seed::<sr25519::Public>("Eve"),
+                get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+                get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+                get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+                get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+                get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+                get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+                get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+            ]
+        })
+        .iter()
+        .cloned()
+        .map(|acc| (acc, ENDOWMENT))
+        .collect();
 
     mk_genesis(
         initial_authorities,
@@ -183,7 +201,14 @@ fn testnet_genesis(
 
 /// Helper function to create GenesisConfig
 fn mk_genesis(
-    initial_authorities: Vec<(AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+    initial_authorities: Vec<(
+        AccountId,
+        AccountId,
+        BabeId,
+        GrandpaId,
+        ImOnlineId,
+        AuthorityDiscoveryId,
+    )>,
     endowed_accounts: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
@@ -194,76 +219,89 @@ fn mk_genesis(
             code,
             changes_trie_config: Default::default(),
         }),
-        pallet_indices: Some(IndicesConfig {
-            indices: vec![],
-        }),
+        pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig {
-            balances: endowed_accounts.iter().cloned()
+            balances: endowed_accounts
+                .iter()
+                .cloned()
                 .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
                 .collect(),
         }),
         pallet_session: Some(SessionConfig {
-            keys: initial_authorities.iter().map(|x| {
-                (x.0.clone(), x.0.clone(), session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()))
-            }).collect::<Vec<_>>(),
+            keys: initial_authorities
+                .iter()
+                .map(|x| {
+                    (
+                        x.0.clone(),
+                        x.0.clone(),
+                        session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+                    )
+                })
+                .collect::<Vec<_>>(),
         }),
         pallet_staking: Some(StakingConfig {
             validator_count: 10,
             minimum_validator_count: 3,
-            stakers: initial_authorities.iter().map(|x| {
-                (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)
-            }).collect(),
+            stakers: initial_authorities
+                .iter()
+                .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+                .collect(),
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
-            .. Default::default()
+            ..Default::default()
         }),
         pallet_babe: Some(BabeConfig {
-            authorities: vec![], 
+            authorities: vec![],
         }),
         pallet_grandpa: Some(GrandpaConfig {
-            authorities: vec![], 
+            authorities: vec![],
         }),
-        pallet_im_online: Some(ImOnlineConfig {
-            keys: vec![],
-        }),
-        pallet_authority_discovery: Some(AuthorityDiscoveryConfig {
-            keys: vec![],
-        }),
-        pallet_sudo: Some(SudoConfig {
-            key: sudo_key,
-        }),
+        pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
+        pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+        pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }
 }
 
 /*
-/// Robonomics testnet config. 
+/// Robonomics testnet config.
 pub fn robonomics_testnet_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
 }
 */
 
-/// Robonomics testnet genesis. 
+/// Robonomics testnet genesis.
 fn robonomics_testnet_genesis() -> GenesisConfig {
     use hex_literal::hex;
     use sp_core::crypto::UncheckedInto;
 
-    let initial_authorities = vec![(
-        // akru
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
-        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
-    ), (
-        // pad1a
-        hex!["acfe268b8276a4ed8924aef1441eb05334522f6c6c7487c12d71b0fb2ab28d37"].into(),
-        hex!["0239825db490fce751ee12d6cf67a59e1278f52fd82d5a9033f773924a709348"].into(),
-        hex!["304d073f2c918bff832e6f61949e1b7ac38fb8d57da1157f30d10e1406cc9137"].unchecked_into(),
-        hex!["85ddf5a932937c65694146577b50375668055ff435400310ca5344edf0f50b83"].unchecked_into(),
-        hex!["64063c2394c0a8250e5dc03286ead10e2efcda342467fbcbdf5f03d0e39aae19"].unchecked_into(),
-        hex!["926165922b8174c8446503a9bdc6581f4a658393169ea890c291fa2ad6b0b345"].unchecked_into(),
-    )];
+    let initial_authorities = vec![
+        (
+            // akru
+            hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
+            hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
+            hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"]
+                .unchecked_into(),
+            hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"]
+                .unchecked_into(),
+            hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"]
+                .unchecked_into(),
+            hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"]
+                .unchecked_into(),
+        ),
+        (
+            // pad1a
+            hex!["acfe268b8276a4ed8924aef1441eb05334522f6c6c7487c12d71b0fb2ab28d37"].into(),
+            hex!["0239825db490fce751ee12d6cf67a59e1278f52fd82d5a9033f773924a709348"].into(),
+            hex!["304d073f2c918bff832e6f61949e1b7ac38fb8d57da1157f30d10e1406cc9137"]
+                .unchecked_into(),
+            hex!["85ddf5a932937c65694146577b50375668055ff435400310ca5344edf0f50b83"]
+                .unchecked_into(),
+            hex!["64063c2394c0a8250e5dc03286ead10e2efcda342467fbcbdf5f03d0e39aae19"]
+                .unchecked_into(),
+            hex!["926165922b8174c8446503a9bdc6581f4a658393169ea890c291fa2ad6b0b345"]
+                .unchecked_into(),
+        ),
+    ];
 
     let sudo_key: AccountId =
         // pad1a
@@ -271,7 +309,10 @@ fn robonomics_testnet_genesis() -> GenesisConfig {
 
     mk_genesis(
         initial_authorities,
-        vec![(sudo_key.clone(), 1 * robonomics_runtime::constants::currency::XRT)],
+        vec![(
+            sudo_key.clone(),
+            1 * robonomics_runtime::constants::currency::XRT,
+        )],
         sudo_key,
         robonomics_runtime::WASM_BINARY.to_vec(),
     )
@@ -286,20 +327,23 @@ pub fn robonomics_testnet_config() -> ChainSpec {
         ChainType::Local,
         robonomics_testnet_genesis,
         boot_nodes,
-        Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
+        Some(
+            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+                .unwrap(),
+        ),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Default::default(),
     )
 }
 
-/// IPCI blockchain config. 
+/// IPCI blockchain config.
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
 
 /*
-/// IPCI blockchain genesis. 
+/// IPCI blockchain genesis.
 fn ipci_genesis() -> GenesisConfig {
     use hex_literal::hex;
     use sp_core::crypto::UncheckedInto;
@@ -315,7 +359,7 @@ fn ipci_genesis() -> GenesisConfig {
     )];
 
     let sudo_key: AccountId =
-        // akru 
+        // akru
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     mk_genesis(

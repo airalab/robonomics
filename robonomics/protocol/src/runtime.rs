@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 //! SubXt compatible Robonomics Network runtime abstration.
 
 use sp_runtime::{
-    traits::{BlakeTwo256, Verify, IdentifyAccount}, generic::Header,
-    OpaqueExtrinsic, MultiSignature,
+    generic::Header,
+    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    MultiSignature, OpaqueExtrinsic,
 };
-use substrate_subxt::{system, balances};
+use substrate_subxt::{balances, system};
 
 /// Robonomics Datalog pallet.
 pub mod pallet_datalog;

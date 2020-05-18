@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use sc_cli::{SubstrateCli, CliConfiguration};
 use crate::{
+    chain_spec::*,
+    service::{executor, ipci, robonomics},
     Cli, Subcommand,
-    service::{executor, ipci, robonomics}, chain_spec::*,
 };
+use sc_cli::{CliConfiguration, SubstrateCli};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -57,9 +58,7 @@ impl SubstrateCli for Cli {
             "local" => Box::new(local_testnet_config()),
             "ipci" => Box::new(ipci_config()),
             "" | "robonomics_testnet" => Box::new(robonomics_testnet_config()),
-            path => Box::new(ChainSpec::from_json_file(
-                std::path::PathBuf::from(path),
-            )?),
+            path => Box::new(ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
         })
     }
 }
@@ -73,11 +72,9 @@ pub fn run() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&cli.run)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_node(
-                    ipci::new_light,
-                    ipci::new_full,
-                    ipci_runtime::VERSION,
-                ),
+                RobonomicsFamily::DaoIpci => {
+                    runner.run_node(ipci::new_light, ipci::new_full, ipci_runtime::VERSION)
+                }
 
                 RobonomicsFamily::Testnet => runner.run_node(
                     robonomics::new_light,
@@ -85,19 +82,18 @@ pub fn run() -> sc_cli::Result<()> {
                     robonomics_runtime::VERSION,
                 ),
 
-                _ => Err(format!("unsupported chain spec: {}", runner.config().chain_spec.id()))?,
-            } 
+                _ => Err(format!(
+                    "unsupported chain spec: {}",
+                    runner.config().chain_spec.id()
+                ))?,
+            }
         }
         Some(Subcommand::Base(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |mut config| {
                     config.keystore = sc_service::config::KeystoreConfig::InMemory;
-                    Ok(new_full_start!(
-                        config,
-                        ipci_runtime::RuntimeApi,
-                        executor::Ipci
-                    ).0)
+                    Ok(new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0)
                 }),
 
                 RobonomicsFamily::Testnet => runner.run_subcommand(subcommand, |mut config| {
@@ -106,27 +102,32 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
-                    ).0)
+                    )
+                    .0)
                 }),
 
-                _ => Err(format!("unsupported chain spec: {}", runner.config().chain_spec.id()))?,
+                _ => Err(format!(
+                    "unsupported chain spec: {}",
+                    runner.config().chain_spec.id()
+                ))?,
             }
         }
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
-            runner.sync_run(|_|
-                subcommand.run().map_err(|e| e.to_string().into())) 
+            runner.sync_run(|_| subcommand.run().map_err(|e| e.to_string().into()))
         }
         #[cfg(feature = "benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             if runner.config().chain_spec.is_ipci() {
-                runner.sync_run(|config|
-                    subcommand.run::<node_primitives::Block, executor::Ipci>(config))
+                runner.sync_run(|config| {
+                    subcommand.run::<node_primitives::Block, executor::Ipci>(config)
+                })
             } else {
-                runner.sync_run(|config|
-                    subcommand.run::<node_primitives::Block, executor::Robonomics>(config))
+                runner.sync_run(|config| {
+                    subcommand.run::<node_primitives::Block, executor::Robonomics>(config)
+                })
             }
         }
     }

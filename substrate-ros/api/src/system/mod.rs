@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,18 +16,16 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use std::sync::Arc;
-use sp_runtime::traits;
+use sc_network::{ExHashT, NetworkService};
 use sc_rpc::system::helpers::Health;
 use sp_chain_spec::Properties;
-use sc_network::{
-    NetworkService, ExHashT,
-};
+use sp_runtime::traits;
+use std::sync::Arc;
 
 pub use sc_rpc::system::helpers::SystemInfo;
 
 mod ros_api;
-pub use ros_api::{start_services, start_publishers};
+pub use ros_api::{start_publishers, start_services};
 
 /// Substrate system API.
 pub struct System<B: traits::Block, H: ExHashT + Clone + Sync> {
@@ -36,29 +34,30 @@ pub struct System<B: traits::Block, H: ExHashT + Clone + Sync> {
 }
 
 impl<B, H> Clone for System<B, H>
-    where B: traits::Block, H: ExHashT + Clone + Sync
+where
+    B: traits::Block,
+    H: ExHashT + Clone + Sync,
 {
     fn clone(&self) -> System<B, H> {
-        System { 
+        System {
             info: self.info.clone(),
             network: self.network.clone(),
         }
     }
 }
 
-impl<B: traits::Block, H> System<B, H> where
-    H: ExHashT + Clone + Sync
+impl<B: traits::Block, H> System<B, H>
+where
+    H: ExHashT + Clone + Sync,
 {
-    pub fn new(
-        info: SystemInfo,
-        network: Arc<NetworkService<B, H>>,
-    ) -> Self {
+    pub fn new(info: SystemInfo, network: Arc<NetworkService<B, H>>) -> Self {
         System { info, network }
     }
 }
 
-impl<B: traits::Block, H> ros_api::SystemApi for System<B, H> where
-    H: ExHashT + Clone + Sync
+impl<B: traits::Block, H> ros_api::SystemApi for System<B, H>
+where
+    H: ExHashT + Clone + Sync,
 {
     fn system_name(&self) -> String {
         self.info.impl_name.clone()

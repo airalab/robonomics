@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,19 +16,15 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use msgs::std_srvs::{
-    Trigger, TriggerRes,
-};
+use msgs::std_srvs::{Trigger, TriggerRes};
 use msgs::substrate_ros_msgs::{
-    ExHash, RawExtrinsic,
-    SubmitExtrinsic, SubmitExtrinsicRes,
-    PendingExtrinsics, PendingExtrinsicsRes,
-    RemoveExtrinsic, RemoveExtrinsicRes,
+    ExHash, PendingExtrinsics, PendingExtrinsicsRes, RawExtrinsic, RemoveExtrinsic,
+    RemoveExtrinsicRes, SubmitExtrinsic, SubmitExtrinsicRes,
 };
 use rosrust::api::error::Error;
 
-const SUBMIT_SRV_NAME: &str  = "/author/submit_extrinsic";
-const REMOVE_SRV_NAME: &str  = "/author/remove_extrinsic";
+const SUBMIT_SRV_NAME: &str = "/author/submit_extrinsic";
+const REMOVE_SRV_NAME: &str = "/author/remove_extrinsic";
 const PENDING_SRV_NAME: &str = "/author/pending_extrinsics";
 const ROTATE_KEYS_SRV_NAME: &str = "/author/rotate_keys";
 
@@ -50,10 +46,9 @@ pub trait AuthorApi {
     fn remove_extrinsics(&self, hashes: Vec<Hash>) -> Vec<Hash>;
 }
 
-fn rotate_keys<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: AuthorApi + Send + Sync + 'static
+fn rotate_keys<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: AuthorApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(ROTATE_KEYS_SRV_NAME, move |_| {
         let mut res = TriggerRes::default();
@@ -64,10 +59,9 @@ fn rotate_keys<T>(
     })
 }
 
-fn submit_extrinsic<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: AuthorApi + Send + Sync + 'static
+fn submit_extrinsic<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: AuthorApi + Send + Sync + 'static,
 {
     rosrust::service::<SubmitExtrinsic, _>(SUBMIT_SRV_NAME, move |req| {
         let mut res = SubmitExtrinsicRes::default();
@@ -77,10 +71,9 @@ fn submit_extrinsic<T>(
     })
 }
 
-fn pending_extrinsics<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: AuthorApi + Send + Sync + 'static
+fn pending_extrinsics<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: AuthorApi + Send + Sync + 'static,
 {
     rosrust::service::<PendingExtrinsics, _>(PENDING_SRV_NAME, move |_req| {
         let mut res = PendingExtrinsicsRes::default();
@@ -93,10 +86,9 @@ fn pending_extrinsics<T>(
     })
 }
 
-fn remove_extrinsics<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: AuthorApi + Send + Sync + 'static
+fn remove_extrinsics<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: AuthorApi + Send + Sync + 'static,
 {
     rosrust::service::<RemoveExtrinsic, _>(REMOVE_SRV_NAME, move |req| {
         let mut res = RemoveExtrinsicRes::default();
@@ -110,10 +102,9 @@ fn remove_extrinsics<T>(
     })
 }
 
-pub fn start_services<T>(
-    api: T
-) -> Result<Vec<rosrust::Service>, Error> where
-    T: AuthorApi + Clone + Send + Sync + 'static
+pub fn start_services<T>(api: T) -> Result<Vec<rosrust::Service>, Error>
+where
+    T: AuthorApi + Clone + Send + Sync + 'static,
 {
     let services = vec![
         rotate_keys(api.clone())?,

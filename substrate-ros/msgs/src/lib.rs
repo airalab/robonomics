@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -24,28 +24,22 @@ rosmsg_include!(
     std_msgs / String,
     std_msgs / Bool,
     std_msgs / Time,
-
     // standard ros services
     std_srvs / Trigger,
-
     // substrate rpc
     substrate_ros_msgs / ExHash,
     substrate_ros_msgs / BlockHash,
     substrate_ros_msgs / RawExtrinsic,
-
     substrate_ros_msgs / PendingExtrinsics,
     substrate_ros_msgs / RemoveExtrinsic,
     substrate_ros_msgs / SubmitExtrinsic,
-
     substrate_ros_msgs / GetBlock,
     substrate_ros_msgs / GetBlockHash,
     substrate_ros_msgs / GetBlockHeader,
     substrate_ros_msgs / GetBestHead,
     substrate_ros_msgs / GetFinalizedHead,
-
     substrate_ros_msgs / SystemHealth,
     substrate_ros_msgs / SystemHealthInfo,
-
     substrate_ros_msgs / StorageKey,
     substrate_ros_msgs / StateCall,
     substrate_ros_msgs / StorageHash,

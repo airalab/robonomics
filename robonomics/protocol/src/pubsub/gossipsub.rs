@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,25 +21,28 @@
 //! It implemented using libp2p Gossipsub for effective message delivery.
 //!
 
-use std::{
-    collections::hash_map::{HashMap, DefaultHasher},
-    hash::{Hash, Hasher}, time::Duration,
-    sync::Arc, pin::Pin, ops::DerefMut,
-    task::{Context, Poll},
-};
 use futures::{
-    channel::{oneshot, mpsc}, prelude::*,
+    channel::{mpsc, oneshot},
+    prelude::*,
     Future,
 };
-use libp2p::{Swarm, PeerId, Multiaddr};
 use libp2p::core::connection::ListenerId;
 use libp2p::gossipsub::{
-    GossipsubConfigBuilder, Gossipsub,
-    GossipsubMessage, GossipsubEvent,
-    Topic, TopicHash, protocol::MessageId,
+    protocol::MessageId, Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
+    Topic, TopicHash,
+};
+use libp2p::{Multiaddr, PeerId, Swarm};
+use std::{
+    collections::hash_map::{DefaultHasher, HashMap},
+    hash::{Hash, Hasher},
+    ops::DerefMut,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+    time::Duration,
 };
 
-use crate::error::{Result, FutureResult};
+use crate::error::{FutureResult, Result};
 
 enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
@@ -177,7 +180,7 @@ impl Future for PubSubWorker {
                             if let Some(inbox) = self.inbox.get_mut(topic) {
                                 let _ = inbox.unbounded_send(super::Message {
                                     from: message.source.clone(),
-                                    data: message.data.clone()
+                                    data: message.data.clone(),
                                 });
                             } else {
                                 log::warn!(
@@ -245,8 +248,7 @@ impl PubSub {
     pub fn new(
         heartbeat_interval: Duration,
     ) -> Result<(Arc<Self>, impl Future<Output = Result<()>>)> {
-        PubSubWorker::new(heartbeat_interval)
-            .map(|worker| (worker.service.clone(), worker))
+        PubSubWorker::new(heartbeat_interval).map(|worker| (worker.service.clone(), worker))
     }
 }
 
@@ -257,38 +259,47 @@ impl super::PubSub for PubSub {
 
     fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Listen(address, sender));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Listen(address, sender));
         receiver.boxed()
     }
 
     fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
         let (sender, receiver) = oneshot::channel();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Listeners(sender));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Listeners(sender));
         receiver.boxed()
     }
 
     fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Connect(address, sender));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Connect(address, sender));
         receiver.boxed()
     }
 
     fn subscribe<T: ToString>(&self, topic_name: &T) -> super::Inbox {
         let (sender, receiver) = mpsc::unbounded();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
         receiver.boxed()
     }
 
     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
         let (sender, receiver) = oneshot::channel();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Unsubscribe(topic_name.to_string(), sender));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Unsubscribe(topic_name.to_string(), sender));
         receiver.boxed()
     }
 
     fn publish<T: ToString, M: Into<Vec<u8>>>(&self, topic_name: &T, message: M) {
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Publish(
-                topic_name.to_string(),
-                message.into(),
-            ));
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Publish(topic_name.to_string(), message.into()));
     }
 }

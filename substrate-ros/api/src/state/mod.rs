@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,16 +16,16 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use std::sync::Arc;
-use sp_core::{H256, storage};
-use sp_state_machine::ExecutionStrategy;
+use sc_client::Client;
 use sc_client_api::{
-    CallExecutor,
     backend::{Backend, StorageProvider},
     call_executor::ExecutorProvider,
+    CallExecutor,
 };
-use sp_runtime::{traits, generic::BlockId};
-use sc_client::Client;
+use sp_core::{storage, H256};
+use sp_runtime::{generic::BlockId, traits};
+use sp_state_machine::ExecutionStrategy;
+use std::sync::Arc;
 
 mod ros_api;
 pub use ros_api::start_services;
@@ -38,12 +38,15 @@ pub struct FullState<B, E, Block: traits::Block, RA> {
 
 impl<B, E, Block: traits::Block, RA> Clone for FullState<B, E, Block, RA> {
     fn clone(&self) -> FullState<B, E, Block, RA> {
-        FullState { client: self.client.clone() }
+        FullState {
+            client: self.client.clone(),
+        }
     }
 }
 
-impl<B, E, Block, RA> FullState<B, E, Block, RA> where
-    Block: traits::Block<Hash=H256> + 'static,
+impl<B, E, Block, RA> FullState<B, E, Block, RA>
+where
+    Block: traits::Block<Hash = H256> + 'static,
     B: Backend<Block> + Send + Sync + 'static,
     E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
@@ -51,28 +54,28 @@ impl<B, E, Block, RA> FullState<B, E, Block, RA> where
     pub fn unwrap_or_best(&self, mb_hash: Option<ros_api::Hash>) -> Block::Hash {
         match mb_hash {
             Some(hash) => hash.into(),
-            None => self.client.chain_info().best_hash
+            None => self.client.chain_info().best_hash,
         }
     }
 
-    pub fn new(
-        client: Arc<Client<B, E, Block, RA>>,
-    ) -> Self {
-        FullState {
-            client,
-        }
+    pub fn new(client: Arc<Client<B, E, Block, RA>>) -> Self {
+        FullState { client }
     }
 }
 
-impl<B, E, Block, RA> ros_api::StateApi for FullState<B, E, Block, RA> where
-    Block: traits::Block<Hash=H256> + 'static,
+impl<B, E, Block, RA> ros_api::StateApi for FullState<B, E, Block, RA>
+where
+    Block: traits::Block<Hash = H256> + 'static,
     B: Backend<Block> + Send + Sync + 'static,
     E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
 {
-    fn call(&self, method: String, data: ros_api::Bytes, block: Option<ros_api::Hash>)
-        -> Result<ros_api::Bytes, String>
-    {
+    fn call(
+        &self,
+        method: String,
+        data: ros_api::Bytes,
+        block: Option<ros_api::Hash>,
+    ) -> Result<ros_api::Bytes, String> {
         self.client
             .executor()
             .call(
@@ -81,39 +84,57 @@ impl<B, E, Block, RA> ros_api::StateApi for FullState<B, E, Block, RA> where
                 &data,
                 ExecutionStrategy::NativeElseWasm,
                 None,
-            ).map_err(|e| format!("state error: {}", e))
+            )
+            .map_err(|e| format!("state error: {}", e))
     }
 
-    fn storage_keys(&self, key_prefix: ros_api::Bytes, block: Option<ros_api::Hash>)
-        -> Result<Vec<ros_api::Bytes>, String>
-    {
+    fn storage_keys(
+        &self,
+        key_prefix: ros_api::Bytes,
+        block: Option<ros_api::Hash>,
+    ) -> Result<Vec<ros_api::Bytes>, String> {
         self.client
-            .storage_keys(&BlockId::Hash(self.unwrap_or_best(block)), &storage::StorageKey(key_prefix))
+            .storage_keys(
+                &BlockId::Hash(self.unwrap_or_best(block)),
+                &storage::StorageKey(key_prefix),
+            )
             .map(|keys| keys.iter().map(|key| key.0.clone()).collect())
             .map_err(|e| format!("state error: {}", e))
     }
 
-    fn storage(&self, key: ros_api::Bytes, block: Option<ros_api::Hash>)
-        -> Result<Option<ros_api::Bytes>, String>
-    {
+    fn storage(
+        &self,
+        key: ros_api::Bytes,
+        block: Option<ros_api::Hash>,
+    ) -> Result<Option<ros_api::Bytes>, String> {
         self.client
-            .storage(&BlockId::Hash(self.unwrap_or_best(block)), &storage::StorageKey(key))
+            .storage(
+                &BlockId::Hash(self.unwrap_or_best(block)),
+                &storage::StorageKey(key),
+            )
             .map_err(|e| format!("state error: {}", e))
             .map(|mb_data| mb_data.map(|data| data.0))
     }
 
-    fn storage_hash(&self, key: ros_api::Bytes, block: Option<ros_api::Hash>)
-        -> Result<Option<ros_api::Hash>, String>
-    {
+    fn storage_hash(
+        &self,
+        key: ros_api::Bytes,
+        block: Option<ros_api::Hash>,
+    ) -> Result<Option<ros_api::Hash>, String> {
         self.client
-            .storage_hash(&BlockId::Hash(self.unwrap_or_best(block)), &storage::StorageKey(key))
+            .storage_hash(
+                &BlockId::Hash(self.unwrap_or_best(block)),
+                &storage::StorageKey(key),
+            )
             .map_err(|e| format!("state error: {}", e))
             .map(|mb_hash| mb_hash.map(Into::into))
     }
 
-    fn storage_size(&self, key: ros_api::Bytes, block: Option<ros_api::Hash>)
-        -> Result<Option<u64>, String>
-    {
+    fn storage_size(
+        &self,
+        key: ros_api::Bytes,
+        block: Option<ros_api::Hash>,
+    ) -> Result<Option<u64>, String> {
         self.storage(key, block)
             .map_err(|e| format!("state error: {}", e))
             .map(|x| x.map(|v| v.len() as u64))

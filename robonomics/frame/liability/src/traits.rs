@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@
 //! Robonomics runtime traits definitions.
 
 use frame_support::dispatch;
-use sp_runtime::{DispatchResult, traits::Member};
 use sp_arithmetic::traits::BaseArithmetic;
+use sp_runtime::{traits::Member, DispatchResult};
 
 /// Technical aspects of agreement between two parties.
 pub trait Technical {
@@ -74,41 +74,24 @@ pub trait Agreement<T: Technical, E: Economical> {
 
     /// Create new instance for given technical and economical parameters.
     fn new(
-        technics:  T::Parameter,
+        technics: T::Parameter,
         economics: E::Parameter,
-        promisee:  Self::AccountId,
-        promisor:  Self::AccountId,
+        promisee: Self::AccountId,
+        promisor: Self::AccountId,
     ) -> Self;
 
     /// Check validity of agreement params proof.
-    fn check_params(
-        &self,
-        proof: &Self::Proof,
-        sender: &Self::AccountId,
-    ) -> bool;
+    fn check_params(&self, proof: &Self::Proof, sender: &Self::AccountId) -> bool;
 
     /// Check validity of agreement report proof.
-    fn check_report(
-        &self,
-        index: &Self::Index,
-        report: &T::Report,
-        proof: &Self::Proof,
-    ) -> bool;
+    fn check_report(&self, index: &Self::Index, report: &T::Report, proof: &Self::Proof) -> bool;
 }
 
 /// Agreement proovement maker.
 pub trait ProofBuilder<T: Technical, E: Economical, Index, Account, Proof> {
     /// Make proof of technical and economical agreement parameters.
-    fn proof_params(
-        technics: &T::Parameter,
-        economics: &E::Parameter,
-        sender: Account,
-    ) -> Proof;
+    fn proof_params(technics: &T::Parameter, economics: &E::Parameter, sender: Account) -> Proof;
 
     /// Make proof of technical report agrement parameter.
-    fn proof_report(
-        index: &Index,
-        report: &T::Report, 
-        sender: Account,
-    ) -> Proof;
+    fn proof_report(index: &Index, report: &T::Report, sender: Account) -> Proof;
 }

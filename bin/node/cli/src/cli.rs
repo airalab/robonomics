@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ pub enum Subcommand {
     /// A set of base subcommands handled by `sc_cli`.
     #[structopt(flatten)]
     Base(sc_cli::Subcommand),
-    /// Robonomics Framework I/O operations. 
+    /// Robonomics Framework I/O operations.
     #[cfg(feature = "robonomics-cli")]
     Io(robonomics_cli::IoCmd),
     /// Benchmarking runtime pallets.

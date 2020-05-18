@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,26 +16,32 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use super::{Balances, System, MaximumBlockWeight,};
-use frame_support::{traits::Get, weights::Weight,};
-use sp_runtime::traits::{Convert, Saturating,};
-use sp_runtime::{Fixed64, Perbill,};
+use super::{Balances, MaximumBlockWeight, System};
+use frame_support::{traits::Get, weights::Weight};
 use node_primitives::Balance;
+use sp_runtime::traits::{Convert, Saturating};
+use sp_runtime::{Fixed64, Perbill};
 
 /// Struct that handles the conversion of Balance -> `u64`. This is used for staking's election
 /// calculation.
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-    fn factor() -> Balance { (Balances::total_issuance() / u64::max_value() as Balance).max(1) }
+    fn factor() -> Balance {
+        (Balances::total_issuance() / u64::max_value() as Balance).max(1)
+    }
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
-    fn convert(x: Balance) -> u64 { (x / Self::factor()) as u64 }
+    fn convert(x: Balance) -> u64 {
+        (x / Self::factor()) as u64
+    }
 }
 
 impl Convert<u128, Balance> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> Balance { x * Self::factor() }
+    fn convert(x: u128) -> Balance {
+        x * Self::factor()
+    }
 }
 
 /// Convert from weight to balance via a simple coefficient multiplication
@@ -94,7 +100,8 @@ impl<T: Get<Perbill>> Convert<Fixed64, Fixed64> for TargetedFeeAdjustment<T> {
         } else {
             // Proof: first_term > second_term. Safe subtraction.
             let negative = first_term - second_term;
-            multiplier.saturating_sub(negative)
+            multiplier
+                .saturating_sub(negative)
                 // despite the fact that apply_to saturates weight (final fee cannot go below 0)
                 // it is crucially important to stop here and don't further reduce the weight fee
                 // multiplier. While at -1, it means that the network is so un-congested that all

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,22 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use futures::prelude::*;
-use std::time::Duration;
 use futures_timer::Delay;
+use msgs::{
+    std_msgs,
+    std_srvs::{Trigger, TriggerRes},
+    substrate_ros_msgs::{SystemHealth, SystemHealthInfo, SystemHealthRes},
+};
+use rosrust::api::error::Error;
 use sc_rpc::system::helpers::Health;
 use sp_chain_spec::Properties;
-use rosrust::api::error::Error;
-use msgs::{
-    std_srvs::{Trigger, TriggerRes},
-    substrate_ros_msgs::{SystemHealth, SystemHealthRes, SystemHealthInfo},
-    std_msgs
-};
+use std::time::Duration;
 
-const SYSTEM_NAME_SRV_NAME: &str       = "/system/name";
-const SYSTEM_VERSION_SRV_NAME: &str    = "/system/version";
-const SYSTEM_CHAIN_SRV_NAME: &str      = "/system/chain_name";
+const SYSTEM_NAME_SRV_NAME: &str = "/system/name";
+const SYSTEM_VERSION_SRV_NAME: &str = "/system/version";
+const SYSTEM_CHAIN_SRV_NAME: &str = "/system/chain_name";
 const SYSTEM_PROPERTIES_SRV_NAME: &str = "/system/properties";
-const SYSTEM_HEALTH_SRV_NAME: &str     = "/system/health";
+const SYSTEM_HEALTH_SRV_NAME: &str = "/system/health";
 
 const PUBLISH_DELAY: Duration = Duration::from_secs(1);
 
@@ -63,10 +63,9 @@ pub trait SystemApi {
     fn system_health(&self) -> Health;
 }
 
-fn publish_system_name<T>(
-    api: T
-) -> Result<impl Future<Output=()>, Error> where
-    T: SystemApi
+fn publish_system_name<T>(api: T) -> Result<impl Future<Output = ()>, Error>
+where
+    T: SystemApi,
 {
     let publisher = rosrust::publish(SYSTEM_NAME_SRV_NAME, QUEUE_SIZE)?;
     let task = async move {
@@ -80,10 +79,9 @@ fn publish_system_name<T>(
     Ok(task)
 }
 
-fn publish_system_version<T>(
-    api: T
-) -> Result<impl Future<Output=()>, Error> where
-    T: SystemApi
+fn publish_system_version<T>(api: T) -> Result<impl Future<Output = ()>, Error>
+where
+    T: SystemApi,
 {
     let publisher = rosrust::publish(SYSTEM_VERSION_SRV_NAME, QUEUE_SIZE)?;
     let task = async move {
@@ -97,10 +95,9 @@ fn publish_system_version<T>(
     Ok(task)
 }
 
-fn publish_system_chain<T>(
-    api: T
-) -> Result<impl Future<Output=()>, Error> where
-    T: SystemApi
+fn publish_system_chain<T>(api: T) -> Result<impl Future<Output = ()>, Error>
+where
+    T: SystemApi,
 {
     let publisher = rosrust::publish(SYSTEM_CHAIN_SRV_NAME, QUEUE_SIZE)?;
     let task = async move {
@@ -114,10 +111,9 @@ fn publish_system_chain<T>(
     Ok(task)
 }
 
-fn publish_system_health<T>(
-    api: T
-) -> Result<impl Future<Output=()>, Error> where
-    T: SystemApi
+fn publish_system_health<T>(api: T) -> Result<impl Future<Output = ()>, Error>
+where
+    T: SystemApi,
 {
     let publisher = rosrust::publish(SYSTEM_HEALTH_SRV_NAME, QUEUE_SIZE)?;
     let task = async move {
@@ -133,36 +129,33 @@ fn publish_system_health<T>(
     Ok(task)
 }
 
-fn system_name<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: SystemApi + Send + Sync + 'static
+fn system_name<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: SystemApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(SYSTEM_NAME_SRV_NAME, move |_| {
         let mut res = TriggerRes::default();
         res.success = true;
-        res.message = api.system_name(); 
+        res.message = api.system_name();
         Ok(res)
     })
 }
 
-fn system_version<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: SystemApi + Send + Sync + 'static
+fn system_version<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: SystemApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(SYSTEM_VERSION_SRV_NAME, move |_| {
         let mut res = TriggerRes::default();
         res.success = true;
-        res.message = api.system_version(); 
+        res.message = api.system_version();
         Ok(res)
     })
 }
 
-fn system_chain<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: SystemApi + Send + Sync + 'static
+fn system_chain<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: SystemApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(SYSTEM_CHAIN_SRV_NAME, move |_| {
         let mut res = TriggerRes::default();
@@ -172,10 +165,9 @@ fn system_chain<T>(
     })
 }
 
-fn system_properties<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: SystemApi + Send + Sync + 'static
+fn system_properties<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: SystemApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(SYSTEM_PROPERTIES_SRV_NAME, move |_| {
         let mut res = TriggerRes::default();
@@ -185,10 +177,9 @@ fn system_properties<T>(
     })
 }
 
-fn system_health<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: SystemApi + Send + Sync + 'static
+fn system_health<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: SystemApi + Send + Sync + 'static,
 {
     rosrust::service::<SystemHealth, _>(SYSTEM_HEALTH_SRV_NAME, move |_| {
         let mut res = SystemHealthRes::default();
@@ -199,10 +190,9 @@ fn system_health<T>(
     })
 }
 
-pub fn start_services<T>(
-    api: T
-) -> Result<Vec<rosrust::Service>, Error> where
-    T: SystemApi + Clone + Send + Sync + 'static
+pub fn start_services<T>(api: T) -> Result<Vec<rosrust::Service>, Error>
+where
+    T: SystemApi + Clone + Send + Sync + 'static,
 {
     let services = vec![
         system_name(api.clone())?,
@@ -214,16 +204,16 @@ pub fn start_services<T>(
     Ok(services)
 }
 
-pub fn start_publishers<T>(
-    api: T
-) -> Result<impl Future<Output=()>, Error> where
-    T: SystemApi + Clone
+pub fn start_publishers<T>(api: T) -> Result<impl Future<Output = ()>, Error>
+where
+    T: SystemApi + Clone,
 {
     let task = futures::future::join4(
         publish_system_name(api.clone())?,
-        publish_system_version(api.clone())?, 
+        publish_system_version(api.clone())?,
         publish_system_chain(api.clone())?,
         publish_system_health(api.clone())?,
-    ).map(|_| ());
+    )
+    .map(|_| ());
     Ok(task)
 }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,28 +16,19 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use std::sync::Arc;
-use sp_core::{H256, storage::StorageKey};
-use sc_client_api::{
-    CallExecutor,
-    backend::Backend,
-    client::BlockBackend,
-};
-use sp_runtime::{
-    traits::{self, Header,},
-    generic::BlockId,
-};
-use sc_client::{
-    Client,
-//    light::blockchain::RemoteBlockchain,
-};
-use sc_client::{
-    BlockchainEvents, ImportNotifications, FinalityNotifications,
-};
+use sc_client::Client;
+use sc_client::{BlockchainEvents, FinalityNotifications, ImportNotifications};
 use sc_client_api::notifications::StorageEventStream;
+use sc_client_api::{backend::Backend, client::BlockBackend, CallExecutor};
+use sp_core::{storage::StorageKey, H256};
+use sp_runtime::{
+    generic::BlockId,
+    traits::{self, Header},
+};
+use std::sync::Arc;
 
 mod ros_api;
-pub use ros_api::{start_services, start_publishers};
+pub use ros_api::{start_publishers, start_services};
 
 /// Full node chain API.
 pub struct FullChain<B, E, Block: traits::Block, RA> {
@@ -47,7 +38,9 @@ pub struct FullChain<B, E, Block: traits::Block, RA> {
 
 impl<B, E, Block: traits::Block, RA> Clone for FullChain<B, E, Block, RA> {
     fn clone(&self) -> FullChain<B, E, Block, RA> {
-        FullChain { client: self.client.clone() }
+        FullChain {
+            client: self.client.clone(),
+        }
     }
 }
 
@@ -64,8 +57,9 @@ pub struct LightChain<B, E, Block: traits::Block, RA, F> {
 }
 */
 
-impl<B, E, Block, RA> FullChain<B, E, Block, RA> where
-    Block: traits::Block<Hash=H256> + 'static,
+impl<B, E, Block, RA> FullChain<B, E, Block, RA>
+where
+    Block: traits::Block<Hash = H256> + 'static,
     B: Backend<Block> + Send + Sync + 'static,
     E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
@@ -73,21 +67,18 @@ impl<B, E, Block, RA> FullChain<B, E, Block, RA> where
     pub fn unwrap_or_best(&self, mb_hash: Option<Block::Hash>) -> Block::Hash {
         match mb_hash {
             Some(hash) => hash,
-            None => self.client.chain_info().best_hash
+            None => self.client.chain_info().best_hash,
         }
     }
 
-    pub fn new(
-        client: Arc<Client<B, E, Block, RA>>,
-    ) -> Self {
-        FullChain {
-            client,
-        }
+    pub fn new(client: Arc<Client<B, E, Block, RA>>) -> Self {
+        FullChain { client }
     }
 }
 
-impl<B, E, Block, RA> BlockchainEvents<Block> for FullChain<B, E, Block, RA> where
-    Block: traits::Block<Hash=H256> + 'static,
+impl<B, E, Block, RA> BlockchainEvents<Block> for FullChain<B, E, Block, RA>
+where
+    Block: traits::Block<Hash = H256> + 'static,
     B: Backend<Block> + Send + Sync + 'static,
     E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
@@ -105,12 +96,14 @@ impl<B, E, Block, RA> BlockchainEvents<Block> for FullChain<B, E, Block, RA> whe
         filter_keys: Option<&[StorageKey]>,
         child_filter_keys: Option<&[(StorageKey, Option<Vec<StorageKey>>)]>,
     ) -> sp_blockchain::Result<StorageEventStream<Block::Hash>> {
-        self.client.storage_changes_notification_stream(filter_keys, child_filter_keys)
+        self.client
+            .storage_changes_notification_stream(filter_keys, child_filter_keys)
     }
 }
 
-impl<B, E, Block, RA> ros_api::ChainApi for FullChain<B, E, Block, RA> where
-    Block: traits::Block<Hash=H256> + 'static,
+impl<B, E, Block, RA> ros_api::ChainApi for FullChain<B, E, Block, RA>
+where
+    Block: traits::Block<Hash = H256> + 'static,
     B: Backend<Block> + Send + Sync + 'static,
     E: CallExecutor<Block> + Send + Sync + 'static,
     RA: Send + Sync + 'static,
@@ -134,7 +127,9 @@ impl<B, E, Block, RA> ros_api::ChainApi for FullChain<B, E, Block, RA> where
     fn block_hash(&self, number: Option<u32>) -> Result<ros_api::Hash, String> {
         let hash = if let Some(num) = number {
             let block_number = BlockId::number(num.into());
-            let mb_header = self.client.header(&block_number)
+            let mb_header = self
+                .client
+                .header(&block_number)
                 .map_err(|e| format!("header request error: {}", e))?;
             mb_header.map_or(Default::default(), |h| h.hash())
         } else {

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,6 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Framework I/O operations.
 
-pub mod source;
 pub mod error;
 pub mod sink;
+pub mod source;

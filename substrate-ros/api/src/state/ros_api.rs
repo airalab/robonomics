@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,16 +16,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+use msgs::std_srvs::{Trigger, TriggerRes};
 use msgs::substrate_ros_msgs::{
-    StorageKey,
-    StateCall, StateCallRes,
-    StorageHash, StorageHashRes,
-    StorageKeys, StorageKeysRes,
-    StorageQuery, StorageQueryRes,
-    StorageSize, StorageSizeRes,
-};
-use msgs::std_srvs::{
-    Trigger, TriggerRes,
+    StateCall, StateCallRes, StorageHash, StorageHashRes, StorageKey, StorageKeys, StorageKeysRes,
+    StorageQuery, StorageQueryRes, StorageSize, StorageSizeRes,
 };
 use rosrust::api::error::Error;
 
@@ -67,25 +61,23 @@ fn zero_guard(mb_zero: Hash) -> Option<Hash> {
     }
 }
 
-fn call<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn call<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<StateCall, _>(CALL_SRV_NAME, move |req| {
-        let mut res = StateCallRes::default(); 
+        let mut res = StateCallRes::default();
         res.data = api.call(req.method, req.data, zero_guard(req.block.data))?;
         Ok(res)
     })
 }
 
-fn storage_keys<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn storage_keys<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<StorageKeys, _>(KEYS_SRV_NAME, move |req| {
-        let mut res = StorageKeysRes::default(); 
+        let mut res = StorageKeysRes::default();
         for key in api.storage_keys(req.prefix.data, zero_guard(req.block.data))? {
             res.keys.push(StorageKey { data: key });
         }
@@ -93,14 +85,12 @@ fn storage_keys<T>(
     })
 }
 
-
-fn storage<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn storage<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<StorageQuery, _>(QUERY_SRV_NAME, move |req| {
-        let mut res = StorageQueryRes::default(); 
+        let mut res = StorageQueryRes::default();
         if let Some(data) = api.storage(req.key.data, zero_guard(req.block.data))? {
             res.data = data;
         }
@@ -108,13 +98,12 @@ fn storage<T>(
     })
 }
 
-fn storage_hash<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn storage_hash<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<StorageHash, _>(HASH_SRV_NAME, move |req| {
-        let mut res = StorageHashRes::default(); 
+        let mut res = StorageHashRes::default();
         if let Some(hash) = api.storage_hash(req.key.data, zero_guard(req.block.data))? {
             res.hash.data = hash;
         }
@@ -122,13 +111,12 @@ fn storage_hash<T>(
     })
 }
 
-fn storage_size<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn storage_size<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<StorageSize, _>(SIZE_SRV_NAME, move |req| {
-        let mut res = StorageSizeRes::default(); 
+        let mut res = StorageSizeRes::default();
         if let Some(size) = api.storage_size(req.key.data, zero_guard(req.block.data))? {
             res.size = size;
         }
@@ -136,23 +124,21 @@ fn storage_size<T>(
     })
 }
 
-fn runtime_version<T>(
-    api: T
-) -> Result<rosrust::Service, Error> where
-    T: StateApi + Send + Sync + 'static
+fn runtime_version<T>(api: T) -> Result<rosrust::Service, Error>
+where
+    T: StateApi + Send + Sync + 'static,
 {
     rosrust::service::<Trigger, _>(VERSION_SRV_NAME, move |_| {
-        let mut res = TriggerRes::default(); 
+        let mut res = TriggerRes::default();
         res.success = true;
         res.message = api.runtime_version(None)?;
         Ok(res)
     })
 }
 
-pub fn start_services<T>(
-    api: T
-) -> Result<Vec<rosrust::Service>, Error> where
-    T: StateApi + Clone + Send + Sync + 'static
+pub fn start_services<T>(api: T) -> Result<Vec<rosrust::Service>, Error>
+where
+    T: StateApi + Clone + Send + Sync + 'static,
 {
     let services = vec![
         call(api.clone())?,
