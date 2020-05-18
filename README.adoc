@@ -52,7 +52,7 @@ You will also need to install the following packages:
 
  - Linux:
 [source, shell]
-sudo apt install cmake git clang libclang-dev
+sudo apt install cmake git clang libclang-dev libudev-dev
 
  - Mac:
 [source, shell]
@@ -70,7 +70,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v0.18.0 node-cli
+cargo install --force --git https://github.com/airalab/robonomics --tag v0.18.1 node-cli
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
 
