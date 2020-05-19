@@ -52,11 +52,11 @@ async fn start_inner(
 
     // Create the service. This is the most heavy initialization step.
     if config.chain_spec.is_ipci() {
-        let service = crate::service::new_ipci_light(config).map_err(|e| format!("{:?}", e))?;
+        let service = crate::service::ipci::new_light(config).map_err(|e| format!("{:?}", e))?;
         Ok(substrate_browser_utils::start_client(service))
     } else {
         let service =
-            crate::service::new_robonomics_light(config).map_err(|e| format!("{:?}", e))?;
+            crate::service::robonomics::new_light(config).map_err(|e| format!("{:?}", e))?;
         Ok(substrate_browser_utils::start_client(service))
     }
 }

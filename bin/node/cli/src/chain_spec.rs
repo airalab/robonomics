@@ -57,7 +57,8 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        if self.id() == ROBONOMICS_TESTNET_ID {
+        if self.id() == ROBONOMICS_TESTNET_ID || self.id() == "dev" || self.id() == "local_testnet"
+        {
             return RobonomicsFamily::Testnet;
         }
 

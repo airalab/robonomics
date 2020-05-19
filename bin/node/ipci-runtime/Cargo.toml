@@ -42,10 +42,10 @@ pallet-identity = { version = "2.0.0-alpha.8", default-features = false }
 pallet-offences = { version = "2.0.0-alpha.8", default-features = false }
 pallet-offences-benchmarking = { version = "2.0.0-alpha.8", default-features = false, optional = true }
 pallet-randomness-collective-flip = { version = "2.0.0-alpha.8", default-features = false }
-pallet-session = { version = "2.0.0-alpha.8", default-features = false }
+pallet-session = { version = "2.0.0-alpha.8", features = ["historical"], default-features = false }
 pallet-session-benchmarking = { version = "2.0.0-alpha.8", default-features = false, optional = true }
 pallet-staking = { version = "2.0.0-alpha.8", default-features = false }
-pallet-staking-reward-curve = { version = "2.0.0-alpha.8" }
+pallet-staking-reward-curve = { version = "2.0.0-alpha.8", default-features = false }
 pallet-sudo = { version = "2.0.0-alpha.8", default-features = false }
 frame-support = { version = "2.0.0-alpha.8", default-features = false }
 frame-benchmarking = { version = "2.0.0-alpha.8", default-features = false, optional = true }

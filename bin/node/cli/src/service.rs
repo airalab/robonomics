@@ -75,35 +75,44 @@ macro_rules! new_full_start {
                 prometheus_registry,
             ))
         })?
-        .with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
-            let select_chain = select_chain
-                .take()
-                .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
-            let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
-                client.clone(),
-                &(client.clone() as std::sync::Arc<_>),
-                select_chain,
-            )?;
-            let justification_import = grandpa_block_import.clone();
+        .with_import_queue(
+            |_config,
+             client,
+             mut select_chain,
+             _transaction_pool,
+             spawn_task_handle,
+             prometheus_registry| {
+                let select_chain = select_chain
+                    .take()
+                    .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
+                let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
+                    client.clone(),
+                    &(client.clone() as std::sync::Arc<_>),
+                    select_chain,
+                )?;
+                let justification_import = grandpa_block_import.clone();
 
-            let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
-                sc_consensus_babe::Config::get_or_compute(&*client)?,
-                grandpa_block_import,
-                client.clone(),
-            )?;
+                let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
+                    sc_consensus_babe::Config::get_or_compute(&*client)?,
+                    grandpa_block_import,
+                    client.clone(),
+                )?;
 
-            let import_queue = sc_consensus_babe::import_queue(
-                babe_link.clone(),
-                babe_block_import.clone(),
-                Some(Box::new(justification_import)),
-                None,
-                client,
-                inherent_data_providers.clone(),
-            )?;
+                let import_queue = sc_consensus_babe::import_queue(
+                    babe_link.clone(),
+                    babe_block_import.clone(),
+                    Some(Box::new(justification_import)),
+                    None,
+                    client,
+                    inherent_data_providers.clone(),
+                    spawn_task_handle,
+                    prometheus_registry,
+                )?;
 
-            import_setup = Some((babe_block_import, grandpa_link, babe_link));
-            Ok(import_queue)
-        })?;
+                import_setup = Some((babe_block_import, grandpa_link, babe_link));
+                Ok(import_queue)
+            },
+        )?;
 
         (builder, import_setup, inherent_data_providers)
     }};
@@ -249,6 +258,7 @@ macro_rules! new_full {
                 telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
                 voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
                 prometheus_registry: service.prometheus_registry(),
+                shared_voter_state: sc_finality_grandpa::SharedVoterState::empty(),
             };
 
             // the GRANDPA voter task is considered infallible, i.e.
@@ -320,38 +330,51 @@ macro_rules! new_light {
             );
             Ok(pool)
         })?
-        .with_import_queue_and_fprb(|_, client, backend, fetcher, _, _| {
-            let fetch_checker = fetcher
-                .map(|fetcher| fetcher.checker().clone())
-                .ok_or_else(|| "Trying to start light import queue without active fetch checker")?;
-            let grandpa_block_import = sc_finality_grandpa::light_block_import(
-                client.clone(),
-                backend,
-                &(client.clone() as Arc<_>),
-                Arc::new(fetch_checker),
-            )?;
+        .with_import_queue_and_fprb(
+            |_config,
+             client,
+             backend,
+             fetcher,
+             _select_chain,
+             _tx_pool,
+             spawn_task_handle,
+             registry| {
+                let fetch_checker = fetcher
+                    .map(|fetcher| fetcher.checker().clone())
+                    .ok_or_else(|| {
+                        "Trying to start light import queue without active fetch checker"
+                    })?;
+                let grandpa_block_import = sc_finality_grandpa::light_block_import(
+                    client.clone(),
+                    backend,
+                    &(client.clone() as Arc<_>),
+                    Arc::new(fetch_checker),
+                )?;
 
-            let finality_proof_import = grandpa_block_import.clone();
-            let finality_proof_request_builder =
-                finality_proof_import.create_finality_proof_request_builder();
+                let finality_proof_import = grandpa_block_import.clone();
+                let finality_proof_request_builder =
+                    finality_proof_import.create_finality_proof_request_builder();
 
-            let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
-                sc_consensus_babe::Config::get_or_compute(&*client)?,
-                grandpa_block_import,
-                client.clone(),
-            )?;
+                let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
+                    sc_consensus_babe::Config::get_or_compute(&*client)?,
+                    grandpa_block_import,
+                    client.clone(),
+                )?;
 
-            let import_queue = sc_consensus_babe::import_queue(
-                babe_link,
-                babe_block_import,
-                None,
-                Some(Box::new(finality_proof_import)),
-                client,
-                inherent_data_providers,
-            )?;
+                let import_queue = sc_consensus_babe::import_queue(
+                    babe_link,
+                    babe_block_import,
+                    None,
+                    Some(Box::new(finality_proof_import)),
+                    client,
+                    inherent_data_providers,
+                    spawn_task_handle,
+                    registry,
+                )?;
 
-            Ok((import_queue, finality_proof_request_builder))
-        })?
+                Ok((import_queue, finality_proof_request_builder))
+            },
+        )?
         .with_finality_proof_provider(|client, backend| {
             // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
             let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;

@@ -20,10 +20,11 @@
 use crate::error::Result;
 use crate::runtime::pallet_datalog;
 use crate::runtime::Robonomics;
+use pallet_datalog::*;
 use sp_core::crypto::Pair;
 
 /// Sign datalog record and send using remote Robonomics node.
-pub async fn submit<T: Pair>(signer: T, remote: String, record: Vec<u8>) -> Result<[u8; 32]>
+pub async fn submit<T: Pair>(signer: T, remote: String, data_record: Vec<u8>) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
     sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
@@ -35,7 +36,7 @@ where
         .await?
         .xt(signer, None)
         .await?
-        .submit(pallet_datalog::record::<Robonomics>(record))
+        .record(data_record)
         .await?;
     log::debug!(
         target: "robonomics-datalog",

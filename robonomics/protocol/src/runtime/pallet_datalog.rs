@@ -17,24 +17,52 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! SubXt compatible robonomics-datalog pallet abstration.
 
-use codec::{Codec, EncodeLike};
+use codec::{Codec, Decode, Encode, EncodeLike};
+use core::marker::PhantomData;
 use sp_runtime::traits::Member;
-use substrate_subxt::{system, Call};
+use std::fmt::Debug;
+use substrate_subxt::system::{System, SystemEventsDecoder};
+use substrate_subxt_proc_macro::{module, Call, Event, Store};
 
 /// The subset of the `pallet_robonomics_datalog::Trait` that a client must implement.
-pub trait Datalog: system::System {
-    type Record: Codec + EncodeLike + Member;
+#[module]
+pub trait Datalog: System {
+    type Record: Codec + EncodeLike + Member + Default;
 }
 
-const MODULE: &str = "Datalog";
-const RECORD: &str = "record";
-
-/// Arguments for datalog record call.
-#[derive(codec::Encode)]
-pub struct RecordArgs<T: Datalog> {
-    record: <T as Datalog>::Record,
+/// Send new data record into blockchain.
+#[derive(Clone, Debug, Eq, PartialEq, Call, Encode)]
+pub struct RecordCall<T: Datalog> {
+    record: T::Record,
 }
 
-pub fn record<T: Datalog>(record: <T as Datalog>::Record) -> Call<RecordArgs<T>> {
-    Call::new(MODULE, RECORD, RecordArgs { record })
+/// New datalog record created.
+#[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
+pub struct NewRecordEvent<T: Datalog> {
+    /// Sender account.
+    pub sender: <T as System>::AccountId,
+    /// Inblock time stamp.
+    pub timestamp: u64,
+    /// Data record.
+    pub record: T::Record,
+}
+
+/// Erease all stored data.
+#[derive(Clone, Debug, Eq, PartialEq, Call, Encode)]
+pub struct EreaseCall<T: Datalog> {
+    /// Runtime marker.
+    pub _runtime: PhantomData<T>,
+}
+
+/// Account datalog storage ereased.
+#[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
+pub struct ErasedEvent<T: Datalog> {
+    pub sender: <T as System>::AccountId,
+}
+
+///
+#[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
+pub struct DatalogStore<'a, T: Datalog> {
+    #[store(returns = Vec<(u64, T::Record)>)]
+    account_id: &'a <T as System>::AccountId,
 }

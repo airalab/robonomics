@@ -1,18 +1,20 @@
-// Copyright 2018-2020 Parity Technologies (UK) Ltd.
 // This file is part of Substrate.
 
-// Substrate is free software: you can redistribute it and/or modify
+// Copyright (C) 2018-2020 Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Substrate is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
@@ -22,10 +24,10 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use clap::{App, ArgMatches, SubCommand};
 use codec::{Decode, Encode};
 use hex_literal::hex;
-use ipci_runtime::{Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
 use itertools::Itertools;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use node_primitives::{AccountId, Balance, Hash, Index, Signature};
+use node_runtime::{BalancesCall, Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
 use serde_json::json;
 use sp_core::{
     crypto::{set_default_ss58_version, Ss58AddressFormat, Ss58Codec},
@@ -35,7 +37,8 @@ use sp_core::{
 };
 use sp_runtime::{
     generic::Era,
-    traits::{IdentifyAccount, Verify},
+    traits::{AccountIdConversion, IdentifyAccount, Verify},
+    ModuleId,
 };
 use std::{
     convert::{TryFrom, TryInto},
@@ -88,6 +91,7 @@ trait Crypto: Sized {
     ) where
         <Self::Pair as Pair>::Public: PublicT,
     {
+        let v = network_override.unwrap_or_default();
         if let Ok((pair, seed)) = Self::Pair::from_phrase(uri, password) {
             let public_key = Self::public_from_pair(&pair);
 
@@ -95,6 +99,7 @@ trait Crypto: Sized {
                 OutputType::Json => {
                     let json = json!({
                         "secretPhrase": uri,
+                        "networkId": String::from(v),
                         "secretSeed": format_seed::<Self>(seed),
                         "publicKey": format_public_key::<Self>(public_key.clone()),
                         "accountId": format_account_id::<Self>(public_key),
@@ -108,11 +113,13 @@ trait Crypto: Sized {
                 OutputType::Text => {
                     println!(
                         "Secret phrase `{}` is account:\n  \
-						Secret seed:      {}\n  \
-						Public key (hex): {}\n  \
-						Account ID:       {}\n  \
-						SS58 Address:     {}",
+						Network ID/version: {}\n  \
+						Secret seed:        {}\n  \
+						Public key (hex):   {}\n  \
+						Account ID:         {}\n  \
+						SS58 Address:       {}",
                         uri,
+                        String::from(v),
                         format_seed::<Self>(seed),
                         format_public_key::<Self>(public_key.clone()),
                         format_account_id::<Self>(public_key),
@@ -127,6 +134,7 @@ trait Crypto: Sized {
                 OutputType::Json => {
                     let json = json!({
                         "secretKeyUri": uri,
+                        "networkId": String::from(v),
                         "secretSeed": if let Some(seed) = seed { format_seed::<Self>(seed) } else { "n/a".into() },
                         "publicKey": format_public_key::<Self>(public_key.clone()),
                         "accountId": format_account_id::<Self>(public_key),
@@ -140,11 +148,13 @@ trait Crypto: Sized {
                 OutputType::Text => {
                     println!(
                         "Secret Key URI `{}` is account:\n  \
-						Secret seed:      {}\n  \
-						Public key (hex): {}\n  \
-						Account ID:       {}\n  \
-						SS58 Address:     {}",
+						Network ID/version: {}\n  \
+						Secret seed:        {}\n  \
+						Public key (hex):   {}\n  \
+						Account ID:         {}\n  \
+						SS58 Address:       {}",
                         uri,
+                        String::from(v),
                         if let Some(seed) = seed {
                             format_seed::<Self>(seed)
                         } else {
@@ -335,8 +345,8 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 			SubCommand::with_name("transfer")
 				.about("Author and sign a Node pallet_balances::Transfer transaction with a given (secret) key")
 				.args_from_usage("
-                    [genesis] -g, --genesis [genesis] 'The genesis hash or a recognized \
-											chain identifier (ipci).'
+                    [genesis] -g, --genesis <genesis> 'The genesis hash or a recognized \
+											chain identifier (dev, elm, alex, ipci).'
 					<from> 'The signing secret key URI.'
 					<to> 'The destination account public key URI.'
 					<amount> 'The number of units to transfer.'
@@ -367,6 +377,11 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 					<key-type> 'Key type, examples: \"gran\", or \"imon\" '
 					[node-url] 'Node JSON-RPC endpoint, default \"http:://localhost:9933\"'
 				"),
+			SubCommand::with_name("moduleid")
+				.about("Inspect a module ID address")
+				.args_from_usage("
+					<id> 'The module ID used to derive the account'
+				")
 		])
 }
 
@@ -520,7 +535,7 @@ where
 
             let to: AccountId = read_account_id(matches.value_of("to"));
             let amount = read_required_parameter::<Balance>(matches, "amount")?;
-            let function = Call::Balances(pallet_balances::Call::transfer(to.into(), amount));
+            let function = Call::Balances(BalancesCall::transfer(to.into(), amount));
 
             let extrinsic = create_extrinsic::<C>(function, index, signer, genesis_hash);
 
@@ -564,6 +579,28 @@ where
                 key_type.to_string(),
                 suri,
                 sp_core::Bytes(pair.public().as_ref().to_vec()),
+            );
+        }
+        ("moduleid", Some(matches)) => {
+            let id = get_uri("id", &matches)?;
+            if id.len() != 8 {
+                Err("a module id must be a string of 8 characters")?
+            }
+
+            let id_fixed_array: [u8; 8] = id.as_bytes().try_into().map_err(|_| {
+                Error::Static(
+                    "Cannot convert argument to moduleid: argument should be 8-character string",
+                )
+            })?;
+
+            let account_id: AccountId = ModuleId(id_fixed_array).into_account();
+            let v = maybe_network.unwrap_or(Ss58AddressFormat::SubstrateAccount);
+
+            C::print_from_uri(
+                &account_id.to_ss58check_with_version(v),
+                password,
+                maybe_network,
+                output,
             );
         }
         _ => print_usage(&matches),
@@ -639,6 +676,8 @@ where
 
 fn read_genesis_hash(matches: &ArgMatches) -> Result<H256, Error> {
     let genesis_hash: Hash = match matches.value_of("genesis").unwrap_or("ipci") {
+        "elm" => hex!["10c08714a10c7da78f40a60f6f732cf0dba97acfb5e2035445b032386157d5c3"].into(),
+        "alex" => hex!["dcd1346701ca8396496e52aa2785b1748deb6db09551b72159dcb3e08991025b"].into(),
         "ipci" => hex!["7372b32137952f3047d30bfe1ffd240bc5e70f7a61d9a0cbf16e910dbb673f84"].into(),
         h => Decode::decode(&mut &decode_hex(h)?[..])
             .expect("Invalid genesis hash or unrecognized chain identifier"),
@@ -755,21 +794,25 @@ where
 {
     let extra = |i: Index, f: Balance| {
         (
-            frame_system::CheckVersion::<Runtime>::new(),
+            frame_system::CheckSpecVersion::<Runtime>::new(),
+            frame_system::CheckTxVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckEra::<Runtime>::from(Era::Immortal),
             frame_system::CheckNonce::<Runtime>::from(i),
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(f),
+            pallet_grandpa::ValidateEquivocationReport::<Runtime>::new(),
         )
     };
     let raw_payload = SignedPayload::from_raw(
         function,
         extra(index, 0),
         (
-            VERSION.spec_version as u32,
+            VERSION.spec_version,
+            VERSION.transaction_version,
             genesis_hash,
             genesis_hash,
+            (),
             (),
             (),
             (),

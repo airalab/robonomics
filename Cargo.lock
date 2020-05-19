@@ -33,9 +33,9 @@ dependencies = [
 
 [[package]]
 name = "addr2line"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "456d75cbb82da1ad150c8a9d97285ffcd21c9931dcb11e995903e7d75141b38b"
+checksum = "a49806b9dadc843c61e7c97e72490ad7f7220ae249012fbda9ad0609457c0543"
 dependencies = [
  "gimli 0.21.0",
 ]
@@ -4180,6 +4180,7 @@ dependencies = [
  "sc-cli",
  "sc-client-api",
  "sc-client-db",
+ "sc-consensus",
  "sc-consensus-babe",
  "sc-executor",
  "sc-finality-grandpa",
@@ -4218,7 +4219,10 @@ dependencies = [
 name = "node-primitives"
 version = "0.18.1"
 dependencies = [
+ "frame-system",
+ "parity-scale-codec",
  "pretty_assertions",
+ "sp-application-crypto",
  "sp-core",
  "sp-runtime",
  "sp-serializer",
@@ -5108,18 +5112,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "0.4.16"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81d480cb4e89522ccda96d0eed9af94180b7a5f93fb28f66e1fd7d68431663d1"
+checksum = "edc93aeee735e60ecb40cf740eb319ff23eab1c5748abfdb5c180e4ce49f7791"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "0.4.16"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a82996f11efccb19b685b14b5df818de31c1edcee3daa256ab5775dd98e72feb"
+checksum = "e58db2081ba5b4c93bd6be09c40fd36cb9193a8336c384f3b40012e531aa7e40"
 dependencies = [
  "proc-macro2",
  "quote 1.0.6",
@@ -5787,7 +5791,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-protocol"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bincode",
  "derive_more",
@@ -5801,6 +5805,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "substrate-subxt",
+ "substrate-subxt-proc-macro",
 ]
 
 [[package]]
@@ -7670,9 +7675,9 @@ dependencies = [
 
 [[package]]
 name = "sp-phragmen-compact"
-version = "2.0.0-dev.1"
+version = "2.0.0-alpha.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71340d9a66d5e617b3bf00df5d56625c2d504f16f3f66614b5294a2ff49de0ba"
+checksum = "6bb03d4c62d5ff85f574cfe41771da9bfd7f7f138016f0fb56ed4692deac013c"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -8014,7 +8019,7 @@ dependencies = [
 
 [[package]]
 name = "subkey"
-version = "2.0.0-alpha.5"
+version = "0.18.1"
 dependencies = [
  "clap",
  "derive_more",
@@ -8029,6 +8034,7 @@ dependencies = [
  "libp2p 0.16.2",
  "node-primitives",
  "pallet-balances",
+ "pallet-grandpa",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "rand 0.7.3",
@@ -8139,9 +8145,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-subxt"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61410b2a4fa3f6c05c2d1c9544c65a9a432eccb8aa921037406252e873159c49"
+checksum = "3536f9a71476d53d824008f9c546d9bdbc6eae89abdababa201f0f309d435261"
 dependencies = [
  "frame-metadata",
  "frame-support",
@@ -8152,6 +8158,7 @@ dependencies = [
  "num-traits 0.2.11",
  "pallet-indices",
  "parity-scale-codec",
+ "sc-rpc-api",
  "serde",
  "serde_json",
  "sp-core",
@@ -8159,8 +8166,23 @@ dependencies = [
  "sp-runtime",
  "sp-transaction-pool",
  "sp-version",
+ "substrate-subxt-proc-macro",
  "thiserror",
  "url 2.1.1",
+]
+
+[[package]]
+name = "substrate-subxt-proc-macro"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e322605091419009a2d2cad6313d397624574690d670b7600654078b5dbf99ef"
+dependencies = [
+ "heck",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote 1.0.6",
+ "syn 1.0.22",
+ "synstructure",
 ]
 
 [[package]]
@@ -8641,9 +8663,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4adb8b3e5f86b707f1b54e7c15b6de52617a823608ccda98a15d3a24222f265a"
+checksum = "15cb62a0d2770787abc96e99c1cd98fcf17f94959f3af63ca85bdfb203f051b4"
 dependencies = [
  "futures-core",
  "rustls 0.17.0",

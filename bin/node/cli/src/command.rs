@@ -21,7 +21,7 @@ use crate::{
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::{CliConfiguration, SubstrateCli};
+use sc_cli::SubstrateCli;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -65,9 +65,8 @@ impl SubstrateCli for Cli {
 
 /// Parse command line arguments into service configuration.
 pub fn run() -> sc_cli::Result<()> {
-    sc_cli::reset_signal_pipe_handler()?;
-
     let cli = Cli::from_args();
+
     match &cli.subcommand {
         None => {
             let runner = cli.create_runner(&cli.run)?;
