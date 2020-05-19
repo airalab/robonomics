@@ -15,14 +15,16 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+///! Substrate API in ROS namespace.
 use futures::future::{join, Future, FutureExt};
 use rosrust::api::error::Error;
-use sc_client::Client;
+use sc_client_api::{
+    backend::Backend, BlockBackend, BlockchainEvents, ExecutorProvider, StorageProvider,
+};
 use sc_network::{ExHashT, NetworkService};
-///! Substrate API in ROS namespace.
 pub use sc_rpc::system::helpers::SystemInfo;
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::Error as ClientError;
+use sp_api::{CallApiAt, ProvideRuntimeApi};
+use sp_blockchain::{Error as ClientError, HeaderBackend};
 use sp_core::{traits::BareCryptoStorePtr, H256};
 use sp_runtime::traits;
 use sp_session::SessionKeys;
@@ -34,23 +36,29 @@ pub mod chain;
 pub mod state;
 pub mod system;
 
-pub fn start<B, E, RA, P, H>(
+pub fn start<BE, H, P, Client>(
     system_info: SystemInfo,
-    service_client: Arc<Client<B, E, P::Block, RA>>,
+    service_client: Arc<Client>,
     service_network: Arc<NetworkService<P::Block, H>>,
     service_transaction_pool: Arc<P>,
     service_keystore: BareCryptoStorePtr,
 ) -> Result<(Vec<rosrust::Service>, impl Future<Output = ()>), Error>
 where
-    B: sc_client_api::backend::Backend<<P as TransactionPool>::Block> + Send + Sync + 'static,
-    E: sc_client_api::CallExecutor<<P as TransactionPool>::Block> + Clone + Send + Sync + 'static,
-    P: TransactionPool<Hash = H256> + Sync + Send + 'static,
-    RA: Send + Sync + 'static,
-    P::Block: traits::Block<Hash = H256>,
-    Client<B, E, P::Block, RA>: ProvideRuntimeApi<P::Block>,
-    <Client<B, E, P::Block, RA> as ProvideRuntimeApi<P::Block>>::Api:
-        SessionKeys<P::Block, Error = ClientError>,
+    BE: Backend<P::Block> + 'static,
     H: ExHashT + Clone + Sync,
+    P: TransactionPool<Hash = H256> + Sync + Send + 'static,
+    P::Block: traits::Block<Hash = H256>,
+    Client: HeaderBackend<P::Block>
+        + BlockBackend<P::Block>
+        + BlockchainEvents<P::Block>
+        + StorageProvider<P::Block, BE>
+        + ExecutorProvider<P::Block>
+        + ProvideRuntimeApi<P::Block>
+        + CallApiAt<P::Block>
+        + Send
+        + Sync
+        + 'static,
+    Client::Api: SessionKeys<P::Block, Error = ClientError>,
     u64: From<<<P::Block as traits::Block>::Header as traits::Header>::Number>,
 {
     let system = system::System::new(system_info, service_network);

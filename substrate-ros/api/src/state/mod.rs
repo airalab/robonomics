@@ -16,59 +16,68 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use sc_client::Client;
 use sc_client_api::{
     backend::{Backend, StorageProvider},
     call_executor::ExecutorProvider,
     CallExecutor,
 };
+use sp_api::CallApiAt;
+use sp_blockchain::HeaderBackend;
 use sp_core::{storage, H256};
 use sp_runtime::{generic::BlockId, traits};
 use sp_state_machine::ExecutionStrategy;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 mod ros_api;
 pub use ros_api::start_services;
 
 /// Chain state API
-pub struct FullState<B, E, Block: traits::Block, RA> {
+pub struct FullState<BE, Client, Block: traits::Block> {
     /// Substrate full client implementation
-    client: Arc<Client<B, E, Block, RA>>,
+    client: Arc<Client>,
+    /// phantom member to pin block type
+    _phantom: PhantomData<(BE, Block)>,
 }
 
-impl<B, E, Block: traits::Block, RA> Clone for FullState<B, E, Block, RA> {
-    fn clone(&self) -> FullState<B, E, Block, RA> {
-        FullState {
+impl<BE, Client, Block: traits::Block> Clone for FullState<BE, Client, Block> {
+    fn clone(&self) -> Self {
+        Self {
             client: self.client.clone(),
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<B, E, Block, RA> FullState<B, E, Block, RA>
+impl<BE, Client, Block> FullState<BE, Client, Block>
 where
     Block: traits::Block<Hash = H256> + 'static,
-    B: Backend<Block> + Send + Sync + 'static,
-    E: CallExecutor<Block> + Send + Sync + 'static,
-    RA: Send + Sync + 'static,
+    Client: HeaderBackend<Block> + 'static,
 {
     pub fn unwrap_or_best(&self, mb_hash: Option<ros_api::Hash>) -> Block::Hash {
         match mb_hash {
             Some(hash) => hash.into(),
-            None => self.client.chain_info().best_hash,
+            None => self.client.info().best_hash,
         }
     }
 
-    pub fn new(client: Arc<Client<B, E, Block, RA>>) -> Self {
-        FullState { client }
+    pub fn new(client: Arc<Client>) -> Self {
+        Self {
+            client,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<B, E, Block, RA> ros_api::StateApi for FullState<B, E, Block, RA>
+impl<BE, Client, Block> ros_api::StateApi for FullState<BE, Client, Block>
 where
+    BE: Backend<Block>,
     Block: traits::Block<Hash = H256> + 'static,
-    B: Backend<Block> + Send + Sync + 'static,
-    E: CallExecutor<Block> + Send + Sync + 'static,
-    RA: Send + Sync + 'static,
+    Client: StorageProvider<Block, BE>
+        + HeaderBackend<Block>
+        + ExecutorProvider<Block>
+        + CallApiAt<Block>
+        + 'static,
 {
     fn call(
         &self,
@@ -143,7 +152,7 @@ where
     fn runtime_version(&self, block: Option<ros_api::Hash>) -> Result<String, String> {
         self.client
             .runtime_version_at(&BlockId::Hash(self.unwrap_or_best(block)))
-            .map_err(|e| format!("state error: {}", e))
+            .map_err(|e| format!("state error: {:?}", e))
             .map(|version| serde_json::to_string(&version).unwrap())
     }
 }

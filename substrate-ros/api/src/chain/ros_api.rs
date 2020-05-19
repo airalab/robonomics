@@ -24,7 +24,7 @@ use msgs::substrate_ros_msgs::{
     GetBlockHeader, GetBlockHeaderRes, GetBlockRes, GetFinalizedHead, GetFinalizedHeadRes,
 };
 use rosrust::api::error::Error;
-use sc_client::BlockchainEvents;
+use sc_client_api::BlockchainEvents;
 use sp_core::H256;
 use sp_runtime::traits::{self, Header};
 
