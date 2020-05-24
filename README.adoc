@@ -1,12 +1,15 @@
-= Robonomics on Substrate
-:Author: Robonomics developers
-:Revision: 0.1.0
+= The Robonomics Framework
+
+:Author: Robonomics Network Developers
+:Revision: 0.2.0
 :toc:
 :sectnums:
 
-image:https://github.com/airalab/robonomics/workflows/Integration/badge.svg?branch=master["Integration Status", link="https://github.com/airalab/robonomics/actions"]
-image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
+image:https://img.shields.io/github/license/airalab/robonomics["License", link="https://github.com/airalab/robonomics/blob/master/LICENSE"]
+image:https://github.com/airalab/robonomics/workflows/Integration/badge.svg?branch=master["CI Status", link="https://github.com/airalab/robonomics/actions"]
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
+image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
+image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
 == Intro
 
@@ -16,17 +19,19 @@ This source is a part of AIRA project. It implements their purposes using Substr
 
 == Try it out
 
- . Import https://github.com/airalab/robonomics/blob/master/bin/node/cli/res/custom_types.json[custom data types] at https://polkadot.js.org/apps/#/settings/developer[Substrate UI]: Developer settings
- . Open https://polkadot.js.org/apps/#/settings[Substrate UI]: General settings
- . Set `custom` node endpoint to `wss://substrate.robonomics.network`
- . Save and reload
+- Open https://parachain.robonomics.network/#/settings[Robonomics Portal].
 
-When connection is success you can explore `Robonomics testnet` using Substrate UI.
+When connection is success you can explore `Robonomics Testnet` and `DAO IPCI` chain.
 
- - Accounts management: https://polkadot.js.org/apps/#/accounts
- - Looking for network events: https://polkadot.js.org/apps/#/explorer
- - Transfer test XRT: https://polkadot.js.org/apps/#/transfer
- - Send extrinsics to robonomics module: https://polkadot.js.org/apps/#/extrinsics
+ - Accounts management: https://parachain.robonomics.network/#/accounts
+ - Looking for network events: https://parachain.robonomics.network/#/explorer
+ - Transfer test XRT: https://parachain.robonomics.network/#/transfer
+ - Send extrinsics to robonomics modules: https://parachain.robonomics.network/#/extrinsics
+
+== Documentation
+
+- Robonomics wiki pages: https://wiki.robonomics.network 
+- Framework Documentation: https://crates.robonomics.network
 
 == Install node
 
@@ -72,7 +77,7 @@ Install robonomics node from git source:
 [source, shell]
 cargo install --force --git https://github.com/airalab/robonomics --tag v0.18.1 node-cli
 
-Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics testnet]:
+Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics Testnet]:
 
 [source, shell]
 robonomics
@@ -113,28 +118,26 @@ For nodes that can be online 24/7 also available most important role on chain - 
 [source, shell]
 robonomics
 
- . Open https://polkadot.js.org/apps/#/settings[Settings] and switch UI to `Local Node` mode (don't foget import https://github.com/airalab/robonomics/blob/master/res/custom_types.json[Custom Types] on https://polkadot.js.org/apps/#/settings/developer[Developer Settings]).
-
- . Generate session keys during RPC call at https://polkadot.js.org/apps/#/toolbox[Toolbox page]:
+ . Generate session keys during RPC call at https://parachain.robonomics.network/#/toolbox[Toolbox page]:
  .. Submit RPC call `author:rotateKeys()` and copy result, it will be required later.
 
  . Restart node in validator mode.
 [source, shell]
 robonomics --validator
 
- . Generate accounts at https://polkadot.js.org/apps/#/accounts/create[Account page]:
+ . Generate accounts at https://parachain.robonomics.network/#/accounts/create[Account page]:
  .. create `stash` usign `Schnorrkel (sr25519)` crypto;
  .. create `controller` using `Schnorrkel (sr25519)` crypto.
 
- . Request testnet XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room] or use https://faucets.blockxlabs.com[Faucet].
+ . Request testnet XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
  . Transfer testnet XRT to `stash` and a little bit to `controller` account.
 
- . https://polkadot.js.org/apps/#/staking/actions[Staking actions]:
+ . https://parachain.robonomics.network/#/staking/actions[Staking actions]:
  .. call `New stake` for `stash` and `controller` accounts;
  .. call `Set Session Key` for result account pair and paste session key given in step before;
  .. call `Validate` action.
 
- . Check https://polkadot.js.org/apps/#/staking[Validator List], at new Era validator set will updated.
+ . Check https://parachain.robonomics.network/#/staking[Validator List], at new Era validator set will updated.
 
 == Robotics integration
 
