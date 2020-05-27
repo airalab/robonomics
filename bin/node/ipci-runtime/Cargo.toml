@@ -51,6 +51,7 @@ frame-support = { version = "2.0.0-rc2", default-features = false }
 frame-benchmarking = { version = "2.0.0-rc2", default-features = false, optional = true }
 frame-system = { version = "2.0.0-rc2", default-features = false }
 frame-system-rpc-runtime-api = { version = "2.0.0-rc2", default-features = false }
+frame-system-benchmarking = { version = "2.0.0-rc2", default-features = false, optional = true }
 pallet-utility = { version = "2.0.0-rc2", default-features = false }
 pallet-timestamp = { version = "2.0.0-rc2", default-features = false }
 pallet-transaction-payment = { version = "2.0.0-rc2", default-features = false }
@@ -59,6 +60,9 @@ pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", defaul
 
 [build-dependencies]
 substrate-wasm-builder-runner = "1.0.6"
+
+[dev-dependencies]
+sp-io = "2.0.0-rc2"
 
 [features]
 default = ["std"]
@@ -118,4 +122,5 @@ runtime-benchmarks = [
     "pallet-utility/runtime-benchmarks",
     "pallet-session-benchmarking",
     "pallet-offences-benchmarking",
+    "frame-system-benchmarking",
 ]

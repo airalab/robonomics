@@ -100,8 +100,8 @@ impl<T: Get<Perquintill>> Convert<Fixed128, Fixed128> for TargetedFeeAdjustment<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{constants::currency::*, TargetBlockFullness, TransactionPayment};
     use crate::{AvailableBlockRatio, MaximumBlockWeight, Runtime};
+    use crate::{TargetBlockFullness, TransactionPayment};
     use frame_support::weights::{Weight, WeightToFeePolynomial};
     use sp_runtime::assert_eq_error_rate;
 
@@ -228,14 +228,8 @@ mod tests {
                     <Runtime as pallet_transaction_payment::Trait>::WeightToFee::calc(&tx_weight);
                 let adjusted_fee = fm.saturating_mul_acc_int(fee);
                 println!(
-                    "iteration {}, new fm = {:?}. Fee at this point is: {} units / {} millicents, \
-                    {} cents, {} dollars",
-                    iterations,
-                    fm,
-                    adjusted_fee,
-                    adjusted_fee / MILLICENTS,
-                    adjusted_fee / CENTS,
-                    adjusted_fee / DOLLARS,
+                    "iteration {}, new fm = {:?}. Fee at this point is: {} units",
+                    iterations, fm, adjusted_fee,
                 );
             }
         });

@@ -233,18 +233,6 @@ pub struct PubSub {
 
 impl PubSub {
     /// Create Gossipsub based PubSub service and worker.
-    ///
-    /// Usage:
-    /// ```
-    ///     let (pubsub, worker) = PubSub:new()?;
-    ///     task::spawn(worker);
-    ///     ...
-    ///     task::block_on(pubsub.subscribe("test-topic").map(|msg|
-    ///         println!("{}", msg.data)
-    ///     )
-    ///     ... in different thread
-    ///     pubsub.publish("test-topic", "hello world!".as_bytes())
-    /// ```
     pub fn new(
         heartbeat_interval: Duration,
     ) -> Result<(Arc<Self>, impl Future<Output = Result<()>>)> {

@@ -1649,6 +1649,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame-system-benchmarking"
+version = "2.0.0-rc2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "422afef8bec6bb5b2cb2a946b9dd89e52c40675160855d077eeba79ca1eae37c"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "frame-system-rpc-runtime-api"
 version = "2.0.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2434,6 +2449,7 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "lazy_static",
@@ -2468,6 +2484,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
+ "sp-io",
  "sp-offchain",
  "sp-runtime",
  "sp-session",
@@ -4543,6 +4560,7 @@ version = "2.0.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9de653fd137a36d3072d3b09cbdbe79acabffbcb3e28e99dcb33fe6cee3f2add"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4559,6 +4577,7 @@ version = "2.0.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cd6af3167e06e25f60005e7c915bd7724115c65171d531b30d114240e2d81ae"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4899,6 +4918,7 @@ version = "2.0.0-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d772432dfe47c3b6fcf92e5827998c689c72ed6f97fde23e791912636e98be9"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",
@@ -5902,7 +5922,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-protocol"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "bincode",
  "derive_more",
@@ -5927,6 +5947,7 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "node-primitives",
  "pallet-authority-discovery",
@@ -5964,6 +5985,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
+ "sp-io",
  "sp-offchain",
  "sp-runtime",
  "sp-session",
@@ -8172,7 +8194,7 @@ dependencies = [
 
 [[package]]
 name = "subkey"
-version = "0.18.1"
+version = "0.18.2"
 dependencies = [
  "clap",
  "derive_more",
@@ -8298,9 +8320,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-subxt"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3536f9a71476d53d824008f9c546d9bdbc6eae89abdababa201f0f309d435261"
+checksum = "e04cf049fd3fdc721047a9b0e691d0a4f0725c24bc14de2925626134dc22dc63"
 dependencies = [
  "frame-metadata",
  "frame-support",
@@ -8326,9 +8348,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-subxt-proc-macro"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e322605091419009a2d2cad6313d397624574690d670b7600654078b5dbf99ef"
+checksum = "baac8ea91eaadc18a1139fec3e7a3ffc674a65f8873483350d1541f69f28e7f2"
 dependencies = [
  "heck",
  "proc-macro-crate",

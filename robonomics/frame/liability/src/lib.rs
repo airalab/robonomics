@@ -332,6 +332,10 @@ mod tests {
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type DbWeight = ();
+        type BlockExecutionWeight = ();
+        type ExtrinsicBaseWeight = ();
+        type MaximumExtrinsicWeight = ();
     }
 
     impl Trait for Runtime {
