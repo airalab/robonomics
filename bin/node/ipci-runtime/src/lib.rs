@@ -34,7 +34,10 @@ use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{KeyOwnerProofSystem, Randomness},
-    weights::{RuntimeDbWeight, Weight},
+    weights::{
+        Weight, IdentityFee,
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+    },
 };
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
@@ -51,7 +54,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup,
+    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys,
+    SaturatedConversion, Saturating, StaticLookup,
 };
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
@@ -92,16 +96,14 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
-    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
     /// We allow for 2 seconds of compute with a 6 second average block time.
-    pub const MaximumBlockWeight: Weight = 2_000_000_000_000;
-    pub const ExtrinsicBaseWeight: Weight = 10_000_000;
+    pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    /// Assume 10% of weight for average on_initialize calls 
+    pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
     pub const Version: RuntimeVersion = VERSION;
-    pub const DbWeight: RuntimeDbWeight = RuntimeDbWeight {
-        read: 60_000_000, // ~0.06 ms = ~60 µs
-        write: 200_000_000, // ~0.2 ms = 200 µs
-    };
 }
 
 impl frame_system::Trait for Runtime {
@@ -116,10 +118,11 @@ impl frame_system::Trait for Runtime {
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     type Event = Event;
     type Origin = Origin;
-    type DbWeight = DbWeight;
-    type BlockExecutionWeight = ();
+    type DbWeight = RocksDbWeight;
+    type BlockExecutionWeight = BlockExecutionWeight;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type BlockHashCount = BlockHashCount;
+    type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
@@ -144,6 +147,7 @@ impl pallet_utility::Trait for Runtime {
     type MultisigDepositBase = MultisigDepositBase;
     type MultisigDepositFactor = MultisigDepositFactor;
     type MaxSignatories = MaxSignatories;
+    type IsCallable = ();
 }
 
 parameter_types! {
@@ -203,8 +207,6 @@ impl pallet_balances::Trait for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1 * U_MITO;
-    // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1_000;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
@@ -213,7 +215,7 @@ impl pallet_transaction_payment::Trait for Runtime {
     type Currency = Balances;
     type OnTransactionPayment = ();
     type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = impls::LinearWeightToFee<WeightFeeCoefficient>;
+    type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
 }
 
@@ -368,10 +370,15 @@ impl pallet_im_online::Trait for Runtime {
     type UnsignedPriority = ImOnlineUnsignedPriority;
 }
 
+parameter_types! {
+    pub const OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * MaximumBlockWeight::get();
+}
+
 impl pallet_offences::Trait for Runtime {
     type Event = Event;
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
+    type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {
