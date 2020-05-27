@@ -17,11 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Some configurable implementations as associated type for the substrate runtime.
 
+use crate::{Authorship, Balances, MaximumBlockWeight, NegativeImbalance, System};
+use frame_support::traits::{Currency, Get, OnUnbalanced};
 use node_primitives::Balance;
 use sp_runtime::traits::{Convert, Saturating};
-use sp_runtime::{FixedPointNumber, Fixed128, Perquintill};
-use frame_support::traits::{OnUnbalanced, Currency, Get};
-use crate::{Balances, System, Authorship, MaximumBlockWeight, NegativeImbalance};
+use sp_runtime::{Fixed128, FixedPointNumber, Perquintill};
 
 pub struct Author;
 impl OnUnbalanced<NegativeImbalance> for Author {
@@ -35,15 +35,21 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-    fn factor() -> Balance { (Balances::total_issuance() / u64::max_value() as Balance).max(1) }
+    fn factor() -> Balance {
+        (Balances::total_issuance() / u64::max_value() as Balance).max(1)
+    }
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
-    fn convert(x: Balance) -> u64 { (x / Self::factor()) as u64 }
+    fn convert(x: Balance) -> u64 {
+        (x / Self::factor()) as u64
+    }
 }
 
 impl Convert<u128, Balance> for CurrencyToVoteHandler {
-    fn convert(x: u128) -> Balance { x * Self::factor() }
+    fn convert(x: u128) -> Balance {
+        x * Self::factor()
+    }
 }
 
 /// Update the given multiplier based on the following formula
@@ -86,7 +92,8 @@ impl<T: Get<Perquintill>> Convert<Fixed128, Fixed128> for TargetedFeeAdjustment<
         } else {
             // Defensive-only: first_term > second_term. Safe subtraction.
             let negative = first_term.saturating_sub(second_term);
-            multiplier.saturating_sub(negative)
+            multiplier
+                .saturating_sub(negative)
                 // despite the fact that apply_to saturates weight (final fee cannot go below 0)
                 // it is crucially important to stop here and don't further reduce the weight fee
                 // multiplier. While at -1, it means that the network is so un-congested that all
@@ -100,10 +107,10 @@ impl<T: Get<Perquintill>> Convert<Fixed128, Fixed128> for TargetedFeeAdjustment<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sp_runtime::assert_eq_error_rate;
-    use crate::{MaximumBlockWeight, AvailableBlockRatio, Runtime};
-    use crate::{constants::currency::*, TransactionPayment, TargetBlockFullness};
+    use crate::{constants::currency::*, TargetBlockFullness, TransactionPayment};
+    use crate::{AvailableBlockRatio, MaximumBlockWeight, Runtime};
     use frame_support::weights::{Weight, WeightToFeePolynomial};
+    use sp_runtime::assert_eq_error_rate;
 
     fn max() -> Weight {
         MaximumBlockWeight::get()
@@ -114,7 +121,7 @@ mod tests {
     }
 
     // poc reference implementation.
-    fn fee_multiplier_update(block_weight: Weight, previous: Fixed128) -> Fixed128  {
+    fn fee_multiplier_update(block_weight: Weight, previous: Fixed128) -> Fixed128 {
         // maximum tx weight
         let m = max() as f64;
         // block weight always truncated to max weight
@@ -126,14 +133,19 @@ mod tests {
         // Current saturation in terms of weight
         let s = block_weight;
 
-        let fm = v * (s/m - ss/m) + v.powi(2) * (s/m - ss/m).powi(2) / 2.0;
+        let fm = v * (s / m - ss / m) + v.powi(2) * (s / m - ss / m).powi(2) / 2.0;
         let addition_fm = Fixed128::from_inner((fm * Fixed128::accuracy() as f64).round() as i128);
         previous.saturating_add(addition_fm)
     }
 
-    fn run_with_system_weight<F>(w: Weight, assertions: F) where F: Fn() -> () {
-        let mut t: sp_io::TestExternalities =
-            frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap().into();
+    fn run_with_system_weight<F>(w: Weight, assertions: F)
+    where
+        F: Fn() -> (),
+    {
+        let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
+            .build_storage::<Runtime>()
+            .unwrap()
+            .into();
         t.execute_with(|| {
             System::set_block_limits(w, 0);
             assertions()
@@ -172,11 +184,18 @@ mod tests {
             loop {
                 let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(fm);
                 fm = next;
-                if fm == Fixed128::saturating_from_integer(-1) { break; }
+                if fm == Fixed128::saturating_from_integer(-1) {
+                    break;
+                }
                 iterations += 1;
             }
-            println!("iteration {}, new fm = {:?}. Weight fee is now zero", iterations, fm);
-            assert!(iterations > 50_000, "This assertion is just a warning; Don't panic. \
+            println!(
+                "iteration {}, new fm = {:?}. Weight fee is now zero",
+                iterations, fm
+            );
+            assert!(
+                iterations > 50_000,
+                "This assertion is just a warning; Don't panic. \
                 Current substrate/polkadot node are configured with a _slow adjusting fee_ \
                 mechanism. Hence, it is really unlikely that fees collapse to zero even on an \
                 empty chain in less than at least of couple of thousands of empty blocks. But this \
@@ -207,7 +226,9 @@ mod tests {
             loop {
                 let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(fm);
                 // if no change, panic. This should never happen in this case.
-                if fm == next { panic!("The fee should ever increase"); }
+                if fm == next {
+                    panic!("The fee should ever increase");
+                }
                 fm = next;
                 iterations += 1;
                 let fee =
@@ -236,7 +257,7 @@ mod tests {
             let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::default());
             assert_eq!(
                 next,
-                fee_multiplier_update(target() / 4 ,Fixed128::default())
+                fee_multiplier_update(target() / 4, Fixed128::default())
             );
 
             // Light block. Fee is reduced a little.
@@ -246,12 +267,11 @@ mod tests {
             let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::default());
             assert_eq!(
                 next,
-                fee_multiplier_update(target() / 2 ,Fixed128::default())
+                fee_multiplier_update(target() / 2, Fixed128::default())
             );
 
             // Light block. Fee is reduced a little.
             assert!(next < Fixed128::zero())
-
         });
         run_with_system_weight(target(), || {
             // ideal. Original fee. No changes.
@@ -263,7 +283,7 @@ mod tests {
             let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::default());
             assert_eq!(
                 next,
-                fee_multiplier_update(target() * 2 ,Fixed128::default())
+                fee_multiplier_update(target() * 2, Fixed128::default())
             );
 
             // Heavy block. Fee is increased a little.
@@ -279,10 +299,7 @@ mod tests {
 
             (0..1_000).for_each(|_| {
                 next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(original);
-                assert_eq!(
-                    next,
-                    fee_multiplier_update(target() * 2, original),
-                );
+                assert_eq!(next, fee_multiplier_update(target() * 2, original),);
                 // must always increase
                 assert!(next > original);
                 original = next;
@@ -298,24 +315,20 @@ mod tests {
 
             // decreases
             next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(original);
-            assert_eq!(
-                next,
-                fee_multiplier_update(0, original),
-            );
+            assert_eq!(next, fee_multiplier_update(0, original),);
             assert!(next < original);
             original = next;
 
             // keeps decreasing
             next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(original);
-            assert_eq!(
-                next,
-                fee_multiplier_update(0, original),
-            );
+            assert_eq!(next, fee_multiplier_update(0, original),);
             assert!(next < original);
 
             // ... stops going down at -1
             assert_eq!(
-                TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::saturating_from_integer(-1)),
+                TargetedFeeAdjustment::<TargetBlockFullness>::convert(
+                    Fixed128::saturating_from_integer(-1)
+                ),
                 Fixed128::saturating_from_integer(-1)
             );
         })
@@ -344,9 +357,12 @@ mod tests {
             MaximumBlockWeight::get(),
             Weight::max_value() / 2,
             Weight::max_value(),
-        ].into_iter().for_each(|i| {
+        ]
+        .into_iter()
+        .for_each(|i| {
             run_with_system_weight(i, || {
-                let next = TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::default());
+                let next =
+                    TargetedFeeAdjustment::<TargetBlockFullness>::convert(Fixed128::default());
                 let truth = fee_multiplier_update(i, Fixed128::default());
                 assert_eq_error_rate!(truth, next, Fixed128::from_inner(50_000_000));
             });
@@ -354,14 +370,12 @@ mod tests {
 
         // Some values that are all above the target and will cause an increase.
         let t = target();
-        vec![t + 100, t * 2, t * 4]
-            .into_iter()
-            .for_each(|i| {
-                run_with_system_weight(i, || {
-                    let fm = TargetedFeeAdjustment::<TargetBlockFullness>::convert(max_fm);
-                    // won't grow. The convert saturates everything.
-                    assert_eq!(fm, max_fm);
-                })
-            });
+        vec![t + 100, t * 2, t * 4].into_iter().for_each(|i| {
+            run_with_system_weight(i, || {
+                let fm = TargetedFeeAdjustment::<TargetBlockFullness>::convert(max_fm);
+                // won't grow. The convert saturates everything.
+                assert_eq!(fm, max_fm);
+            })
+        });
     }
 }

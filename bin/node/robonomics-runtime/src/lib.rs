@@ -32,10 +32,10 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{KeyOwnerProofSystem, Randomness, LockIdentifier, Currency, Imbalance, OnUnbalanced},
+    traits::{Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness},
     weights::{
-        Weight, IdentityFee,
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        IdentityFee, Weight,
     },
 };
 use node_primitives::{
@@ -57,15 +57,15 @@ use sp_core::{
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys,
-    SaturatedConversion, Saturating, StaticLookup,
+    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, Saturating,
+    StaticLookup,
 };
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
 };
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult,
-    Permill, Perbill, Perquintill, Percent, ModuleId,
+    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, ModuleId, Perbill,
+    Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -102,7 +102,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             // for fees, 80% to treasury, 20% to author
             let mut split = fees.ration(80, 20);
@@ -121,7 +121,7 @@ parameter_types! {
     /// We allow for 2 seconds of compute with a 6 second average block time.
     pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    /// Assume 10% of weight for average on_initialize calls 
+    /// Assume 10% of weight for average on_initialize calls
     pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
         .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;

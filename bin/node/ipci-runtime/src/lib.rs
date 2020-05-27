@@ -35,8 +35,8 @@ use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{KeyOwnerProofSystem, Randomness},
     weights::{
-        Weight, IdentityFee,
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        IdentityFee, Weight,
     },
 };
 use node_primitives::{
@@ -54,8 +54,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys,
-    SaturatedConversion, Saturating, StaticLookup,
+    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, Saturating,
+    StaticLookup,
 };
 use sp_runtime::transaction_validity::{
     TransactionPriority, TransactionSource, TransactionValidity,
@@ -99,7 +99,7 @@ parameter_types! {
     /// We allow for 2 seconds of compute with a 6 second average block time.
     pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    /// Assume 10% of weight for average on_initialize calls 
+    /// Assume 10% of weight for average on_initialize calls
     pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
         .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;

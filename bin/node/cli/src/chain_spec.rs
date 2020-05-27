@@ -20,9 +20,9 @@
 use node_primitives::{AccountId, Balance, Block, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use robonomics_runtime::{
-    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-    ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig,
-    SudoConfig, SystemConfig, ElectionsConfig, CouncilConfig, WASM_BINARY,
+    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig, ElectionsConfig,
+    GenesisConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys,
+    StakerStatus, StakingConfig, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -259,11 +259,9 @@ fn mk_genesis(
         }),
         pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
         pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_elections_phragmen: Some(ElectionsConfig {
-			members: vec![],
-		}),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
-		pallet_treasury: Some(Default::default()),
+        pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+        pallet_collective_Instance1: Some(CouncilConfig::default()),
+        pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }
 }
