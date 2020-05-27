@@ -1,5 +1,8 @@
 name: Integration
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      - v*
 jobs:
   native:
     runs-on: ${{ matrix.os }}
@@ -12,7 +15,7 @@ jobs:
       run: choco install llvm
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-02-02'
+        rust-version: 'nightly-2020-05-15'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
@@ -26,6 +29,7 @@ jobs:
     - name: Install ROS Melodic
       if: matrix.os == 'ubuntu-latest'
       run: ./scripts/ros-install.sh
+
     - name: Build optimized binary
       run: cargo build --release --verbose
 
