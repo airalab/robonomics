@@ -17,16 +17,19 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sinkable devices.
 
-use robonomics_protocol::{pubsub::{self, Multiaddr, PubSub as _}, datalog};
-use ipfs_api::{IpfsClient, TryFromUri};
-use sp_core::{sr25519, crypto::Pair};
-use futures::channel::mpsc;
 use async_std::{io, task};
+use futures::channel::mpsc;
 use futures::prelude::*;
-use std::time::Duration;
+use ipfs_api::{IpfsClient, TryFromUri};
+use robonomics_protocol::{
+    datalog,
+    pubsub::{self, Multiaddr, PubSub as _},
+};
+use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;
+use std::time::Duration;
 
-use crate::error::{Result, Error};
+use crate::error::{Error, Result};
 
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
@@ -39,7 +42,7 @@ pub fn stdout() -> impl Sink<String, Error = Error> {
         .sink_err_into()
 }
 
-/// Publish data into PubSub topic. 
+/// Publish data into PubSub topic.
 pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
     listen: Multiaddr,
     bootnodes: Vec<Multiaddr>,
@@ -64,9 +67,7 @@ pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
 
     // Spawn message publisher task
     let (sender, receiver) = mpsc::unbounded();
-    task::spawn(receiver.for_each(move |msg|
-        future::ready(pubsub.publish(&topic_name, msg))
-    ));
+    task::spawn(receiver.for_each(move |msg| future::ready(pubsub.publish(&topic_name, msg))));
 
     Ok(sender.sink_err_into())
 }
@@ -77,14 +78,16 @@ pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
 pub fn datalog<T: Into<Vec<u8>>>(
     remote: String,
     suri: String,
-) -> Result<(impl Sink<T, Error = Error>, impl Stream<Item = Result<[u8; 32]>>)> {
+) -> Result<(
+    impl Sink<T, Error = Error>,
+    impl Stream<Item = Result<[u8; 32]>>,
+)> {
     let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
 
     let (sender, receiver) = mpsc::unbounded();
-    let hashes = receiver.then(move |msg: T|
-        datalog::submit(pair.clone(), remote.clone(), msg.into())
-            .map(|r| r.map_err(Into::into))
-    );
+    let hashes = receiver.then(move |msg: T| {
+        datalog::submit(pair.clone(), remote.clone(), msg.into()).map(|r| r.map_err(Into::into))
+    });
     Ok((sender.sink_err_into(), hashes))
 }
 
@@ -93,17 +96,22 @@ pub fn datalog<T: Into<Vec<u8>>>(
 /// Returns IPFS hash of consumed data objects.
 pub fn ipfs<T>(
     uri: &str,
-) -> Result<(impl Sink<T, Error = Error>, impl Stream<Item = Result<String>>)> where
+) -> Result<(
+    impl Sink<T, Error = Error>,
+    impl Stream<Item = Result<String>>,
+)>
+where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
     let client = IpfsClient::from_str(uri).expect("unvalid uri");
     let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
 
     let (sender, receiver) = mpsc::unbounded();
-    let hashes = receiver.map(move |msg: T|
-        runtime.block_on(client.add(Cursor::new(msg)))
+    let hashes = receiver.map(move |msg: T| {
+        runtime
+            .block_on(client.add(Cursor::new(msg)))
             .map(|value| value.hash)
             .map_err(Into::into)
-    );
+    });
     Ok((sender.sink_err_into(), hashes))
 }

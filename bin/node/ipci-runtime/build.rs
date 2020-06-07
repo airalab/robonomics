@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 use substrate_wasm_builder_runner::WasmBuilder;
 
 fn main() {
-	WasmBuilder::new()
-		.with_current_project()
-		.with_wasm_builder_from_crates("1.0.9")
-		.export_heap_base()
-		.import_memory()
-		.build()
+    WasmBuilder::new()
+        .with_current_project()
+        .with_wasm_builder_from_crates("1.0.10")
+        .export_heap_base()
+        .import_memory()
+        .build()
 }

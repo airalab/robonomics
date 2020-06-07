@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::{IsIpci, chain_spec::ChainSpec};
-use wasm_bindgen::prelude::*;
-use substrate_browser_utils::{
-    Client,
-    browser_configuration, set_console_error_panic_hook, init_console_log,
-};
-use std::str::FromStr;
+use crate::{chain_spec::ChainSpec, IsIpci};
 use log::info;
+use std::str::FromStr;
+use substrate_browser_utils::{
+    browser_configuration, init_console_log, set_console_error_panic_hook, Client,
+};
+use wasm_bindgen::prelude::*;
 
 /// Starts the client.
 #[wasm_bindgen]
@@ -33,7 +32,10 @@ pub async fn start_client(chain_spec: String, log_level: String) -> Result<Clien
         .map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
-async fn start_inner(chain_spec: String, log_level: String) -> Result<Client, Box<dyn std::error::Error>> {
+async fn start_inner(
+    chain_spec: String,
+    log_level: String,
+) -> Result<Client, Box<dyn std::error::Error>> {
     set_console_error_panic_hook();
     init_console_log(log::Level::from_str(&log_level)?)?;
     let chain_spec = ChainSpec::from_json_bytes(chain_spec.as_bytes().to_vec())
@@ -50,12 +52,11 @@ async fn start_inner(chain_spec: String, log_level: String) -> Result<Client, Bo
 
     // Create the service. This is the most heavy initialization step.
     if config.chain_spec.is_ipci() {
-        let service = crate::service::new_ipci_light(config)
-            .map_err(|e| format!("{:?}", e))?;
+        let service = crate::service::ipci::new_light(config).map_err(|e| format!("{:?}", e))?;
         Ok(substrate_browser_utils::start_client(service))
     } else {
-        let service = crate::service::new_robonomics_light(config)
-            .map_err(|e| format!("{:?}", e))?;
+        let service =
+            crate::service::robonomics::new_light(config).map_err(|e| format!("{:?}", e))?;
         Ok(substrate_browser_utils::start_client(service))
     }
 }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,26 +18,22 @@
 //! The Robonomics runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::{vec, prelude::*};
-use codec::{Encode, Decode, Codec};
+use codec::{Codec, Decode, Encode};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, StorageValue};
 use frame_system::{self as system, ensure_none};
-use frame_support::{
-    ensure, decl_module, decl_storage, decl_event, decl_error, StorageValue,
+use sp_runtime::transaction_validity::{
+    InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
+    ValidTransaction,
 };
-use sp_runtime::{
-    transaction_validity::{
-        TransactionSource, TransactionValidity,
-        ValidTransaction, InvalidTransaction, TransactionPriority,
-    },
-};
+use sp_std::prelude::*;
 
 /// Import module traits.
 pub mod traits;
 use traits::*;
 
+pub mod economics;
 pub mod signed;
 pub mod technics;
-pub mod economics;
 
 /// Type synonym for technical trait parameter.
 pub type TechnicalParam<T> = <<T as Trait>::Technics as Technical>::Parameter;
@@ -50,16 +46,10 @@ pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter
 
 /// Type synonym for liability proof parameter.
 pub type ProofParam<T> =
-    <<T as Trait>::Liability as Agreement<
-        <T as Trait>::Technics,
-        <T as Trait>::Economics,
-    >>::Proof;
+    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
 
 pub type LiabilityIndex<T> =
-    <<T as Trait>::Liability as Agreement<
-        <T as Trait>::Technics,
-        <T as Trait>::Economics,
-    >>::Index;
+    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Index;
 
 /// Current runtime account identificator.
 pub type AccountId<T> = <T as frame_system::Trait>::AccountId;
@@ -72,9 +62,10 @@ pub trait Trait: frame_system::Trait {
     /// Economical aspects of agreement.
     type Economics: Economical;
 
-    /// How to make and process agreement between two parties. 
-    type Liability: Codec + Processing
-                    + Agreement<Self::Technics, Self::Economics, AccountId=AccountId<Self>>;
+    /// How to make and process agreement between two parties.
+    type Liability: Codec
+        + Processing
+        + Agreement<Self::Technics, Self::Economics, AccountId = AccountId<Self>>;
 
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
@@ -163,7 +154,7 @@ decl_module! {
             // Run economical processing
             liability.on_start()?;
 
-            // Store liability params as bytestring 
+            // Store liability params as bytestring
             let latest_index = <LatestIndex<T>>::get();
             liability.using_encoded(|encoded|
                 <LiabilityOf<T>>::insert(latest_index, Vec::from(encoded))
@@ -190,7 +181,7 @@ decl_module! {
         ) {
             ensure_none(origin)?;
 
-            // Is liability already finalized? 
+            // Is liability already finalized?
             ensure!(!<IsFinalized<T>>::get(index), "already finalized");
 
             // Decode liability from storage
@@ -222,12 +213,16 @@ decl_module! {
 impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
-    fn validate_unsigned(
-        _source: TransactionSource,
-        call: &Self::Call
-    ) -> TransactionValidity {
+    fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
         match call {
-            Call::create(technics, economics, promisee, promisor, promisee_proof, promisor_proof) => {
+            Call::create(
+                technics,
+                economics,
+                promisee,
+                promisor,
+                promisee_proof,
+                promisor_proof,
+            ) => {
                 let liability = T::Liability::new(
                     technics.clone(),
                     economics.clone(),
@@ -250,9 +245,9 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                     longevity: 64_u64,
                     propagate: true,
                 })
-            },
+            }
 
-            Call::finalize(index, report, proof) =>
+            Call::finalize(index, report, proof) => {
                 match T::Liability::decode(&mut &<LiabilityOf<T>>::get(*index)[..]) {
                     Ok(liability) => {
                         if !liability.check_report(index, report, proof) {
@@ -266,31 +261,36 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                             longevity: 64_u64,
                             propagate: true,
                         })
-                    },
-                    _ => InvalidTransaction::Call.into()
-                },
+                    }
+                    _ => InvalidTransaction::Call.into(),
+                }
+            }
 
-            _ => InvalidTransaction::Call.into()
+            _ => InvalidTransaction::Call.into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::economics::Communism;
+    use super::signed::{ProofSigner, SignedLiability};
+    use super::technics::PureIPFS;
     use super::*;
     use crate as liability;
-    use super::technics::PureIPFS;
-    use super::economics::Communism;
-    use super::signed::{SignedLiability, ProofSigner};
-    use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount, IdentityLookup}, testing::Header};
-    use node_primitives::{AccountId, Signature};
-    use frame_system::{self as system};
+    use base58::FromBase58;
     use frame_support::{
-        assert_ok, assert_err, impl_outer_event, impl_outer_origin, parameter_types,
+        assert_err, assert_ok, impl_outer_event, impl_outer_origin, parameter_types,
         weights::Weight,
     };
-    use sp_core::{H256, sr25519, crypto::Pair};
-    use base58::FromBase58;
+    use frame_system::{self as system};
+    use node_primitives::{AccountId, Signature};
+    use sp_core::{crypto::Pair, sr25519, H256};
+    use sp_runtime::{
+        testing::Header,
+        traits::{IdentifyAccount, IdentityLookup, Verify},
+        Perbill,
+    };
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
@@ -332,6 +332,10 @@ mod tests {
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type DbWeight = ();
+        type BlockExecutionWeight = ();
+        type ExtrinsicBaseWeight = ();
+        type MaximumExtrinsicWeight = ();
     }
 
     impl Trait for Runtime {
@@ -370,20 +374,21 @@ mod tests {
     ) -> (AccountId, ProofParam<Runtime>) {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
         let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-        let signature = <ProofSigner<sr25519::Pair> as ProofBuilder< 
+        let signature = <ProofSigner<sr25519::Pair> as ProofBuilder<
             <Runtime as Trait>::Technics,
             <Runtime as Trait>::Economics,
             LiabilityIndex<Runtime>,
             _,
             _,
-        >>::proof_params(technics, economics, pair).into();
+        >>::proof_params(technics, economics, pair)
+        .into();
         (sender, signature)
     }
 
     fn get_report_proof(
         uri: &str,
         index: &LiabilityIndex<Runtime>,
-        report: &TechnicalReport<Runtime>
+        report: &TechnicalReport<Runtime>,
     ) -> ProofParam<Runtime> {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
         <ProofSigner<sr25519::Pair> as ProofBuilder<
@@ -391,25 +396,26 @@ mod tests {
             <Runtime as Trait>::Economics,
             LiabilityIndex<Runtime>,
             _,
-            _
-        >>::proof_report(index, report, pair).into()
+            _,
+        >>::proof_report(index, report, pair)
+        .into()
     }
 
     #[test]
     fn test_liability_proofs() {
-        let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
+        let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+            .from_base58()
+            .unwrap();
         let economics = ();
         let (sender, params_proof) = get_params_proof("//Alice", &technics, &economics);
-        let liability = <Runtime as Trait>::Liability::new(
-            technics,
-            economics,
-            sender.clone(),
-            sender.clone(),
-        );
+        let liability =
+            <Runtime as Trait>::Liability::new(technics, economics, sender.clone(), sender.clone());
         assert_eq!(liability.check_params(&params_proof, &sender), true);
 
         let index = 1;
-        let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
+        let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+            .from_base58()
+            .unwrap();
         let report_proof = get_report_proof("//Alice", &index, &report);
         assert_eq!(liability.check_report(&index, &report, &report_proof), true);
     }
@@ -419,34 +425,41 @@ mod tests {
         new_test_ext().execute_with(|| {
             assert_eq!(Liability::latest_index(), 0);
 
-            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
+            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                .from_base58()
+                .unwrap();
             let economics = ();
 
             let (promisee, promisee_proof) = get_params_proof("//Alice", &technics, &economics);
             let (promisor, promisor_proof) = get_params_proof("//Bob", &technics, &economics);
 
-            assert_err!(Liability::create(
-                Origin::NONE,
-                technics.clone(),
-                economics.clone(),
-                promisee.clone(),
-                promisor.clone(),
-                promisor_proof.clone(),
-                promisor_proof.clone(),
-            ), Error::<Runtime>::BadPromiseeProof);
+            assert_err!(
+                Liability::create(
+                    Origin::NONE,
+                    technics.clone(),
+                    economics.clone(),
+                    promisee.clone(),
+                    promisor.clone(),
+                    promisor_proof.clone(),
+                    promisor_proof.clone(),
+                ),
+                Error::<Runtime>::BadPromiseeProof
+            );
             assert_eq!(Liability::latest_index(), 0);
 
-            assert_err!(Liability::create(
-                Origin::NONE,
-                technics.clone(),
-                economics.clone(),
-                promisee.clone(),
-                promisor.clone(),
-                promisee_proof.clone(),
-                promisee_proof.clone(),
-            ), Error::<Runtime>::BadPromisorProof);
+            assert_err!(
+                Liability::create(
+                    Origin::NONE,
+                    technics.clone(),
+                    economics.clone(),
+                    promisee.clone(),
+                    promisor.clone(),
+                    promisee_proof.clone(),
+                    promisee_proof.clone(),
+                ),
+                Error::<Runtime>::BadPromisorProof
+            );
             assert_eq!(Liability::latest_index(), 0);
-
 
             assert_ok!(Liability::create(
                 Origin::NONE,
@@ -461,7 +474,9 @@ mod tests {
             assert_eq!(Liability::is_finalized(0), false);
 
             let index = 0;
-            let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
+            let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                .from_base58()
+                .unwrap();
             let bad_proof = get_report_proof("//Alice", &index, &report);
             let good_proof = get_report_proof("//Bob", &index, &report);
 

@@ -20,13 +20,13 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
-use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::source::{virt, serial};
-use robonomics_io::sink::virt::stdout;
-use structopt::clap::arg_enum;
-use std::time::Duration;
-use futures::prelude::*;
 use async_std::task;
+use futures::prelude::*;
+use robonomics_io::sink::virt::stdout;
+use robonomics_io::source::{serial, virt};
+use robonomics_protocol::pubsub::Multiaddr;
+use std::time::Duration;
+use structopt::clap::arg_enum;
 
 /// Source device commands.
 #[derive(structopt::StructOpt, Clone, Debug)]
@@ -53,27 +53,15 @@ pub enum SourceCmd {
     PubSub {
         /// Subscribe for given topic name and print received messages.
         topic_name: String,
-        /// Listen address for incoming connections. 
-        #[structopt(
-            long,
-            value_name = "MULTIADDR",
-            default_value = "/ip4/0.0.0.0/tcp/0",
-        )]
+        /// Listen address for incoming connections.
+        #[structopt(long, value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
         listen: Multiaddr,
         /// Indicates PubSub nodes for first connections.
-        #[structopt(
-            long,
-            value_name = "MULTIADDR",
-            use_delimiter = true,
-        )]
+        #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
         bootnodes: Vec<Multiaddr>,
         /// How often node should check another nodes availability, in secs.
-        #[structopt(
-            long,
-            value_name = "HEARTBEAT_SECS",
-            default_value = "5",
-        )]
-        hearbeat: u64
+        #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
+        hearbeat: u64,
     },
     /// Download data from IPFS storage.
     Ipfs {
@@ -97,44 +85,61 @@ impl SourceCmd {
     /// Read data from source device.
     pub fn run(&self) -> Result<()> {
         match self.clone() {
-            SourceCmd::SDS011 { port, period, encoding } => {
+            SourceCmd::SDS011 {
+                port,
+                period,
+                encoding,
+            } => {
                 let sensor = serial::sds011(port, period)?;
 
-                task::block_on(sensor.map(|m| m.map(|msg|
-                    match encoding {
-                        Encoding::Csv => {
-                            let mut wtr = csv::WriterBuilder::new()
-                                .has_headers(false)
-                                .from_writer(vec![]);
-                            wtr.serialize(msg).unwrap();
-                            String::from_utf8(wtr.into_inner().unwrap()).unwrap()
-                        }
-                        Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
-                        Encoding::Json => serde_json::to_string(&msg).unwrap(),
-                        Encoding::Debug => format!("{:?}", msg),
-                    })
-                ).forward(stdout()))?;
-            }
-            SourceCmd::PubSub { topic_name, listen, bootnodes, hearbeat} => {
-                let pubsub = virt::pubsub(
-                    listen,
-                    bootnodes,
-                    topic_name,
-                    Duration::from_secs(hearbeat),
+                task::block_on(
+                    sensor
+                        .map(|m| {
+                            m.map(|msg| match encoding {
+                                Encoding::Csv => {
+                                    let mut wtr = csv::WriterBuilder::new()
+                                        .has_headers(false)
+                                        .from_writer(vec![]);
+                                    wtr.serialize(msg).unwrap();
+                                    String::from_utf8(wtr.into_inner().unwrap()).unwrap()
+                                }
+                                Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
+                                Encoding::Json => serde_json::to_string(&msg).unwrap(),
+                                Encoding::Debug => format!("{:?}", msg),
+                            })
+                        })
+                        .forward(stdout()),
                 )?;
+            }
+            SourceCmd::PubSub {
+                topic_name,
+                listen,
+                bootnodes,
+                hearbeat,
+            } => {
+                let pubsub =
+                    virt::pubsub(listen, bootnodes, topic_name, Duration::from_secs(hearbeat))?;
 
-                task::block_on(pubsub.map(|m|
-                    m.map(|msg| String::from_utf8(msg.data).unwrap_or("<no string>".to_string()))
-                ).forward(stdout()))?;
+                task::block_on(
+                    pubsub
+                        .map(|m| {
+                            m.map(|msg| {
+                                String::from_utf8(msg.data).unwrap_or("<no string>".to_string())
+                            })
+                        })
+                        .forward(stdout()),
+                )?;
             }
             SourceCmd::Ipfs { remote } => {
                 let (download, data) = virt::ipfs(remote.as_str())?;
                 task::spawn(virt::stdin().forward(download));
-                task::block_on(data.map(|m|
-                    m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
-                ).forward(stdout()))?;
+                task::block_on(
+                    data.map(|m| {
+                        m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
+                    })
+                    .forward(stdout()),
+                )?;
             }
-
         }
         Ok(())
     }

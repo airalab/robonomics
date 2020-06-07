@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-protocol"
 description = "Robonomics Network protocol library."
-version = "0.5.0"
+version = "0.5.3"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -10,11 +10,12 @@ serde = { version = "1.0.106", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "1.3.0", features = ["derive"] }
 derive_more = "0.99"
 futures-timer = "3.0"
-substrate-subxt = "0.6"
-pallet-indices = "2.0.0-alpha.8"
-sp-runtime = "2.0.0-alpha.8"
-sp-core = "2.0.0-alpha.8"
-futures = "0.3.4"
+substrate-subxt = "0.8"
+substrate-subxt-proc-macro = "0.8"
+pallet-indices = "2.0.0-rc2"
+sp-runtime = "2.0.0-rc2"
+sp-core = "2.0.0-rc2"
+libp2p = "0.19"
+futures = "0.3.5"
 bincode = "1.2"
-libp2p = "0.18.1"
 log = "0.4"

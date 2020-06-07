@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,14 +18,11 @@
 //! Simple Robonomics datalog runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{EncodeLike, Codec};
-use sp_std::prelude::*;
-use sp_runtime::traits::Member;
+use codec::{Codec, EncodeLike};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, traits::Time};
 use frame_system::{self as system, ensure_signed};
-use frame_support::{
-    decl_module, decl_storage, decl_event, decl_error,
-    traits::Time,
-};
+use sp_runtime::traits::Member;
+use sp_std::prelude::*;
 
 /// Type synonym for timestamp data type.
 pub type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
@@ -46,7 +43,7 @@ decl_event! {
           Moment = MomentOf<T>,
           Record = <T as Trait>::Record,
     {
-        /// New data added. 
+        /// New data added.
         NewRecord(AccountId, Moment, Record),
         /// Account datalog erased.
         Erased(AccountId),
@@ -96,19 +93,14 @@ decl_module! {
 mod tests {
     use super::*;
 
-    use sp_core::H256;
     use base58::FromBase58;
-    use node_primitives::Moment;
-    use frame_system::{self as system};
-    use sp_runtime::{
-        DispatchError, Perbill,
-        traits::IdentityLookup, testing::Header,
-    };
     use frame_support::{
-        impl_outer_origin, parameter_types,
-        assert_ok, assert_err,
-        weights::Weight,
+        assert_err, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
     };
+    use frame_system::{self as system};
+    use node_primitives::Moment;
+    use sp_core::H256;
+    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, Perbill};
 
     impl_outer_origin! {
         pub enum Origin for Runtime {}
@@ -144,6 +136,10 @@ mod tests {
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
+        type DbWeight = ();
+        type BlockExecutionWeight = ();
+        type ExtrinsicBaseWeight = ();
+        type MaximumExtrinsicWeight = ();
     }
 
     parameter_types! {
@@ -186,7 +182,7 @@ mod tests {
     fn test_erase_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let record = vec![1,2,3];
+            let record = vec![1, 2, 3];
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
             assert_eq!(Datalog::datalog(sender), vec![(0, record)]);
             assert_ok!(Datalog::erase(Origin::signed(sender)));
@@ -197,7 +193,10 @@ mod tests {
     #[test]
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
-            assert_err!(Datalog::record(Origin::NONE, vec![]), DispatchError::BadOrigin);
+            assert_err!(
+                Datalog::record(Origin::NONE, vec![]),
+                DispatchError::BadOrigin
+            );
         })
     }
 
@@ -205,22 +204,27 @@ mod tests {
     fn test_store_ipfs_hashes() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let record = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4".from_base58().unwrap();
+            let record = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                .from_base58()
+                .unwrap();
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
             assert_eq!(Datalog::datalog(sender), vec![(0, record.clone())]);
-            let record2 = "zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta".from_base58().unwrap();
+            let record2 = "zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta"
+                .from_base58()
+                .unwrap();
             assert_ok!(Datalog::record(Origin::signed(sender), record2.clone()));
-            assert_eq!(Datalog::datalog(sender), vec![
-                       (0, record.clone()),
-                       (0, record2.clone()),
-            ]);
-            let record3 = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2".from_base58().unwrap();
+            assert_eq!(
+                Datalog::datalog(sender),
+                vec![(0, record.clone()), (0, record2.clone()),]
+            );
+            let record3 = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2"
+                .from_base58()
+                .unwrap();
             assert_ok!(Datalog::record(Origin::signed(sender), record3.clone()));
-            assert_eq!(Datalog::datalog(sender), vec![
-                       (0, record),
-                       (0, record2),
-                       (0, record3),
-            ]);
+            assert_eq!(
+                Datalog::datalog(sender),
+                vec![(0, record), (0, record2), (0, record3),]
+            );
         })
     }
 }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -62,26 +62,33 @@ macro_rules! new_full_start {
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
         let builder = sc_service::ServiceBuilder::new_full::<
-            node_primitives::Block, $runtime, $executor
+            node_primitives::Block,
+            $runtime,
+            $executor,
         >($config)?
-            .with_select_chain(|_config, backend| {
-                Ok(sc_consensus::LongestChain::new(backend.clone()))
-            })?
-            .with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
-                let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
-                Ok(sc_transaction_pool::BasicPool::new(
-                    config,
-                    std::sync::Arc::new(pool_api),
-                    prometheus_registry,
-                ))
-            })?
-            .with_import_queue(|_config, client, mut select_chain, _transaction_pool| {
-                let select_chain = select_chain.take()
+        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
+        .with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
+            let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
+            Ok(sc_transaction_pool::BasicPool::new(
+                config,
+                std::sync::Arc::new(pool_api),
+                prometheus_registry,
+            ))
+        })?
+        .with_import_queue(
+            |_config,
+             client,
+             mut select_chain,
+             _transaction_pool,
+             spawn_task_handle,
+             prometheus_registry| {
+                let select_chain = select_chain
+                    .take()
                     .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
                 let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
                     client.clone(),
                     &(client.clone() as std::sync::Arc<_>),
-                    select_chain
+                    select_chain,
                 )?;
                 let justification_import = grandpa_block_import.clone();
 
@@ -98,14 +105,17 @@ macro_rules! new_full_start {
                     None,
                     client,
                     inherent_data_providers.clone(),
+                    spawn_task_handle,
+                    prometheus_registry,
                 )?;
 
                 import_setup = Some((babe_block_import, grandpa_link, babe_link));
                 Ok(import_queue)
-            })?;
+            },
+        )?;
 
         (builder, import_setup, inherent_data_providers)
-    }}
+    }};
 }
 
 /// Creates a full service from the configuration.
@@ -154,7 +164,8 @@ macro_rules! new_full {
         if let sc_service::config::Role::Authority { .. } = &role {
             let proposer = sc_basic_authorship::ProposerFactory::new(
                 service.client(),
-                service.transaction_pool()
+                service.transaction_pool(),
+                service.prometheus_registry().as_ref(),
             );
 
             let client = service.client();
@@ -248,6 +259,7 @@ macro_rules! new_full {
                 telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
                 voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
                 prometheus_registry: service.prometheus_registry(),
+                shared_voter_state: sc_finality_grandpa::SharedVoterState::empty(),
             };
 
             // the GRANDPA voter task is considered infallible, i.e.
@@ -298,38 +310,46 @@ macro_rules! new_full {
 /// Creates a light service from the configuration.
 #[macro_export]
 macro_rules! new_light {
-	($config:expr, $runtime:ty, $executor:ty) => {{
+    ($config:expr, $runtime:ty, $executor:ty) => {{
         use std::sync::Arc;
 
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-        sc_service::ServiceBuilder::new_light::<
-            node_primitives::Block, $runtime, $executor,
-        >($config)?
-            .with_select_chain(|_, backend| {
-                Ok(sc_consensus::LongestChain::new(backend.clone()))
-            })?
-            .with_transaction_pool(|config, client, fetcher, prometheus_registry| {
-                let fetcher = fetcher
-                    .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-                let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
-                let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-                    config,
-                    Arc::new(pool_api),
-                    prometheus_registry,
-                    sc_transaction_pool::RevalidationType::Light,
-                );
-                Ok(pool)
-            })?
-            .with_import_queue_and_fprb(|_, client, backend, fetcher, _, _| {
-                let fetch_checker = fetcher 
+        sc_service::ServiceBuilder::new_light::<node_primitives::Block, $runtime, $executor>(
+            $config,
+        )?
+        .with_select_chain(|_, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
+        .with_transaction_pool(|config, client, fetcher, prometheus_registry| {
+            let fetcher = fetcher
+                .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+            let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
+            let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
+                config,
+                Arc::new(pool_api),
+                prometheus_registry,
+                sc_transaction_pool::RevalidationType::Light,
+            );
+            Ok(pool)
+        })?
+        .with_import_queue_and_fprb(
+            |_config,
+             client,
+             backend,
+             fetcher,
+             _select_chain,
+             _tx_pool,
+             spawn_task_handle,
+             registry| {
+                let fetch_checker = fetcher
                     .map(|fetcher| fetcher.checker().clone())
-                    .ok_or_else(|| "Trying to start light import queue without active fetch checker")?;
+                    .ok_or_else(|| {
+                        "Trying to start light import queue without active fetch checker"
+                    })?;
                 let grandpa_block_import = sc_finality_grandpa::light_block_import(
                     client.clone(),
                     backend,
                     &(client.clone() as Arc<_>),
-                    Arc::new(fetch_checker)
+                    Arc::new(fetch_checker),
                 )?;
 
                 let finality_proof_import = grandpa_block_import.clone();
@@ -349,17 +369,22 @@ macro_rules! new_light {
                     Some(Box::new(finality_proof_import)),
                     client,
                     inherent_data_providers,
+                    spawn_task_handle,
+                    registry,
                 )?;
 
                 Ok((import_queue, finality_proof_request_builder))
-            })?
-            .with_finality_proof_provider(|client, backend| {
-                // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-                let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
-                Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, provider)) as _)
-            })?
-            .build()
-    }}
+            },
+        )?
+        .with_finality_proof_provider(|client, backend| {
+            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
+                backend, provider,
+            )) as _)
+        })?
+        .build()
+    }};
 }
 
 /// IPCI chain services.
@@ -383,11 +408,19 @@ pub mod robonomics {
 
     /// Create a new Robonomics service for a full node.
     pub fn new_full(config: Configuration) -> Result<impl AbstractService> {
-        new_full!(config, robonomics_runtime::RuntimeApi, super::executor::Robonomics)
+        new_full!(
+            config,
+            robonomics_runtime::RuntimeApi,
+            super::executor::Robonomics
+        )
     }
 
     /// Create a new Robonomics service for a light client.
     pub fn new_light(config: Configuration) -> Result<impl AbstractService> {
-        new_light!(config, robonomics_runtime::RuntimeApi, super::executor::Robonomics)
+        new_light!(
+            config,
+            robonomics_runtime::RuntimeApi,
+            super::executor::Robonomics
+        )
     }
 }

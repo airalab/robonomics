@@ -1,6 +1,6 @@
 [package]
 name = "ipci-runtime"
-version = "0.18.0"
+version = "0.18.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
@@ -13,7 +13,7 @@ lazy_static = { version = "1.4", optional = true }
 hex-literal = "0.2"
 
 # primitives
-node-primitives = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+node-primitives = { path = "../primitives", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 sp-staking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
@@ -40,7 +40,7 @@ pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-offences = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-#pallet-offences-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
+pallet-offences-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
@@ -51,6 +51,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "cum
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false, optional = true }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
@@ -117,5 +118,6 @@ runtime-benchmarks = [
     "pallet-staking/runtime-benchmarks",
     "pallet-utility/runtime-benchmarks",
     "pallet-session-benchmarking",
-#    "pallet-offences-benchmarking",
+    "pallet-offences-benchmarking",
+    "frame-system-benchmarking",
 ]

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@
 //! 3. If node received discovery message then try to connect remove node.
 //!
 
-use futures::{Future, FutureExt, StreamExt, future};
-use std::time::{Duration, SystemTime};
-use serde::{Serialize, Deserialize};
-use libp2p::Multiaddr;
-use std::sync::Arc;
 use super::PubSub;
+use futures::{future, Future, FutureExt, StreamExt};
+use libp2p::Multiaddr;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 /// Peer information service message.
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -44,13 +44,15 @@ pub const DISCOVERY_TOPIC_NAME: &str = "_robonomics_pubsub_peer_discovery";
 /// Start peer discovery service.
 pub fn start<T: PubSub>(pubsub: Arc<T>) -> impl Future<Output = ()> {
     future::join(
-        // Message broadcasting task 
+        // Message broadcasting task
         discovery(pubsub.clone()),
         // Subscribe for discovery topic and read messages
-        pubsub.clone()
-              .subscribe(&DISCOVERY_TOPIC_NAME)
-              .for_each(move |msg| connect(pubsub.clone(), msg)),
-    ).map(|_| ())
+        pubsub
+            .clone()
+            .subscribe(&DISCOVERY_TOPIC_NAME)
+            .for_each(move |msg| connect(pubsub.clone(), msg)),
+    )
+    .map(|_| ())
 }
 
 fn timestamp() -> u64 {
@@ -68,7 +70,7 @@ async fn discovery<T: PubSub>(pubsub: Arc<T>) {
             if listeners.len() > 0 {
                 let message = DiscoveryMessage {
                     peer_id: pubsub.peer_id().to_base58(),
-                    timestamp: timestamp(), 
+                    timestamp: timestamp(),
                     listeners,
                 };
 

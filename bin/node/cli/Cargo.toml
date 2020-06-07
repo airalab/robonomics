@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.18.0"
+version = "0.18.2"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -38,7 +38,7 @@ structopt = { version = "0.3.8", optional = true }
 jsonrpc-core = "13.2.0"
 
 # primitives
-node-primitives = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+node-primitives = { path = "../primitives", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
@@ -79,6 +79,7 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 # cumulus dependencies
 cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
+cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
@@ -153,6 +154,7 @@ parachain = [
     "robonomics-parachain-runtime",
     "cumulus-consensus",
     "cumulus-collator",
+    "cumulus-network",
     "polkadot-primitives",
     "polkadot-collator",
     "polkadot-service",

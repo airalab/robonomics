@@ -36,12 +36,22 @@ pub fn new_collator(
         super::executor::Robonomics
     );
 
-    let service = builder.build()?;
+    let block_announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
+    let service = builder
+        .with_block_announce_validator(|_client| {
+            Box::new(block_announce_validator.clone())
+        })?
+        .build()?;
 
     let proposer_factory = sc_basic_authorship::ProposerFactory::new(
         service.client(),
         service.transaction_pool(),
     );
+
+    let network = service.network();
+    let announce_block = Arc::new(move |hash, data| {
+        network.announce_block(hash, data)
+    });
 
     let builder = cumulus_collator::CollatorBuilder::new(
         proposer_factory,
@@ -49,7 +59,8 @@ pub fn new_collator(
         service.client(),
         PARA_ID,
         service.client(),
-        std::sync::Arc::new(|_,_| ()),
+        announce_block,
+        block_announce_validator,
     );
 
     let polkadot_future = polkadot_collator::start_collator(

@@ -1,6 +1,6 @@
 [package]
 name = "node-primitives"
-version = "0.18.0"
+version = "0.18.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -11,16 +11,22 @@ repository = "https://github.com/airalab/robonomics"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-sp-core = { version = "2.0.0-alpha.6", default-features = false }
-sp-runtime = { version = "2.0.0-alpha.6", default-features = false }
+codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
+sp-core = { version = "2.0.0-rc2", default-features = false }
+sp-runtime = { version = "2.0.0-rc2", default-features = false }
+sp-application-crypto = { version = "2.0.0-rc2", default-features = false }
+frame-system = { version = "2.0.0-rc2", default-features = false }
 
 [dev-dependencies]
-sp-serializer = "2.0.0-alpha.6"
+sp-serializer = "2.0.0-rc2"
 pretty_assertions = "0.6.1"
 
 [features]
 default = ["std"]
 std = [
+    "codec/std",
     "sp-core/std",
     "sp-runtime/std",
+    "sp-application-crypto/std",
+    "frame-system/std",
 ]

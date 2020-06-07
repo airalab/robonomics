@@ -17,7 +17,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "cum
 [dev-dependencies]
 base58 = "0.1.0"
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-node-primitives = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+node-primitives = { path = "../../../bin/node/primitives" } 
 
 [features]
 default = ["std"]

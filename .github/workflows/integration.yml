@@ -1,18 +1,21 @@
 name: Integration
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      - v*
 jobs:
   native:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
     - name: Install LLVM (windows only)
       if: runner.os == 'Windows'
       run: choco install llvm
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-02-02'
+        rust-version: 'nightly-2020-05-15'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
@@ -23,6 +26,10 @@ jobs:
     - name: Install libudev dependecy
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt update && sudo apt install libudev-dev
+    - name: Install ROS Melodic
+      if: matrix.os == 'ubuntu-latest'
+      run: ./scripts/ros-install.sh
+
     - name: Build optimized binary
       run: cargo build --release --verbose
 

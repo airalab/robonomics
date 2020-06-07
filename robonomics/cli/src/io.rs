@@ -27,15 +27,15 @@ pub struct IoCmd {
     /// I/O device operation to run.
     #[structopt(subcommand)]
     pub operation: Operation,
-	#[allow(missing_docs)]
-	#[structopt(flatten)]
-	pub shared_params: sc_cli::SharedParams,
+    #[allow(missing_docs)]
+    #[structopt(flatten)]
+    pub shared_params: sc_cli::SharedParams,
 }
 
 impl sc_cli::CliConfiguration for IoCmd {
-	fn shared_params(&self) -> &sc_cli::SharedParams {
-		&self.shared_params
-	}
+    fn shared_params(&self) -> &sc_cli::SharedParams {
+        &self.shared_params
+    }
 }
 
 impl IoCmd {
@@ -43,7 +43,7 @@ impl IoCmd {
     pub fn run(&self) -> Result<()> {
         match &self.operation {
             Operation::Read(source) => source.run(),
-            Operation::Write(sink)  => sink.run(),
+            Operation::Write(sink) => sink.run(),
         }
     }
 }

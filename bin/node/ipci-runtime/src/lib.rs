@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 //! The IPCI runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -27,43 +27,48 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod constants;
 pub mod impls;
 
+pub use pallet_balances::Call as BalancesCall;
 pub use pallet_staking::StakerStatus;
 
 use codec::Encode;
-use sp_std::prelude::*;
-use sp_core::OpaqueMetadata;
 use frame_support::{
-    construct_runtime, parameter_types, debug,
-    traits::Randomness, weights::{Weight, RuntimeDbWeight},
+    construct_runtime, debug, parameter_types,
+    traits::{KeyOwnerProofSystem, Randomness},
+    weights::{
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        IdentityFee, Weight,
+    },
 };
-use sp_runtime::{
-    ApplyExtrinsicResult, Perbill, Perquintill,
-    generic, create_runtime_str, impl_opaque_keys,
+use node_primitives::{
+    AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use sp_runtime::transaction_validity::{
-    TransactionSource,
-    TransactionValidity,
-    TransactionPriority,
+use pallet_grandpa::{
+    fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_session::historical as pallet_session_historical;
+use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use sp_api::impl_runtime_apis;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, StaticLookup,
-    SaturatedConversion, OpaqueKeys,
+    self, BlakeTwo256, Block as BlockT, NumberFor, OpaqueKeys, SaturatedConversion, Saturating,
+    StaticLookup,
 };
-use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
-use sp_inherents::{InherentData, CheckInherentsResult};
-use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
-use sp_api::impl_runtime_apis;
-use node_primitives::{
-    Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
+use sp_runtime::transaction_validity::{
+    TransactionPriority, TransactionSource, TransactionValidity,
 };
-use sp_version::RuntimeVersion;
+use sp_runtime::{
+    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, Perbill, Perquintill,
+};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
 
-use constants::{time::*, currency::*};
+use constants::{currency::*, time::*};
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -91,7 +96,12 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
+    /// We allow for 2 seconds of compute with a 6 second average block time.
+    pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+    /// Assume 10% of weight for average on_initialize calls
+    pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
     /// We allow for 2 seconds of compute with a 6 second average block time.
     pub const MaximumBlockWeight: Weight = 2_000_000_000_000;
@@ -115,14 +125,15 @@ impl frame_system::Trait for Runtime {
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     type Event = Event;
     type Origin = Origin;
-    type DbWeight = DbWeight;
-    type BlockExecutionWeight = ();
+    type DbWeight = RocksDbWeight;
+    type BlockExecutionWeight = BlockExecutionWeight;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type BlockHashCount = BlockHashCount;
+    type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex; 
+    type ModuleToIndex = ModuleToIndex;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -143,6 +154,7 @@ impl pallet_utility::Trait for Runtime {
     type MultisigDepositBase = MultisigDepositBase;
     type MultisigDepositFactor = MultisigDepositFactor;
     type MaxSignatories = MaxSignatories;
+    type IsCallable = ();
 }
 
 parameter_types! {
@@ -189,7 +201,7 @@ impl pallet_indices::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee 
+    pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee
 }
 
 impl pallet_balances::Trait for Runtime {
@@ -202,8 +214,6 @@ impl pallet_balances::Trait for Runtime {
 
 parameter_types! {
     pub const TransactionByteFee: Balance = 1 * U_MITO;
-    // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1_000;
     // for a sane configuration, this should always be less than `AvailableBlockRatio`.
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
@@ -212,7 +222,7 @@ impl pallet_transaction_payment::Trait for Runtime {
     type Currency = Balances;
     type OnTransactionPayment = ();
     type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = impls::LinearWeightToFee<WeightFeeCoefficient>;
+    type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
 }
 
@@ -293,6 +303,24 @@ impl pallet_authority_discovery::Trait for Runtime {}
 
 impl pallet_grandpa::Trait for Runtime {
     type Event = Event;
+    type Call = Call;
+
+    type KeyOwnerProofSystem = Historical;
+
+    type KeyOwnerProof =
+        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+
+    type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+        KeyTypeId,
+        GrandpaId,
+    )>>::IdentificationTuple;
+
+    type HandleEquivocation = pallet_grandpa::EquivocationHandler<
+        Self::KeyOwnerIdentification,
+        node_primitives::report::ReporterAppCrypto,
+        Runtime,
+        Offences,
+    >;
 }
 
 parameter_types! {
@@ -349,10 +377,15 @@ impl pallet_im_online::Trait for Runtime {
     type UnsignedPriority = ImOnlineUnsignedPriority;
 }
 
+parameter_types! {
+    pub const OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * MaximumBlockWeight::get();
+}
+
 impl pallet_offences::Trait for Runtime {
     type Event = Event;
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
+    type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {
@@ -361,7 +394,8 @@ impl pallet_robonomics_datalog::Trait for Runtime {
     type Event = Event;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime where
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
     Call: From<LocalCall>,
 {
     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
@@ -369,7 +403,10 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
         public: <Signature as traits::Verify>::Signer,
         account: AccountId,
         nonce: Index,
-    ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+    ) -> Option<(
+        Call,
+        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
+    )> {
         // take the biggest period possible.
         let period = BlockHashCount::get()
             .checked_next_power_of_two()
@@ -382,19 +419,21 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
-            frame_system::CheckVersion::<Runtime>::new(),
+            frame_system::CheckSpecVersion::<Runtime>::new(),
+            frame_system::CheckTxVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
             frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+            pallet_grandpa::ValidateEquivocationReport::<Runtime>::new(),
         );
-        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
-            debug::warn!("Unable to create signed payload: {:?}", e);
-        }).ok()?;
-        let signature = raw_payload.using_encoded(|payload| {
-            C::sign(payload, public)
-        })?;
+        let raw_payload = SignedPayload::new(call, extra)
+            .map_err(|e| {
+                debug::warn!("Unable to create signed payload: {:?}", e);
+            })
+            .ok()?;
+        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature.into(), extra)))
@@ -406,7 +445,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
     type Signature = Signature;
 }
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
     Call: From<C>,
 {
     type OverarchingCall = Call;
@@ -438,6 +478,7 @@ construct_runtime!(
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
         Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
+        Historical: pallet_session_historical::{Module},
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
         FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
@@ -469,12 +510,14 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-    frame_system::CheckVersion<Runtime>,
+    frame_system::CheckSpecVersion<Runtime>,
+    frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,
     frame_system::CheckEra<Runtime>,
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+    pallet_grandpa::ValidateEquivocationReport<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -552,6 +595,32 @@ impl_runtime_apis! {
         fn grandpa_authorities() -> GrandpaAuthorityList {
             Grandpa::grandpa_authorities()
         }
+
+        fn submit_report_equivocation_extrinsic(
+            equivocation_proof: fg_primitives::EquivocationProof<
+                <Block as BlockT>::Hash,
+                NumberFor<Block>,
+            >,
+            key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
+        ) -> Option<()> {
+            let key_owner_proof = key_owner_proof.decode()?;
+
+            Grandpa::submit_report_equivocation_extrinsic(
+                equivocation_proof,
+                key_owner_proof,
+            )
+        }
+
+        fn generate_key_ownership_proof(
+            _set_id: fg_primitives::SetId,
+            authority_id: GrandpaId,
+        ) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
+            use codec::Encode;
+
+            Historical::prove((fg_primitives::KEY_TYPE, authority_id))
+                .map(|p| p.encode())
+                .map(fg_primitives::OpaqueKeyOwnershipProof::new)
+        }
     }
 
     impl sp_consensus_babe::BabeApi<Block> for Runtime {
@@ -626,9 +695,11 @@ impl_runtime_apis! {
             // we need these two lines below.
             use pallet_session_benchmarking::Module as SessionBench;
             use pallet_offences_benchmarking::Module as OffencesBench;
+            use frame_system_benchmarking::Module as SystemBench;
 
             impl pallet_session_benchmarking::Trait for Runtime {}
             impl pallet_offences_benchmarking::Trait for Runtime {}
+            impl frame_system_benchmarking::Trait for Runtime {}
 
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&pallet, &benchmark, &lowest_range_values, &highest_range_values, &steps, repeat);
@@ -638,6 +709,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, b"im-online", ImOnline);
             add_benchmark!(params, batches, b"session", SessionBench::<Runtime>);
             add_benchmark!(params, batches, b"staking", Staking);
+            add_benchmark!(params, batches, b"system", SystemBench::<Runtime>);
             add_benchmark!(params, batches, b"timestamp", Timestamp);
             add_benchmark!(params, batches, b"utility", Utility);
             add_benchmark!(params, batches, b"offences", OffencesBench::<Runtime>);
@@ -648,4 +720,3 @@ impl_runtime_apis! {
     }
 
 }
-

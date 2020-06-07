@@ -20,12 +20,12 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
-use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_io::source::virt::stdin;
-use robonomics_io::sink::virt;
-use std::time::Duration;
-use futures::prelude::*;
 use async_std::task;
+use futures::prelude::*;
+use robonomics_io::sink::virt;
+use robonomics_io::source::virt::stdin;
+use robonomics_protocol::pubsub::Multiaddr;
+use std::time::Duration;
 
 /// Sink device commands.
 #[derive(structopt::StructOpt, Clone, Debug)]
@@ -35,27 +35,15 @@ pub enum SinkCmd {
     PubSub {
         /// Publish data into given topic name.
         topic_name: String,
-        /// Listen address for incoming connections. 
-        #[structopt(
-            long,
-            value_name = "MULTIADDR",
-            default_value = "/ip4/0.0.0.0/tcp/0",
-        )]
+        /// Listen address for incoming connections.
+        #[structopt(long, value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
         listen: Multiaddr,
         /// Indicates PubSub nodes for first connections.
-        #[structopt(
-            long,
-            value_name = "MULTIADDR",
-            use_delimiter = true,
-        )]
+        #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
         bootnodes: Vec<Multiaddr>,
         /// How often node should check another nodes availability, in secs.
-        #[structopt(
-            long,
-            value_name = "HEARTBEAT_SECS",
-            default_value = "5",
-        )]
-        hearbeat_secs: u64
+        #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
+        hearbeat_secs: u64,
     },
     /// Data blockchainization subsystem command.
     Datalog {
@@ -78,7 +66,12 @@ impl SinkCmd {
     /// Write data into sink device.
     pub fn run(&self) -> Result<()> {
         match self.clone() {
-            SinkCmd::PubSub { topic_name, listen, bootnodes, hearbeat_secs } => {
+            SinkCmd::PubSub {
+                topic_name,
+                listen,
+                bootnodes,
+                hearbeat_secs,
+            } => {
                 let hearbeat = Duration::from_secs(hearbeat_secs);
                 let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
                 task::block_on(stdin().forward(pubsub))?;

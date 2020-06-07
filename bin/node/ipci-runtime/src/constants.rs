@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
 
 /// Money matters.
 pub mod currency {
-    use sp_std::vec;
     use hex_literal::hex;
+    use node_primitives::{AccountId, Balance};
     use sp_core::ecdsa::Public;
-    use node_primitives::{Balance, AccountId};
-    use sp_runtime::{MultiSigner, traits::IdentifyAccount};
+    use sp_runtime::{traits::IdentifyAccount, MultiSigner};
+    use sp_std::vec;
 
     pub const U_MITO: Balance = 1_000_000;
     pub const MITO: Balance = 1_000_000 * U_MITO;
@@ -285,7 +285,7 @@ pub mod currency {
 
 /// Time.
 pub mod time {
-    use node_primitives::{Moment, BlockNumber};
+    use node_primitives::{BlockNumber, Moment};
 
     /// Since BABE is probabilistic this is the average expected block time that
     /// we are targetting. Blocks will be produced at a minimum duration defined

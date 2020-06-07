@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the I/O operations.
 
+use ipfs_api::response::Error as IpfsError;
 use sp_core::crypto::SecretStringError;
 use ipfs_api::response::Error as IpfsError;
 

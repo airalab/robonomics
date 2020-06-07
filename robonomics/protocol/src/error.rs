@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the protocol operations.
 
-use libp2p::core::transport::TransportError;
-use libp2p::core::connection::ConnectionLimit;
 use futures::channel::oneshot;
 use futures::Future;
+use libp2p::core::connection::ConnectionLimit;
+use libp2p::core::transport::TransportError;
 use std::pin::Pin;
 
 /// Protocol Result typedef.
