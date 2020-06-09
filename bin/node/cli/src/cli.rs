@@ -62,9 +62,3 @@ pub struct ExportGenesisState {
     /// Genesis state path
     pub head_file: Option<std::path::PathBuf>,
 }
-
-#[derive(Clone, Debug, StructOpt)]
-pub struct ExportGenesisState {
-    /// Genesis state path
-    pub head_file: Option<std::path::PathBuf>,
-}

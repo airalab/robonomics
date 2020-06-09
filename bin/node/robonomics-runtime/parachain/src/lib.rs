@@ -30,28 +30,35 @@ pub mod impls;
 use codec::Encode;
 use sp_std::prelude::*;
 use sp_api::impl_runtime_apis;
-use sp_core::OpaqueMetadata;
-use sp_version::RuntimeVersion;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
+use sp_core::{
+    crypto::KeyTypeId,
+    u32_trait::{_2, _4},
+    OpaqueMetadata,
+};
 use sp_runtime::{
-    ApplyExtrinsicResult, Perbill, Perquintill,
-    generic, create_runtime_str, impl_opaque_keys,
+    Percent, Permill, Perbill, Perquintill,
+    generic, create_runtime_str, impl_opaque_keys, ModuleId,
     transaction_validity::{TransactionSource, TransactionValidity},
     traits::{
         self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-        SaturatedConversion,
+        SaturatedConversion, Saturating,
     },
 };
-
 use frame_support::{
     construct_runtime, parameter_types, debug,
-    traits::Randomness, weights::{Weight, RuntimeDbWeight},
+    traits::{Randomness, LockIdentifier},
+    weights::{
+        Weight, IdentityFee,
+        constants::{RocksDbWeight, ExtrinsicBaseWeight, BlockExecutionWeight, WEIGHT_PER_SECOND},
+    },
 };
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use node_primitives::{
     Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
 };
+use sp_version::RuntimeVersion;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
 
 use constants::{time::*, currency::*};
 
@@ -64,8 +71,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 2,
-    impl_version: 2,
+    spec_version: 3,
+    impl_version: 3,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -83,33 +90,17 @@ impl_opaque_keys! {
     pub struct SessionKeys {}
 }
 
-type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
-
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-        if let Some(fees) = fees_then_tips.next() {
-            // for fees, 80% to treasury, 20% to author
-            let mut split = fees.ration(80, 20);
-            if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 80% to treasury, 20% to author (though this can be anything)
-                tips.ration_merge_into(80, 20, &mut split);
-            }
-            Treasury::on_unbalanced(split.0);
-            impls::Author::on_unbalanced(split.1);
-        }
-    }
-}
-
+const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
-    pub const BlockHashCount: BlockNumber = 250;
-    /// We allow for 2 seconds of compute with a 6 second average block time.
-    pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+    pub const BlockHashCount: BlockNumber = 2400;
+    /// We allow for 4 seconds of compute with a 12 second average block time.
+    pub const MaximumBlockWeight: Weight = 4 * WEIGHT_PER_SECOND;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     /// Assume 10% of weight for average on_initialize calls
-    pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
-        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+    pub MaximumExtrinsicWeight: Weight =
+        AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
+        * MaximumBlockWeight::get();
+    pub const MaximumBlockLength: u32 = 10 * 1024 * 1024;
     pub const Version: RuntimeVersion = VERSION;
 }
 
@@ -151,6 +142,7 @@ impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
     type Currency = Balances;
+    type IsCallable = ();
     type MultisigDepositBase = MultisigDepositBase;
     type MultisigDepositFactor = MultisigDepositFactor;
     type MaxSignatories = MaxSignatories;
@@ -192,16 +184,13 @@ impl pallet_balances::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const TransactionByteFee: Balance = 1;
-    // setting this to zero will disable the weight fee.
-    pub const WeightFeeCoefficient: Balance = 1;
-    // for a sane configuration, this should always be less than `AvailableBlockRatio`.
+    pub const TransactionByteFee: Balance = 100 * COASE;
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
     type Currency = Balances;
-    type OnTransactionPayment = DealWithFees;
+    type OnTransactionPayment = Treasury;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
@@ -236,7 +225,7 @@ impl pallet_sudo::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
 }
 
 impl pallet_scheduler::Trait for Runtime {
@@ -359,7 +348,8 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             .saturating_sub(1);
         let tip = 0;
         let extra: SignedExtra = (
-            frame_system::CheckVersion::<Runtime>::new(),
+            frame_system::CheckSpecVersion::<Runtime>::new(),
+            frame_system::CheckTxVersion::<Runtime>::new(),
             frame_system::CheckGenesis::<Runtime>::new(),
             frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
             frame_system::CheckNonce::<Runtime>::from(nonce),
@@ -450,7 +440,8 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-    frame_system::CheckVersion<Runtime>,
+    frame_system::CheckSpecVersion<Runtime>,
+    frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,
     frame_system::CheckEra<Runtime>,
     frame_system::CheckNonce<Runtime>,
@@ -493,7 +484,7 @@ impl_runtime_apis! {
     }
 
     impl sp_block_builder::BlockBuilder<Block> for Runtime {
-        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
+        fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> sp_runtime::ApplyExtrinsicResult {
             Executive::apply_extrinsic(extrinsic)
         }
 
@@ -552,7 +543,7 @@ impl_runtime_apis! {
 
         fn decode_session_keys(
             encoded: Vec<u8>,
-        ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
+        ) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
             SessionKeys::decode_into_raw_public_keys(&encoded)
         }
     }

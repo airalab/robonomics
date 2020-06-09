@@ -57,12 +57,15 @@ macro_rules! new_parachain {
             let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
             Ok(sc_transaction_pool::BasicPool::new(config, pool_api, prometheus_registry))
         })?
-        .with_import_queue(|_, client, _, _| {
+        .with_import_queue(|_config, client, _, _, spawn_task_handle, registry| {
             let import_queue = cumulus_consensus::import_queue::import_queue(
                 client.clone(),
                 client,
                 inherent_data_providers.clone(),
+                spawn_task_handle,
+                registry,
             )?;
+
             Ok(import_queue)
         })?
         .with_finality_proof_provider(|client, backend| {

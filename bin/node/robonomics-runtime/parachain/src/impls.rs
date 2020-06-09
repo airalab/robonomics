@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Some configurable implementations as associated type for the substrate runtime.
 
-use crate::{Authorship, Balances, MaximumBlockWeight, NegativeImbalance, System};
+use crate::{Balances, MaximumBlockWeight, System};
 use frame_support::traits::Get;
 use node_primitives::Balance;
 use sp_runtime::traits::{Convert, Saturating};

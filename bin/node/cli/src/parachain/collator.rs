@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Polkadot collator service implementation.
 
+use std::sync::Arc;
 use futures::FutureExt;
 use sc_service::{AbstractService, config::Configuration};
 use polkadot_primitives::parachain::{Id as ParaId, CollatorPair};
@@ -27,25 +28,30 @@ pub const PARA_ID: ParaId = ParaId::new(1000);
 /// Create collator for the parachain.
 pub fn new_collator(
     parachain_config: Configuration,
-    key: std::sync::Arc<CollatorPair>,
+    key: Arc<CollatorPair>,
     polkadot_config: polkadot_collator::Configuration,
 ) -> sc_service::error::Result<impl AbstractService> {
+    let parachain_config = cumulus_collator::prepare_collator_config(parachain_config);
+
     let (builder, inherent_data_providers) = new_parachain!(
         parachain_config,
         robonomics_parachain_runtime::RuntimeApi,
         super::executor::Robonomics
     );
 
-    let block_announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
+    let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
+    let block_announce_validator = announce_validator.clone();
     let service = builder
         .with_block_announce_validator(|_client| {
-            Box::new(block_announce_validator.clone())
+            Box::new(block_announce_validator)
         })?
         .build()?;
 
+    let registry = service.prometheus_registry();
     let proposer_factory = sc_basic_authorship::ProposerFactory::new(
         service.client(),
         service.transaction_pool(),
+        registry.as_ref(),
     );
 
     let network = service.network();
@@ -60,7 +66,7 @@ pub fn new_collator(
         PARA_ID,
         service.client(),
         announce_block,
-        block_announce_validator,
+        announce_validator,
     );
 
     let polkadot_future = polkadot_collator::start_collator(

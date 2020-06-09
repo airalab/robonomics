@@ -27,7 +27,7 @@ use crate::{
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::SubstrateCli;
+use sc_cli::{SubstrateCli, CliConfiguration};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
