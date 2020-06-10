@@ -22,7 +22,8 @@ use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    GenesisConfig, SystemConfig, IndicesConfig, BalancesConfig, SudoConfig, WASM_BINARY,
+    GenesisConfig, SystemConfig, IndicesConfig, BalancesConfig, SudoConfig,
+    CouncilConfig, ElectionsConfig, WASM_BINARY,
 };
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -78,6 +79,9 @@ fn mk_genesis(
         pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts,
         }),
+        pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+        pallet_collective_Instance1: Some(CouncilConfig::default()),
+        pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }
 }
