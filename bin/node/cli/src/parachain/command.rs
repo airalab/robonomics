@@ -87,7 +87,7 @@ pub fn run(
     super::collator::new_collator(config, key, polkadot_config)
 }
 
-#[derive(Debug, structopt::StructOpt, Clone)]
+#[derive(Debug, structopt::StructOpt)]
 pub struct PolkadotCli {
     #[structopt(flatten)]
     pub base: polkadot_cli::RunCmd,

@@ -64,7 +64,7 @@ pub fn robonomics_parachain_config() -> ChainSpec {
 /*
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
-    endowed_accounts: Vec<(AccountId, Balance)>,
+    balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
 ) -> GenesisConfig {
@@ -77,7 +77,7 @@ fn mk_genesis(
             indices: vec![],
         }),
         pallet_balances: Some(BalancesConfig {
-            balances: endowed_accounts,
+            balances,
         }),
         pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
         pallet_collective_Instance1: Some(CouncilConfig::default()),
@@ -88,18 +88,17 @@ fn mk_genesis(
 
 /// Robonomics parachain genesis. 
 fn robonomics_parachain_genesis() -> GenesisConfig {
-    use robonomics_parachain_runtime::constants::currency::XRT;
+    use robonomics_parachain_runtime::constants::currency;
     use hex_literal::hex;
 
+    // akru
     let sudo_key: AccountId =
-        // akru 
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
-    mk_genesis(
-        vec![(sudo_key.clone(), 10_000_000 * XRT)],
-        sudo_key,
-        WASM_BINARY.to_vec(),
-    )
+    let mut balances = currency::STAKE_HOLDERS.clone();
+    balances.extend(vec![(sudo_key.clone(), 10_000 * currency::XRT)]); 
+
+    mk_genesis(balances.to_vec(), sudo_key, WASM_BINARY.to_vec())
 }
 
 /// Robonomics parachain config.

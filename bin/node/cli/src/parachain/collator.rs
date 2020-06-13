@@ -74,6 +74,7 @@ pub fn new_collator(
         PARA_ID,
         key,
         polkadot_config,
+        Some("[RelayChain] ".to_string()),
     ).map(|_| ());
     service.spawn_essential_task("polkadot", polkadot_future);
 

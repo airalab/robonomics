@@ -149,7 +149,7 @@ impl pallet_utility::Trait for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
+    pub const MinimumPeriod: Moment = MILLISECS_PER_BLOCK / 2;
 }
 
 impl pallet_timestamp::Trait for Runtime {
