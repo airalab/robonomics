@@ -18,16 +18,14 @@
 
 #[cfg(feature = "parachain")]
 use crate::parachain::{
-    command as parachain_command,
-    executor as parachain_executor,
-    chain_spec as parachain_spec,
+    chain_spec as parachain_spec, command as parachain_command, executor as parachain_executor,
 };
 use crate::{
     chain_spec::*,
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::{SubstrateCli, CliConfiguration};
+use sc_cli::{CliConfiguration, SubstrateCli};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -119,7 +117,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
-                    ).0)
+                    )
+                    .0)
                 }),
 
                 #[cfg(feature = "parachain")]
@@ -129,7 +128,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_parachain_runtime::RuntimeApi,
                         parachain_executor::Robonomics
-                    ).0)
+                    )
+                    .0)
                 }),
 
                 _ => Err(format!(
@@ -157,7 +157,8 @@ pub fn run() -> sc_cli::Result<()> {
             }
         }
         #[cfg(feature = "parachain")]
-        Some(Subcommand::ExportGenesisState(params)) =>
-             parachain_command::export_genesis_state(&params.head_file),
+        Some(Subcommand::ExportGenesisState(params)) => {
+            parachain_command::export_genesis_state(&params.head_file)
+        }
     }
 }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,20 +18,18 @@
 
 use codec::Encode;
 use node_primitives::Block;
-use sp_runtime::traits::{
-    Block as BlockT, Hash as HashT, Header as HeaderT, Zero,
-};
-use sp_runtime::BuildStorage;
 use sc_cli::{
     CliConfiguration, ImportParams, KeystoreParams, NetworkParams, Result, SharedParams,
     SubstrateCli,
 };
+use sc_network::config::TransportConfig;
 use sc_service::{
     config::{Configuration, NetworkConfiguration, NodeKeyConfig, PrometheusConfig},
     AbstractService,
 };
-use sc_network::config::TransportConfig;
 use sp_core::hexdisplay::HexDisplay;
+use sp_runtime::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
+use sp_runtime::BuildStorage;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -42,10 +40,9 @@ pub fn export_genesis_state(head_file: &Option<PathBuf>) -> Result<()> {
     let storage = (&super::chain_spec::robonomics_parachain_config()).build_storage()?;
 
     let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
-        let state_root =
-            <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-                child_content.data.clone().into_iter().collect(),
-            );
+        let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
+            child_content.data.clone().into_iter().collect(),
+        );
         (sk.clone(), state_root.encode())
     });
     let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
@@ -78,11 +75,8 @@ pub fn run(
     polkadot_cli.base_path = base_path.clone().map(|v| v.join("polkadot"));
 
     let task_executor = config.task_executor.clone();
-    let polkadot_config = SubstrateCli::create_configuration(
-        &polkadot_cli,
-        &polkadot_cli,
-        task_executor,
-    ).unwrap();
+    let polkadot_config =
+        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor).unwrap();
 
     super::collator::new_collator(config, key, polkadot_config)
 }
@@ -233,14 +227,9 @@ fn parse_address(address: &str, port: Option<u16>) -> std::result::Result<Socket
 }
 
 /// Create a genesis block, given the initial storage.
-pub fn construct_genesis_block<
-    Block: BlockT
-> (
-    state_root: Block::Hash
-) -> Block {
-    let extrinsics_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-        Vec::new(),
-    );
+pub fn construct_genesis_block<Block: BlockT>(state_root: Block::Hash) -> Block {
+    let extrinsics_root =
+        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
 
     Block::new(
         <<Block as BlockT>::Header as HeaderT>::new(
@@ -248,8 +237,8 @@ pub fn construct_genesis_block<
             extrinsics_root,
             state_root,
             Default::default(),
-            Default::default()
+            Default::default(),
         ),
-        Default::default()
+        Default::default(),
     )
 }

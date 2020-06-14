@@ -64,7 +64,7 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
         if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID {
             return RobonomicsFamily::Parachain;
         }
-        
+
         if self.id() == ROBONOMICS_TESTNET_ID || self.id() == "dev" || self.id() == "local_testnet"
         {
             return RobonomicsFamily::Testnet;

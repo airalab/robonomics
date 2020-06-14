@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the I/O operations.
 
-use sp_core::crypto::SecretStringError;
 use ipfs_api::response::Error as IpfsError;
+use sp_core::crypto::SecretStringError;
 
 /// Sensor Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;

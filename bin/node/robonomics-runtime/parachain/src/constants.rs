@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -162,7 +162,7 @@ pub mod currency {
 
 /// Time.
 pub mod time {
-    use node_primitives::{Moment, BlockNumber};
+    use node_primitives::{BlockNumber, Moment};
     pub const MILLISECS_PER_BLOCK: Moment = 6000;
     pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
     pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 //! The Robonomics runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -28,7 +28,18 @@ pub mod constants;
 pub mod impls;
 
 use codec::Encode;
-use sp_std::prelude::*;
+use frame_support::{
+    construct_runtime, debug, parameter_types,
+    traits::{LockIdentifier, Randomness},
+    weights::{
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+        IdentityFee, Weight,
+    },
+};
+use node_primitives::{
+    AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
+};
+use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -36,31 +47,19 @@ use sp_core::{
     OpaqueMetadata,
 };
 use sp_runtime::{
-    Percent, Permill, Perbill, Perquintill,
-    generic, create_runtime_str, impl_opaque_keys, ModuleId,
-    transaction_validity::{TransactionSource, TransactionValidity},
+    create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        self, BlakeTwo256, Block as BlockT, StaticLookup, Verify,
-        SaturatedConversion, Saturating,
+        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
     },
+    transaction_validity::{TransactionSource, TransactionValidity},
+    ModuleId, Perbill, Percent, Permill, Perquintill,
 };
-use frame_support::{
-    construct_runtime, parameter_types, debug,
-    traits::{Randomness, LockIdentifier},
-    weights::{
-        Weight, IdentityFee,
-        constants::{RocksDbWeight, ExtrinsicBaseWeight, BlockExecutionWeight, WEIGHT_PER_SECOND},
-    },
-};
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
-use node_primitives::{
-    Balance, BlockNumber, Index, Hash, AccountId, AccountIndex, Moment, Signature,
-};
-use sp_version::RuntimeVersion;
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
 
-use constants::{time::*, currency::*};
+use constants::{currency::*, time::*};
 
 /// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -124,7 +123,7 @@ impl frame_system::Trait for Runtime {
     type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex; 
+    type ModuleToIndex = ModuleToIndex;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -327,7 +326,8 @@ impl pallet_robonomics_datalog::Trait for Runtime {
     type Event = Event;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime where
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
     Call: From<LocalCall>,
 {
     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
@@ -335,7 +335,10 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
         public: <Signature as traits::Verify>::Signer,
         account: AccountId,
         nonce: Index,
-    ) -> Option<(Call, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+    ) -> Option<(
+        Call,
+        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
+    )> {
         // take the biggest period possible.
         let period = BlockHashCount::get()
             .checked_next_power_of_two()
@@ -356,12 +359,12 @@ impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for R
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
-            debug::warn!("Unable to create signed payload: {:?}", e);
-        }).ok()?;
-        let signature = raw_payload.using_encoded(|payload| {
-            C::sign(payload, public)
-        })?;
+        let raw_payload = SignedPayload::new(call, extra)
+            .map_err(|e| {
+                debug::warn!("Unable to create signed payload: {:?}", e);
+            })
+            .ok()?;
+        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature.into(), extra)))
@@ -373,7 +376,8 @@ impl frame_system::offchain::SigningTypes for Runtime {
     type Signature = Signature;
 }
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+where
     Call: From<C>,
 {
     type OverarchingCall = Call;

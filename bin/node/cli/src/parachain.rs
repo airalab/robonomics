@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -55,7 +55,11 @@ macro_rules! new_parachain {
         .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
         .with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
             let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
-            Ok(sc_transaction_pool::BasicPool::new(config, pool_api, prometheus_registry))
+            Ok(sc_transaction_pool::BasicPool::new(
+                config,
+                pool_api,
+                prometheus_registry,
+            ))
         })?
         .with_import_queue(|_config, client, _, _, spawn_task_handle, registry| {
             let import_queue = cumulus_consensus::import_queue::import_queue(
@@ -71,14 +75,17 @@ macro_rules! new_parachain {
         .with_finality_proof_provider(|client, backend| {
             // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
             let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
-            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, provider)) as _)
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
+                backend, provider,
+            )) as _)
         })?;
 
-        inherent_data_providers.register_provider(sp_timestamp::InherentDataProvider)
+        inherent_data_providers
+            .register_provider(sp_timestamp::InherentDataProvider)
             .expect("unable to register timestamp inherent data provider");
 
         (builder, inherent_data_providers)
-    }}
+    }};
 }
 
 pub mod chain_spec;

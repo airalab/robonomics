@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Polkadot collator service implementation.
 
-use std::sync::Arc;
 use futures::FutureExt;
-use sc_service::{AbstractService, config::Configuration};
-use polkadot_primitives::parachain::{Id as ParaId, CollatorPair};
+use polkadot_primitives::parachain::{CollatorPair, Id as ParaId};
+use sc_service::{config::Configuration, AbstractService};
+use std::sync::Arc;
 
 /// Desired Robonomics Parachain ID
 pub const PARA_ID: ParaId = ParaId::new(1000);
@@ -42,9 +42,7 @@ pub fn new_collator(
     let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
     let block_announce_validator = announce_validator.clone();
     let service = builder
-        .with_block_announce_validator(|_client| {
-            Box::new(block_announce_validator)
-        })?
+        .with_block_announce_validator(|_client| Box::new(block_announce_validator))?
         .build()?;
 
     let registry = service.prometheus_registry();
@@ -55,9 +53,7 @@ pub fn new_collator(
     );
 
     let network = service.network();
-    let announce_block = Arc::new(move |hash, data| {
-        network.announce_block(hash, data)
-    });
+    let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
 
     let builder = cumulus_collator::CollatorBuilder::new(
         proposer_factory,
@@ -75,7 +71,8 @@ pub fn new_collator(
         key,
         polkadot_config,
         Some("[RelayChain] ".to_string()),
-    ).map(|_| ());
+    )
+    .map(|_| ());
     service.spawn_essential_task("polkadot", polkadot_future);
 
     log::info!(target: "collator", "Run with parachain id: {:?}", PARA_ID);

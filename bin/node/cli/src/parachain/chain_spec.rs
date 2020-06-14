@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life> 
+//  Copyright 2018-2020 Airalab <research@aira.life>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use serde::{Serialize, Deserialize};
-use sc_chain_spec::ChainSpecExtension;
-use sc_service::ChainType;
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    GenesisConfig, SystemConfig, IndicesConfig, BalancesConfig, SudoConfig,
-    CouncilConfig, ElectionsConfig, WASM_BINARY,
+    BalancesConfig, CouncilConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig,
+    SystemConfig, WASM_BINARY,
 };
+use sc_chain_spec::ChainSpecExtension;
+use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -51,12 +51,9 @@ pub struct Extensions {
 }
 
 /// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<
-    GenesisConfig,
-    Extensions,
->;
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-/// Robonomics testnet config. 
+/// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
@@ -86,7 +83,7 @@ fn mk_genesis(
     }
 }
 
-/// Robonomics parachain genesis. 
+/// Robonomics parachain genesis.
 fn robonomics_parachain_genesis() -> GenesisConfig {
     use robonomics_parachain_runtime::constants::currency;
     use hex_literal::hex;
@@ -96,7 +93,7 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     let mut balances = currency::STAKE_HOLDERS.clone();
-    balances.extend(vec![(sudo_key.clone(), 10_000 * currency::XRT)]); 
+    balances.extend(vec![(sudo_key.clone(), 10_000 * currency::XRT)]);
 
     mk_genesis(balances.to_vec(), sudo_key, WASM_BINARY.to_vec())
 }
