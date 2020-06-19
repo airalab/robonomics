@@ -22,7 +22,7 @@
 use crate::error::Result;
 
 /// Substrate friendly CLI I/O subsystem interaction.
-#[derive(structopt::StructOpt, Clone, Debug)]
+#[derive(structopt::StructOpt, Debug)]
 pub struct IoCmd {
     /// I/O device operation to run.
     #[structopt(subcommand)]
@@ -49,7 +49,7 @@ impl IoCmd {
 }
 
 /// I/O operation command.
-#[derive(structopt::StructOpt, Clone, Debug)]
+#[derive(structopt::StructOpt, Debug)]
 pub enum Operation {
     /// Read information from device.
     Read(super::SourceCmd),
