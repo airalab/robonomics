@@ -53,13 +53,15 @@ macro_rules! new_parachain {
             $dispatch,
         >($config)?
         .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
+        .with_transaction_pool(|builder| {
+            let client = builder.client();
             let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
-            Ok(sc_transaction_pool::BasicPool::new(
-                config,
+            let pool = sc_transaction_pool::BasicPool::new(
+                builder.config().transaction_pool.clone(),
                 pool_api,
-                prometheus_registry,
-            ))
+                builder.prometheus_registry(),
+            );
+            Ok(pool)
         })?
         .with_import_queue(|_config, client, _, _, spawn_task_handle, registry| {
             let import_queue = cumulus_consensus::import_queue::import_queue(

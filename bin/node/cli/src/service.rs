@@ -58,6 +58,8 @@ pub mod executor {
 #[macro_export]
 macro_rules! new_full_start {
     ($config:expr, $runtime:ty, $executor:ty) => {{
+        use std::sync::Arc;
+
         let mut import_setup = None;
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
@@ -67,13 +69,15 @@ macro_rules! new_full_start {
             $executor,
         >($config)?
         .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|config, client, _fetcher, prometheus_registry| {
-            let pool_api = sc_transaction_pool::FullChainApi::new(client.clone());
-            Ok(sc_transaction_pool::BasicPool::new(
-                config,
-                std::sync::Arc::new(pool_api),
-                prometheus_registry,
-            ))
+        .with_transaction_pool(|builder| {
+            let client = builder.client();
+            let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
+            let pool = sc_transaction_pool::BasicPool::new(
+                builder.config().transaction_pool.clone(),
+                pool_api,
+                builder.prometheus_registry(),
+            );
+            Ok(pool)
         })?
         .with_import_queue(
             |_config,
@@ -125,6 +129,7 @@ macro_rules! new_full {
         use futures::prelude::*;
         use sc_network::Event;
         use sc_client_api::ExecutorProvider;
+        use sp_core::traits::BareCryptoStorePtr;
         use std::sync::Arc;
 
         let (
@@ -156,7 +161,7 @@ macro_rules! new_full {
                 let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
                 Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(backend, provider)) as _)
             })?
-            .build()?;
+            .build_full()?;
 
         let (block_import, grandpa_link, babe_link) = import_setup.take()
                 .expect("Link Half and Block Import are present for Full Services or setup failed before. qed");
@@ -228,7 +233,7 @@ macro_rules! new_full {
         // if the node isn't actively participating in consensus then it doesn't
         // need a keystore, regardless of which protocol we use below.
         let keystore = if role.is_authority() {
-            Some(service.keystore())
+            Some(service.keystore() as BareCryptoStorePtr)
         } else {
             None
         };
@@ -319,14 +324,17 @@ macro_rules! new_light {
             $config,
         )?
         .with_select_chain(|_, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|config, client, fetcher, prometheus_registry| {
-            let fetcher = fetcher
+        .with_transaction_pool(|builder| {
+            let fetcher = builder.fetcher()
                 .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-            let pool_api = sc_transaction_pool::LightChainApi::new(client.clone(), fetcher.clone());
+            let pool_api = sc_transaction_pool::LightChainApi::new(
+                builder.client().clone(),
+                fetcher,
+            );
             let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-                config,
+                builder.config().transaction_pool.clone(),
                 Arc::new(pool_api),
-                prometheus_registry,
+                builder.prometheus_registry(),
                 sc_transaction_pool::RevalidationType::Light,
             );
             Ok(pool)
@@ -383,7 +391,7 @@ macro_rules! new_light {
                 backend, provider,
             )) as _)
         })?
-        .build()
+        .build_light()
     }};
 }
 

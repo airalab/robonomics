@@ -25,7 +25,7 @@ use crate::{
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::{CliConfiguration, SubstrateCli};
+use sc_cli::SubstrateCli;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -89,10 +89,9 @@ pub fn run() -> sc_cli::Result<()> {
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => {
-                    let base_path = cli.run.base_path()?;
                     runner.run_node(
-                        |config| parachain_command::run(config, &base_path, &cli.relaychain_args),
-                        |config| parachain_command::run(config, &base_path, &cli.relaychain_args),
+                        |config| parachain_command::run(config, &cli.relaychain_args),
+                        |config| parachain_command::run(config, &cli.relaychain_args),
                         robonomics_parachain_runtime::VERSION,
                     )
                 }

@@ -65,6 +65,9 @@ pallet-robonomics-liability = { path = "../../../robonomics/frame/liability", de
 [build-dependencies]
 substrate-wasm-builder-runner = { version = "1.0.5", git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 
+[dev-dependencies]
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+
 [features]
 default = ["std"]
 std = [

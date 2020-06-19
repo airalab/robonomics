@@ -32,7 +32,10 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness},
+    traits::{
+        Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier,
+        OnUnbalanced, Randomness, Filter,
+    },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -98,6 +101,15 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
+pub struct BaseFilter;
+impl Filter<Call> for BaseFilter {
+	fn filter(_call: &Call) -> bool {
+		true
+	}
+}
+pub struct IsCallable;
+frame_support::impl_filter_stack!(IsCallable, BaseFilter, Call, is_callable);
+
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
@@ -156,22 +168,10 @@ impl frame_system::Trait for Runtime {
     type OnKilledAccount = ();
 }
 
-parameter_types! {
-    // One storage item; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const MultisigDepositBase: Balance = 30 * XRT;
-    // Additional storage item size of 32 bytes.
-    pub const MultisigDepositFactor: Balance = 5 * XRT;
-    pub const MaxSignatories: u16 = 100;
-}
-
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type Currency = Balances;
-    type MultisigDepositBase = MultisigDepositBase;
-    type MultisigDepositFactor = MultisigDepositFactor;
-    type MaxSignatories = MaxSignatories;
-    type IsCallable = ();
+    type IsCallable = IsCallable;
 }
 
 parameter_types! {
@@ -582,7 +582,7 @@ construct_runtime!(
     {
         // Basic stuff.
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event<T>},
+        Utility: pallet_utility::{Module, Call, Storage, Event},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 

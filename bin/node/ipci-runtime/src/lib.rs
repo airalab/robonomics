@@ -33,7 +33,7 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{KeyOwnerProofSystem, Randomness},
+    traits::{KeyOwnerProofSystem, Randomness, Filter},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -94,6 +94,15 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
+pub struct BaseFilter;
+impl Filter<Call> for BaseFilter {
+	fn filter(_call: &Call) -> bool {
+		true
+	}
+}
+pub struct IsCallable;
+frame_support::impl_filter_stack!(IsCallable, BaseFilter, Call, is_callable);
+
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 2400;
@@ -134,22 +143,10 @@ impl frame_system::Trait for Runtime {
     type OnKilledAccount = ();
 }
 
-parameter_types! {
-    // One storage item; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const MultisigDepositBase: Balance = 30 * MITO;
-    // Additional storage item size of 32 bytes.
-    pub const MultisigDepositFactor: Balance = 5 * MITO;
-    pub const MaxSignatories: u16 = 100;
-}
-
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type Currency = Balances;
-    type MultisigDepositBase = MultisigDepositBase;
-    type MultisigDepositFactor = MultisigDepositFactor;
-    type MaxSignatories = MaxSignatories;
-    type IsCallable = ();
+    type IsCallable = IsCallable;
 }
 
 parameter_types! {
@@ -459,7 +456,7 @@ construct_runtime!(
     {
         // Basic stuff.
         System: frame_system::{Module, Call, Storage, Config, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event<T>},
+        Utility: pallet_utility::{Module, Call, Storage, Event},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 

@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    BalancesConfig, CouncilConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    SystemConfig, WASM_BINARY,
+    BalancesConfig, ElectionsConfig, GenesisConfig,
+    IndicesConfig, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -76,8 +76,9 @@ fn mk_genesis(
         pallet_balances: Some(BalancesConfig {
             balances,
         }),
+        pallet_generic_asset: Some(Default::default()),
         pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-        pallet_collective_Instance1: Some(CouncilConfig::default()),
+        pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }

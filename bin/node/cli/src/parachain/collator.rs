@@ -43,7 +43,7 @@ pub fn new_collator(
     let block_announce_validator = announce_validator.clone();
     let service = builder
         .with_block_announce_validator(|_client| Box::new(block_announce_validator))?
-        .build()?;
+        .build_full()?;
 
     let registry = service.prometheus_registry();
     let proposer_factory = sc_basic_authorship::ProposerFactory::new(

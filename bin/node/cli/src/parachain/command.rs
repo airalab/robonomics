@@ -61,7 +61,6 @@ pub fn export_genesis_state(head_file: &Option<PathBuf>) -> Result<()> {
 /// Run a collator node with the given parachain `Configuration`
 pub fn run(
     config: Configuration,
-    base_path: &Option<PathBuf>,
     relaychain_args: &Vec<String>,
 ) -> sc_service::error::Result<impl AbstractService> {
     // TODO
@@ -72,7 +71,8 @@ pub fn run(
             .iter()
             .chain(relaychain_args.iter()),
     );
-    polkadot_cli.base_path = base_path.clone().map(|v| v.join("polkadot"));
+    polkadot_cli.base_path =
+        config.base_path.as_ref().map(|x| x.path().join("polkadot"));
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
@@ -147,8 +147,12 @@ impl CliConfiguration for PolkadotCli {
         self.base.base.keystore_params()
     }
 
-    fn base_path(&self) -> Result<Option<PathBuf>> {
-        Ok(self.shared_params().base_path().or(self.base_path.clone()))
+    fn base_path(&self) -> Result<Option<sc_service::config::BasePath>> {
+        Ok(self
+           .shared_params()
+           .base_path()
+           .or_else(|| self.base_path.clone().map(Into::into))
+        )
     }
 
     fn rpc_http(&self) -> Result<Option<SocketAddr>> {

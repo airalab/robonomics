@@ -19,7 +19,7 @@
 use structopt::StructOpt;
 
 /// An overarching CLI command definition.
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Debug, StructOpt)]
 #[structopt(settings = &[
     structopt::clap::AppSettings::GlobalVersion,
     structopt::clap::AppSettings::ArgsNegateSubcommands,
@@ -41,7 +41,7 @@ pub struct Cli {
 }
 
 /// Possible subcommands of the main binary.
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Debug, StructOpt)]
 pub enum Subcommand {
     /// A set of base subcommands handled by `sc_cli`.
     #[structopt(flatten)]
@@ -57,7 +57,7 @@ pub enum Subcommand {
     ExportGenesisState(ExportGenesisState),
 }
 
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Debug, StructOpt)]
 pub struct ExportGenesisState {
     /// Genesis state path
     pub head_file: Option<std::path::PathBuf>,

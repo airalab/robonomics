@@ -30,7 +30,7 @@ pub mod impls;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{LockIdentifier, Randomness},
+    traits::{LockIdentifier, Randomness, Filter},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -70,8 +70,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 3,
-    impl_version: 3,
+    spec_version: 4,
+    impl_version: 4,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -88,6 +88,15 @@ pub fn native_version() -> NativeVersion {
 impl_opaque_keys! {
     pub struct SessionKeys {}
 }
+
+pub struct BaseFilter;
+impl Filter<Call> for BaseFilter {
+	fn filter(_call: &Call) -> bool {
+		true
+	}
+}
+pub struct IsCallable;
+frame_support::impl_filter_stack!(IsCallable, BaseFilter, Call, is_callable);
 
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
@@ -129,22 +138,10 @@ impl frame_system::Trait for Runtime {
     type OnKilledAccount = ();
 }
 
-parameter_types! {
-    // One storage item; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const MultisigDepositBase: Balance = 30 * XRT;
-    // Additional storage item size of 32 bytes.
-    pub const MultisigDepositFactor: Balance = 5 * XRT;
-    pub const MaxSignatories: u16 = 100;
-}
-
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type Currency = Balances;
-    type IsCallable = ();
-    type MultisigDepositBase = MultisigDepositBase;
-    type MultisigDepositFactor = MultisigDepositFactor;
-    type MaxSignatories = MaxSignatories;
+    type IsCallable = IsCallable;
 }
 
 parameter_types! {
@@ -180,6 +177,12 @@ impl pallet_balances::Trait for Runtime {
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
+}
+
+impl pallet_generic_asset::Trait for Runtime {
+    type Balance = Balance;
+    type AssetId = u32;
+    type Event = Event;
 }
 
 parameter_types! {
@@ -397,13 +400,14 @@ construct_runtime! {
     {
         // Basic stuff.
         System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event<T>},
+        Utility: pallet_utility::{Module, Call, Storage, Event},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
+        GenericAsset: pallet_generic_asset::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
         // Randomness.
