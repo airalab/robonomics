@@ -33,16 +33,14 @@ pub fn new_collator(
 ) -> sc_service::error::Result<impl AbstractService> {
     let parachain_config = cumulus_collator::prepare_collator_config(parachain_config);
 
-    let (builder, inherent_data_providers) = new_parachain!(
+    let (builder, inherent_data_providers, announce_validator) = new_parachain!(
         parachain_config,
         robonomics_parachain_runtime::RuntimeApi,
         super::executor::Robonomics
     );
 
-    let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
-    let block_announce_validator = announce_validator.clone();
     let service = builder
-        .with_block_announce_validator(|_client| Box::new(block_announce_validator))?
+        .with_informant_prefix("[Robonomics] ".to_string())?
         .build_full()?;
 
     let registry = service.prometheus_registry();
@@ -54,8 +52,7 @@ pub fn new_collator(
 
     let network = service.network();
     let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
-
-    let builder = cumulus_collator::CollatorBuilder::new(
+    let collator_builder = cumulus_collator::CollatorBuilder::new(
         proposer_factory,
         inherent_data_providers,
         service.client(),
@@ -66,7 +63,7 @@ pub fn new_collator(
     );
 
     let polkadot_future = polkadot_collator::start_collator(
-        builder,
+        collator_builder,
         PARA_ID,
         key,
         polkadot_config,

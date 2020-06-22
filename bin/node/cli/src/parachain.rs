@@ -46,6 +46,8 @@ macro_rules! new_parachain {
         use std::sync::Arc;
 
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+        let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
+        let block_announce_validator = announce_validator.clone();
 
         let builder = sc_service::ServiceBuilder::new_full::<
             node_primitives::Block,
@@ -80,13 +82,14 @@ macro_rules! new_parachain {
             Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
                 backend, provider,
             )) as _)
-        })?;
+        })?
+        .with_block_announce_validator(|_client| Box::new(block_announce_validator))?;
 
         inherent_data_providers
             .register_provider(sp_timestamp::InherentDataProvider)
             .expect("unable to register timestamp inherent data provider");
 
-        (builder, inherent_data_providers)
+        (builder, inherent_data_providers, announce_validator)
     }};
 }
 

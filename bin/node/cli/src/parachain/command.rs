@@ -67,7 +67,7 @@ pub fn run(
     relaychain_args: &Vec<String>,
 ) -> sc_service::error::Result<impl AbstractService> {
     // TODO
-    let key = Arc::new(sp_core::Pair::from_seed(&[10; 32]));
+    let key = Arc::new(sp_core::Pair::generate().0);
 
     let mut polkadot_cli = PolkadotCli::from_iter(
         [PolkadotCli::executable_name().to_string()]
