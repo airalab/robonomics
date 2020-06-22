@@ -88,13 +88,11 @@ pub fn run() -> sc_cli::Result<()> {
                 ),
 
                 #[cfg(feature = "parachain")]
-                RobonomicsFamily::Parachain => {
-                    runner.run_node(
-                        |config| parachain_command::run(config, &cli.relaychain_args),
-                        |config| parachain_command::run(config, &cli.relaychain_args),
-                        robonomics_parachain_runtime::VERSION,
-                    )
-                }
+                RobonomicsFamily::Parachain => runner.run_node(
+                    |config| parachain_command::run(config, &cli.relaychain_args),
+                    |config| parachain_command::run(config, &cli.relaychain_args),
+                    robonomics_parachain_runtime::VERSION,
+                ),
 
                 _ => Err(format!(
                     "unsupported chain spec: {}",
@@ -157,7 +155,20 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            parachain_command::export_genesis_state(&params.head_file)
+            use codec::Encode;
+            use sp_core::hexdisplay::HexDisplay;
+            use sp_runtime::traits::Block;
+
+            let block = parachain_command::generate_genesis_state()?;
+            let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
+
+            if let Some(output) = &params.head_file {
+                std::fs::write(output, header_hex)?;
+            } else {
+                println!("{}", header_hex);
+            }
+
+            Ok(())
         }
     }
 }

@@ -325,12 +325,11 @@ macro_rules! new_light {
         )?
         .with_select_chain(|_, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
         .with_transaction_pool(|builder| {
-            let fetcher = builder.fetcher()
+            let fetcher = builder
+                .fetcher()
                 .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-            let pool_api = sc_transaction_pool::LightChainApi::new(
-                builder.client().clone(),
-                fetcher,
-            );
+            let pool_api =
+                sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher);
             let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
                 builder.config().transaction_pool.clone(),
                 Arc::new(pool_api),

@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    BalancesConfig, ElectionsConfig, GenesisConfig,
-    IndicesConfig, SudoConfig, SystemConfig, WASM_BINARY,
+    BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig, SystemConfig,
+    WASM_BINARY,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;

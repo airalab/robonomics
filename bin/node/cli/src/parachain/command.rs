@@ -27,17 +27,14 @@ use sc_service::{
     config::{Configuration, NetworkConfiguration, NodeKeyConfig, PrometheusConfig},
     AbstractService,
 };
-use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
 use sp_runtime::BuildStorage;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn export_genesis_state(head_file: &Option<PathBuf>) -> Result<()> {
-    sc_cli::init_logger("");
-
-    let storage = (&super::chain_spec::robonomics_parachain_config()).build_storage()?;
+pub fn generate_genesis_state() -> Result<Block> {
+    let storage = (&crate::parachain::chain_spec::robonomics_parachain_config()).build_storage()?;
 
     let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
         let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
@@ -48,14 +45,20 @@ pub fn export_genesis_state(head_file: &Option<PathBuf>) -> Result<()> {
     let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
         storage.top.clone().into_iter().chain(child_roots).collect(),
     );
-    let block: Block = construct_genesis_block(state_root);
-    let head = block.header().encode();
 
-    println!("0x{:?}", HexDisplay::from(&head));
-    if let Some(output) = head_file {
-        std::fs::write(output, head)?;
-    }
-    Ok(())
+    let extrinsics_root =
+        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
+
+    Ok(Block::new(
+        <<Block as BlockT>::Header as HeaderT>::new(
+            Zero::zero(),
+            extrinsics_root,
+            state_root,
+            Default::default(),
+            Default::default(),
+        ),
+        Default::default(),
+    ))
 }
 
 /// Run a collator node with the given parachain `Configuration`
@@ -71,8 +74,7 @@ pub fn run(
             .iter()
             .chain(relaychain_args.iter()),
     );
-    polkadot_cli.base_path =
-        config.base_path.as_ref().map(|x| x.path().join("polkadot"));
+    polkadot_cli.base_path = config.base_path.as_ref().map(|x| x.path().join("polkadot"));
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
@@ -149,10 +151,9 @@ impl CliConfiguration for PolkadotCli {
 
     fn base_path(&self) -> Result<Option<sc_service::config::BasePath>> {
         Ok(self
-           .shared_params()
-           .base_path()
-           .or_else(|| self.base_path.clone().map(Into::into))
-        )
+            .shared_params()
+            .base_path()
+            .or_else(|| self.base_path.clone().map(Into::into)))
     }
 
     fn rpc_http(&self) -> Result<Option<SocketAddr>> {
@@ -228,21 +229,4 @@ fn parse_address(address: &str, port: Option<u16>) -> std::result::Result<Socket
     }
 
     Ok(address)
-}
-
-/// Create a genesis block, given the initial storage.
-pub fn construct_genesis_block<Block: BlockT>(state_root: Block::Hash) -> Block {
-    let extrinsics_root =
-        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
-
-    Block::new(
-        <<Block as BlockT>::Header as HeaderT>::new(
-            Zero::zero(),
-            extrinsics_root,
-            state_root,
-            Default::default(),
-            Default::default(),
-        ),
-        Default::default(),
-    )
 }

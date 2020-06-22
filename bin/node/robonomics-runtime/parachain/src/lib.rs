@@ -30,7 +30,7 @@ pub mod impls;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{LockIdentifier, Randomness, Filter},
+    traits::{Filter, LockIdentifier, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -91,9 +91,9 @@ impl_opaque_keys! {
 
 pub struct BaseFilter;
 impl Filter<Call> for BaseFilter {
-	fn filter(_call: &Call) -> bool {
-		true
-	}
+    fn filter(_call: &Call) -> bool {
+        true
+    }
 }
 pub struct IsCallable;
 frame_support::impl_filter_stack!(IsCallable, BaseFilter, Call, is_callable);
