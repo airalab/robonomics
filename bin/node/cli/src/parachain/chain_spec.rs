@@ -53,12 +53,13 @@ pub struct Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
+/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -94,7 +95,7 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     let mut balances = currency::STAKE_HOLDERS.clone();
-    balances.extend(vec![(sudo_key.clone(), 10_000 * currency::XRT)]);
+    balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
 
     mk_genesis(balances.to_vec(), sudo_key, WASM_BINARY.to_vec())
 }
@@ -114,4 +115,3 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         Default::default(),
     )
 }
-*/

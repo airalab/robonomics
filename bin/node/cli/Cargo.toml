@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.18.2"
+version = "0.18.3"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -55,20 +55,21 @@ sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 
 # client dependencies
+sc-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-informant = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-network = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 
 # frame dependencies
 pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
@@ -77,12 +78,14 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
 
 # cumulus dependencies
+cumulus-primitives = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
 polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
@@ -152,10 +155,12 @@ browser = [
 # builds Robonomics as Polkadot parachain.
 parachain = [
     "robonomics-parachain-runtime",
+    "cumulus-primitives",
     "cumulus-consensus",
     "cumulus-collator",
     "cumulus-network",
     "polkadot-primitives",
+    "polkadot-parachain",
     "polkadot-collator",
     "polkadot-service",
     "polkadot-cli",

@@ -34,6 +34,11 @@ pub struct Cli {
     #[structopt(flatten)]
     pub run: sc_cli::RunCmd,
 
+	/// Id of the parachain this collator collates for.
+    #[cfg(feature = "parachain")]
+	#[structopt(long, default_value = "100")]
+	pub parachain_id: u32,
+
     /// Polkadot relaychain arguments.
     #[cfg(feature = "parachain")]
     #[structopt(raw = true)]
@@ -52,13 +57,7 @@ pub enum Subcommand {
     /// Benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
-    /// Print hex-encoded genesis state of the parachain.
+	/// Run Polkadot node. 
     #[cfg(feature = "parachain")]
-    ExportGenesisState(ExportGenesisState),
-}
-
-#[derive(Debug, StructOpt)]
-pub struct ExportGenesisState {
-    /// Genesis state path
-    pub head_file: Option<std::path::PathBuf>,
+	Polkadot(polkadot_cli::Cli),
 }

@@ -18,22 +18,26 @@
 
 use codec::Encode;
 use node_primitives::Block;
+use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
     CliConfiguration, ImportParams, KeystoreParams, NetworkParams, Result, SharedParams,
-    SubstrateCli,
+    SubstrateCli, ChainSpec, RuntimeVersion,
 };
 use sc_network::config::TransportConfig;
 use sc_service::{
     config::{Configuration, NetworkConfiguration, NodeKeyConfig, PrometheusConfig},
-    AbstractService,
+    TaskManager,
 };
 use sp_runtime::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
 use sp_runtime::BuildStorage;
+use sp_core::hexdisplay::HexDisplay;
+use cumulus_primitives::ParaId;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use log::info;
 
-pub fn generate_genesis_state() -> Result<Block> {
+fn generate_genesis_state() -> sc_service::error::Result<Block> {
     let storage = (&crate::parachain::chain_spec::robonomics_parachain_config()).build_storage()?;
 
     let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
@@ -64,10 +68,22 @@ pub fn generate_genesis_state() -> Result<Block> {
 /// Run a collator node with the given parachain `Configuration`
 pub fn run(
     config: Configuration,
+    parachain_id: u32,
     relaychain_args: &Vec<String>,
-) -> sc_service::error::Result<impl AbstractService> {
+) -> sc_service::error::Result<TaskManager> {
     // TODO
     let key = Arc::new(sp_core::Pair::generate().0);
+    let parachain_id = ParaId::from(parachain_id);
+
+    let block = generate_genesis_state()?;
+    let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
+    let parachain_account = AccountIdConversion::<polkadot_primitives::AccountId>::into_account(
+        &parachain_id,
+    );
+
+    info!("[Para] ID: {}", parachain_id);
+    info!("[Para] Account: {}", parachain_account);
+    info!("[Para] Genesis State: {}", header_hex);
 
     let mut polkadot_cli = PolkadotCli::from_iter(
         [PolkadotCli::executable_name().to_string()]
@@ -77,10 +93,13 @@ pub fn run(
     polkadot_cli.base_path = config.base_path.as_ref().map(|x| x.path().join("polkadot"));
 
     let task_executor = config.task_executor.clone();
-    let polkadot_config =
-        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor).unwrap();
+    let polkadot_config = SubstrateCli::create_configuration(
+        &polkadot_cli,
+        &polkadot_cli,
+        task_executor,
+    ).unwrap();
 
-    super::collator::new_collator(config, key, polkadot_config)
+    super::collator::new_collator(config, parachain_id, key, polkadot_config)
 }
 
 #[derive(Debug, structopt::StructOpt)]
@@ -124,11 +143,20 @@ impl SubstrateCli for PolkadotCli {
         "robonomics"
     }
 
-    fn load_spec(&self, _id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        polkadot_service::PolkadotChainSpec::from_json_bytes(
-            &include_bytes!("../../res/polkadot_chainspec.json")[..],
-        )
-        .map(|r| Box::new(r) as Box<_>)
+    fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+        let chain_spec = match id {
+            "" => polkadot_service::PolkadotChainSpec::from_json_bytes(
+                &include_bytes!("../../res/polkadot_chainspec.json")[..]
+            )?,
+            path => polkadot_service::PolkadotChainSpec::from_json_file(
+                std::path::PathBuf::from(path)
+            )?,
+        };
+        Ok(Box::new(chain_spec))
+    }
+
+    fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        polkadot_cli::Cli::native_runtime_version(chain_spec)
     }
 }
 

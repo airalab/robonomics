@@ -68,7 +68,9 @@ macro_rules! new_full_start {
             $runtime,
             $executor,
         >($config)?
-        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
+        .with_select_chain(
+            |_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone()))
+        )?
         .with_transaction_pool(|builder| {
             let client = builder.client();
             let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
@@ -128,7 +130,7 @@ macro_rules! new_full {
     ($config:expr, $runtime:ty, $executor:ty) => {{
         use futures::prelude::*;
         use sc_network::Event;
-        use sc_client_api::ExecutorProvider;
+        use sc_client_api::call_executor::ExecutorProvider;
         use sp_core::traits::BareCryptoStorePtr;
         use std::sync::Arc;
 
@@ -155,7 +157,10 @@ macro_rules! new_full {
         let (builder, mut import_setup, inherent_data_providers) =
             new_full_start!($config, $runtime, $executor);
 
-        let service = builder
+        let sc_service::ServiceComponents {
+            client, transaction_pool, task_manager, keystore, network, select_chain,
+            prometheus_registry, telemetry_on_connect_sinks, ..
+        } = builder
             .with_finality_proof_provider(|client, backend| {
                 // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
                 let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
@@ -168,25 +173,24 @@ macro_rules! new_full {
 
         if let sc_service::config::Role::Authority { .. } = &role {
             let proposer = sc_basic_authorship::ProposerFactory::new(
-                service.client(),
-                service.transaction_pool(),
-                service.prometheus_registry().as_ref(),
+                client.clone(),
+                transaction_pool.clone(),
+                prometheus_registry.as_ref(),
             );
 
-            let client = service.client();
-            let select_chain = service.select_chain()
+            let select_chain = select_chain
                 .ok_or(sc_service::Error::SelectChainRequired)?;
 
             let can_author_with =
                 sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
             let babe_config = sc_consensus_babe::BabeParams {
-                keystore: service.keystore(),
-                client,
+                keystore: keystore.clone(),
+                client: client.clone(),
                 select_chain,
                 env: proposer,
                 block_import,
-                sync_oracle: service.network(),
+                sync_oracle: network.clone(),
                 inherent_data_providers: inherent_data_providers.clone(),
                 force_authoring,
                 babe_link,
@@ -194,7 +198,7 @@ macro_rules! new_full {
             };
 
             let babe = sc_consensus_babe::start_babe(babe_config)?;
-            service.spawn_essential_task("babe-proposer", babe);
+            task_manager.spawn_essential_handle().spawn_blocking("babe-proposer", babe);
         }
 
         // Spawn authority discovery module.
@@ -203,7 +207,7 @@ macro_rules! new_full {
                 sc_service::config::Role::Authority { ref sentry_nodes } => (
                     sentry_nodes.clone(),
                     sc_authority_discovery::Role::Authority (
-                        service.keystore(),
+                        keystore.clone(),
                     ),
                 ),
                 sc_service::config::Role::Sentry {..} => (
@@ -213,27 +217,27 @@ macro_rules! new_full {
                 _ => unreachable!("Due to outer matches! constraint; qed.")
             };
 
-            let network = service.network();
-            let dht_event_stream = network.event_stream("authority-discovery").filter_map(|e| async move { match e {
-                Event::Dht(e) => Some(e),
-                _ => None,
-            }}).boxed();
+            let dht_event_stream = network.event_stream("authority-discovery")
+                .filter_map(|e| async move { match e {
+                    Event::Dht(e) => Some(e),
+                    _ => None,
+                }}).boxed();
             let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
-                service.client(),
-                network,
+                client.clone(),
+                network.clone(),
                 sentries,
                 dht_event_stream,
                 authority_discovery_role,
-                service.prometheus_registry(),
+                prometheus_registry.clone(),
             );
 
-            service.spawn_task("authority-discovery", authority_discovery);
+            task_manager.spawn_handle().spawn("authority-discovery", authority_discovery);
         }
 
         // if the node isn't actively participating in consensus then it doesn't
         // need a keystore, regardless of which protocol we use below.
         let keystore = if role.is_authority() {
-            Some(service.keystore() as BareCryptoStorePtr)
+            Some(keystore.clone() as BareCryptoStorePtr)
         } else {
             None
         };
@@ -259,25 +263,25 @@ macro_rules! new_full {
             let grandpa_config = sc_finality_grandpa::GrandpaParams {
                 config,
                 link: grandpa_link,
-                network: service.network(),
+                network: network.clone(),
                 inherent_data_providers: inherent_data_providers.clone(),
-                telemetry_on_connect: Some(service.telemetry_on_connect_stream()),
+                telemetry_on_connect: Some(telemetry_on_connect_sinks.on_connect_stream()),
                 voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
-                prometheus_registry: service.prometheus_registry(),
+                prometheus_registry: prometheus_registry.clone(),
                 shared_voter_state: sc_finality_grandpa::SharedVoterState::empty(),
             };
 
             // the GRANDPA voter task is considered infallible, i.e.
             // if it fails we take down the service with it.
-            service.spawn_essential_task(
+            task_manager.spawn_essential_handle().spawn_blocking(
                 "grandpa-voter",
                 sc_finality_grandpa::run_grandpa_voter(grandpa_config)?
             );
         } else {
             sc_finality_grandpa::setup_disabled_grandpa(
-                service.client(),
+                client.clone(),
                 &inherent_data_providers,
-                service.network(),
+                network.clone(),
             )?;
         }
 
@@ -286,10 +290,10 @@ macro_rules! new_full {
             let (substrate_ros_services, publish_task) =
                 substrate_ros_api::start(
                     system_info,
-                    service.client(),
-                    service.network(),
-                    service.transaction_pool(),
-                    service.keystore(),
+                    client.clone(),
+                    network.clone(),
+                    transaction_pool.clone(),
+                    keystore.clone(),
                 ).map_err(|e| format!("Substrate ROS: {}", e))?;
 
             let on_exit = service.on_exit().then(move |_| {
@@ -303,12 +307,12 @@ macro_rules! new_full {
                 on_exit,
             ).boxed().map(|_| ());
 
-            service.spawn_task("substrate-ros", ros_task);
+            service.spawn_handle().spawn("substrate-ros", ros_task);
         } else {
             log::warn!("ROS integration disabled because of initialization failure");
         }}
 
-        Ok(service)
+        Ok(task_manager)
     }};
 }
 
@@ -320,33 +324,36 @@ macro_rules! new_light {
 
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-        sc_service::ServiceBuilder::new_light::<node_primitives::Block, $runtime, $executor>(
-            $config,
-        )?
-        .with_select_chain(|_, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|builder| {
-            let fetcher = builder
-                .fetcher()
-                .ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
-            let pool_api =
-                sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher);
-            let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
-                builder.config().transaction_pool.clone(),
-                Arc::new(pool_api),
-                builder.prometheus_registry(),
-                sc_transaction_pool::RevalidationType::Light,
-            );
-            Ok(pool)
-        })?
-        .with_import_queue_and_fprb(
-            |_config,
-             client,
-             backend,
-             fetcher,
-             _select_chain,
-             _tx_pool,
-             spawn_task_handle,
-             registry| {
+        let sc_service::ServiceComponents {
+            task_manager, ..
+        } = sc_service::ServiceBuilder::new_light::<node_primitives::Block, $runtime, $executor>($config)?
+            .with_select_chain(
+                |_, backend| Ok(sc_consensus::LongestChain::new(backend.clone()))
+            )?
+            .with_transaction_pool(|builder| {
+                let fetcher = builder
+                    .fetcher()
+                .   ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+                let pool_api =
+                    sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher);
+                let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
+                    builder.config().transaction_pool.clone(),
+                    Arc::new(pool_api),
+                    builder.prometheus_registry(),
+                    sc_transaction_pool::RevalidationType::Light,
+                );
+                Ok(pool)
+            })?
+            .with_import_queue_and_fprb(|
+                _config,
+                client,
+                backend,
+                fetcher,
+                _select_chain,
+                _tx_pool,
+                spawn_task_handle,
+                registry,
+            | {
                 let fetch_checker = fetcher
                     .map(|fetcher| fetcher.checker().clone())
                     .ok_or_else(|| {
@@ -381,40 +388,41 @@ macro_rules! new_light {
                 )?;
 
                 Ok((import_queue, finality_proof_request_builder))
-            },
-        )?
-        .with_finality_proof_provider(|client, backend| {
-            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
-            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
-                backend, provider,
-            )) as _)
-        })?
-        .build_light()
+            })?
+            .with_finality_proof_provider(|client, backend| {
+                // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+                let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+                Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
+                    backend, provider,
+                )) as _)
+            })?
+            .build_light()?;
+
+        Ok(task_manager)
     }};
 }
 
 /// IPCI chain services.
 pub mod ipci {
-    use sc_service::{config::Configuration, error::Result, AbstractService};
+    use sc_service::{config::Configuration, error::Result, TaskManager};
 
     /// Create a new IPCI service for a full node.
-    pub fn new_full(config: Configuration) -> Result<impl AbstractService> {
+    pub fn new_full(config: Configuration) -> Result<TaskManager> {
         new_full!(config, ipci_runtime::RuntimeApi, super::executor::Ipci)
     }
 
     /// Create a new IPCI service for a light client.
-    pub fn new_light(config: Configuration) -> Result<impl AbstractService> {
+    pub fn new_light(config: Configuration) -> Result<TaskManager> {
         new_light!(config, ipci_runtime::RuntimeApi, super::executor::Ipci)
     }
 }
 
 ///  Robonomics chain services.
 pub mod robonomics {
-    use sc_service::{config::Configuration, error::Result, AbstractService};
+    use sc_service::{config::Configuration, error::Result, TaskManager};
 
     /// Create a new Robonomics service for a full node.
-    pub fn new_full(config: Configuration) -> Result<impl AbstractService> {
+    pub fn new_full(config: Configuration) -> Result<TaskManager> {
         new_full!(
             config,
             robonomics_runtime::RuntimeApi,
@@ -423,7 +431,7 @@ pub mod robonomics {
     }
 
     /// Create a new Robonomics service for a light client.
-    pub fn new_light(config: Configuration) -> Result<impl AbstractService> {
+    pub fn new_light(config: Configuration) -> Result<TaskManager> {
         new_light!(
             config,
             robonomics_runtime::RuntimeApi,

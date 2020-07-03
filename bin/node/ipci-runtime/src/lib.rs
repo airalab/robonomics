@@ -33,7 +33,7 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{Filter, KeyOwnerProofSystem, Randomness},
+    traits::{KeyOwnerProofSystem, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -79,8 +79,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 6,
-    impl_version: 6,
+    spec_version: 7,
+    impl_version: 7,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -93,15 +93,6 @@ pub fn native_version() -> NativeVersion {
         can_author_with: Default::default(),
     }
 }
-
-pub struct BaseFilter;
-impl Filter<Call> for BaseFilter {
-    fn filter(_call: &Call) -> bool {
-        true
-    }
-}
-pub struct IsCallable;
-frame_support::impl_filter_stack!(IsCallable, BaseFilter, Call, is_callable);
 
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
@@ -119,6 +110,7 @@ parameter_types! {
 
 impl frame_system::Trait for Runtime {
     type Call = Call;
+    type BaseCallFilter = ();
     type Version = Version;
     type AccountId = AccountId;
     type Lookup = Indices;
@@ -146,7 +138,6 @@ impl frame_system::Trait for Runtime {
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type IsCallable = IsCallable;
 }
 
 parameter_types! {
