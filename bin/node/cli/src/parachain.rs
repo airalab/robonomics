@@ -45,9 +45,9 @@ macro_rules! new_parachain {
     ($config:expr, $runtime:ty, $dispatch:ty) => {{
         use std::sync::Arc;
 
-        let inherent_data_providers = sp_inherents::InherentDataProviders::new();
         let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
         let block_announce_validator = announce_validator.clone();
+        let inherent_data_providers = sp_inherents::InherentDataProviders::new();
         let builder = sc_service::ServiceBuilder::new_full::<
             node_primitives::Block,
             $runtime,
@@ -66,12 +66,12 @@ macro_rules! new_parachain {
                 );
                 Ok(pool)
             })?
-            .with_import_queue(|_config, client, _, _, spawn_task_handle, registry| {
+            .with_import_queue(|_config, client, _, _, spawner, registry| {
                 let import_queue = cumulus_consensus::import_queue::import_queue(
                     client.clone(),
                     client,
                     inherent_data_providers.clone(),
-                    spawn_task_handle,
+                    spawner,
                     registry,
                 )?;
 

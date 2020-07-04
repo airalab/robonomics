@@ -25,22 +25,23 @@ use std::sync::Arc;
 
 /// Create collator for the parachain.
 pub fn new_collator(
-    mut parachain_config: Configuration,
+    parachain_config: Configuration,
     parachain_id: parachain::Id,
     key: Arc<CollatorPair>,
     mut polkadot_config: polkadot_collator::Configuration,
 ) -> sc_service::error::Result<TaskManager> {
-    //let mut parachain_config = cumulus_collator::prepare_collator_config(parachain_config);
-
+    let mut parachain_config = cumulus_collator::prepare_collator_config(parachain_config);
     parachain_config.informant_output_format = OutputFormat {
         enable_color: true,
-        prefix: "[Para] ".to_string(),
+        prefix: "[Parachain] ".to_string(),
     };
+
     let (builder, inherent_data_providers, announce_validator) = new_parachain!(
         parachain_config,
         robonomics_parachain_runtime::RuntimeApi,
         super::executor::Robonomics
     );
+
     inherent_data_providers
         .register_provider(sp_timestamp::InherentDataProvider)
         .unwrap();
@@ -52,22 +53,24 @@ pub fn new_collator(
         service.prometheus_registry.as_ref(),
     );
 
+    let block_import = service.client.clone();
+    let client = service.client.clone();
     let network = service.network.clone();
     let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
     let collator_builder = cumulus_collator::CollatorBuilder::new(
         proposer_factory,
         inherent_data_providers,
-        service.client.clone(),
-        service.client.clone(),
+        block_import,
+        client.clone(),
         parachain_id,
-        service.client.clone(),
+        client,
         announce_block,
         announce_validator,
     );
 
     polkadot_config.informant_output_format = OutputFormat {
         enable_color: true,
-        prefix: "[Relay] ".to_string(),
+        prefix: "[Relaychain] ".to_string(),
     };
     let polkadot_future = polkadot_collator::start_collator(
         collator_builder,
@@ -76,5 +79,6 @@ pub fn new_collator(
         polkadot_config,
     ).map(|_| ());
     service.task_manager.spawn_essential_handle().spawn("polkadot", polkadot_future);
+
     Ok(service.task_manager)
 }

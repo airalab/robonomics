@@ -57,7 +57,4 @@ pub enum Subcommand {
     /// Benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
-	/// Run Polkadot node. 
-    #[cfg(feature = "parachain")]
-	Polkadot(polkadot_cli::Cli),
 }

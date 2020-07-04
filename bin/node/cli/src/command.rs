@@ -116,33 +116,6 @@ pub fn run() -> sc_cli::Result<()> {
                 ))?,
             }
         }
-        #[cfg(feature = "parachain")]
-        Some(Subcommand::Polkadot(polkadot_cli)) => {
-            let runner = polkadot_cli.create_runner(&polkadot_cli.run.base)?;
-            let authority_discovery_enabled = polkadot_cli.run.authority_discovery_enabled;
-            let grandpa_pause = if polkadot_cli.run.grandpa_pause.is_empty() {
-                None
-            } else {
-                Some((
-                    polkadot_cli.run.grandpa_pause[0],
-                    polkadot_cli.run.grandpa_pause[1],
-                ))
-            };
-
-            runner.run_node_until_exit(
-                |config| match config.role {
-                    Role::Light => polkadot_service::westend_new_light(config).map(|s| s.0),
-                    _ => polkadot_service::westend_new_full(
-                        config,
-                        None,
-                        None,
-                        authority_discovery_enabled,
-                        6000,
-                        grandpa_pause,
-                    ).map(|s| s.0)
-                }
-            )
-        }
         Some(Subcommand::Base(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
