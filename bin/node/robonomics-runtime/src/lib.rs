@@ -32,9 +32,7 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{
-        Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness,
-    },
+    traits::{Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,

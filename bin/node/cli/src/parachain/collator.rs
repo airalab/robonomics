@@ -19,8 +19,8 @@
 
 use futures::FutureExt;
 use polkadot_primitives::parachain::{self, CollatorPair};
-use sc_service::{config::Configuration, TaskManager};
 use sc_informant::OutputFormat;
+use sc_service::{config::Configuration, TaskManager};
 use std::sync::Arc;
 
 /// Create collator for the parachain.
@@ -72,13 +72,13 @@ pub fn new_collator(
         enable_color: true,
         prefix: "[Relaychain] ".to_string(),
     };
-    let polkadot_future = polkadot_collator::start_collator(
-        collator_builder,
-        parachain_id,
-        key,
-        polkadot_config,
-    ).map(|_| ());
-    service.task_manager.spawn_essential_handle().spawn("polkadot", polkadot_future);
+    let polkadot_future =
+        polkadot_collator::start_collator(collator_builder, parachain_id, key, polkadot_config)
+            .map(|_| ());
+    service
+        .task_manager
+        .spawn_essential_handle()
+        .spawn("polkadot", polkadot_future);
 
     Ok(service.task_manager)
 }

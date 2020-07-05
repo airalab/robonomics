@@ -68,9 +68,7 @@ macro_rules! new_full_start {
             $runtime,
             $executor,
         >($config)?
-        .with_select_chain(
-            |_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone()))
-        )?
+        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
         .with_transaction_pool(|builder| {
             let client = builder.client();
             let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
@@ -324,16 +322,15 @@ macro_rules! new_light {
 
         let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-        let sc_service::ServiceComponents {
-            task_manager, ..
-        } = sc_service::ServiceBuilder::new_light::<node_primitives::Block, $runtime, $executor>($config)?
-            .with_select_chain(
-                |_, backend| Ok(sc_consensus::LongestChain::new(backend.clone()))
+        let sc_service::ServiceComponents { task_manager, .. } =
+            sc_service::ServiceBuilder::new_light::<node_primitives::Block, $runtime, $executor>(
+                $config,
             )?
+            .with_select_chain(|_, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
             .with_transaction_pool(|builder| {
-                let fetcher = builder
-                    .fetcher()
-                .   ok_or_else(|| "Trying to start light transaction pool without active fetcher")?;
+                let fetcher = builder.fetcher().ok_or_else(|| {
+                    "Trying to start light transaction pool without active fetcher"
+                })?;
                 let pool_api =
                     sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher);
                 let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
@@ -344,54 +341,55 @@ macro_rules! new_light {
                 );
                 Ok(pool)
             })?
-            .with_import_queue_and_fprb(|
-                _config,
-                client,
-                backend,
-                fetcher,
-                _select_chain,
-                _tx_pool,
-                spawn_task_handle,
-                registry,
-            | {
-                let fetch_checker = fetcher
-                    .map(|fetcher| fetcher.checker().clone())
-                    .ok_or_else(|| {
-                        "Trying to start light import queue without active fetch checker"
-                    })?;
-                let grandpa_block_import = sc_finality_grandpa::light_block_import(
-                    client.clone(),
-                    backend,
-                    &(client.clone() as Arc<_>),
-                    Arc::new(fetch_checker),
-                )?;
+            .with_import_queue_and_fprb(
+                |_config,
+                 client,
+                 backend,
+                 fetcher,
+                 _select_chain,
+                 _tx_pool,
+                 spawn_task_handle,
+                 registry| {
+                    let fetch_checker = fetcher
+                        .map(|fetcher| fetcher.checker().clone())
+                        .ok_or_else(|| {
+                            "Trying to start light import queue without active fetch checker"
+                        })?;
+                    let grandpa_block_import = sc_finality_grandpa::light_block_import(
+                        client.clone(),
+                        backend,
+                        &(client.clone() as Arc<_>),
+                        Arc::new(fetch_checker),
+                    )?;
 
-                let finality_proof_import = grandpa_block_import.clone();
-                let finality_proof_request_builder =
-                    finality_proof_import.create_finality_proof_request_builder();
+                    let finality_proof_import = grandpa_block_import.clone();
+                    let finality_proof_request_builder =
+                        finality_proof_import.create_finality_proof_request_builder();
 
-                let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
-                    sc_consensus_babe::Config::get_or_compute(&*client)?,
-                    grandpa_block_import,
-                    client.clone(),
-                )?;
+                    let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
+                        sc_consensus_babe::Config::get_or_compute(&*client)?,
+                        grandpa_block_import,
+                        client.clone(),
+                    )?;
 
-                let import_queue = sc_consensus_babe::import_queue(
-                    babe_link,
-                    babe_block_import,
-                    None,
-                    Some(Box::new(finality_proof_import)),
-                    client,
-                    inherent_data_providers,
-                    spawn_task_handle,
-                    registry,
-                )?;
+                    let import_queue = sc_consensus_babe::import_queue(
+                        babe_link,
+                        babe_block_import,
+                        None,
+                        Some(Box::new(finality_proof_import)),
+                        client,
+                        inherent_data_providers,
+                        spawn_task_handle,
+                        registry,
+                    )?;
 
-                Ok((import_queue, finality_proof_request_builder))
-            })?
+                    Ok((import_queue, finality_proof_request_builder))
+                },
+            )?
             .with_finality_proof_provider(|client, backend| {
                 // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-                let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+                let provider =
+                    client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
                 Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
                     backend, provider,
                 )) as _)

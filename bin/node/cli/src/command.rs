@@ -25,7 +25,7 @@ use crate::{
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> &'static str {
@@ -63,7 +63,7 @@ impl SubstrateCli for Cli {
             #[cfg(feature = "parachain")]
             "" | "parachain" => Box::new(parachain_spec::robonomics_parachain_config()),
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
-                std::path::PathBuf::from(path)
+                std::path::PathBuf::from(path),
             )?),
         })
     }
@@ -87,19 +87,19 @@ pub fn run() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&cli.run)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_node_until_exit(
-                    |config| match config.role {
+                RobonomicsFamily::DaoIpci => {
+                    runner.run_node_until_exit(|config| match config.role {
                         Role::Light => ipci::new_light(config),
                         _ => ipci::new_full(config),
-                    }
-                ),
+                    })
+                }
 
-                RobonomicsFamily::Development => runner.run_node_until_exit(
-                    |config| match config.role {
+                RobonomicsFamily::Development => {
+                    runner.run_node_until_exit(|config| match config.role {
                         Role::Light => robonomics::new_light(config),
                         _ => robonomics::new_full(config),
-                    }
-                ),
+                    })
+                }
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| {
@@ -120,11 +120,7 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    Ok(new_full_start!(
-                        config,
-                        ipci_runtime::RuntimeApi,
-                        executor::Ipci
-                    ).0)
+                    Ok(new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0)
                 }),
 
                 RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
@@ -132,7 +128,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
-                    ).0)
+                    )
+                    .0)
                 }),
 
                 #[cfg(feature = "parachain")]
@@ -141,7 +138,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_parachain_runtime::RuntimeApi,
                         parachain_executor::Robonomics
-                    ).0)
+                    )
+                    .0)
                 }),
 
                 _ => Err(format!(

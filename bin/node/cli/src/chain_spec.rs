@@ -57,16 +57,16 @@ pub trait RobonomicsChain {
 impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
         if self.id() == DAO_IPCI_ID {
-            return RobonomicsFamily::DaoIpci
+            return RobonomicsFamily::DaoIpci;
         }
 
         #[cfg(feature = "parachain")]
         if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID {
-            return RobonomicsFamily::Parachain
+            return RobonomicsFamily::Parachain;
         }
 
         if self.id() == "dev" {
-            return RobonomicsFamily::Development
+            return RobonomicsFamily::Development;
         }
 
         RobonomicsFamily::Unknown
@@ -269,11 +269,13 @@ pub fn ipci_config() -> ChainSpec {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
-    let genesis = || development_genesis(
-        vec![get_authority_keys_from_seed("Alice")],
-        None,
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
-    );
+    let genesis = || {
+        development_genesis(
+            vec![get_authority_keys_from_seed("Alice")],
+            None,
+            get_account_id_from_seed::<sr25519::Public>("Alice"),
+        )
+    };
     ChainSpec::from_genesis(
         "Development",
         "dev",

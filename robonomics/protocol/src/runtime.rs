@@ -22,7 +22,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentifyAccount, Verify},
     MultiSignature, OpaqueExtrinsic,
 };
-use substrate_subxt::{balances, system, Runtime, DefaultExtra};
+use substrate_subxt::{balances, system, DefaultExtra, Runtime};
 
 /// Robonomics Datalog pallet.
 pub mod pallet_datalog;

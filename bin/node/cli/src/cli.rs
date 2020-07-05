@@ -34,10 +34,10 @@ pub struct Cli {
     #[structopt(flatten)]
     pub run: sc_cli::RunCmd,
 
-	/// Id of the parachain this collator collates for.
+    /// Id of the parachain this collator collates for.
     #[cfg(feature = "parachain")]
-	#[structopt(long, default_value = "100")]
-	pub parachain_id: u32,
+    #[structopt(long, default_value = "100")]
+    pub parachain_id: u32,
 
     /// Polkadot relaychain arguments.
     #[cfg(feature = "parachain")]
