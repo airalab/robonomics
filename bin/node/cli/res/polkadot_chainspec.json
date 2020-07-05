@@ -3,7 +3,10 @@
   "id": "westend_local_testnet",
   "chainType": "Local",
   "bootNodes": [
-    "/ip4/95.217.189.148/tcp/30333/p2p/12D3KooWFAni4hep6jfnMTAo1Qf4Gboo32uLWmWsEgbpNsWH2eq4"
+    "/ip4/95.217.189.148/tcp/30333/p2p/12D3KooWFAni4hep6jfnMTAo1Qf4Gboo32uLWmWsEgbpNsWH2eq4",
+    "/ip4/37.139.7.229/tcp/30333/p2p/12D3KooWMdn7TpxN7mnk63sg3N8JxNpQiYDhWsjDFqheeJVEo8Do",
+    "/ip4/104.248.22.55/tcp/30333/p2p/12D3KooWA6bnssbSr8uabFyyuF2z2UFtFLp2Qwa6HWe7ohxFCBHx",
+    "/ip4/157.245.43.107/tcp/30333/p2p/12D3KooWNY7ZqtiMtmbResDuXTDZP4pyHxbUxi2moC1PtGMBwvcK"
   ],
   "telemetryEndpoints": null,
   "protocolId": "dot",
@@ -27,14 +30,22 @@
         "balances": [
           [
             "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
-            1000000000000000000000
+            10000000000000000
+          ],
+          [
+            "5D7KRc9K9Sm5dYQyXpwVSyZMMAszLHpfXWeByk4Gf1no1oEC",
+            10000000000000000
+          ],
+          [
+            "5EHQtC2HRnTn6FEQit8CanLkrYzsDrqivLx1mcuK7XbnqxWj",
+            10000000000000000
           ]
         ]
       },
       "staking": {
         "historyDepth": 84,
-        "validatorCount": 2,
-        "minimumValidatorCount": 1,
+        "validatorCount": 5,
+        "minimumValidatorCount": 3,
         "invulnerables": [],
         "forceEra": "NotForcing",
         "slashRewardFraction": 100000000,
@@ -43,6 +54,18 @@
           [
             "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
             "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
+            100000000000000,
+            "Validator"
+          ],
+          [
+            "5D7KRc9K9Sm5dYQyXpwVSyZMMAszLHpfXWeByk4Gf1no1oEC",
+            "5D7KRc9K9Sm5dYQyXpwVSyZMMAszLHpfXWeByk4Gf1no1oEC",
+            100000000000000,
+            "Validator"
+          ],
+          [
+            "5EHQtC2HRnTn6FEQit8CanLkrYzsDrqivLx1mcuK7XbnqxWj",
+            "5EHQtC2HRnTn6FEQit8CanLkrYzsDrqivLx1mcuK7XbnqxWj",
             100000000000000,
             "Validator"
           ]
@@ -54,11 +77,33 @@
             "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
             "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
             {
-              "grandpa": "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu",
-              "babe": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-              "im_online": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-              "parachain_validator": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-              "authority_discovery": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+              "grandpa": "5FwFhPGQpS4ZuKNJsFxSWK539C91CsDfkfMrN5rwprqXu4MN",
+              "babe": "5CFM8UrK2bC5PDWKRmVLwgABviMPTHodaabS94P8kugk1Voe",
+              "im_online": "5EbwrcboY4D5LDEL97Z2m4roaatLSBudb1T2tZV6oYEXkeRU",
+              "parachain_validator": "5FqTsmdnmZbKwhRYL4xhBqxknTPuNyhRWu9WEMWxwkfyDjo4",
+              "authority_discovery": "5CtN7FsryZd7T5YEjszjsBoLxUgaFti4kh7fU48EAev87ygp"
+            }
+          ],
+          [
+            "5D7KRc9K9Sm5dYQyXpwVSyZMMAszLHpfXWeByk4Gf1no1oEC",
+            "5D7KRc9K9Sm5dYQyXpwVSyZMMAszLHpfXWeByk4Gf1no1oEC",
+            {
+              "grandpa": "5E99wJKZyVBEFx64RtEKRvBPW9k1a1F7FkFQbbCGpz3zzVPt",
+              "babe": "5F7TFb3daqr1WJB8oQVPuDso48R6Szj47SXr2EN9mdN9BqLV",
+              "im_online": "5FCWYDhDaEh56jVfM996j9eMnNtPv54298MzCsjKxK1sosi5",
+              "parachain_validator": "5DAdbw98vqXhG8CMvNGXbjRtRZzVPrKztam98fYbueFYiqpN",
+              "authority_discovery": "5GThmRxP3vaJexb94MVELMjKsTAfKozGXoYgonZ9ET5AYpE9"
+            }
+          ],
+          [
+            "5EHQtC2HRnTn6FEQit8CanLkrYzsDrqivLx1mcuK7XbnqxWj",
+            "5EHQtC2HRnTn6FEQit8CanLkrYzsDrqivLx1mcuK7XbnqxWj",
+            {
+              "grandpa": "5CrRwB64Vtw1UGoW863cGcWPKs9sui87CGfvz23CpvdwLQui",
+              "babe": "5ENTWTP4jZvx6yPRokpGU9sMSETK2nYnD4g4jub28zmFtsRE",
+              "im_online": "5EFRRYRTbQsaX5Xhc7peCgGVNH4yjR7AzhPYna1XyNcFyF1m",
+              "parachain_validator": "5Fgt2awMU2Sp6gsfrMcSWjoHgkLegmqFR1cCaPHNcRNXNMAm",
+              "authority_discovery": "5C7gBFbj1fBGqZ3uqSo8jQQVyx5tuoirUMJJ984TfSutvHnB"
             }
           ]
         ]
