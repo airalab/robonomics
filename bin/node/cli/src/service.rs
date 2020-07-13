@@ -68,31 +68,38 @@ macro_rules! new_full_start {
             $runtime,
             $executor,
         >($config)?
-        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|builder| {
-            let client = builder.client();
-            let pool_api = Arc::new(sc_transaction_pool::FullChainApi::new(client.clone()));
-            let pool = sc_transaction_pool::BasicPool::new(
-                builder.config().transaction_pool.clone(),
-                pool_api,
-                builder.prometheus_registry(),
-            );
-            Ok(pool)
-        })?
-        .with_import_queue(
-            |_config,
-             client,
-             mut select_chain,
-             _transaction_pool,
-             spawn_task_handle,
-             prometheus_registry| {
+            .with_select_chain(|_config, backend|
+                Ok(sc_consensus::LongestChain::new(backend.clone()))
+            )?
+            .with_transaction_pool(|builder| {
+                let pool_api = sc_transaction_pool::FullChainApi::new(
+                    builder.client().clone(),
+                    builder.prometheus_registry(),
+                );
+                let pool = sc_transaction_pool::BasicPool::new_full(
+                    builder.config().transaction_pool.clone(),
+                    Arc::new(pool_api),
+                    builder.prometheus_registry(),
+                    builder.spawn_handle(),
+                    builder.client().clone(),
+                );
+                Ok(pool)
+            })?
+            .with_import_queue(|
+                _config,
+                client,
+                mut select_chain,
+                _transaction_pool,
+                spawn_task_handle,
+                prometheus_registry,
+            | {
                 let select_chain = select_chain
                     .take()
                     .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
                 let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
                     client.clone(),
                     &(client.clone() as std::sync::Arc<_>),
-                    select_chain,
+                    select_chain.clone(),
                 )?;
                 let justification_import = grandpa_block_import.clone();
 
@@ -108,6 +115,7 @@ macro_rules! new_full_start {
                     Some(Box::new(justification_import)),
                     None,
                     client,
+                    select_chain,
                     inherent_data_providers.clone(),
                     spawn_task_handle,
                     prometheus_registry,
@@ -331,61 +339,67 @@ macro_rules! new_light {
                 let fetcher = builder.fetcher().ok_or_else(|| {
                     "Trying to start light transaction pool without active fetcher"
                 })?;
-                let pool_api =
-                    sc_transaction_pool::LightChainApi::new(builder.client().clone(), fetcher);
-                let pool = sc_transaction_pool::BasicPool::with_revalidation_type(
+                let pool_api = sc_transaction_pool::LightChainApi::new(
+                    builder.client().clone(),
+                    fetcher,
+                );
+                let pool = sc_transaction_pool::BasicPool::new_light(
                     builder.config().transaction_pool.clone(),
                     Arc::new(pool_api),
                     builder.prometheus_registry(),
-                    sc_transaction_pool::RevalidationType::Light,
+                    builder.spawn_handle(),
                 );
-                Ok(pool)
+                Ok(Arc::new(pool))
             })?
-            .with_import_queue_and_fprb(
-                |_config,
+            .with_import_queue_and_fprb(|
+                _config,
                  client,
                  backend,
                  fetcher,
-                 _select_chain,
+                 mut select_chain,
                  _tx_pool,
                  spawn_task_handle,
-                 registry| {
-                    let fetch_checker = fetcher
-                        .map(|fetcher| fetcher.checker().clone())
-                        .ok_or_else(|| {
-                            "Trying to start light import queue without active fetch checker"
-                        })?;
-                    let grandpa_block_import = sc_finality_grandpa::light_block_import(
-                        client.clone(),
-                        backend,
-                        &(client.clone() as Arc<_>),
-                        Arc::new(fetch_checker),
-                    )?;
+                 registry,
+            | {
+                let select_chain = select_chain
+                    .take()
+                    .ok_or_else(|| sc_service::Error::SelectChainRequired)?;
+                let fetch_checker = fetcher
+                    .map(|fetcher| fetcher.checker().clone())
+                    .ok_or_else(|| {
+                        "Trying to start light import queue without active fetch checker"
+                    })?;
+                let grandpa_block_import = sc_finality_grandpa::light_block_import(
+                    client.clone(),
+                    backend,
+                    &(client.clone() as Arc<_>),
+                    Arc::new(fetch_checker),
+                )?;
 
-                    let finality_proof_import = grandpa_block_import.clone();
-                    let finality_proof_request_builder =
-                        finality_proof_import.create_finality_proof_request_builder();
+                let finality_proof_import = grandpa_block_import.clone();
+                let finality_proof_request_builder =
+                    finality_proof_import.create_finality_proof_request_builder();
 
-                    let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
-                        sc_consensus_babe::Config::get_or_compute(&*client)?,
-                        grandpa_block_import,
-                        client.clone(),
-                    )?;
+                let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
+                    sc_consensus_babe::Config::get_or_compute(&*client)?,
+                    grandpa_block_import,
+                    client.clone(),
+                )?;
 
-                    let import_queue = sc_consensus_babe::import_queue(
-                        babe_link,
-                        babe_block_import,
-                        None,
-                        Some(Box::new(finality_proof_import)),
-                        client,
-                        inherent_data_providers,
-                        spawn_task_handle,
-                        registry,
-                    )?;
+                let import_queue = sc_consensus_babe::import_queue(
+                    babe_link,
+                    babe_block_import,
+                    None,
+                    Some(Box::new(finality_proof_import)),
+                    client,
+                    select_chain,
+                    inherent_data_providers,
+                    spawn_task_handle,
+                    registry,
+                )?;
 
-                    Ok((import_queue, finality_proof_request_builder))
-                },
-            )?
+                Ok((import_queue, finality_proof_request_builder))
+            })?
             .with_finality_proof_provider(|client, backend| {
                 // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
                 let provider =

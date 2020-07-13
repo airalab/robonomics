@@ -72,9 +72,17 @@ pub fn new_collator(
         enable_color: true,
         prefix: "[Relaychain] ".to_string(),
     };
-    let polkadot_future =
-        polkadot_collator::start_collator(collator_builder, parachain_id, key, polkadot_config)
-            .map(|_| ());
+    let (polkadot_future, task_manager) = polkadot_collator::start_collator(
+        collator_builder,
+        parachain_id,
+        key,
+        polkadot_config,
+    )?;
+    let polkadot_future = polkadot_future.then(move |_| {
+        let _ = task_manager;
+        futures::future::ready(())
+    });
+
     service
         .task_manager
         .spawn_essential_handle()

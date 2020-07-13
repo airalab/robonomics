@@ -108,35 +108,38 @@ pub struct PolkadotCli {
 }
 
 impl SubstrateCli for PolkadotCli {
-    fn impl_name() -> &'static str {
-        "Robonomics Network Parachain Collator"
+    fn impl_name() -> String {
+        "Robonomics Network Parachain Collator".into()
     }
 
-    fn impl_version() -> &'static str {
-        env!("SUBSTRATE_CLI_IMPL_VERSION")
+    fn impl_version() -> String {
+        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
     }
 
-    fn description() -> &'static str {
-        "Robonomics parachain collator\n\nThe command-line arguments provided first will be \
+    fn description() -> String {
+        format!(
+            "Robonomics parachain collator\n\nThe command-line arguments provided first will be \
         passed to the parachain node, while the arguments provided after -- will be passed \
         to the relaychain node.\n\n\
-        robonomics [parachain-args] -- [relaychain-args]"
+        {} [parachain-args] -- [relaychain-args]",
+            Self::executable_name()
+        )
     }
 
-    fn author() -> &'static str {
-        env!("CARGO_PKG_AUTHORS")
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
     }
 
-    fn support_url() -> &'static str {
-        "https://github.com/airalab/robonomics/issues/new"
+    fn support_url() -> String {
+        "https://github.com/airalab/robonomics/issues/new".into()
     }
 
     fn copyright_start_year() -> i32 {
-        2018
+        2020
     }
 
-    fn executable_name() -> &'static str {
-        "robonomics"
+    fn executable_name() -> String {
+        "robonomics".into()
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {

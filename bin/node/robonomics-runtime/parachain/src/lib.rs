@@ -70,8 +70,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 5,
-    impl_version: 5,
+    spec_version: 1,
+    impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -128,11 +128,13 @@ impl frame_system::Trait for Runtime {
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
+    type SystemWeightInfo = ();
 }
 
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -143,6 +145,7 @@ impl pallet_timestamp::Trait for Runtime {
     type Moment = Moment;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -154,6 +157,7 @@ impl pallet_indices::Trait for Runtime {
     type Currency = Balances;
     type Deposit = IndexDeposit;
     type Event = Event;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -168,6 +172,7 @@ impl pallet_balances::Trait for Runtime {
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
+    type WeightInfo = ();
 }
 
 impl pallet_generic_asset::Trait for Runtime {
@@ -210,6 +215,7 @@ impl pallet_identity::Trait for Runtime {
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
+    type WeightInfo = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
@@ -225,7 +231,10 @@ impl pallet_scheduler::Trait for Runtime {
     type Event = Event;
     type Origin = Origin;
     type Call = Call;
+    type PalletsOrigin = OriginCaller;
+    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaximumWeight = MaximumSchedulerWeight;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -256,6 +265,7 @@ impl pallet_treasury::Trait for Runtime {
     type SpendPeriod = SpendPeriod;
     type Burn = Burn;
     type ModuleId = TreasuryModuleId;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -270,6 +280,7 @@ impl pallet_collective::Trait<CouncilCollective> for Runtime {
     type Event = Event;
     type MotionDuration = CouncilMotionDuration;
     type MaxProposals = CouncilMaxProposals;
+    type WeightInfo = ();
 }
 
 const DESIRED_MEMBERS: u32 = 7;
@@ -299,6 +310,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
     type DesiredMembers = DesiredMembers;
     type DesiredRunnersUp = DesiredRunnersUp;
     type TermDuration = TermDuration;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_liability::Trait for Runtime {
@@ -353,12 +365,12 @@ where
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra)
-            .map_err(|e| {
-                debug::warn!("Unable to create signed payload: {:?}", e);
-            })
-            .ok()?;
-        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
+            debug::warn!("Unable to create signed payload: {:?}", e);
+        }).ok()?;
+        let signature = raw_payload.using_encoded(|payload| {
+            C::sign(payload, public)
+        })?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature.into(), extra)))

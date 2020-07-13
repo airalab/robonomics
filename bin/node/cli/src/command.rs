@@ -28,32 +28,32 @@ use crate::{
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 
 impl SubstrateCli for Cli {
-    fn impl_name() -> &'static str {
-        "airalab-robonomics"
+    fn impl_name() -> String {
+        "airalab-robonomics".into()
     }
 
-    fn impl_version() -> &'static str {
-        env!("SUBSTRATE_CLI_IMPL_VERSION")
+    fn impl_version() -> String {
+        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
     }
 
-    fn description() -> &'static str {
-        env!("CARGO_PKG_DESCRIPTION")
+    fn description() -> String {
+        env!("CARGO_PKG_DESCRIPTION").into()
     }
 
-    fn author() -> &'static str {
-        env!("CARGO_PKG_AUTHORS")
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
     }
 
-    fn support_url() -> &'static str {
-        "https://github.com/airalab/robonomics/issues/new"
+    fn support_url() -> String {
+        "https://github.com/airalab/robonomics/issues/new".into()
     }
 
     fn copyright_start_year() -> i32 {
         2018
     }
 
-    fn executable_name() -> &'static str {
-        "robonomics"
+    fn executable_name() -> String {
+        "robonomics".into()
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -120,26 +120,31 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    Ok(new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0)
+                    let builder = new_full_start!(
+                        config,
+                        ipci_runtime::RuntimeApi,
+                        executor::Ipci
+                    ).0;
+                    Ok(builder.to_chain_ops_parts())
                 }),
 
                 RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
-                    Ok(new_full_start!(
+                    let builder = new_full_start!(
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
-                    )
-                    .0)
+                    ).0;
+                    Ok(builder.to_chain_ops_parts())
                 }),
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |config| {
-                    Ok(new_parachain!(
+                    let builder = new_parachain!(
                         config,
                         robonomics_parachain_runtime::RuntimeApi,
                         parachain_executor::Robonomics
-                    )
-                    .0)
+                    ).0;
+                    Ok(builder.to_chain_ops_parts())
                 }),
 
                 _ => Err(format!(
