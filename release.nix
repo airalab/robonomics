@@ -2,6 +2,7 @@
 }:
 
 with nixpkgs;
+with nixpkgs.rosPackages.noetic;
 
 let
   channel = rustChannelOf { date = "2020-07-01"; channel = "nightly"; };

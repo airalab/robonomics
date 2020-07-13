@@ -1,16 +1,21 @@
 { stdenv
-, ros_comm
-, mkRosPackage
+, catkin 
+, buildRosPackage 
+, message-generation
+, rospy 
+, std-msgs
 }:
 
-mkRosPackage rec {
+buildRosPackage rec {
   name = "${pname}-${version}";
   pname = "substrate_ros_msgs";
   version = "master";
 
   src = ./.;
-
-  propagatedBuildInputs = [ ros_comm ];
+  buildType = "catkin";
+  buildInputs = [ message-generation ];
+  propagatedBuildInputs = [ rospy std-msgs ];
+  nativeBuildInputs = [ catkin ];
 
   meta = with stdenv.lib; {
     description = "Robonomics Substrate module ROS messages";
