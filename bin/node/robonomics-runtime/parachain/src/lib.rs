@@ -365,12 +365,12 @@ where
             frame_system::CheckWeight::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
-        let raw_payload = SignedPayload::new(call, extra).map_err(|e| {
-            debug::warn!("Unable to create signed payload: {:?}", e);
-        }).ok()?;
-        let signature = raw_payload.using_encoded(|payload| {
-            C::sign(payload, public)
-        })?;
+        let raw_payload = SignedPayload::new(call, extra)
+            .map_err(|e| {
+                debug::warn!("Unable to create signed payload: {:?}", e);
+            })
+            .ok()?;
+        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
         let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature.into(), extra)))

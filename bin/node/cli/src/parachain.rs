@@ -53,42 +53,40 @@ macro_rules! new_parachain {
             $runtime,
             $dispatch,
         >($config)?
-            .with_select_chain(|_config, backend|
-                Ok(sc_consensus::LongestChain::new(backend.clone()))
-            )?
-            .with_transaction_pool(|builder| {
-                let pool_api = sc_transaction_pool::FullChainApi::new(
-                    builder.client().clone(),
-                    builder.prometheus_registry(),
-                );
-                let pool = sc_transaction_pool::BasicPool::new_full(
-                    builder.config().transaction_pool.clone(),
-                    Arc::new(pool_api),
-                    builder.prometheus_registry(),
-                    builder.spawn_handle(),
-                    builder.client().clone(),
-                );
-                Ok(pool)
-            })?
-            .with_import_queue(|_config, client, _, _, spawner, registry| {
-                let import_queue = cumulus_consensus::import_queue::import_queue(
-                    client.clone(),
-                    client,
-                    inherent_data_providers.clone(),
-                    spawner,
-                    registry,
-                )?;
+        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
+        .with_transaction_pool(|builder| {
+            let pool_api = sc_transaction_pool::FullChainApi::new(
+                builder.client().clone(),
+                builder.prometheus_registry(),
+            );
+            let pool = sc_transaction_pool::BasicPool::new_full(
+                builder.config().transaction_pool.clone(),
+                Arc::new(pool_api),
+                builder.prometheus_registry(),
+                builder.spawn_handle(),
+                builder.client().clone(),
+            );
+            Ok(pool)
+        })?
+        .with_import_queue(|_config, client, _, _, spawner, registry| {
+            let import_queue = cumulus_consensus::import_queue::import_queue(
+                client.clone(),
+                client,
+                inherent_data_providers.clone(),
+                spawner,
+                registry,
+            )?;
 
-                Ok(import_queue)
-            })?
-            .with_finality_proof_provider(|client, backend| {
-                // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-                let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
-                Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
-                    backend, provider,
-                )) as _)
-            })?
-            .with_block_announce_validator(|_client| Box::new(block_announce_validator))?;
+            Ok(import_queue)
+        })?
+        .with_finality_proof_provider(|client, backend| {
+            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
+            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
+            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
+                backend, provider,
+            )) as _)
+        })?
+        .with_block_announce_validator(|_client| Box::new(block_announce_validator))?;
 
         (builder, inherent_data_providers, announce_validator)
     }};

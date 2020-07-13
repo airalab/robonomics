@@ -120,11 +120,8 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let builder = new_full_start!(
-                        config,
-                        ipci_runtime::RuntimeApi,
-                        executor::Ipci
-                    ).0;
+                    let builder =
+                        new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0;
                     Ok(builder.to_chain_ops_parts())
                 }),
 
@@ -133,7 +130,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
-                    ).0;
+                    )
+                    .0;
                     Ok(builder.to_chain_ops_parts())
                 }),
 
@@ -143,7 +141,8 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         robonomics_parachain_runtime::RuntimeApi,
                         parachain_executor::Robonomics
-                    ).0;
+                    )
+                    .0;
                     Ok(builder.to_chain_ops_parts())
                 }),
 
