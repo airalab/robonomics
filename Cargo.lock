@@ -2520,7 +2520,7 @@ checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 
 [[package]]
 name = "ipci-runtime"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2530,7 +2530,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "lazy_static",
- "node-primitives 0.18.3",
+ "node-primitives 0.18.4",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -3722,7 +3722,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "cumulus-collator",
  "cumulus-consensus",
@@ -3736,7 +3736,7 @@ dependencies = [
  "ipci-runtime",
  "jsonrpc-core 13.2.0",
  "log 0.4.8",
- "node-primitives 0.18.3",
+ "node-primitives 0.18.4",
  "pallet-im-online",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
@@ -3792,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -4324,7 +4324,7 @@ dependencies = [
  "base58",
  "frame-support",
  "frame-system",
- "node-primitives 0.18.3",
+ "node-primitives 0.18.4",
  "pallet-timestamp",
  "parity-scale-codec",
  "sp-core",
@@ -4340,7 +4340,7 @@ dependencies = [
  "base58",
  "frame-support",
  "frame-system",
- "node-primitives 0.18.3",
+ "node-primitives 0.18.4",
  "parity-scale-codec",
  "sp-arithmetic",
  "sp-core",
@@ -5983,7 +5983,7 @@ checksum = "cabe4fa914dec5870285fa7f71f602645da47c486e68486d2b4ceb4a343e90ac"
 
 [[package]]
 name = "robonomics-parachain-runtime"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "cumulus-parachain-upgrade",
  "cumulus-runtime",
@@ -6029,7 +6029,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -6037,7 +6037,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
- "node-primitives 0.18.3",
+ "node-primitives 0.18.4",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
