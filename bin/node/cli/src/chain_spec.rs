@@ -40,10 +40,13 @@ use sp_runtime::{
 pub enum RobonomicsFamily {
     /// Unknown chain type.
     Unknown,
-    /// DAO IPCI (ipci.io) network (https://telemetry.polkadot.io/#list/DAO%20IPCI).
+    /// Development chain (used for local tests only).
+    Development,
+    /// DAO IPCI (ipci.io) chain (https://telemetry.polkadot.io/#list/DAO%20IPCI).
     DaoIpci,
-    /// Robonomics Testnet (https://telemetry.polkadot.io/#list/Robonomics%20Testnet).
-    Testnet,
+    /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
+    #[cfg(feature = "parachain")]
+    Parachain,
 }
 
 /// Robonomics family chains idetify.
@@ -57,25 +60,18 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        if self.id() == ROBONOMICS_TESTNET_ID || self.id() == "dev" || self.id() == "local_testnet"
-        {
-            return RobonomicsFamily::Testnet;
+        #[cfg(feature = "parachain")]
+        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID {
+            return RobonomicsFamily::Parachain;
+        }
+
+        if self.id() == "dev" {
+            return RobonomicsFamily::Development;
         }
 
         RobonomicsFamily::Unknown
     }
 }
-
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
-const ROBONOMICS_TESTNET_ID: &str = "robonomics_testnet";
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
-const ROBONOMICS_PROPERTIES: &str = r#"
-    {
-        "ss58Format": 32,
-        "tokenDecimals": 9,
-        "tokenSymbol": "XRT"
-    }"#;
 
 const DAO_IPCI_ID: &str = "ipci";
 /*
@@ -156,7 +152,7 @@ fn session_keys(
     }
 }
 
-fn testnet_genesis(
+fn development_genesis(
     initial_authorities: Vec<(
         AccountId,
         AccountId,
@@ -266,172 +262,25 @@ fn mk_genesis(
     }
 }
 
-/*
-/// Robonomics testnet config.
-pub fn robonomics_testnet_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/robonomics_testnet.json")[..]).unwrap()
-}
-*/
-
-/// Robonomics testnet genesis.
-fn robonomics_testnet_genesis() -> GenesisConfig {
-    use hex_literal::hex;
-    use sp_core::crypto::UncheckedInto;
-
-    let initial_authorities = vec![
-        (
-            // akru
-            hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-            hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-            hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"]
-                .unchecked_into(),
-            hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"]
-                .unchecked_into(),
-            hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"]
-                .unchecked_into(),
-            hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"]
-                .unchecked_into(),
-        ),
-        (
-            // pad1a
-            hex!["acfe268b8276a4ed8924aef1441eb05334522f6c6c7487c12d71b0fb2ab28d37"].into(),
-            hex!["0239825db490fce751ee12d6cf67a59e1278f52fd82d5a9033f773924a709348"].into(),
-            hex!["304d073f2c918bff832e6f61949e1b7ac38fb8d57da1157f30d10e1406cc9137"]
-                .unchecked_into(),
-            hex!["85ddf5a932937c65694146577b50375668055ff435400310ca5344edf0f50b83"]
-                .unchecked_into(),
-            hex!["64063c2394c0a8250e5dc03286ead10e2efcda342467fbcbdf5f03d0e39aae19"]
-                .unchecked_into(),
-            hex!["926165922b8174c8446503a9bdc6581f4a658393169ea890c291fa2ad6b0b345"]
-                .unchecked_into(),
-        ),
-    ];
-
-    let sudo_key: AccountId =
-        // pad1a
-        hex!["aa88ea58465ffbcf716c3d57fab7c29b6d7c7243133b024e61556b92512a4765"].into();
-
-    mk_genesis(
-        initial_authorities,
-        vec![(
-            sudo_key.clone(),
-            1 * robonomics_runtime::constants::currency::XRT,
-        )],
-        sudo_key,
-        robonomics_runtime::WASM_BINARY.to_vec(),
-    )
-}
-
-/// Robonomics testnet config.
-pub fn robonomics_testnet_config() -> ChainSpec {
-    let boot_nodes = vec![];
-    ChainSpec::from_genesis(
-        "Robonomics Testnet",
-        ROBONOMICS_TESTNET_ID,
-        ChainType::Local,
-        robonomics_testnet_genesis,
-        boot_nodes,
-        Some(
-            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .unwrap(),
-        ),
-        Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
-        Default::default(),
-    )
-}
-
 /// IPCI blockchain config.
 pub fn ipci_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
 
-/*
-/// IPCI blockchain genesis.
-fn ipci_genesis() -> GenesisConfig {
-    use hex_literal::hex;
-    use sp_core::crypto::UncheckedInto;
-
-    let initial_authorities = vec![(
-        // akru
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["58cdc7ef880c80e8475170f206381d2cb13a87c209452fc6d8a1e14186d61b28"].into(),
-        hex!["36cced69f5f1f07856ff0daac944c52e286e10184e52be76ca9377bd0406d90b"].unchecked_into(),
-        hex!["daf0535a46d8187446471bf619ea9104bda443366c526bf6f2cd4e9a1fcf5dd7"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
-        hex!["80de51e4432ed5e37b6438f499f3ec017f9577a37e68cb32d6c6a07540c36909"].unchecked_into(),
-    )];
-
-    let sudo_key: AccountId =
-        // akru
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
-
-    mk_genesis(
-        initial_authorities,
-        ipci_runtime::constants::currency::STAKE_HOLDERS.to_vec(),
-        sudo_key,
-        ipci_runtime::WASM_BINARY.to_vec(),
-    )
-}
-
-/// IPCI config.
-pub fn ipci_config() -> ChainSpec {
-    let boot_nodes = vec![];
-    ChainSpec::from_genesis(
-        "DAO IPCI",
-        DAO_IPCI_ID,
-        ChainType::Live,
-        ipci_genesis,
-        boot_nodes,
-        Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
-        Some(IPCI_PROTOCOL_ID),
-        Some(serde_json::from_str(IPCI_PROPERTIES).unwrap()),
-        Default::default(),
-    )
-}
-*/
-
-fn development_testnet_genesis() -> GenesisConfig {
-    testnet_genesis(
-        vec![get_authority_keys_from_seed("Alice")],
-        None,
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
-    )
-}
-
 /// Development config (single validator Alice)
-pub fn development_testnet_config() -> ChainSpec {
+pub fn development_config() -> ChainSpec {
+    let genesis = || {
+        development_genesis(
+            vec![get_authority_keys_from_seed("Alice")],
+            None,
+            get_account_id_from_seed::<sr25519::Public>("Alice"),
+        )
+    };
     ChainSpec::from_genesis(
         "Development",
         "dev",
         ChainType::Development,
-        development_testnet_genesis,
-        vec![],
-        None,
-        None,
-        None,
-        Default::default(),
-    )
-}
-
-fn local_testnet_genesis() -> GenesisConfig {
-    testnet_genesis(
-        vec![
-            get_authority_keys_from_seed("Alice"),
-            get_authority_keys_from_seed("Bob"),
-        ],
-        None,
-        get_account_id_from_seed::<sr25519::Public>("Alice"),
-    )
-}
-
-/// Local testnet config (multivalidator Alice + Bob)
-pub fn local_testnet_config() -> ChainSpec {
-    ChainSpec::from_genesis(
-        "Local Testnet",
-        "local_testnet",
-        ChainType::Local,
-        local_testnet_genesis,
+        genesis,
         vec![],
         None,
         None,

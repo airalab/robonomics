@@ -191,11 +191,11 @@ mod tests {
             assert!(
                 iterations > 50_000,
                 "This assertion is just a warning; Don't panic. \
-                Current substrate/polkadot node are configured with a _slow adjusting fee_ \
-                mechanism. Hence, it is really unlikely that fees collapse to zero even on an \
-                empty chain in less than at least of couple of thousands of empty blocks. But this \
-                simulation indicates that fees collapsed to zero after {} almost-empty blocks. \
-                Check it",
+				Current substrate/polkadot node are configured with a _slow adjusting fee_ \
+				mechanism. Hence, it is really unlikely that fees collapse to zero even on an \
+				empty chain in less than at least of couple of thousands of empty blocks. But this \
+				simulation indicates that fees collapsed to zero after {} almost-empty blocks. \
+				Check it",
                 iterations,
             );
         })
@@ -231,7 +231,7 @@ mod tests {
                 let adjusted_fee = fm.saturating_mul_acc_int(fee);
                 println!(
                     "iteration {}, new fm = {:?}. Fee at this point is: {} units / {} millicents, \
-                    {} cents, {} dollars",
+					{} cents, {} dollars",
                     iterations,
                     fm,
                     adjusted_fee,

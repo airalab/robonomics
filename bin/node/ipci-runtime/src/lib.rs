@@ -79,8 +79,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 6,
-    impl_version: 6,
+    spec_version: 8,
+    impl_version: 8,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -94,20 +94,23 @@ pub fn native_version() -> NativeVersion {
     }
 }
 
+const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
-    pub const BlockHashCount: BlockNumber = 250;
+    pub const BlockHashCount: BlockNumber = 2400;
     /// We allow for 2 seconds of compute with a 6 second average block time.
     pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
     /// Assume 10% of weight for average on_initialize calls
-    pub const MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
-        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+    pub MaximumExtrinsicWeight: Weight =
+        AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
+        * MaximumBlockWeight::get();
     pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
     pub const Version: RuntimeVersion = VERSION;
 }
 
 impl frame_system::Trait for Runtime {
     type Call = Call;
+    type BaseCallFilter = ();
     type Version = Version;
     type AccountId = AccountId;
     type Lookup = Indices;
@@ -130,24 +133,13 @@ impl frame_system::Trait for Runtime {
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
-}
-
-parameter_types! {
-    // One storage item; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const MultisigDepositBase: Balance = 30 * MITO;
-    // Additional storage item size of 32 bytes.
-    pub const MultisigDepositFactor: Balance = 5 * MITO;
-    pub const MaxSignatories: u16 = 100;
+    type SystemWeightInfo = ();
 }
 
 impl pallet_utility::Trait for Runtime {
     type Call = Call;
     type Event = Event;
-    type Currency = Balances;
-    type MultisigDepositBase = MultisigDepositBase;
-    type MultisigDepositFactor = MultisigDepositFactor;
-    type MaxSignatories = MaxSignatories;
-    type IsCallable = ();
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -158,6 +150,7 @@ impl pallet_timestamp::Trait for Runtime {
     type Moment = Moment;
     type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -173,6 +166,20 @@ impl pallet_babe::Trait for Runtime {
     type EpochDuration = EpochDuration;
     type ExpectedBlockTime = ExpectedBlockTime;
     type EpochChangeTrigger = pallet_babe::ExternalTrigger;
+    type KeyOwnerProofSystem = Historical;
+
+    type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+        KeyTypeId,
+        pallet_babe::AuthorityId,
+    )>>::Proof;
+
+    type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+        KeyTypeId,
+        pallet_babe::AuthorityId,
+    )>>::IdentificationTuple;
+
+    type HandleEquivocation =
+        pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
 }
 
 impl pallet_authorship::Trait for Runtime {
@@ -191,6 +198,7 @@ impl pallet_indices::Trait for Runtime {
     type Currency = Balances;
     type Deposit = IndexDeposit;
     type Event = Event;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -203,6 +211,7 @@ impl pallet_balances::Trait for Runtime {
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -242,6 +251,7 @@ impl pallet_session::Trait for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type NextSessionRotation = Babe;
+    type WeightInfo = ();
 }
 
 impl pallet_session::historical::Trait for Runtime {
@@ -268,6 +278,8 @@ parameter_types! {
     pub const MaxNominatorRewardedPerValidator: u32 = 64;
     pub const ElectionLookahead: BlockNumber = 25; // 10 minutes per session => 100 block.
     pub const MaxIterations: u32 = 5;
+    // 0.05%. The higher the value, the more strict solution acceptance becomes.
+    pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
 }
 
 impl pallet_staking::Trait for Runtime {
@@ -285,11 +297,13 @@ impl pallet_staking::Trait for Runtime {
     type SessionInterface = Self;
     type RewardCurve = RewardCurve;
     type MaxIterations = MaxIterations;
+    type MinSolutionScoreBump = MinSolutionScoreBump;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type NextNewSession = Session;
     type ElectionLookahead = ElectionLookahead;
     type Call = Call;
     type UnsignedPriority = StakingUnsignedPriority;
+    type WeightInfo = ();
 }
 
 impl pallet_authority_discovery::Trait for Runtime {}
@@ -348,6 +362,7 @@ impl pallet_identity::Trait for Runtime {
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
+    type WeightInfo = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
@@ -368,10 +383,11 @@ impl pallet_im_online::Trait for Runtime {
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
     type UnsignedPriority = ImOnlineUnsignedPriority;
+    type WeightInfo = ();
 }
 
 parameter_types! {
-    pub const OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * MaximumBlockWeight::get();
+    pub OffencesWeightSoftLimit: Weight = Perbill::from_percent(60) * MaximumBlockWeight::get();
 }
 
 impl pallet_offences::Trait for Runtime {
@@ -379,6 +395,7 @@ impl pallet_offences::Trait for Runtime {
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
     type WeightSoftLimit = OffencesWeightSoftLimit;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {
@@ -454,7 +471,7 @@ construct_runtime!(
     {
         // Basic stuff.
         System: frame_system::{Module, Call, Storage, Config, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event<T>},
+        Utility: pallet_utility::{Module, Call, Storage, Event},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 
@@ -472,7 +489,7 @@ construct_runtime!(
         Staking: pallet_staking::{Module, Call, Storage, Event<T>, Config<T>},
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Historical: pallet_session_historical::{Module},
-        Babe: pallet_babe::{Module, Call, Storage, Config, Inherent(Timestamp)},
+        Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
         FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
         ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
@@ -635,6 +652,29 @@ impl_runtime_apis! {
 
         fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
             Babe::current_epoch_start()
+        }
+
+        fn generate_key_ownership_proof(
+            _slot_number: sp_consensus_babe::SlotNumber,
+            authority_id: sp_consensus_babe::AuthorityId,
+        ) -> Option<sp_consensus_babe::OpaqueKeyOwnershipProof> {
+            use codec::Encode;
+
+            Historical::prove((sp_consensus_babe::KEY_TYPE, authority_id))
+                .map(|p| p.encode())
+                .map(sp_consensus_babe::OpaqueKeyOwnershipProof::new)
+        }
+
+        fn submit_report_equivocation_unsigned_extrinsic(
+            equivocation_proof: sp_consensus_babe::EquivocationProof<<Block as BlockT>::Header>,
+            key_owner_proof: sp_consensus_babe::OpaqueKeyOwnershipProof,
+        ) -> Option<()> {
+            let key_owner_proof = key_owner_proof.decode()?;
+
+            Babe::submit_unsigned_equivocation_report(
+                equivocation_proof,
+                key_owner_proof,
+            )
         }
     }
 

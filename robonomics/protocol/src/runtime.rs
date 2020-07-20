@@ -22,7 +22,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentifyAccount, Verify},
     MultiSignature, OpaqueExtrinsic,
 };
-use substrate_subxt::{balances, system};
+use substrate_subxt::{balances, system, DefaultExtra, Runtime};
 
 /// Robonomics Datalog pallet.
 pub mod pallet_datalog;
@@ -33,6 +33,11 @@ pub struct Robonomics;
 
 /// Robonomics account is MultiSignature account.
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+impl Runtime for Robonomics {
+    type Signature = MultiSignature;
+    type Extra = DefaultExtra<Self>;
+}
 
 impl system::System for Robonomics {
     type Index = u32;

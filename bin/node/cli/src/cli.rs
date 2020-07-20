@@ -19,7 +19,7 @@
 use structopt::StructOpt;
 
 /// An overarching CLI command definition.
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Debug, StructOpt)]
 #[structopt(settings = &[
     structopt::clap::AppSettings::GlobalVersion,
     structopt::clap::AppSettings::ArgsNegateSubcommands,
@@ -33,10 +33,20 @@ pub struct Cli {
     #[allow(missing_docs)]
     #[structopt(flatten)]
     pub run: sc_cli::RunCmd,
+
+    /// Id of the parachain this collator collates for.
+    #[cfg(feature = "parachain")]
+    #[structopt(long, default_value = "100")]
+    pub parachain_id: u32,
+
+    /// Polkadot relaychain arguments.
+    #[cfg(feature = "parachain")]
+    #[structopt(raw = true)]
+    pub relaychain_args: Vec<String>,
 }
 
 /// Possible subcommands of the main binary.
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Debug, StructOpt)]
 pub enum Subcommand {
     /// A set of base subcommands handled by `sc_cli`.
     #[structopt(flatten)]
@@ -47,10 +57,4 @@ pub enum Subcommand {
     /// Benchmarking runtime pallets.
     #[cfg(feature = "benchmarking-cli")]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
-}
-
-#[derive(Clone, Debug, StructOpt)]
-pub struct ExportGenesisState {
-    /// Genesis state path
-    pub head_file: Option<std::path::PathBuf>,
 }

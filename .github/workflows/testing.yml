@@ -5,6 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v7
+    - uses: cachix/install-nix-action@v10
     - name: Run all tests
       run: nix-shell --option sandbox false --run "cargo test --all"

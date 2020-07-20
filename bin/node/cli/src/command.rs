@@ -16,50 +16,66 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#[cfg(feature = "parachain")]
+use crate::parachain::{
+    chain_spec as parachain_spec, command as parachain_command, executor as parachain_executor,
+};
 use crate::{
     chain_spec::*,
     service::{executor, ipci, robonomics},
     Cli, Subcommand,
 };
-use sc_cli::SubstrateCli;
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 
 impl SubstrateCli for Cli {
-    fn impl_name() -> &'static str {
-        "airalab-robonomics"
+    fn impl_name() -> String {
+        "airalab-robonomics".into()
     }
 
-    fn impl_version() -> &'static str {
-        env!("SUBSTRATE_CLI_IMPL_VERSION")
+    fn impl_version() -> String {
+        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
     }
 
-    fn description() -> &'static str {
-        env!("CARGO_PKG_DESCRIPTION")
+    fn description() -> String {
+        env!("CARGO_PKG_DESCRIPTION").into()
     }
 
-    fn author() -> &'static str {
-        env!("CARGO_PKG_AUTHORS")
+    fn author() -> String {
+        env!("CARGO_PKG_AUTHORS").into()
     }
 
-    fn support_url() -> &'static str {
-        "https://github.com/airalab/robonomics/issues/new"
+    fn support_url() -> String {
+        "https://github.com/airalab/robonomics/issues/new".into()
     }
 
     fn copyright_start_year() -> i32 {
         2018
     }
 
-    fn executable_name() -> &'static str {
-        "robonomics"
+    fn executable_name() -> String {
+        "robonomics".into()
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
-            "dev" => Box::new(development_testnet_config()),
-            "local" => Box::new(local_testnet_config()),
+            "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            "" | "robonomics_testnet" => Box::new(robonomics_testnet_config()),
-            path => Box::new(ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+            #[cfg(feature = "parachain")]
+            "" | "parachain" => Box::new(parachain_spec::robonomics_parachain_config()),
+            path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
         })
+    }
+
+    fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        match chain_spec.family() {
+            RobonomicsFamily::DaoIpci => &ipci_runtime::VERSION,
+            RobonomicsFamily::Development => &robonomics_runtime::VERSION,
+            #[cfg(feature = "parachain")]
+            RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
+            RobonomicsFamily::Unknown => panic!("Unknown runtime"),
+        }
     }
 }
 
@@ -72,14 +88,27 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => {
-                    runner.run_node(ipci::new_light, ipci::new_full, ipci_runtime::VERSION)
+                    runner.run_node_until_exit(|config| match config.role {
+                        Role::Light => ipci::new_light(config),
+                        _ => ipci::new_full(config),
+                    })
                 }
 
-                RobonomicsFamily::Testnet => runner.run_node(
-                    robonomics::new_light,
-                    robonomics::new_full,
-                    robonomics_runtime::VERSION,
-                ),
+                RobonomicsFamily::Development => {
+                    runner.run_node_until_exit(|config| match config.role {
+                        Role::Light => robonomics::new_light(config),
+                        _ => robonomics::new_full(config),
+                    })
+                }
+
+                #[cfg(feature = "parachain")]
+                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| {
+                    if matches!(config.role, Role::Light) {
+                        return Err("Light client not supporter!".into());
+                    }
+
+                    parachain_command::run(config, cli.parachain_id, &cli.relaychain_args)
+                }),
 
                 _ => Err(format!(
                     "unsupported chain spec: {}",
@@ -90,19 +119,31 @@ pub fn run() -> sc_cli::Result<()> {
         Some(Subcommand::Base(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |mut config| {
-                    config.keystore = sc_service::config::KeystoreConfig::InMemory;
-                    Ok(new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0)
+                RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
+                    let builder =
+                        new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0;
+                    Ok(builder.to_chain_ops_parts())
                 }),
 
-                RobonomicsFamily::Testnet => runner.run_subcommand(subcommand, |mut config| {
-                    config.keystore = sc_service::config::KeystoreConfig::InMemory;
-                    Ok(new_full_start!(
+                RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
+                    let builder = new_full_start!(
                         config,
                         robonomics_runtime::RuntimeApi,
                         executor::Robonomics
                     )
-                    .0)
+                    .0;
+                    Ok(builder.to_chain_ops_parts())
+                }),
+
+                #[cfg(feature = "parachain")]
+                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |config| {
+                    let builder = new_parachain!(
+                        config,
+                        robonomics_parachain_runtime::RuntimeApi,
+                        parachain_executor::Robonomics
+                    )
+                    .0;
+                    Ok(builder.to_chain_ops_parts())
                 }),
 
                 _ => Err(format!(

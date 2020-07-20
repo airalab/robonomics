@@ -15,28 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Console line interface.
 
-#![warn(unused_extern_crates)]
+use substrate_wasm_builder_runner::WasmBuilder;
 
-pub mod chain_spec;
-
-#[macro_use]
-mod service;
-#[macro_use]
-#[cfg(feature = "parachain")]
-mod parachain;
-
-#[cfg(feature = "browser")]
-mod browser;
-#[cfg(feature = "cli")]
-mod cli;
-#[cfg(feature = "cli")]
-mod command;
-
-#[cfg(feature = "browser")]
-pub use browser::*;
-#[cfg(feature = "cli")]
-pub use cli::*;
-#[cfg(feature = "cli")]
-pub use command::*;
+fn main() {
+    WasmBuilder::new()
+        .with_current_project()
+        .with_wasm_builder_from_crates("1.0.9")
+        .export_heap_base()
+        .import_memory()
+        .build()
+}

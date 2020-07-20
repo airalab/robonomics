@@ -20,7 +20,7 @@
 
 use codec::{Codec, Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, StorageValue};
-use frame_system::{self as system, ensure_none};
+use frame_system::ensure_none;
 use sp_runtime::transaction_validity::{
     InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
     ValidTransaction,

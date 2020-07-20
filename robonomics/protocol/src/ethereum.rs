@@ -15,28 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Console line interface.
+//! Rust Web3 compatible Robonomics Network on Ethereum.
 
-#![warn(unused_extern_crates)]
 
-pub mod chain_spec;
-
-#[macro_use]
-mod service;
-#[macro_use]
-#[cfg(feature = "parachain")]
-mod parachain;
-
-#[cfg(feature = "browser")]
-mod browser;
-#[cfg(feature = "cli")]
-mod cli;
-#[cfg(feature = "cli")]
-mod command;
-
-#[cfg(feature = "browser")]
-pub use browser::*;
-#[cfg(feature = "cli")]
-pub use cli::*;
-#[cfg(feature = "cli")]
-pub use command::*;

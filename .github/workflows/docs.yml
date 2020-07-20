@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v7
+    - uses: cachix/install-nix-action@v10
     - name: Build doc
       run: nix-shell --option sandbox false --run "cargo doc --all --all-features --no-deps"
     - name: Push index.html

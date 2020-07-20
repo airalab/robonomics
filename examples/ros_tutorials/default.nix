@@ -3,7 +3,7 @@
 , mkRosPackage
 , python3Packages
 , geometry_msgs
-, ros_comm
+, base 
 , qt5
 }:
 
@@ -20,7 +20,7 @@ mkRosPackage rec {
   };
 
   propagatedBuildInputs = with python3Packages;
-  [ ros_comm geometry_msgs qt5.full ];
+  [ base geometry_msgs qt5.full ];
 
   meta = with stdenv.lib; {
     description = "Packages that demonstrate various features of ROS.";
