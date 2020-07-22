@@ -13,7 +13,7 @@ image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https:
 
 == Intro
 
-Robonomics project implements a software platform and includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
+Robonomics project implements a software platform for human-to-machine / machine-to-machine technical && economic communication. Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
 Structure of **Robonomics Framework** followed.
 
