@@ -13,9 +13,15 @@ image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https:
 
 == Intro
 
-AIRA (Autonomous Intelligent Robot Agent) project implements the standard of economic interaction between human-robot and robot-robot via liability smart contract. AIRA makes it possible to connect a variety of different robots to the market of robot liabilities for the direct sale of data from robot sensors, ordering of logistics services, and organization ordering of personalized products at fully automated enterprises.
+Robonomics project implements a software platform and includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
-This source is a part of AIRA project. It implements their purposes using Substrate technologies.
+Structure of **Robonomics Framework** followed.
+
+- **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions. 
+- **Robonomics CLI** - console line primitives that make framework functions runnable.
+- **Robonomics IO** - stream-oriented library with support general set of sensors and actuators (including virtual devices like PubSub or stdin/stdout) that makes hardware interaction easy.
+- **Robonomics Protocol** - network library that provides primitives to build P2P communication for Industry 4.0 and Smart City cases.
+- **Robonomics Frame** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
 
 == Try it out
 
@@ -138,6 +144,39 @@ robonomics --validator
  .. call `Validate` action.
 
  . Check https://parachain.robonomics.network/#/staking[Validator List], at new Era validator set will updated.
+
+== Robonomics I/O
+
+Especially to make hardware interaction easy we introduce https://crates.robonomics.network/robonomics_io/index.html[robonomics_io] crate. This crate implements two kinds of devices: `source` - device that intended to read a data and `sink` - device that intended to write data. This approach suits the pipelines paradigm well and implemented in Robonomics CLI as `io` subcommand.
+
+```
+$ robonomics io
+robonomics-io 0.18.0
+Run I/O actions using Robonomics Framework.
+
+USAGE:
+    robonomics io [FLAGS] [OPTIONS] <SUBCOMMAND>
+
+SUBCOMMANDS:
+    help     Prints this message or the help of the given subcommand(s)
+    read     Read information from device
+    write    Write information into device
+```
+
+For example, the sentence that simple read value from Nova SDS011 sensor is followed.
+
+```bash
+$ robonomics io read sds011
+{"timestamp":"1588090281","pm25":0.5,"pm10":1.5}
+```
+
+Is it also possible to combine IO actions to get something useful, like this:
+
+```bash
+$ robonomics io read sds011 | gz | robonomics io write pubsub my-sensor-data
+```
+
+The sentence above reads JSON values from a sensor, compresses it using gzip, and publishes it into `my-sensor-data` topic.
 
 == Robotics integration
 
