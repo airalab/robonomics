@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::chain_spec::{ChainSpec, RobonomicsFamily, RobonomicsChain};
+use crate::chain_spec::{ChainSpec, RobonomicsChain, RobonomicsFamily};
 use log::info;
 use std::str::FromStr;
 use substrate_browser_utils::{
@@ -56,15 +56,9 @@ async fn start_inner(
             // TODO: fix light client
             unimplemented!()
         }
-        RobonomicsFamily::Unknown => {
-            unimplemented!()
-        }
-        RobonomicsFamily::Development => {
-            unimplemented!()
-        }
+        RobonomicsFamily::Unknown => unimplemented!(),
+        RobonomicsFamily::Development => unimplemented!(),
         #[cfg(feature = "parachain")]
-        RobonomicsFamily::Parachain => {
-            unimplemented!()
-        }
+        RobonomicsFamily::Parachain => unimplemented!(),
     }
 }
