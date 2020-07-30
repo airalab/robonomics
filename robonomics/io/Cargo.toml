@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
-sp-core = "2.0.0-rc2"
+sp-core = "2.0.0-rc5"
 futures-timer = "3.0"
 derive_more = "0.99"
 serialport = "3.3"

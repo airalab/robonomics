@@ -17,12 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "parachain")]
-use crate::parachain::{
-    chain_spec as parachain_spec, command as parachain_command, executor as parachain_executor,
-};
+use crate::parachain::{chain_spec as parachain_spec, command as parachain_command, new_parachain};
 use crate::{
     chain_spec::*,
-    service::{executor, ipci, robonomics},
+    service::{ipci, new_full_params, robonomics},
     Cli, Subcommand,
 };
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
@@ -120,30 +118,54 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let builder =
-                        new_full_start!(config, ipci_runtime::RuntimeApi, executor::Ipci).0;
-                    Ok(builder.to_chain_ops_parts())
+                    let (
+                        sc_service::ServiceParams {
+                            client,
+                            backend,
+                            import_queue,
+                            task_manager,
+                            ..
+                        },
+                        ..,
+                    ) = new_full_params::<
+                        ipci_runtime::RuntimeApi,
+                        ipci::Executor,
+                        ipci_runtime::UncheckedExtrinsic,
+                    >(config)?;
+                    Ok((client, backend, import_queue, task_manager))
                 }),
 
                 RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
-                    let builder = new_full_start!(
-                        config,
+                    let (
+                        sc_service::ServiceParams {
+                            client,
+                            backend,
+                            import_queue,
+                            task_manager,
+                            ..
+                        },
+                        ..,
+                    ) = new_full_params::<
                         robonomics_runtime::RuntimeApi,
-                        executor::Robonomics
-                    )
-                    .0;
-                    Ok(builder.to_chain_ops_parts())
+                        robonomics::Executor,
+                        robonomics_runtime::UncheckedExtrinsic,
+                    >(config)?;
+                    Ok((client, backend, import_queue, task_manager))
                 }),
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |config| {
-                    let builder = new_parachain!(
-                        config,
-                        robonomics_parachain_runtime::RuntimeApi,
-                        parachain_executor::Robonomics
-                    )
-                    .0;
-                    Ok(builder.to_chain_ops_parts())
+                    let (
+                        sc_service::ServiceParams {
+                            client,
+                            backend,
+                            import_queue,
+                            task_manager,
+                            ..
+                        },
+                        ..,
+                    ) = new_parachain(config)?;
+                    Ok((client, backend, import_queue, task_manager))
                 }),
 
                 _ => Err(format!(
@@ -162,11 +184,11 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             if runner.config().chain_spec.is_ipci() {
                 runner.sync_run(|config| {
-                    subcommand.run::<node_primitives::Block, executor::Ipci>(config)
+                    subcommand.run::<node_primitives::Block, ipci::Executor>(config)
                 })
             } else {
                 runner.sync_run(|config| {
-                    subcommand.run::<node_primitives::Block, executor::Robonomics>(config)
+                    subcommand.run::<node_primitives::Block, robonomics::Executor>(config)
                 })
             }
         }

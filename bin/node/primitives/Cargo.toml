@@ -1,6 +1,6 @@
 [package]
 name = "node-primitives"
-version = "0.18.4"
+version = "0.19.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -12,13 +12,13 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
+sp-core = { version = "2.0.0-rc5", default-features = false }
+sp-runtime = { version = "2.0.0-rc5", default-features = false }
+sp-application-crypto = { version = "2.0.0-rc5", default-features = false }
+frame-system = { version = "2.0.0-rc5", default-features = false }
 
 [dev-dependencies]
-sp-serializer = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sp-serializer = "2.0.0-rc5"
 pretty_assertions = "0.6.1"
 
 [features]

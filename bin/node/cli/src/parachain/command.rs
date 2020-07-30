@@ -78,7 +78,7 @@ pub fn run(
     let block = generate_genesis_state()?;
     let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
-        AccountIdConversion::<polkadot_primitives::AccountId>::into_account(&parachain_id);
+        AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
 
     info!("[Para] ID: {}", parachain_id);
     info!("[Para] Account: {}", parachain_account);
@@ -144,11 +144,11 @@ impl SubstrateCli for PolkadotCli {
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         let chain_spec = match id {
-            "" => polkadot_service::PolkadotChainSpec::from_json_bytes(
+            "" => polkadot_service::WestendChainSpec::from_json_bytes(
                 &include_bytes!("../../res/polkadot_chainspec.json")[..],
             )?,
             path => {
-                polkadot_service::PolkadotChainSpec::from_json_file(std::path::PathBuf::from(path))?
+                polkadot_service::WestendChainSpec::from_json_file(std::path::PathBuf::from(path))?
             }
         };
         Ok(Box::new(chain_spec))

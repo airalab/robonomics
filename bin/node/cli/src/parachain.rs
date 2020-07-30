@@ -17,79 +17,86 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Node as a parachain collator.
 
-#[cfg(feature = "frame-benchmarking")]
-pub mod executor {
-    sc_executor::native_executor_instance!(
-        pub Robonomics,
-        robonomics_parachain_runtime::api::dispatch,
-        robonomics_parachain_runtime::native_version,
-        frame_benchmarking::benchmarking::HostFunctions,
+use node_primitives::Block;
+use robonomics_parachain_runtime::RuntimeApi;
+use sc_service::{Configuration, Error as ServiceError};
+use std::sync::Arc;
+
+sc_executor::native_executor_instance!(
+    pub Executor,
+    robonomics_parachain_runtime::api::dispatch,
+    robonomics_parachain_runtime::native_version,
+);
+
+type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+type FullBackend = sc_service::TFullBackend<Block>;
+
+pub fn new_parachain(
+    config: Configuration,
+) -> Result<
+    (
+        sc_service::ServiceParams<
+            Block,
+            FullClient,
+            sc_consensus_babe::BabeImportQueue<Block, FullClient>,
+            sc_transaction_pool::FullPool<Block, FullClient>,
+            (),
+            FullBackend,
+        >,
+        sp_inherents::InherentDataProviders,
+        cumulus_network::DelayedBlockAnnounceValidator<Block>,
+    ),
+    ServiceError,
+> {
+    let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+    let (client, backend, keystore, task_manager) =
+        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+
+    let client = Arc::new(client);
+    let pool_api =
+        sc_transaction_pool::FullChainApi::new(client.clone(), config.prometheus_registry());
+    let transaction_pool = sc_transaction_pool::BasicPool::new_full(
+        config.transaction_pool.clone(),
+        Arc::new(pool_api),
+        config.prometheus_registry(),
+        task_manager.spawn_handle(),
+        client.clone(),
     );
-}
 
-#[cfg(not(feature = "frame-benchmarking"))]
-pub mod executor {
-    sc_executor::native_executor_instance!(
-        pub Robonomics,
-        robonomics_parachain_runtime::api::dispatch,
-        robonomics_parachain_runtime::native_version,
-    );
-}
+    let import_queue = cumulus_consensus::import_queue::import_queue(
+        client.clone(),
+        client.clone(),
+        inherent_data_providers.clone(),
+        &task_manager.spawn_handle(),
+        config.prometheus_registry(),
+    )?;
 
-/// Starts a `ServiceBuilder` for a full parachain service.
-///
-/// Use this macro if you don't actually need the full service, but just the builder in order to
-/// be able to perform chain operations.
-#[macro_export]
-macro_rules! new_parachain {
-    ($config:expr, $runtime:ty, $dispatch:ty) => {{
-        use std::sync::Arc;
+    inherent_data_providers
+        .register_provider(sp_timestamp::InherentDataProvider)
+        .unwrap();
 
-        let announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
-        let block_announce_validator = announce_validator.clone();
-        let inherent_data_providers = sp_inherents::InherentDataProviders::new();
-        let builder = sc_service::ServiceBuilder::new_full::<
-            node_primitives::Block,
-            $runtime,
-            $dispatch,
-        >($config)?
-        .with_select_chain(|_config, backend| Ok(sc_consensus::LongestChain::new(backend.clone())))?
-        .with_transaction_pool(|builder| {
-            let pool_api = sc_transaction_pool::FullChainApi::new(
-                builder.client().clone(),
-                builder.prometheus_registry(),
-            );
-            let pool = sc_transaction_pool::BasicPool::new_full(
-                builder.config().transaction_pool.clone(),
-                Arc::new(pool_api),
-                builder.prometheus_registry(),
-                builder.spawn_handle(),
-                builder.client().clone(),
-            );
-            Ok(pool)
-        })?
-        .with_import_queue(|_config, client, _, _, spawner, registry| {
-            let import_queue = cumulus_consensus::import_queue::import_queue(
-                client.clone(),
-                client,
-                inherent_data_providers.clone(),
-                spawner,
-                registry,
-            )?;
+    let block_announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
+    let bav_builder = {
+        let validator = block_announce_validator.clone();
+        move |_| Box::new(validator) as Box<_>
+    };
+    let params = sc_service::ServiceParams {
+        config,
+        client: client.clone(),
+        backend,
+        import_queue,
+        keystore,
+        task_manager,
+        rpc_extensions_builder: Box::new(|_| ()),
+        transaction_pool,
+        block_announce_validator_builder: Some(Box::new(bav_builder)),
+        finality_proof_request_builder: None,
+        finality_proof_provider: None,
+        on_demand: None,
+        remote_blockchain: None,
+    };
 
-            Ok(import_queue)
-        })?
-        .with_finality_proof_provider(|client, backend| {
-            // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-            let provider = client as Arc<dyn sc_finality_grandpa::StorageAndProofProvider<_, _>>;
-            Ok(Arc::new(sc_finality_grandpa::FinalityProofProvider::new(
-                backend, provider,
-            )) as _)
-        })?
-        .with_block_announce_validator(|_client| Box::new(block_announce_validator))?;
-
-        (builder, inherent_data_providers, announce_validator)
-    }};
+    Ok((params, inherent_data_providers, block_announce_validator))
 }
 
 pub mod chain_spec;

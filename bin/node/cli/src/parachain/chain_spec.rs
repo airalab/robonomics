@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig, SystemConfig,
-    WASM_BINARY,
+    wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig,
+    SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -96,7 +96,7 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
     let mut balances = currency::STAKE_HOLDERS.clone();
     balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
 
-    mk_genesis(balances.to_vec(), sudo_key, WASM_BINARY.to_vec())
+    mk_genesis(balances.to_vec(), sudo_key, wasm_binary_unwrap().to_vec())
 }
 
 /// Robonomics parachain config.

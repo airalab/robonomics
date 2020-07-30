@@ -24,6 +24,16 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+#[cfg(feature = "std")]
+/// Wasm binary unwrapped. If built with `BUILD_DUMMY_WASM_BINARY`, the function panics.
+pub fn wasm_binary_unwrap() -> &'static [u8] {
+    WASM_BINARY.expect(
+        "Development wasm binary is not available. This means the client is \
+                        built with `BUILD_DUMMY_WASM_BINARY` flag and it is only usable for \
+                        production chains. Please rebuild with the flag disabled.",
+    )
+}
+
 pub mod constants;
 pub mod impls;
 
@@ -39,6 +49,7 @@ use frame_support::{
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -52,7 +63,7 @@ use sp_runtime::{
         self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
-    ModuleId, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -184,6 +195,8 @@ impl pallet_generic_asset::Trait for Runtime {
 parameter_types! {
     pub const TransactionByteFee: Balance = 100 * COASE;
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+    pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+    pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
@@ -191,7 +204,8 @@ impl pallet_transaction_payment::Trait for Runtime {
     type OnTransactionPayment = Treasury;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = impls::TargetedFeeAdjustment<TargetBlockFullness>;
+    type FeeMultiplierUpdate =
+        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 parameter_types! {
@@ -250,6 +264,7 @@ parameter_types! {
 }
 
 impl pallet_treasury::Trait for Runtime {
+    type ModuleId = TreasuryModuleId;
     type Currency = Balances;
     type ApproveOrigin = pallet_collective::EnsureMembers<_4, AccountId, CouncilCollective>;
     type RejectOrigin = pallet_collective::EnsureMembers<_2, AccountId, CouncilCollective>;
@@ -264,7 +279,7 @@ impl pallet_treasury::Trait for Runtime {
     type ProposalBondMinimum = ProposalBondMinimum;
     type SpendPeriod = SpendPeriod;
     type Burn = Burn;
-    type ModuleId = TreasuryModuleId;
+    type BurnDestination = ();
     type WeightInfo = ();
 }
 
@@ -329,6 +344,11 @@ impl pallet_robonomics_liability::Trait for Runtime {
 impl pallet_robonomics_datalog::Trait for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
+    type Event = Event;
+}
+
+impl pallet_robonomics_launch::Trait for Runtime {
+    type Parameter = bool;
     type Event = Event;
 }
 
@@ -419,6 +439,7 @@ construct_runtime! {
         // Robonomics Network modules.
         Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
+        Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},

@@ -18,15 +18,15 @@
 //! Polkadot collator service implementation.
 
 use futures::FutureExt;
-use polkadot_primitives::parachain::{self, CollatorPair};
+use polkadot_primitives::v0::{CollatorPair, Id as ParaId};
 use sc_informant::OutputFormat;
-use sc_service::{config::Configuration, TaskManager};
+use sc_service::{Configuration, TaskManager};
 use std::sync::Arc;
 
 /// Create collator for the parachain.
 pub fn new_collator(
     parachain_config: Configuration,
-    parachain_id: parachain::Id,
+    parachain_id: ParaId,
     key: Arc<CollatorPair>,
     mut polkadot_config: polkadot_collator::Configuration,
 ) -> sc_service::error::Result<TaskManager> {
@@ -36,53 +36,51 @@ pub fn new_collator(
         prefix: "[Parachain] ".to_string(),
     };
 
-    let (builder, inherent_data_providers, announce_validator) = new_parachain!(
-        parachain_config,
-        robonomics_parachain_runtime::RuntimeApi,
-        super::executor::Robonomics
-    );
+    let (params, inherent_data_providers, block_announce_validator) =
+        super::new_parachain(parachain_config)?;
 
-    inherent_data_providers
-        .register_provider(sp_timestamp::InherentDataProvider)
-        .unwrap();
-
-    let service = builder.build_full()?;
+    let client = params.client.clone();
     let proposer_factory = sc_basic_authorship::ProposerFactory::new(
-        service.client.clone(),
-        service.transaction_pool.clone(),
-        service.prometheus_registry.as_ref(),
+        client.clone(),
+        params.transaction_pool.clone(),
+        params.config.prometheus_registry(),
     );
 
-    let block_import = service.client.clone();
-    let client = service.client.clone();
-    let network = service.network.clone();
-    let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
-    let collator_builder = cumulus_collator::CollatorBuilder::new(
+    let sc_service::ServiceComponents {
+        task_manager,
+        network,
+        ..
+    } = sc_service::build(params)?;
+
+    let block_import = client.clone();
+    let announce_block = Arc::new(Box::new(move |hash, data| {
+        network.announce_block(hash, data)
+    }));
+    let builder = cumulus_collator::CollatorBuilder::new(
         proposer_factory,
         inherent_data_providers,
         block_import,
         client.clone(),
         parachain_id,
-        client,
+        client.clone(),
         announce_block,
-        announce_validator,
+        block_announce_validator,
     );
 
     polkadot_config.informant_output_format = OutputFormat {
         enable_color: true,
         prefix: "[Relaychain] ".to_string(),
     };
-    let (polkadot_future, task_manager) =
-        polkadot_collator::start_collator(collator_builder, parachain_id, key, polkadot_config)?;
+    let (polkadot_future, polkadot_task_manager) =
+        polkadot_collator::start_collator(builder, parachain_id, key, polkadot_config)?;
     let polkadot_future = polkadot_future.then(move |_| {
-        let _ = task_manager;
+        let _ = polkadot_task_manager;
         futures::future::ready(())
     });
 
-    service
-        .task_manager
+    task_manager
         .spawn_essential_handle()
         .spawn("polkadot", polkadot_future);
 
-    Ok(service.task_manager)
+    Ok(task_manager)
 }

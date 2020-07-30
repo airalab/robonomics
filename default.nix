@@ -6,11 +6,13 @@
 with nixpkgs;
 with llvmPackages_latest;
 
-rustPlatform.buildRustPackage rec {
-  name = "robonomics";
-  src = ./.;
+let
+  pname = "robonomics";
+in rustPlatform.buildRustPackage {
+  name = pname;
+  src = builtins.path { path = ./.; name = pname; };
   cargoSha256 = null; 
-  propagatedBuildInputs = [ substrate-msgs ];
-  buildInputs = [ rust ];
+  buildInputs = [ substrate-ros-msgs rust libudev pkgconfig ];
   LIBCLANG_PATH = "${libclang}/lib";
+  PROTOC = "${protobuf}/bin/protoc";
 }

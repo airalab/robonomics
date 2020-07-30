@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.18.4"
+version = "0.19.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -39,87 +39,88 @@ jsonrpc-core = "13.2.0"
 
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
-sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sp-authority-discovery = "2.0.0-rc5"
+sp-consensus = "0.8.0-rc5"
+sp-consensus-babe = "0.8.0-rc5"
+sp-finality-grandpa = "2.0.0-rc5"
+sp-api = "2.0.0-rc5"
+sp-core = "2.0.0-rc5"
+sp-session = "2.0.0-rc5"
+sp-runtime = "2.0.0-rc5"
+sp-offchain = "2.0.0-rc5"
+sp-inherents = "2.0.0-rc5"
+sp-timestamp = "2.0.0-rc5"
+sp-blockchain = "2.0.0-rc5"
+sp-block-builder = "2.0.0-rc5"
+sp-transaction-pool = "2.0.0-rc5"
 
 # client dependencies
-sc-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-informant = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", default-features = false }
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-authority-discovery = "0.8.0-rc5"
+sc-basic-authorship = "0.8.0-rc5"
+sc-chain-spec = "2.0.0-rc5"
+sc-client-db = "0.8.0-rc5"
+sc-client-api = "2.0.0-rc5"
+sc-consensus = "0.8.0-rc5"
+sc-consensus-babe = "0.8.0-rc5"
+sc-finality-grandpa = "0.8.0-rc5"
+sc-informant = "0.8.0-rc5"
+sc-keystore = "2.0.0-rc5"
+sc-network = "0.8.0-rc5"
+sc-offchain = "2.0.0-rc5"
+sc-service = { version = "0.8.0-rc5", default-features = false }
+sc-transaction-pool = "2.0.0-rc5"
+sc-telemetry = "2.0.0-rc5"
 
 # frame dependencies
-pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
-frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+pallet-im-online = "2.0.0-rc5"
+frame-benchmarking = { version = "2.0.0-rc5", optional = true }
+frame-system-rpc-runtime-api = "2.0.0-rc5"
+pallet-transaction-payment-rpc-runtime-api = "2.0.0-rc5"
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
+cumulus-primitives = { git = "https://github.com/akru/cumulus", branch = "crates-io", optional = true }
+cumulus-consensus = { git = "https://github.com/akru/cumulus", branch = "crates-io", optional = true }
+cumulus-collator = { git = "https://github.com/akru/cumulus", branch = "crates-io", optional = true }
+cumulus-network = { git = "https://github.com/akru/cumulus", branch = "crates-io", optional = true }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
-polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
+polkadot-primitives = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
+polkadot-parachain = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
+polkadot-collator = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
+polkadot-service = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
+polkadot-cli = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
 
 # node-specific dependencies
+node-rpc = { path = "../rpc" }
 robonomics-runtime = { path = "../robonomics-runtime" }
 ipci-runtime = { path = "../ipci-runtime" }
 robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain", optional = true }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch"  }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
+sc-executor = "0.8.0-rc5"
+sc-rpc = "2.0.0-rc5"
 
 # CLI-specific dependencies
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
+sc-cli = { version = "0.8.0-rc5", optional = true }
+frame-benchmarking-cli = { version = "2.0.0-rc5", optional = true }
 
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.57", optional = true }
 wasm-bindgen-futures = { version = "0.4.7", optional = true }
-substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
+substrate-browser-utils = { version = "0.8.0-rc5", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9", optional = true }
-#substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
 ipci-runtime = { path = "../ipci-runtime" }
 robonomics-runtime = { path = "../robonomics-runtime" }
-#robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "cumulus-branch", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch", optional = true }
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "cumulus-branch" }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
+sc-cli = { version = "0.8.0-rc5", optional = true }
+polkadot-cli = { git = "https://github.com/akru/polkadot", branch = "crates-io", optional = true }
+frame-benchmarking-cli = { version = "2.0.0-rc5", optional = true }
+substrate-build-script-utils = "2.0.0-rc5"
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 vergen = { version = "3.0.4", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
@@ -138,7 +139,7 @@ cli = [
     "vergen",
     "structopt",
     "sc-service/db",
-#    "robonomics-cli",
+    "robonomics-cli",
 ]
 
 ## Enable browser bundle features.
@@ -169,7 +170,7 @@ parachain = [
 # It also require roscore service to be launched.
 ros = [
     "rosrust",
-#    "substrate-ros-api",
+    "substrate-ros-api",
 ]
 
 ## Enable runtime benchmarking support.

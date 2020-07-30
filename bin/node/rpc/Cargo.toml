@@ -1,0 +1,35 @@
+[package]
+name = "node-rpc"
+version = "0.19.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+license = "Apache-2.0"
+homepage = "https://robonomics.network"
+repository = "https://github.com/airalab/robonomics" 
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "1.3.0" }
+sc-client-api = "2.0.0-rc5"
+sc-rpc = "2.0.0-rc5"
+jsonrpc-core = "14.2.0"
+node-primitives = { path = "../primitives" }
+robonomics-runtime = { path = "../robonomics-runtime" }
+sp-runtime = "2.0.0-rc5"
+sp-api = "2.0.0-rc5"
+pallet-transaction-payment-rpc = "2.0.0-rc5"
+substrate-frame-rpc-system = "2.0.0-rc5"
+sp-transaction-pool = "2.0.0-rc5"
+sc-consensus-babe = "0.8.0-rc5"
+sc-consensus-babe-rpc = "0.8.0-rc5"
+sp-consensus-babe = "0.8.0-rc5"
+sc-keystore = "2.0.0-rc5"
+sc-consensus-epochs = "0.8.0-rc5"
+sp-consensus = "0.8.0-rc5"
+sp-blockchain = "2.0.0-rc5"
+sc-finality-grandpa = "0.8.0-rc5"
+sc-finality-grandpa-rpc = "0.8.0-rc5"
+sc-rpc-api = "0.8.0-rc5"
+sp-block-builder = "2.0.0-rc5"

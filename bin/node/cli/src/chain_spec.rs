@@ -20,9 +20,9 @@
 use node_primitives::{AccountId, Balance, Block, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use robonomics_runtime::{
-    AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig, ElectionsConfig,
-    GenesisConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig, SessionKeys,
-    StakerStatus, StakingConfig, SudoConfig, SystemConfig, WASM_BINARY,
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
+    ElectionsConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
+    SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -192,7 +192,7 @@ fn development_genesis(
         initial_authorities,
         endowed_accounts,
         sudo_key,
-        WASM_BINARY.to_vec(),
+        wasm_binary_unwrap().to_vec(),
     )
 }
 
