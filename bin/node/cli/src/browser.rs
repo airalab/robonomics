@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::{chain_spec::ChainSpec, IsIpci};
+use crate::chain_spec::{ChainSpec, RobonomicsFamily, RobonomicsChain};
 use log::info;
 use std::str::FromStr;
 use substrate_browser_utils::{
@@ -51,12 +51,20 @@ async fn start_inner(
     info!("Role: {:?}", config.role);
 
     // Create the service. This is the most heavy initialization step.
-    if config.chain_spec.is_ipci() {
-        let service = crate::service::ipci::new_light(config).map_err(|e| format!("{:?}", e))?;
-        Ok(substrate_browser_utils::start_client(service))
-    } else {
-        let service =
-            crate::service::robonomics::new_light(config).map_err(|e| format!("{:?}", e))?;
-        Ok(substrate_browser_utils::start_client(service))
+    match config.chain_spec.family() {
+        RobonomicsFamily::DaoIpci => {
+            // TODO: fix light client
+            unimplemented!()
+        }
+        RobonomicsFamily::Unknown => {
+            unimplemented!()
+        }
+        RobonomicsFamily::Development => {
+            unimplemented!()
+        }
+        #[cfg(feature = "parachain")]
+        RobonomicsFamily::Parachain => {
+            unimplemented!()
+        }
     }
 }

@@ -39,8 +39,8 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport<Runtime, Executor> =
     grandpa::GrandpaBlockImport<FullBackend, Block, FullClient<Runtime, Executor>, FullSelectChain>;
-//type LightBackend = sc_service::TLightBackend<Block>;
-//type LightClient<Runtime, Executor> = sc_service::TLightClient<Block, Runtime, Executor>;
+type LightBackend = sc_service::TLightBackend<Block>;
+type LightClient<Runtime, Executor> = sc_service::TLightClient<Block, Runtime, Executor>;
 
 /// A set of APIs that robonomics-like runtimes must implement.
 pub trait RuntimeApiCollection<Extrinsic>:
@@ -465,7 +465,8 @@ where
 
 /* TODO: Fix light client build.
 pub fn new_light_base<Runtime, Executor, Extrinsic>(config: Configuration) -> Result<(
-    TaskManager, Arc<RpcHandlers>, Arc<LightClient<Runtime, Executor>>,
+    TaskManager,
+    Arc<LightClient<Runtime, Executor>>,
     Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
     Arc<sc_transaction_pool::LightPool<Block, LightClient<Runtime, Executor>, sc_network::config::OnDemand<Block>>>
 ), ServiceError> where
@@ -474,7 +475,7 @@ pub fn new_light_base<Runtime, Executor, Extrinsic>(config: Configuration) -> Re
         Extrinsic,
         StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>,
     >,
-    Executor: sc_executor::NativeExecutionDispatch +  + 'static,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     Extrinsic: RuntimeExtrinsic,
 {
     let (client, backend, keystore, task_manager, on_demand) =
@@ -523,9 +524,9 @@ pub fn new_light_base<Runtime, Executor, Extrinsic>(config: Configuration) -> Re
     )?;
 
     // GenesisAuthoritySetProvider is implemented for StorageAndProofProvider
-    let provider = client.clone() as Arc<dyn StorageAndProofProvider<_, _>>;
+    let provider = client.clone() as Arc<dyn grandpa::StorageAndProofProvider<_, _>>;
     let finality_proof_provider =
-        Arc::new(GrandpaFinalityProofProvider::new(backend.clone(), provider));
+        Arc::new(grandpa::FinalityProofProvider::new(backend.clone(), provider));
 
     let light_deps = node_rpc::LightDeps {
         remote_blockchain: backend.remote_blockchain(),
@@ -536,7 +537,7 @@ pub fn new_light_base<Runtime, Executor, Extrinsic>(config: Configuration) -> Re
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
-    let ServiceComponents { task_manager, rpc_handlers, network, .. } =
+    let ServiceComponents { task_manager, network, .. } =
         sc_service::build(sc_service::ServiceParams {
             block_announce_validator_builder: None,
             finality_proof_request_builder: Some(finality_proof_request_builder),
@@ -549,7 +550,7 @@ pub fn new_light_base<Runtime, Executor, Extrinsic>(config: Configuration) -> Re
             config, import_queue, keystore, backend, task_manager,
         })?;
 
-    Ok((task_manager, rpc_handlers, client, network, transaction_pool))
+    Ok((task_manager, client, network, transaction_pool))
 }
 
 /// Builds a new service for a light client.
@@ -595,6 +596,12 @@ pub mod ipci {
     }
 
     /// Create a new IPCI service for a light client.
+    pub fn new_light_base(config: Configuration) -> Result<TaskManager> {
+        unimplemented!()
+        //super::new_light_base::<RuntimeApi, Executor, Extrinsic>(config)
+    }
+
+    /// Create a new IPCI service for a light client.
     pub fn new_light(_config: Configuration) -> Result<TaskManager> {
         unimplemented!()
         //super::new_light::<RuntimeApi, Executor, Extrinsic>(config)
@@ -626,7 +633,6 @@ pub mod robonomics {
         super::new_full::<RuntimeApi, Executor, Extrinsic>(config)
     }
 
-    /// Create a new Robonomics service for a light client.
     pub fn new_light(_config: Configuration) -> Result<TaskManager> {
         unimplemented!()
         //super::new_light::<RuntimeApi, Executor, Extrinsic>(config)

@@ -27,7 +27,8 @@ use hex_literal::hex;
 use itertools::Itertools;
 use libp2p::identity::{ed25519 as libp2p_ed25519, PublicKey};
 use node_primitives::{Balance, Hash, Index, AccountId, Signature};
-use node_runtime::{BalancesCall, Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
+use node_runtime::{Call, Runtime, SignedPayload, UncheckedExtrinsic, VERSION};
+use pallet_balances::Call as BalancesCall; 
 use serde_json::json;
 use sp_core::{
 	crypto::{set_default_ss58_version, Ss58AddressFormat, Ss58Codec},
