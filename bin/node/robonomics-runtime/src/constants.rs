@@ -24,6 +24,10 @@ pub mod currency {
     pub const COASE: Balance = 1_000;
     pub const GLUSHKOV: Balance = 1_000 * COASE;
     pub const XRT: Balance = 1_000 * GLUSHKOV;
+
+    pub const fn deposit(items: u32, bytes: u32) -> Balance {
+        items as Balance * 150 * GLUSHKOV + (bytes as Balance) * 60 * GLUSHKOV
+    }
 }
 
 /// Time.

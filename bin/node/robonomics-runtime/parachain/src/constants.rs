@@ -28,6 +28,10 @@ pub mod currency {
     pub const GLUSHKOV: Balance = 1_000 * COASE;
     pub const XRT: Balance = 1_000 * GLUSHKOV;
 
+    pub const fn deposit(items: u32, bytes: u32) -> Balance {
+        items as Balance * 150 * GLUSHKOV / 100 + (bytes as Balance) * 60 * GLUSHKOV
+    }
+
     #[cfg(feature = "std")]
     lazy_static::lazy_static! {
         pub static ref STAKE_HOLDERS: Vec<(AccountId, Balance)> = sp_std::vec![

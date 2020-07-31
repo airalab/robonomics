@@ -9,6 +9,7 @@ build = "build.rs"
 # third-party dependencies
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
+hex-literal = { version = "0.2", optional = true }
 codec = { package = "parity-scale-codec", version = "1.0", default-features = false, features = ["derive"] }
 
 # primitives
@@ -40,6 +41,7 @@ pallet-grandpa = { version = "2.0.0-rc5", default-features = false }
 pallet-im-online = { version = "2.0.0-rc5", default-features = false }
 pallet-indices = { version = "2.0.0-rc5", default-features = false }
 pallet-identity = { version = "2.0.0-rc5", default-features = false }
+pallet-multisig = { version = "2.0.0-rc5", default-features = false }
 pallet-offences = { version = "2.0.0-rc5", default-features = false }
 pallet-offences-benchmarking = { version = "2.0.0-rc5", default-features = false, optional = true }
 pallet-randomness-collective-flip = { version = "2.0.0-rc5", default-features = false }
@@ -88,6 +90,7 @@ std = [
     "pallet-im-online/std",
     "pallet-indices/std",
     "pallet-identity/std",
+    "pallet-multisig/std",
     "node-primitives/std",
     "sp-offchain/std",
     "pallet-offences/std",
@@ -119,21 +122,26 @@ std = [
     "pallet-robonomics-liability/std",
 ]
 runtime-benchmarks = [
-    "frame-benchmarking",
-    "sp-runtime/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "pallet-collective/runtime-benchmarks",
-    "pallet-elections-phragmen/runtime-benchmarks",
-    "pallet-timestamp/runtime-benchmarks",
-    "pallet-identity/runtime-benchmarks",
-    "pallet-im-online/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks",
-    "pallet-treasury/runtime-benchmarks",
-    "pallet-scheduler/runtime-benchmarks",
-    "pallet-staking/runtime-benchmarks",
-    "pallet-utility/runtime-benchmarks",
-    "pallet-session-benchmarking",
-    "pallet-offences-benchmarking",
-    "frame-system-benchmarking",
+	"frame-benchmarking",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-grandpa/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
+	"pallet-indices/runtime-benchmarks",
+	"pallet-multisig/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
+	"pallet-staking/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
+	"pallet-utility/runtime-benchmarks",
+	"pallet-offences-benchmarking",
+	"pallet-session-benchmarking",
+	"frame-system-benchmarking",
+    "hex-literal",
 ]

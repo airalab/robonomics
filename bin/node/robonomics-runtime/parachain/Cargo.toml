@@ -34,6 +34,7 @@ frame-executive = { version = "2.0.0-rc5", default-features = false }
 pallet-generic-asset = { version = "2.0.0-rc5", default-features = false }
 pallet-indices = { version = "2.0.0-rc5", default-features = false }
 pallet-identity = { version = "2.0.0-rc5", default-features = false }
+pallet-multisig = { version = "2.0.0-rc5", default-features = false }
 pallet-randomness-collective-flip = { version = "2.0.0-rc5", default-features = false }
 pallet-scheduler = { version = "2.0.0-rc5", default-features = false }
 pallet-sudo = { version = "2.0.0-rc5", default-features = false }

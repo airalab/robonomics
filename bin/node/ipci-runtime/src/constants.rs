@@ -28,6 +28,10 @@ pub mod currency {
     pub const U_MITO: Balance = 1_000_000;
     pub const MITO: Balance = 1_000_000 * U_MITO;
 
+    pub const fn deposit(items: u32, bytes: u32) -> Balance {
+        items as Balance * 15 * MITO / 100 + (bytes as Balance) * 6 * MITO / 100
+    }
+
     #[cfg(feature = "std")]
     lazy_static::lazy_static! {
         pub static ref STAKE_HOLDERS: Vec<(AccountId, Balance)> = vec![

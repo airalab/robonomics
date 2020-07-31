@@ -409,6 +409,7 @@ where
         grandpa::setup_disabled_grandpa(client.clone(), &inherent_data_providers, network.clone())?;
     }
 
+    /*
     #[cfg(feature = "ros")]
     {
         if rosrust::try_init_with_options("robonomics", false).is_ok() {
@@ -436,6 +437,7 @@ where
             log::warn!("ROS integration disabled because of initialization failure");
         }
     }
+    */
 
     Ok((
         task_manager,
