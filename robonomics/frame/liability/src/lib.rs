@@ -336,6 +336,8 @@ mod tests {
         type BlockExecutionWeight = ();
         type ExtrinsicBaseWeight = ();
         type MaximumExtrinsicWeight = ();
+        type BaseCallFilter = ();
+        type SystemWeightInfo = ();
     }
 
     impl Trait for Runtime {
@@ -435,7 +437,7 @@ mod tests {
 
             assert_err!(
                 Liability::create(
-                    Origin::NONE,
+                    Origin::none(),
                     technics.clone(),
                     economics.clone(),
                     promisee.clone(),
@@ -449,7 +451,7 @@ mod tests {
 
             assert_err!(
                 Liability::create(
-                    Origin::NONE,
+                    Origin::none(),
                     technics.clone(),
                     economics.clone(),
                     promisee.clone(),
@@ -462,7 +464,7 @@ mod tests {
             assert_eq!(Liability::latest_index(), 0);
 
             assert_ok!(Liability::create(
-                Origin::NONE,
+                Origin::none(),
                 technics,
                 economics,
                 promisee,
@@ -481,12 +483,12 @@ mod tests {
             let good_proof = get_report_proof("//Bob", &index, &report);
 
             assert_err!(
-                Liability::finalize(Origin::NONE, 0, report.clone(), bad_proof),
+                Liability::finalize(Origin::none(), 0, report.clone(), bad_proof),
                 Error::<Runtime>::BadReportProof
             );
             assert_eq!(Liability::is_finalized(0), false);
 
-            assert_ok!(Liability::finalize(Origin::NONE, 0, report, good_proof));
+            assert_ok!(Liability::finalize(Origin::none(), 0, report, good_proof));
             assert_eq!(Liability::is_finalized(0), true);
         })
     }

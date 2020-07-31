@@ -92,7 +92,6 @@ mod tests {
     use frame_support::{
         assert_err, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
     };
-    use frame_system::{self as system};
     use node_primitives::Moment;
     use sp_core::H256;
     use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, Perbill};
@@ -135,6 +134,8 @@ mod tests {
         type BlockExecutionWeight = ();
         type ExtrinsicBaseWeight = ();
         type MaximumExtrinsicWeight = ();
+        type BaseCallFilter = ();
+        type SystemWeightInfo = ();
     }
 
     parameter_types! {
@@ -145,6 +146,7 @@ mod tests {
         type Moment = Moment;
         type OnTimestampSet = ();
         type MinimumPeriod = ();
+        type WeightInfo = ();
     }
 
     impl Trait for Runtime {
@@ -189,7 +191,7 @@ mod tests {
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
             assert_err!(
-                Datalog::record(Origin::NONE, vec![]),
+                Datalog::record(Origin::none(), vec![]),
                 DispatchError::BadOrigin
             );
         })
