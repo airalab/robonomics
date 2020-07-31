@@ -2765,6 +2765,7 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-multisig",
  "pallet-offences",
  "pallet-offences-benchmarking",
  "pallet-randomness-collective-flip",
@@ -4756,6 +4757,7 @@ version = "2.0.0-rc5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "972a5079a31585bd032271fd3a2d91b6f354fb91b9d0e03688f602183f0cb3e3"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4788,6 +4790,7 @@ version = "2.0.0-rc5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab3d8046d2a7da90f61dae43a2602ffecc3493e361f85829596609f5a5f039dc"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -6657,6 +6660,7 @@ dependencies = [
  "pallet-generic-asset",
  "pallet-identity",
  "pallet-indices",
+ "pallet-multisig",
  "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-launch",
@@ -6714,6 +6718,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
+ "hex-literal",
  "node-primitives",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -6726,6 +6731,7 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-multisig",
  "pallet-offences",
  "pallet-offences-benchmarking",
  "pallet-randomness-collective-flip",

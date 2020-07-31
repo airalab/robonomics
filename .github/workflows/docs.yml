@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
     - name: Build doc
-      run: nix-shell --option sandbox false --run "cargo doc --all --all-features --no-deps"
+      run: nix-shell --run "cargo doc --all --no-deps"
     - name: Push index.html
       run: echo "<meta http-equiv=\"refresh\" content=\"0; URL='./robonomics_protocol/index.html'\" />" > ./target/doc/index.html
     - name: Deploy

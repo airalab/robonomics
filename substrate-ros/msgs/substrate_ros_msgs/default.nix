@@ -4,6 +4,7 @@
 , message-generation
 , rospy 
 , std-msgs
+, std-srvs
 }:
 
 buildRosPackage rec {
@@ -14,7 +15,7 @@ buildRosPackage rec {
   src = ./.;
   buildType = "catkin";
   buildInputs = [ message-generation ];
-  propagatedBuildInputs = [ rospy std-msgs ];
+  propagatedBuildInputs = [ rospy std-msgs std-srvs ];
   nativeBuildInputs = [ catkin ];
 
   meta = with stdenv.lib; {

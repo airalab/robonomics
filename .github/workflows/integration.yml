@@ -113,4 +113,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
-    - run: nix-shell --option sandbox false --run "cargo build --release"
+    - run: nix-shell --run "cargo build --release"
