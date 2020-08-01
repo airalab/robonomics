@@ -6,7 +6,7 @@
 :sectnums:
 
 image:https://img.shields.io/github/license/airalab/robonomics["License", link="https://github.com/airalab/robonomics/blob/master/LICENSE"]
-image:https://github.com/airalab/robonomics/workflows/Integration/badge.svg?branch=master["CI Status", link="https://github.com/airalab/robonomics/actions"]
+image:https://github.com/airalab/robonomics/workflows/Testing/badge.svg?branch=master["CI Status", link="https://github.com/airalab/robonomics/actions"]
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
