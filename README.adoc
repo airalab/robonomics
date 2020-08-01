@@ -1,7 +1,7 @@
 = The Robonomics Framework
 
 :Author: Robonomics Network Developers
-:Revision: 0.2.0
+:Revision: 0.3.0
 :toc:
 :sectnums:
 
@@ -81,7 +81,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source:
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v0.18.2 node-cli
+cargo install --force --git https://github.com/airalab/robonomics --tag v0.19.0 node-cli
 
 Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics Testnet]:
 
@@ -112,38 +112,9 @@ nix-shell --run "cargo run --release"
 
 Currently Robonomics on Substrate https://telemetry.polkadot.io/#/Robonomics[testnet] is maintained by developers but anyone can support the project by several ways described below.
 
-=== Full node
+=== Full (collator) node
 
 You can support the network just by launch the node. Every additional full node of blockchain helps it to be more sustainable and fault tolerant. Robonomics node binaries is available on https://github.com/airalab/robonomics/releases[releases] or could be <<building-from-source,build from source>>.
-
-=== Become a validator
-
-For nodes that can be online 24/7 also available most important role on chain - block producers or briefly validator. Robonomics on Substrate use https://github.com/paritytech/substrate/blob/8930f297737db67257f3be1a8b286f8c50189066/srml/staking/Staking.md[NPoS algorithm] for choosing block production accounts. For this reason if you have any stake in testnet XRT then you can try self in block production. 
-
- . Launch node and wait for synchronization.
-[source, shell]
-robonomics
-
- . Generate session keys during RPC call at https://parachain.robonomics.network/#/toolbox[Toolbox page]:
- .. Submit RPC call `author:rotateKeys()` and copy result, it will be required later.
-
- . Restart node in validator mode.
-[source, shell]
-robonomics --validator
-
- . Generate accounts at https://parachain.robonomics.network/#/accounts/create[Account page]:
- .. create `stash` usign `Schnorrkel (sr25519)` crypto;
- .. create `controller` using `Schnorrkel (sr25519)` crypto.
-
- . Request testnet XRT in our https://matrix.to/#/#robonomics:matrix.org[Matrix room].
- . Transfer testnet XRT to `stash` and a little bit to `controller` account.
-
- . https://parachain.robonomics.network/#/staking/actions[Staking actions]:
- .. call `New stake` for `stash` and `controller` accounts;
- .. call `Set Session Key` for result account pair and paste session key given in step before;
- .. call `Validate` action.
-
- . Check https://parachain.robonomics.network/#/staking[Validator List], at new Era validator set will updated.
 
 == Robonomics I/O
 
