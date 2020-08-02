@@ -44,13 +44,12 @@ decl_event! {
           Parameter = <T as Trait>::Parameter,
     {
         /// Launch a robot with given parameter: sender, robot, parameter.
-        Launch(AccountId, AccountId, Parameter),
+        NewLaunch(AccountId, AccountId, Parameter),
     }
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Launch {
-    }
+    trait Store for Module<T: Trait> as Launch {}
 }
 
 decl_module! {
@@ -61,7 +60,7 @@ decl_module! {
         #[weight = 5_000_000]
         fn launch(origin, robot: T::AccountId, param: T::Parameter) {
             let sender = ensure_signed(origin)?;
-            Self::deposit_event(RawEvent::Launch(sender, robot, param));
+            Self::deposit_event(RawEvent::NewLaunch(sender, robot, param));
         }
     }
 }

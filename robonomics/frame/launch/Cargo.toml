@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-launch"
 description = "Robonomics Network robot launch Substrate runtime module"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -13,7 +13,6 @@ frame-system = { version = "2.0.0-rc5", default-features = false }
 frame-support = { version = "2.0.0-rc5", default-features = false }
 
 [dev-dependencies]
-base58 = "0.1.0"
 sp-io = "2.0.0-rc5"
 sp-core = "2.0.0-rc5"
 node-primitives = { path = "../../../bin/node/primitives" }

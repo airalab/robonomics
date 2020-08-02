@@ -27,6 +27,9 @@ use substrate_subxt::{balances, system, DefaultExtra, Runtime};
 /// Robonomics Datalog pallet.
 pub mod pallet_datalog;
 
+/// Robonomics Launch pallet.
+pub mod pallet_launch;
+
 /// Robonomics Network family runtimes.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Robonomics;
@@ -57,4 +60,8 @@ impl balances::Balances for Robonomics {
 
 impl pallet_datalog::Datalog for Robonomics {
     type Record = Vec<u8>;
+}
+
+impl pallet_launch::Launch for Robonomics {
+    type Parameter = bool;
 }
