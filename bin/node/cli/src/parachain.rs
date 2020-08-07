@@ -19,12 +19,7 @@
 
 use node_primitives::Block;
 use robonomics_parachain_runtime::RuntimeApi;
-use sc_service::{
-    PartialComponents,
-    Configuration,
-    TFullBackend,
-    TFullClient,
-};
+use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
@@ -35,7 +30,9 @@ sc_executor::native_executor_instance!(
     robonomics_parachain_runtime::native_version,
 );
 
-pub fn new_partial(config: &mut Configuration) -> Result<
+pub fn new_partial(
+    config: &mut Configuration,
+) -> Result<
     PartialComponents<
         TFullClient<Block, RuntimeApi, Executor>,
         TFullBackend<Block>,
@@ -45,8 +42,7 @@ pub fn new_partial(config: &mut Configuration) -> Result<
         (),
     >,
     sc_service::Error,
->
-{
+> {
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
     let (client, backend, keystore, task_manager) =

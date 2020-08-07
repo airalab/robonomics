@@ -99,7 +99,11 @@ impl SinkCmd {
                 task::spawn(stdin().forward(upload));
                 task::block_on(hashes.forward(virt::stdout()))?;
             }
-            SinkCmd::Launch { remote, suri, robot } => {
+            SinkCmd::Launch {
+                remote,
+                suri,
+                robot,
+            } => {
                 let (submit, hashes) = virt::launch(remote, suri, robot)?;
                 task::spawn(stdin().map(|m| m.map(|s| s == "ON")).forward(submit));
                 let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));

@@ -96,13 +96,7 @@ pub fn run(
     let polkadot_config =
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor).unwrap();
 
-    super::collator::new_collator(
-        config,
-        parachain_id,
-        key,
-        polkadot_config,
-		validator,
-    )
+    super::collator::new_collator(config, parachain_id, key, polkadot_config, validator)
 }
 
 #[derive(Debug, structopt::StructOpt)]

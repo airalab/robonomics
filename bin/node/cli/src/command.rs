@@ -124,27 +124,41 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let PartialComponents { client, backend, task_manager, import_queue, ..}
-                        = service::new_partial::<
-                            ipci_runtime::RuntimeApi,
-                            ipci::Executor
-                        >(&config)?;
+                    let PartialComponents {
+                        client,
+                        backend,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = service::new_partial::<ipci_runtime::RuntimeApi, ipci::Executor>(&config)?;
                     Ok((client, backend, import_queue, task_manager))
                 }),
 
-                RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
-                    let PartialComponents { client, backend, task_manager, import_queue, ..}
-                        = service::new_partial::<
+                RobonomicsFamily::Development => {
+                    runner.run_subcommand(subcommand, |config| {
+                        let PartialComponents {
+                            client,
+                            backend,
+                            task_manager,
+                            import_queue,
+                            ..
+                        } = service::new_partial::<
                             robonomics_runtime::RuntimeApi,
-                            robonomics::Executor
+                            robonomics::Executor,
                         >(&config)?;
-                    Ok((client, backend, import_queue, task_manager))
-                }),
+                        Ok((client, backend, import_queue, task_manager))
+                    })
+                }
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
-                    let PartialComponents { client, backend, task_manager, import_queue, ..}
-                        = parachain::new_partial(&mut config)?;
+                    let PartialComponents {
+                        client,
+                        backend,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = parachain::new_partial(&mut config)?;
                     Ok((client, backend, import_queue, task_manager))
                 }),
 

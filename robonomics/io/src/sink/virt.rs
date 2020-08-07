@@ -86,8 +86,7 @@ pub fn datalog<T: Into<Vec<u8>>>(
 
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.then(move |msg: T| {
-        datalog::submit(pair.clone(), remote.clone(), msg.into())
-            .map(|r| r.map_err(Into::into))
+        datalog::submit(pair.clone(), remote.clone(), msg.into()).map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), hashes))
 }

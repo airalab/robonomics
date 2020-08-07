@@ -17,28 +17,29 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Launch CPS using Robonomics network.
 
-use crate::error::{Result, Error};
+use crate::error::{Error, Result};
 use crate::runtime::pallet_launch;
-use crate::runtime::{Robonomics, AccountId};
+use crate::runtime::{AccountId, Robonomics};
 
 use pallet_launch::*;
-use substrate_subxt::{
-    EventSubscription,
-    EventsDecoder,
-    PairSigner,
-};
 use sp_core::crypto::{Pair, Ss58Codec};
+use substrate_subxt::{EventSubscription, EventsDecoder, PairSigner};
 
 /// Send launch request using remote Robonomics node.
-pub async fn submit<T: Pair>(signer: T, remote: String, robot: String, param: bool) -> Result<[u8; 32]>
+pub async fn submit<T: Pair>(
+    signer: T,
+    remote: String,
+    robot: String,
+    param: bool,
+) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
     sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
     <T as Pair>::Signature: codec::Codec,
 {
     let subxt_signer = PairSigner::new(signer);
-    let robot_account = AccountId::from_ss58check(robot.as_str())
-        .map_err(|_| Error::Ss58CodecError)?;
+    let robot_account =
+        AccountId::from_ss58check(robot.as_str()).map_err(|_| Error::Ss58CodecError)?;
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
         .set_url(remote.as_str())
         .build()
@@ -52,9 +53,7 @@ where
 }
 
 /// Listen for incoming launch requests.
-pub async fn listen(
-    remote: String,
-) -> Result<EventSubscription<Robonomics>> {
+pub async fn listen(remote: String) -> Result<EventSubscription<Robonomics>> {
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
         .set_url(remote.as_str())
         .build()

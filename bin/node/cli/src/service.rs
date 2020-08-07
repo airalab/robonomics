@@ -17,24 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
-use std::sync::Arc;
 use futures::prelude::*;
+use node_primitives::{AccountId, Balance, Block, Index};
+use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
-use sc_finality_grandpa::{
-    self as grandpa,
-    FinalityProofProvider as GrandpaFinalityProofProvider,
-};
+use sc_finality_grandpa::{self as grandpa, FinalityProofProvider as GrandpaFinalityProofProvider};
+use sc_network::{Event, NetworkService};
 use sc_service::{
-    config::{Role, Configuration}, error::{Error as ServiceError},
+    config::{Configuration, Role},
+    error::Error as ServiceError,
     RpcHandlers, TaskManager,
 };
-use sp_inherents::InherentDataProviders;
-use sc_network::{Event, NetworkService};
-use node_primitives::{Block, Index, AccountId, Balance};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
-use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sp_core::traits::BareCryptoStorePtr;
 use sp_api::ConstructRuntimeApi;
+use sp_core::traits::BareCryptoStorePtr;
+use sp_inherents::InherentDataProviders;
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use std::sync::Arc;
 
 type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -82,30 +80,33 @@ where
 
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
-) -> Result<sc_service::PartialComponents<
-    FullClient<Runtime, Executor>,
-    FullBackend,
-    FullSelectChain,
-    sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
-    sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
-    (
-        impl Fn(node_rpc::DenyUnsafe) -> node_rpc::IoHandler,
+) -> Result<
+    sc_service::PartialComponents<
+        FullClient<Runtime, Executor>,
+        FullBackend,
+        FullSelectChain,
+        sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
+        sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
         (
-            sc_consensus_babe::BabeBlockImport<
-                Block,
-                FullClient<Runtime, Executor>,
-                FullGrandpaBlockImport<Runtime, Executor>,
-            >,
-            grandpa::LinkHalf<Block, FullClient<Runtime, Executor>, FullSelectChain>,
-            sc_consensus_babe::BabeLink<Block>,
+            impl Fn(node_rpc::DenyUnsafe) -> node_rpc::IoHandler,
+            (
+                sc_consensus_babe::BabeBlockImport<
+                    Block,
+                    FullClient<Runtime, Executor>,
+                    FullGrandpaBlockImport<Runtime, Executor>,
+                >,
+                grandpa::LinkHalf<Block, FullClient<Runtime, Executor>, FullSelectChain>,
+                sc_consensus_babe::BabeLink<Block>,
+            ),
+            grandpa::SharedVoterState,
         ),
-        grandpa::SharedVoterState,
-    )
->, ServiceError> where
-    Runtime: ConstructRuntimeApi<Block, FullClient<Runtime, Executor>> + Send + Sync + 'static,
-    Runtime::RuntimeApi: RuntimeApiCollection<
-        StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>,
     >,
+    ServiceError,
+>
+where
+    Runtime: ConstructRuntimeApi<Block, FullClient<Runtime, Executor>> + Send + Sync + 'static,
+    Runtime::RuntimeApi:
+        RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
     let (client, backend, keystore, task_manager) =
@@ -122,7 +123,9 @@ pub fn new_partial<Runtime, Executor>(
     );
 
     let (grandpa_block_import, grandpa_link) = grandpa::block_import(
-        client.clone(), &(client.clone() as Arc<_>), select_chain.clone(),
+        client.clone(),
+        &(client.clone() as Arc<_>),
+        select_chain.clone(),
     )?;
     let justification_import = grandpa_block_import.clone();
 
@@ -188,35 +191,52 @@ pub fn new_partial<Runtime, Executor>(
     };
 
     Ok(sc_service::PartialComponents {
-        client, backend, task_manager, keystore, select_chain, import_queue, transaction_pool,
+        client,
+        backend,
+        task_manager,
+        keystore,
+        select_chain,
+        import_queue,
+        transaction_pool,
         inherent_data_providers,
-        other: (rpc_extensions_builder, import_setup, rpc_setup)
+        other: (rpc_extensions_builder, import_setup, rpc_setup),
     })
 }
 
 /// Creates a full service from the configuration.
 pub fn new_full_base<Runtime, Executor>(
     config: Configuration,
-) -> Result<(
-    TaskManager, InherentDataProviders, Arc<FullClient<Runtime, Executor>>,
-    Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-    Arc<sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>>,
-), ServiceError> where
+) -> Result<
+    (
+        TaskManager,
+        InherentDataProviders,
+        Arc<FullClient<Runtime, Executor>>,
+        Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Arc<sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>>,
+    ),
+    ServiceError,
+>
+where
     Runtime: ConstructRuntimeApi<Block, FullClient<Runtime, Executor>> + Send + Sync + 'static,
-    Runtime::RuntimeApi: RuntimeApiCollection<
-        StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>,
-    >,
+    Runtime::RuntimeApi:
+        RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
     let sc_service::PartialComponents {
-        client, backend, mut task_manager, import_queue, keystore, select_chain, transaction_pool,
+        client,
+        backend,
+        mut task_manager,
+        import_queue,
+        keystore,
+        select_chain,
+        transaction_pool,
         inherent_data_providers,
         other: (rpc_extensions_builder, import_setup, rpc_setup),
     } = new_partial(&config)?;
 
     let finality_proof_provider =
         GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
-    
+
     let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
@@ -232,7 +252,11 @@ pub fn new_full_base<Runtime, Executor>(
 
     if config.offchain_worker.enabled {
         sc_service::build_offchain_workers(
-            &config, backend.clone(), task_manager.spawn_handle(), client.clone(), network.clone(),
+            &config,
+            backend.clone(),
+            task_manager.spawn_handle(),
+            client.clone(),
+            network.clone(),
         );
     }
 
@@ -258,7 +282,7 @@ pub fn new_full_base<Runtime, Executor>(
         network_status_sinks,
         system_rpc_tx,
     })?;
-    
+
     let (block_import, grandpa_link, babe_link) = import_setup;
     let shared_voter_state = rpc_setup;
 
@@ -286,7 +310,9 @@ pub fn new_full_base<Runtime, Executor>(
         };
 
         let babe = sc_consensus_babe::start_babe(babe_config)?;
-        task_manager.spawn_essential_handle().spawn_blocking("babe-proposer", babe);
+        task_manager
+            .spawn_essential_handle()
+            .spawn_blocking("babe-proposer", babe);
     }
 
     // Spawn authority discovery module.
@@ -294,22 +320,23 @@ pub fn new_full_base<Runtime, Executor>(
         let (sentries, authority_discovery_role) = match role {
             sc_service::config::Role::Authority { ref sentry_nodes } => (
                 sentry_nodes.clone(),
-                sc_authority_discovery::Role::Authority (
-                    keystore.clone(),
-                ),
+                sc_authority_discovery::Role::Authority(keystore.clone()),
             ),
-            sc_service::config::Role::Sentry {..} => (
-                vec![],
-                sc_authority_discovery::Role::Sentry,
-            ),
-            _ => unreachable!("Due to outer matches! constraint; qed.")
+            sc_service::config::Role::Sentry { .. } => {
+                (vec![], sc_authority_discovery::Role::Sentry)
+            }
+            _ => unreachable!("Due to outer matches! constraint; qed."),
         };
 
-        let dht_event_stream = network.event_stream("authority-discovery")
-            .filter_map(|e| async move { match e {
-                Event::Dht(e) => Some(e),
-                _ => None,
-            }}).boxed();
+        let dht_event_stream = network
+            .event_stream("authority-discovery")
+            .filter_map(|e| async move {
+                match e {
+                    Event::Dht(e) => Some(e),
+                    _ => None,
+                }
+            })
+            .boxed();
         let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
             client.clone(),
             network.clone(),
@@ -319,7 +346,9 @@ pub fn new_full_base<Runtime, Executor>(
             prometheus_registry.clone(),
         );
 
-        task_manager.spawn_handle().spawn("authority-discovery", authority_discovery);
+        task_manager
+            .spawn_handle()
+            .spawn("authority-discovery", authority_discovery);
     }
 
     // if the node isn't actively participating in consensus then it doesn't
@@ -360,35 +389,45 @@ pub fn new_full_base<Runtime, Executor>(
 
         // the GRANDPA voter task is considered infallible, i.e.
         // if it fails we take down the service with it.
-        task_manager.spawn_essential_handle().spawn_blocking(
-            "grandpa-voter",
-            grandpa::run_grandpa_voter(grandpa_config)?
-        );
+        task_manager
+            .spawn_essential_handle()
+            .spawn_blocking("grandpa-voter", grandpa::run_grandpa_voter(grandpa_config)?);
     } else {
-        grandpa::setup_disabled_grandpa(
-            client.clone(),
-            &inherent_data_providers,
-            network.clone(),
-        )?;
+        grandpa::setup_disabled_grandpa(client.clone(), &inherent_data_providers, network.clone())?;
     }
 
     network_starter.start_network();
-    Ok((task_manager, inherent_data_providers, client, network, transaction_pool))
+    Ok((
+        task_manager,
+        inherent_data_providers,
+        client,
+        network,
+        transaction_pool,
+    ))
 }
 
-pub fn new_light_base<Runtime, Executor>(config: Configuration) -> Result<(
-    TaskManager, Arc<RpcHandlers>, Arc<LightClient<Runtime, Executor>>,
-    Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-    Arc<sc_transaction_pool::LightPool<
-        Block,
-        LightClient<Runtime, Executor>,
-        sc_network::config::OnDemand<Block>,
-    >>
-), ServiceError> where
+pub fn new_light_base<Runtime, Executor>(
+    config: Configuration,
+) -> Result<
+    (
+        TaskManager,
+        Arc<RpcHandlers>,
+        Arc<LightClient<Runtime, Executor>>,
+        Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Arc<
+            sc_transaction_pool::LightPool<
+                Block,
+                LightClient<Runtime, Executor>,
+                sc_network::config::OnDemand<Block>,
+            >,
+        >,
+    ),
+    ServiceError,
+>
+where
     Runtime: ConstructRuntimeApi<Block, LightClient<Runtime, Executor>> + Send + Sync + 'static,
-    Runtime::RuntimeApi: RuntimeApiCollection<
-        StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>,
-    >,
+    Runtime::RuntimeApi:
+        RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
     let (client, backend, keystore, mut task_manager, on_demand) =
@@ -405,7 +444,9 @@ pub fn new_light_base<Runtime, Executor>(config: Configuration) -> Result<(
     ));
 
     let grandpa_block_import = grandpa::light_block_import(
-        client.clone(), backend.clone(), &(client.clone() as Arc<_>),
+        client.clone(),
+        backend.clone(),
+        &(client.clone() as Arc<_>),
         Arc::new(on_demand.checker().clone()),
     )?;
 
@@ -449,10 +490,14 @@ pub fn new_light_base<Runtime, Executor>(config: Configuration) -> Result<(
             finality_proof_provider: Some(finality_proof_provider),
         })?;
     network_starter.start_network();
-    
+
     if config.offchain_worker.enabled {
         sc_service::build_offchain_workers(
-            &config, backend.clone(), task_manager.spawn_handle(), client.clone(), network.clone(),
+            &config,
+            backend.clone(),
+            task_manager.spawn_handle(),
+            client.clone(),
+            network.clone(),
         );
     }
 
@@ -465,20 +510,29 @@ pub fn new_light_base<Runtime, Executor>(config: Configuration) -> Result<(
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
-    let rpc_handlers =
-        sc_service::spawn_tasks(sc_service::SpawnTasksParams {    
-            on_demand: Some(on_demand),
-            remote_blockchain: Some(backend.remote_blockchain()),
-            rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
-            client: client.clone(),
-            transaction_pool: transaction_pool.clone(),
-            config, keystore, backend, network_status_sinks, system_rpc_tx,
-            network: network.clone(),
-            telemetry_connection_sinks: sc_service::TelemetryConnectionSinks::default(),
-            task_manager: &mut task_manager,
-        })?;
-    
-    Ok((task_manager, rpc_handlers, client, network, transaction_pool))
+    let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+        on_demand: Some(on_demand),
+        remote_blockchain: Some(backend.remote_blockchain()),
+        rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
+        client: client.clone(),
+        transaction_pool: transaction_pool.clone(),
+        config,
+        keystore,
+        backend,
+        network_status_sinks,
+        system_rpc_tx,
+        network: network.clone(),
+        telemetry_connection_sinks: sc_service::TelemetryConnectionSinks::default(),
+        task_manager: &mut task_manager,
+    })?;
+
+    Ok((
+        task_manager,
+        rpc_handlers,
+        client,
+        network,
+        transaction_pool,
+    ))
 }
 
 /// IPCI chain services.
