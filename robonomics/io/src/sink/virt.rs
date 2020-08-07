@@ -22,7 +22,7 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
-    datalog,
+    datalog, launch,
     pubsub::{self, Multiaddr, PubSub as _},
 };
 use sp_core::{crypto::Pair, sr25519};
@@ -86,7 +86,8 @@ pub fn datalog<T: Into<Vec<u8>>>(
 
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.then(move |msg: T| {
-        datalog::submit(pair.clone(), remote.clone(), msg.into()).map(|r| r.map_err(Into::into))
+        datalog::submit(pair.clone(), remote.clone(), msg.into())
+            .map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), hashes))
 }
@@ -112,6 +113,27 @@ where
             .block_on(client.add(Cursor::new(msg)))
             .map(|value| value.hash)
             .map_err(Into::into)
+    });
+    Ok((sender.sink_err_into(), hashes))
+}
+
+/// Submit signed launch request into blockchain.
+///
+/// Returns hash of sended launch extrinsic.
+pub fn launch(
+    remote: String,
+    suri: String,
+    robot: String,
+) -> Result<(
+    impl Sink<bool, Error = Error>,
+    impl Stream<Item = Result<[u8; 32]>>,
+)> {
+    let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
+
+    let (sender, receiver) = mpsc::unbounded();
+    let hashes = receiver.then(move |signal: bool| {
+        launch::submit(pair.clone(), remote.clone(), robot.clone(), signal)
+            .map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), hashes))
 }

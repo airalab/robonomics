@@ -18,6 +18,7 @@
 //! Robonomics Network protocol.
 
 pub mod datalog;
+pub mod launch;
 pub mod error;
 pub mod id;
 pub mod pubsub;

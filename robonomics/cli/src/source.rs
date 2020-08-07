@@ -69,6 +69,12 @@ pub enum SourceCmd {
         #[structopt(long, default_value = "http://127.0.0.1:5001")]
         remote: String,
     },
+    /// Robot launch request events.
+    Launch {
+        /// Robonomics node API endpoint.
+        #[structopt(long, default_value = "ws://127.0.0.1:9944")]
+        remote: String,
+    }
 }
 
 arg_enum! {
@@ -138,6 +144,15 @@ impl SourceCmd {
                         m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
                     })
                     .forward(stdout()),
+                )?;
+            }
+            SourceCmd::Launch { remote } => {
+                task::block_on(
+                    virt::launch(remote)
+                        .map(|(sender, robot, param)|
+                             Ok(format!("{} >> {} : {}", sender, robot, param))
+                        )
+                        .forward(stdout()),
                 )?;
             }
         }

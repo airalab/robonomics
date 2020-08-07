@@ -45,6 +45,8 @@ pub enum Error {
     SubmitFailure(substrate_subxt::Error),
     /// Codec error.
     Codec(bincode::Error),
+    /// Unable to decode address.
+    Ss58CodecError,
     /// Other error.
     Other(String),
 }

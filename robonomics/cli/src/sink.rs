@@ -60,6 +60,18 @@ pub enum SinkCmd {
         #[structopt(long, default_value = "http://127.0.0.1:5001")]
         remote: String,
     },
+    /// CPS launch subsystem command.
+    Launch {
+        /// Substrate node WebSocket endpoint.
+        #[structopt(long, default_value = "ws://localhost:9944")]
+        remote: String,
+        /// Sender account seed URI.
+        #[structopt(short)]
+        suri: String,
+        /// Target CPS address.
+        #[structopt(short)]
+        robot: String,
+    },
 }
 
 impl SinkCmd {
@@ -86,6 +98,12 @@ impl SinkCmd {
                 let (upload, hashes) = virt::ipfs(remote.as_str())?;
                 task::spawn(stdin().forward(upload));
                 task::block_on(hashes.forward(virt::stdout()))?;
+            }
+            SinkCmd::Launch { remote, suri, robot } => {
+                let (submit, hashes) = virt::datalog(remote, suri, robot)?;
+                task::spawn(stdin().forward(submit));
+                let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
+                task::block_on(hex_encoded.forward(virt::stdout()))?;
             }
         }
         Ok(())

@@ -18,11 +18,10 @@
 //! SubXt compatible robonomics-launch pallet abstration.
 
 use codec::{Codec, Decode, Encode, EncodeLike};
-use core::marker::PhantomData;
 use sp_runtime::traits::Member;
 use std::fmt::Debug;
 use substrate_subxt::system::{System, SystemEventsDecoder};
-use substrate_subxt_proc_macro::{module, Call, Event, Store};
+use substrate_subxt_proc_macro::{module, Call, Event};
 
 /// The subset of the `pallet_robonomics_launch::Trait` that a client must implement.
 #[module]
@@ -39,7 +38,7 @@ pub struct LaunchCall<T: Launch> {
 
 /// New launch request sent.
 #[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
-pub struct NewLaunch<T: Launch> {
+pub struct NewLaunchEvent<T: Launch> {
     /// Sender account.
     pub sender: <T as System>::AccountId,
     /// Robot account with request to launch.

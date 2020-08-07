@@ -22,7 +22,9 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
+use robonomics_protocol::runtime::{Robonomics, pallet_launch::NewLaunchEvent};
 use std::time::Duration;
+use sp_core::Decode;
 
 use crate::error::{Error, Result};
 
@@ -78,4 +80,29 @@ pub fn ipfs(
             .map_err(Into::into)
     });
     Ok((sender.sink_err_into(), datas))
+}
+
+/// Listen for launch events on the blockchain.
+///
+/// Returns launch parameter, event sender account.
+pub fn launch(
+    remote: String,
+) -> impl Stream<Item = (String, String, bool)> {
+    let (mut sender, receiver) = mpsc::unbounded();
+
+    task::spawn(async move {
+        let mut sub = robonomics_protocol::launch::listen(remote).await.unwrap();
+        loop {
+            let raw = sub.next().await.unwrap().unwrap();
+            if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
+                let _ = sender.send((
+                    event.sender.to_string(),
+                    event.robot.to_string(),
+                    event.param,
+                )).await;
+            }
+        }
+    });
+    
+    receiver
 }
