@@ -70,6 +70,7 @@ pub fn run(
     config: Configuration,
     parachain_id: u32,
     relaychain_args: &Vec<String>,
+    validator: bool,
 ) -> sc_service::error::Result<TaskManager> {
     // TODO
     let key = Arc::new(sp_core::Pair::generate().0);
@@ -95,7 +96,13 @@ pub fn run(
     let polkadot_config =
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor).unwrap();
 
-    super::collator::new_collator(config, parachain_id, key, polkadot_config)
+    super::collator::new_collator(
+        config,
+        parachain_id,
+        key,
+        polkadot_config,
+		validator,
+    )
 }
 
 #[derive(Debug, structopt::StructOpt)]

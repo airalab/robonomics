@@ -40,7 +40,7 @@ use sc_consensus_epochs::SharedEpochChanges;
 use sc_finality_grandpa::{SharedAuthoritySet, SharedVoterState};
 use sc_finality_grandpa_rpc::GrandpaRpcHandler;
 use sc_keystore::KeyStorePtr;
-use sc_rpc_api::DenyUnsafe;
+pub use sc_rpc_api::DenyUnsafe;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
@@ -98,19 +98,18 @@ pub struct FullDeps<C, P, SC> {
 pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P, M, SC, E>(deps: FullDeps<C, P, SC>) -> jsonrpc_core::IoHandler<M>
+pub fn create_full<C, P, M, SC>(deps: FullDeps<C, P, SC>) -> jsonrpc_core::IoHandler<M>
 where
     C: ProvideRuntimeApi<Block>,
     C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
     C: Send + Sync + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance, E>,
+    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BabeApi<Block>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
     M: jsonrpc_core::Metadata + Default,
     SC: SelectChain<Block> + 'static,
-    E: codec::Codec + Send + Sync + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
     use substrate_frame_rpc_system::{FullSystem, SystemApi};

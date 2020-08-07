@@ -17,13 +17,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "parachain")]
-use crate::parachain::{chain_spec as parachain_spec, command as parachain_command, new_parachain};
+use crate::parachain;
 use crate::{
     chain_spec::*,
-    service::{ipci, new_full_params, robonomics},
+    service::{self, ipci, robonomics},
     Cli, Subcommand,
 };
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_service::PartialComponents;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -59,7 +60,7 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            "" | "parachain" => Box::new(parachain_spec::robonomics_parachain_config()),
+            "" | "parachain" => Box::new(parachain::chain_spec::robonomics_parachain_config()),
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
@@ -105,7 +106,12 @@ pub fn run() -> sc_cli::Result<()> {
                         return Err("Light client not supporter!".into());
                     }
 
-                    parachain_command::run(config, cli.parachain_id, &cli.relaychain_args)
+                    parachain::command::run(
+                        config,
+                        cli.parachain_id,
+                        &cli.relaychain_args,
+                        cli.run.validator,
+                    )
                 }),
 
                 _ => Err(format!(
@@ -118,53 +124,27 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let (
-                        sc_service::ServiceParams {
-                            client,
-                            backend,
-                            import_queue,
-                            task_manager,
-                            ..
-                        },
-                        ..,
-                    ) = new_full_params::<
-                        ipci_runtime::RuntimeApi,
-                        ipci::Executor,
-                        ipci_runtime::UncheckedExtrinsic,
-                    >(config)?;
+                    let PartialComponents { client, backend, task_manager, import_queue, ..}
+                        = service::new_partial::<
+                            ipci_runtime::RuntimeApi,
+                            ipci::Executor
+                        >(&config)?;
                     Ok((client, backend, import_queue, task_manager))
                 }),
 
                 RobonomicsFamily::Development => runner.run_subcommand(subcommand, |config| {
-                    let (
-                        sc_service::ServiceParams {
-                            client,
-                            backend,
-                            import_queue,
-                            task_manager,
-                            ..
-                        },
-                        ..,
-                    ) = new_full_params::<
-                        robonomics_runtime::RuntimeApi,
-                        robonomics::Executor,
-                        robonomics_runtime::UncheckedExtrinsic,
-                    >(config)?;
+                    let PartialComponents { client, backend, task_manager, import_queue, ..}
+                        = service::new_partial::<
+                            robonomics_runtime::RuntimeApi,
+                            robonomics::Executor
+                        >(&config)?;
                     Ok((client, backend, import_queue, task_manager))
                 }),
 
                 #[cfg(feature = "parachain")]
-                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |config| {
-                    let (
-                        sc_service::ServiceParams {
-                            client,
-                            backend,
-                            import_queue,
-                            task_manager,
-                            ..
-                        },
-                        ..,
-                    ) = new_parachain(config)?;
+                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
+                    let PartialComponents { client, backend, task_manager, import_queue, ..}
+                        = parachain::new_partial(&mut config)?;
                     Ok((client, backend, import_queue, task_manager))
                 }),
 

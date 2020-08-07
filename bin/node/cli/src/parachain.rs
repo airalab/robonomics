@@ -19,7 +19,14 @@
 
 use node_primitives::Block;
 use robonomics_parachain_runtime::RuntimeApi;
-use sc_service::{Configuration, Error as ServiceError};
+use sc_service::{
+    PartialComponents,
+    Configuration,
+    TFullBackend,
+    TFullClient,
+};
+use sp_runtime::traits::BlakeTwo256;
+use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
 sc_executor::native_executor_instance!(
@@ -28,36 +35,27 @@ sc_executor::native_executor_instance!(
     robonomics_parachain_runtime::native_version,
 );
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
-type FullBackend = sc_service::TFullBackend<Block>;
-
-pub fn new_parachain(
-    config: Configuration,
-) -> Result<
-    (
-        sc_service::ServiceParams<
-            Block,
-            FullClient,
-            sc_consensus_babe::BabeImportQueue<Block, FullClient>,
-            sc_transaction_pool::FullPool<Block, FullClient>,
-            (),
-            FullBackend,
-        >,
-        sp_inherents::InherentDataProviders,
-        cumulus_network::DelayedBlockAnnounceValidator<Block>,
-    ),
-    ServiceError,
-> {
+pub fn new_partial(config: &mut Configuration) -> Result<
+    PartialComponents<
+        TFullClient<Block, RuntimeApi, Executor>,
+        TFullBackend<Block>,
+        (),
+        sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
+        sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        (),
+    >,
+    sc_service::Error,
+>
+{
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+
     let (client, backend, keystore, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
-
     let client = Arc::new(client);
-    let pool_api =
-        sc_transaction_pool::FullChainApi::new(client.clone(), config.prometheus_registry());
+    let registry = config.prometheus_registry();
+
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
-        Arc::new(pool_api),
         config.prometheus_registry(),
         task_manager.spawn_handle(),
         client.clone(),
@@ -68,35 +66,22 @@ pub fn new_parachain(
         client.clone(),
         inherent_data_providers.clone(),
         &task_manager.spawn_handle(),
-        config.prometheus_registry(),
+        registry.clone(),
     )?;
 
-    inherent_data_providers
-        .register_provider(sp_timestamp::InherentDataProvider)
-        .unwrap();
-
-    let block_announce_validator = cumulus_network::DelayedBlockAnnounceValidator::new();
-    let bav_builder = {
-        let validator = block_announce_validator.clone();
-        move |_| Box::new(validator) as Box<_>
-    };
-    let params = sc_service::ServiceParams {
-        config,
-        client: client.clone(),
+    let params = PartialComponents {
         backend,
+        client,
         import_queue,
         keystore,
         task_manager,
-        rpc_extensions_builder: Box::new(|_| ()),
         transaction_pool,
-        block_announce_validator_builder: Some(Box::new(bav_builder)),
-        finality_proof_request_builder: None,
-        finality_proof_provider: None,
-        on_demand: None,
-        remote_blockchain: None,
+        inherent_data_providers,
+        select_chain: (),
+        other: (),
     };
 
-    Ok((params, inherent_data_providers, block_announce_validator))
+    Ok(params)
 }
 
 pub mod chain_spec;
