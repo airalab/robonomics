@@ -53,13 +53,12 @@ pub struct Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
-*/
 
+/*
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -115,3 +114,4 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         Default::default(),
     )
 }
+*/

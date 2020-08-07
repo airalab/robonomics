@@ -695,7 +695,7 @@ fn read_genesis_hash(matches: &ArgMatches) -> Result<H256, Error> {
     let genesis_hash: Hash = match matches.value_of("genesis").unwrap_or("ipci") {
         "ipci" => hex!["7372b32137952f3047d30bfe1ffd240bc5e70f7a61d9a0cbf16e910dbb673f84"].into(),
         "robonomics" => {
-            hex!["08bdf8ef637918cff376cd19af3db38004d24ad1c191c15ce7735ae960c3c5d5"].into()
+            hex!["b99ede2fab3253703766b96bc240d21ab3e764d6a3a3d353c09a6ac5d9d93eeb"].into()
         }
         h => Decode::decode(&mut &decode_hex(h)?[..])
             .expect("Invalid genesis hash or unrecognized chain identifier"),
