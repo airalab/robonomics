@@ -21,13 +21,10 @@ use cumulus_network::DelayedBlockAnnounceValidator;
 use cumulus_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
-use polkadot_service::{AbstractClient, RuntimeApiCollection};
+use polkadot_primitives::v0::CollatorPair;
 pub use sc_executor::NativeExecutor;
 use sc_informant::OutputFormat;
 use sc_service::{Configuration, Role, TaskManager};
-use sp_consensus::SyncOracle;
-use sp_core::crypto::Pair;
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
 
 /// Run a node with the given parachain `Configuration` and relay chain `Configuration`
@@ -35,7 +32,7 @@ use std::sync::Arc;
 /// This function blocks until done.
 pub fn run_node(
     parachain_config: Configuration,
-    parachain_id: ParaId,
+    para_id: polkadot_primitives::v0::Id,
     collator_key: Arc<CollatorPair>,
     mut polkadot_config: polkadot_collator::Configuration,
     validator: bool,
@@ -44,7 +41,7 @@ pub fn run_node(
         return Err("Light client not supported!".into());
     }
 
-    let mut parachain_config = prepare_collator_config(parachain_config);
+    let mut parachain_config = prepare_node_config(parachain_config);
 
     parachain_config.informant_output_format = OutputFormat {
         enable_color: true,
@@ -86,7 +83,7 @@ pub fn run_node(
             finality_proof_provider: None,
         })?;
 
-    let rpc_extensions_builder = Box::new(|_| jsonrpc_core::IoHandler::default());
+    let rpc_extensions_builder = Box::new(|_| ());
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
@@ -112,7 +109,7 @@ pub fn run_node(
             prometheus_registry.as_ref(),
         );
         let params = StartCollatorParams {
-            para_id: parachain_id,
+            para_id,
             block_import: client.clone(),
             proposer_factory,
             inherent_data_providers: params.inherent_data_providers,
@@ -133,7 +130,7 @@ pub fn run_node(
             collator_key,
             block_announce_validator,
             task_manager: &mut task_manager,
-            para_id: parachain_id,
+            para_id,
         };
 
         start_full_node(params)?;

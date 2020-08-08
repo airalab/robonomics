@@ -17,10 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use codec::Encode;
-use cumulus_primitives::ParaId;
 use log::info;
 use node_primitives::Block;
 use polkadot_parachain::primitives::AccountIdConversion;
+use polkadot_primitives::v0::Id as ParaId;
 use sc_cli::{
     ChainSpec, CliConfiguration, ImportParams, KeystoreParams, NetworkParams, Result,
     RuntimeVersion, SharedParams, SubstrateCli,
@@ -72,7 +72,6 @@ pub fn run(
     relaychain_args: &Vec<String>,
     validator: bool,
 ) -> sc_service::error::Result<TaskManager> {
-    // TODO
     let key = Arc::new(sp_core::Pair::generate().0);
     let parachain_id = ParaId::from(parachain_id);
 

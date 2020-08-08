@@ -83,6 +83,7 @@ cumulus-primitives = { git = "https://github.com/paritytech/cumulus", optional =
 cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
 cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
+cumulus-service = { git = "https://github.com/paritytech/cumulus", optional = true }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
@@ -159,6 +160,7 @@ parachain = [
     "cumulus-consensus",
     "cumulus-collator",
     "cumulus-network",
+    "cumulus-service",
     "polkadot-primitives",
     "polkadot-parachain",
     "polkadot-collator",

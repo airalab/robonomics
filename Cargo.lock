@@ -1352,6 +1352,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "cumulus-service"
+version = "0.1.0"
+source = "git+https://github.com/paritytech/cumulus#9603b2fe5f2ea2955a4a8a34742c58e8a4f9bc54"
+dependencies = [
+ "cumulus-collator",
+ "cumulus-consensus",
+ "cumulus-network",
+ "cumulus-primitives",
+ "polkadot-collator",
+ "polkadot-primitives",
+ "polkadot-service",
+ "sc-client-api",
+ "sc-service",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+]
+
+[[package]]
 name = "cumulus-token-dealer"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/cumulus#9603b2fe5f2ea2955a4a8a34742c58e8a4f9bc54"
@@ -4293,6 +4315,7 @@ dependencies = [
  "cumulus-consensus",
  "cumulus-network",
  "cumulus-primitives",
+ "cumulus-service",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
