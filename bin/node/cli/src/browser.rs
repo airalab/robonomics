@@ -18,12 +18,12 @@
 
 use crate::chain_spec::{ChainSpec, RobonomicsChain, RobonomicsFamily};
 use crate::service;
+use log::info;
+use std::str::FromStr;
 use substrate_browser_utils::{
     browser_configuration, init_console_log, set_console_error_panic_hook, Client,
 };
 use wasm_bindgen::prelude::*;
-use std::str::FromStr;
-use log::info;
 
 /// Starts the client.
 #[wasm_bindgen]
@@ -54,10 +54,15 @@ async fn start_inner(
     // Create the service. This is the most heavy initialization step.
     match config.chain_spec.family() {
         RobonomicsFamily::DaoIpci => {
-            let (task_manager, rpc_handlers, _, _, _) =
-                service::new_light_base::<ipci_runtime::RuntimeApi, service::ipci::Executor>(config)
-                    .map_err(|e| format!("{:?}", e))?;
-            Ok(substrate_browser_utils::start_client(task_manager, rpc_handlers))
+            let (task_manager, rpc_handlers, _, _, _) = service::new_light_base::<
+                ipci_runtime::RuntimeApi,
+                service::ipci::Executor,
+            >(config)
+            .map_err(|e| format!("{:?}", e))?;
+            Ok(substrate_browser_utils::start_client(
+                task_manager,
+                rpc_handlers,
+            ))
         }
         RobonomicsFamily::Unknown => unimplemented!(),
         RobonomicsFamily::Development => unimplemented!(),

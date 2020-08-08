@@ -17,9 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Polkadot collator service implementation.
 
-use cumulus_collator::{prepare_collator_config, CollatorBuilder};
-use cumulus_network::{DelayedBlockAnnounceValidator, JustifiedBlockAnnounceValidator};
-use polkadot_primitives::v0::{Block as PBlock, CollatorPair, Id as ParaId};
+use cumulus_network::DelayedBlockAnnounceValidator;
+use cumulus_service::{
+    prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
+};
 use polkadot_service::{AbstractClient, RuntimeApiCollection};
 pub use sc_executor::NativeExecutor;
 use sc_informant::OutputFormat;
@@ -29,18 +30,22 @@ use sp_core::crypto::Pair;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
 
-/// Create collator for the parachain.
-pub fn new_collator(
+/// Run a node with the given parachain `Configuration` and relay chain `Configuration`
+///
+/// This function blocks until done.
+pub fn run_node(
     parachain_config: Configuration,
     parachain_id: ParaId,
-    key: Arc<CollatorPair>,
+    collator_key: Arc<CollatorPair>,
     mut polkadot_config: polkadot_collator::Configuration,
     validator: bool,
 ) -> sc_service::error::Result<TaskManager> {
     if matches!(parachain_config.role, Role::Light) {
         return Err("Light client not supported!".into());
     }
+
     let mut parachain_config = prepare_collator_config(parachain_config);
+
     parachain_config.informant_output_format = OutputFormat {
         enable_color: true,
         prefix: "[Parachain] ".to_string(),
@@ -49,6 +54,7 @@ pub fn new_collator(
         enable_color: true,
         prefix: "[Relaychain] ".to_string(),
     };
+
     let params = super::new_partial(&mut parachain_config)?;
     params
         .inherent_data_providers
@@ -80,10 +86,11 @@ pub fn new_collator(
             finality_proof_provider: None,
         })?;
 
-    let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+    let rpc_extensions_builder = Box::new(|_| jsonrpc_core::IoHandler::default());
+    sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
-        rpc_extensions_builder: Box::new(|_| ()),
+        rpc_extensions_builder,
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
         task_manager: &mut task_manager,
@@ -96,86 +103,43 @@ pub fn new_collator(
         system_rpc_tx,
     })?;
 
+    let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
+
     if validator {
         let proposer_factory = sc_basic_authorship::ProposerFactory::new(
             client.clone(),
             transaction_pool,
             prometheus_registry.as_ref(),
         );
-
-        let block_import = client.clone();
-        let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
-        let builder = CollatorBuilder::new(
-            proposer_factory,
-            params.inherent_data_providers,
-            block_import,
-            client.clone(),
-            parachain_id,
-            client.clone(),
-            announce_block,
-            block_announce_validator,
-        );
-
-        let (polkadot_future, polkadot_task_manager) =
-            polkadot_collator::start_collator(builder, parachain_id, key, polkadot_config)?;
-
-        task_manager
-            .spawn_essential_handle()
-            .spawn("polkadot-collator", polkadot_future);
-        task_manager.add_child(polkadot_task_manager);
-    } else {
-        let is_light = matches!(polkadot_config.role, Role::Light);
-        let (polkadot_task_manager, client, handles) = if is_light {
-            Err("Light client not supported.".into())
-        } else {
-            polkadot_service::build_full(
-                polkadot_config,
-                Some((key.public(), parachain_id)),
-                None,
-                false,
-                6000,
-                None,
-            )
-        }?;
-        let polkadot_network = handles
-            .polkadot_network
-            .expect("polkadot service is started; qed");
-        client.execute_with(SetDelayedBlockAnnounceValidator {
-            block_announce_validator,
+        let params = StartCollatorParams {
             para_id: parachain_id,
-            polkadot_sync_oracle: Box::new(polkadot_network),
-        });
+            block_import: client.clone(),
+            proposer_factory,
+            inherent_data_providers: params.inherent_data_providers,
+            block_status: client.clone(),
+            announce_block,
+            client: client.clone(),
+            block_announce_validator,
+            task_manager: &mut task_manager,
+            polkadot_config,
+            collator_key,
+        };
+        start_collator(params)?;
+    } else {
+        let params = StartFullNodeParams {
+            client: client.clone(),
+            announce_block,
+            polkadot_config,
+            collator_key,
+            block_announce_validator,
+            task_manager: &mut task_manager,
+            para_id: parachain_id,
+        };
 
-        task_manager.add_child(polkadot_task_manager);
+        start_full_node(params)?;
     }
 
     start_network.start_network();
 
     Ok(task_manager)
-}
-
-struct SetDelayedBlockAnnounceValidator<B: BlockT> {
-    block_announce_validator: DelayedBlockAnnounceValidator<B>,
-    para_id: ParaId,
-    polkadot_sync_oracle: Box<dyn SyncOracle + Send>,
-}
-
-impl<B: BlockT> polkadot_service::ExecuteWithClient for SetDelayedBlockAnnounceValidator<B> {
-    type Output = ();
-
-    fn execute_with_client<Client, Api, Backend>(self, client: Arc<Client>) -> Self::Output
-    where
-        <Api as sp_api::ApiExt<PBlock>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
-        Backend: sc_client_api::Backend<PBlock>,
-        Backend::State: sp_api::StateBackend<BlakeTwo256>,
-        Api: RuntimeApiCollection<StateBackend = Backend::State>,
-        Client: AbstractClient<PBlock, Backend, Api = Api> + 'static,
-    {
-        self.block_announce_validator
-            .set(Box::new(JustifiedBlockAnnounceValidator::new(
-                client,
-                self.para_id,
-                self.polkadot_sync_oracle,
-            )));
-    }
 }
