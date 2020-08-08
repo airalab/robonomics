@@ -77,10 +77,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    // Per convention: if the runtime behavior changes, increment spec_version
-    // and set impl_version to equal spec_version. If only runtime
-    // implementation changes and behavior does not, then leave spec_version as
-    // is and increment impl_version.
     spec_version: 1,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
@@ -346,6 +342,25 @@ impl pallet_elections_phragmen::Trait for Runtime {
     type WeightInfo = ();
 }
 
+impl cumulus_message_broker::Trait for Runtime {
+    type Event = Event;
+    type DownwardMessageHandlers = TokenDealer;
+    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
+    type ParachainId = ParachainInfo;
+    type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance>;
+    type XCMPMessageHandlers = TokenDealer;
+}
+
+impl cumulus_token_dealer::Trait for Runtime {
+    type Event = Event;
+    type UpwardMessageSender = MessageBroker;
+    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
+    type Currency = Balances;
+    type XCMPMessageSender = MessageBroker;
+}
+
+impl parachain_info::Trait for Runtime {}
+
 impl pallet_robonomics_liability::Trait for Runtime {
     type Event = Event;
     type Technics = pallet_robonomics_liability::technics::PureIPFS;
@@ -462,6 +477,9 @@ construct_runtime! {
 
         // Parachain modules.
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
+        ParachainInfo: parachain_info::{Module, Storage, Config},
+        MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
+        TokenDealer: cumulus_token_dealer::{Module, Call, Event<T>},
 
         // DAO modules
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},

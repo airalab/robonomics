@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance, Block};
 use robonomics_parachain_runtime::{
-    wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig, SudoConfig,
-    SystemConfig,
+    wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig,
+    ParachainInfoConfig, SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -53,41 +53,43 @@ pub struct Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
+/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
+*/
 
-/*
+/// Robonomics Parachain ID
+const PARACHAIN_ID: u32 = 100;
+
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
+    parachain_id: cumulus_primitives::ParaId,
 ) -> GenesisConfig {
     GenesisConfig {
         frame_system: Some(SystemConfig {
             code,
             changes_trie_config: Default::default(),
         }),
-        pallet_indices: Some(IndicesConfig {
-            indices: vec![],
-        }),
-        pallet_balances: Some(BalancesConfig {
-            balances,
-        }),
+        pallet_indices: Some(IndicesConfig { indices: vec![] }),
+        pallet_balances: Some(BalancesConfig { balances }),
         pallet_generic_asset: Some(Default::default()),
         pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
         pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
+        parachain_info: Some(ParachainInfoConfig { parachain_id }),
     }
 }
 
 /// Robonomics parachain genesis.
 fn robonomics_parachain_genesis() -> GenesisConfig {
-    use robonomics_parachain_runtime::constants::currency;
     use hex_literal::hex;
+    use robonomics_parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -96,7 +98,12 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
     let mut balances = currency::STAKE_HOLDERS.clone();
     balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
 
-    mk_genesis(balances.to_vec(), sudo_key, wasm_binary_unwrap().to_vec())
+    mk_genesis(
+        balances.to_vec(),
+        sudo_key,
+        wasm_binary_unwrap().to_vec(),
+        PARACHAIN_ID.into(),
+    )
 }
 
 /// Robonomics parachain config.
@@ -108,10 +115,12 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         ChainType::Live,
         robonomics_parachain_genesis,
         boot_nodes,
-        Some(sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)]).unwrap()),
+        Some(
+            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+                .unwrap(),
+        ),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Default::default(),
     )
 }
-*/

@@ -53,8 +53,10 @@ async fn start_inner(
     // Create the service. This is the most heavy initialization step.
     match config.chain_spec.family() {
         RobonomicsFamily::DaoIpci => {
-            // TODO: fix light client
-            unimplemented!()
+            let (task_manager, rpc_handlers) = crate::service::ipci::new_light(config)
+                .map(|(components, rpc_handlers, _, _, _)| (components, rpc_handlers))
+                .map_err(|e| format!("{:?}", e))?;
+            Ok(browser_utils::start_client(task_manager, rpc_handlers))
         }
         RobonomicsFamily::Unknown => unimplemented!(),
         RobonomicsFamily::Development => unimplemented!(),
