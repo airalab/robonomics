@@ -15,7 +15,7 @@ jobs:
       run: choco install llvm
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-05-15'
+        rust-version: 'nightly-2020-08-01'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
@@ -90,3 +90,27 @@ jobs:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
     - run: nix-shell --run "cargo build --release"
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: hecrj/setup-rust-action@v1
+      with:
+        rust-version: 'nightly-2020-08-01'
+        targets: 'wasm32-unknown-unknown'
+    - name: Checkout the source code
+      uses: actions/checkout@master
+    - name: Check targets are installed correctly
+      run: rustup target list --installed
+    - name: Install build tools
+      run: |
+        cargo install --git https://github.com/alexcrichton/wasm-gc --force
+        cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
+    - name: Build Web Node
+      run: make pkg --directory bin/node/cli/browser
+    - name: Upload Web Node into IPFS
+      run: |
+        cd bin/node/cli/browser
+        FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\"" q}')
+        curl "https://ipfs.infura.io:5001/api/v0/add?wrap-with-directory=true" $FILES
+        echo "Done"
