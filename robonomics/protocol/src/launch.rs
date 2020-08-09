@@ -23,7 +23,9 @@ use crate::runtime::{AccountId, Robonomics};
 
 use pallet_launch::*;
 use sp_core::crypto::{Pair, Ss58Codec};
-use substrate_subxt::{EventSubscription, EventsDecoder, PairSigner};
+use substrate_subxt::{
+    balances::BalancesEventsDecoder, EventSubscription, EventsDecoder, PairSigner,
+};
 
 /// Send launch request using remote Robonomics node.
 pub async fn submit<T: Pair>(
@@ -60,7 +62,9 @@ pub async fn listen(remote: String) -> Result<EventSubscription<Robonomics>> {
         .await?;
 
     let sub = client.subscribe_events().await?;
-    let decoder = EventsDecoder::<Robonomics>::new(client.metadata().clone());
+    let mut decoder = EventsDecoder::<Robonomics>::new(client.metadata().clone());
+    decoder.with_balances();
+    decoder.with_launch();
     let mut sub = EventSubscription::<Robonomics>::new(sub, decoder);
     sub.filter_event::<NewLaunchEvent<_>>();
 
