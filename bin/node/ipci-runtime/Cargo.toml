@@ -67,6 +67,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-bran
 
 [features]
 default = ["std"]
+no_std = []
 std = [
     "codec/std",
     "lazy_static",
