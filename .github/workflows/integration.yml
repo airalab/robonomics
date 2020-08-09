@@ -15,14 +15,12 @@ jobs:
       run: choco install llvm
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-08-01'
+        rust-version: 'nightly-2020-07-20'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
     - name: Check targets are installed correctly
       run: rustup target list --installed
-    - name: Install build tools
-      run: cargo install --git https://github.com/alexcrichton/wasm-gc --force
     - name: Install libudev dependecy
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt update && sudo apt install libudev-dev
@@ -96,7 +94,7 @@ jobs:
     steps:
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-08-01'
+        rust-version: 'nightly-2020-07-20'
         targets: 'wasm32-unknown-unknown'
     - name: Checkout the source code
       uses: actions/checkout@master
@@ -104,7 +102,6 @@ jobs:
       run: rustup target list --installed
     - name: Install build tools
       run: |
-        cargo install --git https://github.com/alexcrichton/wasm-gc --force
         cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
     - name: Build Web Node
       run: make pkg --directory bin/node/cli/browser
