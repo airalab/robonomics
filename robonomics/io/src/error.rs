@@ -39,6 +39,9 @@ pub enum Error {
     Ipfs(IpfsError),
     /// Standard I/O error.
     Io(std::io::Error),
+    #[cfg(feature = "ros")]
+    /// ROS communication error.
+    Ros(rosrust::error::Error),
     /// Other error.
     Other(String),
 }

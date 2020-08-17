@@ -136,3 +136,25 @@ pub fn launch(
     });
     Ok((sender.sink_err_into(), hashes))
 }
+
+#[cfg(feature = "ros")]
+/// Publish message to ROS topic.
+pub fn ros(
+    topic: &str,
+    queue_size: usize,
+) -> Result<
+    impl Sink<String, Error = Error>,
+> {
+    let _ = rosrust::try_init_with_options("robonomics", false);
+    let publisher = rosrust::publish(topic, queue_size)?;
+
+    let (sender, receiver) = mpsc::unbounded();
+    task::spawn(receiver.for_each(move |data| {
+        let mut msg = substrate_ros_msgs::std_msgs::String::default();
+        msg.data = data;
+        let _ = publisher.send(msg);
+        future::ready(())
+    }));
+
+    Ok(sender.sink_err_into())
+}
