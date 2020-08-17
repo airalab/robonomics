@@ -17,10 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use node_primitives::{AccountId, Balance, Block};
+use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
     wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig,
-    ParachainInfoConfig, SudoConfig, SystemConfig,
+    ParachainInfoConfig, SudoConfig, SystemConfig, SessionConfig, ImOnlineConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -44,23 +44,31 @@ const ROBONOMICS_PROPERTIES: &str = r#"
 #[derive(Default, Clone, Serialize, Deserialize, ChainSpecExtension)]
 #[serde(rename_all = "camelCase")]
 pub struct Extensions {
-    /// Block numbers with known hashes.
-    pub fork_blocks: sc_client_api::ForkBlocks<Block>,
-    /// Known bad block hashes.
-    pub bad_blocks: sc_client_api::BadBlocks<Block>,
+    /// The relay chain of the Parachain.
+    pub relay_chain: String,
+    /// The id of the Parachain.
+    pub para_id: u32,
+}
+
+impl Extensions {
+    /// Try to get the extension from the given `ChainSpec`.
+    pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+        sc_chain_spec::get_extension(chain_spec.extensions())
+    }
 }
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
+/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
+*/
 
-/*
 /// Robonomics Parachain ID
-const PARACHAIN_ID: u32 = 100;
+const PARACHAIN_ID: u32 = 200;
 
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
@@ -81,6 +89,8 @@ fn mk_genesis(
         pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
+        pallet_session: Some(SessionConfig { keys: vec![] }),
+        pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
         parachain_info: Some(ParachainInfoConfig { parachain_id }),
     }
 }
@@ -120,7 +130,9 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
-        Default::default(),
+        Extensions {
+            relay_chain: "rococo_local_testnet".into(),
+            para_id: PARACHAIN_ID.into(),
+        },
     )
 }
-*/

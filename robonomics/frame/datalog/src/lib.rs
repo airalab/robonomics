@@ -20,7 +20,7 @@
 
 use codec::{Codec, EncodeLike};
 use frame_support::{decl_event, decl_module, decl_storage, traits::Time};
-use frame_system::{self as system, ensure_signed};
+use frame_system::ensure_signed;
 use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
@@ -28,7 +28,7 @@ use sp_std::prelude::*;
 pub type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
 
 /// Datalog module main trait.
-pub trait Trait: system::Trait {
+pub trait Trait: frame_system::Trait {
     /// Timestamp source.
     type Time: Time;
     /// Datalog record data type.
@@ -39,7 +39,7 @@ pub trait Trait: system::Trait {
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as system::Trait>::AccountId,
+    where AccountId = <T as frame_system::Trait>::AccountId,
           Moment = MomentOf<T>,
           Record = <T as Trait>::Record,
     {

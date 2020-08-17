@@ -20,12 +20,12 @@
 
 use codec::{Codec, EncodeLike};
 use frame_support::{decl_event, decl_module, decl_storage};
-use frame_system::{self as system, ensure_signed};
+use frame_system::ensure_signed;
 use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
 /// Launch module main trait.
-pub trait Trait: system::Trait {
+pub trait Trait: frame_system::Trait {
     /// Robot launch parameter data type.
     type Parameter: Codec + EncodeLike + Member;
     /// The overarching event type.
@@ -40,7 +40,7 @@ pub trait LaunchMessage<AccountId, Parameter>: Sized {
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as system::Trait>::AccountId,
+    where AccountId = <T as frame_system::Trait>::AccountId,
           Parameter = <T as Trait>::Parameter,
     {
         /// Launch a robot with given parameter: sender, robot, parameter.

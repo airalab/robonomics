@@ -36,6 +36,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 pub mod impls;
+mod validators;
 
 use codec::Encode;
 use frame_support::{
@@ -49,6 +50,8 @@ use frame_support::{
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_session::historical as pallet_session_historical;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
@@ -60,9 +63,10 @@ use sp_core::{
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
+        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating,
+        StaticLookup, Verify, ConvertInto,
     },
-    transaction_validity::{TransactionSource, TransactionValidity},
+    transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
@@ -93,7 +97,9 @@ pub fn native_version() -> NativeVersion {
 }
 
 impl_opaque_keys! {
-    pub struct SessionKeys {}
+    pub struct SessionKeys {
+        pub im_online: ImOnline,
+    }
 }
 
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
@@ -136,6 +142,44 @@ impl frame_system::Trait for Runtime {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+}
+
+parameter_types! {
+    pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
+    pub const Period: BlockNumber = 10 * MINUTES;
+    pub const Offset: BlockNumber = 10 * MINUTES;
+}
+
+impl pallet_session::Trait for Runtime {
+    type SessionManager = validators::SessionManager<Self>;
+    type SessionHandler = (ImOnline, );
+    type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
+    type Event = Event;
+    type Keys = SessionKeys;
+    type ValidatorId = <Self as frame_system::Trait>::AccountId;
+    type ValidatorIdOf = ConvertInto;
+    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
+    type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+    type WeightInfo = ();
+}
+
+impl pallet_session::historical::Trait for Runtime {
+    type FullIdentification = AccountId;
+    type FullIdentificationOf = ConvertInto;
+}
+
+parameter_types! {
+    pub const SessionDuration: BlockNumber = 100;
+    pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
+
+impl pallet_im_online::Trait for Runtime {
+    type Event = Event;
+    type AuthorityId = ImOnlineId;
+    type ReportUnresponsiveness = ();
+    type SessionDuration = SessionDuration;
+    type UnsignedPriority = ImOnlineUnsignedPriority;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -385,6 +429,10 @@ impl pallet_robonomics_launch::Trait for Runtime {
     type Event = Event;
 }
 
+impl validators::Trait for Runtime {
+    type Event = Event;
+}
+
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
     Call: From<LocalCall>,
@@ -459,6 +507,10 @@ construct_runtime! {
         Utility: pallet_utility::{Module, Call, Storage, Event},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
+        Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+        Historical: pallet_session_historical::{Module},
+        ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
+        Validators: validators::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},

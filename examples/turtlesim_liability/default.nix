@@ -1,17 +1,22 @@
 { stdenv
-, ros_comm
-, mkRosPackage
-, msgs
+, catkin 
+, buildRosPackage 
+, message-generation
+, rospy 
+, std-msgs
 }:
 
-mkRosPackage rec {
+buildRosPackage rec {
   name = "${pname}-${version}";
   pname = "turtlesim_liability";
   version = "master";
 
   src = ./.;
 
-  propagatedBuildInputs = [ ros_comm msgs ];
+  buildType = "catkin";
+  buildInputs = [ message-generation ];
+  propagatedBuildInputs = [ rospy std-msgs ];
+  nativeBuildInputs = [ catkin ];
 
   meta = with stdenv.lib; {
     description = "Robonomics Substrate Turtlesim example";

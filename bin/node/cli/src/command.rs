@@ -108,7 +108,6 @@ pub fn run() -> sc_cli::Result<()> {
 
                     parachain::command::run(
                         config,
-                        cli.parachain_id,
                         &cli.relaychain_args,
                         cli.run.validator,
                     )
