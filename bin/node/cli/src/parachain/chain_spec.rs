@@ -36,6 +36,8 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
+/// Robonomics Parachain ID
+const PARACHAIN_ID: u32 = 3000;
 
 /// Node `ChainSpec` extensions.
 ///
@@ -66,9 +68,6 @@ pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
 */
-
-/// Robonomics Parachain ID
-const PARACHAIN_ID: u32 = 200;
 
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
