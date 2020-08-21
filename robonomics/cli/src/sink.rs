@@ -57,7 +57,11 @@ pub enum SinkCmd {
     /// Upload data into IPFS storage.
     Ipfs {
         /// IPFS node API endpoint.
-        #[structopt(long, value_name = "REMOTE_URI", default_value = "http://127.0.0.1:5001")]
+        #[structopt(
+            long,
+            value_name = "REMOTE_URI",
+            default_value = "http://127.0.0.1:5001"
+        )]
         remote: String,
     },
     /// CPS launch subsystem command.
@@ -81,7 +85,7 @@ pub enum SinkCmd {
         /// Queue size.
         #[structopt(long, default_value = "10")]
         queue_size: usize,
-    }
+    },
 }
 
 impl SinkCmd {

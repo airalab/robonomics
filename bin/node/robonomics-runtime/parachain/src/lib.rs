@@ -60,8 +60,7 @@ use sp_core::{
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating,
-        StaticLookup, Verify,
+        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,

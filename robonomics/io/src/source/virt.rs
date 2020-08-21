@@ -112,10 +112,7 @@ pub fn launch(remote: String) -> impl Stream<Item = (String, String, bool)> {
 pub fn ros(
     topic: &str,
     queue_size: usize,
-) -> Result<(
-    impl Stream<Item = String>,
-    rosrust::Subscriber,
-)> {
+) -> Result<(impl Stream<Item = String>, rosrust::Subscriber)> {
     let _ = rosrust::try_init_with_options("robonomics", false);
     let (sender, receiver) = mpsc::unbounded();
     let safe_sender = std::sync::RwLock::new(sender);

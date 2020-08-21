@@ -139,12 +139,7 @@ pub fn launch(
 
 #[cfg(feature = "ros")]
 /// Publish message to ROS topic.
-pub fn ros(
-    topic: &str,
-    queue_size: usize,
-) -> Result<
-    impl Sink<String, Error = Error>,
-> {
+pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = Error>> {
     let _ = rosrust::try_init_with_options("robonomics", false);
     let publisher = rosrust::publish(topic, queue_size)?;
 

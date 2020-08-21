@@ -84,7 +84,7 @@ pub enum SourceCmd {
         /// Queue size.
         #[structopt(long, default_value = "10")]
         queue_size: usize,
-    }
+    },
 }
 
 arg_enum! {
