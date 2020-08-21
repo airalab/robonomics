@@ -34,11 +34,9 @@ pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", b
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-generic-asset = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-pallet-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , features = ["historical"], default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
@@ -85,7 +83,6 @@ std = [
     "frame-executive/std",
     "pallet-generic-asset/std",
     "pallet-indices/std",
-    "pallet-im-online/std",
     "pallet-identity/std",
     "parachain-info/std",
     "node-primitives/std",
@@ -100,7 +97,6 @@ std = [
     "sp-staking/std",
     "pallet-sudo/std",
     "pallet-scheduler/std",
-    "pallet-session/std",
     "frame-support/std",
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",

@@ -130,7 +130,7 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Extensions {
-            relay_chain: "rococo_local_testnet".into(),
+            relay_chain: "rococo".into(),
             para_id: PARACHAIN_ID.into(),
         },
     )
