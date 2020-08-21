@@ -20,7 +20,7 @@
 use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
     wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig,
-    ParachainInfoConfig, SudoConfig, SystemConfig, SessionConfig, ImOnlineConfig,
+    ParachainInfoConfig, SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -62,13 +62,12 @@ impl Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
-*/
 
+/*
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -88,8 +87,6 @@ fn mk_genesis(
         pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
-        pallet_session: Some(SessionConfig { keys: vec![] }),
-        pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
         parachain_info: Some(ParachainInfoConfig { parachain_id }),
     }
 }
@@ -135,3 +132,4 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         },
     )
 }
+*/

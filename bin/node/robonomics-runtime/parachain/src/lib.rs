@@ -61,9 +61,9 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
         self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating,
-        StaticLookup, Verify, ConvertInto,
+        StaticLookup, Verify,
     },
-    transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
+    transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
