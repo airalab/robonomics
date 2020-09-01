@@ -1,0 +1,3 @@
+[submodule "examples/robonomics_sample_controller"]
+	path = examples/robonomics_sample_controller
+	url = https://github.com/PaTara43/robonomics_sample_controller
