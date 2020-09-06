@@ -93,7 +93,8 @@ pub fn native_version() -> NativeVersion {
 }
 
 impl_opaque_keys! {
-    pub struct SessionKeys {}
+    pub struct SessionKeys {
+    }
 }
 
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);

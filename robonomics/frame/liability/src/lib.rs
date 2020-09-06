@@ -283,7 +283,6 @@ mod tests {
         assert_err, assert_ok, impl_outer_event, impl_outer_origin, parameter_types,
         weights::Weight,
     };
-    use frame_system::{self as system};
     use node_primitives::{AccountId, Signature};
     use sp_core::{crypto::Pair, sr25519, H256};
     use sp_runtime::{
@@ -294,7 +293,7 @@ mod tests {
 
     impl_outer_event! {
         pub enum MetaEvent for Runtime {
-            system<T>, liability<T>,
+            frame_system<T>, liability<T>,
         }
     }
 

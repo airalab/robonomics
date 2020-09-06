@@ -1,6 +1,6 @@
 [package]
 name = "subkey"
-version = "0.20.0"
+version = "0.21.0"
 authors = [
     "Parity Technologies <admin@parity.io>",
     "Airalab <research@aira.life>",

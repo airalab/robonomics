@@ -20,25 +20,23 @@ use codec::Encode;
 use log::info;
 use node_primitives::Block;
 use polkadot_parachain::primitives::AccountIdConversion;
-use polkadot_primitives::v0::Id as ParaId;
 use sc_cli::{
-    ChainSpec, CliConfiguration, ImportParams, KeystoreParams, NetworkParams, Result,
-    RuntimeVersion, SharedParams, SubstrateCli,
+    ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
+    NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_network::config::TransportConfig;
 use sc_service::{
-    config::{Configuration, NetworkConfiguration, NodeKeyConfig, PrometheusConfig},
+    config::{BasePath, Configuration, PrometheusConfig},
     TaskManager,
 };
 use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
-use sp_runtime::BuildStorage;
-use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::sync::Arc;
+use sp_runtime::{
+    traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
+    BuildStorage,
+};
+use std::{net::SocketAddr, sync::Arc};
 
 fn generate_genesis_state() -> sc_service::error::Result<Block> {
-    let storage = (&crate::parachain::chain_spec::robonomics_parachain_config()).build_storage()?;
+    let storage = (&super::chain_spec::robonomics_parachain_config()).build_storage()?;
 
     let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
         let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
@@ -68,12 +66,21 @@ fn generate_genesis_state() -> sc_service::error::Result<Block> {
 /// Run a collator node with the given parachain `Configuration`
 pub fn run(
     config: Configuration,
-    parachain_id: u32,
     relaychain_args: &Vec<String>,
     validator: bool,
 ) -> sc_service::error::Result<TaskManager> {
     let key = Arc::new(sp_core::Pair::generate().0);
-    let parachain_id = ParaId::from(parachain_id);
+
+    let extension = super::chain_spec::Extensions::try_get(&config.chain_spec);
+    let parachain_id = extension.map(|e| e.para_id).unwrap_or(100).into();
+    let relay_chain_id = extension.map(|e| e.relay_chain.clone());
+    let polkadot_cli = RelayChainCli::new(
+        config.base_path.as_ref().map(|x| x.path().join("polkadot")),
+        relay_chain_id,
+        [RelayChainCli::executable_name().to_string()]
+            .iter()
+            .chain(relaychain_args.iter()),
+    );
 
     let block = generate_genesis_state()?;
     let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
@@ -83,31 +90,46 @@ pub fn run(
     info!("[Para] ID: {}", parachain_id);
     info!("[Para] Account: {}", parachain_account);
     info!("[Para] Genesis State: {}", header_hex);
-
-    let mut polkadot_cli = PolkadotCli::from_iter(
-        [PolkadotCli::executable_name().to_string()]
-            .iter()
-            .chain(relaychain_args.iter()),
-    );
-    polkadot_cli.base_path = config.base_path.as_ref().map(|x| x.path().join("polkadot"));
+    info!("Is collating: {}", if validator { "yes" } else { "no" });
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
-        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor).unwrap();
+        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
+            .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
     super::collator::run_node(config, parachain_id, key, polkadot_config, validator)
 }
 
-#[derive(Debug, structopt::StructOpt)]
-pub struct PolkadotCli {
-    #[structopt(flatten)]
+#[derive(Debug)]
+pub struct RelayChainCli {
+    /// The actual relay chain cli object.
     pub base: polkadot_cli::RunCmd,
 
-    #[structopt(skip)]
+    /// Optional chain id that should be passed to the relay chain.
+    pub chain_id: Option<String>,
+
+    /// The base path that should be used by the relay chain.
     pub base_path: Option<std::path::PathBuf>,
 }
 
-impl SubstrateCli for PolkadotCli {
+impl RelayChainCli {
+    /// Create a new instance of `Self`.
+    pub fn new<'a>(
+        base_path: Option<std::path::PathBuf>,
+        chain_id: Option<String>,
+        relay_chain_args: impl Iterator<Item = &'a String>,
+    ) -> Self {
+        use structopt::StructOpt;
+
+        Self {
+            base_path,
+            chain_id,
+            base: polkadot_cli::RunCmd::from_iter(relay_chain_args),
+        }
+    }
+}
+
+impl SubstrateCli for RelayChainCli {
     fn impl_name() -> String {
         "Robonomics Network Parachain Collator".into()
     }
@@ -143,15 +165,8 @@ impl SubstrateCli for PolkadotCli {
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        let chain_spec = match id {
-            "" => polkadot_service::WestendChainSpec::from_json_bytes(
-                &include_bytes!("../../res/polkadot_chainspec.json")[..],
-            )?,
-            path => {
-                polkadot_service::WestendChainSpec::from_json_file(std::path::PathBuf::from(path))?
-            }
-        };
-        Ok(Box::new(chain_spec))
+        polkadot_cli::Cli::from_iter([RelayChainCli::executable_name().to_string()].iter())
+            .load_spec(id)
     }
 
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
@@ -159,7 +174,25 @@ impl SubstrateCli for PolkadotCli {
     }
 }
 
-impl CliConfiguration for PolkadotCli {
+impl DefaultConfigurationValues for RelayChainCli {
+    fn p2p_listen_port() -> u16 {
+        30334
+    }
+
+    fn rpc_ws_listen_port() -> u16 {
+        9945
+    }
+
+    fn rpc_http_listen_port() -> u16 {
+        9934
+    }
+
+    fn prometheus_listen_port() -> u16 {
+        9616
+    }
+}
+
+impl CliConfiguration<Self> for RelayChainCli {
     fn shared_params(&self) -> &SharedParams {
         self.base.base.shared_params()
     }
@@ -176,84 +209,88 @@ impl CliConfiguration for PolkadotCli {
         self.base.base.keystore_params()
     }
 
-    fn base_path(&self) -> Result<Option<sc_service::config::BasePath>> {
+    fn base_path(&self) -> Result<Option<BasePath>> {
         Ok(self
             .shared_params()
             .base_path()
             .or_else(|| self.base_path.clone().map(Into::into)))
     }
 
-    fn rpc_http(&self) -> Result<Option<SocketAddr>> {
-        let rpc_port = self.base.base.rpc_port;
-        Ok(Some(parse_address(
-            &format!("127.0.0.1:{}", 9934),
-            rpc_port,
-        )?))
+    fn rpc_http(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
+        self.base.base.rpc_http(default_listen_port)
     }
 
-    fn rpc_ws(&self) -> Result<Option<SocketAddr>> {
-        let ws_port = self.base.base.ws_port;
-        Ok(Some(parse_address(
-            &format!("127.0.0.1:{}", 9945),
-            ws_port,
-        )?))
+    fn rpc_ipc(&self) -> Result<Option<String>> {
+        self.base.base.rpc_ipc()
     }
 
-    fn prometheus_config(&self) -> Result<Option<PrometheusConfig>> {
-        Ok(None)
+    fn rpc_ws(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
+        self.base.base.rpc_ws(default_listen_port)
     }
 
-    // TODO: we disable mdns for the polkadot node because it prevents the process to exit
-    //       properly. See https://github.com/paritytech/cumulus/issues/57
-    fn network_config(
-        &self,
-        chain_spec: &Box<dyn sc_service::ChainSpec>,
-        is_dev: bool,
-        net_config_dir: PathBuf,
-        client_id: &str,
-        node_name: &str,
-        node_key: NodeKeyConfig,
-    ) -> Result<NetworkConfiguration> {
-        let (mut network, allow_private_ipv4) = self
-            .network_params()
-            .map(|x| {
-                (
-                    x.network_config(
-                        chain_spec,
-                        is_dev,
-                        Some(net_config_dir),
-                        client_id,
-                        node_name,
-                        node_key,
-                    ),
-                    !x.no_private_ipv4,
-                )
-            })
-            .expect("NetworkParams is always available on RunCmd; qed");
-
-        network.transport = TransportConfig::Normal {
-            enable_mdns: false,
-            allow_private_ipv4,
-            wasm_external_transport: None,
-            use_yamux_flow_control: false,
-        };
-
-        Ok(network)
+    fn prometheus_config(&self, default_listen_port: u16) -> Result<Option<PrometheusConfig>> {
+        self.base.base.prometheus_config(default_listen_port)
     }
 
     fn init<C: SubstrateCli>(&self) -> Result<()> {
         unreachable!("PolkadotCli is never initialized; qed");
     }
-}
 
-// copied directly from substrate
-fn parse_address(address: &str, port: Option<u16>) -> std::result::Result<SocketAddr, String> {
-    let mut address: SocketAddr = address
-        .parse()
-        .map_err(|_| format!("Invalid address: {}", address))?;
-    if let Some(port) = port {
-        address.set_port(port);
+    fn chain_id(&self, is_dev: bool) -> Result<String> {
+        let chain_id = self.base.base.chain_id(is_dev)?;
+
+        Ok(if chain_id.is_empty() {
+            self.chain_id.clone().unwrap_or_default()
+        } else {
+            chain_id
+        })
     }
 
-    Ok(address)
+    fn role(&self, is_dev: bool) -> Result<sc_service::Role> {
+        self.base.base.role(is_dev)
+    }
+
+    fn transaction_pool(&self) -> Result<sc_service::config::TransactionPoolOptions> {
+        self.base.base.transaction_pool()
+    }
+
+    fn state_cache_child_ratio(&self) -> Result<Option<usize>> {
+        self.base.base.state_cache_child_ratio()
+    }
+
+    fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> {
+        self.base.base.rpc_methods()
+    }
+
+    fn rpc_ws_max_connections(&self) -> Result<Option<usize>> {
+        self.base.base.rpc_ws_max_connections()
+    }
+
+    fn rpc_cors(&self, is_dev: bool) -> Result<Option<Vec<String>>> {
+        self.base.base.rpc_cors(is_dev)
+    }
+
+    fn telemetry_external_transport(&self) -> Result<Option<sc_service::config::ExtTransport>> {
+        self.base.base.telemetry_external_transport()
+    }
+
+    fn default_heap_pages(&self) -> Result<Option<u64>> {
+        self.base.base.default_heap_pages()
+    }
+
+    fn force_authoring(&self) -> Result<bool> {
+        self.base.base.force_authoring()
+    }
+
+    fn disable_grandpa(&self) -> Result<bool> {
+        self.base.base.disable_grandpa()
+    }
+
+    fn max_runtime_instances(&self) -> Result<Option<usize>> {
+        self.base.base.max_runtime_instances()
+    }
+
+    fn announce_block(&self) -> Result<bool> {
+        self.base.base.announce_block()
+    }
 }

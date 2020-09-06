@@ -11,7 +11,7 @@ in rec {
   rust = channel.rust.override { inherit targets; };
   substrate-ros-msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
 
-  turtlesim = callPackage ./examples/turtlesim_liability { msgs = robonomics-msgs; };
+  turtlesim = callPackage ./examples/turtlesim_liability { };
   ros_tutorials = callPackage ./examples/ros_tutorials { };
   node = callPackage ./. { inherit rust substrate-ros-msgs; };
 }

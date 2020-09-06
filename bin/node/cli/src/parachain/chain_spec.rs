@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use node_primitives::{AccountId, Balance, Block};
+use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
     wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig,
     ParachainInfoConfig, SudoConfig, SystemConfig,
@@ -36,6 +36,8 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
+/// Robonomics Parachain ID
+const PARACHAIN_ID: u32 = 3000;
 
 /// Node `ChainSpec` extensions.
 ///
@@ -44,10 +46,17 @@ const ROBONOMICS_PROPERTIES: &str = r#"
 #[derive(Default, Clone, Serialize, Deserialize, ChainSpecExtension)]
 #[serde(rename_all = "camelCase")]
 pub struct Extensions {
-    /// Block numbers with known hashes.
-    pub fork_blocks: sc_client_api::ForkBlocks<Block>,
-    /// Known bad block hashes.
-    pub bad_blocks: sc_client_api::BadBlocks<Block>,
+    /// The relay chain of the Parachain.
+    pub relay_chain: String,
+    /// The id of the Parachain.
+    pub para_id: u32,
+}
+
+impl Extensions {
+    /// Try to get the extension from the given `ChainSpec`.
+    pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+        sc_chain_spec::get_extension(chain_spec.extensions())
+    }
 }
 
 /// Specialized `ChainSpec`.
@@ -59,9 +68,6 @@ pub fn robonomics_parachain_config() -> ChainSpec {
 }
 
 /*
-/// Robonomics Parachain ID
-const PARACHAIN_ID: u32 = 100;
-
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -120,7 +126,10 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
-        Default::default(),
+        Extensions {
+            relay_chain: "rococo".into(),
+            para_id: PARACHAIN_ID.into(),
+        },
     )
 }
 */

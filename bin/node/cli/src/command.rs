@@ -106,12 +106,7 @@ pub fn run() -> sc_cli::Result<()> {
                         return Err("Light client not supporter!".into());
                     }
 
-                    parachain::command::run(
-                        config,
-                        cli.parachain_id,
-                        &cli.relaychain_args,
-                        cli.run.validator,
-                    )
+                    parachain::command::run(config, &cli.relaychain_args, cli.run.validator)
                 }),
 
                 _ => Err(format!(

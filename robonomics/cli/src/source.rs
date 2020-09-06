@@ -75,6 +75,16 @@ pub enum SourceCmd {
         #[structopt(long, default_value = "ws://127.0.0.1:9944")]
         remote: String,
     },
+    #[cfg(feature = "ros")]
+    /// Subscribe for data from ROS topic.
+    Ros {
+        /// Topic name.
+        #[structopt(value_name = "TOPIC_NAME")]
+        topic_name: String,
+        /// Queue size.
+        #[structopt(long, default_value = "10")]
+        queue_size: usize,
+    },
 }
 
 arg_enum! {
@@ -154,6 +164,14 @@ impl SourceCmd {
                         })
                         .forward(stdout()),
                 )?;
+            }
+            #[cfg(feature = "ros")]
+            SourceCmd::Ros {
+                topic_name,
+                queue_size,
+            } => {
+                let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
+                task::block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
             }
         }
         Ok(())
