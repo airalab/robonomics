@@ -18,7 +18,7 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike};
+use codec::{Codec, EncodeLike, Encode, Decode};
 use frame_support::{decl_event, decl_module, decl_storage};
 use frame_system::ensure_signed;
 use sp_runtime::traits::Member;
@@ -28,14 +28,17 @@ use sp_std::prelude::*;
 pub trait Trait: frame_system::Trait {
     /// Robot launch parameter data type.
     type Parameter: Codec + EncodeLike + Member;
+    /// This module can send XCMP messages.
+    type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, Self::Balance>>;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
 /// Robot launch XCMP message trait.
-pub trait LaunchMessage<AccountId, Parameter>: Sized {
+#[derive(Encode, Decode)]
+pub enum XCMPMessage<AccountId, Parameter> {
     /// Launch robot with given launch parameter.
-    fn launch(from: AccountId, to: AccountId, param: Parameter) -> Self;
+    fn LaunchRobot(from: AccountId, to: AccountId, param: Parameter),
 }
 
 decl_event! {
@@ -61,6 +64,20 @@ decl_module! {
         fn launch(origin, robot: T::AccountId, param: T::Parameter) {
             let sender = ensure_signed(origin)?;
             Self::deposit_event(RawEvent::NewLaunch(sender, robot, param));
+        }
+
+        /// Launch a robot in specified parachain with given parameter.
+        #[weight = 10_000_000]
+        fn launch_on(origin, parachain: ParaId, robot: T::AccountId, param: T::Parameter) {
+            let sender = ensure_signed(origin)?;
+            Self::deposit_event(RawEvent::NewLaunchOn(parachain, sender, robot, param));
+        }
+    }
+}
+
+impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, T::Balance>> for Module<T> {
+    fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, T::Balance>) {
+        match msg {
         }
     }
 }

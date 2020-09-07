@@ -47,6 +47,7 @@ pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "ro
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
+pallet-xtokens = { package = "orml-xtokens", git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "rococo", default-features = false }
 pallet-robonomics-launch = { path = "../../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../../../robonomics/frame/liability", default-features = false }
@@ -56,7 +57,6 @@ cumulus-runtime = { git = "https://github.com/paritytech/cumulus", default-featu
 cumulus-upward-message = { git = "https://github.com/paritytech/cumulus", default-features = false }
 cumulus-message-broker = { git = "https://github.com/paritytech/cumulus", default-features = false }
 cumulus-parachain-upgrade = { git = "https://github.com/paritytech/cumulus", default-features = false }
-cumulus-token-dealer = { git = "https://github.com/paritytech/cumulus", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", default-features = false }
 
 [build-dependencies]
@@ -74,7 +74,6 @@ std = [
     "cumulus-runtime/std",
     "cumulus-upward-message/std",
     "cumulus-message-broker/std",
-    "cumulus-token-dealer/std",
     "cumulus-parachain-upgrade/std",
     "pallet-collective/std",
     "pallet-elections-phragmen/std",
@@ -109,6 +108,8 @@ std = [
     "sp-block-builder/std",
     "sp-transaction-pool/std",
     "sp-inherents/std",
+    "pallet-xtokens/std",
+    "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
     "pallet-robonomics-liability/std",
 ]

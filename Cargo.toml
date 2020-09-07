@@ -6,6 +6,7 @@ members = [
     "bin/node/ipci-runtime",
     "bin/node/robonomics-runtime",
     "bin/node/robonomics-runtime/parachain",
+    "robonomics/frame/rws",
     "robonomics/frame/launch",
     "robonomics/frame/datalog",
     "robonomics/frame/liability",
