@@ -17,7 +17,7 @@ Robonomics project implements a software platform for human-to-machine / machine
 
 Structure of **Robonomics Framework** followed.
 
-- **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions. 
+- **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
 - **Robonomics CLI** - console line primitives that make framework functions runnable.
 - **Robonomics IO** - stream-oriented library with support general set of sensors and actuators (including virtual devices like PubSub or stdin/stdout) that makes hardware interaction easy.
 - **Robonomics Protocol** - network library that provides primitives to build P2P communication for Industry 4.0 and Smart City cases.
@@ -36,7 +36,7 @@ When connection is success you can explore `Robonomics Testnet` and `DAO IPCI` c
 
 == Documentation
 
-- Robonomics wiki pages: https://wiki.robonomics.network 
+- Robonomics wiki pages: https://wiki.robonomics.network
 - Framework Documentation: https://crates.robonomics.network
 
 == Install node
@@ -164,3 +164,13 @@ source /opt/ros/melodic/setup.bash
  . Build with `ros` feature:
 [source, shell]
 cd bin/node/cli && cargo build --release --features ros
+
+== Examples
+
+Available examples are in https://github.com/airalab/robonomics/tree/master/examples[this directory].
+
+=== Curiosity Rover under Robonomics control
+
+Simple but yet a complete sample of Robonomics `launch` and `datalog` functions.
+You can find full documentation on https://wiki.robonomics.network/docs/connect-mars-curiosity-rover-under-robonomics-parachain-control/[Robonomics Wiki].
+
