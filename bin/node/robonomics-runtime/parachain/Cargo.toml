@@ -47,7 +47,7 @@ pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "ro
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-pallet-xtokens = { package = "orml-xtokens", git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "rococo", default-features = false }
+#pallet-xtokens = { package = "orml-xtokens", git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "rococo", default-features = false }
 pallet-robonomics-launch = { path = "../../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../../../robonomics/frame/liability", default-features = false }
@@ -108,7 +108,7 @@ std = [
     "sp-block-builder/std",
     "sp-transaction-pool/std",
     "sp-inherents/std",
-    "pallet-xtokens/std",
+#    "pallet-xtokens/std",
     "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
     "pallet-robonomics-liability/std",

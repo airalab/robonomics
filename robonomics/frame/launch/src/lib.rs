@@ -18,7 +18,7 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike, Encode, Decode};
+use codec::{Codec, EncodeLike};
 use frame_support::{decl_event, decl_module, decl_storage};
 use frame_system::ensure_signed;
 use sp_runtime::traits::Member;

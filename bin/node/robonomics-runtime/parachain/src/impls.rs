@@ -42,7 +42,3 @@ impl Convert<u128, Balance> for CurrencyToVoteHandler {
         x * Self::factor()
     }
 }
-
-pub enum XMCPMessage<AccountId, Balance> {
-    TokenMessage(pallet_xtokens::XCMPTokenMessage),
-}

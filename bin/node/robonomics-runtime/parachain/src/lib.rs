@@ -345,13 +345,14 @@ impl pallet_elections_phragmen::Trait for Runtime {
 
 impl cumulus_message_broker::Trait for Runtime {
     type Event = Event;
-    type DownwardMessageHandlers = (XTokens, Launch);
+    type DownwardMessageHandlers = ();
     type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
     type ParachainId = ParachainInfo;
-    type XCMPMessage = impls::XCMPMessage<AccountId, Balance>;
-    type XCMPMessageHandlers = (XTokens, Launch);
+    type XCMPMessage = ();
+    type XCMPMessageHandlers = ();
 }
 
+/*
 parameter_types! {
     pub const RelayChainCurrencyId: CurrencyId = CurrencyId::DOT;
 }
@@ -386,6 +387,7 @@ impl pallet_xtokens::Trait for Runtime {
     type ToRelayChainBalance = NativeToRelay;
     type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
 }
+*/
 
 impl parachain_info::Trait for Runtime {}
 
@@ -507,7 +509,6 @@ construct_runtime! {
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
         MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
-        XTokens: pallet_xtokens::{Module, Storage, Call, Event<T>},
 
         // DAO modules
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},

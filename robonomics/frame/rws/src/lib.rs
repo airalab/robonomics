@@ -22,7 +22,7 @@ use sp_runtime::{Perbill, DispatchResult, traits::StaticLookup};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, Parameter,
     traits::{UnfilteredDispatchable, Get},
-    weights::{GetDispatchInfo, Weight},
+    weights::{GetDispatchInfo, Weight, Pays},
 };
 use frame_system::{ensure_signed, ensure_root};
 use sp_std::{convert::TryInto, prelude::*};
@@ -91,7 +91,7 @@ decl_module! {
         /// - Dependes of call method.
         /// - Basically this sould be free by concept.
         /// # </weight>
-        #[weight = (0, call.get_dispatch_info().class)]
+        #[weight = (0, call.get_dispatch_info().class, Pays::No)]
         fn call(origin, call: Box<<T as Trait>::Call>) {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
