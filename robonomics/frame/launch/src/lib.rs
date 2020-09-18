@@ -28,18 +28,20 @@ use sp_std::prelude::*;
 pub trait Trait: frame_system::Trait {
     /// Robot launch parameter data type.
     type Parameter: Codec + EncodeLike + Member;
-    /// This module can send XCMP messages.
-    type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, Self::Balance>>;
+    // This module can send XCMP messages.
+    //type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, Self::Balance>>;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
+/*
 /// Robot launch XCMP message trait.
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<AccountId, Parameter> {
     /// Launch robot with given launch parameter.
     fn LaunchRobot(from: AccountId, to: AccountId, param: Parameter),
 }
+*/
 
 decl_event! {
     pub enum Event<T>
@@ -65,22 +67,17 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             Self::deposit_event(RawEvent::NewLaunch(sender, robot, param));
         }
-
-        /// Launch a robot in specified parachain with given parameter.
-        #[weight = 10_000_000]
-        fn launch_on(origin, parachain: ParaId, robot: T::AccountId, param: T::Parameter) {
-            let sender = ensure_signed(origin)?;
-            Self::deposit_event(RawEvent::NewLaunchOn(parachain, sender, robot, param));
-        }
     }
 }
 
+/*
 impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, T::Balance>> for Module<T> {
     fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, T::Balance>) {
         match msg {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {

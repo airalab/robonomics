@@ -18,7 +18,6 @@
 //! Robonomics Web Services runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike, Encode, Decode};
 use sp_runtime::{Perbill, DispatchResult, traits::StaticLookup};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, ensure, Parameter,
@@ -43,7 +42,7 @@ pub trait Trait: pallet_timestamp::Trait {
 }
 
 /// One call cost in quota points (points for 1 sec).
-const CALL_COST: u64 = 1_000_000_000;
+pub const CALL_COST: u64 = 1_000_000_000;
 
 decl_error! {
     pub enum Error for Module<T: Trait> {
@@ -51,6 +50,8 @@ decl_error! {
         NoQuota,
         /// The call does not meet the requirements.
         BadCall,
+        /// This call is for oracle only.
+        OracleOnlyCall,
     }
 }
 
@@ -101,7 +102,7 @@ decl_module! {
             Self::deposit_event(RawEvent::NewCall(sender, res.map(|_| ()).map_err(|e| e.error)));
         }
 
-        /// Change RWS oracle account. 
+        /// Change RWS oracle account.
         ///
         /// The dispatch origin for this call must be _Root_.
         ///
@@ -115,14 +116,35 @@ decl_module! {
             ensure_root(origin)?;
             <Oracle<T>>::put(T::Lookup::lookup(new)?);
         }
+
+        /// Change account bandwidth share rate by authority.
+        ///
+        /// The dispatch origin for this call must be _oracle_.
+        ///
+        /// # <weight>
+        /// - O(1).
+        /// - Limited storage reads.
+        /// - One DB change.
+        /// # </weight>
+        #[weight = 0]
+        fn set_bandwidth(origin, source: <T::Lookup as StaticLookup>::Source, share: Perbill) {
+            let sender = ensure_signed(origin)?;
+            ensure!(sender == <Oracle<T>>::get(), Error::<T>::OracleOnlyCall);
+            <Bandwidth<T>>::insert(T::Lookup::lookup(source)?, share);
+        }
     }
 }
 
 impl<T: Trait> Module<T> {
     /// Check staker quota for execute call.
     fn check_quota(staker: T::AccountId) -> bool {
-        let now = pallet_timestamp::Module::<T>::get();
+        let share = <Bandwidth<T>>::get(staker.clone());
+        if share == Default::default() {
+            // Deny execution without minimum permissions.
+            return false
+        }
 
+        let now = pallet_timestamp::Module::<T>::get();
         let (last_active, points) = <Quota<T>>::get(staker.clone());
         if last_active == Default::default() {
             <Quota<T>>::insert(staker, (now, 0));
@@ -131,7 +153,6 @@ impl<T: Trait> Module<T> {
         }
 
         let delta = (now - last_active).try_into().unwrap_or(0) as u64;
-        let share = <Bandwidth<T>>::get(staker.clone());
         let new_points = Self::estimate_points(share, delta, points);
         if new_points < CALL_COST {
             false
@@ -145,6 +166,7 @@ impl<T: Trait> Module<T> {
     fn check_call(call: Box<<T as Trait>::Call>) -> bool {
         // RWS calls weight should be lower than limit
         call.get_dispatch_info().weight < T::WeightLimit::get()
+        // TODO: call internals filtering
     }
 
     /// Estimate quota points for given share rate, timedelta and previous value.
@@ -167,9 +189,11 @@ impl<T: Trait> Module<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pallet_robonomics_datalog as datalog;
 
     use frame_support::{
-        assert_err, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
+        assert_err, assert_ok, impl_outer_origin, impl_outer_dispatch,
+        parameter_types, weights::Weight,
     };
     use node_primitives::Moment;
     use sp_core::H256;
@@ -177,6 +201,13 @@ mod tests {
 
     impl_outer_origin! {
         pub enum Origin for Runtime {}
+    }
+    
+    impl_outer_dispatch! {
+	    pub enum Call for Runtime where origin: Origin {
+		    rws::RWS,
+            datalog::Datalog,
+	    }
     }
 
     #[derive(Clone, PartialEq, Eq, Debug)]
@@ -193,7 +224,7 @@ mod tests {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
-        type Call = ();
+        type Call = Call;
         type Hash = H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = u64;
@@ -228,18 +259,24 @@ mod tests {
         type WeightInfo = ();
     }
 
+    impl datalog::Trait for Runtime {
+        type Record = bool;
+        type Event = ();
+        type Time = Timestamp;
+    }
+
     parameter_types! {
         pub const WeightLimit: Weight = 1_000_000_000_000;
         pub const TotalBandwidth: u64 = 100;
-        pub const PointsLimit: u64 1_000_000_000_000_000; 
+        pub const PointsLimit: u64 = 1_000_000_000_000_000; 
     }
 
     impl Trait for Runtime {
-        type Call = Call;
-        type WeightLimit = WeightLimit;
         type TotalBandwidth = TotalBandwidth;
+        type WeightLimit = WeightLimit;
         type PointsLimit = PointsLimit;
         type Event = ();
+        type Call = Call;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
@@ -249,11 +286,97 @@ mod tests {
         storage.into()
     }
 
+    type Timestamp = pallet_timestamp::Module<Runtime>;
+    type Datalog = datalog::Module<Runtime>;
     type RWS = Module<Runtime>;
 
     #[test]
-    fn test_oracle() {
+    fn test_set_oracle() {
+        let oracle = 1;
         new_test_ext().execute_with(|| {
+            assert_err!(
+                RWS::set_oracle(Origin::none(), oracle),
+                DispatchError::BadOrigin
+            );
+
+            assert_err!(
+                RWS::set_oracle(Origin::signed(oracle), oracle),
+                DispatchError::BadOrigin
+            );
+
+            assert_ok!(
+                RWS::set_oracle(Origin::root(), oracle),
+            );
+            assert_eq!(RWS::oracle(), oracle);
+        })
+    }
+
+    #[test]
+    fn test_set_bandwidth() {
+        let oracle = 1;
+        let alice = 2;
+        new_test_ext().execute_with(|| {
+            assert_ok!(
+                RWS::set_oracle(Origin::root(), oracle),
+            );
+
+            assert_err!(
+                RWS::set_bandwidth(Origin::none(), alice, Default::default()),
+                DispatchError::BadOrigin
+            );
+
+            assert_ok!(
+                RWS::set_bandwidth(Origin::signed(oracle), alice, Perbill::from_percent(1)),
+            );
+            assert_eq!(RWS::bandwidth(alice), Perbill::from_percent(1));
+        })
+    }
+
+    #[test]
+    fn test_transaction() {
+        let oracle = 1;
+        let alice = 2;
+
+        new_test_ext().execute_with(|| {
+            Timestamp::set_timestamp(1600438152000);
+
+            assert_ok!(
+                RWS::set_oracle(Origin::root(), oracle),
+            );
+
+            let call = Call::from(datalog::Call::record(true));
+
+            assert_eq!(RWS::quota(oracle), (0, 0));
+            assert_err!(
+                RWS::call(Origin::signed(oracle), call.clone().into()),
+                Error::<Runtime>::NoQuota,
+            );
+
+            assert_ok!(
+                RWS::set_bandwidth(Origin::signed(oracle), alice, Perbill::from_percent(1)),
+            );
+            assert_eq!(RWS::quota(alice), (0, 0));
+            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_eq!(RWS::quota(alice), (1600438152000, 0));
+
+            Timestamp::set_timestamp(1600438156000);
+
+            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_eq!(RWS::quota(alice), (1600438156000, 3 * CALL_COST));
+
+            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_eq!(RWS::quota(alice), (1600438156000, 2 * CALL_COST));
+
+            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_eq!(RWS::quota(alice), (1600438156000, 1 * CALL_COST));
+
+            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_eq!(RWS::quota(alice), (1600438156000, 0));
+
+            assert_err!(
+                RWS::call(Origin::signed(alice), call.into()),
+                Error::<Runtime>::NoQuota,
+            );
         })
     }
 }

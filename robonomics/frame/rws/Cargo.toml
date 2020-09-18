@@ -18,6 +18,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
 node-primitives = { path = "../../../bin/node/primitives" }
+pallet-robonomics-datalog = { path = "../datalog" }
 
 [features]
 default = ["std"]
