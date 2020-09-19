@@ -18,19 +18,20 @@
 //! Robonomics Web Services runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_runtime::{Perbill, DispatchResult, traits::StaticLookup};
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, ensure, Parameter,
-    traits::{UnfilteredDispatchable, Get},
-    weights::{GetDispatchInfo, Weight, Pays},
+    decl_error, decl_event, decl_module, decl_storage, ensure,
+    traits::{Get, UnfilteredDispatchable},
+    weights::{GetDispatchInfo, Pays, Weight},
+    Parameter,
 };
-use frame_system::{ensure_signed, ensure_root};
+use frame_system::{ensure_root, ensure_signed};
+use sp_runtime::{traits::StaticLookup, DispatchResult, Perbill};
 use sp_std::{convert::TryInto, prelude::*};
 
 /// RWS module main trait.
 pub trait Trait: pallet_timestamp::Trait {
     /// Call subscription method.
-    type Call: Parameter + UnfilteredDispatchable<Origin=Self::Origin> + GetDispatchInfo;
+    type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
     /// The top limit weight for signle call.
     type WeightLimit: Get<Weight>;
     /// Transactions bandwidth allocated for subscription (in TPS).
@@ -141,7 +142,7 @@ impl<T: Trait> Module<T> {
         let share = <Bandwidth<T>>::get(staker.clone());
         if share == Default::default() {
             // Deny execution without minimum permissions.
-            return false
+            return false;
         }
 
         let now = pallet_timestamp::Module::<T>::get();
@@ -149,7 +150,7 @@ impl<T: Trait> Module<T> {
         if last_active == Default::default() {
             <Quota<T>>::insert(staker, (now, 0));
             // Quota points initialized, permit to call one time.
-            return true
+            return true;
         }
 
         let delta = (now - last_active).try_into().unwrap_or(0) as u64;
@@ -181,7 +182,7 @@ impl<T: Trait> Module<T> {
 
     /// Total quota points in ms
     fn total_points_ms() -> u64 {
-        // 1_000_000_000 points per sec 
+        // 1_000_000_000 points per sec
         T::TotalBandwidth::get() * 1_000_000
     }
 }
@@ -192,8 +193,8 @@ mod tests {
     use pallet_robonomics_datalog as datalog;
 
     use frame_support::{
-        assert_err, assert_ok, impl_outer_origin, impl_outer_dispatch,
-        parameter_types, weights::Weight,
+        assert_err, assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types,
+        weights::Weight,
     };
     use node_primitives::Moment;
     use sp_core::H256;
@@ -202,12 +203,12 @@ mod tests {
     impl_outer_origin! {
         pub enum Origin for Runtime {}
     }
-    
+
     impl_outer_dispatch! {
-	    pub enum Call for Runtime where origin: Origin {
-		    rws::RWS,
+        pub enum Call for Runtime where origin: Origin {
+            rws::RWS,
             datalog::Datalog,
-	    }
+        }
     }
 
     #[derive(Clone, PartialEq, Eq, Debug)]
@@ -268,7 +269,7 @@ mod tests {
     parameter_types! {
         pub const WeightLimit: Weight = 1_000_000_000_000;
         pub const TotalBandwidth: u64 = 100;
-        pub const PointsLimit: u64 = 1_000_000_000_000_000; 
+        pub const PointsLimit: u64 = 1_000_000_000_000_000;
     }
 
     impl Trait for Runtime {
@@ -304,9 +305,7 @@ mod tests {
                 DispatchError::BadOrigin
             );
 
-            assert_ok!(
-                RWS::set_oracle(Origin::root(), oracle),
-            );
+            assert_ok!(RWS::set_oracle(Origin::root(), oracle),);
             assert_eq!(RWS::oracle(), oracle);
         })
     }
@@ -316,18 +315,18 @@ mod tests {
         let oracle = 1;
         let alice = 2;
         new_test_ext().execute_with(|| {
-            assert_ok!(
-                RWS::set_oracle(Origin::root(), oracle),
-            );
+            assert_ok!(RWS::set_oracle(Origin::root(), oracle),);
 
             assert_err!(
                 RWS::set_bandwidth(Origin::none(), alice, Default::default()),
                 DispatchError::BadOrigin
             );
 
-            assert_ok!(
-                RWS::set_bandwidth(Origin::signed(oracle), alice, Perbill::from_percent(1)),
-            );
+            assert_ok!(RWS::set_bandwidth(
+                Origin::signed(oracle),
+                alice,
+                Perbill::from_percent(1)
+            ),);
             assert_eq!(RWS::bandwidth(alice), Perbill::from_percent(1));
         })
     }
@@ -340,9 +339,7 @@ mod tests {
         new_test_ext().execute_with(|| {
             Timestamp::set_timestamp(1600438152000);
 
-            assert_ok!(
-                RWS::set_oracle(Origin::root(), oracle),
-            );
+            assert_ok!(RWS::set_oracle(Origin::root(), oracle),);
 
             let call = Call::from(datalog::Call::record(true));
 
@@ -352,9 +349,11 @@ mod tests {
                 Error::<Runtime>::NoQuota,
             );
 
-            assert_ok!(
-                RWS::set_bandwidth(Origin::signed(oracle), alice, Perbill::from_percent(1)),
-            );
+            assert_ok!(RWS::set_bandwidth(
+                Origin::signed(oracle),
+                alice,
+                Perbill::from_percent(1)
+            ),);
             assert_eq!(RWS::quota(alice), (0, 0));
             assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
             assert_eq!(RWS::quota(alice), (1600438152000, 0));
