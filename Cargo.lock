@@ -5100,8 +5100,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-launch"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
+ "cumulus-primitives",
  "frame-support",
  "frame-system",
  "node-primitives",
@@ -7005,7 +7006,6 @@ dependencies = [
  "pallet-offences-benchmarking",
  "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
- "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
  "pallet-scheduler",

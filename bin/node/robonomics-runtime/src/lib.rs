@@ -559,11 +559,6 @@ impl pallet_robonomics_datalog::Trait for Runtime {
     type Event = Event;
 }
 
-impl pallet_robonomics_launch::Trait for Runtime {
-    type Parameter = bool;
-    type Event = Event;
-}
-
 parameter_types! {
     pub const TotalBandwidth: u64 = 100; // 100 TPS allocated for RWS transactions
     pub const WeightLimit: Weight = 1_000_000_000_000_000;
@@ -678,7 +673,6 @@ construct_runtime!(
         // Robonomics Network modules.
         Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.

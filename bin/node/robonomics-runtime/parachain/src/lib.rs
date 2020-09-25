@@ -348,46 +348,9 @@ impl cumulus_message_broker::Trait for Runtime {
     type DownwardMessageHandlers = ();
     type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
     type ParachainId = ParachainInfo;
-    type XCMPMessage = ();
-    type XCMPMessageHandlers = ();
+    type XCMPMessage = pallet_robonomics_launch::XCMPMessage<Self::AccountId, bool>;
+    type XCMPMessageHandlers = Launch;
 }
-
-/*
-parameter_types! {
-    pub const RelayChainCurrencyId: CurrencyId = CurrencyId::DOT;
-}
-
-pub struct RelayToNative;
-impl Convert<RelayChainBalance, Balance> for RelayToNative {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val / 1_000
-    }
-}
-
-pub struct NativeToRelay;
-impl Convert<Balance, RelayChainBalance> for NativeToRelay {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val * 1_000
-    }
-}
-
-impl pallet_xtokens::Trait for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type CurrencyId = CurrencyId;
-    type Currency = Currencies;
-    type XCMPMessageSender = MessageBroker;
-    type RelayChainCurrencyId = RelayChainCurrencyId;
-    type UpwardMessageSender = MessageBroker;
-    type FromRelayChainBalance = RelayToNative;
-    type ToRelayChainBalance = NativeToRelay;
-    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
-}
-*/
 
 impl parachain_info::Trait for Runtime {}
 
@@ -411,6 +374,7 @@ impl pallet_robonomics_datalog::Trait for Runtime {
 }
 
 impl pallet_robonomics_launch::Trait for Runtime {
+    type XCMPMessageSender = MessageBroker;
     type Parameter = bool;
     type Event = Event;
 }

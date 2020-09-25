@@ -62,7 +62,6 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
 pallet-robonomics-rws = { path = "../../../robonomics/frame/rws", default-features = false }
-pallet-robonomics-launch = { path = "../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../../robonomics/frame/liability", default-features = false }
 
