@@ -28,15 +28,20 @@ use sp_std::prelude::*;
 pub trait Trait: frame_system::Trait {
     /// Robot launch parameter data type.
     type Parameter: Codec + EncodeLike + Member;
+    // This module can send XCMP messages.
+    //type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, Self::Balance>>;
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 }
 
+/*
 /// Robot launch XCMP message trait.
-pub trait LaunchMessage<AccountId, Parameter>: Sized {
+#[derive(Encode, Decode)]
+pub enum XCMPMessage<AccountId, Parameter> {
     /// Launch robot with given launch parameter.
-    fn launch(from: AccountId, to: AccountId, param: Parameter) -> Self;
+    fn LaunchRobot(from: AccountId, to: AccountId, param: Parameter),
 }
+*/
 
 decl_event! {
     pub enum Event<T>
@@ -64,6 +69,15 @@ decl_module! {
         }
     }
 }
+
+/*
+impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, T::Balance>> for Module<T> {
+    fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, T::Balance>) {
+        match msg {
+        }
+    }
+}
+*/
 
 #[cfg(test)]
 mod tests {

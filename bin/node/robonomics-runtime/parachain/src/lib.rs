@@ -345,20 +345,49 @@ impl pallet_elections_phragmen::Trait for Runtime {
 
 impl cumulus_message_broker::Trait for Runtime {
     type Event = Event;
-    type DownwardMessageHandlers = TokenDealer;
+    type DownwardMessageHandlers = ();
     type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
     type ParachainId = ParachainInfo;
-    type XCMPMessage = cumulus_token_dealer::XCMPMessage<AccountId, Balance>;
-    type XCMPMessageHandlers = TokenDealer;
+    type XCMPMessage = ();
+    type XCMPMessageHandlers = ();
 }
 
-impl cumulus_token_dealer::Trait for Runtime {
-    type Event = Event;
-    type UpwardMessageSender = MessageBroker;
-    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
-    type Currency = Balances;
-    type XCMPMessageSender = MessageBroker;
+/*
+parameter_types! {
+    pub const RelayChainCurrencyId: CurrencyId = CurrencyId::DOT;
 }
+
+pub struct RelayToNative;
+impl Convert<RelayChainBalance, Balance> for RelayToNative {
+    fn convert(val: u128) -> Balance {
+        // native is 9
+        // relay is 12
+        val / 1_000
+    }
+}
+
+pub struct NativeToRelay;
+impl Convert<Balance, RelayChainBalance> for NativeToRelay {
+    fn convert(val: u128) -> Balance {
+        // native is 9
+        // relay is 12
+        val * 1_000
+    }
+}
+
+impl pallet_xtokens::Trait for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type CurrencyId = CurrencyId;
+    type Currency = Currencies;
+    type XCMPMessageSender = MessageBroker;
+    type RelayChainCurrencyId = RelayChainCurrencyId;
+    type UpwardMessageSender = MessageBroker;
+    type FromRelayChainBalance = RelayToNative;
+    type ToRelayChainBalance = NativeToRelay;
+    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
+}
+*/
 
 impl parachain_info::Trait for Runtime {}
 
@@ -480,7 +509,6 @@ construct_runtime! {
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
         MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
-        TokenDealer: cumulus_token_dealer::{Module, Call, Event<T>},
 
         // DAO modules
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
