@@ -79,24 +79,24 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", optional = true }
+cumulus-primitives = { git = "https://github.com/paritytech/cumulus" }
+cumulus-consensus = { git = "https://github.com/paritytech/cumulus" }
+cumulus-collator = { git = "https://github.com/paritytech/cumulus" }
+cumulus-network = { git = "https://github.com/paritytech/cumulus" }
+cumulus-service = { git = "https://github.com/paritytech/cumulus" }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch" }
+polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch" }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch" }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch" }
 
 # node-specific dependencies
 node-rpc = { path = "../rpc" }
 robonomics-runtime = { path = "../robonomics-runtime" }
 ipci-runtime = { path = "../ipci-runtime" }
-robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain", optional = true }
+robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
 
@@ -127,7 +127,7 @@ vergen = { version = "3.0.4", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
 [features]
-default = ["cli","wasmtime","parachain"]
+default = ["cli","wasmtime"]
 
 ## Enable Wasmtime virtual machine.
 wasmtime = [
@@ -141,6 +141,7 @@ cli = [
     "vergen",
     "structopt",
     "sc-service/db",
+    "polkadot-cli",
     "robonomics-cli",
 ]
 
@@ -149,23 +150,6 @@ browser = [
     "wasm-bindgen",
     "wasm-bindgen-futures",
     "substrate-browser-utils",
-]
-
-## Enable parachain runtime and collator services.
-# This feature in additional to Substrate-chain Robonomics runtime
-# builds Robonomics as Polkadot parachain.
-parachain = [
-    "robonomics-parachain-runtime",
-    "cumulus-primitives",
-    "cumulus-consensus",
-    "cumulus-collator",
-    "cumulus-network",
-    "cumulus-service",
-    "polkadot-primitives",
-    "polkadot-parachain",
-    "polkadot-collator",
-    "polkadot-service",
-    "polkadot-cli",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.

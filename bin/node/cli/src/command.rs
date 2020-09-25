@@ -16,7 +16,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "parachain")]
 use crate::parachain;
 use crate::{
     chain_spec::*,
@@ -59,9 +58,8 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            #[cfg(feature = "parachain")]
             "" | "parachain" => Box::new(parachain::chain_spec::robonomics_parachain_config()),
-            path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
+            path => Box::new(parachain::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
         })
@@ -71,7 +69,6 @@ impl SubstrateCli for Cli {
         match chain_spec.family() {
             RobonomicsFamily::DaoIpci => &ipci_runtime::VERSION,
             RobonomicsFamily::Development => &robonomics_runtime::VERSION,
-            #[cfg(feature = "parachain")]
             RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
             RobonomicsFamily::Unknown => panic!("Unknown runtime"),
         }
@@ -100,7 +97,6 @@ pub fn run() -> sc_cli::Result<()> {
                     })
                 }
 
-                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| {
                     if matches!(config.role, Role::Light) {
                         return Err("Light client not supporter!".into());
@@ -145,7 +141,6 @@ pub fn run() -> sc_cli::Result<()> {
                     })
                 }
 
-                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
                     let PartialComponents {
                         client,

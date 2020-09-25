@@ -45,7 +45,6 @@ pub enum RobonomicsFamily {
     /// DAO IPCI (ipci.io) chain (https://telemetry.polkadot.io/#list/DAO%20IPCI).
     DaoIpci,
     /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
-    #[cfg(feature = "parachain")]
     Parachain,
 }
 
@@ -60,7 +59,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        #[cfg(feature = "parachain")]
         if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID {
             return RobonomicsFamily::Parachain;
         }
