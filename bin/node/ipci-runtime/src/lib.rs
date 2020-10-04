@@ -36,7 +36,7 @@ use frame_support::{
     traits::{KeyOwnerProofSystem, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        Weight, WeightToFeeCoefficients, WeightToFeeCoefficient, WeightToFeePolynomial,
+        Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
     },
 };
 use node_primitives::{

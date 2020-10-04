@@ -18,12 +18,15 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use sp_runtime::traits::Member;
-use codec::{Codec, EncodeLike, Encode, Decode};
+use codec::{Codec, Decode, Encode, EncodeLike};
+use cumulus_primitives::{
+    xcmp::{XCMPMessageHandler, XCMPMessageSender},
+    ParaId,
+};
 use frame_support::{decl_event, decl_module, decl_storage};
 use frame_system::ensure_signed;
-use cumulus_primitives::{xcmp::{XCMPMessageHandler, XCMPMessageSender}, ParaId};
+use sp_runtime::traits::Member;
+use sp_std::prelude::*;
 
 /// Launch module main trait.
 pub trait Trait: frame_system::Trait {
@@ -72,7 +75,7 @@ decl_module! {
         fn launch_on(origin, para_id: ParaId, robot: T::AccountId, param: T::Parameter) {
             let sender = ensure_signed(origin)?;
             let msg = XCMPMessage::LaunchRobot(sender, robot, param);
-            T::XCMPMessageSender::send_xcmp_message(para_id, &msg).expect("should not fail"); 
+            T::XCMPMessageSender::send_xcmp_message(para_id, &msg).expect("should not fail");
         }
     }
 }
@@ -80,10 +83,9 @@ decl_module! {
 impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, T::Parameter>> for Module<T> {
     fn handle_xcmp_message(_src: ParaId, msg: &XCMPMessage<T::AccountId, T::Parameter>) {
         match msg {
-            XCMPMessage::LaunchRobot(sender, robot, param) =>
-                Self::deposit_event(
-                    RawEvent::NewLaunch(sender.clone(), robot.clone(), param.clone())
-                )
+            XCMPMessage::LaunchRobot(sender, robot, param) => Self::deposit_event(
+                RawEvent::NewLaunch(sender.clone(), robot.clone(), param.clone()),
+            ),
         }
     }
 }
