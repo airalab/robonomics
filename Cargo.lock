@@ -315,13 +315,14 @@ dependencies = [
 
 [[package]]
 name = "async-io"
-version = "1.1.5"
+version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e727cebd055ab2861a854f79def078c4b99ea722d54c6800a0e274389882d4c"
+checksum = "1a027f4b662e59d7070791e33baafd36affe67388965701b50039db5ebb240d2"
 dependencies = [
  "concurrent-queue",
  "fastrand",
  "futures-lite",
+ "libc",
  "log 0.4.11",
  "nb-connect",
  "once_cell",
@@ -329,6 +330,7 @@ dependencies = [
  "polling",
  "vec-arena",
  "waker-fn",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -399,9 +401,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.40"
+version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "687c230d85c0a52504709705fc8a53e4a692b83a2184f03dae73e38e1e93a783"
+checksum = "b246867b8b3b6ae56035f1eb1ed557c1d8eae97f0d53696138a50fa0e3a3b8c0"
 dependencies = [
  "proc-macro2 1.0.24",
  "quote 1.0.7",
@@ -1285,7 +1287,7 @@ dependencies = [
 [[package]]
 name = "cumulus-collator"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-consensus",
  "cumulus-network",
@@ -1313,7 +1315,7 @@ dependencies = [
 [[package]]
 name = "cumulus-consensus"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "futures 0.3.5",
  "log 0.4.11",
@@ -1335,7 +1337,7 @@ dependencies = [
 [[package]]
 name = "cumulus-message-broker"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-primitives",
  "cumulus-upward-message",
@@ -1351,7 +1353,7 @@ dependencies = [
 [[package]]
 name = "cumulus-network"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-primitives",
  "futures 0.3.5",
@@ -1373,7 +1375,7 @@ dependencies = [
 [[package]]
 name = "cumulus-parachain-upgrade"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-primitives",
  "cumulus-runtime",
@@ -1394,7 +1396,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
@@ -1409,7 +1411,7 @@ dependencies = [
 [[package]]
 name = "cumulus-runtime"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-primitives",
  "frame-executive",
@@ -1428,7 +1430,7 @@ dependencies = [
 [[package]]
 name = "cumulus-service"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-collator",
  "cumulus-consensus",
@@ -1450,7 +1452,7 @@ dependencies = [
 [[package]]
 name = "cumulus-upward-message"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "kusama-runtime",
  "polkadot-core-primitives",
@@ -1844,9 +1846,12 @@ checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
 name = "fastrand"
-version = "1.3.5"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c85295147490b8fcf2ea3d104080a105a8b2c63f9c319e82c02d8e952388919"
+checksum = "ca5faf057445ce5c9d4329e382b2ce7ca38550ef3b73a5348362d5f24e0c7fe3"
+dependencies = [
+ "instant",
+]
 
 [[package]]
 name = "fdlimit"
@@ -2244,9 +2249,9 @@ checksum = "de27142b013a8e869c14957e6d2edeef89e97c289e69d042ee3a49acd8b51789"
 
 [[package]]
 name = "futures-lite"
-version = "1.8.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0db18c5f58083b54b0c416638ea73066722c2815c1e54dd8ba85ee3def593c3a"
+checksum = "5b2ec5fce115ef4d4cc77f46025232fba6a2f84381ff42337794147050aae971"
 dependencies = [
  "fastrand",
  "futures-core",
@@ -4339,9 +4344,9 @@ dependencies = [
 
 [[package]]
 name = "nb-connect"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "701f47aeb98466d0a7fea67e2c2f667c33efa1f2e4fd7f76743aac1153196f72"
+checksum = "8123a81538e457d44b933a02faf885d3fe8408806b23fa700e8f01c6c3a98998"
 dependencies = [
  "libc",
  "winapi 0.3.9",
@@ -5367,7 +5372,7 @@ dependencies = [
 [[package]]
 name = "parachain-info"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus#5bbab68f0208e4573b16c87ee622209350bb96e6"
+source = "git+https://github.com/paritytech/cumulus#3b51e53206237aef65d9d8ec19e75f40f053d4b7"
 dependencies = [
  "cumulus-primitives",
  "frame-support",
@@ -5710,18 +5715,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "0.4.24"
+version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f48fad7cfbff853437be7cf54d7b993af21f53be7f0988cbfe4a51535aa77205"
+checksum = "2b9e280448854bd91559252582173b3bd1f8e094a0e644791c0628ca9b1f144f"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "0.4.24"
+version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24c6d293bdd3ca5a1697997854c6cf7855e43fb6a0ba1c47af57a5bcafd158ae"
+checksum = "c8c8b352676bc6a4c3d71970560b913cea444a7a921cc2e2d920225e4b91edaa"
 dependencies = [
  "proc-macro2 1.0.24",
  "quote 1.0.7",
@@ -5730,9 +5735,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fe74897791e156a0cd8cce0db31b9b2198e67877316bf3086c3acd187f719f0"
+checksum = "e555d9e657502182ac97b539fb3dae8b79cda19e3e4f8ffb5e8de4f18df93c95"
 
 [[package]]
 name = "pin-utils"
@@ -6194,14 +6199,14 @@ dependencies = [
 
 [[package]]
 name = "polling"
-version = "1.1.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0720e0b9ea9d52451cf29d3413ba8a9303f8815d9d9653ef70e03ff73e65566"
+checksum = "7215a098a80ab8ebd6349db593dc5faf741781bad0c4b7c5701fea6af548d52c"
 dependencies = [
  "cfg-if",
  "libc",
  "log 0.4.11",
- "wepoll-sys-stjepang",
+ "wepoll-sys",
  "winapi 0.3.9",
 ]
 
@@ -10824,18 +10829,18 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "24.0.0"
+version = "25.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ff1e3bd3ad0b2ee7784add89c30dc96b89a54b43e5d6d95d774eda1863b3500"
+checksum = "d8c67a4386e4efe10563552848d8c6a4b7f941e69924a935495645c3f52b32d0"
 dependencies = [
  "leb128",
 ]
 
 [[package]]
 name = "wat"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7c0bb2872ae453f98cec6ff1bf1a71cde1da6041fce8b0ac39d51eb033e9ec0"
+checksum = "4766d466249e23279e92c52033429eb91141c5efea1c4478138fa6f6ef4efe3e"
 dependencies = [
  "wast",
 ]
@@ -10888,10 +10893,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "wepoll-sys-stjepang"
-version = "1.0.8"
+name = "wepoll-sys"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fdfbb03f290ca0b27922e8d48a0997b4ceea12df33269b9f75e713311eb178d"
+checksum = "142bc2cba3fe88be1a8fcb55c727fa4cd5b0cf2d7438722792e22f26f04bc1e0"
 dependencies = [
  "cc",
 ]
