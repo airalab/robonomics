@@ -5,7 +5,7 @@ with nixpkgs;
 with nixpkgs.rosPackages.noetic;
 
 let
-  channel = rustChannelOf { date = "2020-07-20"; channel = "nightly"; };
+  channel = rustChannelOf { date = "2020-09-20"; channel = "nightly"; };
   targets = [ "wasm32-unknown-unknown" ];
 in rec {
   rust = channel.rust.override { inherit targets; };

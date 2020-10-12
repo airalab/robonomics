@@ -35,7 +35,6 @@ pub struct Cli {
     pub run: sc_cli::RunCmd,
 
     /// Polkadot relaychain arguments.
-    #[cfg(feature = "parachain")]
     #[structopt(raw = true)]
     pub relaychain_args: Vec<String>,
 }
