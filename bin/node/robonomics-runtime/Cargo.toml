@@ -62,6 +62,7 @@ pallet-timestamp = { version = "2.0.0", default-features = false }
 pallet-transaction-payment = { version = "2.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "2.0.0", default-features = false }
 pallet-robonomics-rws = { path = "../../../robonomics/frame/rws", default-features = false }
+pallet-robonomics-launch = { path = "../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../../robonomics/frame/liability", default-features = false }
 

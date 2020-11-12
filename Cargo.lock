@@ -8010,6 +8010,7 @@ dependencies = [
  "pallet-offences-benchmarking",
  "pallet-randomness-collective-flip 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-robonomics-datalog",
+ "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
  "pallet-scheduler 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
