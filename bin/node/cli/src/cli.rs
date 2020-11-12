@@ -58,7 +58,6 @@ impl std::ops::Deref for RunCmd {
     }
 }
 
-
 /// Possible subcommands of the main binary.
 #[derive(Debug, StructOpt)]
 pub enum Subcommand {

@@ -23,10 +23,10 @@ use crate::{
     Cli, Subcommand,
 };
 use codec::Encode;
-use sp_api::BlockT;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
-use sp_core::hexdisplay::HexDisplay;
 use sc_service::PartialComponents;
+use sp_api::BlockT;
+use sp_core::hexdisplay::HexDisplay;
 use std::io::Write;
 
 impl SubstrateCli for Cli {
@@ -62,7 +62,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
         })
     }
 
@@ -180,12 +180,10 @@ pub fn run() -> sc_cli::Result<()> {
         Some(Subcommand::ExportGenesisState(params)) => {
             sc_cli::init_logger("");
 
-            let block = parachain::generate_genesis_state(
-                &parachain::load_spec(
-                    &params.chain.clone().unwrap_or_default(),
-                    params.parachain_id.into(),
-                )?
-            )?;
+            let block = parachain::generate_genesis_state(&parachain::load_spec(
+                &params.chain.clone().unwrap_or_default(),
+                params.parachain_id.into(),
+            )?)?;
             let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
 
             if let Some(output) = &params.output {
@@ -200,7 +198,7 @@ pub fn run() -> sc_cli::Result<()> {
             sc_cli::init_logger("");
 
             let wasm_file = parachain::extract_genesis_wasm(
-                &cli.load_spec(&params.chain.clone().unwrap_or_default())?
+                &cli.load_spec(&params.chain.clone().unwrap_or_default())?,
             )?;
 
             if let Some(output) = &params.output {

@@ -21,9 +21,7 @@ use codec::Encode;
 use node_primitives::Block;
 use robonomics_parachain_runtime::RuntimeApi;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
-use sp_runtime::traits::{
-    Block as BlockT, Hash as HashT, Header as HeaderT, Zero, BlakeTwo256,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
@@ -84,35 +82,35 @@ pub fn new_partial(
 }
 
 pub fn load_spec(
-	id: &str,
-	para_id: cumulus_primitives::ParaId,
+    id: &str,
+    para_id: cumulus_primitives::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-	match id {
-		"" | "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
-			&include_bytes!("../res/robonomics_parachain.json")[..],
-		)?)),
-		"local_testnet" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
-		path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
-			path.into(),
-		)?)),
-	}
+    match id {
+        "" | "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
+            &include_bytes!("../res/robonomics_parachain.json")[..],
+        )?)),
+        "local_testnet" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
+        path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
+            path.into(),
+        )?)),
+    }
 }
 
 pub fn extract_genesis_wasm(
     chain_spec: &Box<dyn sc_service::ChainSpec>,
 ) -> sc_cli::Result<Vec<u8>> {
-	let mut storage = chain_spec.build_storage()?;
+    let mut storage = chain_spec.build_storage()?;
 
-	storage
-		.top
-		.remove(sp_core::storage::well_known_keys::CODE)
-		.ok_or_else(|| "Could not find wasm file in genesis state!".into())
+    storage
+        .top
+        .remove(sp_core::storage::well_known_keys::CODE)
+        .ok_or_else(|| "Could not find wasm file in genesis state!".into())
 }
 
 pub fn generate_genesis_state(
     chain_spec: &Box<dyn sc_service::ChainSpec>,
 ) -> sc_service::error::Result<Block> {
-	let storage = chain_spec.build_storage()?;
+    let storage = chain_spec.build_storage()?;
 
     let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
         let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(

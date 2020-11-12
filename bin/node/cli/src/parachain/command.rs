@@ -16,9 +16,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use log::info;
 use codec::Encode;
-use sp_core::hexdisplay::HexDisplay;
+use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
@@ -29,6 +28,7 @@ use sc_service::{
     TaskManager,
 };
 use sp_api::BlockT;
+use sp_core::hexdisplay::HexDisplay;
 use std::{net::SocketAddr, sync::Arc};
 
 /// Run a collator node with the given parachain `Configuration`

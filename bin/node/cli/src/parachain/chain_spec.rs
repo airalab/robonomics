@@ -24,8 +24,8 @@ use robonomics_parachain_runtime::{
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
-use sp_core::sr25519;
 use serde::{Deserialize, Serialize};
+use sp_core::sr25519;
 
 use crate::chain_spec::get_account_id_from_seed;
 
@@ -85,7 +85,11 @@ pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
         ChainType::Local,
         move || {
             mk_genesis(
-                balances.iter().cloned().map(|a| (a, 1_000_000_000_000u128)).collect(),
+                balances
+                    .iter()
+                    .cloned()
+                    .map(|a| (a, 1_000_000_000_000u128))
+                    .collect(),
                 get_account_id_from_seed::<sr25519::Public>("Alice"),
                 wasm_binary_unwrap().to_vec(),
                 id,

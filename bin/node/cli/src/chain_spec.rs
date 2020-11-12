@@ -59,7 +59,9 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID || self.id() == LOCAL_TESTNET_ID {
+        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID
+            || self.id() == LOCAL_TESTNET_ID
+        {
             return RobonomicsFamily::Parachain;
         }
 
