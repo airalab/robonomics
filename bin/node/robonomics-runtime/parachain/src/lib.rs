@@ -35,12 +35,11 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
-pub mod impls;
 
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{LockIdentifier, Randomness},
+    traits::{LockIdentifier, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -49,12 +48,12 @@ use frame_support::{
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_2, _4},
+    u32_trait::{_1, _2, _3, _5},
     OpaqueMetadata,
 };
 use sp_runtime::{
@@ -190,12 +189,16 @@ parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
     pub const TransferFee: Balance = 1 * GLUSHKOV;
     pub const CreationFee: Balance = 1 * GLUSHKOV;
+    // For weight estimation, we assume that the most locks on an individual account will be 50.
+    // This number may need to be adjusted in the future if this assumption no longer holds true.
+    pub const MaxLocks: u32 = 50;
 }
 
 impl pallet_balances::Trait for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
     type Event = Event;
+    type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
     type WeightInfo = ();
@@ -209,8 +212,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = Balances;
-    type OnTransactionPayment = Treasury;
+    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
@@ -248,6 +250,7 @@ impl pallet_sudo::Trait for Runtime {
 
 parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
+    pub const MaxScheduledPerBlock: u32 = 50;
 }
 
 impl pallet_scheduler::Trait for Runtime {
@@ -255,8 +258,9 @@ impl pallet_scheduler::Trait for Runtime {
     type Origin = Origin;
     type Call = Call;
     type PalletsOrigin = OriginCaller;
-    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = ();
 }
 
@@ -268,33 +272,54 @@ parameter_types! {
     pub const TipCountdown: BlockNumber = 1 * DAYS;
     pub const TipFindersFee: Percent = Percent::from_percent(20);
     pub const TipReportDepositBase: Balance = 1 * XRT;
-    pub const TipReportDepositPerByte: Balance = 1 * GLUSHKOV;
+    pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+    pub const BountyDepositBase: Balance = 1 * XRT;
+    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+    pub const BountyValueMinimum: Balance = 1 * XRT;
+    pub const MaximumReasonLength: u32 = 16384;
 }
 
 impl pallet_treasury::Trait for Runtime {
     type ModuleId = TreasuryModuleId;
     type Currency = Balances;
-    type ApproveOrigin = pallet_collective::EnsureMembers<_4, AccountId, CouncilCollective>;
-    type RejectOrigin = pallet_collective::EnsureMembers<_2, AccountId, CouncilCollective>;
+    type ApproveOrigin = frame_system::EnsureOneOf<
+        AccountId,
+        frame_system::EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>
+    >;
+    type RejectOrigin = frame_system::EnsureOneOf<
+        AccountId,
+        frame_system::EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+    >;
     type Tippers = Elections;
     type TipCountdown = TipCountdown;
     type TipFindersFee = TipFindersFee;
     type TipReportDepositBase = TipReportDepositBase;
-    type TipReportDepositPerByte = TipReportDepositPerByte;
     type Event = Event;
-    type ProposalRejection = ();
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type DataDepositPerByte = DataDepositPerByte;
     type SpendPeriod = SpendPeriod;
+    type OnSlash = ();
     type Burn = Burn;
     type BurnDestination = ();
+    type BountyDepositBase = BountyDepositBase;
+    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+    type BountyUpdatePeriod = BountyUpdatePeriod;
+    type BountyCuratorDeposit = BountyCuratorDeposit;
+    type BountyValueMinimum = BountyValueMinimum;
+    type MaximumReasonLength = MaximumReasonLength;
     type WeightInfo = ();
 }
 
 parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
     pub const CouncilMaxProposals: u32 = 100;
+    pub const CouncilMaxMembers: u32 = 100;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -304,6 +329,8 @@ impl pallet_collective::Trait<CouncilCollective> for Runtime {
     type Event = Event;
     type MotionDuration = CouncilMotionDuration;
     type MaxProposals = CouncilMaxProposals;
+    type MaxMembers = CouncilMaxMembers;
+    type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = ();
 }
 
@@ -325,7 +352,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
     // NOTE: this implies that council's genesis members cannot be set directly and must come from
     // this module.
     type InitializeMembers = Council;
-    type CurrencyToVote = impls::CurrencyToVoteHandler;
+    type CurrencyToVote = U128CurrencyToVote;
     type CandidacyBond = CandidacyBond;
     type VotingBond = VotingBond;
     type LoserCandidate = ();
@@ -352,20 +379,7 @@ impl parachain_info::Trait for Runtime {}
 
 impl cumulus_parachain_upgrade::Trait for Runtime {
     type Event = Event;
-    type OnValidationFunctionParams = ();
-}
-
-impl pallet_robonomics_liability::Trait for Runtime {
-    type Event = Event;
-    type Technics = pallet_robonomics_liability::technics::PureIPFS;
-    type Economics = pallet_robonomics_liability::economics::Communism;
-    type Liability = pallet_robonomics_liability::signed::SignedLiability<
-        Self::Technics,
-        Self::Economics,
-        Signature,
-        <Signature as Verify>::Signer,
-        AccountId,
-    >;
+    type OnValidationData = ();
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {
@@ -473,7 +487,6 @@ construct_runtime! {
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 
         // Robonomics Network modules.
-        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
         Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},

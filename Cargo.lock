@@ -1425,7 +1425,7 @@ dependencies = [
  "cumulus-runtime",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-balances",
  "parity-scale-codec",
  "polkadot-parachain",
  "serde",
@@ -1459,7 +1459,7 @@ version = "0.1.0"
 source = "git+https://github.com/paritytech/cumulus#2662bcd3dda634bfafb9632da8fa1fe85a2d71d4"
 dependencies = [
  "cumulus-primitives",
- "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
  "hash-db",
  "memory-db",
  "parity-scale-codec",
@@ -2021,23 +2021,6 @@ dependencies = [
 [[package]]
 name = "frame-executive"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c843800f05a7ad4653bc0db53a15e3d9bdd1cf14103e15c29e8aca200dbb1188"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-tracing 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "frame-executive"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -2230,26 +2213,15 @@ dependencies = [
 [[package]]
 name = "frame-system-benchmarking"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03e3a70ce89455777c5a93c60943e8a404c0be66bd3f53605c4a4e79baa80e91"
+source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "frame-system-rpc-runtime-api"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b128f689fd9d497c3a7e881be524a8a1e2d80e2661754add6e36c9dfdcbe373"
-dependencies = [
- "parity-scale-codec",
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -3126,56 +3098,55 @@ checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 name = "ipci-runtime"
 version = "0.21.0"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-executive 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system-benchmarking",
- "frame-system-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
  "lazy_static",
  "node-primitives",
- "pallet-authority-discovery 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-babe 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-finality-tracker",
- "pallet-grandpa 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-identity 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-im-online 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-indices 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-multisig 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-offences 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-authority-discovery",
+ "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
+ "pallet-offences",
  "pallet-offences-benchmarking",
- "pallet-randomness-collective-flip 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-session-benchmarking",
- "pallet-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-staking-reward-curve 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-sudo 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-utility 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-utility",
  "parity-scale-codec",
  "serde",
  "smallvec 1.4.2",
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-authority-discovery 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-block-builder 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-consensus-babe 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-offchain 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-version 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "substrate-wasm-builder-runner 1.0.6",
+ "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-block-builder 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-consensus-babe 0.8.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-wasm-builder-runner 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -3438,39 +3409,39 @@ version = "0.8.26"
 source = "git+https://github.com/paritytech/polkadot?branch=master#f4eeacc9c345eef8158c16ed914ca6f59fb68e72"
 dependencies = [
  "bitvec",
- "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "log 0.3.9",
- "pallet-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-authority-discovery",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-babe 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-collective 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-collective",
  "pallet-democracy",
- "pallet-elections-phragmen 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-grandpa 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-identity 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-elections-phragmen",
+ "pallet-grandpa",
+ "pallet-identity",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-membership",
- "pallet-multisig 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
  "pallet-nicks",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-offences",
  "pallet-proxy",
- "pallet-randomness-collective-flip 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-randomness-collective-flip",
  "pallet-recovery",
- "pallet-scheduler 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-scheduler",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-society",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-staking-reward-curve 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-treasury 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-utility 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
  "pallet-vesting",
  "parity-scale-codec",
  "polkadot-primitives",
@@ -3486,7 +3457,7 @@ dependencies = [
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -3494,7 +3465,7 @@ dependencies = [
  "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
  "static_assertions",
- "substrate-wasm-builder-runner 2.0.0",
+ "substrate-wasm-builder-runner 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4714,7 +4685,7 @@ dependencies = [
  "cumulus-service",
  "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-benchmarking-cli",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "futures 0.3.8",
  "hex-literal 0.2.1",
  "ipci-runtime",
@@ -4723,7 +4694,7 @@ dependencies = [
  "node-primitives",
  "node-rpc",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "polkadot-cli",
  "polkadot-parachain",
@@ -4763,7 +4734,7 @@ dependencies = [
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-finality-grandpa 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -4782,13 +4753,13 @@ dependencies = [
 name = "node-primitives"
 version = "0.21.0"
 dependencies = [
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
  "pretty_assertions",
- "sp-application-crypto 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-serializer 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-application-crypto 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-serializer",
 ]
 
 [[package]]
@@ -5020,23 +4991,6 @@ dependencies = [
 [[package]]
 name = "pallet-authority-discovery"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfa683f726db011795ae117683b956e98c061f35f322ad7c0cfe248b6b272ae3"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-authority-discovery 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-authority-discovery"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5084,32 +5038,6 @@ dependencies = [
 [[package]]
 name = "pallet-babe"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2e602bfb8c4a6498274c246cd8cd5c3b19b37324a6124542d944d95a3610bd9"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-consensus-babe 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-consensus-vrf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-babe"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5135,21 +5063,6 @@ dependencies = [
 [[package]]
 name = "pallet-balances"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56bf116724c3adb7eee6ae49adfc28d3d38d9d34bbfdcc009497120256309a37"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-balances"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5164,25 +5077,9 @@ dependencies = [
 [[package]]
 name = "pallet-collective"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f7e133ae2e98e59bdd9e794ffaa3cb2e7dc43d7ebe2525dd00aed688eb3563e"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-collective"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
@@ -5211,24 +5108,9 @@ dependencies = [
 [[package]]
 name = "pallet-elections-phragmen"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1244bfae7c6f8d568789d3c2a031baab37e280781fb06633d1f1f206991a126e"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-npos-elections 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-elections-phragmen"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
@@ -5236,46 +5118,6 @@ dependencies = [
  "sp-npos-elections 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
-]
-
-[[package]]
-name = "pallet-finality-tracker"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9414e60c78b94ae77ea8ccc4a86e3d5ebd1de93c236d3dd899abacefe5d7e82"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "serde",
- "sp-finality-tracker",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-grandpa"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f8a3b81d434ce9ef2c34adf61afa5ecf2a6e386cd626369deda1ca2f7a3b076"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-finality-tracker",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-application-crypto 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-finality-grandpa 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5302,23 +5144,6 @@ dependencies = [
 [[package]]
 name = "pallet-identity"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d45fdc5352cc3d52284e7117c03a48dfd8749e667f92a4b5e749dd963c9f1431"
-dependencies = [
- "enumflags2",
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-identity"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "enumflags2",
@@ -5338,7 +5163,6 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a29b883f805fa2330742b5d99263eab68583e009be1a2420efab1c3237a08e5"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5358,6 +5182,7 @@ name = "pallet-im-online"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5378,7 +5203,6 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d234bf46076a835b473a987f089299ffa3efd961a92b5be9384cc280fcc8c8f"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
@@ -5395,6 +5219,7 @@ name = "pallet-indices"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
@@ -5423,25 +5248,9 @@ dependencies = [
 [[package]]
 name = "pallet-multisig"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "753a016a076edf8f3d5e6483092034f9c62efd3fbf86bdefbe813cb91d065777"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-multisig"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
@@ -5469,27 +5278,11 @@ dependencies = [
 [[package]]
 name = "pallet-offences"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59762b04bbe918498789a48b9997702027436c3d75ccd640f2d65e592213e3d8"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-offences"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5500,23 +5293,22 @@ dependencies = [
 [[package]]
 name = "pallet-offences-benchmarking"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a8f3df788111e02967ceae316ae68158c117856e6be2b595fd9ea78b5ceb725"
+source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-babe 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-grandpa 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-im-online 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-offences 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-grandpa",
+ "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-offences",
+ "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -5532,20 +5324,6 @@ dependencies = [
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
-]
-
-[[package]]
-name = "pallet-randomness-collective-flip"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6b62b8adc02901769b7756b054fa732b6d1aad01e8a2d6873a70fdcd38c59a1"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "safe-mix",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5581,26 +5359,26 @@ name = "pallet-robonomics-datalog"
 version = "0.2.0"
 dependencies = [
  "base58",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "node-primitives",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
 name = "pallet-robonomics-launch"
 version = "0.2.0"
 dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -5608,48 +5386,32 @@ name = "pallet-robonomics-liability"
 version = "0.4.0"
 dependencies = [
  "base58",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "node-primitives",
  "parity-scale-codec",
- "sp-arithmetic 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-arithmetic 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
 name = "pallet-robonomics-rws"
 version = "0.1.0"
 dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "node-primitives",
  "pallet-robonomics-datalog",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
  "serde",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-scheduler"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f8abd5ae3f0ca51809f1e5173877ead7b2ffe90704773d150fd27496f91f9a9"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -5711,18 +5473,17 @@ dependencies = [
 [[package]]
 name = "pallet-session-benchmarking"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a954277d15f1bd1cda23861f87435727a660c2fad999af7f745a27572532f5e4"
+source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "rand 0.7.3",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -5745,13 +5506,11 @@ version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d296b36c5c32d1e480de15d0bf08460bb6d8e1771d928a6017e88a6a1de6bf7"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-scale-codec",
- "rand_chacha 0.2.2",
  "serde",
  "sp-application-crypto 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5767,11 +5526,13 @@ name = "pallet-staking"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
+ "rand_chacha 0.2.2",
  "serde",
  "sp-application-crypto 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5785,39 +5546,12 @@ dependencies = [
 [[package]]
 name = "pallet-staking-reward-curve"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eae721ac36af88b42806d3d7eb32cd6fe8b0a5a6ba590ae397ede5af3dc53fc"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2 1.0.24",
- "quote 1.0.7",
- "syn 1.0.48",
-]
-
-[[package]]
-name = "pallet-staking-reward-curve"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2 1.0.24",
  "quote 1.0.7",
  "syn 1.0.48",
-]
-
-[[package]]
-name = "pallet-sudo"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13642cbbb2ea520ca2021299baec604de102a1d033dd32812c946cb03f48f47e"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5847,7 +5581,6 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -5865,27 +5598,10 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
-]
-
-[[package]]
-name = "pallet-transaction-payment"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9fe2fc67f2eb123199a5b8fb89a8e1c30e5d6d6b1d98e0330bac85c0d8c46f1"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "smallvec 1.4.2",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -5895,7 +5611,7 @@ source = "git+https://github.com/paritytech/substrate?branch=master#210300dc3871
 dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
  "smallvec 1.4.2",
@@ -5913,7 +5629,7 @@ dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
  "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5926,20 +5642,6 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-payment-rpc-runtime-api"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76c8b6676df5a4b411a283b9ea22551094710180fa5caebeae9eea8e9dbfa620"
-dependencies = [
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc-runtime-api"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5953,27 +5655,12 @@ dependencies = [
 [[package]]
 name = "pallet-treasury"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b08dbe44924346f0728351265fb8c5ab80dd30f664e0a2a10f83597f4090264"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-treasury"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -5983,25 +5670,9 @@ dependencies = [
 [[package]]
 name = "pallet-utility"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98b89975aed47941d35d289318999178b986a158010e6cf5633caa2c0588d349"
-dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-scale-codec",
- "serde",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pallet-utility"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "parity-scale-codec",
@@ -6970,37 +6641,37 @@ version = "0.8.26"
 source = "git+https://github.com/paritytech/polkadot?branch=master#f4eeacc9c345eef8158c16ed914ca6f59fb68e72"
 dependencies = [
  "bitvec",
- "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "log 0.3.9",
- "pallet-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-authority-discovery",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-babe 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-collective 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-collective",
  "pallet-democracy",
- "pallet-elections-phragmen 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-grandpa 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-identity 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-elections-phragmen",
+ "pallet-grandpa",
+ "pallet-identity",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-membership",
- "pallet-multisig 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
  "pallet-nicks",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-offences",
  "pallet-proxy",
- "pallet-randomness-collective-flip 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-scheduler 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-randomness-collective-flip",
+ "pallet-scheduler",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-staking-reward-curve 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-treasury 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-utility 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
  "pallet-vesting",
  "parity-scale-codec",
  "polkadot-primitives",
@@ -7016,7 +6687,7 @@ dependencies = [
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -7024,7 +6695,7 @@ dependencies = [
  "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
  "static_assertions",
- "substrate-wasm-builder-runner 2.0.0",
+ "substrate-wasm-builder-runner 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -7037,13 +6708,13 @@ dependencies = [
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "log 0.3.9",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-balances",
+ "pallet-offences",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-treasury 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-treasury",
  "pallet-vesting",
  "parity-scale-codec",
  "polkadot-primitives",
@@ -7072,10 +6743,10 @@ dependencies = [
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "log 0.4.11",
- "pallet-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-authority-discovery",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-balances",
+ "pallet-offences",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -7104,16 +6775,16 @@ version = "0.8.3"
 source = "git+https://github.com/paritytech/polkadot?branch=master#f4eeacc9c345eef8158c16ed914ca6f59fb68e72"
 dependencies = [
  "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "futures 0.3.8",
  "hex-literal 0.2.1",
  "kusama-runtime",
  "lazy_static",
  "log 0.4.11",
- "pallet-babe 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "parking_lot 0.9.0",
  "polkadot-availability-bitfield-distribution",
@@ -7168,7 +6839,7 @@ dependencies = [
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-keystore",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-storage 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -7919,48 +7590,47 @@ version = "0.21.0"
 dependencies = [
  "cumulus-parachain-upgrade",
  "cumulus-runtime",
- "frame-executive 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-executive",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
  "lazy_static",
  "node-primitives",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-collective 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-elections-phragmen 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-identity 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-indices 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-multisig 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-randomness-collective-flip 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances",
+ "pallet-collective",
+ "pallet-elections-phragmen",
+ "pallet-identity",
+ "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
+ "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-launch",
- "pallet-robonomics-liability",
  "pallet-robonomics-rws",
- "pallet-scheduler 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-sudo 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-treasury 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-utility 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-scheduler",
+ "pallet-sudo",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
  "parachain-info",
  "parity-scale-codec",
  "serde",
  "serde_derive",
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-block-builder 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-offchain 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-version 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "substrate-wasm-builder-runner 1.0.6",
+ "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-block-builder 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-wasm-builder-runner 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -7986,62 +7656,60 @@ dependencies = [
 name = "robonomics-runtime"
 version = "0.21.0"
 dependencies = [
- "frame-benchmarking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-executive 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-support 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "frame-system 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system-benchmarking",
- "frame-system-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
  "node-primitives",
- "pallet-authority-discovery 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-authorship 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-babe 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-balances 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-collective 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-elections-phragmen 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-finality-tracker",
- "pallet-grandpa 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-identity 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-im-online 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-indices 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-multisig 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-offences 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-authority-discovery",
+ "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-collective",
+ "pallet-elections-phragmen",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
+ "pallet-offences",
  "pallet-offences-benchmarking",
- "pallet-randomness-collective-flip 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-launch",
- "pallet-robonomics-liability",
  "pallet-robonomics-rws",
- "pallet-scheduler 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-scheduler",
+ "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-session-benchmarking",
- "pallet-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-staking-reward-curve 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-sudo 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-timestamp 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-treasury 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-utility 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
  "parity-scale-codec",
  "serde",
  "serde_derive",
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-authority-discovery 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-block-builder 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-consensus-babe 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-io 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-offchain 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-session 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-staking 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-transaction-pool 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-version 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "substrate-wasm-builder-runner 1.0.6",
+ "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-block-builder 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-consensus-babe 0.8.0 (git+https://github.com/paritytech/substrate)",
+ "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
+ "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-wasm-builder-runner 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]
@@ -8059,25 +7727,25 @@ name = "rococo-runtime"
 version = "0.8.26"
 source = "git+https://github.com/paritytech/polkadot?branch=master#f4eeacc9c345eef8158c16ed914ca6f59fb68e72"
 dependencies = [
- "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
+ "pallet-authority-discovery",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-babe 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-grandpa 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-grandpa",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-offences",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-staking-reward-curve 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-sudo 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "polkadot-parachain",
  "polkadot-primitives",
@@ -8093,14 +7761,14 @@ dependencies = [
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-std 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
- "substrate-wasm-builder-runner 2.0.0",
+ "substrate-wasm-builder-runner 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -8694,7 +8362,7 @@ dependencies = [
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-panic-handler 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime-interface 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-serializer 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-serializer",
  "sp-tasks",
  "sp-trie 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -8714,7 +8382,7 @@ dependencies = [
  "sp-allocator",
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime-interface 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-serializer 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-serializer",
  "sp-wasm-interface 2.0.0 (git+https://github.com/paritytech/substrate)",
  "wasmi",
 ]
@@ -8960,7 +8628,7 @@ dependencies = [
  "sc-network",
  "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-utils 2.0.0 (git+https://github.com/paritytech/substrate)",
  "threadpool",
@@ -9011,7 +8679,7 @@ dependencies = [
  "sp-chain-spec 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-keystore",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-rpc 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -10371,17 +10039,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-finality-tracker"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5433473273a116241010551b9acfdbd7d33a9fdcda45c390eb707971568154"
-dependencies = [
- "parity-scale-codec",
- "sp-inherents 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-std 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "sp-inherents"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10544,17 +10201,6 @@ dependencies = [
 [[package]]
 name = "sp-offchain"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbd5e101b2510ad84adaeb4589e6a94fdc741242ab1e39b89c87a647133205ad"
-dependencies = [
- "sp-api 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-core 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sp-runtime 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sp-offchain"
-version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
  "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -10701,16 +10347,6 @@ dependencies = [
  "proc-macro2 1.0.24",
  "quote 1.0.7",
  "syn 1.0.48",
-]
-
-[[package]]
-name = "sp-serializer"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643933e971979094c9d4b27b015c7250985a262e405bb9ad090336d8ceb5b2b9"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -11215,7 +10851,7 @@ name = "substrate-frame-rpc-system"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 dependencies = [
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "futures 0.3.8",
  "jsonrpc-core",
  "jsonrpc-core-client",
@@ -11346,15 +10982,14 @@ dependencies = [
 
 [[package]]
 name = "substrate-wasm-builder-runner"
-version = "1.0.6"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2a965994514ab35d3893e9260245f2947fd1981cdd4fffd2c6e6d1a9ce02e6a"
+checksum = "54cab12167e32b38a62c5ea5825aa0874cde315f907a46aad2b05aa8ef3d862f"
 
 [[package]]
 name = "substrate-wasm-builder-runner"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54cab12167e32b38a62c5ea5825aa0874cde315f907a46aad2b05aa8ef3d862f"
+source = "git+https://github.com/paritytech/substrate?branch=master#210300dc38713461a5537cb1752c87736670d3ee"
 
 [[package]]
 name = "subtle"
@@ -12662,40 +12297,40 @@ version = "0.8.26"
 source = "git+https://github.com/paritytech/polkadot?branch=master#f4eeacc9c345eef8158c16ed914ca6f59fb68e72"
 dependencies = [
  "bitvec",
- "frame-executive 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-executive",
  "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
  "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
- "frame-system-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system-rpc-runtime-api",
  "log 0.3.9",
- "pallet-authority-discovery 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-authority-discovery",
  "pallet-authorship 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-babe 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-collective 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-collective",
  "pallet-democracy",
- "pallet-elections-phragmen 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-grandpa 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-identity 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-elections-phragmen",
+ "pallet-grandpa",
+ "pallet-identity",
  "pallet-im-online 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-membership",
- "pallet-multisig 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-multisig",
  "pallet-nicks",
- "pallet-offences 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-offences",
  "pallet-proxy",
- "pallet-randomness-collective-flip 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-randomness-collective-flip",
  "pallet-recovery",
- "pallet-scheduler 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-scheduler",
  "pallet-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-society",
  "pallet-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-staking-reward-curve 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-sudo 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
  "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-transaction-payment-rpc-runtime-api 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-treasury 2.0.0 (git+https://github.com/paritytech/substrate)",
- "pallet-utility 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
  "pallet-vesting",
  "parity-scale-codec",
  "polkadot-parachain",
@@ -12712,7 +12347,7 @@ dependencies = [
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-inherents 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-io 2.0.0 (git+https://github.com/paritytech/substrate)",
- "sp-offchain 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-offchain",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-staking 2.0.0 (git+https://github.com/paritytech/substrate)",
@@ -12720,7 +12355,7 @@ dependencies = [
  "sp-transaction-pool 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-version 2.0.0 (git+https://github.com/paritytech/substrate)",
  "static_assertions",
- "substrate-wasm-builder-runner 2.0.0",
+ "substrate-wasm-builder-runner 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

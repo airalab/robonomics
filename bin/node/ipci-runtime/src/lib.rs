@@ -25,7 +25,6 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod constants;
-pub mod impls;
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_staking::StakerStatus;
@@ -33,7 +32,7 @@ pub use pallet_staking::StakerStatus;
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{KeyOwnerProofSystem, Randomness},
+    traits::{KeyOwnerProofSystem, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -47,8 +46,8 @@ use pallet_grandpa::{
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -257,8 +256,7 @@ impl WeightToFeePolynomial for WeightToFee {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = Balances;
-    type OnTransactionPayment = ();
+    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = WeightToFee;
     type FeeMultiplierUpdate =
@@ -317,11 +315,14 @@ parameter_types! {
     pub const MaxIterations: u32 = 5;
     // 0.05%. The higher the value, the more strict solution acceptance becomes.
     pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
+    pub OffchainSolutionWeightLimit: Weight = MaximumExtrinsicWeight::get()
+        .saturating_sub(BlockExecutionWeight::get())
+        .saturating_sub(ExtrinsicBaseWeight::get());
 }
 
 impl pallet_staking::Trait for Runtime {
     type Currency = Balances;
-    type CurrencyToVote = impls::CurrencyToVoteHandler;
+    type CurrencyToVote = U128CurrencyToVote;
     type UnixTime = Timestamp;
     type Event = Event;
     type Slash = ();
@@ -336,6 +337,7 @@ impl pallet_staking::Trait for Runtime {
     type MaxIterations = MaxIterations;
     type MinSolutionScoreBump = MinSolutionScoreBump;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type OffchainSolutionWeightLimit = OffchainSolutionWeightLimit;
     type NextNewSession = Session;
     type ElectionLookahead = ElectionLookahead;
     type Call = Call;
@@ -363,12 +365,6 @@ impl pallet_grandpa::Trait for Runtime {
 parameter_types! {
     pub const WindowSize: BlockNumber = 101;
     pub const ReportLatency: BlockNumber = 1000;
-}
-
-impl pallet_finality_tracker::Trait for Runtime {
-    type OnFinalizationStalled = Grandpa;
-    type WindowSize = WindowSize;
-    type ReportLatency = ReportLatency;
 }
 
 parameter_types! {
@@ -519,7 +515,6 @@ construct_runtime!(
         Offences: pallet_offences::{Module, Call, Storage, Event},
         Historical: pallet_session_historical::{Module},
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
-        FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
         ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
         AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
