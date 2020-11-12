@@ -22,8 +22,12 @@ use crate::{
     service::{self, ipci, robonomics},
     Cli, Subcommand,
 };
+use codec::Encode;
+use sp_api::BlockT;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sp_core::hexdisplay::HexDisplay;
 use sc_service::PartialComponents;
+use std::io::Write;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -58,10 +62,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            "" | "parachain" => Box::new(parachain::chain_spec::robonomics_parachain_config()),
-            path => Box::new(parachain::chain_spec::ChainSpec::from_json_file(
-                std::path::PathBuf::from(path),
-            )?),
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?
         })
     }
 
@@ -81,7 +82,7 @@ pub fn run() -> sc_cli::Result<()> {
 
     match &cli.subcommand {
         None => {
-            let runner = cli.create_runner(&cli.run)?;
+            let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => {
                     runner.run_node_until_exit(|config| match config.role {
@@ -175,6 +176,40 @@ pub fn run() -> sc_cli::Result<()> {
                     subcommand.run::<node_primitives::Block, robonomics::Executor>(config)
                 })
             }
+        }
+        Some(Subcommand::ExportGenesisState(params)) => {
+            sc_cli::init_logger("");
+
+            let block = parachain::generate_genesis_state(
+                &parachain::load_spec(
+                    &params.chain.clone().unwrap_or_default(),
+                    params.parachain_id.into(),
+                )?
+            )?;
+            let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
+
+            if let Some(output) = &params.output {
+                std::fs::write(output, header_hex)?;
+            } else {
+                print!("{}", header_hex);
+            }
+
+            Ok(())
+        }
+        Some(Subcommand::ExportGenesisWasm(params)) => {
+            sc_cli::init_logger("");
+
+            let wasm_file = parachain::extract_genesis_wasm(
+                &cli.load_spec(&params.chain.clone().unwrap_or_default())?
+            )?;
+
+            if let Some(output) = &params.output {
+                std::fs::write(output, wasm_file)?;
+            } else {
+                std::io::stdout().write_all(&wasm_file)?;
+            }
+
+            Ok(())
         }
     }
 }

@@ -10,12 +10,12 @@ serde = { version = "1.0.106", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "1.3.4", features = ["derive"] }
 derive_more = "0.99"
 futures-timer = "3.0"
-substrate-subxt = { git = "https://github.com/akru/substrate-subxt", branch = "rococo-branch" }
-substrate-subxt-proc-macro = { git = "https://github.com/akru/substrate-subxt", branch = "rococo-branch" }
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-libp2p = "0.22.0"
+substrate-subxt = "0.13"
+substrate-subxt-proc-macro = "0.13"
+pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
+libp2p = "0.29"
 futures = "0.3.5"
 bincode = "1.2"
 log = "0.4"

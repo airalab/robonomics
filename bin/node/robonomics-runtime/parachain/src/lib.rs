@@ -132,7 +132,7 @@ impl frame_system::Trait for Runtime {
     type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex;
+    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -199,12 +199,6 @@ impl pallet_balances::Trait for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
     type WeightInfo = ();
-}
-
-impl pallet_generic_asset::Trait for Runtime {
-    type Balance = Balance;
-    type AssetId = u32;
-    type Event = Event;
 }
 
 parameter_types! {
@@ -343,6 +337,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
     type WeightInfo = ();
 }
 
+/*
 impl cumulus_message_broker::Trait for Runtime {
     type Event = Event;
     type DownwardMessageHandlers = ();
@@ -351,8 +346,14 @@ impl cumulus_message_broker::Trait for Runtime {
     type XCMPMessage = pallet_robonomics_launch::XCMPMessage<Self::AccountId, bool>;
     type XCMPMessageHandlers = Launch;
 }
+*/
 
 impl parachain_info::Trait for Runtime {}
+
+impl cumulus_parachain_upgrade::Trait for Runtime {
+    type Event = Event;
+    type OnValidationFunctionParams = ();
+}
 
 impl pallet_robonomics_liability::Trait for Runtime {
     type Event = Event;
@@ -374,7 +375,6 @@ impl pallet_robonomics_datalog::Trait for Runtime {
 }
 
 impl pallet_robonomics_launch::Trait for Runtime {
-    type XCMPMessageSender = MessageBroker;
     type Parameter = bool;
     type Event = Event;
 }
@@ -451,11 +451,6 @@ where
     type Extrinsic = UncheckedExtrinsic;
 }
 
-impl cumulus_parachain_upgrade::Trait for Runtime {
-    type Event = Event;
-    type OnValidationFunctionParams = ();
-}
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -471,7 +466,6 @@ construct_runtime! {
         // Native currency and accounts.
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        GenericAsset: pallet_generic_asset::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 
@@ -487,7 +481,6 @@ construct_runtime! {
         // Parachain modules.
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
 
         // DAO modules
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},

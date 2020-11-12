@@ -83,11 +83,10 @@ pub fn run_node(
             finality_proof_provider: None,
         })?;
 
-    let rpc_extensions_builder = Box::new(|_| ());
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
-        rpc_extensions_builder,
+        rpc_extensions_builder: Box::new(|_| ()),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
         task_manager: &mut task_manager,

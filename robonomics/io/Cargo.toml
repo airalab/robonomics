@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
 futures-timer = "3.0"
 derive_more = "0.99"
 serialport = "3.3"
@@ -21,7 +21,7 @@ log = "0.4"
 
 # ROS integration 
 substrate-ros-msgs = { path = "../../substrate-ros/msgs", optional = true }
-rosrust = { version = "0.9.4", optional = true }
+rosrust = { version = "0.9", optional = true }
 
 [features]
 default = []

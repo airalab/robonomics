@@ -16,9 +16,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use codec::Encode;
 use log::info;
-use node_primitives::Block;
+use codec::Encode;
+use sp_core::hexdisplay::HexDisplay;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
@@ -28,40 +28,8 @@ use sc_service::{
     config::{BasePath, Configuration, PrometheusConfig},
     TaskManager,
 };
-use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::{
-    traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
-    BuildStorage,
-};
+use sp_api::BlockT;
 use std::{net::SocketAddr, sync::Arc};
-
-fn generate_genesis_state() -> sc_service::error::Result<Block> {
-    let storage = (&super::chain_spec::robonomics_parachain_config()).build_storage()?;
-
-    let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
-        let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-            child_content.data.clone().into_iter().collect(),
-        );
-        (sk.clone(), state_root.encode())
-    });
-    let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-        storage.top.clone().into_iter().chain(child_roots).collect(),
-    );
-
-    let extrinsics_root =
-        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
-
-    Ok(Block::new(
-        <<Block as BlockT>::Header as HeaderT>::new(
-            Zero::zero(),
-            extrinsics_root,
-            state_root,
-            Default::default(),
-            Default::default(),
-        ),
-        Default::default(),
-    ))
-}
 
 /// Run a collator node with the given parachain `Configuration`
 pub fn run(
@@ -82,7 +50,7 @@ pub fn run(
             .chain(relaychain_args.iter()),
     );
 
-    let block = generate_genesis_state()?;
+    let block = super::generate_genesis_state(&config.chain_spec)?;
     let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
@@ -157,22 +125,12 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn copyright_start_year() -> i32 {
-        2020
-    }
-
-    fn executable_name() -> String {
-        "robonomics".into()
+        2017
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        polkadot_cli::Cli::from_iter(
-            [
-                RelayChainCli::executable_name().to_string(),
-                "--force-westend".to_string(),
-            ]
-            .iter(),
-        )
-        .load_spec(id)
+        polkadot_cli::Cli::from_iter([RelayChainCli::executable_name().to_string()].iter())
+            .load_spec(id)
     }
 
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {

@@ -162,7 +162,7 @@ impl frame_system::Trait for Runtime {
     type MaximumBlockLength = MaximumBlockLength;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex;
+    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -446,7 +446,6 @@ impl pallet_offences::Trait for Runtime {
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
     type WeightSoftLimit = OffencesWeightSoftLimit;
-    type WeightInfo = ();
 }
 
 parameter_types! {

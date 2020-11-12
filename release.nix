@@ -6,9 +6,11 @@ with nixpkgs.rosPackages.noetic;
 
 let
   channel = rustChannelOf { date = "2020-09-20"; channel = "nightly"; };
-  targets = [ "wasm32-unknown-unknown" ];
 in rec {
-  rust = channel.rust.override { inherit targets; };
+  rust = channel.rust.override {
+    targets = [ "wasm32-unknown-unknown" ];
+    extensions = [ "rustfmt-preview" ];
+  };
   substrate-ros-msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
 
   turtlesim = callPackage ./examples/turtlesim_liability { };

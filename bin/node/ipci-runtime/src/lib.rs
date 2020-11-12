@@ -131,7 +131,7 @@ impl frame_system::Trait for Runtime {
     type MaximumBlockWeight = MaximumBlockWeight;
     type MaximumBlockLength = MaximumBlockLength;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex;
+    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -187,19 +187,17 @@ impl pallet_babe::Trait for Runtime {
     type ExpectedBlockTime = ExpectedBlockTime;
     type EpochChangeTrigger = pallet_babe::ExternalTrigger;
     type KeyOwnerProofSystem = Historical;
-
     type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
         pallet_babe::AuthorityId,
     )>>::Proof;
-
     type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
         pallet_babe::AuthorityId,
     )>>::IdentificationTuple;
-
     type HandleEquivocation =
         pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
+    type WeightInfo = ();
 }
 
 impl pallet_authorship::Trait for Runtime {
@@ -223,11 +221,13 @@ impl pallet_indices::Trait for Runtime {
 
 parameter_types! {
     pub const ExistentialDeposit: Balance = 50_000 * U_MITO; // No less that base transaction fee
+    pub const MaxLocks: u32 = 32;
 }
 
 impl pallet_balances::Trait for Runtime {
     type Event = Event;
     type Balance = Balance;
+    type MaxLocks = MaxLocks;
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
@@ -348,19 +348,16 @@ impl pallet_authority_discovery::Trait for Runtime {}
 impl pallet_grandpa::Trait for Runtime {
     type Event = Event;
     type Call = Call;
-
     type KeyOwnerProofSystem = Historical;
-
     type KeyOwnerProof =
         <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-
     type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
         KeyTypeId,
         GrandpaId,
     )>>::IdentificationTuple;
-
     type HandleEquivocation =
         pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -428,7 +425,6 @@ impl pallet_offences::Trait for Runtime {
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
     type WeightSoftLimit = OffencesWeightSoftLimit;
-    type WeightInfo = ();
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {

@@ -1,7 +1,6 @@
 [workspace]
 default-members = [ "bin/node/cli" ]
 members = [
-    "bin/subkey",
     "bin/node/cli",
     "bin/node/ipci-runtime",
     "bin/node/robonomics-runtime",

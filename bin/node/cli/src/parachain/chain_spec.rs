@@ -24,7 +24,10 @@ use robonomics_parachain_runtime::{
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
+use sp_core::sr25519;
 use serde::{Deserialize, Serialize};
+
+use crate::chain_spec::get_account_id_from_seed;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -67,7 +70,38 @@ pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
 
-/*
+pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
+    let balances = vec![
+        get_account_id_from_seed::<sr25519::Public>("Alice"),
+        get_account_id_from_seed::<sr25519::Public>("Bob"),
+        get_account_id_from_seed::<sr25519::Public>("Charlie"),
+        get_account_id_from_seed::<sr25519::Public>("Dave"),
+        get_account_id_from_seed::<sr25519::Public>("Eve"),
+        get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+    ];
+    ChainSpec::from_genesis(
+        "Local Testnet",
+        "local_testnet",
+        ChainType::Local,
+        move || {
+            mk_genesis(
+                balances.iter().cloned().map(|a| (a, 1_000_000_000_000u128)).collect(),
+                get_account_id_from_seed::<sr25519::Public>("Alice"),
+                wasm_binary_unwrap().to_vec(),
+                id,
+            )
+        },
+        vec![],
+        None,
+        None,
+        None,
+        Extensions {
+            relay_chain: "westend-dev".into(),
+            para_id: id.into(),
+        },
+    )
+}
+
 /// Helper function to create GenesisConfig for parachain
 fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -91,6 +125,7 @@ fn mk_genesis(
     }
 }
 
+/*
 /// Robonomics parachain genesis.
 fn robonomics_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
