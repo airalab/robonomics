@@ -1,18 +1,37 @@
-{ nixpkgs ? import ./nixpkgs.nix { }
-, rust
+{ rustPlatform
+, rust-nightly
 , substrate-ros-msgs
+, llvmPackages
+, pkg-config
+, protobuf
+, rocksdb
+, libudev
+, clang
+, cmake
+, lib
 }:
 
-with nixpkgs;
-with llvmPackages_latest;
-
-let
-  pname = "robonomics";
-in rustPlatform.buildRustPackage {
-  name = pname;
-  src = builtins.path { path = ./.; name = pname; };
+rustPlatform.buildRustPackage {
+  name = "robonomics";
+  src = builtins.path { path = ./.; name = "robonomics-src"; };
   cargoSha256 = null; 
-  buildInputs = [ substrate-ros-msgs rust libudev pkgconfig ];
-  LIBCLANG_PATH = "${libclang}/lib";
+  propagatedBuildInputs = [ substrate-ros-msgs ];
+  nativeBuildInputs = [ clang ];
+  buildInputs = [
+    rust-nightly
+    pkg-config
+    libudev
+    cmake
+  ];
+  ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+  LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";
+
+  meta = with lib; {
+    description = "Robonomics Node Implementation";
+    homepage = "https://robonomics.network";
+    license = licenses.asl20;
+    maintainers = with maintainers; [ akru ];
+    platforms = platforms.linux;
+  };
 }
