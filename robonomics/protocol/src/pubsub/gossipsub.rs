@@ -29,7 +29,7 @@ use futures::{
 use libp2p::core::connection::ListenerId;
 use libp2p::gossipsub::{
     protocol::MessageId, Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
-    Topic, TopicHash,
+    MessageAuthenticity, Topic, TopicHash,
 };
 use libp2p::{Multiaddr, PeerId, Swarm};
 use std::{
@@ -68,7 +68,7 @@ impl PubSubWorker {
         let peer_id = PeerId::from(local_key.public());
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-        let transport = libp2p::build_tcp_ws_secio_mplex_yamux(local_key)?;
+        let transport = libp2p::build_tcp_ws_noise_mplex_yamux(local_key.clone())?;
 
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::new()
@@ -78,12 +78,12 @@ impl PubSubWorker {
                 // we can take the hash of message and use it as an ID.
                 let mut s = DefaultHasher::new();
                 message.data.hash(&mut s);
-                MessageId(s.finish().to_string())
+                MessageId::from(s.finish().to_string())
             })
             .build();
 
         // Build a gossipsub network behaviour
-        let gossipsub = Gossipsub::new(peer_id.clone(), gossipsub_config);
+        let gossipsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config);
 
         // Create a Swarm to manage peers and events
         let swarm = Swarm::new(transport, gossipsub, peer_id.clone());
@@ -158,7 +158,7 @@ impl PubSubWorker {
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         let topic = Topic::new(topic_name);
-        self.swarm.deref_mut().publish(&topic, message);
+        let _ = self.swarm.deref_mut().publish(&topic, message);
     }
 }
 
@@ -178,10 +178,12 @@ impl Future for PubSubWorker {
                         // Dispatch handlers by topic name hash
                         for topic in &message.topics {
                             if let Some(inbox) = self.inbox.get_mut(topic) {
-                                let _ = inbox.unbounded_send(super::Message {
-                                    from: message.source.clone(),
-                                    data: message.data.clone(),
-                                });
+                                if let Some(sender) = &message.source {
+                                    let _ = inbox.unbounded_send(super::Message {
+                                        from: sender.clone(),
+                                        data: message.data.clone(),
+                                    });
+                                }
                             } else {
                                 log::warn!(
                                     target: "robonomics-pubsub",

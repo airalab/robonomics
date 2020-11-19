@@ -25,7 +25,10 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{ensure_root, ensure_signed};
-use sp_runtime::{traits::{StaticLookup, SaturatedConversion}, DispatchResult, Perbill};
+use sp_runtime::{
+    traits::{SaturatedConversion, StaticLookup},
+    DispatchResult, Perbill,
+};
 use sp_std::prelude::*;
 
 /// RWS module main trait.
