@@ -25,8 +25,8 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{ensure_root, ensure_signed};
-use sp_runtime::{traits::StaticLookup, DispatchResult, Perbill};
-use sp_std::{convert::TryInto, prelude::*};
+use sp_runtime::{traits::{StaticLookup, SaturatedConversion}, DispatchResult, Perbill};
+use sp_std::prelude::*;
 
 /// RWS module main trait.
 pub trait Trait: pallet_timestamp::Trait {
@@ -153,8 +153,8 @@ impl<T: Trait> Module<T> {
             return true;
         }
 
-        let delta = (now - last_active).try_into().unwrap_or(0) as u64;
-        let new_points = Self::estimate_points(share, delta, points);
+        let delta = now - last_active;
+        let new_points = Self::estimate_points(share, delta.saturated_into(), points);
         if new_points < CALL_COST {
             false
         } else {
@@ -237,7 +237,7 @@ mod tests {
         type MaximumBlockLength = MaximumBlockLength;
         type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
-        type ModuleToIndex = ();
+        type PalletInfo = ();
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
