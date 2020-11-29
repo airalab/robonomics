@@ -48,7 +48,7 @@ use frame_support::{
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -58,9 +58,7 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{
-        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
-    },
+    traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
@@ -288,12 +286,12 @@ impl pallet_treasury::Trait for Runtime {
     type ApproveOrigin = frame_system::EnsureOneOf<
         AccountId,
         frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>
+        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
     >;
     type RejectOrigin = frame_system::EnsureOneOf<
         AccountId,
         frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
     >;
     type Tippers = Elections;
     type TipCountdown = TipCountdown;

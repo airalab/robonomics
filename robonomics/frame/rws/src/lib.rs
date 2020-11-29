@@ -157,7 +157,7 @@ impl<T: Trait> Module<T> {
         }
 
         let delta = now - last_active;
-        let new_points = Self::estimate_points(share, delta.saturated_into(), points);
+        let new_points = Self::estimate_points(share, delta.saturated_into::<u64>(), points);
         if new_points < CALL_COST {
             false
         } else {

@@ -46,8 +46,8 @@ use pallet_grandpa::{
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};

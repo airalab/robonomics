@@ -21,6 +21,7 @@ rustPlatform.buildRustPackage {
     rust-nightly
     pkg-config
     libudev
+    openssl
     cmake
   ];
   ROCKSDB_LIB_DIR = "${rocksdb}/lib";

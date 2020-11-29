@@ -112,52 +112,17 @@ pub fn run() -> sc_cli::Result<()> {
                 ))?,
             }
         }
-        Some(Subcommand::Base(subcommand)) => {
-            let runner = cli.create_runner(subcommand)?;
-            match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let PartialComponents {
-                        client,
-                        backend,
-                        task_manager,
-                        import_queue,
-                        ..
-                    } = service::new_partial::<ipci_runtime::RuntimeApi, ipci::Executor>(&config)?;
-                    Ok((client, backend, import_queue, task_manager))
-                }),
-
-                RobonomicsFamily::Development => {
-                    runner.run_subcommand(subcommand, |config| {
-                        let PartialComponents {
-                            client,
-                            backend,
-                            task_manager,
-                            import_queue,
-                            ..
-                        } = service::new_partial::<
-                            robonomics_runtime::RuntimeApi,
-                            robonomics::Executor,
-                        >(&config)?;
-                        Ok((client, backend, import_queue, task_manager))
-                    })
-                }
-
-                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
-                    let PartialComponents {
-                        client,
-                        backend,
-                        task_manager,
-                        import_queue,
-                        ..
-                    } = parachain::new_partial(&mut config)?;
-                    Ok((client, backend, import_queue, task_manager))
-                }),
-
-                _ => Err(format!(
-                    "unsupported chain spec: {}",
-                    runner.config().chain_spec.id()
-                ))?,
-            }
+        Some(Subcommand::Key(cmd)) => cmd.run(),
+        Some(Subcommand::Sign(cmd)) => cmd.run(),
+        Some(Subcommand::Verify(cmd)) => cmd.run(),
+        Some(Subcommand::Vanity(cmd)) => cmd.run(),
+        Some(Subcommand::BuildSpec(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+        }
+        Some(Subcommand::PurgeChain(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.database))
         }
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(subcommand)) => {
@@ -178,7 +143,7 @@ pub fn run() -> sc_cli::Result<()> {
             }
         }
         Some(Subcommand::ExportGenesisState(params)) => {
-            sc_cli::init_logger("");
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
 
             let block = parachain::generate_genesis_state(&parachain::load_spec(
                 &params.chain.clone().unwrap_or_default(),
@@ -195,7 +160,7 @@ pub fn run() -> sc_cli::Result<()> {
             Ok(())
         }
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            sc_cli::init_logger("");
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
 
             let wasm_file = parachain::extract_genesis_wasm(
                 &cli.load_spec(&params.chain.clone().unwrap_or_default())?,

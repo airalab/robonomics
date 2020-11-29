@@ -29,7 +29,6 @@ use sc_service::{
     RpcHandlers, TaskManager,
 };
 use sp_api::ConstructRuntimeApi;
-use sp_core::traits::BareCryptoStorePtr;
 use sp_inherents::InherentDataProviders;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
@@ -88,17 +87,16 @@ pub fn new_partial<Runtime, Executor>(
         sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
         sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
         (
-            impl Fn(node_rpc::DenyUnsafe) -> node_rpc::IoHandler,
+            impl Fn(node_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> node_rpc::IoHandler,
             (
-                sc_consensus_babe::BabeBlockImport<
-                    Block,
-                    FullClient<Runtime, Executor>,
-                    FullGrandpaBlockImport<Runtime, Executor>,
-                >,
-                grandpa::LinkHalf<Block, FullClient<Runtime, Executor>, FullSelectChain>,
+                sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+                grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
                 sc_consensus_babe::BabeLink<Block>,
             ),
-            grandpa::SharedVoterState,
+            (
+                grandpa::SharedVoterState,
+                Arc<GrandpaFinalityProofProvider<FullBackend, Block>>,
+            ),
         ),
     >,
     ServiceError,
@@ -109,7 +107,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore, task_manager) =
+    let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, Runtime, Executor>(&config)?;
     let client = Arc::new(client);
 
@@ -147,6 +145,7 @@ where
         inherent_data_providers.clone(),
         &task_manager.spawn_handle(),
         config.prometheus_registry(),
+        sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
     )?;
 
     let import_setup = (block_import, grandpa_link, babe_link);
@@ -156,8 +155,9 @@ where
 
         let shared_authority_set = grandpa_link.shared_authority_set().clone();
         let shared_voter_state = grandpa::SharedVoterState::empty();
-
-        let rpc_setup = shared_voter_state.clone();
+        let finality_proof_provider =
+            GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
+        let rpc_setup = (shared_voter_state.clone(), finality_proof_provider.clone());
 
         let babe_config = babe_link.config().clone();
         let shared_epoch_changes = babe_link.epoch_changes().clone();
@@ -165,13 +165,14 @@ where
         let client = client.clone();
         let pool = transaction_pool.clone();
         let select_chain = select_chain.clone();
-        let keystore = keystore.clone();
+        let keystore = keystore_container.sync_keystore();
 
-        let rpc_extensions_builder = move |deny_unsafe| {
+        let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = node_rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 select_chain: select_chain.clone(),
+                chain_spec: chain_spec.cloned_box(),
                 deny_unsafe,
                 babe: node_rpc::BabeDeps {
                     babe_config: babe_config.clone(),
@@ -181,6 +182,8 @@ where
                 grandpa: node_rpc::GrandpaDeps {
                     shared_voter_state: shared_voter_state.clone(),
                     shared_authority_set: shared_authority_set.clone(),
+                    subscription_executor,
+                    finality_provider: finality_proof_provider.clone(),
                 },
             };
 
@@ -194,7 +197,7 @@ where
         client,
         backend,
         task_manager,
-        keystore,
+        keystore_container,
         select_chain,
         import_queue,
         transaction_pool,
@@ -472,6 +475,7 @@ where
         inherent_data_providers.clone(),
         &task_manager.spawn_handle(),
         config.prometheus_registry(),
+        sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
     )?;
 
     let finality_proof_provider =

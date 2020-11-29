@@ -43,8 +43,8 @@ use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{
-        Currency, Imbalance, KeyOwnerProofSystem,
-        LockIdentifier, OnUnbalanced, Randomness, U128CurrencyToVote,
+        Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness,
+        U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -59,7 +59,7 @@ use pallet_grandpa::{
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -193,7 +193,7 @@ impl pallet_multisig::Trait for Runtime {
     type DepositBase = DepositBase;
     type DepositFactor = DepositFactor;
     type MaxSignatories = MaxSignatories;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -204,7 +204,7 @@ impl pallet_timestamp::Trait for Runtime {
     type Moment = Moment;
     type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -273,7 +273,7 @@ impl pallet_balances::Trait for Runtime {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
     type MaxLocks = MaxLocks;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -314,7 +314,7 @@ impl pallet_session::Trait for Runtime {
     type ValidatorIdOf = pallet_staking::StashOf<Self>;
     type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type NextSessionRotation = Babe;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 impl pallet_session::historical::Trait for Runtime {
@@ -370,7 +370,7 @@ impl pallet_staking::Trait for Runtime {
     type ElectionLookahead = ElectionLookahead;
     type Call = Call;
     type UnsignedPriority = StakingUnsignedPriority;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 impl pallet_authority_discovery::Trait for Runtime {}
@@ -421,7 +421,7 @@ impl pallet_identity::Trait for Runtime {
     type Slashed = ();
     type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
     type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
@@ -442,7 +442,7 @@ impl pallet_im_online::Trait for Runtime {
     type ReportUnresponsiveness = Offences;
     type SessionDuration = SessionDuration;
     type UnsignedPriority = ImOnlineUnsignedPriority;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -469,7 +469,7 @@ impl pallet_scheduler::Trait for Runtime {
     type MaximumWeight = MaximumSchedulerWeight;
     type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -496,12 +496,12 @@ impl pallet_treasury::Trait for Runtime {
     type ApproveOrigin = frame_system::EnsureOneOf<
         AccountId,
         frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>
+        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
     >;
     type RejectOrigin = frame_system::EnsureOneOf<
         AccountId,
         frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
     >;
     type Tippers = Elections;
     type TipCountdown = TipCountdown;
@@ -521,7 +521,7 @@ impl pallet_treasury::Trait for Runtime {
     type BountyCuratorDeposit = BountyCuratorDeposit;
     type BountyValueMinimum = BountyValueMinimum;
     type MaximumReasonLength = MaximumReasonLength;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -539,7 +539,7 @@ impl pallet_collective::Trait<CouncilCollective> for Runtime {
     type MaxProposals = CouncilMaxProposals;
     type MaxMembers = CouncilMaxMembers;
     type DefaultVote = pallet_collective::PrimeDefaultVote;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 const DESIRED_MEMBERS: u32 = 7;
@@ -569,7 +569,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
     type DesiredMembers = DesiredMembers;
     type DesiredRunnersUp = DesiredRunnersUp;
     type TermDuration = TermDuration;
-    type WeightInfo = (); 
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_datalog::Trait for Runtime {

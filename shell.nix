@@ -2,7 +2,7 @@
 }:
 
 with release.pkgs;
-with llvmPackages_latest;
+with llvmPackages;
 
 stdenv.mkDerivation {
   name = "robonomics-nix-shell";
@@ -13,6 +13,7 @@ stdenv.mkDerivation {
     wasm-bindgen-cli
     pkg-config
     libudev
+    openssl
     cmake
   ];
   ROCKSDB_LIB_DIR = "${rocksdb}/lib";
