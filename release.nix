@@ -9,7 +9,7 @@ let
       (import "${ros_overlay}/overlay.nix")
     ];
   };
-  rust-channel = pkgs.rustChannelOf { date = "2020-10-23"; channel = "nightly"; };
+  rust-channel = pkgs.rustChannelOf { date = "2020-08-20"; channel = "nightly"; };
 in
   with pkgs;
   with rosPackages.noetic;
