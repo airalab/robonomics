@@ -11477,6 +11477,7 @@ dependencies = [
  "sp-blockchain 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-chain-spec 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-core 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sp-keystore",
  "sp-runtime 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-session 2.0.0 (git+https://github.com/paritytech/substrate)",
  "sp-state-machine 0.8.0 (git+https://github.com/paritytech/substrate)",

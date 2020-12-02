@@ -104,6 +104,10 @@ pub struct ExportGenesisStateCommand {
     #[structopt(parse(from_os_str))]
     pub output: Option<PathBuf>,
 
+    /// Write output in binary. Default is to write in hex.
+    #[structopt(short, long)]
+    pub raw: bool,
+
     /// Id of the parachain this state is for.
     #[structopt(long, default_value = "3000")]
     pub parachain_id: u32,
@@ -119,6 +123,10 @@ pub struct ExportGenesisWasmCommand {
     /// Output file name or stdout if unspecified.
     #[structopt(parse(from_os_str))]
     pub output: Option<PathBuf>,
+
+    /// Write output in binary. Default is to write in hex.
+    #[structopt(short, long)]
+    pub raw: bool,
 
     /// The name of the chain for that the genesis wasm file should be exported.
     #[structopt(long)]

@@ -65,10 +65,12 @@ impl Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
+/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
+*/
 
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
     let balances = vec![

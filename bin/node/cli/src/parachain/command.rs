@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use codec::Encode;
-use cumulus_primitives::ParaId;
+use cumulus_primitives::{genesis::generate_genesis_block, ParaId};
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
@@ -52,14 +52,15 @@ pub async fn run(
             .chain(relaychain_args.iter()),
     );
 
-    let block = super::generate_genesis_state(&config.chain_spec)?;
-    let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
+    let block: node_primitives::Block =
+        generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+    let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
 
     info!("[Para] ID: {}", parachain_id);
     info!("[Para] Account: {}", parachain_account);
-    info!("[Para] Genesis State: {}", header_hex);
+    info!("[Para] Genesis State: {}", genesis_state);
     info!("Is collating: {}", if validator { "yes" } else { "no" });
 
     let task_executor = config.task_executor.clone();

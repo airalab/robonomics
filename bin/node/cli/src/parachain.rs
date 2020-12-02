@@ -17,10 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Node as a parachain collator.
 
-use codec::Encode;
 use node_primitives::Block;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
+use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
@@ -87,10 +86,10 @@ pub fn load_spec(
     para_id: cumulus_primitives::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     match id {
-        "" | "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
+        "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
             &include_bytes!("../res/robonomics_parachain.json")[..],
         )?)),
-        "local_testnet" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
+        "" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
         path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
             path.into(),
         )?)),
@@ -106,36 +105,6 @@ pub fn extract_genesis_wasm(
         .top
         .remove(sp_core::storage::well_known_keys::CODE)
         .ok_or_else(|| "Could not find wasm file in genesis state!".into())
-}
-
-pub fn generate_genesis_state(
-    chain_spec: &Box<dyn sc_service::ChainSpec>,
-) -> sc_service::error::Result<Block> {
-    let storage = chain_spec.build_storage()?;
-
-    let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
-        let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-            child_content.data.clone().into_iter().collect(),
-        );
-        (sk.clone(), state_root.encode())
-    });
-    let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-        storage.top.clone().into_iter().chain(child_roots).collect(),
-    );
-
-    let extrinsics_root =
-        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
-
-    Ok(Block::new(
-        <<Block as BlockT>::Header as HeaderT>::new(
-            Zero::zero(),
-            extrinsics_root,
-            state_root,
-            Default::default(),
-            Default::default(),
-        ),
-        Default::default(),
-    ))
 }
 
 pub mod chain_spec;
