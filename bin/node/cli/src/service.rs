@@ -23,11 +23,7 @@ use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
 use sc_finality_grandpa::{self as grandpa, FinalityProofProvider as GrandpaFinalityProofProvider};
 use sc_network::{Event, NetworkService};
-use sc_service::{
-    config::{Configuration, Role},
-    error::Error as ServiceError,
-    RpcHandlers, TaskManager,
-};
+use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sp_api::ConstructRuntimeApi;
 use sp_inherents::InherentDataProviders;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
@@ -89,14 +85,15 @@ pub fn new_partial<Runtime, Executor>(
         (
             impl Fn(node_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> node_rpc::IoHandler,
             (
-                sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-                grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+                sc_consensus_babe::BabeBlockImport<
+                    Block,
+                    FullClient<Runtime, Executor>,
+                    FullGrandpaBlockImport<Runtime, Executor>,
+                >,
+                grandpa::LinkHalf<Block, FullClient<Runtime, Executor>, FullSelectChain>,
                 sc_consensus_babe::BabeLink<Block>,
             ),
-            (
-                grandpa::SharedVoterState,
-                Arc<GrandpaFinalityProofProvider<FullBackend, Block>>,
-            ),
+            grandpa::SharedVoterState,
         ),
     >,
     ServiceError,
@@ -139,7 +136,6 @@ where
         babe_link.clone(),
         block_import.clone(),
         Some(Box::new(justification_import)),
-        None,
         client.clone(),
         select_chain.clone(),
         inherent_data_providers.clone(),
@@ -153,11 +149,13 @@ where
     let (rpc_extensions_builder, rpc_setup) = {
         let (_, grandpa_link, babe_link) = &import_setup;
 
+        let justification_stream = grandpa_link.justification_stream();
         let shared_authority_set = grandpa_link.shared_authority_set().clone();
         let shared_voter_state = grandpa::SharedVoterState::empty();
+        let rpc_setup = shared_voter_state.clone();
+
         let finality_proof_provider =
             GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
-        let rpc_setup = (shared_voter_state.clone(), finality_proof_provider.clone());
 
         let babe_config = babe_link.config().clone();
         let shared_epoch_changes = babe_link.epoch_changes().clone();
@@ -166,6 +164,7 @@ where
         let pool = transaction_pool.clone();
         let select_chain = select_chain.clone();
         let keystore = keystore_container.sync_keystore();
+        let chain_spec = config.chain_spec.cloned_box();
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = node_rpc::FullDeps {
@@ -182,6 +181,7 @@ where
                 grandpa: node_rpc::GrandpaDeps {
                     shared_voter_state: shared_voter_state.clone(),
                     shared_authority_set: shared_authority_set.clone(),
+                    justification_stream: justification_stream.clone(),
                     subscription_executor,
                     finality_provider: finality_proof_provider.clone(),
                 },
@@ -230,15 +230,14 @@ where
         backend,
         mut task_manager,
         import_queue,
-        keystore,
+        keystore_container,
         select_chain,
         transaction_pool,
         inherent_data_providers,
         other: (rpc_extensions_builder, import_setup, rpc_setup),
     } = new_partial(&config)?;
 
-    let finality_proof_provider =
-        GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
+    let shared_voter_state = rpc_setup;
 
     let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -249,8 +248,6 @@ where
             import_queue,
             on_demand: None,
             block_announce_validator_builder: None,
-            finality_proof_request_builder: None,
-            finality_proof_provider: Some(finality_proof_provider.clone()),
         })?;
 
     if config.offchain_worker.enabled {
@@ -265,6 +262,8 @@ where
 
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
+    let backoff_authoring_blocks =
+        Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
     let name = config.network.node_name.clone();
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
@@ -274,7 +273,7 @@ where
         config,
         backend: backend.clone(),
         client: client.clone(),
-        keystore: keystore.clone(),
+        keystore: keystore_container.sync_keystore(),
         network: network.clone(),
         rpc_extensions_builder: Box::new(rpc_extensions_builder),
         transaction_pool: transaction_pool.clone(),
@@ -287,10 +286,10 @@ where
     })?;
 
     let (block_import, grandpa_link, babe_link) = import_setup;
-    let shared_voter_state = rpc_setup;
 
     if let sc_service::config::Role::Authority { .. } = &role {
         let proposer = sc_basic_authorship::ProposerFactory::new(
+            task_manager.spawn_handle(),
             client.clone(),
             transaction_pool.clone(),
             prometheus_registry.as_ref(),
@@ -300,7 +299,7 @@ where
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
         let babe_config = sc_consensus_babe::BabeParams {
-            keystore: keystore.clone(),
+            keystore: keystore_container.sync_keystore(),
             client: client.clone(),
             select_chain,
             env: proposer,
@@ -308,6 +307,7 @@ where
             sync_oracle: network.clone(),
             inherent_data_providers: inherent_data_providers.clone(),
             force_authoring,
+            backoff_authoring_blocks,
             babe_link,
             can_author_with,
         };
@@ -319,45 +319,36 @@ where
     }
 
     // Spawn authority discovery module.
-    if matches!(role, Role::Authority{..} | Role::Sentry {..}) {
-        let (sentries, authority_discovery_role) = match role {
-            sc_service::config::Role::Authority { ref sentry_nodes } => (
-                sentry_nodes.clone(),
-                sc_authority_discovery::Role::Authority(keystore.clone()),
-            ),
-            sc_service::config::Role::Sentry { .. } => {
-                (vec![], sc_authority_discovery::Role::Sentry)
-            }
-            _ => unreachable!("Due to outer matches! constraint; qed."),
-        };
-
-        let dht_event_stream = network
-            .event_stream("authority-discovery")
-            .filter_map(|e| async move {
-                match e {
-                    Event::Dht(e) => Some(e),
-                    _ => None,
-                }
-            })
-            .boxed();
-        let authority_discovery = sc_authority_discovery::AuthorityDiscovery::new(
+    if role.is_authority() {
+        let authority_discovery_role =
+            sc_authority_discovery::Role::PublishAndDiscover(keystore_container.keystore());
+        let dht_event_stream =
+            network
+                .event_stream("authority-discovery")
+                .filter_map(|e| async move {
+                    match e {
+                        Event::Dht(e) => Some(e),
+                        _ => None,
+                    }
+                });
+        let (authority_discovery_worker, _service) = sc_authority_discovery::new_worker_and_service(
             client.clone(),
             network.clone(),
-            sentries,
-            dht_event_stream,
+            Box::pin(dht_event_stream),
             authority_discovery_role,
             prometheus_registry.clone(),
         );
 
-        task_manager
-            .spawn_handle()
-            .spawn("authority-discovery", authority_discovery);
+        task_manager.spawn_handle().spawn(
+            "authority-discovery-worker",
+            authority_discovery_worker.run(),
+        );
     }
 
     // if the node isn't actively participating in consensus then it doesn't
     // need a keystore, regardless of which protocol we use below.
     let keystore = if role.is_authority() {
-        Some(keystore as BareCryptoStorePtr)
+        Some(keystore_container.sync_keystore())
     } else {
         None
     };
@@ -383,7 +374,6 @@ where
             config,
             link: grandpa_link,
             network: network.clone(),
-            inherent_data_providers: inherent_data_providers.clone(),
             telemetry_on_connect: Some(telemetry_connection_sinks.on_connect_stream()),
             voting_rule: grandpa::VotingRulesBuilder::default().build(),
             prometheus_registry,
@@ -396,7 +386,7 @@ where
             .spawn_essential_handle()
             .spawn_blocking("grandpa-voter", grandpa::run_grandpa_voter(grandpa_config)?);
     } else {
-        grandpa::setup_disabled_grandpa(client.clone(), &inherent_data_providers, network.clone())?;
+        grandpa::setup_disabled_grandpa(network.clone())?;
     }
 
     network_starter.start_network();
@@ -414,7 +404,7 @@ pub fn new_light_base<Runtime, Executor>(
 ) -> Result<
     (
         TaskManager,
-        Arc<RpcHandlers>,
+        RpcHandlers,
         Arc<LightClient<Runtime, Executor>>,
         Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
         Arc<
@@ -433,7 +423,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore, mut task_manager, on_demand) =
+    let (client, backend, keystore_container, mut task_manager, on_demand) =
         sc_service::new_light_parts::<Block, Runtime, Executor>(&config)?;
 
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
@@ -446,16 +436,12 @@ where
         on_demand.clone(),
     ));
 
-    let grandpa_block_import = grandpa::light_block_import(
+    let (grandpa_block_import, _) = grandpa::block_import(
         client.clone(),
-        backend.clone(),
         &(client.clone() as Arc<_>),
-        Arc::new(on_demand.checker().clone()),
+        select_chain.clone(),
     )?;
-
-    let finality_proof_import = grandpa_block_import.clone();
-    let finality_proof_request_builder =
-        finality_proof_import.create_finality_proof_request_builder();
+    let justification_import = grandpa_block_import.clone();
 
     let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
         sc_consensus_babe::Config::get_or_compute(&*client)?,
@@ -468,18 +454,14 @@ where
     let import_queue = sc_consensus_babe::import_queue(
         babe_link,
         babe_block_import,
-        None,
-        Some(Box::new(finality_proof_import)),
+        Some(Box::new(justification_import)),
         client.clone(),
         select_chain.clone(),
         inherent_data_providers.clone(),
         &task_manager.spawn_handle(),
         config.prometheus_registry(),
-        sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
+        sp_consensus::NeverCanAuthor,
     )?;
-
-    let finality_proof_provider =
-        GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
 
     let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -490,8 +472,6 @@ where
             import_queue,
             on_demand: Some(on_demand.clone()),
             block_announce_validator_builder: None,
-            finality_proof_request_builder: Some(finality_proof_request_builder),
-            finality_proof_provider: Some(finality_proof_provider),
         })?;
     network_starter.start_network();
 
@@ -520,8 +500,8 @@ where
         rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
+        keystore: keystore_container.sync_keystore(),
         config,
-        keystore,
         backend,
         network_status_sinks,
         system_rpc_tx,

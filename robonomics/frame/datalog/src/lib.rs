@@ -25,23 +25,23 @@ use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
 /// Type synonym for timestamp data type.
-pub type MomentOf<T> = <<T as Trait>::Time as Time>::Moment;
+pub type MomentOf<T> = <<T as Config>::Time as Time>::Moment;
 
 /// Datalog module main trait.
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
     /// Timestamp source.
     type Time: Time;
     /// Datalog record data type.
     type Record: Codec + EncodeLike + Member;
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as frame_system::Trait>::AccountId,
+    where AccountId = <T as frame_system::Config>::AccountId,
           Moment = MomentOf<T>,
-          Record = <T as Trait>::Record,
+          Record = <T as Config>::Record,
     {
         /// New data added.
         NewRecord(AccountId, Moment, Record),
@@ -51,7 +51,7 @@ decl_event! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Datalog {
+    trait Store for Module<T: Config> as Datalog {
         /// Time tagged data of given account.
         Datalog get(fn datalog): map hasher(blake2_128_concat)
                                  T::AccountId => Vec<(MomentOf<T>, T::Record)>;
@@ -59,7 +59,7 @@ decl_storage! {
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
         /// Store new data into blockchain.
@@ -110,7 +110,7 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
-    impl frame_system::Trait for Runtime {
+    impl frame_system::Config for Runtime {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
@@ -142,14 +142,14 @@ mod tests {
         pub const MinimumPeriod: Moment = 5;
     }
 
-    impl pallet_timestamp::Trait for Runtime {
+    impl pallet_timestamp::Config for Runtime {
         type Moment = Moment;
         type OnTimestampSet = ();
         type MinimumPeriod = ();
         type WeightInfo = ();
     }
 
-    impl Trait for Runtime {
+    impl Config for Runtime {
         type Time = Timestamp;
         type Record = Vec<u8>;
         type Event = ();

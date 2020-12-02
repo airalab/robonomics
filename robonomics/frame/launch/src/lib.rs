@@ -25,17 +25,17 @@ use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
 /// Launch module main trait.
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
     /// Robot launch parameter data type.
     type Parameter: Codec + EncodeLike + Member;
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as frame_system::Trait>::AccountId,
-          Parameter = <T as Trait>::Parameter,
+    where AccountId = <T as frame_system::Config>::AccountId,
+          Parameter = <T as Config>::Parameter,
     {
         /// Launch a robot with given parameter: sender, robot, parameter.
         NewLaunch(AccountId, AccountId, Parameter),
@@ -43,11 +43,11 @@ decl_event! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Launch {}
+    trait Store for Module<T: Config> as Launch {}
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
         /// Launch a robot with given parameter.

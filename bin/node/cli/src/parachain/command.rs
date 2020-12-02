@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use codec::Encode;
+use cumulus_primitives::ParaId;
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
@@ -29,18 +30,19 @@ use sc_service::{
 };
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 /// Run a collator node with the given parachain `Configuration`
-pub fn run(
+pub async fn run(
     config: Configuration,
     relaychain_args: &Vec<String>,
+    parachain_id: Option<u32>,
     validator: bool,
 ) -> sc_service::error::Result<TaskManager> {
-    let key = Arc::new(sp_core::Pair::generate().0);
+    let key = sp_core::Pair::generate().0;
 
     let extension = super::chain_spec::Extensions::try_get(&config.chain_spec);
-    let parachain_id = extension.map(|e| e.para_id).unwrap_or(100).into();
+    let parachain_id = ParaId::from(parachain_id.or(extension.map(|e| e.para_id)).unwrap_or(100));
     let relay_chain_id = extension.map(|e| e.relay_chain.clone());
     let polkadot_cli = RelayChainCli::new(
         config.base_path.as_ref().map(|x| x.path().join("polkadot")),
@@ -65,7 +67,9 @@ pub fn run(
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-    super::collator::run_node(config, parachain_id, key, polkadot_config, validator)
+    super::collator::start_node(config, key, polkadot_config, parachain_id, validator)
+        .await
+        .map(|r| r.0)
 }
 
 #[derive(Debug)]

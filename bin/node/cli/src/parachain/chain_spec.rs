@@ -120,7 +120,6 @@ fn mk_genesis(
         }),
         pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig { balances }),
-        pallet_generic_asset: Some(Default::default()),
         pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
         pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),

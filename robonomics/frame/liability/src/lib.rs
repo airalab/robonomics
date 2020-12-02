@@ -36,26 +36,30 @@ pub mod signed;
 pub mod technics;
 
 /// Type synonym for technical trait parameter.
-pub type TechnicalParam<T> = <<T as Trait>::Technics as Technical>::Parameter;
+pub type TechnicalParam<T> = <<T as Config>::Technics as Technical>::Parameter;
 
 /// Type synonym for technical report trait parameter.
-pub type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
+pub type TechnicalReport<T> = <<T as Config>::Technics as Technical>::Report;
 
 /// Type synonym for economical trait parameter.
-pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
+pub type EconomicalParam<T> = <<T as Config>::Economics as Economical>::Parameter;
 
 /// Type synonym for liability proof parameter.
-pub type ProofParam<T> =
-    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
+pub type ProofParam<T> = <<T as Config>::Liability as Agreement<
+    <T as Config>::Technics,
+    <T as Config>::Economics,
+>>::Proof;
 
-pub type LiabilityIndex<T> =
-    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Index;
+pub type LiabilityIndex<T> = <<T as Config>::Liability as Agreement<
+    <T as Config>::Technics,
+    <T as Config>::Economics,
+>>::Index;
 
 /// Current runtime account identificator.
-pub type AccountId<T> = <T as frame_system::Trait>::AccountId;
+pub type AccountId<T> = <T as frame_system::Config>::AccountId;
 
 /// Liability module main trait.
-pub trait Trait: frame_system::Trait {
+pub trait Config: frame_system::Config {
     /// Technical aspects of agreement.
     type Technics: Technical;
 
@@ -68,7 +72,7 @@ pub trait Trait: frame_system::Trait {
         + Agreement<Self::Technics, Self::Economics, AccountId = AccountId<Self>>;
 
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_event! {
@@ -88,7 +92,7 @@ decl_event! {
 }
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// Promisor agreement proof verification failed
         BadPromisorProof,
         /// Promisee agreement proof verification failed
@@ -101,7 +105,7 @@ decl_error! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Liability {
+    trait Store for Module<T: Config> as Liability {
         /// Latest liability index.
         LatestIndex get(fn latest_index): LiabilityIndex<T>;
         /// SCALE-encoded liability parameters.
@@ -117,7 +121,7 @@ decl_storage! {
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
         /// Create agreement between two parties.
@@ -210,7 +214,7 @@ decl_module! {
     }
 }
 
-impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
+impl<T: Config> frame_support::unsigned::ValidateUnsigned for Module<T> {
     type Call = Call<T>;
 
     fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
@@ -311,7 +315,7 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
-    impl frame_system::Trait for Runtime {
+    impl frame_system::Config for Runtime {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
@@ -339,7 +343,7 @@ mod tests {
         type SystemWeightInfo = ();
     }
 
-    impl Trait for Runtime {
+    impl Config for Runtime {
         type Event = MetaEvent;
         type Technics = PureIPFS;
         type Economics = Communism;
@@ -376,8 +380,8 @@ mod tests {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
         let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
         let signature = <ProofSigner<sr25519::Pair> as ProofBuilder<
-            <Runtime as Trait>::Technics,
-            <Runtime as Trait>::Economics,
+            <Runtime as Config>::Technics,
+            <Runtime as Config>::Economics,
             LiabilityIndex<Runtime>,
             _,
             _,
@@ -393,8 +397,8 @@ mod tests {
     ) -> ProofParam<Runtime> {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
         <ProofSigner<sr25519::Pair> as ProofBuilder<
-            <Runtime as Trait>::Technics,
-            <Runtime as Trait>::Economics,
+            <Runtime as Config>::Technics,
+            <Runtime as Config>::Economics,
             LiabilityIndex<Runtime>,
             _,
             _,
@@ -409,8 +413,12 @@ mod tests {
             .unwrap();
         let economics = ();
         let (sender, params_proof) = get_params_proof("//Alice", &technics, &economics);
-        let liability =
-            <Runtime as Trait>::Liability::new(technics, economics, sender.clone(), sender.clone());
+        let liability = <Runtime as Config>::Liability::new(
+            technics,
+            economics,
+            sender.clone(),
+            sender.clone(),
+        );
         assert_eq!(liability.check_params(&params_proof, &sender), true);
 
         let index = 1;

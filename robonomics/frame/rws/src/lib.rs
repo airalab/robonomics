@@ -32,7 +32,7 @@ use sp_runtime::{
 use sp_std::prelude::*;
 
 /// RWS module main trait.
-pub trait Trait: pallet_timestamp::Trait {
+pub trait Config: pallet_timestamp::Config {
     /// Call subscription method.
     type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
     /// The top limit weight for signle call.
@@ -42,14 +42,14 @@ pub trait Trait: pallet_timestamp::Trait {
     /// Limit for quota points accumulation.
     type PointsLimit: Get<u64>;
     /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 /// One call cost in quota points (points for 1 sec).
 pub const CALL_COST: u64 = 1_000_000_000;
 
 decl_error! {
-    pub enum Error for Module<T: Trait> {
+    pub enum Error for Module<T: Config> {
         /// The origin account have no enough quota to process these call.
         NoQuota,
         /// The call does not meet the requirements.
@@ -61,7 +61,7 @@ decl_error! {
 
 decl_event! {
     pub enum Event<T>
-    where AccountId = <T as frame_system::Trait>::AccountId,
+    where AccountId = <T as frame_system::Config>::AccountId,
     {
         /// RWS subscription registered.
         Subscription(AccountId, Perbill),
@@ -71,7 +71,7 @@ decl_event! {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as RWS {
+    trait Store for Module<T: Config> as RWS {
         /// The `AccountId` of Ethereum oracle.
         Oracle get(fn oracle) config(): T::AccountId;
         /// Bandwidth allocation for account.
@@ -84,7 +84,7 @@ decl_storage! {
 }
 
 decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
         /// Authenticates the RWS staker and dispatches a free function call.
@@ -96,7 +96,7 @@ decl_module! {
         /// - Basically this sould be free by concept.
         /// # </weight>
         #[weight = (0, call.get_dispatch_info().class, Pays::No)]
-        fn call(origin, call: Box<<T as Trait>::Call>) {
+        fn call(origin, call: Box<<T as Config>::Call>) {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
             ensure!(Self::check_call(call.clone()), Error::<T>::BadCall);
@@ -139,7 +139,7 @@ decl_module! {
     }
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
     /// Check staker quota for execute call.
     fn check_quota(staker: T::AccountId) -> bool {
         let share = <Bandwidth<T>>::get(staker.clone());
@@ -167,7 +167,7 @@ impl<T: Trait> Module<T> {
     }
 
     /// Check call to be executed via RWS.
-    fn check_call(call: Box<<T as Trait>::Call>) -> bool {
+    fn check_call(call: Box<<T as Config>::Call>) -> bool {
         // RWS calls weight should be lower than limit
         call.get_dispatch_info().weight < T::WeightLimit::get()
         // TODO: call internals filtering
@@ -224,7 +224,7 @@ mod tests {
         pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
-    impl frame_system::Trait for Runtime {
+    impl frame_system::Config for Runtime {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
@@ -256,14 +256,14 @@ mod tests {
         pub const MinimumPeriod: Moment = 5;
     }
 
-    impl pallet_timestamp::Trait for Runtime {
+    impl pallet_timestamp::Config for Runtime {
         type Moment = Moment;
         type OnTimestampSet = ();
         type MinimumPeriod = ();
         type WeightInfo = ();
     }
 
-    impl datalog::Trait for Runtime {
+    impl datalog::Config for Runtime {
         type Record = bool;
         type Event = ();
         type Time = Timestamp;
@@ -275,7 +275,7 @@ mod tests {
         pub const PointsLimit: u64 = 1_000_000_000_000_000;
     }
 
-    impl Trait for Runtime {
+    impl Config for Runtime {
         type TotalBandwidth = TotalBandwidth;
         type WeightLimit = WeightLimit;
         type PointsLimit = PointsLimit;

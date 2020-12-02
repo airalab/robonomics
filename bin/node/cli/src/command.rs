@@ -16,15 +16,14 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::parachain;
 use crate::{
     chain_spec::*,
-    service::{self, ipci, robonomics},
+    parachain,
+    service::{ipci, robonomics},
     Cli, Subcommand,
 };
 use codec::Encode;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
 use std::io::Write;
@@ -84,26 +83,32 @@ pub fn run() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => {
-                    runner.run_node_until_exit(|config| match config.role {
+                RobonomicsFamily::DaoIpci => runner.run_node_until_exit(|config| async move {
+                    match config.role {
                         Role::Light => ipci::new_light(config),
                         _ => ipci::new_full(config),
-                    })
-                }
+                    }
+                }),
 
-                RobonomicsFamily::Development => {
-                    runner.run_node_until_exit(|config| match config.role {
+                RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
+                    match config.role {
                         Role::Light => robonomics::new_light(config),
                         _ => robonomics::new_full(config),
-                    })
-                }
+                    }
+                }),
 
-                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| {
+                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, Role::Light) {
                         return Err("Light client not supporter!".into());
                     }
 
-                    parachain::command::run(config, &cli.relaychain_args, cli.run.validator)
+                    parachain::command::run(
+                        config,
+                        &cli.relaychain_args,
+                        cli.run.parachain_id,
+                        cli.run.validator,
+                    )
+                    .await
                 }),
 
                 _ => Err(format!(

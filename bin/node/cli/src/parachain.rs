@@ -19,7 +19,6 @@
 
 use codec::Encode;
 use node_primitives::Block;
-use robonomics_parachain_runtime::RuntimeApi;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Hash as HashT, Header as HeaderT, Zero};
 use sp_trie::PrefixedMemoryDB;
@@ -31,8 +30,10 @@ sc_executor::native_executor_instance!(
     robonomics_parachain_runtime::native_version,
 );
 
+pub use robonomics_parachain_runtime::RuntimeApi;
+
 pub fn new_partial(
-    config: &mut Configuration,
+    config: &Configuration,
 ) -> Result<
     PartialComponents<
         TFullClient<Block, RuntimeApi, Executor>,
@@ -46,7 +47,7 @@ pub fn new_partial(
 > {
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let (client, backend, keystore, task_manager) =
+    let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
     let client = Arc::new(client);
     let registry = config.prometheus_registry();
@@ -70,7 +71,7 @@ pub fn new_partial(
         backend,
         client,
         import_queue,
-        keystore,
+        keystore_container,
         task_manager,
         transaction_pool,
         inherent_data_providers,
