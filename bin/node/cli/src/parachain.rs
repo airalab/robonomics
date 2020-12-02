@@ -18,7 +18,6 @@
 //! Robonomics Node as a parachain collator.
 
 use node_primitives::Block;
-use robonomics_parachain_runtime::RuntimeApi;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
@@ -30,8 +29,10 @@ sc_executor::native_executor_instance!(
     robonomics_parachain_runtime::native_version,
 );
 
+pub use robonomics_parachain_runtime::RuntimeApi;
+
 pub fn new_partial(
-    config: &mut Configuration,
+    config: &Configuration,
 ) -> Result<
     PartialComponents<
         TFullClient<Block, RuntimeApi, Executor>,
@@ -45,7 +46,7 @@ pub fn new_partial(
 > {
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let (client, backend, keystore, task_manager) =
+    let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
     let client = Arc::new(client);
     let registry = config.prometheus_registry();
@@ -69,7 +70,7 @@ pub fn new_partial(
         backend,
         client,
         import_queue,
-        keystore,
+        keystore_container,
         task_manager,
         transaction_pool,
         inherent_data_providers,
@@ -78,6 +79,32 @@ pub fn new_partial(
     };
 
     Ok(params)
+}
+
+pub fn load_spec(
+    id: &str,
+    para_id: cumulus_primitives::ParaId,
+) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+    match id {
+        "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
+            &include_bytes!("../res/robonomics_parachain.json")[..],
+        )?)),
+        "" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
+        path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
+            path.into(),
+        )?)),
+    }
+}
+
+pub fn extract_genesis_wasm(
+    chain_spec: &Box<dyn sc_service::ChainSpec>,
+) -> sc_cli::Result<Vec<u8>> {
+    let mut storage = chain_spec.build_storage()?;
+
+    storage
+        .top
+        .remove(sp_core::storage::well_known_keys::CODE)
+        .ok_or_else(|| "Could not find wasm file in genesis state!".into())
 }
 
 pub mod chain_spec;

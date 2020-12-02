@@ -1,17 +1,29 @@
-{ nixpkgs ? import ./nixpkgs.nix { }
+{ moz_overlay ? builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz
+, ros_overlay ? builtins.fetchTarball https://github.com/lopsided98/nix-ros-overlay/archive/master.tar.gz
 }:
 
-with nixpkgs;
-with nixpkgs.rosPackages.noetic;
-
 let
-  channel = rustChannelOf { date = "2020-09-20"; channel = "nightly"; };
-  targets = [ "wasm32-unknown-unknown" ];
-in rec {
-  rust = channel.rust.override { inherit targets; };
+  pkgs = import <nixpkgs> {
+    overlays = [
+      (import moz_overlay)
+      (import "${ros_overlay}/overlay.nix")
+    ];
+  };
+  rust-channel = pkgs.rustChannelOf { date = "2020-09-20"; channel = "nightly"; };
+in
+  with pkgs;
+  with rosPackages.noetic;
+rec {
   substrate-ros-msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
-
-  turtlesim = callPackage ./examples/turtlesim_liability { };
   ros_tutorials = callPackage ./examples/ros_tutorials { };
-  node = callPackage ./. { inherit rust substrate-ros-msgs; };
+  turtlesim = callPackage ./examples/turtlesim_liability { };
+
+  rust-nightly = rust-channel.rust.override {
+    targets = [ "wasm32-unknown-unknown" ];
+    extensions = [ "rustfmt-preview" ];
+  };
+
+  robonomics = callPackage ./. { inherit rust-nightly substrate-ros-msgs; };
+
+  inherit pkgs;
 }

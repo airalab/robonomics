@@ -1,22 +1,22 @@
 [package]
 name = "pallet-robonomics-rws"
 description = "Robonomics Web Services subscription runtime module."
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "1.3.5", default-features = false, features = ["derive"] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
 node-primitives = { path = "../../../bin/node/primitives" }
 pallet-robonomics-datalog = { path = "../datalog" }
 

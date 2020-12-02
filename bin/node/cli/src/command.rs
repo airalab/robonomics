@@ -16,14 +16,18 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::parachain;
 use crate::{
     chain_spec::*,
-    service::{self, ipci, robonomics},
+    parachain,
+    service::{ipci, robonomics},
     Cli, Subcommand,
 };
+use codec::Encode;
+use cumulus_primitives::genesis::generate_genesis_block;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
+use sp_api::BlockT;
+use sp_core::hexdisplay::HexDisplay;
+use std::io::Write;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -58,10 +62,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            "" | "parachain" => Box::new(parachain::chain_spec::robonomics_parachain_config()),
-            path => Box::new(parachain::chain_spec::ChainSpec::from_json_file(
-                std::path::PathBuf::from(path),
-            )?),
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
         })
     }
 
@@ -81,28 +82,34 @@ pub fn run() -> sc_cli::Result<()> {
 
     match &cli.subcommand {
         None => {
-            let runner = cli.create_runner(&cli.run)?;
+            let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => {
-                    runner.run_node_until_exit(|config| match config.role {
+                RobonomicsFamily::DaoIpci => runner.run_node_until_exit(|config| async move {
+                    match config.role {
                         Role::Light => ipci::new_light(config),
                         _ => ipci::new_full(config),
-                    })
-                }
+                    }
+                }),
 
-                RobonomicsFamily::Development => {
-                    runner.run_node_until_exit(|config| match config.role {
+                RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
+                    match config.role {
                         Role::Light => robonomics::new_light(config),
                         _ => robonomics::new_full(config),
-                    })
-                }
+                    }
+                }),
 
-                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| {
+                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, Role::Light) {
                         return Err("Light client not supporter!".into());
                     }
 
-                    parachain::command::run(config, &cli.relaychain_args, cli.run.validator)
+                    parachain::command::run(
+                        config,
+                        &cli.relaychain_args,
+                        cli.run.parachain_id,
+                        cli.run.validator,
+                    )
+                    .await
                 }),
 
                 _ => Err(format!(
@@ -111,52 +118,17 @@ pub fn run() -> sc_cli::Result<()> {
                 ))?,
             }
         }
-        Some(Subcommand::Base(subcommand)) => {
-            let runner = cli.create_runner(subcommand)?;
-            match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_subcommand(subcommand, |config| {
-                    let PartialComponents {
-                        client,
-                        backend,
-                        task_manager,
-                        import_queue,
-                        ..
-                    } = service::new_partial::<ipci_runtime::RuntimeApi, ipci::Executor>(&config)?;
-                    Ok((client, backend, import_queue, task_manager))
-                }),
-
-                RobonomicsFamily::Development => {
-                    runner.run_subcommand(subcommand, |config| {
-                        let PartialComponents {
-                            client,
-                            backend,
-                            task_manager,
-                            import_queue,
-                            ..
-                        } = service::new_partial::<
-                            robonomics_runtime::RuntimeApi,
-                            robonomics::Executor,
-                        >(&config)?;
-                        Ok((client, backend, import_queue, task_manager))
-                    })
-                }
-
-                RobonomicsFamily::Parachain => runner.run_subcommand(subcommand, |mut config| {
-                    let PartialComponents {
-                        client,
-                        backend,
-                        task_manager,
-                        import_queue,
-                        ..
-                    } = parachain::new_partial(&mut config)?;
-                    Ok((client, backend, import_queue, task_manager))
-                }),
-
-                _ => Err(format!(
-                    "unsupported chain spec: {}",
-                    runner.config().chain_spec.id()
-                ))?,
-            }
+        Some(Subcommand::Key(cmd)) => cmd.run(),
+        Some(Subcommand::Sign(cmd)) => cmd.run(),
+        Some(Subcommand::Verify(cmd)) => cmd.run(),
+        Some(Subcommand::Vanity(cmd)) => cmd.run(),
+        Some(Subcommand::BuildSpec(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+        }
+        Some(Subcommand::PurgeChain(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| cmd.run(config.database))
         }
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(subcommand)) => {
@@ -175,6 +147,49 @@ pub fn run() -> sc_cli::Result<()> {
                     subcommand.run::<node_primitives::Block, robonomics::Executor>(config)
                 })
             }
+        }
+        Some(Subcommand::ExportGenesisState(params)) => {
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
+
+            let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
+                &params.chain.clone().unwrap_or_default(),
+                params.parachain_id.into(),
+            )?)?;
+            let raw_header = block.header().encode();
+            let output_buf = if params.raw {
+                raw_header
+            } else {
+                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+            };
+
+            if let Some(output) = &params.output {
+                std::fs::write(output, output_buf)?;
+            } else {
+                std::io::stdout().write_all(&output_buf)?;
+            }
+
+            Ok(())
+        }
+        Some(Subcommand::ExportGenesisWasm(params)) => {
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
+
+            let raw_wasm_blob = parachain::extract_genesis_wasm(
+                &cli.load_spec(&params.chain.clone().unwrap_or_default())?,
+            )?;
+
+            let output_buf = if params.raw {
+                raw_wasm_blob
+            } else {
+                format!("0x{:?}", HexDisplay::from(&raw_wasm_blob)).into_bytes()
+            };
+
+            if let Some(output) = &params.output {
+                std::fs::write(output, output_buf)?;
+            } else {
+                std::io::stdout().write_all(&output_buf)?;
+            }
+
+            Ok(())
         }
     }
 }

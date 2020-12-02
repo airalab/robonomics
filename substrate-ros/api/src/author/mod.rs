@@ -20,7 +20,8 @@ use codec::{Decode, Encode};
 use futures::executor::block_on;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{Error as ClientError, HeaderBackend};
-use sp_core::{traits::BareCryptoStorePtr, H256};
+use sp_core::H256;
+use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::{generic, traits};
 use sp_session::SessionKeys;
 use sp_transaction_pool::{
@@ -38,7 +39,7 @@ pub struct Author<P, Client> {
     /// Transactions pool
     pool: Arc<P>,
     /// The key store.
-    keystore: BareCryptoStorePtr,
+    keystore: SyncCryptoStorePtr,
 }
 
 impl<P, Client> Clone for Author<P, Client> {
@@ -53,7 +54,7 @@ impl<P, Client> Clone for Author<P, Client> {
 
 impl<P, Client> Author<P, Client> {
     /// Create new instance of Authoring API.
-    pub fn new(client: Arc<Client>, pool: Arc<P>, keystore: BareCryptoStorePtr) -> Self {
+    pub fn new(client: Arc<Client>, pool: Arc<P>, keystore: SyncCryptoStorePtr) -> Self {
         Author {
             client,
             pool,

@@ -35,12 +35,11 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
-pub mod impls;
 
 use codec::Encode;
 use frame_support::{
     construct_runtime, debug, parameter_types,
-    traits::{LockIdentifier, Randomness},
+    traits::{LockIdentifier, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         IdentityFee, Weight,
@@ -49,19 +48,17 @@ use frame_support::{
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_2, _4},
+    u32_trait::{_1, _2, _3, _5},
     OpaqueMetadata,
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{
-        self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup, Verify,
-    },
+    traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
@@ -111,7 +108,7 @@ parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
 }
 
-impl frame_system::Trait for Runtime {
+impl frame_system::Config for Runtime {
     type Call = Call;
     type BaseCallFilter = ();
     type Version = Version;
@@ -132,7 +129,7 @@ impl frame_system::Trait for Runtime {
     type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
     type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
     type AvailableBlockRatio = AvailableBlockRatio;
-    type ModuleToIndex = ModuleToIndex;
+    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
@@ -147,7 +144,7 @@ parameter_types! {
     pub const MaxSignatories: u16 = 100;
 }
 
-impl pallet_multisig::Trait for Runtime {
+impl pallet_multisig::Config for Runtime {
     type Event = Event;
     type Call = Call;
     type Currency = Balances;
@@ -157,7 +154,7 @@ impl pallet_multisig::Trait for Runtime {
     type WeightInfo = ();
 }
 
-impl pallet_utility::Trait for Runtime {
+impl pallet_utility::Config for Runtime {
     type Call = Call;
     type Event = Event;
     type WeightInfo = ();
@@ -167,7 +164,7 @@ parameter_types! {
     pub const MinimumPeriod: Moment = MILLISECS_PER_BLOCK / 2;
 }
 
-impl pallet_timestamp::Trait for Runtime {
+impl pallet_timestamp::Config for Runtime {
     type Moment = Moment;
     type OnTimestampSet = ();
     type MinimumPeriod = MinimumPeriod;
@@ -178,7 +175,7 @@ parameter_types! {
     pub const IndexDeposit: Balance = 1 * GLUSHKOV;
 }
 
-impl pallet_indices::Trait for Runtime {
+impl pallet_indices::Config for Runtime {
     type AccountIndex = AccountIndex;
     type Currency = Balances;
     type Deposit = IndexDeposit;
@@ -190,21 +187,19 @@ parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
     pub const TransferFee: Balance = 1 * GLUSHKOV;
     pub const CreationFee: Balance = 1 * GLUSHKOV;
+    // For weight estimation, we assume that the most locks on an individual account will be 50.
+    // This number may need to be adjusted in the future if this assumption no longer holds true.
+    pub const MaxLocks: u32 = 50;
 }
 
-impl pallet_balances::Trait for Runtime {
+impl pallet_balances::Config for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
     type Event = Event;
+    type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
     type WeightInfo = ();
-}
-
-impl pallet_generic_asset::Trait for Runtime {
-    type Balance = Balance;
-    type AssetId = u32;
-    type Event = Event;
 }
 
 parameter_types! {
@@ -214,9 +209,8 @@ parameter_types! {
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
-impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = Balances;
-    type OnTransactionPayment = Treasury;
+impl pallet_transaction_payment::Config for Runtime {
+    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
@@ -232,7 +226,7 @@ parameter_types! {
     pub const MaxRegistrars: u32 = 20;
 }
 
-impl pallet_identity::Trait for Runtime {
+impl pallet_identity::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
     type BasicDeposit = BasicDeposit;
@@ -242,27 +236,29 @@ impl pallet_identity::Trait for Runtime {
     type MaxAdditionalFields = MaxAdditionalFields;
     type MaxRegistrars = MaxRegistrars;
     type Slashed = ();
-    type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
-    type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Trait>::AccountId>;
+    type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Config>::AccountId>;
+    type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Config>::AccountId>;
     type WeightInfo = ();
 }
 
-impl pallet_sudo::Trait for Runtime {
+impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
 }
 
 parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
+    pub const MaxScheduledPerBlock: u32 = 50;
 }
 
-impl pallet_scheduler::Trait for Runtime {
+impl pallet_scheduler::Config for Runtime {
     type Event = Event;
     type Origin = Origin;
     type Call = Call;
     type PalletsOrigin = OriginCaller;
-    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = ();
 }
 
@@ -274,42 +270,65 @@ parameter_types! {
     pub const TipCountdown: BlockNumber = 1 * DAYS;
     pub const TipFindersFee: Percent = Percent::from_percent(20);
     pub const TipReportDepositBase: Balance = 1 * XRT;
-    pub const TipReportDepositPerByte: Balance = 1 * GLUSHKOV;
+    pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+    pub const BountyDepositBase: Balance = 1 * XRT;
+    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+    pub const BountyValueMinimum: Balance = 1 * XRT;
+    pub const MaximumReasonLength: u32 = 16384;
 }
 
-impl pallet_treasury::Trait for Runtime {
+impl pallet_treasury::Config for Runtime {
     type ModuleId = TreasuryModuleId;
     type Currency = Balances;
-    type ApproveOrigin = pallet_collective::EnsureMembers<_4, AccountId, CouncilCollective>;
-    type RejectOrigin = pallet_collective::EnsureMembers<_2, AccountId, CouncilCollective>;
+    type ApproveOrigin = frame_system::EnsureOneOf<
+        AccountId,
+        frame_system::EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+    >;
+    type RejectOrigin = frame_system::EnsureOneOf<
+        AccountId,
+        frame_system::EnsureRoot<AccountId>,
+        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+    >;
     type Tippers = Elections;
     type TipCountdown = TipCountdown;
     type TipFindersFee = TipFindersFee;
     type TipReportDepositBase = TipReportDepositBase;
-    type TipReportDepositPerByte = TipReportDepositPerByte;
     type Event = Event;
-    type ProposalRejection = ();
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type DataDepositPerByte = DataDepositPerByte;
     type SpendPeriod = SpendPeriod;
+    type OnSlash = ();
     type Burn = Burn;
     type BurnDestination = ();
+    type BountyDepositBase = BountyDepositBase;
+    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+    type BountyUpdatePeriod = BountyUpdatePeriod;
+    type BountyCuratorDeposit = BountyCuratorDeposit;
+    type BountyValueMinimum = BountyValueMinimum;
+    type MaximumReasonLength = MaximumReasonLength;
     type WeightInfo = ();
 }
 
 parameter_types! {
     pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
     pub const CouncilMaxProposals: u32 = 100;
+    pub const CouncilMaxMembers: u32 = 100;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Trait<CouncilCollective> for Runtime {
+impl pallet_collective::Config<CouncilCollective> for Runtime {
     type Origin = Origin;
     type Proposal = Call;
     type Event = Event;
     type MotionDuration = CouncilMotionDuration;
     type MaxProposals = CouncilMaxProposals;
+    type MaxMembers = CouncilMaxMembers;
+    type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = ();
 }
 
@@ -323,7 +342,7 @@ parameter_types! {
     pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
 }
 
-impl pallet_elections_phragmen::Trait for Runtime {
+impl pallet_elections_phragmen::Config for Runtime {
     type ModuleId = ElectionsPhragmenModuleId;
     type Event = Event;
     type Currency = Balances;
@@ -331,7 +350,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
     // NOTE: this implies that council's genesis members cannot be set directly and must come from
     // this module.
     type InitializeMembers = Council;
-    type CurrencyToVote = impls::CurrencyToVoteHandler;
+    type CurrencyToVote = U128CurrencyToVote;
     type CandidacyBond = CandidacyBond;
     type VotingBond = VotingBond;
     type LoserCandidate = ();
@@ -343,7 +362,8 @@ impl pallet_elections_phragmen::Trait for Runtime {
     type WeightInfo = ();
 }
 
-impl cumulus_message_broker::Trait for Runtime {
+/*
+impl cumulus_message_broker::Config for Runtime {
     type Event = Event;
     type DownwardMessageHandlers = ();
     type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
@@ -351,30 +371,22 @@ impl cumulus_message_broker::Trait for Runtime {
     type XCMPMessage = pallet_robonomics_launch::XCMPMessage<Self::AccountId, bool>;
     type XCMPMessageHandlers = Launch;
 }
+*/
 
-impl parachain_info::Trait for Runtime {}
+impl parachain_info::Config for Runtime {}
 
-impl pallet_robonomics_liability::Trait for Runtime {
+impl cumulus_parachain_upgrade::Config for Runtime {
     type Event = Event;
-    type Technics = pallet_robonomics_liability::technics::PureIPFS;
-    type Economics = pallet_robonomics_liability::economics::Communism;
-    type Liability = pallet_robonomics_liability::signed::SignedLiability<
-        Self::Technics,
-        Self::Economics,
-        Signature,
-        <Signature as Verify>::Signer,
-        AccountId,
-    >;
+    type OnValidationData = ();
 }
 
-impl pallet_robonomics_datalog::Trait for Runtime {
+impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
 }
 
-impl pallet_robonomics_launch::Trait for Runtime {
-    type XCMPMessageSender = MessageBroker;
+impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = bool;
     type Event = Event;
 }
@@ -385,7 +397,7 @@ parameter_types! {
     pub const PointsLimit: u64 = 10_000_000_000; // equal to 10 TPS
 }
 
-impl pallet_robonomics_rws::Trait for Runtime {
+impl pallet_robonomics_rws::Config for Runtime {
     type TotalBandwidth = TotalBandwidth;
     type WeightLimit = WeightLimit;
     type PointsLimit = PointsLimit;
@@ -451,11 +463,6 @@ where
     type Extrinsic = UncheckedExtrinsic;
 }
 
-impl cumulus_parachain_upgrade::Trait for Runtime {
-    type Event = Event;
-    type OnValidationFunctionParams = ();
-}
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -471,7 +478,6 @@ construct_runtime! {
         // Native currency and accounts.
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        GenericAsset: pallet_generic_asset::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 
@@ -479,7 +485,6 @@ construct_runtime! {
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 
         // Robonomics Network modules.
-        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
         Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
@@ -487,7 +492,6 @@ construct_runtime! {
         // Parachain modules.
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
 
         // DAO modules
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},

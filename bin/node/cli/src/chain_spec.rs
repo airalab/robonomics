@@ -59,7 +59,9 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID {
+        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID
+            || self.id() == LOCAL_TESTNET_ID
+        {
             return RobonomicsFamily::Parachain;
         }
 
@@ -71,6 +73,7 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     }
 }
 
+const LOCAL_TESTNET_ID: &str = "local_testnet";
 const DAO_IPCI_ID: &str = "ipci";
 /*
 const IPCI_PROTOCOL_ID: &str = "mito";
@@ -108,7 +111,7 @@ fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public
 }
 
 /// Helper function to generate an account ID from seed
-fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
 where
     AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
