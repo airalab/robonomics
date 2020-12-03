@@ -86,9 +86,6 @@ pub fn load_spec(
     para_id: cumulus_primitives::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     match id {
-        "robonomics" => Ok(Box::new(chain_spec::ChainSpec::from_json_bytes(
-            &include_bytes!("../res/robonomics_parachain.json")[..],
-        )?)),
         "" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
         path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
             path.into(),

@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
-    wasm_binary_unwrap, BalancesConfig, ElectionsConfig, GenesisConfig, IndicesConfig,
-    ParachainInfoConfig, SudoConfig, SystemConfig,
+    wasm_binary_unwrap, BalancesConfig, GenesisConfig, IndicesConfig, ParachainInfoConfig,
+    SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -65,14 +65,15 @@ impl Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-/*
-/// Robonomics testnet config.
-pub fn robonomics_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
-}
-*/
-
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
+    if id == cumulus_primitives::ParaId::from(ROBONOMICS_PARACHAIN_ID) {
+        robonomics_parachain_config()
+    } else {
+        test_chain_spec(id)
+    }
+}
+
+fn test_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -122,7 +123,7 @@ fn mk_genesis(
         }),
         pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig { balances }),
-        pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+        pallet_elections_phragmen: Some(Default::default()),
         pallet_collective_Instance1: Some(Default::default()),
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
@@ -130,7 +131,6 @@ fn mk_genesis(
     }
 }
 
-/*
 /// Robonomics parachain genesis.
 fn robonomics_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -167,9 +167,15 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         Some(ROBONOMICS_PROTOCOL_ID),
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Extensions {
-            relay_chain: "rococo".into(),
+            relay_chain: "rococo_local_testnet".into(),
             para_id: PARACHAIN_ID.into(),
         },
     )
+}
+
+/*
+/// Robonomics testnet config.
+pub fn robonomics_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
 */

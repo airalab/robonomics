@@ -151,10 +151,8 @@ pub fn run() -> sc_cli::Result<()> {
         Some(Subcommand::ExportGenesisState(params)) => {
             sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
 
-            let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
-                &params.chain.clone().unwrap_or_default(),
-                params.parachain_id.into(),
-            )?)?;
+            let block: node_primitives::Block =
+                generate_genesis_block(&cli.load_spec(&params.chain.clone().unwrap_or_default())?)?;
             let raw_header = block.header().encode();
             let output_buf = if params.raw {
                 raw_header
