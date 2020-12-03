@@ -66,7 +66,7 @@ impl Extensions {
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
-    if id == cumulus_primitives::ParaId::from(ROBONOMICS_PARACHAIN_ID) {
+    if id == cumulus_primitives::ParaId::from(PARACHAIN_ID) {
         robonomics_parachain_config()
     } else {
         test_chain_spec(id)
