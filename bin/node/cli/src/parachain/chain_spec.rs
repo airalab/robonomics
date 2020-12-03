@@ -131,6 +131,7 @@ fn mk_genesis(
     }
 }
 
+/*
 /// Robonomics parachain genesis.
 fn robonomics_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -172,10 +173,9 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         },
     )
 }
+*/
 
-/*
 /// Robonomics testnet config.
 pub fn robonomics_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
 }
-*/
