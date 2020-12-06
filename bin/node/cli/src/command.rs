@@ -71,7 +71,6 @@ impl SubstrateCli for Cli {
             RobonomicsFamily::DaoIpci => &ipci_runtime::VERSION,
             RobonomicsFamily::Development => &robonomics_runtime::VERSION,
             RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
-            RobonomicsFamily::Unknown => panic!("Unknown runtime"),
         }
     }
 }
@@ -111,11 +110,6 @@ pub fn run() -> sc_cli::Result<()> {
                     )
                     .await
                 }),
-
-                _ => Err(format!(
-                    "unsupported chain spec: {}",
-                    runner.config().chain_spec.id()
-                ))?,
             }
         }
         Some(Subcommand::Key(cmd)) => cmd.run(),
@@ -149,10 +143,13 @@ pub fn run() -> sc_cli::Result<()> {
             }
         }
         Some(Subcommand::ExportGenesisState(params)) => {
-            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
 
             let block: node_primitives::Block =
-                generate_genesis_block(&cli.load_spec(&params.chain.clone().unwrap_or_default())?)?;
+                generate_genesis_block(&parachain::load_spec(
+                    &params.chain.clone().unwrap_or_default(),
+                    params.parachain_id.into(),
+                )?)?;
             let raw_header = block.header().encode();
             let output_buf = if params.raw {
                 raw_header
@@ -169,7 +166,7 @@ pub fn run() -> sc_cli::Result<()> {
             Ok(())
         }
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None)?;
+            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
 
             let raw_wasm_blob = parachain::extract_genesis_wasm(
                 &cli.load_spec(&params.chain.clone().unwrap_or_default())?,

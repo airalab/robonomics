@@ -58,10 +58,10 @@ pub async fn run(
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
 
-    info!("[Para] ID: {}", parachain_id);
-    info!("[Para] Account: {}", parachain_account);
-    info!("[Para] Genesis State: {}", genesis_state);
-    info!("Is collating: {}", if validator { "yes" } else { "no" });
+    info!("[Parachain] ID: {}", parachain_id);
+    info!("[Parachain] Account: {}", parachain_account);
+    info!("[Parachain] Genesis State: {}", genesis_state);
+    info!("[Parachain] Is collating: {}", if validator { "yes" } else { "no" });
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
@@ -134,7 +134,7 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        if id == "rococo_local_testnet" {
+        if id == "robonomics_relay_testnet" {
             Ok(Box::new(
                 polkadot_service::RococoChainSpec::from_json_bytes(
                     &include_bytes!("../../res/rococo_local_testnet.json")[..],
