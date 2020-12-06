@@ -61,7 +61,10 @@ pub async fn run(
     info!("[Parachain] ID: {}", parachain_id);
     info!("[Parachain] Account: {}", parachain_account);
     info!("[Parachain] Genesis State: {}", genesis_state);
-    info!("[Parachain] Is collating: {}", if validator { "yes" } else { "no" });
+    info!(
+        "[Parachain] Is collating: {}",
+        if validator { "yes" } else { "no" }
+    );
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =

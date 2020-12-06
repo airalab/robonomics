@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
+use futures::prelude::*;
 use node_primitives::{AccountId, Balance, Block, Index};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
@@ -26,7 +27,6 @@ use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandler
 use sp_api::ConstructRuntimeApi;
 use sp_inherents::InherentDataProviders;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
-use futures::prelude::*;
 use std::sync::Arc;
 
 type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
