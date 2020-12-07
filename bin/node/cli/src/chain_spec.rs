@@ -38,8 +38,6 @@ use sp_runtime::{
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
-    /// Unknown chain type.
-    Unknown,
     /// Development chain (used for local tests only).
     Development,
     /// DAO IPCI (ipci.io) chain (https://telemetry.polkadot.io/#list/DAO%20IPCI).
@@ -59,17 +57,11 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::DaoIpci;
         }
 
-        if self.id() == crate::parachain::chain_spec::ROBONOMICS_PARACHAIN_ID
-            || self.id() == LOCAL_TESTNET_ID
-        {
-            return RobonomicsFamily::Parachain;
-        }
-
         if self.id() == "dev" {
             return RobonomicsFamily::Development;
         }
 
-        RobonomicsFamily::Unknown
+        RobonomicsFamily::Parachain
     }
 }
 
