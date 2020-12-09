@@ -94,6 +94,12 @@ impl_opaque_keys! {
     }
 }
 
+#[derive(codec::Encode, codec::Decode)]
+pub enum XCMPMessage<XAccountId, XBalance> {
+    /// Transfer tokens to the given account from the Parachain account.
+    TransferToken(XAccountId, XBalance),
+}
+
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 2400;
@@ -134,24 +140,6 @@ impl frame_system::Config for Runtime {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
-}
-
-parameter_types! {
-    // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const DepositBase: Balance = deposit(1, 88);
-    // Additional storage item size of 32 bytes.
-    pub const DepositFactor: Balance = deposit(0, 32);
-    pub const MaxSignatories: u16 = 100;
-}
-
-impl pallet_multisig::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
-    type Currency = Balances;
-    type DepositBase = DepositBase;
-    type DepositFactor = DepositFactor;
-    type MaxSignatories = MaxSignatories;
-    type WeightInfo = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -198,7 +186,7 @@ impl pallet_balances::Config for Runtime {
     type Event = Event;
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Module<Runtime>;
+    type AccountStore = System;
     type WeightInfo = ();
 }
 
@@ -236,8 +224,8 @@ impl pallet_identity::Config for Runtime {
     type MaxAdditionalFields = MaxAdditionalFields;
     type MaxRegistrars = MaxRegistrars;
     type Slashed = ();
-    type ForceOrigin = frame_system::EnsureRoot<<Self as frame_system::Config>::AccountId>;
-    type RegistrarOrigin = frame_system::EnsureRoot<<Self as frame_system::Config>::AccountId>;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type RegistrarOrigin = frame_system::EnsureRoot<AccountId>;
     type WeightInfo = ();
 }
 
@@ -246,132 +234,9 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
-parameter_types! {
-    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
-    pub const MaxScheduledPerBlock: u32 = 50;
-}
-
-impl pallet_scheduler::Config for Runtime {
-    type Event = Event;
-    type Origin = Origin;
-    type Call = Call;
-    type PalletsOrigin = OriginCaller;
-    type MaximumWeight = MaximumSchedulerWeight;
-    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
-    type MaxScheduledPerBlock = MaxScheduledPerBlock;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const ProposalBond: Permill = Permill::from_percent(5);
-    pub const ProposalBondMinimum: Balance = 1 * XRT;
-    pub const SpendPeriod: BlockNumber = 1 * DAYS;
-    pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
-    pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * XRT;
-    pub const DataDepositPerByte: Balance = 1 * COASE;
-    pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
-    pub const BountyDepositBase: Balance = 1 * XRT;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 1 * XRT;
-    pub const MaximumReasonLength: u32 = 16384;
-}
-
-impl pallet_treasury::Config for Runtime {
-    type ModuleId = TreasuryModuleId;
-    type Currency = Balances;
-    type ApproveOrigin = frame_system::EnsureOneOf<
-        AccountId,
-        frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
-    >;
-    type RejectOrigin = frame_system::EnsureOneOf<
-        AccountId,
-        frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
-    >;
-    type Tippers = Elections;
-    type TipCountdown = TipCountdown;
-    type TipFindersFee = TipFindersFee;
-    type TipReportDepositBase = TipReportDepositBase;
-    type Event = Event;
-    type ProposalBond = ProposalBond;
-    type ProposalBondMinimum = ProposalBondMinimum;
-    type DataDepositPerByte = DataDepositPerByte;
-    type SpendPeriod = SpendPeriod;
-    type OnSlash = ();
-    type Burn = Burn;
-    type BurnDestination = ();
-    type BountyDepositBase = BountyDepositBase;
-    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-    type BountyUpdatePeriod = BountyUpdatePeriod;
-    type BountyCuratorDeposit = BountyCuratorDeposit;
-    type BountyValueMinimum = BountyValueMinimum;
-    type MaximumReasonLength = MaximumReasonLength;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-    pub const CouncilMaxProposals: u32 = 100;
-    pub const CouncilMaxMembers: u32 = 100;
-}
-
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-    type Origin = Origin;
-    type Proposal = Call;
-    type Event = Event;
-    type MotionDuration = CouncilMotionDuration;
-    type MaxProposals = CouncilMaxProposals;
-    type MaxMembers = CouncilMaxMembers;
-    type DefaultVote = pallet_collective::PrimeDefaultVote;
-    type WeightInfo = ();
-}
-
-const DESIRED_MEMBERS: u32 = 7;
-parameter_types! {
-    pub const CandidacyBond: Balance = 32 * XRT;
-    pub const VotingBond: Balance = 1 * XRT;
-    pub const TermDuration: BlockNumber = 7 * DAYS;
-    pub const DesiredMembers: u32 = DESIRED_MEMBERS;
-    pub const DesiredRunnersUp: u32 = 5;
-    pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
-}
-
-impl pallet_elections_phragmen::Config for Runtime {
-    type ModuleId = ElectionsPhragmenModuleId;
-    type Event = Event;
-    type Currency = Balances;
-    type ChangeMembers = Council;
-    // NOTE: this implies that council's genesis members cannot be set directly and must come from
-    // this module.
-    type InitializeMembers = Council;
-    type CurrencyToVote = U128CurrencyToVote;
-    type CandidacyBond = CandidacyBond;
-    type VotingBond = VotingBond;
-    type LoserCandidate = ();
-    type BadReport = ();
-    type KickedMember = ();
-    type DesiredMembers = DesiredMembers;
-    type DesiredRunnersUp = DesiredRunnersUp;
-    type TermDuration = TermDuration;
-    type WeightInfo = ();
-}
-
-/*
 impl cumulus_message_broker::Config for Runtime {
-    type Event = Event;
     type DownwardMessageHandlers = ();
-    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
-    type ParachainId = ParachainInfo;
-    type XCMPMessage = pallet_robonomics_launch::XCMPMessage<Self::AccountId, bool>;
-    type XCMPMessageHandlers = Launch;
 }
-*/
 
 impl parachain_info::Config for Runtime {}
 
@@ -479,7 +344,6 @@ construct_runtime! {
         Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
-        Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 
         // Randomness.
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
@@ -492,12 +356,13 @@ construct_runtime! {
         // Parachain modules.
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
+        MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
 
         // DAO modules
-        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
-        Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
-        Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
+        //Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+        //Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
+        //Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        //Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
@@ -508,7 +373,7 @@ construct_runtime! {
 pub type Context = frame_system::ChainContext<Runtime>;
 
 /// The address format for describing accounts.
-pub type Address = <Indices as StaticLookup>::Source;
+pub type Address = AccountId;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
