@@ -1,3 +1,6 @@
 [submodule "examples/robonomics_sample_controller"]
 	path = examples/robonomics_sample_controller
 	url = https://github.com/PaTara43/robonomics_sample_controller
+[submodule "vendor/nova-sds011-rs"]
+	path = vendor/nova-sds011-rs
+	url = https://github.com/Vourhey/nova-sds011-rs

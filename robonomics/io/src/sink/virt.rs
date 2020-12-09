@@ -20,7 +20,7 @@
 use async_std::{io, task};
 use futures::channel::mpsc;
 use futures::prelude::*;
-use ipfs_api::{IpfsClient, TryFromUri};
+use ipfs_api::IpfsClient;
 use robonomics_protocol::{
     datalog, launch,
     pubsub::{self, Multiaddr, PubSub as _},
@@ -94,24 +94,22 @@ pub fn datalog<T: Into<Vec<u8>>>(
 /// Upload some data into IPFS network.
 ///
 /// Returns IPFS hash of consumed data objects.
-pub fn ipfs<T>(
-    uri: &str,
-) -> Result<(
+pub fn ipfs<T>() -> Result<(
     impl Sink<T, Error = Error>,
     impl Stream<Item = Result<String>>,
 )>
 where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
-    let client = IpfsClient::from_str(uri).expect("unvalid uri");
-    let mut runtime = actix::prelude::System::new("ipfs-api");
-
+//    let mut runtime = actix_rt::System::new("ipfs-api");
     let (sender, receiver) = mpsc::unbounded();
-    let hashes = receiver.map(move |msg: T| {
-        runtime
-            .block_on(client.add(Cursor::new(msg)))
-            .map(|value| value.hash)
-            .map_err(Into::into)
+    let hashes = receiver.then(move |msg: T| async move {
+        let client = IpfsClient::default();
+        client
+            .add(Cursor::new(msg))
+            .await
+            .map(|x| x.hash)
+            .map_err(|e| e.to_string().into())
     });
     Ok((sender.sink_err_into(), hashes))
 }

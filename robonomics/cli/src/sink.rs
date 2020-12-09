@@ -55,15 +55,7 @@ pub enum SinkCmd {
         suri: String,
     },
     /// Upload data into IPFS storage.
-    Ipfs {
-        /// IPFS node API endpoint.
-        #[structopt(
-            long,
-            value_name = "REMOTE_URI",
-            default_value = "http://127.0.0.1:5001"
-        )]
-        remote: String,
-    },
+    Ipfs,
     /// CPS launch subsystem command.
     Launch {
         /// Substrate node WebSocket endpoint.
@@ -108,10 +100,12 @@ impl SinkCmd {
                 let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
                 task::block_on(hex_encoded.forward(virt::stdout()))?;
             }
-            SinkCmd::Ipfs { remote } => {
-                let (upload, hashes) = virt::ipfs(remote.as_str())?;
-                task::spawn(stdin().forward(upload));
-                task::block_on(hashes.forward(virt::stdout()))?;
+            SinkCmd::Ipfs => {
+                actix_rt::System::run(|| {
+                    let (upload, hashes) = virt::ipfs().expect("ipfs launch");
+                    task::spawn(stdin().forward(upload));
+                    task::block_on(hashes.forward(virt::stdout()));
+                })?;
             }
             SinkCmd::Launch {
                 remote,

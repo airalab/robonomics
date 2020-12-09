@@ -39,8 +39,11 @@ const ROBONOMICS_PROPERTIES: &str = r#"
         "tokenDecimals": 9,
         "tokenSymbol": "XRT"
     }"#;
-/// Robonomics Parachain ID
-const PARACHAIN_ID: u32 = 3000;
+
+/// Earth parachain ID
+const EARTH_ID: u32 = 1000;
+/// Mars parachain ID
+const MARS_ID: u32 = 2000;
 
 /// Node `ChainSpec` extensions.
 ///
@@ -66,8 +69,10 @@ impl Extensions {
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
-    if id == cumulus_primitives::ParaId::from(PARACHAIN_ID) {
-        robonomics_parachain_config()
+    if id == cumulus_primitives::ParaId::from(EARTH_ID) {
+        earth_parachain_config()
+    } else if id == cumulus_primitives::ParaId::from(MARS_ID) {
+        mars_parachain_config()
     } else {
         test_chain_spec(id)
     }
@@ -132,8 +137,8 @@ fn mk_genesis(
 }
 
 /*
-/// Robonomics parachain genesis.
-fn robonomics_parachain_genesis() -> GenesisConfig {
+/// Earth parachain genesis.
+fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
     use robonomics_parachain_runtime::constants::currency;
 
@@ -148,18 +153,18 @@ fn robonomics_parachain_genesis() -> GenesisConfig {
         balances.to_vec(),
         sudo_key,
         wasm_binary_unwrap().to_vec(),
-        PARACHAIN_ID.into(),
+        EARTH_ID.into(),
     )
 }
 
-/// Robonomics parachain config.
-pub fn robonomics_parachain_config() -> ChainSpec {
+/// Earth parachain config.
+pub fn earth_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "Robonomics",
+        "Earth",
         ROBONOMICS_PARACHAIN_ID,
         ChainType::Live,
-        robonomics_parachain_genesis,
+        earth_parachain_genesis,
         boot_nodes,
         Some(
             sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
@@ -169,13 +174,60 @@ pub fn robonomics_parachain_config() -> ChainSpec {
         Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
-            para_id: PARACHAIN_ID.into(),
+            para_id: EARTH_ID.into(),
+        },
+    )
+}
+
+/// Mars parachain genesis.
+fn mars_parachain_genesis() -> GenesisConfig {
+    use hex_literal::hex;
+    use robonomics_parachain_runtime::constants::currency;
+
+    // akru
+    let sudo_key: AccountId =
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
+
+    let mut balances = currency::STAKE_HOLDERS.clone();
+    balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
+
+    mk_genesis(
+        balances.to_vec(),
+        sudo_key,
+        wasm_binary_unwrap().to_vec(),
+        MARS_ID.into(),
+    )
+}
+
+/// Mars parachain config.
+pub fn mars_parachain_config() -> ChainSpec {
+    let boot_nodes = vec![];
+    ChainSpec::from_genesis(
+        "Mars",
+        ROBONOMICS_PARACHAIN_ID,
+        ChainType::Live,
+        mars_parachain_genesis,
+        boot_nodes,
+        Some(
+            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+                .unwrap(),
+        ),
+        Some(ROBONOMICS_PROTOCOL_ID),
+        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        Extensions {
+            relay_chain: "rococo_local_testnet".into(),
+            para_id: MARS_ID.into(),
         },
     )
 }
 */
 
-/// Robonomics testnet config.
-pub fn robonomics_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics_parachain.json")[..]).unwrap()
+/// Earth parachain confing.
+pub fn earth_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
+}
+
+/// Mars parachain confing.
+pub fn mars_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }

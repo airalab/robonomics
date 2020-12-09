@@ -707,7 +707,7 @@ construct_runtime!(
 pub type Context = frame_system::ChainContext<Runtime>;
 
 /// The address format for describing accounts.
-pub type Address = <Indices as StaticLookup>::Source;
+pub type Address = sp_runtime::MultiAddress<AccountId, Index>;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;

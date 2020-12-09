@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Errors that can occur during the I/O operations.
 
-use ipfs_api::response::Error as IpfsError;
 use sp_core::crypto::SecretStringError;
 
 /// Sensor Result typedef.
@@ -26,8 +25,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Robonomics sensors errors.
 #[derive(Debug, derive_more::Display, derive_more::From)]
 pub enum Error {
-    /// Serial port I/O error.
-    Serial(serialport::Error),
+    /// Particle sensor error.
+    ParticleSensor(sds011::Error),
     /// Sync channel send error.
     ChannelSend(futures::channel::mpsc::SendError),
     /// Private key loading error.
@@ -35,8 +34,6 @@ pub enum Error {
     PrivateKeyFailure(SecretStringError),
     /// Protocol error.
     Protocol(robonomics_protocol::error::Error),
-    /// Ipfs client error.
-    Ipfs(IpfsError),
     /// Standard I/O error.
     Io(std::io::Error),
     #[cfg(feature = "ros")]

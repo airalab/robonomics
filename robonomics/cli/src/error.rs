@@ -27,6 +27,8 @@ pub enum Error {
     ProtocolFailure(robonomics_protocol::error::Error),
     /// Robonomics I/O error.
     IoFailure(robonomics_io::error::Error),
+    /// Standard I/O error.
+    Io(std::io::Error),
     /// Other error.
     Other(String),
 }

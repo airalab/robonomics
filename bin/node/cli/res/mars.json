@@ -1,5 +1,5 @@
 {
-  "name": "Earth",
+  "name": "Mars",
   "id": "robonomics",
   "chainType": "Live",
   "bootNodes": [
@@ -17,7 +17,7 @@
     "tokenSymbol": "XRT"
   },
   "relayChain": "rococo_local_testnet",
-  "paraId": 1000,
+  "paraId": 2000,
   "consensusEngine": null,
   "lightSyncState": null,
   "genesis": {
@@ -1198,7 +1198,7 @@
         ]
       },
       "parachainInfo": {
-        "parachainId": 1000
+        "parachainId": 2000
       },
       "palletTreasury": {},
       "palletElectionsPhragmen": {

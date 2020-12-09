@@ -62,7 +62,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(2000).into())?,
         })
     }
 

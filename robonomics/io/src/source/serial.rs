@@ -18,8 +18,8 @@
 //! Serial port sensors collection.
 
 use async_std::task;
+use async_std::prelude::*;
 use futures::channel::mpsc;
-use futures::prelude::*;
 use futures_timer::Delay;
 use std::time::Duration;
 
@@ -31,23 +31,23 @@ use crate::error::Result;
 /// * `port` - Serial port that connected sensor, for example: `/dev/ttyUSB0` or `COM11`
 /// * `period` - Working period in minutes, must be in interval (0..30)
 ///
-/// Returns Nova SDS011 sensor instance.
+/// Returns stream of Nova SDS011 sensor messages.
 pub fn sds011(port: String, period: u8) -> Result<impl Stream<Item = Result<sds011::Message>>> {
-    let mut device = sds011::SDS011::new(port.as_str())?;
-    device.set_work_period(period)?;
     log::debug!(
         target: "robonomics-io",
-        "SDS011: created for port {} with period {} min", port, period
+        "SDS011: port {} with period {} min", port, period
     );
+    let mut device = sds011::SDS011::new(port.as_str())?;
+    device.set_work_period(period)?;
 
     let delay = Duration::from_secs(period as u64 * 60);
     let (sender, receiver) = mpsc::unbounded();
     task::spawn(async move {
         loop {
-            let _ = sender.unbounded_send(device.query().map_err(Into::into));
+            let _ = sender.unbounded_send(device.query());
             Delay::new(delay).await;
         }
     });
 
-    Ok(receiver)
+    Ok(receiver.map(|v| v.map_err(Into::into)))
 }

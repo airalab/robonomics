@@ -145,7 +145,7 @@ cli = [
     "structopt",
     "polkadot-cli",
     "sc-service/db",
-#    "robonomics-cli",
+    "robonomics-cli",
 ]
 
 ## Enable browser bundle features.
