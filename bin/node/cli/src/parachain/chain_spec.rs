@@ -31,7 +31,6 @@ use crate::chain_spec::get_account_id_from_seed;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
-pub const ROBONOMICS_PARACHAIN_ID: &str = "robonomics";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const ROBONOMICS_PROPERTIES: &str = r#"
     {
@@ -162,7 +161,7 @@ pub fn earth_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Earth",
-        ROBONOMICS_PARACHAIN_ID,
+        "earth",
         ChainType::Live,
         earth_parachain_genesis,
         boot_nodes,
@@ -204,7 +203,7 @@ pub fn mars_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Mars",
-        ROBONOMICS_PARACHAIN_ID,
+        "mars",
         ChainType::Live,
         mars_parachain_genesis,
         boot_nodes,
