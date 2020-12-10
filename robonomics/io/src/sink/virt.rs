@@ -101,7 +101,6 @@ pub fn ipfs<T>() -> Result<(
 where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
-//    let mut runtime = actix_rt::System::new("ipfs-api");
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.then(move |msg: T| async move {
         let client = IpfsClient::default();

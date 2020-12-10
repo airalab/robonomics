@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Serial port sensors collection.
 
-use async_std::task;
 use async_std::prelude::*;
+use async_std::task;
 use futures::channel::mpsc;
 use futures_timer::Delay;
 use std::time::Duration;

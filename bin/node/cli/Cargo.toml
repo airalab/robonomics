@@ -37,9 +37,6 @@ futures = "0.3.8"
 serde_json = "1.0"
 log = "0.4"
 
-# Fix libp2p-websocket build
-async-tls = "=0.10.0"
-
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -84,11 +81,11 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus" }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus" }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus" }
-cumulus-network = { git = "https://github.com/paritytech/cumulus" }
-cumulus-service = { git = "https://github.com/paritytech/cumulus" }
+cumulus-primitives = { git = "https://github.com/akru/cumulus", branch = "master" }
+cumulus-consensus = { git = "https://github.com/akru/cumulus", branch = "master" }
+cumulus-collator = { git = "https://github.com/akru/cumulus", branch = "master" }
+cumulus-network = { git = "https://github.com/akru/cumulus", branch = "master" }
+cumulus-service = { git = "https://github.com/akru/cumulus", branch = "master" }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "master" }
