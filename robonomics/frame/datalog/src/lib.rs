@@ -89,12 +89,10 @@ mod tests {
     use super::*;
 
     use base58::FromBase58;
-    use frame_support::{
-        assert_err, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
-    };
+    use frame_support::{assert_err, assert_ok, impl_outer_origin, parameter_types};
     use node_primitives::Moment;
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, Perbill};
+    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
 
     impl_outer_origin! {
         pub enum Origin for Runtime {}
@@ -105,9 +103,6 @@ mod tests {
 
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
-        pub const MaximumBlockWeight: Weight = 1024;
-        pub const MaximumBlockLength: u32 = 2 * 1024;
-        pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
     impl frame_system::Config for Runtime {
@@ -122,20 +117,16 @@ mod tests {
         type Header = Header;
         type Event = ();
         type BlockHashCount = BlockHashCount;
-        type MaximumBlockWeight = MaximumBlockWeight;
-        type MaximumBlockLength = MaximumBlockLength;
-        type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type PalletInfo = ();
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
-        type BlockExecutionWeight = ();
-        type ExtrinsicBaseWeight = ();
-        type MaximumExtrinsicWeight = ();
         type BaseCallFilter = ();
         type SystemWeightInfo = ();
+        type BlockWeights = ();
+        type BlockLength = ();
     }
 
     parameter_types! {

@@ -219,9 +219,6 @@ mod tests {
 
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
-        pub const MaximumBlockWeight: Weight = 1024;
-        pub const MaximumBlockLength: u32 = 2 * 1024;
-        pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
     impl frame_system::Config for Runtime {
@@ -236,20 +233,16 @@ mod tests {
         type Header = Header;
         type Event = ();
         type BlockHashCount = BlockHashCount;
-        type MaximumBlockWeight = MaximumBlockWeight;
-        type MaximumBlockLength = MaximumBlockLength;
-        type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
         type PalletInfo = ();
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
-        type BlockExecutionWeight = ();
-        type ExtrinsicBaseWeight = ();
-        type MaximumExtrinsicWeight = ();
         type BaseCallFilter = ();
         type SystemWeightInfo = ();
+        type BlockWeights = ();
+        type BlockLength = ();
     }
 
     parameter_types! {

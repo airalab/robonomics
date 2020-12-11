@@ -285,14 +285,12 @@ mod tests {
     use base58::FromBase58;
     use frame_support::{
         assert_err, assert_ok, impl_outer_event, impl_outer_origin, parameter_types,
-        weights::Weight,
     };
     use node_primitives::{AccountId, Signature};
     use sp_core::{crypto::Pair, sr25519, H256};
     use sp_runtime::{
         testing::Header,
         traits::{IdentifyAccount, IdentityLookup, Verify},
-        Perbill,
     };
 
     impl_outer_event! {
