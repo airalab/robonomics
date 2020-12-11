@@ -3,6 +3,7 @@
   "id": "earth",
   "chainType": "Live",
   "bootNodes": [
+      "/ip4/188.166.105.160/tcp/30333/p2p/12D3KooWHQAZQhXoAbguTKGC2MfRSNsUTTnskAUR6UjGsdwbrFQr"
   ],
   "telemetryEndpoints": [
     [

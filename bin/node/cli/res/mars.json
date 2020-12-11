@@ -3,6 +3,7 @@
   "id": "mars",
   "chainType": "Live",
   "bootNodes": [
+      "/ip4/178.62.243.235/tcp/30333/p2p/12D3KooWEUFbf6ShADGXfLSiaTUKJaSDTFv4qzviaQx9HFTDJpYT"
   ],
   "telemetryEndpoints": [
     [
