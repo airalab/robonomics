@@ -29,6 +29,10 @@
       "palletBalances": {
         "balances": [
           [
+            "1HQEP4QdPGtNrHeRnNZfo3dCQ5EHSfgGaG9asgiz3QyrGtF",
+            10000000000000000000
+          ],
+          [
             "15akrup6APpRegG1TtWkYVuWHYc37tJ8XPN61vCuHQUi65Mx",
             10000000000000000000
           ],
@@ -38,15 +42,15 @@
           ],
           [
             "5CiF3nnw4ERzDGs3ZpttHYo1QVcCrrxJ26yXqXST5GropZrw",
-            10000000000000000
+            10000000000000000000
           ],
           [
             "5HDsg6m3C32MCvn1P1yGzRWfTgeyn3QBpxUU73RNGCoPC1bG",
-            10000000000000000
+            10000000000000000000
           ],
           [
             "5HgVPhCtbQ1XCtTh9bUpXCXaw3xuXvArTSo8P3yNKPCbcPKe",
-            10000000000000000
+            10000000000000000000
           ]
         ]
       },
