@@ -51,6 +51,14 @@
           [
             "5HgVPhCtbQ1XCtTh9bUpXCXaw3xuXvArTSo8P3yNKPCbcPKe",
             10000000000000000000
+          ],
+          [
+            "5G12nLNu7pQJuQaLpuibuhvrP6YprLwVau8CJohzQznhDZxW",
+            10000000000000000000
+          ],
+          [
+            "5G4mLkXPMjJg3r6GznYNVJDwUGviCXxg567jxxByp7rQyynE",
+            10000000000000000000
           ]
         ]
       },
@@ -61,7 +69,9 @@
         "invulnerables": [
           "5CiF3nnw4ERzDGs3ZpttHYo1QVcCrrxJ26yXqXST5GropZrw",
           "5HDsg6m3C32MCvn1P1yGzRWfTgeyn3QBpxUU73RNGCoPC1bG",
-          "5HgVPhCtbQ1XCtTh9bUpXCXaw3xuXvArTSo8P3yNKPCbcPKe"
+          "5HgVPhCtbQ1XCtTh9bUpXCXaw3xuXvArTSo8P3yNKPCbcPKe",
+          "5G12nLNu7pQJuQaLpuibuhvrP6YprLwVau8CJohzQznhDZxW",
+          "5G4mLkXPMjJg3r6GznYNVJDwUGviCXxg567jxxByp7rQyynE"
         ],
         "forceEra": "NotForcing",
         "slashRewardFraction": 0,
@@ -101,6 +111,28 @@
               "im_online": "5FHobVx7b6vUbAHNhxHVJPhNCXVugAF5ZT1La2mh1cMvJGrS",
               "parachain_validator": "5Cfiuycb8EeFCrB8LhUQh3sWhG6h3kQgNbXY4njyXY7newqH",
               "authority_discovery": "5GWPo3N1KCQb16aeSA2UBN7qfd6dHVRbijqqLcQp87u2VETT"
+            }
+          ],
+          [
+            "5G12nLNu7pQJuQaLpuibuhvrP6YprLwVau8CJohzQznhDZxW",
+            "5G12nLNu7pQJuQaLpuibuhvrP6YprLwVau8CJohzQznhDZxW",
+            {
+              "grandpa": "5HK4wf8JYersp5du7P9F8CHNGCdtSa7ADE3FsvmanVfEFxi3",
+              "babe": "5G6MkWLk7BcsVBLXJRTwdqww92vBDBpuwpZ9m6zKwnWztLhx",
+              "im_online": "5Dt4ibCJCavh5y6Bib66zjnehC521iYon4VNs72Q5xtdbb3V",
+              "parachain_validator": "5FGv27secEW4j5MrRpyZttamFpe8ZDyBN8EVvTm7QxRKBYRJ",
+              "authority_discovery": "5EABNw7wiXQeMZwcLx3J8A1c1zwSrbzQDwjrHG15PggnJ8vo"
+            }
+          ],
+          [
+            "5G4mLkXPMjJg3r6GznYNVJDwUGviCXxg567jxxByp7rQyynE",
+            "5G4mLkXPMjJg3r6GznYNVJDwUGviCXxg567jxxByp7rQyynE",
+            {
+              "grandpa": "5GxJttHYzgGcSdCrrLKfcn1BA7VR7zt7g1JKLwWXqUYhpaa7",
+              "babe": "5GH7rXJHTuu6SkjrN3fTPquV8fBiWLfrMTLV3V3M7U3Z2Ydg",
+              "im_online": "5CXuAfXzaNM2dMuLu8BdsBekMkuGKUa1FAwh1DHHbx3khcBb",
+              "parachain_validator": "5Gq6B3rC5h5ctN3QisR3u3Ac4XUyZ3JnKhySVPAg6Ew7wQ29",
+              "authority_discovery": "5DfCRvwsVxjYSsbADHqxDYGAReqLraemyZkwUvvC8HK4Puh5"
             }
           ]
         ]
