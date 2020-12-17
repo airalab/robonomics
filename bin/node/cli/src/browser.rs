@@ -27,7 +27,10 @@ use wasm_bindgen::prelude::*;
 
 /// Starts the client.
 #[wasm_bindgen]
-pub async fn start_client(chain_spec: Option<String>, log_level: String) -> Result<Client, JsValue> {
+pub async fn start_client(
+    chain_spec: Option<String>,
+    log_level: String,
+) -> Result<Client, JsValue> {
     start_inner(chain_spec, log_level)
         .await
         .map_err(|err| JsValue::from_str(&err.to_string()))
@@ -57,15 +60,21 @@ async fn start_inner(
     // Create the service. This is the most heavy initialization step.
     match config.chain_spec.family() {
         RobonomicsFamily::DaoIpci => {
-            let (task_manager, rpc_handlers) = service::ipci::new_light(config)
-                .map_err(|e| format!("{:?}", e))?;
-            Ok(substrate_browser_utils::start_client(task_manager, rpc_handlers))
+            let (task_manager, rpc_handlers) =
+                service::ipci::new_light(config).map_err(|e| format!("{:?}", e))?;
+            Ok(substrate_browser_utils::start_client(
+                task_manager,
+                rpc_handlers,
+            ))
         }
         RobonomicsFamily::Development => {
-            let (task_manager, rpc_handlers) = service::robonomics::new_light(config)
-                .map_err(|e| format!("{:?}", e))?;
-            Ok(substrate_browser_utils::start_client(task_manager, rpc_handlers))
-        },
+            let (task_manager, rpc_handlers) =
+                service::robonomics::new_light(config).map_err(|e| format!("{:?}", e))?;
+            Ok(substrate_browser_utils::start_client(
+                task_manager,
+                rpc_handlers,
+            ))
+        }
         RobonomicsFamily::Parachain => unimplemented!(),
     }
 }

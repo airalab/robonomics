@@ -55,20 +55,15 @@ use pallet_grandpa::{
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_api::impl_runtime_apis;
-use sp_core::{
-    crypto::KeyTypeId,
-    OpaqueMetadata,
-};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{
     self, BlakeTwo256, Block as BlockT, NumberFor, SaturatedConversion, StaticLookup,
 };
-use sp_runtime::transaction_validity::{
-    TransactionSource, TransactionValidity,
-};
+use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber,
-    Perbill, Perquintill,
+    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
+    Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]

@@ -19,16 +19,15 @@
 
 use node_primitives::{AccountId, Balance, Block, Signature};
 use robonomics_runtime::{
-    wasm_binary_unwrap, BabeConfig, BalancesConfig,
-    GenesisConfig, GrandpaConfig, IndicesConfig,
+    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig,
     SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
+use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_consensus_babe::AuthorityId as BabeId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Robonomics runtime family chains.
@@ -60,7 +59,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     }
 }
 
-const LOCAL_TESTNET_ID: &str = "local_testnet";
 const DAO_IPCI_ID: &str = "ipci";
 /*
 const IPCI_PROTOCOL_ID: &str = "mito";
@@ -106,13 +104,7 @@ where
 }
 
 /// Helper function to generate stash, controller and session key from seed
-fn get_authority_keys_from_seed(
-    seed: &str,
-) -> (
-    AccountId,
-    BabeId,
-    GrandpaId,
-) {
+fn get_authority_keys_from_seed(seed: &str) -> (AccountId, BabeId, GrandpaId) {
     (
         get_account_id_from_seed::<sr25519::Public>(seed),
         get_from_seed::<BabeId>(seed),
@@ -121,11 +113,7 @@ fn get_authority_keys_from_seed(
 }
 
 fn development_genesis(
-    initial_authorities: Vec<(
-        AccountId,
-        BabeId,
-        GrandpaId,
-    )>,
+    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
     endowed_accounts: Option<Vec<AccountId>>,
     sudo_key: AccountId,
 ) -> GenesisConfig {
@@ -163,11 +151,7 @@ fn development_genesis(
 
 /// Helper function to create GenesisConfig
 fn mk_genesis(
-    initial_authorities: Vec<(
-        AccountId,
-        BabeId,
-        GrandpaId,
-    )>,
+    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
     balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
@@ -178,12 +162,18 @@ fn mk_genesis(
             changes_trie_config: Default::default(),
         }),
         pallet_indices: Some(IndicesConfig { indices: vec![] }),
-        pallet_balances: Some(BalancesConfig { balances, }),
+        pallet_balances: Some(BalancesConfig { balances }),
         pallet_babe: Some(BabeConfig {
-            authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+            authorities: initial_authorities
+                .iter()
+                .map(|x| (x.1.clone(), 1))
+                .collect(),
         }),
         pallet_grandpa: Some(GrandpaConfig {
-            authorities: initial_authorities.iter().map(|x| (x.2.clone(), 1)).collect(),
+            authorities: initial_authorities
+                .iter()
+                .map(|x| (x.2.clone(), 1))
+                .collect(),
         }),
         //pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
         //pallet_collective_Instance1: Some(CouncilConfig::default()),

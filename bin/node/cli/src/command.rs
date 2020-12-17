@@ -65,9 +65,9 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
-            #[not(cfg(feature = "parachain"))]
-            path => Err("Unknown spec")
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(2000).into())?,
+            #[cfg(not(feature = "parachain"))]
+            path => Err("Unknown spec"),
         })
     }
 
@@ -91,14 +91,14 @@ pub fn run() -> sc_cli::Result<()> {
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_node_until_exit(|config| async move {
                     match config.role {
-                        Role::Light => ipci::new_light(config).0,
+                        Role::Light => ipci::new_light(config).map(|r| r.0),
                         _ => ipci::new_full(config),
                     }
                 }),
 
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
                     match config.role {
-                        Role::Light => robonomics::new_light(config),
+                        Role::Light => robonomics::new_light(config).map(|r| r.0),
                         _ => robonomics::new_full(config),
                     }
                 }),

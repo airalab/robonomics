@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
-use std::path::PathBuf;
 use structopt::StructOpt;
 
 /// An overarching CLI command definition.
@@ -91,10 +90,10 @@ pub enum Subcommand {
     /// Export the genesis state of the parachain.
     #[structopt(name = "export-genesis-state")]
     #[cfg(feature = "parachain")]
-    ExportGenesisState(crate::parachain::ExportGenesisStateCommand),
+    ExportGenesisState(super::parachain::cli::ExportGenesisStateCommand),
 
     /// Export the genesis wasm of the parachain.
     #[structopt(name = "export-genesis-wasm")]
     #[cfg(feature = "parachain")]
-    ExportGenesisWasm(crate::parachain::ExportGenesisWasmCommand),
+    ExportGenesisWasm(super::parachain::cli::ExportGenesisWasmCommand),
 }

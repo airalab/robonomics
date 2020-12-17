@@ -21,7 +21,6 @@ use node_primitives::Block;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
-use structopt::StructOpt;
 use std::sync::Arc;
 
 sc_executor::native_executor_instance!(
@@ -105,42 +104,7 @@ pub fn extract_genesis_wasm(
         .ok_or_else(|| "Could not find wasm file in genesis state!".into())
 }
 
-/// Command for exporting the genesis state of the parachain
-#[derive(Debug, StructOpt)]
-pub struct ExportGenesisStateCommand {
-    /// Output file name or stdout if unspecified.
-    #[structopt(parse(from_os_str))]
-    pub output: Option<PathBuf>,
-
-    /// Write output in binary. Default is to write in hex.
-    #[structopt(short, long)]
-    pub raw: bool,
-
-    /// Id of the parachain this state is for.
-    #[structopt(long, default_value = "1000")]
-    pub parachain_id: u32,
-
-    /// The name of the chain for that the genesis state should be exported.
-    #[structopt(long)]
-    pub chain: Option<String>,
-}
-
-/// Command for exporting the genesis wasm file.
-#[derive(Debug, StructOpt)]
-pub struct ExportGenesisWasmCommand {
-    /// Output file name or stdout if unspecified.
-    #[structopt(parse(from_os_str))]
-    pub output: Option<PathBuf>,
-
-    /// Write output in binary. Default is to write in hex.
-    #[structopt(short, long)]
-    pub raw: bool,
-
-    /// The name of the chain for that the genesis wasm file should be exported.
-    #[structopt(long)]
-    pub chain: Option<String>,
-}
-
 pub mod chain_spec;
+pub mod cli;
 pub mod collator;
 pub mod command;

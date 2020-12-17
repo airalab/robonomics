@@ -490,7 +490,7 @@ where
 /// IPCI chain services.
 pub mod ipci {
     use ipci_runtime::RuntimeApi;
-    use sc_service::{config::Configuration, error::Result, TaskManager, RpcHandlers};
+    use sc_service::{config::Configuration, error::Result, RpcHandlers, TaskManager};
 
     #[cfg(feature = "frame-benchmarking")]
     sc_executor::native_executor_instance!(
@@ -523,7 +523,7 @@ pub mod ipci {
 ///  Robonomics chain services.
 pub mod robonomics {
     use robonomics_runtime::RuntimeApi;
-    use sc_service::{config::Configuration, error::Result, TaskManager, RpcHandlers};
+    use sc_service::{config::Configuration, error::Result, RpcHandlers, TaskManager};
 
     #[cfg(feature = "frame-benchmarking")]
     sc_executor::native_executor_instance!(
