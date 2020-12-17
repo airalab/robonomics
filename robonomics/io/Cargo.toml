@@ -13,7 +13,7 @@ derive_more = "0.99.11"
 async-std = "1.8.0"
 sp-core = "2.0.0"
 futures = "0.3.8"
-sds011 = "0.2.0"
+sds011 = "0.2.1"
 serde = "1.0.106"
 log = "0.4.11"
 

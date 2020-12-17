@@ -53,10 +53,6 @@ jobs:
         echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/bin/aarch64-linux-gnu-gcc-5" >> ${GITHUB_ENV}
         echo "QEMU_LD_PREFIX=/usr/aarch64-linux-gnu" >> ${GITHUB_ENV}
 
-    - name: Install libudev dependecy
-      if: matrix.os == 'ubuntu-latest'
-      run: sudo apt install libudev-dev
-
     - name: Cache
       uses: actions/cache@v2
       with:
