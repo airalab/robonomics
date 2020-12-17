@@ -122,8 +122,13 @@ jobs:
   nix-wasm:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v12
+    - uses: hecrj/setup-rust-action@v1
       with:
-        nix_path: nixpkgs=channel:nixos-20.09
-    - run: nix-shell --run "make -C bin/node/cli/browser"
+        rust-version: 'nightly-2020-09-20'
+        targets: 'wasm32-unknown-unknown'
+    - uses: actions/checkout@v2
+    - name: Install build tools
+      run: |
+        cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
+    - name: Build web node
+      run: make pkg --directory bin/node/cli/browser
