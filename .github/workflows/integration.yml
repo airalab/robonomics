@@ -1,14 +1,28 @@
 name: Integration
-on:
-  push:
-    tags:
-      - v*
+on: [push]
+
 jobs:
   native:
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.target }}
+    runs-on: ${{ matrix.config.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        config:
+          - os: macOS-latest
+            target: x86_64-apple-darwin
+
+          - os: ubuntu-latest-xl
+            target: x86_64-unknown-linux-gnu
+
+          - os: windows-2019
+            target: x86_64-pc-windows-msvc
+
+          - os: ubuntu-latest-xl
+            target: aarch64-unknown-linux-gnu
+            variant: release
+    env:
+      EXE_EXT: ${{ contains(matrix.config.target, 'windows') && '.exe' || '' }}
+
     steps:
     - name: Install LLVM (windows only)
       if: runner.os == 'Windows'
@@ -20,60 +34,81 @@ jobs:
         targets: 'wasm32-unknown-unknown'
 
     - name: Checkout the source code
-      uses: actions/checkout@master
+      uses: actions/checkout@v1
 
     - name: Check targets are installed correctly
       run: rustup target list --installed
 
+    - name: Install cross compilation toolchain
+      if: matrix.config.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        rustup target add aarch64-unknown-linux-gnu
+        sudo apt update
+        sudo apt install -yq --no-install-suggests --no-install-recommends \
+          binfmt-support g++-5-aarch64-linux-gnu g++-5-multilib \
+          gcc-5-aarch64-linux-gnu libc6-arm64-cross qemu qemu-user \
+          qemu-user-binfmt
+        sudo ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
+          /lib/ld-linux-aarch64.so.1
+        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/bin/aarch64-linux-gnu-gcc-5" >> ${GITHUB_ENV}
+        echo "QEMU_LD_PREFIX=/usr/aarch64-linux-gnu" >> ${GITHUB_ENV}
+
     - name: Install libudev dependecy
       if: matrix.os == 'ubuntu-latest'
-      run: sudo apt update && sudo apt install libudev-dev
+      run: sudo apt install libudev-dev
 
-    - name: Install ROS Melodic
-      if: matrix.os == 'ubuntu-latest'
-      run: ./scripts/ros-install.sh
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |-
+          target/sccache
+          target/*/.*
+          target/*/build
+          target/*/deps
+        key:
+          ${{ matrix.config.target }}-${{
+            hashFiles('./Cargo.lock', './v8/include/v8-version.h') }}
+        restore-keys:
+          ${{ matrix.config.target }}-
+
+    - name: Work around MacOS + Cargo + Github Actions cache bug
+      if: runner.os == 'macOS'
+      run: cargo clean -p serde_derive
+
+    - name: Install and start sccache
+      shell: pwsh
+      env:
+        SCCACHE_DIR: ${{ github.workspace }}/target/sccache
+        SCCACHE_CACHE_SIZE: 128M
+        SCCACHE_IDLE_TIMEOUT: 0
+      run: |
+        $version = "0.2.12"
+        $platform =
+          @{ "macOS"   = "x86_64-apple-darwin"
+             "Linux"   = "x86_64-unknown-linux-musl"
+             "Windows" = "x86_64-pc-windows-msvc"
+           }.${{ runner.os }}
+        $basename = "sccache-$version-$platform"
+        $url = "https://github.com/mozilla/sccache/releases/download/" +
+               "$version/$basename.tar.gz"
+        cd ~
+        curl -LO $url
+        tar -xzvf "$basename.tar.gz"
+        . $basename/sccache --start-server
+        echo "$(pwd)/$basename" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Build optimized binary
-      run: cargo build --release --verbose
-    
-    - name: Build and push Docker image
-      if: matrix.os == 'ubuntu-latest'
-      uses: docker/build-push-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        repository: airalab/robonomics
-        tag_with_ref: true
-        tags: latest
-        add_git_labels: true
-        dockerfile: scripts/docker/Dockerfile
-        path: target/release
+      run:
+        cargo test -vv --all-targets --locked --release --target ${{ matrix.config.target }}
 
-    - name: Upload binary archive into IPFS
-      if: runner.os != 'Windows'
-      run: |
-        cd target/release
-        tar cfJ robonomics-${{ matrix.os }}-x86_64.tar.xz robonomics
-        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.tar.xz
+    - name: Stop sccache
+      if: always()
+      run: sccache --stop-server
 
     - uses: actions/upload-artifact@master
-      if: runner.os != 'Windows'
       with:
-        name: robonomics-${{ matrix.os }}-x86_64.tar.xz
-        path: target/release/robonomics-${{ matrix.os }}-x86_64.tar.xz
-
-    - name: Upload binary archive into IPFS (windows only)
-      if: runner.os == 'Windows'
-      run: |
-        cd target/release
-        tar czf robonomics-${{ matrix.os }}-x86_64.tar.gz robonomics.exe
-        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.tar.gz
-
-    - uses: actions/upload-artifact@master
-      if: runner.os == 'Windows'
-      with:
-        name: robonomics-${{ matrix.os }}-x86_64.tar.gz
-        path: target/release/robonomics-${{ matrix.os }}-x86_64.tar.gz
+        name: robonomics-${{ matrix.config.target }}
+        path: target/release/robonomics${{ env.EXE_EXT }}
 
   nix-native:
     runs-on: ubuntu-latest
