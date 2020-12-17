@@ -13,17 +13,22 @@ jobs:
     - name: Install LLVM (windows only)
       if: runner.os == 'Windows'
       run: choco install llvm
+
     - uses: hecrj/setup-rust-action@v1
       with:
         rust-version: 'nightly-2020-09-20'
         targets: 'wasm32-unknown-unknown'
+
     - name: Checkout the source code
       uses: actions/checkout@master
+
     - name: Check targets are installed correctly
       run: rustup target list --installed
+
     - name: Install libudev dependecy
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt update && sudo apt install libudev-dev
+
     - name: Install ROS Melodic
       if: matrix.os == 'ubuntu-latest'
       run: ./scripts/ros-install.sh
@@ -50,6 +55,7 @@ jobs:
         cd target/release
         tar cfJ robonomics-${{ matrix.os }}-x86_64.tar.xz robonomics
         curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.tar.xz
+
     - uses: actions/upload-artifact@master
       if: runner.os != 'Windows'
       with:
@@ -62,40 +68,14 @@ jobs:
         cd target/release
         tar czf robonomics-${{ matrix.os }}-x86_64.tar.gz robonomics.exe
         curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@robonomics-${{ matrix.os }}-x86_64.tar.gz
+
     - uses: actions/upload-artifact@master
       if: runner.os == 'Windows'
       with:
         name: robonomics-${{ matrix.os }}-x86_64.tar.gz
         path: target/release/robonomics-${{ matrix.os }}-x86_64.tar.gz
 
-    - name: Build subkey optimized binary
-      run: cargo build --release --verbose -p subkey
-
-    - name: Upload subkey binary archive into IPFS
-      if: runner.os != 'Windows'
-      run: |
-        cd target/release
-        tar cfJ subkey-${{ matrix.os }}-x86_64.tar.xz subkey
-        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@subkey-${{ matrix.os }}-x86_64.tar.xz
-    - uses: actions/upload-artifact@master
-      if: runner.os != 'Windows'
-      with:
-        name: subkey-${{ matrix.os }}-x86_64.tar.xz
-        path: target/release/subkey-${{ matrix.os }}-x86_64.tar.xz
-
-    - name: Upload subkey binary archive into IPFS (windows only)
-      if: runner.os == 'Windows'
-      run: |
-        cd target/release
-        tar czf subkey-${{ matrix.os }}-x86_64.tar.gz subkey.exe
-        curl "https://ipfs.infura.io:5001/api/v0/add" -F file=@subkey-${{ matrix.os }}-x86_64.tar.gz
-    - uses: actions/upload-artifact@master
-      if: runner.os == 'Windows'
-      with:
-        name: subkey-${{ matrix.os }}-x86_64.tar.gz
-        path: target/release/subkey-${{ matrix.os }}-x86_64.tar.gz
-
-  nix:
+  nix-native:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -104,25 +84,11 @@ jobs:
         nix_path: nixpkgs=channel:nixos-20.09
     - run: nix-shell --run "cargo build --release"
 
-  wasm:
+  nix-wasm:
     runs-on: ubuntu-latest
     steps:
-    - uses: hecrj/setup-rust-action@v1
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v12
       with:
-        rust-version: 'nightly-2020-09-20'
-        targets: 'wasm32-unknown-unknown'
-    - name: Checkout the source code
-      uses: actions/checkout@master
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
-    - name: Install build tools
-      run: |
-        cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
-    - name: Build Web Node
-      run: make pkg --directory bin/node/cli/browser
-    - name: Upload Web Node into IPFS
-      run: |
-        cd bin/node/cli/browser
-        FILES=$(find * -type f | grep -v ' ' | awk -v q="'" '{print " -F " q "file=@\"" $0 "\"" q}')
-        curl "https://ipfs.infura.io:5001/api/v0/add?wrap-with-directory=true" $FILES
-        echo "Done"
+        nix_path: nixpkgs=channel:nixos-20.09
+    - run: nix-shell --run "make -C bin/node/cli/browser"
