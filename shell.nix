@@ -10,7 +10,8 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ clang ];
   buildInputs = [
     release.rust-nightly
-    wasm-bindgen-cli
+    pkgconfig
+    openssl
     libudev
   ];
   ROCKSDB_LIB_DIR = "${rocksdb}/lib";

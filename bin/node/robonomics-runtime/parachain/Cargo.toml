@@ -29,6 +29,7 @@ sp-version = { git = "https://github.com/paritytech/substrate", branch = "master
 
 # frame dependencies
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+pallet-bounties = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
@@ -74,6 +75,7 @@ std = [
     "pallet-collective/std",
     "pallet-elections-phragmen/std",
     "pallet-balances/std",
+    "pallet-bounties/std",
     "sp-api/std",
     "frame-executive/std",
     "pallet-indices/std",

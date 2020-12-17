@@ -61,7 +61,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, StaticLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, ModuleId, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -202,8 +202,6 @@ impl pallet_indices::Config for Runtime {
 
 parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
-    pub const TransferFee: Balance = 1 * GLUSHKOV;
-    pub const CreationFee: Balance = 1 * GLUSHKOV;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
     pub const MaxLocks: u32 = 50;
@@ -285,17 +283,8 @@ parameter_types! {
     pub const ProposalBondMinimum: Balance = 1 * XRT;
     pub const SpendPeriod: BlockNumber = 1 * DAYS;
     pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
-    pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * XRT;
     pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
-    pub const BountyDepositBase: Balance = 1 * XRT;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 1 * XRT;
-    pub const MaximumReasonLength: u32 = 16384;
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -311,23 +300,34 @@ impl pallet_treasury::Config for Runtime {
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
     >;
-    type Tippers = Elections;
-    type TipCountdown = TipCountdown;
-    type TipFindersFee = TipFindersFee;
-    type TipReportDepositBase = TipReportDepositBase;
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
-    type DataDepositPerByte = DataDepositPerByte;
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
     type BurnDestination = ();
+    type SpendFunds = ();
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const MaximumReasonLength: u32 = 16384;
+    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+    pub const BountyValueMinimum: Balance = 5 * XRT;
+    pub const BountyDepositBase: Balance = 1 * XRT;
+    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+}
+
+impl pallet_bounties::Config for Runtime {
+    type Event = Event;
     type BountyDepositBase = BountyDepositBase;
     type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
     type BountyUpdatePeriod = BountyUpdatePeriod;
     type BountyCuratorDeposit = BountyCuratorDeposit;
     type BountyValueMinimum = BountyValueMinimum;
+    type DataDepositPerByte = DataDepositPerByte;
     type MaximumReasonLength = MaximumReasonLength;
     type WeightInfo = ();
 }
@@ -382,6 +382,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 impl cumulus_message_broker::Config for Runtime {
     type DownwardMessageHandlers = ();
+    type HrmpMessageHandlers = ();
 }
 
 impl parachain_info::Config for Runtime {}
@@ -506,10 +507,11 @@ construct_runtime! {
         ParachainInfo: parachain_info::{Module, Storage, Config},
 
         // DAO modules
-        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
         Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
+        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+        Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},

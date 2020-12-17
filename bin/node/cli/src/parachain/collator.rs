@@ -38,15 +38,7 @@ async fn start_node_impl<RB>(
     polkadot_config: Configuration,
     id: polkadot_primitives::v0::Id,
     validator: bool,
-    rpc_ext_builder: RB,
-) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)>
-where
-    RB: Fn(
-            Arc<TFullClient<Block, RuntimeApi, Executor>>,
-        ) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
-        + Send
-        + 'static,
-{
+) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)> {
     if matches!(parachain_config.role, Role::Light) {
         return Err("Light client not supported!".into());
     }
@@ -54,7 +46,8 @@ where
     let parachain_config = prepare_node_config(parachain_config);
 
     let polkadot_full_node =
-        cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public())?;
+        cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public())
+        .map_err(|e| match e { polkadot_service::Error::Sub(x) => x, s => format!("{}", s).into() })?;
 
     let params = new_partial(&parachain_config)?;
     params
@@ -87,7 +80,7 @@ where
         })?;
 
     let rpc_client = client.clone();
-    let rpc_extensions_builder = Box::new(move |_, _| rpc_ext_builder(rpc_client.clone()));
+    let rpc_extensions_builder = Box::new(|_, _| ());
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
@@ -166,7 +159,6 @@ pub async fn start_node(
         polkadot_config,
         id,
         validator,
-        |_| Default::default(),
     )
     .await
 }

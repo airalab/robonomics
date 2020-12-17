@@ -18,7 +18,6 @@
 
 use crate::{
     chain_spec::*,
-    parachain,
     service::{ipci, robonomics},
     Cli, Subcommand,
 };
@@ -28,6 +27,9 @@ use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
 use std::io::Write;
+
+#[cfg(feature = "parachain")]
+use crate::parachain;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -62,7 +64,10 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
+            #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
+            #[not(cfg(feature = "parachain"))]
+            path => Err("Unknown spec")
         })
     }
 
@@ -70,6 +75,7 @@ impl SubstrateCli for Cli {
         match chain_spec.family() {
             RobonomicsFamily::DaoIpci => &ipci_runtime::VERSION,
             RobonomicsFamily::Development => &robonomics_runtime::VERSION,
+            #[cfg(feature = "parachain")]
             RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
         }
     }
@@ -85,7 +91,7 @@ pub fn run() -> sc_cli::Result<()> {
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::DaoIpci => runner.run_node_until_exit(|config| async move {
                     match config.role {
-                        Role::Light => ipci::new_light(config),
+                        Role::Light => ipci::new_light(config).0,
                         _ => ipci::new_full(config),
                     }
                 }),
@@ -97,6 +103,7 @@ pub fn run() -> sc_cli::Result<()> {
                     }
                 }),
 
+                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, Role::Light) {
                         return Err("Light client not supporter!".into());
@@ -142,6 +149,7 @@ pub fn run() -> sc_cli::Result<()> {
                 })
             }
         }
+        #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
             sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
 
@@ -164,6 +172,7 @@ pub fn run() -> sc_cli::Result<()> {
 
             Ok(())
         }
+        #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
             sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
 

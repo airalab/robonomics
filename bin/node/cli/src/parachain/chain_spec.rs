@@ -32,12 +32,6 @@ use crate::chain_spec::get_account_id_from_seed;
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
-const ROBONOMICS_PROPERTIES: &str = r#"
-    {
-        "ss58Format": 32,
-        "tokenDecimals": 9,
-        "tokenSymbol": "XRT"
-    }"#;
 
 /// Earth parachain ID
 const EARTH_ID: u32 = 1000;
@@ -170,7 +164,7 @@ pub fn earth_parachain_config() -> ChainSpec {
                 .unwrap(),
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
             para_id: EARTH_ID.into(),
@@ -212,7 +206,7 @@ pub fn mars_parachain_config() -> ChainSpec {
                 .unwrap(),
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
             para_id: MARS_ID.into(),
