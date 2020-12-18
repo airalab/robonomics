@@ -56,6 +56,10 @@ cumulus-runtime = { git = "https://github.com/paritytech/cumulus", branch = "mas
 cumulus-message-broker = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
 cumulus-parachain-upgrade = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
+xcm-handler = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -108,4 +112,8 @@ std = [
     "pallet-robonomics-rws/std",
     "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
+    "xcm/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+    "xcm-handler/std",
 ]
