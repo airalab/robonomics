@@ -57,6 +57,9 @@ cumulus-message-broker = { git = "https://github.com/paritytech/cumulus", branch
 cumulus-parachain-upgrade = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
 xcm-handler = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
+
+# polkadot dependencies
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
@@ -116,4 +119,5 @@ std = [
     "xcm-builder/std",
     "xcm-executor/std",
     "xcm-handler/std",
+    "polkadot-parachain/std",
 ]

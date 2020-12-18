@@ -72,7 +72,7 @@ use sp_version::RuntimeVersion;
 use polkadot_parachain::primitives::Sibling;
 use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-    AccountId32Aliases, CurrencyAdapter, LocationInverter, ParentIsDefault, RelayChainAsNative,
+    AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
     SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
     SovereignSignedViaLocation,
 };
@@ -88,8 +88,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 2,
-    impl_version: 2,
+    spec_version: 3,
+    impl_version: 3,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
 };
@@ -415,7 +415,7 @@ type LocationConverter = (
     AccountId32Aliases<RococoNetwork, AccountId>,
 );
 
-type LocalAssetTransactor = CurrencyAdapter<
+type LocalAssetTransactor = xcm_builder::CurrencyAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
