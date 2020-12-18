@@ -27,8 +27,8 @@ jobs:
 
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-09-20'
-        targets: 'wasm32-unknown-unknown'
+        rust-version: 'nightly-2020-09-10'
+        targets: 'wasm32-unknown-unknown,aarch64-unknown-linux-gnu'
 
     - name: Checkout the source code
       uses: actions/checkout@v1
@@ -39,7 +39,6 @@ jobs:
     - name: Install cross compilation toolchain
       if: matrix.config.target == 'aarch64-unknown-linux-gnu'
       run: |
-        rustup target add aarch64-unknown-linux-gnu
         sudo apt update
         sudo apt install -yq --no-install-suggests --no-install-recommends \
           binfmt-support g++-5-aarch64-linux-gnu g++-5-multilib \
