@@ -31,14 +31,7 @@ use crate::chain_spec::get_account_id_from_seed;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
-pub const ROBONOMICS_PARACHAIN_ID: &str = "robonomics";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
-const ROBONOMICS_PROPERTIES: &str = r#"
-    {
-        "ss58Format": 32,
-        "tokenDecimals": 9,
-        "tokenSymbol": "XRT"
-    }"#;
 
 /// Earth parachain ID
 const EARTH_ID: u32 = 1000;
@@ -162,7 +155,7 @@ pub fn earth_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Earth",
-        ROBONOMICS_PARACHAIN_ID,
+        "earth",
         ChainType::Live,
         earth_parachain_genesis,
         boot_nodes,
@@ -171,7 +164,7 @@ pub fn earth_parachain_config() -> ChainSpec {
                 .unwrap(),
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
             para_id: EARTH_ID.into(),
@@ -204,7 +197,7 @@ pub fn mars_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
         "Mars",
-        ROBONOMICS_PARACHAIN_ID,
+        "mars",
         ChainType::Live,
         mars_parachain_genesis,
         boot_nodes,
@@ -213,7 +206,7 @@ pub fn mars_parachain_config() -> ChainSpec {
                 .unwrap(),
         ),
         Some(ROBONOMICS_PROTOCOL_ID),
-        Some(serde_json::from_str(ROBONOMICS_PROPERTIES).unwrap()),
+        None,
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
             para_id: MARS_ID.into(),

@@ -27,20 +27,26 @@ use wasm_bindgen::prelude::*;
 
 /// Starts the client.
 #[wasm_bindgen]
-pub async fn start_client(chain_spec: String, log_level: String) -> Result<Client, JsValue> {
+pub async fn start_client(
+    chain_spec: Option<String>,
+    log_level: String,
+) -> Result<Client, JsValue> {
     start_inner(chain_spec, log_level)
         .await
         .map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
 async fn start_inner(
-    chain_spec: String,
+    chain_spec: Option<String>,
     log_level: String,
 ) -> Result<Client, Box<dyn std::error::Error>> {
     set_console_error_panic_hook();
     init_console_log(log::Level::from_str(&log_level)?)?;
-    let chain_spec = ChainSpec::from_json_bytes(chain_spec.as_bytes().to_vec())
-        .map_err(|e| format!("{:?}", e))?;
+    let chain_spec = match chain_spec {
+        Some(chain_spec) => ChainSpec::from_json_bytes(chain_spec.as_bytes().to_vec())
+            .map_err(|e| format!("{:?}", e))?,
+        None => crate::chain_spec::development_config(),
+    };
 
     let config = browser_configuration(chain_spec).await?;
 
@@ -54,19 +60,21 @@ async fn start_inner(
     // Create the service. This is the most heavy initialization step.
     match config.chain_spec.family() {
         RobonomicsFamily::DaoIpci => {
-            let (task_manager, rpc_handlers, _, _, _) = service::new_light_base::<
-                ipci_runtime::RuntimeApi,
-                service::ipci::Executor,
-            >(config)
-            .map_err(|e| format!("{:?}", e))?;
+            let (task_manager, rpc_handlers) =
+                service::ipci::new_light(config).map_err(|e| format!("{:?}", e))?;
             Ok(substrate_browser_utils::start_client(
                 task_manager,
                 rpc_handlers,
             ))
         }
-        RobonomicsFamily::Unknown => unimplemented!(),
-        RobonomicsFamily::Development => unimplemented!(),
-        #[cfg(feature = "parachain")]
+        RobonomicsFamily::Development => {
+            let (task_manager, rpc_handlers) =
+                service::robonomics::new_light(config).map_err(|e| format!("{:?}", e))?;
+            Ok(substrate_browser_utils::start_client(
+                task_manager,
+                rpc_handlers,
+            ))
+        }
         RobonomicsFamily::Parachain => unimplemented!(),
     }
 }

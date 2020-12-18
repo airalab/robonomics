@@ -18,23 +18,17 @@
 //! Chain specification and utils.
 
 use node_primitives::{AccountId, Balance, Block, Signature};
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use robonomics_runtime::{
-    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-    ElectionsConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
-    SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig,
+    SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::{
-    traits::{IdentifyAccount, Verify},
-    Perbill,
-};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
@@ -65,7 +59,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     }
 }
 
-const LOCAL_TESTNET_ID: &str = "local_testnet";
 const DAO_IPCI_ID: &str = "ipci";
 /*
 const IPCI_PROTOCOL_ID: &str = "mito";
@@ -111,49 +104,16 @@ where
 }
 
 /// Helper function to generate stash, controller and session key from seed
-fn get_authority_keys_from_seed(
-    seed: &str,
-) -> (
-    AccountId,
-    AccountId,
-    BabeId,
-    GrandpaId,
-    ImOnlineId,
-    AuthorityDiscoveryId,
-) {
+fn get_authority_keys_from_seed(seed: &str) -> (AccountId, BabeId, GrandpaId) {
     (
-        get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
         get_account_id_from_seed::<sr25519::Public>(seed),
         get_from_seed::<BabeId>(seed),
         get_from_seed::<GrandpaId>(seed),
-        get_from_seed::<ImOnlineId>(seed),
-        get_from_seed::<AuthorityDiscoveryId>(seed),
     )
 }
 
-fn session_keys(
-    babe: BabeId,
-    grandpa: GrandpaId,
-    im_online: ImOnlineId,
-    authority_discovery: AuthorityDiscoveryId,
-) -> SessionKeys {
-    SessionKeys {
-        babe,
-        grandpa,
-        im_online,
-        authority_discovery,
-    }
-}
-
 fn development_genesis(
-    initial_authorities: Vec<(
-        AccountId,
-        AccountId,
-        BabeId,
-        GrandpaId,
-        ImOnlineId,
-        AuthorityDiscoveryId,
-    )>,
+    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
     endowed_accounts: Option<Vec<AccountId>>,
     sudo_key: AccountId,
 ) -> GenesisConfig {
@@ -191,66 +151,33 @@ fn development_genesis(
 
 /// Helper function to create GenesisConfig
 fn mk_genesis(
-    initial_authorities: Vec<(
-        AccountId,
-        AccountId,
-        BabeId,
-        GrandpaId,
-        ImOnlineId,
-        AuthorityDiscoveryId,
-    )>,
-    endowed_accounts: Vec<(AccountId, Balance)>,
+    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
+    balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
 ) -> GenesisConfig {
-    const STASH: Balance = 1_000_000;
     GenesisConfig {
         frame_system: Some(SystemConfig {
             code,
             changes_trie_config: Default::default(),
         }),
         pallet_indices: Some(IndicesConfig { indices: vec![] }),
-        pallet_balances: Some(BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .cloned()
-                .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
-                .collect(),
-        }),
-        pallet_session: Some(SessionConfig {
-            keys: initial_authorities
-                .iter()
-                .map(|x| {
-                    (
-                        x.0.clone(),
-                        x.0.clone(),
-                        session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-                    )
-                })
-                .collect::<Vec<_>>(),
-        }),
-        pallet_staking: Some(StakingConfig {
-            validator_count: 10,
-            minimum_validator_count: 3,
-            stakers: initial_authorities
-                .iter()
-                .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
-                .collect(),
-            invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-            slash_reward_fraction: Perbill::from_percent(10),
-            ..Default::default()
-        }),
+        pallet_balances: Some(BalancesConfig { balances }),
         pallet_babe: Some(BabeConfig {
-            authorities: vec![],
+            authorities: initial_authorities
+                .iter()
+                .map(|x| (x.1.clone(), 1))
+                .collect(),
         }),
         pallet_grandpa: Some(GrandpaConfig {
-            authorities: vec![],
+            authorities: initial_authorities
+                .iter()
+                .map(|x| (x.2.clone(), 1))
+                .collect(),
         }),
-        pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-        pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-        pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-        pallet_collective_Instance1: Some(CouncilConfig::default()),
-        pallet_treasury: Some(Default::default()),
+        //pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+        //pallet_collective_Instance1: Some(CouncilConfig::default()),
+        //pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }
 }

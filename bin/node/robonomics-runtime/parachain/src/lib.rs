@@ -42,9 +42,10 @@ use frame_support::{
     traits::{LockIdentifier, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        IdentityFee, Weight,
+        DispatchClass, IdentityFee, Weight,
     },
 };
+use frame_system::limits::{BlockLength, BlockWeights};
 use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
@@ -58,9 +59,9 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, Saturating, StaticLookup},
+    traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, StaticLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, ModuleId, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -94,23 +95,45 @@ impl_opaque_keys! {
     }
 }
 
-const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
+/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
+/// This is used to limit the maximal weight of a single extrinsic.
+const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
+/// by  Operational  extrinsics.
+const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+/// We allow for 2 seconds of compute with a 6 second average block time.
+const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+
 parameter_types! {
-    pub const BlockHashCount: BlockNumber = 2400;
-    /// We allow for 4 seconds of compute with a 12 second average block time.
-    pub const MaximumBlockWeight: Weight = 4 * WEIGHT_PER_SECOND;
-    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    /// Assume 10% of weight for average on_initialize calls
-    pub MaximumExtrinsicWeight: Weight =
-        AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
-        * MaximumBlockWeight::get();
-    pub const MaximumBlockLength: u32 = 10 * 1024 * 1024;
+    pub const BlockHashCount: BlockNumber = 250;
     pub const Version: RuntimeVersion = VERSION;
+    pub RuntimeBlockLength: BlockLength =
+        BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+    pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
+        .base_block(BlockExecutionWeight::get())
+        .for_class(DispatchClass::all(), |weights| {
+            weights.base_extrinsic = ExtrinsicBaseWeight::get();
+        })
+        .for_class(DispatchClass::Normal, |weights| {
+            weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
+        })
+        .for_class(DispatchClass::Operational, |weights| {
+            weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
+            // Operational transactions have some extra reserved space, so that they
+            // are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+            weights.reserved = Some(
+                MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
+            );
+        })
+        .avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
+        .build_or_panic();
 }
 
 impl frame_system::Config for Runtime {
     type Call = Call;
     type BaseCallFilter = ();
+    type BlockWeights = RuntimeBlockWeights;
+    type BlockLength = RuntimeBlockLength;
     type Version = Version;
     type AccountId = AccountId;
     type Lookup = Indices;
@@ -123,12 +146,6 @@ impl frame_system::Config for Runtime {
     type Origin = Origin;
     type DbWeight = RocksDbWeight;
     type BlockHashCount = BlockHashCount;
-    type BlockExecutionWeight = BlockExecutionWeight;
-    type MaximumBlockWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
-    type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
     type OnNewAccount = ();
@@ -185,8 +202,6 @@ impl pallet_indices::Config for Runtime {
 
 parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
-    pub const TransferFee: Balance = 1 * GLUSHKOV;
-    pub const CreationFee: Balance = 1 * GLUSHKOV;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
     pub const MaxLocks: u32 = 50;
@@ -247,7 +262,8 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * MaximumBlockWeight::get();
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
+        * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
 }
 
@@ -267,17 +283,8 @@ parameter_types! {
     pub const ProposalBondMinimum: Balance = 1 * XRT;
     pub const SpendPeriod: BlockNumber = 1 * DAYS;
     pub const Burn: Permill = Permill::from_percent(50);
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
-    pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * XRT;
     pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
-    pub const BountyDepositBase: Balance = 1 * XRT;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 1 * XRT;
-    pub const MaximumReasonLength: u32 = 16384;
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -293,23 +300,34 @@ impl pallet_treasury::Config for Runtime {
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
     >;
-    type Tippers = Elections;
-    type TipCountdown = TipCountdown;
-    type TipFindersFee = TipFindersFee;
-    type TipReportDepositBase = TipReportDepositBase;
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
-    type DataDepositPerByte = DataDepositPerByte;
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
     type BurnDestination = ();
+    type SpendFunds = ();
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const MaximumReasonLength: u32 = 16384;
+    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
+    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+    pub const BountyValueMinimum: Balance = 5 * XRT;
+    pub const BountyDepositBase: Balance = 1 * XRT;
+    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+}
+
+impl pallet_bounties::Config for Runtime {
+    type Event = Event;
     type BountyDepositBase = BountyDepositBase;
     type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
     type BountyUpdatePeriod = BountyUpdatePeriod;
     type BountyCuratorDeposit = BountyCuratorDeposit;
     type BountyValueMinimum = BountyValueMinimum;
+    type DataDepositPerByte = DataDepositPerByte;
     type MaximumReasonLength = MaximumReasonLength;
     type WeightInfo = ();
 }
@@ -362,16 +380,10 @@ impl pallet_elections_phragmen::Config for Runtime {
     type WeightInfo = ();
 }
 
-/*
 impl cumulus_message_broker::Config for Runtime {
-    type Event = Event;
     type DownwardMessageHandlers = ();
-    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
-    type ParachainId = ParachainInfo;
-    type XCMPMessage = pallet_robonomics_launch::XCMPMessage<Self::AccountId, bool>;
-    type XCMPMessageHandlers = Launch;
+    type HrmpMessageHandlers = ();
 }
-*/
 
 impl parachain_info::Config for Runtime {}
 
@@ -490,14 +502,16 @@ construct_runtime! {
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
+        MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
 
         // DAO modules
-        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
         Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
         Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
+        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+        Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},

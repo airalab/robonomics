@@ -21,6 +21,13 @@ fn main() {
     cli::main();
 }
 
+#[cfg(feature = "parachain")]
+mod parachain {
+    pub mod cli {
+        include!("src/parachain/cli.rs");
+    }
+}
+
 #[cfg(feature = "cli")]
 mod cli {
     include!("src/cli.rs");

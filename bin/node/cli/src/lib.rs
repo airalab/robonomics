@@ -23,7 +23,9 @@ pub mod chain_spec;
 
 #[macro_use]
 mod service;
+
 #[macro_use]
+#[cfg(feature = "parachain")]
 mod parachain;
 
 #[cfg(feature = "browser")]

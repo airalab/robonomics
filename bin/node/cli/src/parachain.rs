@@ -105,5 +105,6 @@ pub fn extract_genesis_wasm(
 }
 
 pub mod chain_spec;
+pub mod cli;
 pub mod collator;
 pub mod command;

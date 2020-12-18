@@ -17,11 +17,7 @@ rustPlatform.buildRustPackage {
   cargoSha256 = null; 
   propagatedBuildInputs = [ substrate-ros-msgs ];
   nativeBuildInputs = [ clang ];
-  buildInputs = [
-    rust-nightly
-    libudev
-    cmake
-  ];
+  buildInputs = [ rust-nightly ];
   ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   LIBCLANG_PATH = "${llvmPackages.libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";

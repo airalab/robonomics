@@ -17,12 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
-use futures::prelude::*;
 use node_primitives::{AccountId, Balance, Block, Index};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
 use sc_finality_grandpa::{self as grandpa, FinalityProofProvider as GrandpaFinalityProofProvider};
-use sc_network::{Event, NetworkService};
+use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sp_api::ConstructRuntimeApi;
 use sp_inherents::InherentDataProviders;
@@ -50,7 +49,6 @@ pub trait RuntimeApiCollection:
     + sp_api::Metadata<Block>
     + sp_offchain::OffchainWorkerApi<Block>
     + sp_session::SessionKeys<Block>
-    + sp_authority_discovery::AuthorityDiscoveryApi<Block>
 where
     <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
@@ -67,8 +65,7 @@ where
         + frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
         + sp_api::Metadata<Block>
         + sp_offchain::OffchainWorkerApi<Block>
-        + sp_session::SessionKeys<Block>
-        + sp_authority_discovery::AuthorityDiscoveryApi<Block>,
+        + sp_session::SessionKeys<Block>,
     <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
 }
@@ -318,33 +315,6 @@ where
             .spawn_blocking("babe-proposer", babe);
     }
 
-    // Spawn authority discovery module.
-    if role.is_authority() {
-        let authority_discovery_role =
-            sc_authority_discovery::Role::PublishAndDiscover(keystore_container.keystore());
-        let dht_event_stream =
-            network
-                .event_stream("authority-discovery")
-                .filter_map(|e| async move {
-                    match e {
-                        Event::Dht(e) => Some(e),
-                        _ => None,
-                    }
-                });
-        let (authority_discovery_worker, _service) = sc_authority_discovery::new_worker_and_service(
-            client.clone(),
-            network.clone(),
-            Box::pin(dht_event_stream),
-            authority_discovery_role,
-            prometheus_registry.clone(),
-        );
-
-        task_manager.spawn_handle().spawn(
-            "authority-discovery-worker",
-            authority_discovery_worker.run(),
-        );
-    }
-
     // if the node isn't actively participating in consensus then it doesn't
     // need a keystore, regardless of which protocol we use below.
     let keystore = if role.is_authority() {
@@ -520,7 +490,7 @@ where
 /// IPCI chain services.
 pub mod ipci {
     use ipci_runtime::RuntimeApi;
-    use sc_service::{config::Configuration, error::Result, TaskManager};
+    use sc_service::{config::Configuration, error::Result, RpcHandlers, TaskManager};
 
     #[cfg(feature = "frame-benchmarking")]
     sc_executor::native_executor_instance!(
@@ -544,16 +514,16 @@ pub mod ipci {
     }
 
     /// Create a new IPCI service for a light client.
-    pub fn new_light(config: Configuration) -> Result<TaskManager> {
+    pub fn new_light(config: Configuration) -> Result<(TaskManager, RpcHandlers)> {
         super::new_light_base::<RuntimeApi, Executor>(config)
-            .map(|(task_manager, _, _, _, _)| task_manager)
+            .map(|(task_manager, rpc_handlers, _, _, _)| (task_manager, rpc_handlers))
     }
 }
 
 ///  Robonomics chain services.
 pub mod robonomics {
     use robonomics_runtime::RuntimeApi;
-    use sc_service::{config::Configuration, error::Result, TaskManager};
+    use sc_service::{config::Configuration, error::Result, RpcHandlers, TaskManager};
 
     #[cfg(feature = "frame-benchmarking")]
     sc_executor::native_executor_instance!(
@@ -576,8 +546,8 @@ pub mod robonomics {
             .map(|(task_manager, _, _, _, _)| task_manager)
     }
 
-    pub fn new_light(config: Configuration) -> Result<TaskManager> {
+    pub fn new_light(config: Configuration) -> Result<(TaskManager, RpcHandlers)> {
         super::new_light_base::<RuntimeApi, Executor>(config)
-            .map(|(task_manager, _, _, _, _)| task_manager)
+            .map(|(task_manager, rpc_handlers, _, _, _)| (task_manager, rpc_handlers))
     }
 }

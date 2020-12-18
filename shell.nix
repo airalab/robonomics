@@ -8,11 +8,7 @@ stdenv.mkDerivation {
   name = "robonomics-nix-shell";
   propagatedBuildInputs = [ release.substrate-ros-msgs ];
   nativeBuildInputs = [ clang ];
-  buildInputs = [
-    release.rust-nightly
-    wasm-bindgen-cli
-    libudev
-  ];
+  buildInputs = [ release.rust-nightly ];
   ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   LIBCLANG_PATH = "${libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";
