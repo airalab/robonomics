@@ -27,7 +27,7 @@ jobs:
 
     - uses: hecrj/setup-rust-action@v1
       with:
-        rust-version: 'nightly-2020-09-20'
+        rust-version: 'nightly-2020-09-21'
         targets: 'wasm32-unknown-unknown'
 
     - name: Checkout the source code
