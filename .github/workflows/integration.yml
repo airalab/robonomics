@@ -7,15 +7,10 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     strategy:
       matrix:
-        config:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-
-          - os: windows-2019
-            target: x86_64-pc-windows-msvc
+        os: [ubuntu-latest, macOS-latest, windows-latest]
 
     env:
-      EXE_EXT: ${{ contains(matrix.config.target, 'windows') && '.exe' || '' }}
+      EXE_EXT: ${{ contains(matrix.os, 'windows') && '.exe' || '' }}
 
     steps:
     - name: Install LLVM (windows only)
@@ -30,95 +25,47 @@ jobs:
     - name: Checkout the source code
       uses: actions/checkout@v1
 
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
-
-    - name: Install cross compilation toolchain
-      if: matrix.config.target == 'aarch64-unknown-linux-gnu'
+    - name: Build & test optimized binary
       run: |
-        sudo apt update
-        sudo apt install -yq --no-install-suggests --no-install-recommends \
-          binfmt-support g++-5-aarch64-linux-gnu g++-5-multilib \
-          gcc-5-aarch64-linux-gnu libc6-arm64-cross qemu qemu-user \
-          qemu-user-binfmt
-        sudo ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
-          /lib/ld-linux-aarch64.so.1
-        sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-        echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=/usr/bin/aarch64-linux-gnu-gcc-5" >> ${GITHUB_ENV}
-        echo "QEMU_LD_PREFIX=/usr/aarch64-linux-gnu" >> ${GITHUB_ENV}
-
-    - name: Cache
-      uses: actions/cache@v2
-      with:
-        path: |-
-          target/sccache
-          target/*/.*
-          target/*/build
-          target/*/deps
-        key:
-          ${{ matrix.config.target }}-${{
-            hashFiles('./Cargo.lock', './v8/include/v8-version.h') }}
-        restore-keys:
-          ${{ matrix.config.target }}-
-
-    - name: Work around MacOS + Cargo + Github Actions cache bug
-      if: runner.os == 'macOS'
-      run: cargo clean -p serde_derive
-
-    - name: Install and start sccache
-      shell: pwsh
-      env:
-        SCCACHE_DIR: ${{ github.workspace }}/target/sccache
-        SCCACHE_CACHE_SIZE: 128M
-        SCCACHE_IDLE_TIMEOUT: 0
-      run: |
-        $version = "0.2.12"
-        $platform =
-          @{ "macOS"   = "x86_64-apple-darwin"
-             "Linux"   = "x86_64-unknown-linux-musl"
-             "Windows" = "x86_64-pc-windows-msvc"
-           }.${{ runner.os }}
-        $basename = "sccache-$version-$platform"
-        $url = "https://github.com/mozilla/sccache/releases/download/" +
-               "$version/$basename.tar.gz"
-        cd ~
-        curl -LO $url
-        tar -xzvf "$basename.tar.gz"
-        . $basename/sccache --start-server
-        echo "$(pwd)/$basename" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-    - name: Build optimized binary
-      run: |
-        cargo test --all-targets --locked --release --target ${{ matrix.config.target }}
-
-    - name: Stop sccache
-      if: always()
-      run: sccache --stop-server
+        cargo test --locked --release
 
     - uses: actions/upload-artifact@master
       with:
-        name: robonomics-${{ matrix.config.target }}
+        name: robonomics-${{ matrix.os }}
         path: target/release/robonomics${{ env.EXE_EXT }}
 
-  nix-native:
+  nix:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+
     - uses: cachix/install-nix-action@v12
       with:
         nix_path: nixpkgs=channel:nixos-20.09
-    - run: nix-shell --run "cargo build --release"
 
-  nix-wasm:
+    - name: Build using Nix shell
+      run: nix-shell --run "cargo build --release"
+
+    - name: Build Nix derivation
+      run: nix-build release.nix -A robonomics --option sandbox false
+
+  wasm:
     runs-on: ubuntu-latest
     steps:
     - uses: hecrj/setup-rust-action@v1
       with:
         rust-version: 'nightly-2020-09-20'
         targets: 'wasm32-unknown-unknown'
+
     - uses: actions/checkout@v2
     - name: Install build tools
       run: |
         cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
+
     - name: Build web node
       run: make pkg --directory bin/node/cli/browser
+
+    - uses: actions/upload-artifact@master
+      with:
+        name: robonomics-web-node
+        path: bin/node/cli/browser/pkg 
