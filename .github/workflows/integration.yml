@@ -8,9 +8,6 @@ jobs:
     strategy:
       matrix:
         config:
-          - os: macOS-latest
-            target: x86_64-apple-darwin
-
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
 
