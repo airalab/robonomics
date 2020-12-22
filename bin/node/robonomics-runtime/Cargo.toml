@@ -46,6 +46,7 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 pallet-robonomics-rws = { path = "../../../robonomics/frame/rws", default-features = false }
 pallet-robonomics-launch = { path = "../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
+pallet-evercity = { git = "https://github.com/EvercityEcosystem/evercity-substrate", branch="feature_master_substrate", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = "3.0.0"
@@ -83,6 +84,7 @@ std = [
     "pallet-robonomics-rws/std",
     "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
+    "pallet-evercity/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
