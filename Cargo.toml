@@ -9,7 +9,6 @@ members = [
     "robonomics/frame/launch",
     "robonomics/frame/datalog",
     "robonomics/frame/liability",
-    "robonomics/frame/evercity",
     "robonomics/protocol",
     "robonomics/cli",
     "robonomics/io",
