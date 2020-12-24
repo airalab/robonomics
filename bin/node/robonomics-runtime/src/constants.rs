@@ -45,7 +45,7 @@ pub mod time {
     /// `SLOT_DURATION` instead (like the timestamp module for calculating the
     /// minimum period).
     /// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
-    pub const MILLISECS_PER_BLOCK: Moment = 6000;
+    pub const MILLISECS_PER_BLOCK: Moment = 8000;
     pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
     pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
