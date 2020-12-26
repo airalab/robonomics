@@ -47,6 +47,8 @@ decl_event! {
         NewRecord(AccountId, Moment, Record),
         /// Account datalog erased.
         Erased(AccountId),
+        /// Record sended to another location.
+        RecordSent(AccountId),
     }
 }
 
@@ -63,7 +65,7 @@ decl_module! {
         fn deposit_event() = default;
 
         /// Store new data into blockchain.
-        #[weight = 5_000_000]
+        #[weight = 500_000]
         fn record(origin, record: T::Record) {
             let sender = ensure_signed(origin)?;
             let now = T::Time::now();

@@ -15,32 +15,33 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
+//! Simple Robonomics launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike};
+use codec::Encode;
+use xcm::v0::{SendXcm, Error as XcmError, Xcm, Junction, OriginKind};
 use frame_support::{decl_event, decl_module};
 use frame_system::ensure_signed;
-use sp_runtime::traits::Member;
 use sp_std::prelude::*;
 
-/// Launch module main trait.
-pub trait Config: frame_system::Config {
-    /// Robot launch parameter data type.
-    type Parameter: Codec + EncodeLike + Member;
+/// Datalog XCM module main trait.
+pub trait Config: launch::Config {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+    /// The XCM sender module.
+    type XcmSender: SendXcm;
+    /// Runtime Call type, used for cross-messaging calls.
+	type Call: Encode + From<launch::Call<Self>>;
 }
 
 decl_event! {
     pub enum Event<T>
     where AccountId = <T as frame_system::Config>::AccountId,
-          Parameter = <T as Config>::Parameter,
     {
-        /// Launch a robot with given parameter: sender, robot, parameter.
-        NewLaunch(AccountId, AccountId, Parameter),
-        /// Launch message sent to different location.
-        LaunchSent(AccountId),
+        /// Launch request sended to another location.
+        LaunchSentSuccess(AccountId),
+        /// Launch request didn't sent, error attached.
+        LaunchSentFailure(AccountId, XcmError),
     }
 }
 
@@ -48,11 +49,16 @@ decl_module! {
     pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        /// Launch a robot with given parameter.
-        #[weight = 500_000]
-        fn launch(origin, robot: T::AccountId, param: T::Parameter) {
+        #[weight = 5_000_000]
+        fn launch(origin, parachain_id: u32, robot: T::AccountId, param: T::Parameter) {
             let sender = ensure_signed(origin)?;
-            Self::deposit_event(RawEvent::NewLaunch(sender, robot, param));
+            let location = Junction::Parachain { id: parachain_id };
+            let call: <T as Config>::Call = launch::Call::<T>::launch(robot, param).into();
+            let message = Xcm::Transact { origin_type: OriginKind::Native, call: call.encode() };
+            match T::XcmSender::send_xcm(location.into(), message.into()) {
+                Ok(()) => Self::deposit_event(RawEvent::LaunchSentSuccess(sender)),
+                Err(e) => Self::deposit_event(RawEvent::LaunchSentFailure(sender, e)),
+            }
         }
     }
 }
