@@ -49,7 +49,9 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-robonomics-rws = { path = "../../../../robonomics/frame/rws", default-features = false }
 pallet-robonomics-launch = { path = "../../../../robonomics/frame/launch", default-features = false }
+pallet-robonomics-launch-xcm = { path = "../../../../robonomics/frame/launch/xcm", default-features = false }
 pallet-robonomics-datalog = { path = "../../../../robonomics/frame/datalog", default-features = false }
+pallet-robonomics-datalog-xcm = { path = "../../../../robonomics/frame/datalog/xcm", default-features = false }
 
 # cumulus dependencies
 cumulus-runtime = { git = "https://github.com/paritytech/cumulus", branch = "master", default-features = false }
@@ -65,7 +67,7 @@ xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
+substrate-wasm-builder = "3.0.0"
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -103,6 +105,7 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
+    "pallet-multisig/std",
     "pallet-utility/std",
     "pallet-treasury/std",
     "pallet-timestamp/std",
@@ -114,7 +117,9 @@ std = [
     "sp-inherents/std",
     "pallet-robonomics-rws/std",
     "pallet-robonomics-launch/std",
+    "pallet-robonomics-launch-xcm/std",
     "pallet-robonomics-datalog/std",
+    "pallet-robonomics-datalog-xcm/std",
     "xcm/std",
     "xcm-builder/std",
     "xcm-executor/std",

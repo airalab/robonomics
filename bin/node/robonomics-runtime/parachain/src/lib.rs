@@ -463,8 +463,20 @@ impl pallet_robonomics_datalog::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_robonomics_datalog_xcm::Config for Runtime {
+    type XcmSender = XcmHandler;
+    type Call = Call;
+    type Event = Event;
+}
+
 impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = bool;
+    type Event = Event;
+}
+
+impl pallet_robonomics_launch_xcm::Config for Runtime {
+    type XcmSender = XcmHandler;
+    type Call = Call;
     type Event = Event;
 }
 
@@ -563,14 +575,16 @@ construct_runtime! {
 
         // Robonomics Network modules.
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
+        DatalogXcm: pallet_robonomics_datalog_xcm::{Module, Call, Event<T>},
+        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
+        LaunchXcm: pallet_robonomics_launch_xcm::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
         MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        XcmHandler: xcm_handler::{Module, Event<T>, Origin},
+        XcmHandler: xcm_handler::{Module, Event<T>, Call, Origin},
 
         // DAO modules
         Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
