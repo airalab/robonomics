@@ -102,8 +102,8 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
 /// by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+/// We allow for 1 seconds of compute with a 2 second average block time.
+const MAXIMUM_BLOCK_WEIGHT: Weight = 1 * WEIGHT_PER_SECOND;
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
@@ -224,7 +224,7 @@ parameter_types! {
 impl pallet_babe::Config for Runtime {
     type EpochDuration = EpochDuration;
     type ExpectedBlockTime = ExpectedBlockTime;
-    type EpochChangeTrigger = pallet_babe::ExternalTrigger;
+    type EpochChangeTrigger = pallet_babe::SameAuthoritiesForever;
     type KeyOwnerProofSystem = ();
 
     type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
@@ -372,7 +372,7 @@ construct_runtime!(
 
         // Robonomics Network modules.
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Storage, Event<T>},
+        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.

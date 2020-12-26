@@ -1,6 +1,4 @@
 { rustPlatform
-, rust-nightly
-, substrate-ros-msgs
 , llvmPackages
 , pkg-config
 , protobuf
@@ -8,6 +6,7 @@
 , libudev
 , clang
 , cmake
+, rust
 , lib
 }:
 
@@ -16,9 +15,8 @@ rustPlatform.buildRustPackage {
   src = builtins.path { path = ./.; name = "robonomics-src"; };
   cargoSha256 = null; 
 
-  propagatedBuildInputs = [ substrate-ros-msgs ];
   nativeBuildInputs = [ clang ];
-  buildInputs = [ rust-nightly ];
+  buildInputs = [ rust ];
 
   # NOTE: We don't build the WASM runtimes since this would require a more
   # complicated rust environment setup. The resulting binary is still useful for
@@ -30,7 +28,7 @@ rustPlatform.buildRustPackage {
   PROTOC = "${protobuf}/bin/protoc";
 
   meta = with lib; {
-    description = "Robonomics Node Implementation";
+    description = "Robonomics Node";
     homepage = "https://robonomics.network";
     license = licenses.asl20;
     maintainers = with maintainers; [ akru ];

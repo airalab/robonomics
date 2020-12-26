@@ -9,7 +9,7 @@ let
       (import "${ros_overlay}/overlay.nix")
     ];
   };
-  rust-channel = pkgs.rustChannelOf { date = "2020-09-20"; channel = "nightly"; };
+  rust-nightly = pkgs.rustChannelOfTargets "nightly" "2020-09-20" [ "wasm32-unknown-unknown" ];
 in
   with pkgs;
   with rosPackages.noetic;
@@ -18,12 +18,7 @@ rec {
   ros_tutorials = callPackage ./examples/ros_tutorials { };
   turtlesim = callPackage ./examples/turtlesim_liability { };
 
-  rust-nightly = rust-channel.rust.override {
-    targets = [ "wasm32-unknown-unknown" ];
-    extensions = [ "rustfmt-preview" ];
-  };
+  robonomics = callPackage ./. { rust = rust-nightly; };
 
-  robonomics = callPackage ./. { inherit rust-nightly substrate-ros-msgs; };
-
-  inherit pkgs;
+  inherit pkgs rust-nightly;
 }
