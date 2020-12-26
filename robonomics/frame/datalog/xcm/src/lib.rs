@@ -19,10 +19,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Encode;
-use xcm::v0::{SendXcm, Error as XcmError, Xcm, Junction, OriginKind};
 use frame_support::{decl_event, decl_module};
 use frame_system::ensure_signed;
 use sp_std::prelude::*;
+use xcm::v0::{Error as XcmError, Junction, OriginKind, SendXcm, Xcm};
 
 /// Datalog XCM module main trait.
 pub trait Config: datalog::Config {
@@ -31,7 +31,7 @@ pub trait Config: datalog::Config {
     /// The XCM sender module.
     type XcmSender: SendXcm;
     /// Runtime Call type, used for cross-messaging calls.
-	type Call: Encode + From<datalog::Call<Self>>;
+    type Call: Encode + From<datalog::Call<Self>>;
 }
 
 decl_event! {
