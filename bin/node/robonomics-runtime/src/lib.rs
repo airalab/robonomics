@@ -498,6 +498,10 @@ impl_runtime_apis! {
             Babe::current_epoch_start()
         }
 
+        fn current_epoch() -> sp_consensus_babe::Epoch {
+            Babe::current_epoch()
+        }
+
         fn generate_key_ownership_proof(
             _slot_number: sp_consensus_babe::SlotNumber,
             _authority_id: sp_consensus_babe::AuthorityId,
@@ -574,14 +578,9 @@ impl_runtime_apis! {
             repeat: u32,
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
             use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
-            // Trying to add benchmarks directly to the Session Pallet caused cyclic dependency issues.
-            // To get around that, we separated the Session benchmarks into its own crate, which is why
-            // we need these two lines below.
-            use pallet_session_benchmarking::Module as SessionBench;
             use pallet_offences_benchmarking::Module as OffencesBench;
             use frame_system_benchmarking::Module as SystemBench;
 
-            impl pallet_session_benchmarking::Config for Runtime {}
             impl pallet_offences_benchmarking::Config for Runtime {}
             impl frame_system_benchmarking::Config for Runtime {}
 

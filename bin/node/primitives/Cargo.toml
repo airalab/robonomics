@@ -17,10 +17,6 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master
 sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
-[dev-dependencies]
-sp-serializer = { git = "https://github.com/paritytech/substrate", branch = "master" } 
-pretty_assertions = "0.6.1"
-
 [features]
 default = ["std"]
 std = [

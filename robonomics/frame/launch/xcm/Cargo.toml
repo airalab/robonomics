@@ -11,7 +11,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "master" }
-launch = { package = "pallet-robonomics-launch", path = ".." }
+launch = { package = "pallet-robonomics-launch", path = "..", default-features = false }
 
 [features]
 default = ["std"]

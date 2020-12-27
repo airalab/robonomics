@@ -113,6 +113,7 @@ async fn start_node_impl(
             prometheus_registry.as_ref(),
         );
         let spawner = task_manager.spawn_handle();
+        let polkadot_backend = polkadot_full_node.backend.clone();
 
         let params = StartCollatorParams {
             para_id: id,
@@ -127,6 +128,7 @@ async fn start_node_impl(
             polkadot_full_node,
             spawner,
             backend,
+            polkadot_backend,
         };
 
         start_collator(params).await?;

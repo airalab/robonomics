@@ -108,7 +108,7 @@ substrate-browser-utils = { git = "https://github.com/paritytech/substrate", bra
 # Robonomics-specific dependencies
 rosrust = { version = "0.9.5", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
 ipci-runtime = { path = "../ipci-runtime" }
@@ -117,7 +117,7 @@ sc-cli = { git = "https://github.com/paritytech/substrate", branch = "master", o
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 vergen = { version = "3.1.0", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
@@ -154,7 +154,7 @@ cli = [
     "structopt",
     "polkadot-cli",
     "sc-service/db",
-#    "robonomics-cli",
+    "robonomics-cli",
 ]
 
 ## Enable browser bundle features.
@@ -170,7 +170,7 @@ browser = [
 ros = [
     "rosrust",
     "substrate-ros-api",
-#    "robonomics-cli/ros",
+    "robonomics-cli/ros",
 ]
 
 ## Enable runtime benchmarking support.

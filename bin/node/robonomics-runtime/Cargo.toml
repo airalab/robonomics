@@ -50,12 +50,8 @@ pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", defaul
 [build-dependencies]
 substrate-wasm-builder = "3.0.0"
 
-[dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
 [features]
 default = ["std"]
-no_std = []
 std = [
     "codec/std",
     "sp-consensus-babe/std",

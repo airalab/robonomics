@@ -61,7 +61,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, StaticLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, ModuleId, Perbill, Permill, Perquintill,
+    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -88,10 +88,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 3,
-    impl_version: 3,
+    spec_version: 1,
+    impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 2,
+    transaction_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -231,6 +231,22 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+    pub const AssetDepositBase: Balance = 32 * XRT;
+    pub const AssetDepositPerZombie: Balance = 1 * XRT;
+}
+
+impl pallet_assets::Config for Runtime {
+    type Event = Event;
+    type Balance = u64;
+    type AssetId = u32;
+    type Currency = Balances;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type AssetDepositBase = AssetDepositBase;
+    type AssetDepositPerZombie = AssetDepositPerZombie;
+    type WeightInfo = ();
+}
+
+parameter_types! {
     pub const TransactionByteFee: Balance = 100 * COASE;
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
@@ -342,6 +358,23 @@ impl pallet_bounties::Config for Runtime {
     type BountyValueMinimum = BountyValueMinimum;
     type DataDepositPerByte = DataDepositPerByte;
     type MaximumReasonLength = MaximumReasonLength;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const TipCountdown: BlockNumber = 1 * DAYS;
+    pub const TipFindersFee: Percent = Percent::from_percent(20);
+    pub const TipReportDepositBase: Balance = 1 * XRT;
+}
+
+impl pallet_tips::Config for Runtime {
+    type Event = Event;
+    type DataDepositPerByte = DataDepositPerByte;
+    type MaximumReasonLength = MaximumReasonLength;
+    type Tippers = Elections;
+    type TipCountdown = TipCountdown;
+    type TipFindersFee = TipFindersFee;
+    type TipReportDepositBase = TipReportDepositBase;
     type WeightInfo = ();
 }
 
@@ -569,6 +602,7 @@ construct_runtime! {
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
+        Assets: pallet_assets::{Module, Call, Storage, Event<T>},
 
         // Randomness.
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
@@ -587,11 +621,12 @@ construct_runtime! {
         XcmHandler: xcm_handler::{Module, Event<T>, Call, Origin},
 
         // DAO modules
-        Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
         Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
         Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
         Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
+        Tips: pallet_tips::{Module, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
