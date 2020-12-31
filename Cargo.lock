@@ -5554,6 +5554,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-evercity"
+version = "0.0.2"
+source = "git+https://github.com/EvercityEcosystem/evercity-substrate?tag=v0.0.2#59dd53b649ff3408e8dc442a55db4142722d3edd"
+dependencies = [
+ "frame-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "frame-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "impl-trait-for-tuples 0.1.3",
+ "pallet-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "parity-scale-codec",
+ "serde",
+ "sp-api 2.0.0 (git+https://github.com/paritytech/substrate)",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#281f81c971b720833d01a3c3ab23c0ef21754084"
@@ -8171,6 +8185,7 @@ dependencies = [
  "node-primitives",
  "pallet-babe",
  "pallet-balances",
+ "pallet-evercity",
  "pallet-grandpa",
  "pallet-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
  "pallet-randomness-collective-flip",
