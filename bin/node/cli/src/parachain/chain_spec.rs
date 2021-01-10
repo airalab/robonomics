@@ -37,6 +37,8 @@ const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
 const MARS_ID: u32 = 2000;
+/// Rococo parachain ID
+const ROCOCO_ID: u32 = 3000;
 
 /// Node `ChainSpec` extensions.
 ///
@@ -66,6 +68,8 @@ pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
         earth_parachain_config()
     } else if id == cumulus_primitives::ParaId::from(MARS_ID) {
         mars_parachain_config()
+    } else if id == cumulus_primitives::ParaId::from(ROCOCO_ID) {
+        rococo_parachain_config()
     } else {
         test_chain_spec(id)
     }
@@ -213,6 +217,48 @@ pub fn mars_parachain_config() -> ChainSpec {
         },
     )
 }
+
+/// Rococo parachain genesis.
+fn rococo_parachain_genesis() -> GenesisConfig {
+    use hex_literal::hex;
+    use robonomics_parachain_runtime::constants::currency;
+
+    // akru
+    let sudo_key: AccountId =
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
+
+    let mut balances = currency::STAKE_HOLDERS.clone();
+    balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
+
+    mk_genesis(
+        balances.to_vec(),
+        sudo_key,
+        wasm_binary_unwrap().to_vec(),
+        ROCOCO_ID.into(),
+    )
+}
+
+/// Rococo parachain config.
+pub fn rococo_parachain_config() -> ChainSpec {
+    let boot_nodes = vec![];
+    ChainSpec::from_genesis(
+        "Robonomics PC2",
+        "robonomics",
+        ChainType::Live,
+        rococo_parachain_genesis,
+        boot_nodes,
+        Some(
+            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+                .unwrap(),
+        ),
+        Some(ROBONOMICS_PROTOCOL_ID),
+        None,
+        Extensions {
+            relay_chain: "rococo".into(),
+            para_id: ROCOCO_ID.into(),
+        },
+    )
+}
 */
 
 /// Earth parachain confing.
@@ -223,4 +269,9 @@ pub fn earth_parachain_config() -> ChainSpec {
 /// Mars parachain confing.
 pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
+}
+
+/// Rococo parachain confing.
+pub fn rococo_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/rococo.json")[..]).unwrap()
 }

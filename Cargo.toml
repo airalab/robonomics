@@ -10,9 +10,9 @@ members = [
     "robonomics/frame/datalog",
     "robonomics/frame/datalog/xcm",
     "robonomics/frame/liability",
-    "robonomics/protocol",
-    "robonomics/cli",
-    "robonomics/io",
+#    "robonomics/protocol",
+#    "robonomics/cli",
+#    "robonomics/io",
     "substrate-ros/api",
     "substrate-ros/msgs",
 ]

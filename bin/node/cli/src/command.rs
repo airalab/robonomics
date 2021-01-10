@@ -23,7 +23,7 @@ use crate::{
 };
 use codec::Encode;
 use cumulus_primitives::genesis::generate_genesis_block;
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, InitLoggerParams, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
 use std::io::Write;
@@ -65,7 +65,7 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Err("Unknown spec"),
         })
@@ -119,7 +119,7 @@ pub fn run() -> sc_cli::Result<()> {
                 }),
             }
         }
-        Some(Subcommand::Key(cmd)) => cmd.run(),
+        Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::Sign(cmd)) => cmd.run(),
         Some(Subcommand::Verify(cmd)) => cmd.run(),
         Some(Subcommand::Vanity(cmd)) => cmd.run(),
@@ -151,7 +151,10 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
+            sc_cli::init_logger(InitLoggerParams {
+                tracing_receiver: sc_tracing::TracingReceiver::Log,
+                ..Default::default()
+            })?;
 
             let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
                 &params.chain.clone().unwrap_or_default(),
@@ -174,7 +177,10 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            sc_cli::init_logger("", sc_tracing::TracingReceiver::Log, None, false)?;
+            sc_cli::init_logger(InitLoggerParams {
+                tracing_receiver: sc_tracing::TracingReceiver::Log,
+                ..Default::default()
+            })?;
 
             let raw_wasm_blob = parachain::extract_genesis_wasm(
                 &cli.load_spec(&params.chain.clone().unwrap_or_default())?,

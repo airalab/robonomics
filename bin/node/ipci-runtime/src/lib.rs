@@ -81,8 +81,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     // and set impl_version to equal spec_version. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 18,
-    impl_version: 18,
+    spec_version: 19,
+    impl_version: 19,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
 };
@@ -128,6 +128,7 @@ parameter_types! {
         })
         .avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
         .build_or_panic();
+    pub SS58Prefix: u8 = 32;
 }
 
 impl frame_system::Config for Runtime {
@@ -152,6 +153,7 @@ impl frame_system::Config for Runtime {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
+    type SS58Prefix = SS58Prefix;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -698,6 +700,10 @@ impl_runtime_apis! {
 
         fn current_epoch() -> sp_consensus_babe::Epoch {
             Babe::current_epoch()
+        }
+
+        fn next_epoch() -> sp_consensus_babe::Epoch {
+            Babe::next_epoch()
         }
 
         fn generate_key_ownership_proof(
