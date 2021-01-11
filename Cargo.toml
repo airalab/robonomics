@@ -10,6 +10,7 @@ members = [
     "robonomics/frame/datalog",
     "robonomics/frame/datalog/xcm",
     "robonomics/frame/liability",
+    "robonomics/frame/digital-twin",
 #    "robonomics/protocol",
 #    "robonomics/cli",
 #    "robonomics/io",
