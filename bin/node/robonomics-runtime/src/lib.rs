@@ -71,7 +71,6 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use crate::constants::{currency::*, time::*};
-pub use pallet_evercity;
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -295,6 +294,7 @@ impl pallet_robonomics_rws::Config for Runtime {
 
 const DEFAULT_DAY_DURATION: u32 = 60; // 86400; seconds in 1 DAY
 
+/*
 parameter_types! {
     pub const BurnRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
     pub const MintRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
@@ -312,6 +312,7 @@ impl pallet_evercity::Config for Runtime {
     type OnAddAccount = ();
     type OnAddBond = ();
 }
+*/
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -398,7 +399,7 @@ construct_runtime!(
         Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
         // Evercity bonds module
-        Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
+        //Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
     }
