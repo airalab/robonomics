@@ -7,7 +7,7 @@ First time Run*
 -----------------
 Run the following command:
 
-	./build-compose.sh
+	bash build-compose.sh
 
 ----------------------------
 Subsequent Run using docker-compose
