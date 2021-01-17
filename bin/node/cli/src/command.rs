@@ -65,7 +65,7 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(development_config()),
             "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(2000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Err("Unknown spec"),
         })
