@@ -1,22 +1,34 @@
-== Robonomics Docker
+---------------------------
+Robonomics Docker Compose
+---------------------------
 
-=== OPTION1: Start a Robonomics docker container
+-----------------
+First time Run*
+-----------------
 Run the following command:
-        docker run -d -P --name robonomics robonomics:latest
 
-=== OPTION2: Start using docker-compose
+	./build-compose.sh
+
+----------------------------
+Subsequent Run using docker-compose
+----------------------------
 Run the following command:
+
 	docker-compose up -d
 
-=== To stop docker-compose container
+---------------------------------
+To STOP docker-compose container
+---------------------------------
 Run the following command:
+  
 	docker-compose stop
 
-=== To remove docker-compose container
+-----------------------------------
+To REMOVE docker-compose container
+-----------------------------------
 Run the following command:
+ 	
 	docker-compose rm
 
-=== Building the image
-To build your own image from the source, you can run the following command:
-./build.sh
-Note    Building the image takes a while. Count at least 30min on a good machine.
+*[Note]: this command will detect whether there is a binary file in the target/release location is, there is a limitation of Dockerfile where the file has
+be within the same directory and cannot be copied from another location hence we have to manually copy to the current directory prior to using docker-compose.
