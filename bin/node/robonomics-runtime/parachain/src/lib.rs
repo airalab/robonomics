@@ -50,7 +50,7 @@ use node_primitives::{
     AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -88,8 +88,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 1,
-    impl_version: 1,
+    spec_version: 2,
+    impl_version: 2,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -489,6 +489,7 @@ impl xcm_handler::Config for Runtime {
 
 impl cumulus_parachain_upgrade::Config for Runtime {
     type Event = Event;
+    type SelfParaId = parachain_info::Module<Runtime>;
     type OnValidationData = ();
 }
 
@@ -527,6 +528,10 @@ impl pallet_robonomics_rws::Config for Runtime {
     type PointsLimit = PointsLimit;
     type Event = Event;
     type Call = Call;
+}
+
+impl pallet_robonomics_digital_twin::Config for Runtime {
+    type Event = Event;
 }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
@@ -615,6 +620,7 @@ construct_runtime! {
         Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
         LaunchXcm: pallet_robonomics_launch_xcm::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
         MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
@@ -744,6 +750,10 @@ impl_runtime_apis! {
     > for Runtime {
         fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
+        }
+
+        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
+            TransactionPayment::query_fee_details(uxt, len)
         }
     }
 

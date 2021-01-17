@@ -53,7 +53,7 @@ use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
@@ -292,9 +292,13 @@ impl pallet_robonomics_rws::Config for Runtime {
     type Call = Call;
 }
 
-const DEFAULT_DAY_DURATION: u32 = 60; // 86400; seconds in 1 DAY
+impl pallet_robonomics_digital_twin::Config for Runtime {
+    type Event = Event;
+}
 
 /*
+const DEFAULT_DAY_DURATION: u32 = 60; // 86400; seconds in 1 DAY
+
 parameter_types! {
     pub const BurnRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
     pub const MintRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
@@ -398,6 +402,7 @@ construct_runtime!(
         Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
         Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
         // Evercity bonds module
         //Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
         // Sudo. Usable initially.
@@ -581,6 +586,10 @@ impl_runtime_apis! {
     > for Runtime {
         fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
+        }
+
+        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
+            TransactionPayment::query_fee_details(uxt, len)
         }
     }
 

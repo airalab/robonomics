@@ -133,7 +133,6 @@ fn mk_genesis(
     }
 }
 
-/*
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -218,6 +217,7 @@ pub fn mars_parachain_config() -> ChainSpec {
     )
 }
 
+/*
 /// Rococo parachain genesis.
 fn rococo_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -261,6 +261,7 @@ pub fn rococo_parachain_config() -> ChainSpec {
 }
 */
 
+/*
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
@@ -270,6 +271,7 @@ pub fn earth_parachain_config() -> ChainSpec {
 pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
+*/
 
 /// Rococo parachain confing.
 pub fn rococo_parachain_config() -> ChainSpec {
