@@ -3,8 +3,8 @@ on: [push]
 
 jobs:
   native:
-    name: ${{ matrix.config.target }}
-    runs-on: ${{ matrix.config.os }}
+    name: ${{ runner.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
@@ -24,6 +24,8 @@ jobs:
 
     - name: Checkout the source code
       uses: actions/checkout@v1
+      with:
+        submodules: true
 
     - name: Build & test optimized binary
       run: |
@@ -38,6 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
 
     - uses: cachix/install-nix-action@v12
       with:
@@ -55,6 +59,9 @@ jobs:
         targets: 'wasm32-unknown-unknown'
 
     - uses: actions/checkout@v2
+      with:
+        submodules: true
+
     - name: Install build tools
       run: |
         cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
