@@ -1,0 +1,3 @@
+[submodule "vendor/substrate-subxt"]
+	path = vendor/substrate-subxt
+	url = https://github.com/airalab/substrate-subxt

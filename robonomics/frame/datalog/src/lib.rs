@@ -129,6 +129,7 @@ mod tests {
         type SystemWeightInfo = ();
         type BlockWeights = ();
         type BlockLength = ();
+        type SS58Prefix = ();
     }
 
     parameter_types! {

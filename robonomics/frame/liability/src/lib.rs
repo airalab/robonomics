@@ -332,6 +332,7 @@ mod tests {
         type SystemWeightInfo = ();
         type BlockWeights = ();
         type BlockLength = ();
+        type SS58Prefix = ();
     }
 
     impl Config for Runtime {

@@ -46,9 +46,6 @@ jobs:
     - name: Build using Nix shell
       run: nix-shell --run "cargo build --release"
 
-    - name: Build Nix derivation
-      run: nix-build release.nix -A robonomics --option sandbox false
-
   wasm:
     runs-on: ubuntu-latest
     steps:

@@ -117,7 +117,8 @@ pub fn run() -> sc_cli::Result<()> {
                     )
                     .await
                 }),
-            }.map_err(Into::into)
+            }
+            .map_err(Into::into)
         }
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::Sign(cmd)) => cmd.run(),

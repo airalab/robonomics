@@ -18,11 +18,11 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_system::ensure_signed;
 use frame_support::{decl_event, decl_module, decl_storage, ensure};
+use frame_system::ensure_signed;
+use sp_core::H256;
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::prelude::*;
-use sp_core::H256;
 
 /// Datalog module main trait.
 pub trait Config: frame_system::Config {
@@ -45,7 +45,7 @@ decl_storage! {
     trait Store for Module<T: Config> as DigitalTwin {
         /// Total count of registered digital twins.
         Total get(fn total): u32;
-        /// Get owner of digital twin with given id. 
+        /// Get owner of digital twin with given id.
         Owner get(fn owner): map hasher(blake2_128_concat)
                              u32 => T::AccountId;
         /// Get internal structure of difital twin in format: topic hash -> source account.
@@ -58,7 +58,7 @@ decl_module! {
     pub struct Module<T: Config> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        /// Create new digital twin. 
+        /// Create new digital twin.
         #[weight = 50_000]
         fn create(origin) {
             let sender = ensure_signed(origin)?;
@@ -68,7 +68,7 @@ decl_module! {
             Self::deposit_event(RawEvent::NewDigitalTwin(sender, id));
         }
 
-        /// Set data source account for difital twin. 
+        /// Set data source account for difital twin.
         #[weight = 50_000]
         fn set_source(origin, id: u32, topic: H256, source: T::AccountId) {
             let sender = ensure_signed(origin)?;
@@ -153,10 +153,20 @@ mod tests {
             let bad_sender = 2;
             assert_ok!(DigitalTwin::create(Origin::signed(sender)));
             assert_err!(
-                DigitalTwin::set_source(Origin::signed(bad_sender), 0, Default::default(), bad_sender),
+                DigitalTwin::set_source(
+                    Origin::signed(bad_sender),
+                    0,
+                    Default::default(),
+                    bad_sender
+                ),
                 DispatchError::Other("sender should be a twin owner")
             );
-            assert_ok!(DigitalTwin::set_source(Origin::signed(sender), 0, Default::default(), bad_sender));
+            assert_ok!(DigitalTwin::set_source(
+                Origin::signed(sender),
+                0,
+                Default::default(),
+                bad_sender
+            ));
         })
     }
 
