@@ -130,7 +130,7 @@ default = [
 
 ## Enable parachain integration.
 parachain = [
-  "robonomics-parachain-runtime",
+    "robonomics-parachain-runtime",
     "cumulus-primitives",
     "cumulus-consensus",
     "cumulus-collator",
@@ -139,6 +139,7 @@ parachain = [
     "polkadot-primitives",
     "polkadot-parachain",
     "polkadot-service",
+    "polkadot-cli",
 ]
 
 ## Enable Wasmtime virtual machine.
@@ -152,7 +153,6 @@ cli = [
     "sc-cli",
     "vergen",
     "structopt",
-    "polkadot-cli",
     "sc-service/db",
     "robonomics-cli",
 ]
@@ -170,7 +170,7 @@ browser = [
 ros = [
     "rosrust",
     "substrate-ros-api",
-#    "robonomics-cli/ros",
+    "robonomics-cli/ros",
 ]
 
 ## Enable runtime benchmarking support.

@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
 
     env:
       EXE_EXT: ${{ contains(matrix.os, 'windows') && '.exe' || '' }}

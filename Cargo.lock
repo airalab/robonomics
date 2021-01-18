@@ -8270,7 +8270,6 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec",
  "serde",
- "serde_derive",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-babe",

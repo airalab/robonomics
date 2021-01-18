@@ -22,7 +22,6 @@ use crate::{
     Cli, Subcommand,
 };
 use codec::Encode;
-use cumulus_primitives::genesis::generate_genesis_block;
 use sc_cli::{ChainSpec, InitLoggerParams, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
@@ -30,6 +29,8 @@ use std::io::Write;
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
+#[cfg(feature = "parachain")]
+use cumulus_primitives::genesis::generate_genesis_block;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -67,7 +68,7 @@ impl SubstrateCli for Cli {
             #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
             #[cfg(not(feature = "parachain"))]
-            path => Err("Unknown spec"),
+            path => Err("Unknown spec")?,
         })
     }
 
@@ -77,6 +78,8 @@ impl SubstrateCli for Cli {
             RobonomicsFamily::Development => &robonomics_runtime::VERSION,
             #[cfg(feature = "parachain")]
             RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
+            #[cfg(not(feature = "parachain"))]
+            RobonomicsFamily::Parachain => &robonomics_runtime::VERSION,
         }
     }
 }
@@ -103,12 +106,15 @@ pub fn run() -> sc_cli::Result<()> {
                     }
                 }),
 
-                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, Role::Light) {
                         return Err("Light client not supporter!".into());
                     }
 
+                    #[cfg(not(feature = "parachain"))]
+                    { return Err("Parachain feature isn't enabled".into()) }
+
+                    #[cfg(feature = "parachain")]
                     parachain::command::run(
                         config,
                         &cli.relaychain_args,
