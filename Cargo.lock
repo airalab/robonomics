@@ -3311,7 +3311,7 @@ checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 
 [[package]]
 name = "ipci-runtime"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -5232,7 +5232,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "cumulus-collator",
  "cumulus-consensus",
@@ -5303,7 +5303,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -5314,7 +5314,7 @@ dependencies = [
 
 [[package]]
 name = "node-rpc"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "jsonrpc-core",
  "node-primitives",
@@ -8165,7 +8165,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-parachain-runtime"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "cumulus-message-broker",
  "cumulus-parachain-upgrade",
@@ -8244,7 +8244,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
