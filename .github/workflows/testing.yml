@@ -11,4 +11,4 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-20.09
     - name: Run all tests
-      run: nix-shell --run "cargo test --all"
+      run: nix-shell --run "cargo test --all --locked"

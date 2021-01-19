@@ -84,7 +84,7 @@ pub enum Subcommand {
     Io(robonomics_cli::IoCmd),
 
     /// Benchmarking runtime pallets.
-    #[cfg(feature = "benchmarking-cli")]
+    #[cfg(feature = "frame-benchmarking-cli")]
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
     /// Export the genesis state of the parachain.

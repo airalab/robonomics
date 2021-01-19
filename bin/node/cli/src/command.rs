@@ -112,7 +112,9 @@ pub fn run() -> sc_cli::Result<()> {
                     }
 
                     #[cfg(not(feature = "parachain"))]
-                    { return Err("Parachain feature isn't enabled".into()) }
+                    {
+                        return Err("Parachain feature isn't enabled".into());
+                    }
 
                     #[cfg(feature = "parachain")]
                     parachain::command::run(
@@ -143,17 +145,17 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             runner.sync_run(|_| subcommand.run().map_err(|e| e.to_string().into()))
         }
-        #[cfg(feature = "benchmarking-cli")]
+        #[cfg(feature = "frame-benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
-            if runner.config().chain_spec.is_ipci() {
-                runner.sync_run(|config| {
+            match runner.config().chain_spec.family() {
+                RobonomicsFamily::DaoIpci => runner.sync_run(|config| {
                     subcommand.run::<node_primitives::Block, ipci::Executor>(config)
-                })
-            } else {
-                runner.sync_run(|config| {
+                }),
+                RobonomicsFamily::Development => runner.sync_run(|config| {
                     subcommand.run::<node_primitives::Block, robonomics::Executor>(config)
-                })
+                }),
+                _ => Err("Unknown chain")?,
             }
         }
         #[cfg(feature = "parachain")]

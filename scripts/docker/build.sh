@@ -4,13 +4,16 @@ set -e
 pushd .
 
 # The following line ensure we run from the project root
-#PROJECT_ROOT=`git rev-parse --show-toplevel`
-#cd $PROJECT_ROOT
+PROJECT_ROOT=`git rev-parse --show-toplevel`
+cd $PROJECT_ROOT/scripts/docker
 
 # Find the current version from Cargo.toml
 #VERSION=`grep "^version" ./Cargo.toml | egrep -o "([0-9\.]+)"`
-#GITUSER=robonomics
-#GITREPO=robonomics
+GITUSER=robonomics
+GITREPO=robonomics
+
+# Copy robonomics binary if it's argument
+[[ ! -z "$1" ]] && cp $1 .
 
 # Build the image
 echo "Building ${GITUSER}/${GITREPO}:latest docker image, hang on!"
