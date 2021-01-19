@@ -11,11 +11,15 @@ members = [
     "robonomics/frame/datalog/xcm",
     "robonomics/frame/liability",
     "robonomics/frame/digital-twin",
-#    "robonomics/protocol",
-#    "robonomics/cli",
-#    "robonomics/io",
+    "robonomics/protocol",
+    "robonomics/cli",
+    "robonomics/io",
     "substrate-ros/api",
     "substrate-ros/msgs",
+]
+
+exclude = [
+    "vendor",
 ]
 
 [profile.release]

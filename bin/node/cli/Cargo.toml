@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.22.0"
+version = "0.23.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 build = "build.rs"
@@ -36,88 +36,88 @@ log = "0.4"
 
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
-sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-trie = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # client dependencies
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-informant = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
-sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-informant = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-network = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # frame dependencies
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = "master", optional = true }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = "master", optional = true }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = "master", optional = true }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = "master", optional = true }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = "master", optional = true }
+cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 
 # node-specific dependencies
 node-rpc = { path = "../rpc" }
 robonomics-runtime = { path = "../robonomics-runtime" }
 ipci-runtime = { path = "../ipci-runtime" }
 robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain", optional = true }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # CLI-specific dependencies
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 
 # Browser bundle build support
 wasm-bindgen = { version = "0.2.69", optional = true }
 wasm-bindgen-futures = { version = "0.4.19", optional = true }
-substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
+substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9.5", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
 ipci-runtime = { path = "../ipci-runtime" }
 robonomics-runtime = { path = "../robonomics-runtime" }
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "master", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#robonomics-cli = { path = "../../../robonomics/cli", optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 vergen = { version = "3.1.0", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
@@ -130,7 +130,7 @@ default = [
 
 ## Enable parachain integration.
 parachain = [
-  "robonomics-parachain-runtime",
+    "robonomics-parachain-runtime",
     "cumulus-primitives",
     "cumulus-consensus",
     "cumulus-collator",
@@ -139,6 +139,7 @@ parachain = [
     "polkadot-primitives",
     "polkadot-parachain",
     "polkadot-service",
+    "polkadot-cli",
 ]
 
 ## Enable Wasmtime virtual machine.
@@ -152,9 +153,8 @@ cli = [
     "sc-cli",
     "vergen",
     "structopt",
-    "polkadot-cli",
     "sc-service/db",
-#    "robonomics-cli",
+    "robonomics-cli",
 ]
 
 ## Enable browser bundle features.
@@ -170,7 +170,7 @@ browser = [
 ros = [
     "rosrust",
     "substrate-ros-api",
-#    "robonomics-cli/ros",
+    "robonomics-cli/ros",
 ]
 
 ## Enable runtime benchmarking support.
