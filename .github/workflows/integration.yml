@@ -2,7 +2,10 @@ name: Integration
 on:
   push:
     branches:
-      - master
+    - master
+  create:
+    tags:
+    - v*
 
 jobs:
   default:
@@ -42,7 +45,8 @@ jobs:
   nix:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the source code
+      uses: actions/checkout@v2
       with:
         submodules: true
 
@@ -56,14 +60,15 @@ jobs:
   wasm:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+
     - uses: hecrj/setup-rust-action@v1
       with:
         rust-version: 'nightly-2020-09-20'
         targets: 'wasm32-unknown-unknown'
-
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: Install build tools
       run: |
@@ -80,7 +85,8 @@ jobs:
   benchmarks:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the source code
+      uses: actions/checkout@v2
       with:
         submodules: true
 
@@ -103,7 +109,8 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the source code
+      uses: actions/checkout@v2
       with:
         submodules: true
 
@@ -115,6 +122,13 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Docker meta
+      id: docker_meta
+      uses: crazy-max/ghaction-docker-meta@v1
+      with:
+        images: robonomics/robonomics
+        tag-sha: true # add git short SHA as Docker tag
 
     - uses: hecrj/setup-rust-action@v1
       with:
@@ -131,13 +145,15 @@ jobs:
       with:
         context: scripts/docker 
         platforms: linux/amd64
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        tags: ${{ steps.docker_meta.outputs.tags }}
         push: true
-        tags: robonomics/robonomics:latest
 
   docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the source code
+      uses: actions/checkout@v2
       with:
         submodules: true
 
