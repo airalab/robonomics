@@ -129,6 +129,7 @@ jobs:
       with:
         images: robonomics/robonomics
         tag-sha: true # add git short SHA as Docker tag
+        tag-latest: true
 
     - uses: hecrj/setup-rust-action@v1
       with:
