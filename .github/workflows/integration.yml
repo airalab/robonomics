@@ -128,8 +128,8 @@ jobs:
       uses: crazy-max/ghaction-docker-meta@v1
       with:
         images: robonomics/robonomics
+        tag-custom: latest
         tag-sha: true # add git short SHA as Docker tag
-        tag-latest: true
 
     - uses: hecrj/setup-rust-action@v1
       with:

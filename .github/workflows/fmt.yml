@@ -1,11 +1,9 @@
-name: Rust Code Style 
+name: Code style
 on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: hecrj/setup-rust-action@v1
-      - name: Checkout the source code
-        uses: actions/checkout@v2
-      - name: Check code style 
-        run: cargo fmt -- --check
+      - uses: actions/checkout@v2
+      - run: cargo fmt -- --check
