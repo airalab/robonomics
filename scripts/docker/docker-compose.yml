@@ -3,6 +3,7 @@ services:
   robonomics:
     build:
       context: .
+    container_name: robonomics
     ports:
       - "127.0.0.1:30333:30333/tcp"
       - "127.0.0.1:9933:9933/tcp"
