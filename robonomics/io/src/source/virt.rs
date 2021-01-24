@@ -64,7 +64,9 @@ pub fn pubsub(
 /// Download some data from IPFS network.
 ///
 /// Returns IPFS data objects.
-pub fn ipfs(uri: &str) -> Result<(
+pub fn ipfs(
+    uri: &str,
+) -> Result<(
     impl Sink<String, Error = Error>,
     impl Stream<Item = Result<Vec<u8>>>,
 )> {

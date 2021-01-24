@@ -200,7 +200,12 @@ where
         import_queue,
         transaction_pool,
         inherent_data_providers,
-        other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
+        other: (
+            rpc_extensions_builder,
+            import_setup,
+            rpc_setup,
+            telemetry_span,
+        ),
     })
 }
 
@@ -236,12 +241,19 @@ where
     } = new_partial(&config)?;
 
     let shared_voter_state = rpc_setup;
-    config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+    config
+        .network
+        .extra_sets
+        .push(grandpa::grandpa_peers_set_config());
 
-    #[cfg(feature = "cli")]                                                                                                
-    config.network.request_response_protocols.push(sc_finality_grandpa_warp_sync::request_response_config_for_chain(       
-        &config, task_manager.spawn_handle(), backend.clone(),
-    ));
+    #[cfg(feature = "cli")]
+    config.network.request_response_protocols.push(
+        sc_finality_grandpa_warp_sync::request_response_config_for_chain(
+            &config,
+            task_manager.spawn_handle(),
+            backend.clone(),
+        ),
+    );
 
     let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -272,8 +284,8 @@ where
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
 
-    let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(
-        sc_service::SpawnTasksParams {
+    let (_rpc_handlers, telemetry_connection_notifier) =
+        sc_service::spawn_tasks(sc_service::SpawnTasksParams {
             config,
             backend: backend.clone(),
             client: client.clone(),
@@ -287,8 +299,7 @@ where
             network_status_sinks,
             system_rpc_tx,
             telemetry_span,
-        },
-    )?;
+        })?;
 
     let (block_import, grandpa_link, babe_link) = import_setup;
 
@@ -470,8 +481,8 @@ where
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
-    let (rpc_handlers, _telemetry_connection_notifier) = sc_service::spawn_tasks(
-        sc_service::SpawnTasksParams {
+    let (rpc_handlers, _telemetry_connection_notifier) =
+        sc_service::spawn_tasks(sc_service::SpawnTasksParams {
             on_demand: Some(on_demand),
             remote_blockchain: Some(backend.remote_blockchain()),
             rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
@@ -485,8 +496,7 @@ where
             network: network.clone(),
             task_manager: &mut task_manager,
             telemetry_span,
-        },
-    )?;
+        })?;
 
     Ok((
         task_manager,

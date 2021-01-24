@@ -94,7 +94,9 @@ pub fn datalog<T: Into<Vec<u8>>>(
 /// Upload some data into IPFS network.
 ///
 /// Returns IPFS hash of consumed data objects.
-pub fn ipfs<T>(uri: &str) -> Result<(
+pub fn ipfs<T>(
+    uri: &str,
+) -> Result<(
     impl Sink<T, Error = Error>,
     impl Stream<Item = Result<String>>,
 )>

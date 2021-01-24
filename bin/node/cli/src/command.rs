@@ -160,8 +160,8 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");                                                        
-            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");                                                  
+            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 
             let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
@@ -185,8 +185,8 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");                                                        
-            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");                                                  
+            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 
             let raw_wasm_blob = parachain::extract_genesis_wasm(

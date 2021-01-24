@@ -19,8 +19,8 @@
 
 use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
-    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig,
-    SudoConfig, SystemConfig,
+    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, SudoConfig,
+    SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -65,16 +65,16 @@ pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
     if id == cumulus_primitives::ParaId::from(EARTH_ID) {
-        return earth_parachain_config()
+        return earth_parachain_config();
     }
 
     if id == cumulus_primitives::ParaId::from(MARS_ID) {
-        return mars_parachain_config()
+        return mars_parachain_config();
     }
 
     #[cfg(feature = "rococo-parachain")]
     if id == cumulus_primitives::ParaId::from(ROCOCO_ID) {
-        return rococo_parachain_config()
+        return rococo_parachain_config();
     }
 
     test_chain_spec(id)
