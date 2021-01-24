@@ -20,7 +20,7 @@
 use async_std::{io, task};
 use futures::channel::mpsc;
 use futures::prelude::*;
-use ipfs_api::IpfsClient;
+use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::runtime::{pallet_launch::NewLaunchEvent, Robonomics};
 use sp_core::Decode;
@@ -64,17 +64,17 @@ pub fn pubsub(
 /// Download some data from IPFS network.
 ///
 /// Returns IPFS data objects.
-pub fn ipfs() -> Result<(
+pub fn ipfs(uri: &str) -> Result<(
     impl Sink<String, Error = Error>,
     impl Stream<Item = Result<Vec<u8>>>,
 )> {
+    let client = IpfsClient::from_str(uri).expect("unvalid uri");
+    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
+
     let (sender, receiver) = mpsc::unbounded();
-    let datas = receiver.then(move |msg: String| {
-        let client = IpfsClient::default();
-        client
-            .cat(msg.as_str())
-            .map_ok(|c| c.to_vec())
-            .try_concat()
+    let datas = receiver.map(move |msg: String| {
+        runtime
+            .block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
             .map_err(|e| e.to_string().into())
     });
     Ok((sender.sink_err_into(), datas))

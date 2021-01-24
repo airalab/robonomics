@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-cli"
 description = "Robonomics Framework console line interfaces."
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 

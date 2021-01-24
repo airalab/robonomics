@@ -69,6 +69,7 @@ sc-service = { git = "https://github.com/paritytech/substrate", branch = "rococo
 sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa-warp-sync = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # frame dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
@@ -76,11 +77,11 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-primitives = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
+cumulus-consensus = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
+cumulus-collator = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
+cumulus-network = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
+cumulus-service = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
@@ -124,9 +125,18 @@ structopt = { version = "0.3.8", optional = true }
 [features]
 default = [
     "cli",
+    "rococo",
     "wasmtime",
+]
+
+## Enable Rococo relaychain integration.
+rococo = [
+    "rococo-parachain",
     "parachain",
 ]
+
+## Enable official Robonomics Rococo parachain spec.
+rococo-parachain = []
 
 ## Enable parachain integration.
 parachain = [

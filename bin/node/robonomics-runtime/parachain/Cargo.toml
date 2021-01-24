@@ -34,9 +34,7 @@ pallet-bounties = { git = "https://github.com/paritytech/substrate", branch = "r
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
@@ -59,11 +57,11 @@ pallet-robonomics-datalog-xcm = { path = "../../../../robonomics/frame/datalog/x
 pallet-robonomics-digital-twin = { path = "../../../../robonomics/frame/digital-twin", default-features = false }
 
 # cumulus dependencies
-cumulus-runtime = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
-cumulus-message-broker = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
-cumulus-parachain-upgrade = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
-parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
-xcm-handler = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
+cumulus-runtime = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", default-features = false }
+cumulus-message-broker = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", default-features = false }
+cumulus-parachain-upgrade = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", default-features = false }
+parachain-info = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", default-features = false }
+xcm-handler = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", default-features = false }
 
 # polkadot dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", default-features = false }
@@ -101,9 +99,7 @@ std = [
     "pallet-collective/std",
     "pallet-elections-phragmen/std",
     "frame-executive/std",
-    "pallet-indices/std",
     "pallet-identity/std",
-    "pallet-multisig/std",
     "pallet-randomness-collective-flip/std",
     "pallet-scheduler/std",
     "pallet-sudo/std",

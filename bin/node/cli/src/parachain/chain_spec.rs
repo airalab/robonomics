@@ -19,7 +19,7 @@
 
 use node_primitives::{AccountId, Balance};
 use robonomics_parachain_runtime::{
-    wasm_binary_unwrap, BalancesConfig, GenesisConfig, IndicesConfig, ParachainInfoConfig,
+    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig,
     SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
@@ -65,14 +65,19 @@ pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
     if id == cumulus_primitives::ParaId::from(EARTH_ID) {
-        earth_parachain_config()
-    } else if id == cumulus_primitives::ParaId::from(MARS_ID) {
-        mars_parachain_config()
-    } else if id == cumulus_primitives::ParaId::from(ROCOCO_ID) {
-        rococo_parachain_config()
-    } else {
-        test_chain_spec(id)
+        return earth_parachain_config()
     }
+
+    if id == cumulus_primitives::ParaId::from(MARS_ID) {
+        return mars_parachain_config()
+    }
+
+    #[cfg(feature = "rococo-parachain")]
+    if id == cumulus_primitives::ParaId::from(ROCOCO_ID) {
+        return rococo_parachain_config()
+    }
+
+    test_chain_spec(id)
 }
 
 fn test_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
@@ -123,7 +128,6 @@ fn mk_genesis(
             code,
             changes_trie_config: Default::default(),
         }),
-        pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig { balances }),
         pallet_elections_phragmen: Some(Default::default()),
         pallet_collective_Instance1: Some(Default::default()),
@@ -133,7 +137,6 @@ fn mk_genesis(
     }
 }
 
-/*
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -218,6 +221,7 @@ pub fn mars_parachain_config() -> ChainSpec {
     )
 }
 
+/*
 /// Rococo parachain genesis.
 fn rococo_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -261,6 +265,7 @@ pub fn rococo_parachain_config() -> ChainSpec {
 }
 */
 
+/*
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
@@ -270,8 +275,10 @@ pub fn earth_parachain_config() -> ChainSpec {
 pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
+*/
 
 /// Rococo parachain confing.
+#[cfg(feature = "rococo-parachain")]
 pub fn rococo_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/rococo.json")[..]).unwrap()
 }

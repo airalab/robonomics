@@ -91,6 +91,7 @@ pub fn new_partial<Runtime, Executor>(
                 sc_consensus_babe::BabeLink<Block>,
             ),
             grandpa::SharedVoterState,
+            Option<sc_telemetry::TelemetrySpan>,
         ),
     >,
     ServiceError,
@@ -101,7 +102,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore_container, task_manager) =
+    let (client, backend, keystore_container, task_manager, telemetry_span) =
         sc_service::new_full_parts::<Block, Runtime, Executor>(&config)?;
     let client = Arc::new(client);
 
@@ -199,13 +200,13 @@ where
         import_queue,
         transaction_pool,
         inherent_data_providers,
-        other: (rpc_extensions_builder, import_setup, rpc_setup),
+        other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
     })
 }
 
 /// Creates a full service from the configuration.
 pub fn new_full_base<Runtime, Executor>(
-    config: Configuration,
+    mut config: Configuration,
 ) -> Result<
     (
         TaskManager,
@@ -231,10 +232,16 @@ where
         select_chain,
         transaction_pool,
         inherent_data_providers,
-        other: (rpc_extensions_builder, import_setup, rpc_setup),
+        other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
     } = new_partial(&config)?;
 
     let shared_voter_state = rpc_setup;
+    config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+
+    #[cfg(feature = "cli")]                                                                                                
+    config.network.request_response_protocols.push(sc_finality_grandpa_warp_sync::request_response_config_for_chain(       
+        &config, task_manager.spawn_handle(), backend.clone(),
+    ));
 
     let (network, network_status_sinks, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
@@ -264,23 +271,24 @@ where
     let name = config.network.node_name.clone();
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
-    let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
 
-    sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-        config,
-        backend: backend.clone(),
-        client: client.clone(),
-        keystore: keystore_container.sync_keystore(),
-        network: network.clone(),
-        rpc_extensions_builder: Box::new(rpc_extensions_builder),
-        transaction_pool: transaction_pool.clone(),
-        task_manager: &mut task_manager,
-        on_demand: None,
-        remote_blockchain: None,
-        telemetry_connection_sinks: telemetry_connection_sinks.clone(),
-        network_status_sinks,
-        system_rpc_tx,
-    })?;
+    let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(
+        sc_service::SpawnTasksParams {
+            config,
+            backend: backend.clone(),
+            client: client.clone(),
+            keystore: keystore_container.sync_keystore(),
+            network: network.clone(),
+            rpc_extensions_builder: Box::new(rpc_extensions_builder),
+            transaction_pool: transaction_pool.clone(),
+            task_manager: &mut task_manager,
+            on_demand: None,
+            remote_blockchain: None,
+            network_status_sinks,
+            system_rpc_tx,
+            telemetry_span,
+        },
+    )?;
 
     let (block_import, grandpa_link, babe_link) = import_setup;
 
@@ -344,7 +352,7 @@ where
             config,
             link: grandpa_link,
             network: network.clone(),
-            telemetry_on_connect: Some(telemetry_connection_sinks.on_connect_stream()),
+            telemetry_on_connect: telemetry_connection_notifier.map(|x| x.on_connect_stream()),
             voting_rule: grandpa::VotingRulesBuilder::default().build(),
             prometheus_registry,
             shared_voter_state,
@@ -391,7 +399,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore_container, mut task_manager, on_demand) =
+    let (client, backend, keystore_container, mut task_manager, on_demand, telemetry_span) =
         sc_service::new_light_parts::<Block, Runtime, Executor>(&config)?;
 
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
@@ -462,21 +470,23 @@ where
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
-    let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-        on_demand: Some(on_demand),
-        remote_blockchain: Some(backend.remote_blockchain()),
-        rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
-        client: client.clone(),
-        transaction_pool: transaction_pool.clone(),
-        keystore: keystore_container.sync_keystore(),
-        config,
-        backend,
-        network_status_sinks,
-        system_rpc_tx,
-        network: network.clone(),
-        telemetry_connection_sinks: sc_service::TelemetryConnectionSinks::default(),
-        task_manager: &mut task_manager,
-    })?;
+    let (rpc_handlers, _telemetry_connection_notifier) = sc_service::spawn_tasks(
+        sc_service::SpawnTasksParams {
+            on_demand: Some(on_demand),
+            remote_blockchain: Some(backend.remote_blockchain()),
+            rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
+            client: client.clone(),
+            transaction_pool: transaction_pool.clone(),
+            keystore: keystore_container.sync_keystore(),
+            config,
+            backend,
+            network_status_sinks,
+            system_rpc_tx,
+            network: network.clone(),
+            task_manager: &mut task_manager,
+            telemetry_span,
+        },
+    )?;
 
     Ok((
         task_manager,

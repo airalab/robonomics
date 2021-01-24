@@ -22,7 +22,7 @@ use crate::{
     Cli, Subcommand,
 };
 use codec::Encode;
-use sc_cli::{ChainSpec, InitLoggerParams, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
 use std::io::Write;
@@ -160,10 +160,9 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            sc_cli::init_logger(InitLoggerParams {
-                tracing_receiver: sc_tracing::TracingReceiver::Log,
-                ..Default::default()
-            })?;
+            let mut builder = sc_cli::GlobalLoggerBuilder::new("");                                                        
+            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");                                                  
+            let _ = builder.init();
 
             let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
                 &params.chain.clone().unwrap_or_default(),
@@ -186,10 +185,9 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            sc_cli::init_logger(InitLoggerParams {
-                tracing_receiver: sc_tracing::TracingReceiver::Log,
-                ..Default::default()
-            })?;
+            let mut builder = sc_cli::GlobalLoggerBuilder::new("");                                                        
+            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");                                                  
+            let _ = builder.init();
 
             let raw_wasm_blob = parachain::extract_genesis_wasm(
                 &cli.load_spec(&params.chain.clone().unwrap_or_default())?,

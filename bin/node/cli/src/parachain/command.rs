@@ -68,8 +68,12 @@ pub async fn run(
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
-        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
-            .map_err(|err| format!("Relay chain argument error: {}", err))?;
+        SubstrateCli::create_configuration(
+            &polkadot_cli,
+            &polkadot_cli,
+            task_executor,
+            None,
+        ).map_err(|err| format!("Relay chain argument error: {}", err))?;
 
     super::collator::start_node(config, key, polkadot_config, parachain_id, validator)
         .await
@@ -213,7 +217,7 @@ impl CliConfiguration<Self> for RelayChainCli {
         self.base.base.prometheus_config(default_listen_port)
     }
 
-    fn init<C: SubstrateCli>(&self) -> Result<()> {
+    fn init<C: SubstrateCli>(&self) -> Result<sc_telemetry::TelemetryWorker> {
         unreachable!("PolkadotCli is never initialized; qed");
     }
 

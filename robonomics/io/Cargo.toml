@@ -1,19 +1,20 @@
 [package]
 name = "robonomics-io"
 description = "Robonomics framework I/O operations."
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
-ipfs-api = { version = "=0.9.0", features = ["actix"], default-features = false }
+ipfs-api = { version = "0.10.0", features = ["with-hyper-rustls"], default-features = false }
 futures-timer = "3.0.2"
 derive_more = "0.99.11"
 async-std = "1.8.0"
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 futures = "0.3.8"
 sds011 = "0.2.1"
+tokio = "0.2"
 serde = "1.0.106"
 log = "0.4.11"
 

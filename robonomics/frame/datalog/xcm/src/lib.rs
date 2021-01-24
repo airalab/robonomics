@@ -54,7 +54,7 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             let location = Junction::Parachain { id: parachain_id };
             let call: <T as Config>::Call = datalog::Call::<T>::record(record).into();
-            let message = Xcm::Transact { origin_type: OriginKind::Native, call: call.encode() };
+            let message = Xcm::Transact { origin_type: OriginKind::SovereignAccount, call: call.encode() };
             match T::XcmSender::send_xcm(location.into(), message.into()) {
                 Ok(()) => Self::deposit_event(RawEvent::RecordSentSuccess(sender)),
                 Err(e) => Self::deposit_event(RawEvent::RecordSentFailure(sender, e)),

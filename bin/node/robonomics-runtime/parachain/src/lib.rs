@@ -36,9 +36,8 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 
-use codec::Encode;
 use frame_support::{
-    construct_runtime, debug, parameter_types,
+    construct_runtime, parameter_types,
     traits::{LockIdentifier, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -47,10 +46,9 @@ use frame_support::{
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use node_primitives::{
-    AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Signature,
+    AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
-use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -59,7 +57,7 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{self, BlakeTwo256, Block as BlockT, SaturatedConversion, StaticLookup},
+    traits::{BlakeTwo256, Block as BlockT, IdentityLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
@@ -150,7 +148,7 @@ impl frame_system::Config for Runtime {
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
     type AccountId = AccountId;
-    type Lookup = Indices;
+    type Lookup = IdentityLookup<AccountId>;
     type Index = Index;
     type BlockNumber = BlockNumber;
     type Hash = Hash;
@@ -166,24 +164,6 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
-}
-
-parameter_types! {
-    // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
-    pub const DepositBase: Balance = deposit(1, 88);
-    // Additional storage item size of 32 bytes.
-    pub const DepositFactor: Balance = deposit(0, 32);
-    pub const MaxSignatories: u16 = 100;
-}
-
-impl pallet_multisig::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
-    type Currency = Balances;
-    type DepositBase = DepositBase;
-    type DepositFactor = DepositFactor;
-    type MaxSignatories = MaxSignatories;
-    type WeightInfo = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -204,18 +184,6 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IndexDeposit: Balance = 1 * GLUSHKOV;
-}
-
-impl pallet_indices::Config for Runtime {
-    type AccountIndex = AccountIndex;
-    type Currency = Balances;
-    type Deposit = IndexDeposit;
-    type Event = Event;
-    type WeightInfo = ();
-}
-
-parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * COASE;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
@@ -229,22 +197,6 @@ impl pallet_balances::Config for Runtime {
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const AssetDepositBase: Balance = 32 * XRT;
-    pub const AssetDepositPerZombie: Balance = 1 * XRT;
-}
-
-impl pallet_assets::Config for Runtime {
-    type Event = Event;
-    type Balance = u64;
-    type AssetId = u32;
-    type Currency = Balances;
-    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-    type AssetDepositBase = AssetDepositBase;
-    type AssetDepositPerZombie = AssetDepositPerZombie;
     type WeightInfo = ();
 }
 
@@ -401,7 +353,10 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 const DESIRED_MEMBERS: u32 = 7;
 parameter_types! {
     pub const CandidacyBond: Balance = 32 * XRT;
-    pub const VotingBond: Balance = 1 * XRT;
+    // 1 storage item created, key size is 32 bytes, value size is 16+16.
+    pub const VotingBondBase: Balance = deposit(1, 64);
+    // additional data per vote is 32 bytes (account id).
+    pub const VotingBondFactor: Balance = deposit(0, 32);
     pub const TermDuration: BlockNumber = 7 * DAYS;
     pub const DesiredMembers: u32 = DESIRED_MEMBERS;
     pub const DesiredRunnersUp: u32 = 5;
@@ -418,9 +373,9 @@ impl pallet_elections_phragmen::Config for Runtime {
     type InitializeMembers = Council;
     type CurrencyToVote = U128CurrencyToVote;
     type CandidacyBond = CandidacyBond;
-    type VotingBond = VotingBond;
+    type VotingBondBase = VotingBondBase;
+    type VotingBondFactor = VotingBondFactor;
     type LoserCandidate = ();
-    type BadReport = ();
     type KickedMember = ();
     type DesiredMembers = DesiredMembers;
     type DesiredRunnersUp = DesiredRunnersUp;
@@ -431,8 +386,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 impl parachain_info::Config for Runtime {}
 
 impl cumulus_message_broker::Config for Runtime {
-    type DownwardMessageHandlers = ();
-    type HrmpMessageHandlers = ();
+    type DownwardMessageHandlers = XcmHandler;
+    type HrmpMessageHandlers = XcmHandler;
 }
 
 parameter_types! {
@@ -534,64 +489,6 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-    Call: From<LocalCall>,
-{
-    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-        call: Call,
-        public: <Signature as traits::Verify>::Signer,
-        account: AccountId,
-        nonce: Index,
-    ) -> Option<(
-        Call,
-        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
-    )> {
-        // take the biggest period possible.
-        let period = BlockHashCount::get()
-            .checked_next_power_of_two()
-            .map(|c| c / 2)
-            .unwrap_or(2) as u64;
-        let current_block = System::block_number()
-            .saturated_into::<u64>()
-            // The `System::block_number` is initialized with `n+1`,
-            // so the actual block number is `n`.
-            .saturating_sub(1);
-        let tip = 0;
-        let extra: SignedExtra = (
-            frame_system::CheckSpecVersion::<Runtime>::new(),
-            frame_system::CheckTxVersion::<Runtime>::new(),
-            frame_system::CheckGenesis::<Runtime>::new(),
-            frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-            frame_system::CheckNonce::<Runtime>::from(nonce),
-            frame_system::CheckWeight::<Runtime>::new(),
-            pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-        );
-        let raw_payload = SignedPayload::new(call, extra)
-            .map_err(|e| {
-                debug::warn!("Unable to create signed payload: {:?}", e);
-            })
-            .ok()?;
-        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-        let address = Indices::unlookup(account);
-        let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
-    }
-}
-
-impl frame_system::offchain::SigningTypes for Runtime {
-    type Public = <Signature as traits::Verify>::Signer;
-    type Signature = Signature;
-}
-
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    Call: From<C>,
-{
-    type OverarchingCall = Call;
-    type Extrinsic = UncheckedExtrinsic;
-}
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -605,11 +502,8 @@ construct_runtime! {
         Identity: pallet_identity::{Module, Call, Storage, Event<T>},
 
         // Native currency and accounts.
-        Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
-        Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
-        Assets: pallet_assets::{Module, Call, Storage, Event<T>},
 
         // Randomness.
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
@@ -626,7 +520,7 @@ construct_runtime! {
         MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
         ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        XcmHandler: xcm_handler::{Module, Event<T>, Call, Origin},
+        XcmHandler: xcm_handler::{Module, Event<T>, Origin},
 
         // DAO modules
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
@@ -641,11 +535,8 @@ construct_runtime! {
     }
 }
 
-/// The type used as a helper for interpreting the sender of transactions.
-pub type Context = frame_system::ChainContext<Runtime>;
-
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, Index>;
+pub type Address = AccountId;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -659,7 +550,6 @@ pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
     frame_system::CheckSpecVersion<Runtime>,
-    frame_system::CheckTxVersion<Runtime>,
     frame_system::CheckGenesis<Runtime>,
     frame_system::CheckEra<Runtime>,
     frame_system::CheckNonce<Runtime>,
@@ -670,14 +560,17 @@ pub type SignedExtra = (
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 
-/// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
-
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllModules>;
+pub type Executive = frame_executive::Executive<
+    Runtime,
+    Block, 
+    frame_system::ChainContext<Runtime>,
+    Runtime,
+    AllModules,
+>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -735,25 +628,6 @@ impl_runtime_apis! {
     impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
         fn offchain_worker(header: &<Block as BlockT>::Header) {
             Executive::offchain_worker(header)
-        }
-    }
-
-    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-        fn account_nonce(account: AccountId) -> Index {
-            System::account_nonce(account)
-        }
-    }
-
-    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
-        Block,
-        Balance,
-    > for Runtime {
-        fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
-            TransactionPayment::query_info(uxt, len)
-        }
-
-        fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
-            TransactionPayment::query_fee_details(uxt, len)
         }
     }
 
