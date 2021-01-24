@@ -33,9 +33,9 @@ jobs:
       with:
         submodules: true
 
-    - name: Build & test optimized binary
+    - name: Build optimized binary
       run: |
-        cargo test --locked --release
+        cargo build --locked --release
 
     - uses: actions/upload-artifact@master
       with:
