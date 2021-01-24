@@ -57,31 +57,6 @@ jobs:
     - name: Build using Nix shell
       run: nix-shell --run "cargo build --release"
 
-  wasm:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-
-    - uses: hecrj/setup-rust-action@v1
-      with:
-        rust-version: 'nightly-2020-09-20'
-        targets: 'wasm32-unknown-unknown'
-
-    - name: Install build tools
-      run: |
-        cargo install --git https://github.com/rustwasm/wasm-bindgen wasm-bindgen-cli --force
-
-    - name: Build web node
-      run: make pkg --directory bin/node/cli/browser
-
-    - uses: actions/upload-artifact@master
-      with:
-        name: robonomics-web-node
-        path: bin/node/cli/browser/pkg 
-
   benchmarks:
     runs-on: ubuntu-latest
     steps:
