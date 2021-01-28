@@ -925,6 +925,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-merkle-mountain-range"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e486fe53bb9f2ca0f58cb60e8679a5354fd6687a839942ef0a75967250289ca6"
+dependencies = [
+ "cfg-if 0.1.10",
+]
+
+[[package]]
 name = "clang-sys"
 version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2161,6 +2170,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs_extra"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2022715d62ab30faffd124d40b76f4134a550a87792276512b18d63272333394"
+
+[[package]]
 name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3026,7 +3041,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
  "lazy_static",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -3065,7 +3080,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3386,7 +3401,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4922,6 +4937,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "node-bench"
+version = "0.8.0"
+dependencies = [
+ "derive_more",
+ "fs_extra",
+ "futures 0.3.12",
+ "hash-db",
+ "hex",
+ "kvdb",
+ "kvdb-rocksdb",
+ "lazy_static",
+ "log 0.4.13",
+ "node-primitives 0.23.0",
+ "node-testing",
+ "parity-db",
+ "parity-util-mem",
+ "rand 0.7.3",
+ "robonomics-runtime",
+ "sc-basic-authorship",
+ "sc-cli",
+ "sc-client-api",
+ "sc-transaction-pool",
+ "serde",
+ "serde_json",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-timestamp",
+ "sp-tracing",
+ "sp-transaction-pool",
+ "sp-trie",
+ "structopt",
+ "tempfile",
+]
+
+[[package]]
 name = "node-cli"
 version = "0.23.0"
 dependencies = [
@@ -4936,7 +4989,7 @@ dependencies = [
  "hex-literal 0.3.1",
  "ipci-runtime",
  "log 0.4.13",
- "node-primitives",
+ "node-primitives 0.23.0",
  "node-rpc",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
@@ -4994,8 +5047,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "node-executor"
+version = "2.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "frame-benchmarking",
+ "node-primitives 2.0.0",
+ "node-runtime",
+ "parity-scale-codec",
+ "sc-executor",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-state-machine",
+ "sp-trie",
+ "trie-root",
+]
+
+[[package]]
 name = "node-primitives"
 version = "0.23.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
+name = "node-primitives"
+version = "2.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -5009,7 +5092,7 @@ name = "node-rpc"
 version = "0.23.0"
 dependencies = [
  "jsonrpc-core",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "robonomics-runtime",
@@ -5033,6 +5116,117 @@ dependencies = [
  "sp-runtime",
  "sp-transaction-pool",
  "substrate-frame-rpc-system",
+]
+
+[[package]]
+name = "node-runtime"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-rpc-runtime-api",
+ "node-primitives 2.0.0",
+ "pallet-assets",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-bounties",
+ "pallet-collective",
+ "pallet-contracts",
+ "pallet-contracts-primitives",
+ "pallet-contracts-rpc-runtime-api",
+ "pallet-democracy",
+ "pallet-elections-phragmen",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online",
+ "pallet-indices",
+ "pallet-lottery",
+ "pallet-membership",
+ "pallet-mmr",
+ "pallet-multisig",
+ "pallet-offences",
+ "pallet-proxy",
+ "pallet-randomness-collective-flip",
+ "pallet-recovery",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-society",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-tips",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "pallet-vesting",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-core",
+ "sp-inherents",
+ "sp-keyring",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "static_assertions",
+ "substrate-wasm-builder 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+]
+
+[[package]]
+name = "node-testing"
+version = "2.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "fs_extra",
+ "futures 0.3.12",
+ "log 0.4.13",
+ "node-executor",
+ "node-primitives 2.0.0",
+ "node-runtime",
+ "pallet-balances",
+ "pallet-contracts",
+ "pallet-grandpa",
+ "pallet-indices",
+ "pallet-session",
+ "pallet-society",
+ "pallet-staking",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-treasury",
+ "parity-scale-codec",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-executor",
+ "sc-service",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-timestamp",
+ "substrate-test-client",
+ "tempfile",
 ]
 
 [[package]]
@@ -5317,6 +5511,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-contracts"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-contracts-primitives",
+ "pallet-contracts-proc-macro",
+ "parity-scale-codec",
+ "parity-wasm 0.41.0",
+ "pwasm-utils 0.16.0",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-sandbox",
+ "sp-std",
+ "wasmi-validation",
+]
+
+[[package]]
+name = "pallet-contracts-primitives"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "bitflags 1.2.1",
+ "parity-scale-codec",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-contracts-proc-macro"
+version = "0.1.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.8",
+ "syn 1.0.59",
+]
+
+[[package]]
+name = "pallet-contracts-rpc-runtime-api"
+version = "0.8.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "pallet-contracts-primitives",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
@@ -5420,6 +5668,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-lottery"
+version = "2.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-membership"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
@@ -5428,6 +5688,23 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-mmr"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "ckb-merkle-mountain-range",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -5549,7 +5826,7 @@ dependencies = [
  "base58",
  "frame-support",
  "frame-system",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-timestamp",
  "parity-scale-codec",
  "sp-core",
@@ -5613,7 +5890,7 @@ dependencies = [
  "base58",
  "frame-support",
  "frame-system",
- "node-primitives",
+ "node-primitives 0.23.0",
  "parity-scale-codec",
  "sp-arithmetic",
  "sp-core",
@@ -5628,7 +5905,7 @@ version = "0.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-robonomics-datalog",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -6948,7 +7225,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -7368,6 +7645,17 @@ name = "pwasm-utils"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f53bc2558e8376358ebdc28301546471d67336584f6438ed4b7c7457a055fd7"
+dependencies = [
+ "byteorder",
+ "log 0.4.13",
+ "parity-wasm 0.41.0",
+]
+
+[[package]]
+name = "pwasm-utils"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c8ac87af529432d3a4f0e2b3bbf08af49f28f09cc73ed7e551161bdaef5f78d"
 dependencies = [
  "byteorder",
  "log 0.4.13",
@@ -7923,7 +8211,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
  "lazy_static",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-assets",
  "pallet-balances",
  "pallet-bounties",
@@ -7961,7 +8249,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -7998,7 +8286,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.2.1",
- "node-primitives",
+ "node-primitives 0.23.0",
  "pallet-babe",
  "pallet-balances",
  "pallet-grandpa",
@@ -8026,7 +8314,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -8086,7 +8374,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -8755,7 +9043,7 @@ dependencies = [
  "log 0.4.13",
  "parity-scale-codec",
  "parity-wasm 0.41.0",
- "pwasm-utils",
+ "pwasm-utils 0.14.0",
  "sc-executor-common",
  "scoped-tls",
  "sp-allocator",
@@ -10269,6 +10557,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-sandbox"
+version = "0.8.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "sp-wasm-interface",
+ "wasmi",
+]
+
+[[package]]
 name = "sp-serializer"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
@@ -10734,10 +11035,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "substrate-test-client"
+version = "2.0.1"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
+dependencies = [
+ "futures 0.1.30",
+ "futures 0.3.12",
+ "hash-db",
+ "hex",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-light",
+ "sc-service",
+ "serde",
+ "serde_json",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-keyring",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-state-machine",
+]
+
+[[package]]
 name = "substrate-wasm-builder"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79091baab813855ddf65b191de9fe53e656b6b67c1e9bd23fdcbff8788164684"
+dependencies = [
+ "ansi_term 0.12.1",
+ "atty",
+ "build-helper",
+ "cargo_metadata",
+ "tempfile",
+ "toml",
+ "walkdir",
+ "wasm-gc-api",
+]
+
+[[package]]
+name = "substrate-wasm-builder"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#4b687dfb4def2b5eee9f5a20629e3fc3563587ee"
 dependencies = [
  "ansi_term 0.12.1",
  "atty",
@@ -11423,7 +11766,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f8ab788026715fa63b31960869617cba39117e520eb415b0139543e325ab59"
 dependencies = [
  "cfg-if 0.1.10",
- "rand 0.7.3",
+ "rand 0.5.6",
  "static_assertions",
 ]
 
@@ -12111,7 +12454,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
- "substrate-wasm-builder",
+ "substrate-wasm-builder 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
