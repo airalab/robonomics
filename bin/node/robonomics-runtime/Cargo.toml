@@ -30,7 +30,6 @@ pallet-babe = { git = "https://github.com/paritytech/substrate", branch = "rococ
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
@@ -61,7 +60,6 @@ std = [
     "sp-api/std",
     "frame-executive/std",
     "pallet-grandpa/std",
-    "pallet-indices/std",
     "node-primitives/std",
     "sp-offchain/std",
     "sp-core/std",

@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-protocol"
 description = "Robonomics Network protocol library."
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -12,7 +12,6 @@ derive_more = "0.99.11"
 futures-timer = "3.0.2"
 substrate-subxt = { path = "../../vendor/substrate-subxt" } 
 substrate-subxt-proc-macro = { path = "../../vendor/substrate-subxt/proc-macro" } 
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
 libp2p = "0.32.2"
