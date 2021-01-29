@@ -70,7 +70,7 @@ use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
     AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
     SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-    SovereignSignedViaLocation,
+    SovereignSignedViaLocation, ChildParachainConvertsVia,
 };
 use xcm_executor::{
     traits::{IsConcrete, NativeAsset},
@@ -383,11 +383,6 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 impl parachain_info::Config for Runtime {}
 
-impl cumulus_message_broker::Config for Runtime {
-    type DownwardMessageHandlers = XcmHandler;
-    type HrmpMessageHandlers = XcmHandler;
-}
-
 parameter_types! {
     pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
     pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
@@ -399,6 +394,7 @@ parameter_types! {
 
 type LocationConverter = (
     ParentIsDefault<AccountId>,
+    ChildParachainConvertsVia<Sibling, AccountId>,
     SiblingParachainConvertsVia<Sibling, AccountId>,
     AccountId32Aliases<RococoNetwork, AccountId>,
 );
@@ -436,14 +432,16 @@ impl Config for XcmConfig {
 impl xcm_handler::Config for Runtime {
     type Event = Event;
     type XcmExecutor = XcmExecutor<XcmConfig>;
-    type UpwardMessageSender = MessageBroker;
-    type HrmpMessageSender = MessageBroker;
+    type UpwardMessageSender = ParachainSystem;
+    type HrmpMessageSender = ParachainSystem;
 }
 
-impl cumulus_parachain_upgrade::Config for Runtime {
-    type Event = Event;
+impl cumulus_parachain_system::Config for Runtime {
     type SelfParaId = parachain_info::Module<Runtime>;
+    type DownwardMessageHandlers = XcmHandler;
+    type HrmpMessageHandlers = XcmHandler;
     type OnValidationData = ();
+    type Event = Event;
 }
 
 impl pallet_robonomics_datalog::Config for Runtime {
@@ -515,8 +513,7 @@ construct_runtime! {
         DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
-        MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
-        ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
+        ParachainSystem: cumulus_parachain_system::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
         XcmHandler: xcm_handler::{Module, Event<T>, Origin},
 

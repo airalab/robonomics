@@ -152,8 +152,10 @@ where
         let shared_voter_state = grandpa::SharedVoterState::empty();
         let rpc_setup = shared_voter_state.clone();
 
-        let finality_proof_provider =
-            GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
+        let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(
+            backend.clone(),
+            Some(shared_authority_set.clone()),
+        );
 
         let babe_config = babe_link.config().clone();
         let shared_epoch_changes = babe_link.epoch_changes().clone();

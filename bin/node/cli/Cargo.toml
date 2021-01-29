@@ -77,11 +77,11 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
-cumulus-consensus = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
-cumulus-collator = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
-cumulus-network = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
-cumulus-service = { git = "https://github.com/akru/cumulus", branch = "rococo-v1", optional = true }
+cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
 
 # polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
