@@ -48,7 +48,7 @@ impl system::System for Robonomics {
     type Hash = sp_core::H256;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
-    type Address = sp_runtime::MultiAddress<Self::AccountId, Self::Index>;
+    type Address = Self::AccountId;
     type Header = Header<Self::BlockNumber, BlakeTwo256>;
     type Extrinsic = OpaqueExtrinsic;
     type AccountData = balances::AccountData<<Self as balances::Balances>::Balance>;

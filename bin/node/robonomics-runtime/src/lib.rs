@@ -58,7 +58,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, NumberFor, SaturatedConversion, StaticLookup,
+    self, BlakeTwo256, Block as BlockT, IdentityLookup, NumberFor, SaturatedConversion,
 };
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
@@ -138,7 +138,7 @@ impl frame_system::Config for Runtime {
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
     type AccountId = AccountId;
-    type Lookup = Indices;
+    type Lookup = IdentityLookup<AccountId>;
     type Index = Index;
     type BlockNumber = BlockNumber;
     type Hash = Hash;
@@ -164,18 +164,6 @@ impl pallet_timestamp::Config for Runtime {
     type Moment = Moment;
     type OnTimestampSet = Babe;
     type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const IndexDeposit: Balance = 1 * GLUSHKOV;
-}
-
-impl pallet_indices::Config for Runtime {
-    type AccountIndex = AccountIndex;
-    type Currency = Balances;
-    type Deposit = IndexDeposit;
-    type Event = Event;
     type WeightInfo = ();
 }
 
@@ -357,9 +345,8 @@ where
             })
             .ok()?;
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-        let address = Indices::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (address, signature.into(), extra)))
+        Some((call, (account, signature.into(), extra)))
     }
 }
 
@@ -387,7 +374,6 @@ construct_runtime!(
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 
         // Native currency and accounts.
-        Indices: pallet_indices::{Module, Call, Storage, Event<T>, Config<T>},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
@@ -414,7 +400,7 @@ construct_runtime!(
 pub type Context = frame_system::ChainContext<Runtime>;
 
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, Index>;
+pub type Address = AccountId;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;

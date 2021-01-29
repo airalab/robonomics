@@ -7970,7 +7970,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-protocol"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "bincode",
  "derive_more",
@@ -7978,7 +7978,6 @@ dependencies = [
  "futures-timer 3.0.2",
  "libp2p 0.32.2",
  "log 0.4.13",
- "pallet-indices",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -8002,7 +8001,6 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-indices",
  "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",

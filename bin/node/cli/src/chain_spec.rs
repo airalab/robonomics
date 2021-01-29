@@ -19,7 +19,7 @@
 
 use node_primitives::{AccountId, Balance, Block, Signature};
 use robonomics_runtime::{
-    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, IndicesConfig,
+    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
     SudoConfig, SystemConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
@@ -161,7 +161,6 @@ fn mk_genesis(
             code,
             changes_trie_config: Default::default(),
         }),
-        pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig { balances }),
         pallet_babe: Some(BabeConfig {
             authorities: initial_authorities
