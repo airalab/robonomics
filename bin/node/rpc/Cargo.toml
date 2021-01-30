@@ -34,5 +34,5 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococ
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-robonomics-runtime = { path = "../robonomics-runtime" }
+node-runtime = { path = "../runtime" }
 node-primitives = { path = "../primitives" }

@@ -3048,60 +3048,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 
 [[package]]
-name = "ipci-runtime"
-version = "0.23.0"
-dependencies = [
- "frame-benchmarking",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "hex-literal 0.2.1",
- "lazy_static",
- "node-primitives",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-balances",
- "pallet-grandpa",
- "pallet-identity",
- "pallet-im-online",
- "pallet-indices",
- "pallet-multisig",
- "pallet-offences",
- "pallet-offences-benchmarking",
- "pallet-randomness-collective-flip",
- "pallet-robonomics-datalog",
- "pallet-session",
- "pallet-session-benchmarking",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-utility",
- "parity-scale-codec",
- "serde",
- "smallvec 1.6.1",
- "sp-api",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-core",
- "sp-inherents",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-std",
- "sp-transaction-pool",
- "sp-version",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "ipfs-api"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4977,19 +4923,18 @@ dependencies = [
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.3.1",
- "ipci-runtime",
  "log 0.4.14",
  "node-primitives",
  "node-rpc",
+ "node-runtime",
  "pallet-transaction-payment-rpc-runtime-api",
+ "parachain-runtime",
  "parity-scale-codec",
  "polkadot-cli",
  "polkadot-parachain",
  "polkadot-primitives",
  "polkadot-service",
  "robonomics-cli",
- "robonomics-parachain-runtime",
- "robonomics-runtime",
  "rosrust",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -5053,9 +4998,9 @@ version = "0.23.0"
 dependencies = [
  "jsonrpc-core",
  "node-primitives",
+ "node-runtime",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
- "robonomics-runtime",
  "sc-chain-spec",
  "sc-client-api",
  "sc-consensus-babe",
@@ -5076,6 +5021,47 @@ dependencies = [
  "sp-runtime",
  "sp-transaction-pool",
  "substrate-frame-rpc-system",
+]
+
+[[package]]
+name = "node-runtime"
+version = "0.23.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "hex-literal 0.2.1",
+ "node-primitives",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-grandpa",
+ "pallet-randomness-collective-flip",
+ "pallet-robonomics-datalog",
+ "pallet-robonomics-digital-twin",
+ "pallet-robonomics-launch",
+ "pallet-robonomics-rws",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-utility",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -5430,7 +5416,6 @@ name = "pallet-im-online"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-authorship",
@@ -5450,7 +5435,6 @@ name = "pallet-indices"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -5481,7 +5465,6 @@ name = "pallet-multisig"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -5516,27 +5499,6 @@ dependencies = [
  "pallet-balances",
  "parity-scale-codec",
  "serde",
- "sp-runtime",
- "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-offences-benchmarking"
-version = "2.0.1"
-source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-babe",
- "pallet-balances",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-offences",
- "pallet-session",
- "pallet-staking",
- "parity-scale-codec",
  "sp-runtime",
  "sp-staking",
  "sp-std",
@@ -5718,22 +5680,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-session-benchmarking"
-version = "2.0.1"
-source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-staking",
- "rand 0.7.3",
- "sp-runtime",
- "sp-session",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-society"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
@@ -5752,13 +5698,11 @@ name = "pallet-staking"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-authorship",
  "pallet-session",
  "parity-scale-codec",
- "rand_chacha 0.2.2",
  "serde",
  "sp-application-crypto",
  "sp-io",
@@ -5890,7 +5834,6 @@ name = "pallet-utility"
 version = "2.0.1"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#0b0d124d5f9be89f614f2be8e9da038fcb9f540e"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -5925,6 +5868,63 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "serde",
+]
+
+[[package]]
+name = "parachain-runtime"
+version = "0.23.0"
+dependencies = [
+ "cumulus-parachain-system",
+ "cumulus-runtime",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-rpc-runtime-api",
+ "hex-literal 0.2.1",
+ "lazy_static",
+ "node-primitives",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-bounties",
+ "pallet-collective",
+ "pallet-elections-phragmen",
+ "pallet-identity",
+ "pallet-randomness-collective-flip",
+ "pallet-robonomics-datalog",
+ "pallet-robonomics-datalog-xcm",
+ "pallet-robonomics-digital-twin",
+ "pallet-robonomics-launch",
+ "pallet-robonomics-launch-xcm",
+ "pallet-robonomics-rws",
+ "pallet-scheduler",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-tips",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "parachain-info",
+ "parity-scale-codec",
+ "polkadot-parachain",
+ "serde",
+ "serde_derive",
+ "sp-api",
+ "sp-block-builder",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
+ "xcm-handler",
 ]
 
 [[package]]
@@ -7990,63 +7990,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "robonomics-parachain-runtime"
-version = "0.23.0"
-dependencies = [
- "cumulus-parachain-system",
- "cumulus-runtime",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-rpc-runtime-api",
- "hex-literal 0.2.1",
- "lazy_static",
- "node-primitives",
- "pallet-assets",
- "pallet-balances",
- "pallet-bounties",
- "pallet-collective",
- "pallet-elections-phragmen",
- "pallet-identity",
- "pallet-randomness-collective-flip",
- "pallet-robonomics-datalog",
- "pallet-robonomics-datalog-xcm",
- "pallet-robonomics-digital-twin",
- "pallet-robonomics-launch",
- "pallet-robonomics-launch-xcm",
- "pallet-robonomics-rws",
- "pallet-scheduler",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-utility",
- "parachain-info",
- "parity-scale-codec",
- "polkadot-parachain",
- "serde",
- "serde_derive",
- "sp-api",
- "sp-block-builder",
- "sp-core",
- "sp-inherents",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-std",
- "sp-transaction-pool",
- "sp-version",
- "substrate-wasm-builder",
- "xcm",
- "xcm-builder",
- "xcm-executor",
- "xcm-handler",
-]
-
-[[package]]
 name = "robonomics-protocol"
 version = "0.7.2"
 dependencies = [
@@ -8062,47 +8005,6 @@ dependencies = [
  "sp-runtime",
  "substrate-subxt",
  "substrate-subxt-proc-macro",
-]
-
-[[package]]
-name = "robonomics-runtime"
-version = "0.23.0"
-dependencies = [
- "frame-benchmarking",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "hex-literal 0.2.1",
- "node-primitives",
- "pallet-babe",
- "pallet-balances",
- "pallet-grandpa",
- "pallet-randomness-collective-flip",
- "pallet-robonomics-datalog",
- "pallet-robonomics-digital-twin",
- "pallet-robonomics-launch",
- "pallet-robonomics-rws",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-utility",
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-core",
- "sp-inherents",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-std",
- "sp-transaction-pool",
- "sp-version",
- "substrate-wasm-builder",
 ]
 
 [[package]]

@@ -91,9 +91,8 @@ polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococ
 
 # node-specific dependencies
 node-rpc = { path = "../rpc" }
-robonomics-runtime = { path = "../robonomics-runtime" }
-ipci-runtime = { path = "../ipci-runtime" }
-robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain", optional = true }
+node-runtime = { path = "../runtime" }
+parachain-runtime = { path = "../runtime/parachain", optional = true }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
@@ -112,8 +111,7 @@ substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
-ipci-runtime = { path = "../ipci-runtime" }
-robonomics-runtime = { path = "../robonomics-runtime" }
+node-runtime = { path = "../runtime" }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
@@ -140,7 +138,7 @@ rococo-parachain = []
 
 ## Enable parachain integration.
 parachain = [
-    "robonomics-parachain-runtime",
+    "parachain-runtime",
     "cumulus-primitives",
     "cumulus-consensus",
     "cumulus-collator",
@@ -185,8 +183,7 @@ ros = [
 
 ## Enable runtime benchmarking support.
 runtime-benchmarks = [
-    "robonomics-runtime/runtime-benchmarks",
-    "ipci-runtime/runtime-benchmarks",
+    "node-runtime/runtime-benchmarks",
     "frame-benchmarking-cli",
     "frame-benchmarking",
 ]

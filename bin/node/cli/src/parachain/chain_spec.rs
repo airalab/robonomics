@@ -18,7 +18,7 @@
 //! Chain specification and utils.
 
 use node_primitives::{AccountId, Balance};
-use robonomics_parachain_runtime::{
+use parachain_runtime::{
     wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, SudoConfig,
     SystemConfig,
 };
@@ -141,7 +141,7 @@ fn mk_genesis(
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -183,7 +183,7 @@ pub fn earth_parachain_config() -> ChainSpec {
 /// Mars parachain genesis.
 fn mars_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -221,11 +221,12 @@ pub fn mars_parachain_config() -> ChainSpec {
         },
     )
 }
+*/
 
 /// Rococo parachain genesis.
 fn rococo_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -263,7 +264,6 @@ pub fn rococo_parachain_config() -> ChainSpec {
         },
     )
 }
-*/
 
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
@@ -275,8 +275,10 @@ pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
+/*
 /// Rococo parachain confing.
 #[cfg(feature = "rococo-parachain")]
 pub fn rococo_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/rococo.json")[..]).unwrap()
 }
+*/

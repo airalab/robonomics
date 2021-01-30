@@ -25,11 +25,11 @@ use std::sync::Arc;
 
 sc_executor::native_executor_instance!(
     pub Executor,
-    robonomics_parachain_runtime::api::dispatch,
-    robonomics_parachain_runtime::native_version,
+    parachain_runtime::api::dispatch,
+    parachain_runtime::native_version,
 );
 
-pub use robonomics_parachain_runtime::RuntimeApi;
+pub use parachain_runtime::RuntimeApi;
 
 pub fn new_partial(
     config: &Configuration,

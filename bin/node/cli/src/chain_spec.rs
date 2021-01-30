@@ -18,7 +18,7 @@
 //! Chain specification and utils.
 
 use node_primitives::{AccountId, Balance, Block, Signature};
-use robonomics_runtime::{
+use node_runtime::{
     wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig,
     SystemConfig,
 };
@@ -34,8 +34,6 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
-    /// DAO IPCI (ipci.io) chain (https://telemetry.polkadot.io/#list/DAO%20IPCI).
-    DaoIpci,
     /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
     Parachain,
 }
@@ -47,10 +45,6 @@ pub trait RobonomicsChain {
 
 impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
-        if self.id() == DAO_IPCI_ID {
-            return RobonomicsFamily::DaoIpci;
-        }
-
         if self.id() == "dev" {
             return RobonomicsFamily::Development;
         }
@@ -58,17 +52,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
         RobonomicsFamily::Parachain
     }
 }
-
-const DAO_IPCI_ID: &str = "ipci";
-/*
-const IPCI_PROTOCOL_ID: &str = "mito";
-const IPCI_PROPERTIES: &str = r#"
-    {
-        "ss58Format": 32,
-        "tokenDecimals": 12,
-        "tokenSymbol": "MITO"
-    }"#;
-*/
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -174,16 +157,8 @@ fn mk_genesis(
                 .map(|x| (x.2.clone(), 1))
                 .collect(),
         }),
-        //pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-        //pallet_collective_Instance1: Some(CouncilConfig::default()),
-        //pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
     }
-}
-
-/// IPCI blockchain config.
-pub fn ipci_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/ipci.json")[..]).unwrap()
 }
 
 /// Development config (single validator Alice)
