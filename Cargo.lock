@@ -4871,7 +4871,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "cumulus-collator",
  "cumulus-consensus",
@@ -4939,7 +4939,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -4950,7 +4950,7 @@ dependencies = [
 
 [[package]]
 name = "node-rpc"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "jsonrpc-core",
  "node-primitives",
@@ -4981,7 +4981,7 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -5828,7 +5828,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-runtime"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "cumulus-parachain-system",
  "cumulus-runtime",
