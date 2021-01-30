@@ -68,9 +68,9 @@ use sp_version::RuntimeVersion;
 use polkadot_parachain::primitives::Sibling;
 use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-    AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
-    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-    SovereignSignedViaLocation, ChildParachainConvertsVia,
+    AccountId32Aliases, ChildParachainConvertsVia, LocationInverter, ParentIsDefault,
+    RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+    SignedAccountId32AsNative, SovereignSignedViaLocation,
 };
 use xcm_executor::{
     traits::{IsConcrete, NativeAsset},

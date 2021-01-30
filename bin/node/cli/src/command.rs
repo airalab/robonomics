@@ -16,11 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::{
-    chain_spec::*,
-    service::robonomics,
-    Cli, Subcommand,
-};
+use crate::{chain_spec::*, service::robonomics, Cli, Subcommand};
 use codec::Encode;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;

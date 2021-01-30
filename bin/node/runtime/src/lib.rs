@@ -46,9 +46,7 @@ use frame_support::{
     },
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use node_primitives::{
-    AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature,
-};
+use node_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
