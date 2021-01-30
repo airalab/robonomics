@@ -28,8 +28,6 @@ mod service;
 #[cfg(feature = "parachain")]
 mod parachain;
 
-#[cfg(feature = "browser")]
-mod browser;
 #[cfg(feature = "cli")]
 mod cli;
 #[cfg(feature = "cli")]

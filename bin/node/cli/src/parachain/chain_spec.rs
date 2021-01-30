@@ -29,10 +29,6 @@ use sp_core::sr25519;
 
 use crate::chain_spec::get_account_id_from_seed;
 
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
-
 /// Earth parachain ID
 const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
@@ -138,6 +134,9 @@ fn mk_genesis(
 }
 
 /*
+const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;

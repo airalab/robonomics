@@ -100,11 +100,6 @@ sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1"
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 
-# Browser bundle build support
-wasm-bindgen = { version = "0.2.69", optional = true }
-wasm-bindgen-futures = { version = "0.4.19", optional = true }
-substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
-
 # Robonomics-specific dependencies
 rosrust = { version = "0.9.5", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
@@ -163,13 +158,6 @@ cli = [
     "structopt",
     "sc-service/db",
     "robonomics-cli",
-]
-
-## Enable browser bundle features.
-browser = [
-    "wasm-bindgen",
-    "wasm-bindgen-futures",
-    "substrate-browser-utils",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
