@@ -3,8 +3,13 @@
   "id": "robonomics",
   "chainType": "Live",
   "bootNodes": [
+    "/ip4/188.166.29.224/tcp/30333/p2p/12D3KooWNU9m4iJsJ31BEsLNoCB7qnyJAKPzvoXv4uPDkYcLGkcr"
   ],
   "telemetryEndpoints": [
+    [
+      "/dns4/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
+      0
+    ]
   ],
   "protocolId": "xrt",
   "properties": {
