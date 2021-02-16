@@ -1,3 +1,7 @@
 [submodule "vendor/substrate-subxt"]
 	path = vendor/substrate-subxt
 	url = https://github.com/airalab/substrate-subxt
+[submodule "examples/robonomics_sample_controller"]
+	path = examples/robonomics_sample_controller
+	url = https://github.com/PaTara43/robonomics_sample_controller
+

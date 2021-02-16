@@ -26,6 +26,9 @@ use robonomics_protocol::runtime::{pallet_launch::NewLaunchEvent, Robonomics};
 use sp_core::Decode;
 use std::time::Duration;
 
+use sp_core::crypto::Ss58Codec;
+use sp_core::crypto::Ss58AddressFormat;
+
 use crate::error::{Error, Result};
 
 /// Read line from standard console input.
@@ -95,8 +98,8 @@ pub fn launch(remote: String) -> impl Stream<Item = (String, String, bool)> {
             if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
                 let _ = sender
                     .send((
-                        event.sender.to_string(),
-                        event.robot.to_string(),
+                        event.sender.to_ss58check_with_version(Ss58AddressFormat::RobonomicsAccount),
+                        event.robot.to_ss58check_with_version(Ss58AddressFormat::RobonomicsAccount),
                         event.param,
                     ))
                     .await;
