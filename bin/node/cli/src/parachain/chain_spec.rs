@@ -247,7 +247,7 @@ fn rococo_parachain_genesis() -> GenesisConfig {
 pub fn rococo_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "Robonomics PC2",
+        "Robonomics PC3",
         "robonomics",
         ChainType::Live,
         rococo_parachain_genesis,
