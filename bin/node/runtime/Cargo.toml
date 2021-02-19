@@ -1,6 +1,6 @@
 [package]
 name = "node-runtime"
-version = "0.24.0"
+version = "0.25.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
@@ -8,7 +8,7 @@ build = "build.rs"
 [dependencies]
 # third-party dependencies
 serde = { version = "1.0.106", features = ["derive"], optional = true }
-codec = { package = "parity-scale-codec", version = "1.3.6", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"] }
 hex-literal = { version = "0.2", optional = true }
 
 # primitives

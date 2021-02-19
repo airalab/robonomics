@@ -1,6 +1,7 @@
 [workspace]
 default-members = [ "bin/node/cli" ]
 members = [
+    "bin/node",
     "bin/node/cli",
     "bin/node/runtime",
     "bin/node/runtime/parachain",
