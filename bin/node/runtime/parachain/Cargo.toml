@@ -56,9 +56,17 @@ pallet-robonomics-datalog = { path = "../../../../robonomics/frame/datalog", def
 pallet-robonomics-datalog-xcm = { path = "../../../../robonomics/frame/datalog/xcm", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../../../robonomics/frame/digital-twin", default-features = false }
 
+# orml dependencies
+orml-currencies = { path = "../../../../vendor/orml/currencies", default-features = false }
+orml-traits = { path = "../../../../vendor/orml/traits", default-features = false }
+orml-tokens = { path = "../../../../vendor/orml/tokens", default-features = false }
+orml-xtokens = { path = "../../../../vendor/orml/xtokens", default-features = false }
+orml-xcm-support = { path = "../../../../vendor/orml/xcm-support", default-features = false }
+
 # cumulus dependencies
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
 cumulus-pallet-xcm-handler = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
+cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", default-features = false }
 
 # polkadot dependencies
@@ -118,8 +126,14 @@ std = [
     "pallet-robonomics-digital-twin/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-xcm-handler/std",
+    "cumulus-primitives-core/std",
     "polkadot-parachain/std",
     "parachain-info/std",
+    "orml-currencies/std",
+    "orml-traits/std",
+    "orml-tokens/std",
+    "orml-xtokens/std",
+    "orml-xcm-support/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "xcm/std",

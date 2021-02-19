@@ -1,5 +1,5 @@
 [workspace]
-default-members = [ "bin/node/cli" ]
+default-members = [ "bin/node" ]
 members = [
     "bin/node",
     "bin/node/cli",

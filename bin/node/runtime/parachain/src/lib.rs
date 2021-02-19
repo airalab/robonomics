@@ -35,6 +35,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
+mod currency_adapter;
 
 use frame_support::{
     construct_runtime, parameter_types,
@@ -45,7 +46,10 @@ use frame_support::{
     },
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use node_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
+use node_primitives::{
+    AccountId, Amount, Balance, BlockNumber, CurrencyId, Hash, Index, Moment, Signature,
+    TokenSymbol,
+};
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -55,29 +59,31 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{BlakeTwo256, Block as BlockT, IdentityLookup},
+    traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, IdentityLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::prelude::*;
+use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM imports
+use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
+use orml_xcm_support::{
+    CurrencyIdConverter, IsConcreteWithGeneralKey, MultiCurrencyAdapter, NativePalletAssetOr,
+};
 use polkadot_parachain::primitives::Sibling;
 use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-    AccountId32Aliases, ChildParachainConvertsVia, LocationInverter, ParentIsDefault,
-    RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SovereignSignedViaLocation,
+    AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SovereignSignedViaLocation,
 };
-use xcm_executor::{
-    traits::{IsConcrete, NativeAsset},
-    Config, XcmExecutor,
-};
+use xcm_executor::{Config, XcmExecutor};
 
 use constants::{currency::*, time::*};
+use currency_adapter::NativeCurrencyAdapter;
 
 /// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -195,6 +201,38 @@ impl pallet_balances::Config for Runtime {
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Module<Runtime>;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub DustAccount: AccountId = ModuleId(*b"orml/dst").into_account();
+}
+
+orml_traits::parameter_type_with_key! {
+    pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+        Default::default()
+    };
+}
+
+impl orml_tokens::Config for Runtime {
+    type Balance = Balance;
+    type Amount = Amount;
+    type OnDust = orml_tokens::TransferDust<Runtime, DustAccount>;
+    type CurrencyId = CurrencyId;
+    type ExistentialDeposits = ExistentialDeposits;
+    type WeightInfo = ();
+    type Event = Event;
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::XRT);
+}
+
+impl orml_currencies::Config for Runtime {
+    type Event = Event;
+    type MultiCurrency = Tokens;
+    type NativeCurrency = NativeCurrencyAdapter<Runtime, Balances, Amount, Balance>;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
     type WeightInfo = ();
 }
 
@@ -386,7 +424,9 @@ impl parachain_info::Config for Runtime {}
 parameter_types! {
     pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
     pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
-    pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
+    pub RobonomicsNetwork: NetworkId = NetworkId::Named("robonomics".into());
+    pub RelayChainOrigin: Origin = cumulus_pallet_xcm_handler::Origin::Relay.into();
+    pub const RelayChainCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
     pub Ancestry: MultiLocation = Junction::Parachain {
         id: ParachainInfo::parachain_id().into()
     }.into();
@@ -394,28 +434,34 @@ parameter_types! {
 
 type LocationConverter = (
     ParentIsDefault<AccountId>,
-    ChildParachainConvertsVia<Sibling, AccountId>,
     SiblingParachainConvertsVia<Sibling, AccountId>,
-    AccountId32Aliases<RococoNetwork, AccountId>,
+    AccountId32Aliases<RobonomicsNetwork, AccountId>,
 );
 
-type LocalAssetTransactor = xcm_builder::CurrencyAdapter<
-    // Use this currency:
-    Balances,
-    // Use this currency when it is a fungible asset matching the given location or name:
-    IsConcrete<RococoLocation>,
-    // Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
+type LocalAssetTransactor = MultiCurrencyAdapter<
+    Currencies,
+    IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
     LocationConverter,
-    // Our chain's account ID type (we can't get away without mentioning it explicitly):
     AccountId,
+    CurrencyIdConverter<CurrencyId, RelayChainCurrencyId>,
+    CurrencyId,
 >;
 
 type LocalOriginConverter = (
     SovereignSignedViaLocation<LocationConverter, Origin>,
     RelayChainAsNative<RelayChainOrigin, Origin>,
-    SiblingParachainAsNative<xcm_handler::Origin, Origin>,
-    SignedAccountId32AsNative<RococoNetwork, Origin>,
+    SiblingParachainAsNative<cumulus_pallet_xcm_handler::Origin, Origin>,
+    SignedAccountId32AsNative<RobonomicsNetwork, Origin>,
 );
+
+parameter_types! {
+    pub NativeOrmlTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
+        let mut t = BTreeSet::new();
+        // Acala stablecoin
+        t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
+        t
+    };
+}
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -424,19 +470,55 @@ impl Config for XcmConfig {
     // How to withdraw and deposit an asset.
     type AssetTransactor = LocalAssetTransactor;
     type OriginConverter = LocalOriginConverter;
-    type IsReserve = NativeAsset;
+    type IsReserve = NativePalletAssetOr<NativeOrmlTokens>;
     type IsTeleporter = ();
     type LocationInverter = LocationInverter<Ancestry>;
 }
 
-impl xcm_handler::Config for Runtime {
+impl cumulus_pallet_xcm_handler::Config for Runtime {
     type Event = Event;
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type UpwardMessageSender = ParachainSystem;
     type HrmpMessageSender = ParachainSystem;
 }
 
-impl cumulus_parachain_system::Config for Runtime {
+pub struct RelayToNative;
+impl Convert<RelayChainBalance, Balance> for RelayToNative {
+    fn convert(val: u128) -> Balance {
+        // native is 9
+        // relay is 12
+        val / 1_000
+    }
+}
+
+pub struct NativeToRelay;
+impl Convert<Balance, RelayChainBalance> for NativeToRelay {
+    fn convert(val: u128) -> Balance {
+        // native is 9
+        // relay is 12
+        val * 1_000
+    }
+}
+
+pub struct AccountId32Convert;
+impl Convert<AccountId, [u8; 32]> for AccountId32Convert {
+    fn convert(account_id: AccountId) -> [u8; 32] {
+        account_id.into()
+    }
+}
+
+impl orml_xtokens::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type ToRelayChainBalance = NativeToRelay;
+    type AccountId32Convert = AccountId32Convert;
+    type RelayChainNetworkId = RococoNetwork;
+    type AccountIdConverter = LocationConverter;
+    type XcmExecutor = XcmExecutor<XcmConfig>;
+    type ParaId = ParachainInfo;
+}
+
+impl cumulus_pallet_parachain_system::Config for Runtime {
     type SelfParaId = parachain_info::Module<Runtime>;
     type DownwardMessageHandlers = XcmHandler;
     type HrmpMessageHandlers = XcmHandler;
@@ -499,6 +581,8 @@ construct_runtime! {
 
         // Native currency and accounts.
         Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
+        Currencies: orml_currencies::{Module, Call, Event<T>},
+        Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
 
         // Randomness.
@@ -513,9 +597,10 @@ construct_runtime! {
         DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
 
         // Parachain modules.
-        ParachainSystem: cumulus_parachain_system::{Module, Call, Storage, Inherent, Event},
+        ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
         ParachainInfo: parachain_info::{Module, Storage, Config},
-        XcmHandler: xcm_handler::{Module, Event<T>, Origin},
+        XcmHandler: cumulus_pallet_xcm_handler::{Module, Event<T>, Origin},
+        XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
 
         // DAO modules
         Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
@@ -640,4 +725,4 @@ impl_runtime_apis! {
     }
 }
 
-cumulus_runtime::register_validate_block!(Block, Executive);
+cumulus_pallet_parachain_system::register_validate_block!(Block, Executive);

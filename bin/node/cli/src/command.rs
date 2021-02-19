@@ -25,8 +25,6 @@ use std::io::Write;
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
-#[cfg(feature = "parachain")]
-use cumulus_primitives::genesis::generate_genesis_block;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -144,14 +142,15 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 
-            let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
-                &params.chain.clone().unwrap_or_default(),
-                params.parachain_id.into(),
-            )?)?;
+            let block: node_primitives::Block =
+                parachain::generate_genesis_block(&parachain::load_spec(
+                    &params.chain.clone().unwrap_or_default(),
+                    params.parachain_id.into(),
+                )?)?;
             let raw_header = block.header().encode();
             let output_buf = if params.raw {
                 raw_header
@@ -169,7 +168,7 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 

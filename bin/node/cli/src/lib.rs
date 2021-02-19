@@ -39,3 +39,5 @@ pub use browser::*;
 pub use cli::*;
 #[cfg(feature = "cli")]
 pub use command::*;
+#[cfg(feature = "cli")]
+pub use sc_cli::{Result, Error};
