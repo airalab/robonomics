@@ -40,4 +40,4 @@ pub use cli::*;
 #[cfg(feature = "cli")]
 pub use command::*;
 #[cfg(feature = "cli")]
-pub use sc_cli::{Result, Error};
+pub use sc_cli::{Error, Result};
