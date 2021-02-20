@@ -559,6 +559,7 @@ impl pallet_robonomics_rws::Config for Runtime {
     type TotalBandwidth = TotalBandwidth;
     type WeightLimit = WeightLimit;
     type PointsLimit = PointsLimit;
+    type Time = Timestamp;
     type Event = Event;
     type Call = Call;
 }
