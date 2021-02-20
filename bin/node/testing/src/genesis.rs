@@ -19,70 +19,68 @@
 //! Genesis Configuration.
 
 use crate::keyring::*;
-use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
-use node_runtime::{
-	GenesisConfig, BabeConfig, BalancesConfig, SystemConfig, GrandpaConfig,
-    wasm_binary_unwrap,
-    constants::currency::*,
-};
 use node_primitives::AccountId;
+use node_runtime::{
+    constants::currency::*, wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig,
+    GrandpaConfig, SystemConfig,
+};
 use sp_core::ChangesTrieConfiguration;
+use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 
 /// Create genesis runtime configuration for tests.
 pub fn config(support_changes_trie: bool, code: Option<&[u8]>) -> GenesisConfig {
-	config_endowed(support_changes_trie, code, Default::default())
+    config_endowed(support_changes_trie, code, Default::default())
 }
 
 /// Create genesis runtime configuration for tests with some extra
 /// endowed accounts.
 pub fn config_endowed(
-	support_changes_trie: bool,
-	code: Option<&[u8]>,
-	extra_endowed: Vec<AccountId>,
+    support_changes_trie: bool,
+    code: Option<&[u8]>,
+    extra_endowed: Vec<AccountId>,
 ) -> GenesisConfig {
-
-	let mut endowed = vec![
-		(alice(), 111 * XRT),
-		(bob(), 100 * XRT),
-		(charlie(), 100_000_000 * XRT),
-		(dave(), 111 * XRT),
-		(eve(), 101 * XRT),
-		(ferdie(), 100 * XRT),
-	];
-
-	endowed.extend(
-		extra_endowed.into_iter().map(|endowed| (endowed, 100*XRT))
-	);
-
-    let keys = vec![
-		to_session_keys(&Ed25519Keyring::Alice, &Sr25519Keyring::Alice),
-		to_session_keys(&Ed25519Keyring::Bob, &Sr25519Keyring::Bob),
-		to_session_keys(&Ed25519Keyring::Charlie, &Sr25519Keyring::Charlie),
+    let mut endowed = vec![
+        (alice(), 111 * XRT),
+        (bob(), 100 * XRT),
+        (charlie(), 100_000_000 * XRT),
+        (dave(), 111 * XRT),
+        (eve(), 101 * XRT),
+        (ferdie(), 100 * XRT),
     ];
 
-	GenesisConfig {
-		frame_system: Some(SystemConfig {
-			changes_trie_config: if support_changes_trie { Some(ChangesTrieConfiguration {
-				digest_interval: 2,
-				digest_levels: 2,
-			}) } else { None },
-			code: code.map(|x| x.to_vec()).unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
-		}),
-		pallet_balances: Some(BalancesConfig {
-			balances: endowed,
-		}),
-		pallet_babe: Some(BabeConfig {
-            authorities: keys 
-                .iter()
-                .map(|x| (x.babe.clone(), 1))
-                .collect(),
+    endowed.extend(
+        extra_endowed
+            .into_iter()
+            .map(|endowed| (endowed, 100 * XRT)),
+    );
+
+    let keys = vec![
+        to_session_keys(&Ed25519Keyring::Alice, &Sr25519Keyring::Alice),
+        to_session_keys(&Ed25519Keyring::Bob, &Sr25519Keyring::Bob),
+        to_session_keys(&Ed25519Keyring::Charlie, &Sr25519Keyring::Charlie),
+    ];
+
+    GenesisConfig {
+        frame_system: Some(SystemConfig {
+            changes_trie_config: if support_changes_trie {
+                Some(ChangesTrieConfiguration {
+                    digest_interval: 2,
+                    digest_levels: 2,
+                })
+            } else {
+                None
+            },
+            code: code
+                .map(|x| x.to_vec())
+                .unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
         }),
-		pallet_grandpa: Some(GrandpaConfig {
-            authorities: keys 
-                .iter()
-                .map(|x| (x.grandpa.clone(), 1))
-                .collect(),
-		}),
-		pallet_sudo: Some(Default::default()),
-	}
+        pallet_balances: Some(BalancesConfig { balances: endowed }),
+        pallet_babe: Some(BabeConfig {
+            authorities: keys.iter().map(|x| (x.babe.clone(), 1)).collect(),
+        }),
+        pallet_grandpa: Some(GrandpaConfig {
+            authorities: keys.iter().map(|x| (x.grandpa.clone(), 1)).collect(),
+        }),
+        pallet_sudo: Some(Default::default()),
+    }
 }
