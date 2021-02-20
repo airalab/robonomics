@@ -97,7 +97,7 @@ pub enum TokenSymbol {
     /// Plasm native token.
     PLM = 7,
     /// Robonomics native token.
-    XRT = 32,
+    XRT = 8,
 }
 
 impl TryFrom<u8> for TokenSymbol {
@@ -113,7 +113,7 @@ impl TryFrom<u8> for TokenSymbol {
             5 => Ok(TokenSymbol::RENBTC),
             6 => Ok(TokenSymbol::SDN),
             7 => Ok(TokenSymbol::PLM),
-            32 => Ok(TokenSymbol::XRT),
+            8 => Ok(TokenSymbol::XRT),
             _ => Err(()),
         }
     }
