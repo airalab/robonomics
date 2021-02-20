@@ -40,7 +40,7 @@ type LightClient<Runtime, Executor> =
 /// A set of APIs that robonomics-like runtimes must implement.
 pub trait RuntimeApiCollection:
     sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-    + sp_api::ApiExt<Block, Error = sp_blockchain::Error>
+    + sp_api::ApiExt<Block>
     + sp_consensus_babe::BabeApi<Block>
     + sp_finality_grandpa::GrandpaApi<Block>
     + sp_block_builder::BlockBuilder<Block>
@@ -57,7 +57,7 @@ where
 impl<Api> RuntimeApiCollection for Api
 where
     Api: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-        + sp_api::ApiExt<Block, Error = sp_blockchain::Error>
+        + sp_api::ApiExt<Block>
         + sp_consensus_babe::BabeApi<Block>
         + sp_finality_grandpa::GrandpaApi<Block>
         + sp_block_builder::BlockBuilder<Block>
@@ -91,7 +91,6 @@ pub fn new_partial<Runtime, Executor>(
                 sc_consensus_babe::BabeLink<Block>,
             ),
             grandpa::SharedVoterState,
-            Option<sc_telemetry::TelemetrySpan>,
         ),
     >,
     ServiceError,
@@ -102,7 +101,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore_container, task_manager, telemetry_span) =
+    let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, Runtime, Executor>(&config)?;
     let client = Arc::new(client);
 
@@ -110,6 +109,7 @@ where
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
+        config.role.is_authority().into(),
         config.prometheus_registry(),
         task_manager.spawn_handle(),
         client.clone(),
@@ -202,12 +202,7 @@ where
         import_queue,
         transaction_pool,
         inherent_data_providers,
-        other: (
-            rpc_extensions_builder,
-            import_setup,
-            rpc_setup,
-            telemetry_span,
-        ),
+        other: (rpc_extensions_builder, import_setup, rpc_setup),
     })
 }
 
@@ -239,7 +234,7 @@ where
         select_chain,
         transaction_pool,
         inherent_data_providers,
-        other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
+        other: (rpc_extensions_builder, import_setup, rpc_setup),
     } = new_partial(&config)?;
 
     let shared_voter_state = rpc_setup;
@@ -286,6 +281,9 @@ where
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
 
+    let telemetry_span = sc_telemetry::TelemetrySpan::new();
+    let _telemetry_span_entered = telemetry_span.enter();
+
     let (_rpc_handlers, telemetry_connection_notifier) =
         sc_service::spawn_tasks(sc_service::SpawnTasksParams {
             config,
@@ -300,7 +298,7 @@ where
             remote_blockchain: None,
             network_status_sinks,
             system_rpc_tx,
-            telemetry_span,
+            telemetry_span: Some(telemetry_span.clone()),
         })?;
 
     let (block_import, grandpa_link, babe_link) = import_setup;
@@ -351,7 +349,7 @@ where
         name: Some(name),
         observer_enabled: false,
         keystore,
-        is_authority: role.is_network_authority(),
+        is_authority: role.is_authority(),
     };
 
     if enable_grandpa {
@@ -412,7 +410,7 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let (client, backend, keystore_container, mut task_manager, on_demand, telemetry_span) =
+    let (client, backend, keystore_container, mut task_manager, on_demand) =
         sc_service::new_light_parts::<Block, Runtime, Executor>(&config)?;
 
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
@@ -483,6 +481,9 @@ where
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
+    let telemetry_span = sc_telemetry::TelemetrySpan::new();
+    let _telemetry_span_entered = telemetry_span.enter();
+
     let (rpc_handlers, _telemetry_connection_notifier) =
         sc_service::spawn_tasks(sc_service::SpawnTasksParams {
             on_demand: Some(on_demand),
@@ -497,7 +498,7 @@ where
             system_rpc_tx,
             network: network.clone(),
             task_manager: &mut task_manager,
-            telemetry_span,
+            telemetry_span: Some(telemetry_span.clone()),
         })?;
 
     Ok((

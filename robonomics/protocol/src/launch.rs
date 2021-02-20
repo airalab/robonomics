@@ -18,14 +18,11 @@
 //! Launch CPS using Robonomics network.
 
 use crate::error::{Error, Result};
-use crate::runtime::pallet_launch;
-use crate::runtime::{AccountId, Robonomics};
+use crate::runtime::{pallet_launch::*, AccountId, Robonomics};
 
-use pallet_launch::*;
+use codec::Decode;
 use sp_core::crypto::{Pair, Ss58Codec};
-use substrate_subxt::{
-    balances::BalancesEventsDecoder, EventSubscription, EventsDecoder, PairSigner,
-};
+use substrate_subxt::{EventSubscription, PairSigner};
 
 /// Send launch request using remote Robonomics node.
 pub async fn submit<T: Pair>(
@@ -55,18 +52,25 @@ where
 }
 
 /// Listen for incoming launch requests.
-pub async fn listen(remote: String) -> Result<EventSubscription<Robonomics>> {
+pub async fn listen(
+    remote: String,
+    mut callback: impl FnMut(NewLaunchEvent<Robonomics>),
+) -> Result<()> {
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
         .set_url(remote.as_str())
         .build()
         .await?;
 
     let sub = client.subscribe_events().await?;
-    let mut decoder = EventsDecoder::<Robonomics>::new(client.metadata().clone());
-    decoder.with_balances();
-    decoder.with_launch();
-    let mut sub = EventSubscription::<Robonomics>::new(sub, decoder);
+    let mut sub = EventSubscription::<Robonomics>::new(sub, client.events_decoder());
     sub.filter_event::<NewLaunchEvent<_>>();
+    while let Some(Ok(raw)) = sub.next().await {
+        if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
+            callback(event)
+        } else {
+            log::warn!("Unable decode launch event: {:?}", raw);
+        }
+    }
 
-    Ok(sub)
+    Ok(())
 }

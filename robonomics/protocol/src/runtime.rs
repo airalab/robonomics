@@ -22,13 +22,21 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentifyAccount, Verify},
     MultiSignature, OpaqueExtrinsic,
 };
-use substrate_subxt::{balances, extrinsic::DefaultExtra, system, Runtime};
+use substrate_subxt::{
+    balances::{self, BalancesEventTypeRegistry},
+    extrinsic::DefaultExtra,
+    register_default_type_sizes,
+    system::{self, SystemEventTypeRegistry},
+    EventTypeRegistry, Runtime,
+};
 
 /// Robonomics Datalog pallet.
 pub mod pallet_datalog;
+use pallet_datalog::DatalogEventTypeRegistry;
 
 /// Robonomics Launch pallet.
 pub mod pallet_launch;
+use pallet_launch::LaunchEventTypeRegistry;
 
 /// Robonomics Network family runtimes.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -40,6 +48,14 @@ pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::Ac
 impl Runtime for Robonomics {
     type Signature = MultiSignature;
     type Extra = DefaultExtra<Self>;
+
+    fn register_type_sizes(event_type_registry: &mut EventTypeRegistry<Self>) {
+        event_type_registry.with_system();
+        event_type_registry.with_balances();
+        event_type_registry.with_datalog();
+        event_type_registry.with_launch();
+        register_default_type_sizes(event_type_registry);
+    }
 }
 
 impl system::System for Robonomics {

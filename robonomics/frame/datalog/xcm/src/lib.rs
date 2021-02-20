@@ -15,50 +15,65 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Simple Robonomics datalog runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
+//! XCM version of Robonomics datalog runtime module.
+//! This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Encode;
-use frame_support::{decl_event, decl_module};
-use frame_system::ensure_signed;
-use sp_std::prelude::*;
-use xcm::v0::{Error as XcmError, Junction, OriginKind, SendXcm, Xcm};
+pub use pallet::*;
 
-/// Datalog XCM module main trait.
-pub trait Config: datalog::Config {
-    /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-    /// The XCM sender module.
-    type XcmSender: SendXcm;
-    /// Runtime Call type, used for cross-messaging calls.
-    type Call: Encode + From<datalog::Call<Self>>;
-}
+#[frame_support::pallet]
+pub mod pallet {
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
+    use xcm::v0::{Error as XcmError, Junction, OriginKind, SendXcm, Xcm};
 
-decl_event! {
-    pub enum Event<T>
-    where AccountId = <T as frame_system::Config>::AccountId,
-    {
-        /// Record sended to another location.
-        RecordSentSuccess(AccountId),
-        /// Record didn't sent, error attached.
-        RecordSentFailure(AccountId, XcmError),
+    #[pallet::config]
+    pub trait Config: frame_system::Config + datalog::pallet::Config {
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        /// The XCM sender module.
+        type XcmSender: SendXcm;
+        /// Runtime Call type, used for cross-messaging calls.
+        type Call: Encode + From<datalog::pallet::Call<Self>>;
     }
-}
 
-decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(T::AccountId = "AccountId")]
+    pub enum Event<T: Config> {
+        /// Record sended to another location.
+        RecordSentSuccess(T::AccountId),
+        /// Record didn't sent, error attached.
+        RecordSentFailure(T::AccountId, XcmError),
+    }
 
-        #[weight = 5_000_000]
-        fn record(origin, parachain_id: u32, record: T::Record) {
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        #[pallet::weight(5_000_000)]
+        fn record(
+            origin: OriginFor<T>,
+            parachain_id: u32,
+            record: T::Record,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let location = Junction::Parachain { id: parachain_id };
-            let call: <T as Config>::Call = datalog::Call::<T>::record(record).into();
-            let message = Xcm::Transact { origin_type: OriginKind::SovereignAccount, call: call.encode() };
+            let call: <T as Config>::Call = datalog::pallet::Call::<T>::record(record).into();
+            let message = Xcm::Transact {
+                origin_type: OriginKind::SovereignAccount,
+                call: call.encode(),
+            };
             match T::XcmSender::send_xcm(location.into(), message.into()) {
-                Ok(()) => Self::deposit_event(RawEvent::RecordSentSuccess(sender)),
-                Err(e) => Self::deposit_event(RawEvent::RecordSentFailure(sender, e)),
+                Ok(()) => Self::deposit_event(Event::RecordSentSuccess(sender)),
+                Err(e) => Self::deposit_event(Event::RecordSentFailure(sender, e)),
             }
+            Ok(().into())
         }
     }
 }

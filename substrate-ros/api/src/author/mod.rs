@@ -19,7 +19,7 @@
 use codec::{Decode, Encode};
 use futures::executor::block_on;
 use sp_api::ProvideRuntimeApi;
-use sp_blockchain::{Error as ClientError, HeaderBackend};
+use sp_blockchain::HeaderBackend;
 use sp_core::H256;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::{generic, traits};
@@ -68,7 +68,7 @@ where
     P: TransactionPool<Hash = H256> + Sync + Send + 'static,
     P::Block: traits::Block<Hash = H256>,
     Client: HeaderBackend<P::Block> + ProvideRuntimeApi<P::Block> + Send + Sync + 'static,
-    Client::Api: SessionKeys<P::Block, Error = ClientError>,
+    Client::Api: SessionKeys<P::Block>,
 {
     fn rotate_keys(&self) -> Result<ros_api::Bytes, String> {
         let best_block_hash = self.client.info().best_hash;

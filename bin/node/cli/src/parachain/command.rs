@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use codec::Encode;
-use cumulus_primitives::{genesis::generate_genesis_block, ParaId};
+use cumulus_primitives_core::ParaId;
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
@@ -53,7 +53,7 @@ pub async fn run(
     );
 
     let block: node_primitives::Block =
-        generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+        super::generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
     let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);

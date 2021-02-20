@@ -15,11 +15,10 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-
 //! Robonomics node executable.
 
 #![warn(missing_docs)]
 
-fn main() -> sc_cli::Result<()> {
+fn main() -> node_cli::Result<()> {
     node_cli::run()
 }
