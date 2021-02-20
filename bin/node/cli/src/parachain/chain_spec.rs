@@ -17,8 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
+use cumulus_primitives_core::ParaId;
 use node_primitives::{AccountId, Balance};
-use robonomics_parachain_runtime::{
+use parachain_runtime::{
     wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, SudoConfig,
     SystemConfig,
 };
@@ -28,10 +29,6 @@ use serde::{Deserialize, Serialize};
 use sp_core::sr25519;
 
 use crate::chain_spec::get_account_id_from_seed;
-
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 
 /// Earth parachain ID
 const EARTH_ID: u32 = 1000;
@@ -63,24 +60,24 @@ impl Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-pub fn get_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
-    if id == cumulus_primitives::ParaId::from(EARTH_ID) {
+pub fn get_chain_spec(id: ParaId) -> ChainSpec {
+    if id == ParaId::from(EARTH_ID) {
         return earth_parachain_config();
     }
 
-    if id == cumulus_primitives::ParaId::from(MARS_ID) {
+    if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
 
     #[cfg(feature = "rococo-parachain")]
-    if id == cumulus_primitives::ParaId::from(ROCOCO_ID) {
+    if id == ParaId::from(ROCOCO_ID) {
         return rococo_parachain_config();
     }
 
     test_chain_spec(id)
 }
 
-fn test_chain_spec(id: cumulus_primitives::ParaId) -> ChainSpec {
+fn test_chain_spec(id: ParaId) -> ChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -121,7 +118,7 @@ fn mk_genesis(
     balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
-    parachain_id: cumulus_primitives::ParaId,
+    parachain_id: ParaId,
 ) -> GenesisConfig {
     GenesisConfig {
         frame_system: Some(SystemConfig {
@@ -134,14 +131,18 @@ fn mk_genesis(
         pallet_treasury: Some(Default::default()),
         pallet_sudo: Some(SudoConfig { key: sudo_key }),
         parachain_info: Some(ParachainInfoConfig { parachain_id }),
+        orml_tokens: Some(Default::default()),
     }
 }
 
 /*
+const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -183,7 +184,7 @@ pub fn earth_parachain_config() -> ChainSpec {
 /// Mars parachain genesis.
 fn mars_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -225,7 +226,7 @@ pub fn mars_parachain_config() -> ChainSpec {
 /// Rococo parachain genesis.
 fn rococo_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
-    use robonomics_parachain_runtime::constants::currency;
+    use parachain_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =
@@ -246,7 +247,7 @@ fn rococo_parachain_genesis() -> GenesisConfig {
 pub fn rococo_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
     ChainSpec::from_genesis(
-        "Robonomics PC2",
+        "Robonomics PC3",
         "robonomics",
         ChainType::Live,
         rococo_parachain_genesis,

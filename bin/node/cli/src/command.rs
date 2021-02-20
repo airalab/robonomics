@@ -16,11 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::{
-    chain_spec::*,
-    service::{ipci, robonomics},
-    Cli, Subcommand,
-};
+use crate::{chain_spec::*, service::robonomics, Cli, Subcommand};
 use codec::Encode;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sp_api::BlockT;
@@ -29,8 +25,6 @@ use std::io::Write;
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
-#[cfg(feature = "parachain")]
-use cumulus_primitives::genesis::generate_genesis_block;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -64,9 +58,8 @@ impl SubstrateCli for Cli {
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
             "dev" => Box::new(development_config()),
-            "ipci" => Box::new(ipci_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Err("Unknown spec")?,
         })
@@ -74,12 +67,11 @@ impl SubstrateCli for Cli {
 
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
         match chain_spec.family() {
-            RobonomicsFamily::DaoIpci => &ipci_runtime::VERSION,
-            RobonomicsFamily::Development => &robonomics_runtime::VERSION,
+            RobonomicsFamily::Development => &node_runtime::VERSION,
             #[cfg(feature = "parachain")]
-            RobonomicsFamily::Parachain => &robonomics_parachain_runtime::VERSION,
+            RobonomicsFamily::Parachain => &parachain_runtime::VERSION,
             #[cfg(not(feature = "parachain"))]
-            RobonomicsFamily::Parachain => &robonomics_runtime::VERSION,
+            RobonomicsFamily::Parachain => &node_runtime::VERSION,
         }
     }
 }
@@ -92,13 +84,6 @@ pub fn run() -> sc_cli::Result<()> {
         None => {
             let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.run_node_until_exit(|config| async move {
-                    match config.role {
-                        Role::Light => ipci::new_light(config).map(|r| r.0),
-                        _ => ipci::new_full(config),
-                    }
-                }),
-
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
                     match config.role {
                         Role::Light => robonomics::new_light(config).map(|r| r.0),
@@ -149,9 +134,6 @@ pub fn run() -> sc_cli::Result<()> {
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
-                RobonomicsFamily::DaoIpci => runner.sync_run(|config| {
-                    subcommand.run::<node_primitives::Block, ipci::Executor>(config)
-                }),
                 RobonomicsFamily::Development => runner.sync_run(|config| {
                     subcommand.run::<node_primitives::Block, robonomics::Executor>(config)
                 }),
@@ -160,14 +142,15 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 
-            let block: node_primitives::Block = generate_genesis_block(&parachain::load_spec(
-                &params.chain.clone().unwrap_or_default(),
-                params.parachain_id.into(),
-            )?)?;
+            let block: node_primitives::Block =
+                parachain::generate_genesis_block(&parachain::load_spec(
+                    &params.chain.clone().unwrap_or_default(),
+                    params.parachain_id.into(),
+                )?)?;
             let raw_header = block.header().encode();
             let output_buf = if params.raw {
                 raw_header
@@ -185,7 +168,7 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
-            let mut builder = sc_cli::GlobalLoggerBuilder::new("");
+            let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 

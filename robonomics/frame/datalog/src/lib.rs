@@ -18,90 +18,103 @@
 //! Simple Robonomics datalog runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike};
-use frame_support::{decl_event, decl_module, decl_storage, traits::Time};
-use frame_system::ensure_signed;
-use sp_runtime::traits::Member;
-use sp_std::prelude::*;
+pub use pallet::*;
 
-/// Type synonym for timestamp data type.
-pub type MomentOf<T> = <<T as Config>::Time as Time>::Moment;
+#[frame_support::pallet]
+pub mod pallet {
+    use frame_support::pallet_prelude::*;
+    use frame_support::traits::Time;
+    use frame_system::pallet_prelude::*;
+    use sp_std::prelude::*;
 
-/// Datalog module main trait.
-pub trait Config: frame_system::Config {
-    /// Timestamp source.
-    type Time: Time;
-    /// Datalog record data type.
-    type Record: Codec + EncodeLike + Member;
-    /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-}
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        /// Current time source.
+        type Time: Time;
+        /// Datalog record data type.
+        type Record: Parameter;
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+    }
 
-decl_event! {
-    pub enum Event<T>
-    where AccountId = <T as frame_system::Config>::AccountId,
-          Moment = MomentOf<T>,
-          Record = <T as Config>::Record,
-    {
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(T::AccountId = "AccountId", T::Record = "Record", <T::Time as Time>::Moment = "Moment")]
+    pub enum Event<T: Config> {
         /// New data added.
-        NewRecord(AccountId, Moment, Record),
+        NewRecord(T::AccountId, <T::Time as Time>::Moment, T::Record),
         /// Account datalog erased.
-        Erased(AccountId),
+        Erased(T::AccountId),
         /// Record sended to another location.
-        RecordSent(AccountId),
+        RecordSent(T::AccountId),
     }
-}
 
-decl_storage! {
-    trait Store for Module<T: Config> as Datalog {
-        /// Time tagged data of given account.
-        Datalog get(fn datalog): map hasher(blake2_128_concat)
-                                 T::AccountId => Vec<(MomentOf<T>, T::Record)>;
-    }
-}
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+    #[pallet::storage]
+    #[pallet::getter(fn datalog)]
+    /// Time tagged data of given account.
+    pub(super) type Datalog<T> = StorageMap<
+        _,
+        Twox64Concat,
+        <T as frame_system::Config>::AccountId,
+        Vec<(<<T as Config>::Time as Time>::Moment, <T as Config>::Record)>,
+    >;
 
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Store new data into blockchain.
-        #[weight = 500_000]
-        fn record(origin, record: T::Record) {
+        #[pallet::weight(500_000)]
+        pub fn record(origin: OriginFor<T>, record: T::Record) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let now = T::Time::now();
-            <Datalog<T>>::mutate(
-                sender.clone(),
-                |m| m.push((now.clone(), record.clone()))
-            );
-            Self::deposit_event(RawEvent::NewRecord(sender, now, record));
+            <Datalog<T>>::mutate(sender.clone(), |m| match m {
+                None => *m = Some(vec![(now.clone(), record.clone())]),
+                Some(v) => v.push((now.clone(), record.clone())),
+            });
+            Self::deposit_event(Event::NewRecord(sender, now, record));
+            Ok(().into())
         }
 
         /// Clear account datalog.
-        #[weight = 100_000]
-        fn erase(origin) {
+        #[pallet::weight(100_000)]
+        pub fn erase(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             <Datalog<T>>::remove(sender.clone());
-            Self::deposit_event(RawEvent::Erased(sender));
+            Self::deposit_event(Event::Erased(sender));
+            Ok(().into())
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::{self as datalog, *};
 
     use base58::FromBase58;
-    use frame_support::{assert_err, assert_ok, impl_outer_origin, parameter_types};
-    use node_primitives::Moment;
+    use frame_support::{assert_err, assert_ok, parameter_types};
     use sp_core::H256;
     use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
 
-    impl_outer_origin! {
-        pub enum Origin for Runtime {}
-    }
+    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
+    type Block = frame_system::mocking::MockBlock<Runtime>;
 
-    #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct Runtime;
+    frame_support::construct_runtime!(
+        pub enum Runtime where
+            Block = Block,
+            NodeBlock = Block,
+            UncheckedExtrinsic = UncheckedExtrinsic,
+        {
+            System: frame_system::{Module, Call, Config, Storage, Event<T>},
+            Timestamp: pallet_timestamp::{Module, Storage},
+            Datalog: datalog::{Module, Call, Storage, Event<T>},
+        }
+    );
 
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
@@ -111,16 +124,16 @@ mod tests {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
-        type Call = ();
+        type Call = Call;
         type Hash = H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
-        type Event = ();
+        type Event = Event;
         type BlockHashCount = BlockHashCount;
         type Version = ();
-        type PalletInfo = ();
+        type PalletInfo = PalletInfo;
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
@@ -132,12 +145,8 @@ mod tests {
         type SS58Prefix = ();
     }
 
-    parameter_types! {
-        pub const MinimumPeriod: Moment = 5;
-    }
-
     impl pallet_timestamp::Config for Runtime {
-        type Moment = Moment;
+        type Moment = u64;
         type OnTimestampSet = ();
         type MinimumPeriod = ();
         type WeightInfo = ();
@@ -146,7 +155,7 @@ mod tests {
     impl Config for Runtime {
         type Time = Timestamp;
         type Record = Vec<u8>;
-        type Event = ();
+        type Event = Event;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
@@ -156,16 +165,13 @@ mod tests {
         storage.into()
     }
 
-    type Timestamp = pallet_timestamp::Module<Runtime>;
-    type Datalog = Module<Runtime>;
-
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = vec![42];
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Datalog::datalog(sender), vec![(0, record)]);
+            assert_eq!(Datalog::datalog(sender), Some(vec![(0, record)]));
         })
     }
 
@@ -175,9 +181,9 @@ mod tests {
             let sender = 1;
             let record = vec![1, 2, 3];
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Datalog::datalog(sender), vec![(0, record)]);
+            assert_eq!(Datalog::datalog(sender), Some(vec![(0, record)]));
             assert_ok!(Datalog::erase(Origin::signed(sender)));
-            assert_eq!(Datalog::datalog(sender).is_empty(), true);
+            assert_eq!(Datalog::datalog(sender), None);
         })
     }
 
@@ -199,14 +205,14 @@ mod tests {
                 .from_base58()
                 .unwrap();
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
-            assert_eq!(Datalog::datalog(sender), vec![(0, record.clone())]);
+            assert_eq!(Datalog::datalog(sender), Some(vec![(0, record.clone())]));
             let record2 = "zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta"
                 .from_base58()
                 .unwrap();
             assert_ok!(Datalog::record(Origin::signed(sender), record2.clone()));
             assert_eq!(
                 Datalog::datalog(sender),
-                vec![(0, record.clone()), (0, record2.clone()),]
+                Some(vec![(0, record.clone()), (0, record2.clone())])
             );
             let record3 = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2"
                 .from_base58()
@@ -214,7 +220,7 @@ mod tests {
             assert_ok!(Datalog::record(Origin::signed(sender), record3.clone()));
             assert_eq!(
                 Datalog::datalog(sender),
-                vec![(0, record), (0, record2), (0, record3),]
+                Some(vec![(0, record), (0, record2), (0, record3)])
             );
         })
     }

@@ -22,18 +22,16 @@
 pub mod chain_spec;
 
 #[macro_use]
-mod service;
+pub mod service;
 
 #[macro_use]
 #[cfg(feature = "parachain")]
-mod parachain;
+pub mod parachain;
 
-#[cfg(feature = "browser")]
-mod browser;
 #[cfg(feature = "cli")]
-mod cli;
+pub mod cli;
 #[cfg(feature = "cli")]
-mod command;
+pub mod command;
 
 #[cfg(feature = "browser")]
 pub use browser::*;
@@ -41,3 +39,5 @@ pub use browser::*;
 pub use cli::*;
 #[cfg(feature = "cli")]
 pub use command::*;
+#[cfg(feature = "cli")]
+pub use sc_cli::{Error, Result};

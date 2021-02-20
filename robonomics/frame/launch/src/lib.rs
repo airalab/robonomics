@@ -18,41 +18,48 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, EncodeLike};
-use frame_support::{decl_event, decl_module};
-use frame_system::ensure_signed;
-use sp_runtime::traits::Member;
-use sp_std::prelude::*;
+pub use pallet::*;
 
-/// Launch module main trait.
-pub trait Config: frame_system::Config {
-    /// Robot launch parameter data type.
-    type Parameter: Codec + EncodeLike + Member;
-    /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-}
+#[frame_support::pallet]
+pub mod pallet {
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-decl_event! {
-    pub enum Event<T>
-    where AccountId = <T as frame_system::Config>::AccountId,
-          Parameter = <T as Config>::Parameter,
-    {
-        /// Launch a robot with given parameter: sender, robot, parameter.
-        NewLaunch(AccountId, AccountId, Parameter),
-        /// Launch message sent to different location.
-        LaunchSent(AccountId),
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        /// Robot launch parameter data type.
+        type Parameter: Parameter;
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
-}
 
-decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
+    pub enum Event<T: Config> {
+        /// Launch a robot with given parameter: sender, robot, parameter.
+        NewLaunch(T::AccountId, T::AccountId, T::Parameter),
+    }
 
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Launch a robot with given parameter.
-        #[weight = 500_000]
-        fn launch(origin, robot: T::AccountId, param: T::Parameter) {
+        #[pallet::weight(500_000)]
+        pub fn launch(
+            origin: OriginFor<T>,
+            robot: T::AccountId,
+            param: T::Parameter,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            Self::deposit_event(RawEvent::NewLaunch(sender, robot, param));
+            Self::deposit_event(Event::NewLaunch(sender, robot, param));
+            Ok(().into())
         }
     }
 }

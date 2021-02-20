@@ -21,7 +21,7 @@ use codec::{Codec, Decode, Encode, EncodeLike};
 use core::marker::PhantomData;
 use sp_runtime::traits::Member;
 use std::fmt::Debug;
-use substrate_subxt::system::{System, SystemEventsDecoder};
+use substrate_subxt::system::System;
 use substrate_subxt_proc_macro::{module, Call, Event, Store};
 
 /// The subset of the `pallet_robonomics_datalog::Trait` that a client must implement.

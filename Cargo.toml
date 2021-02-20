@@ -1,14 +1,11 @@
 [workspace]
-default-members = [ 
-    "bin/node/cli",
-    "bin/node/bench",
- ]
+default-members = [ "bin/node" ]
 members = [
+    "bin/node",
     "bin/node/cli",
-    "bin/node/ipci-runtime",
-    "bin/node/robonomics-runtime",
-    "bin/node/robonomics-runtime/parachain",
     "bin/node/bench",
+    "bin/node/runtime",
+    "bin/node/runtime/parachain",
     "robonomics/frame/rws",
     "robonomics/frame/launch",
     "robonomics/frame/datalog",
