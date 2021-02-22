@@ -119,7 +119,9 @@ You can support the network just by launch the node. Every additional full node 
 === Gatekeepers updates
 
 Actual release : https://github.com/airalab/robonomics/releases/tag/v0.25.0[0.25.0 Rococo V1.2 "Gatekeepers on Earth"]
+
 Telemetry: https://telemetry.polkadot.io/#list/Earth[Earth parachain]
+
 Launch command: 
 [source, shell]
 ----
