@@ -116,6 +116,17 @@ Currently Robonomics on Substrate https://telemetry.polkadot.io/#/Robonomics[tes
 
 You can support the network just by launch the node. Every additional full node of blockchain helps it to be more sustainable and fault tolerant. Robonomics node binaries is available on https://github.com/airalab/robonomics/releases[releases] or could be <<building-from-source,build from source>>.
 
+=== Gatekeepers updates
+
+Actual release : https://github.com/airalab/robonomics/releases/tag/v0.25.0[0.25.0 Rococo V1.2 "Gatekeepers on Earth"]
+Telemetry: https://telemetry.polkadot.io/#list/Earth[Earth parachain]
+Launch command: 
+[source, shell]
+----
+robonomics --parachain-id 1000 --name <Your_name>
+----
+
+
 == Robonomics I/O
 
 Especially to make hardware interaction easy we introduce https://crates.robonomics.network/robonomics_io/index.html[robonomics_io] crate. This crate implements two kinds of devices: `source` - device that intended to read a data and `sink` - device that intended to write data. This approach suits the pipelines paradigm well and implemented in Robonomics CLI as `io` subcommand.
