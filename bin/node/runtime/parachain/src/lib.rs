@@ -90,8 +90,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 4,
-    impl_version: 4,
+    spec_version: 5,
+    impl_version: 5,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -459,6 +459,10 @@ parameter_types! {
         let mut t = BTreeSet::new();
         // Acala stablecoin
         t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
+        // XRT form Earth
+        t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 1_000 }).into()));
+        // XRT form Mars 
+        t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 2_000 }).into()));
         t
     };
 }
