@@ -23,6 +23,8 @@ use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
+pub use cumulus_client_service::genesis::generate_genesis_block;
+
 sc_executor::native_executor_instance!(
     pub Executor,
     parachain_runtime::api::dispatch,
@@ -40,25 +42,26 @@ pub fn new_partial(
         (),
         sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
         sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
-        Option<sc_telemetry::TelemetrySpan>,
+        (),
     >,
     sc_service::Error,
 > {
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let (client, backend, keystore_container, task_manager, telemetry_span) =
+    let (client, backend, keystore_container, task_manager) =
         sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
     let client = Arc::new(client);
     let registry = config.prometheus_registry();
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
+        config.role.is_authority().into(),
         config.prometheus_registry(),
         task_manager.spawn_handle(),
         client.clone(),
     );
 
-    let import_queue = cumulus_consensus::import_queue::import_queue(
+    let import_queue = cumulus_client_consensus_relay_chain::import_queue(
         client.clone(),
         client.clone(),
         inherent_data_providers.clone(),
@@ -75,7 +78,7 @@ pub fn new_partial(
         transaction_pool,
         inherent_data_providers,
         select_chain: (),
-        other: telemetry_span,
+        other: (),
     };
 
     Ok(params)
@@ -83,7 +86,7 @@ pub fn new_partial(
 
 pub fn load_spec(
     id: &str,
-    para_id: cumulus_primitives::ParaId,
+    para_id: cumulus_primitives_core::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     match id {
         "" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),

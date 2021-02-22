@@ -4,4 +4,7 @@
 [submodule "examples/robonomics_sample_controller"]
 	path = examples/robonomics_sample_controller
 	url = https://github.com/PaTara43/robonomics_sample_controller
+[submodule "vendor/orml"]
+	path = vendor/orml
+	url = https://github.com/open-web3-stack/open-runtime-module-library
 

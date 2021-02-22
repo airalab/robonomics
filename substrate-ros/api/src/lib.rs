@@ -24,7 +24,7 @@ use sc_client_api::{
 use sc_network::{ExHashT, NetworkService};
 pub use sc_rpc::system::helpers::SystemInfo;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
-use sp_blockchain::{Error as ClientError, HeaderBackend};
+use sp_blockchain::HeaderBackend;
 use sp_core::H256;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits;
@@ -59,7 +59,7 @@ where
         + Send
         + Sync
         + 'static,
-    Client::Api: SessionKeys<P::Block, Error = ClientError>,
+    Client::Api: SessionKeys<P::Block>,
     u64: From<<<P::Block as traits::Block>::Header as traits::Header>::Number>,
 {
     let system = system::System::new(system_info, service_network);

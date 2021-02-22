@@ -274,6 +274,7 @@ impl pallet_robonomics_rws::Config for Runtime {
     type TotalBandwidth = TotalBandwidth;
     type WeightLimit = WeightLimit;
     type PointsLimit = PointsLimit;
+    type Time = Timestamp;
     type Event = Event;
     type Call = Call;
 }
@@ -379,7 +380,7 @@ construct_runtime!(
         RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 
         // Simple consensus.
-        Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
+        Babe: pallet_babe::{Module, Call, Storage, Config, ValidateUnsigned},
         Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
 
         // Robonomics Network modules.
@@ -508,7 +509,7 @@ impl_runtime_apis! {
             }
         }
 
-        fn current_epoch_start() -> sp_consensus_babe::SlotNumber {
+        fn current_epoch_start() -> sp_consensus_babe::Slot {
             Babe::current_epoch_start()
         }
 
@@ -521,7 +522,7 @@ impl_runtime_apis! {
         }
 
         fn generate_key_ownership_proof(
-            _slot_number: sp_consensus_babe::SlotNumber,
+            _slot_number: sp_consensus_babe::Slot,
             _authority_id: sp_consensus_babe::AuthorityId,
         ) -> Option<sp_consensus_babe::OpaqueKeyOwnershipProof> {
             None

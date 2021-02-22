@@ -18,8 +18,11 @@
 //! Polkadot collator service implementation.
 
 use super::{new_partial, Executor, RuntimeApi};
-use cumulus_network::build_block_announce_validator;
-use cumulus_service::{
+use cumulus_client_consensus_relay_chain::{
+    build_relay_chain_consensus, BuildRelayChainConsensusParams,
+};
+use cumulus_client_network::build_block_announce_validator;
+use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
 use node_primitives::Block;
@@ -46,15 +49,13 @@ async fn start_node_impl(
     let parachain_config = prepare_node_config(parachain_config);
 
     let polkadot_full_node =
-        cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public()).map_err(
-            |e| match e {
+        cumulus_client_service::build_polkadot_full_node(polkadot_config, collator_key.public())
+            .map_err(|e| match e {
                 polkadot_service::Error::Sub(x) => x,
                 s => format!("{}", s).into(),
-            },
-        )?;
+            })?;
 
     let params = new_partial(&parachain_config)?;
-    let telemetry_span = params.other;
     params
         .inherent_data_providers
         .register_provider(sp_timestamp::InherentDataProvider)
@@ -85,6 +86,8 @@ async fn start_node_impl(
         })?;
 
     let rpc_extensions_builder = Box::new(|_, _| ());
+    let telemetry_span = sc_telemetry::TelemetrySpan::new();
+    let _telemetry_span_entered = telemetry_span.enter();
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
@@ -98,7 +101,7 @@ async fn start_node_impl(
         network: network.clone(),
         network_status_sinks,
         system_rpc_tx,
-        telemetry_span,
+        telemetry_span: Some(telemetry_span.clone()),
     })?;
 
     let announce_block = {
@@ -114,22 +117,27 @@ async fn start_node_impl(
             prometheus_registry.as_ref(),
         );
         let spawner = task_manager.spawn_handle();
-        let polkadot_backend = polkadot_full_node.backend.clone();
+
+        let parachain_consensus = build_relay_chain_consensus(BuildRelayChainConsensusParams {
+            para_id: id,
+            proposer_factory,
+            inherent_data_providers: params.inherent_data_providers,
+            block_import: client.clone(),
+            relay_chain_client: polkadot_full_node.client.clone(),
+            relay_chain_backend: polkadot_full_node.backend.clone(),
+        });
 
         let params = StartCollatorParams {
             para_id: id,
-            block_import: client.clone(),
-            proposer_factory,
-            inherent_data_providers: params.inherent_data_providers,
             block_status: client.clone(),
             announce_block,
             client: client.clone(),
             task_manager: &mut task_manager,
             collator_key,
-            polkadot_full_node,
+            relay_chain_full_node: polkadot_full_node,
             spawner,
             backend,
-            polkadot_backend,
+            parachain_consensus,
         };
 
         start_collator(params).await?;

@@ -18,47 +18,62 @@
 //! Simple Robonomics launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Encode;
-use frame_support::{decl_event, decl_module};
-use frame_system::ensure_signed;
-use sp_std::prelude::*;
-use xcm::v0::{Error as XcmError, Junction, OriginKind, SendXcm, Xcm};
+pub use pallet::*;
 
-/// Datalog XCM module main trait.
-pub trait Config: launch::Config {
-    /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-    /// The XCM sender module.
-    type XcmSender: SendXcm;
-    /// Runtime Call type, used for cross-messaging calls.
-    type Call: Encode + From<launch::Call<Self>>;
-}
+#[frame_support::pallet]
+pub mod pallet {
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
+    use xcm::v0::{Error as XcmError, Junction, OriginKind, SendXcm, Xcm};
 
-decl_event! {
-    pub enum Event<T>
-    where AccountId = <T as frame_system::Config>::AccountId,
-    {
-        /// Launch request sended to another location.
-        LaunchSentSuccess(AccountId),
-        /// Launch request didn't sent, error attached.
-        LaunchSentFailure(AccountId, XcmError),
+    #[pallet::config]
+    pub trait Config: frame_system::Config + launch::pallet::Config {
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        /// The XCM sender module.
+        type XcmSender: SendXcm;
+        /// Runtime Call type, used for cross-messaging calls.
+        type Call: Encode + From<launch::pallet::Call<Self>>;
     }
-}
 
-decl_module! {
-    pub struct Module<T: Config> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(T::AccountId = "AccountId")]
+    pub enum Event<T: Config> {
+        /// Launch request sended to another location.
+        LaunchSentSuccess(T::AccountId),
+        /// Launch request didn't sent, error attached.
+        LaunchSentFailure(T::AccountId, XcmError),
+    }
 
-        #[weight = 5_000_000]
-        fn launch(origin, parachain_id: u32, robot: T::AccountId, param: T::Parameter) {
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        #[pallet::weight(5_000_000)]
+        pub fn launch(
+            origin: OriginFor<T>,
+            parachain_id: u32,
+            robot: T::AccountId,
+            param: T::Parameter,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let location = Junction::Parachain { id: parachain_id };
-            let call: <T as Config>::Call = launch::Call::<T>::launch(robot, param).into();
-            let message = Xcm::Transact { origin_type: OriginKind::SovereignAccount, call: call.encode() };
+            let call: <T as Config>::Call = launch::pallet::Call::<T>::launch(robot, param).into();
+            let message = Xcm::Transact {
+                origin_type: OriginKind::SovereignAccount,
+                call: call.encode(),
+            };
             match T::XcmSender::send_xcm(location.into(), message.into()) {
-                Ok(()) => Self::deposit_event(RawEvent::LaunchSentSuccess(sender)),
-                Err(e) => Self::deposit_event(RawEvent::LaunchSentFailure(sender, e)),
+                Ok(()) => Self::deposit_event(Event::LaunchSentSuccess(sender)),
+                Err(e) => Self::deposit_event(Event::LaunchSentFailure(sender, e)),
             }
+            Ok(().into())
         }
     }
 }
