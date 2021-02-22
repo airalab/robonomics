@@ -24,9 +24,6 @@ use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
 
-use sp_core::crypto::Ss58AddressFormat;
-use sp_core::crypto::Ss58Codec;
-
 use crate::error::{Error, Result};
 
 /// Read line from standard console input.

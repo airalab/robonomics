@@ -1,0 +1,64 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Aarch64
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches:
+    - master
+  create:
+    tags:
+    - v*
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  default:
+    runs-on: ubuntu-18.04
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+
+      - name: Checkout the source code
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      #- uses: hecrj/setup-rust-action@v1
+      #  with:
+      #    rust-version: 'nightly-2020-12-29'
+      #    targets: 'wasm32-unknown-unknown'
+
+      - name: Run on architecture
+        # You may pin to the exact commit or the version.
+        # uses: uraimo/run-on-arch-action@c0aa3c9b8877a04a522d5ad7e9a98689afd41964
+        uses: uraimo/run-on-arch-action@v2.0.8
+        with:
+          # CPU architecture: armv6, armv7, aarch64, s390x, ppc64le.
+          arch: aarch64 # optional, default is aarch64
+          distro: ubuntu18.04
+          # Linux distribution name: ubuntu16.04, ubuntu18.04, ubuntu20.04, buster, stretch, jessie, fedora_latest, alpine_latest.
+
+          # Your GitHub token, used for caching Docker images in your project's public package registry. Usually this would just be $\{{ github.token }}. This speeds up builds and is highly recommended.
+          githubToken: ${{ github.token }} # default is
+          # Environment variables to propagate to the container. YAML, but must begin with a | character. These variables will be available in both run and setup.
+
+          install: |
+            apt-get update && apt-get install -y wget cmake git clang libclang-dev libudev-dev
+            wget -O install.sh https://sh.rustup.rs && chmod +x ./install.sh && ./install.sh -y
+            source $HOME/.cargo/env
+            rustup update nightly
+            rustup update stable
+            rustup target add wasm32-unknown-unknown --toolchain nightly
+            command -v wasm-gc || cargo +nightly install --git https://github.com/alexcrichton/wasm-gc --force
+
+          # Shell commands to execute in the container.
+          run: |
+            source $HOME/.cargo/env
+            cargo build --locked --release
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: robonomics-aarch64
+          path: target/release/robonomics
