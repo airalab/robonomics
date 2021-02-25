@@ -1,7 +1,7 @@
 = The Robonomics Framework
 
 :Author: Robonomics Network Developers
-:Revision: 0.3.0
+:Revision: 0.4.0
 :toc:
 :sectnums:
 
@@ -11,39 +11,26 @@ image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", li
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
-== Intro
+Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
-Robonomics project implements a software platform for human-to-machine / machine-to-machine technical && economic communication. Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
+== Try it out
 
-Structure of **Robonomics Framework** followed.
+. https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
+. Runs the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
+
+== The Robonomics Crates 
+
+Structure of **Robonomics Framework** followed:
 
 - **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
 - **Robonomics CLI** - console line primitives that make framework functions runnable.
 - **Robonomics IO** - stream-oriented library with support general set of sensors and actuators (including virtual devices like PubSub or stdin/stdout) that makes hardware interaction easy.
-- **Robonomics Protocol** - network library that provides primitives to build P2P communication for Industry 4.0 and Smart City cases.
+- **Robonomics Protocol** - network library that helps to build P2P communication in Industry 4.0 and Smart City cases.
 - **Robonomics Frame** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
 
-== Try it out
+Full docs available at https://crates.robonomics.network.
 
-- Open https://parachain.robonomics.network/#/settings[Robonomics Portal].
-
-When connection is success you can explore `Robonomics Testnet` and `DAO IPCI` chain.
-
- - Accounts management: https://parachain.robonomics.network/#/accounts
- - Looking for network events: https://parachain.robonomics.network/#/explorer
- - Transfer test XRT: https://parachain.robonomics.network/#/transfer
- - Send extrinsics to robonomics modules: https://parachain.robonomics.network/#/extrinsics
-
-== Documentation
-
-- Robonomics wiki pages: https://wiki.robonomics.network
-- Framework Documentation: https://crates.robonomics.network
-
-== Install node
-
-Robonomics on Substrate binary blobs available as an assets in https://github.com/airalab/robonomics/releases[releases]. Latest version you can try to build from source code.
-
-=== Building from source
+== Building from source
 
 Ensure you have Rust and the support software installed:
 
@@ -52,24 +39,20 @@ Ensure you have Rust and the support software installed:
 curl https://sh.rustup.rs -sSf | sh
 # on Windows download and run rustup-init.exe
 # from https://rustup.rs instead
-
-rustup update nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly
-rustup update stable
-cargo +nightly install --git https://github.com/alexcrichton/wasm-gc
 ----
 
 You will also need to install the following packages:
 
- - Linux:
+ . Linux:
 [source, shell]
-sudo apt install cmake git clang libclang-dev libudev-dev
+sudo apt install cmake git clang libclang-dev
 
- - Mac:
+ . Mac:
 [source, shell]
 brew install cmake pkg-config git llvm
 
- - Windows (PowerShell):
+ . Windows (PowerShell):
 +
 [source, shell]
 ----
@@ -78,51 +61,54 @@ brew install cmake pkg-config git llvm
 # of LLVM  from http://releases.llvm.org/download.html
 ----
 
-Install robonomics node from git source:
+Install robonomics node from git source.
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v0.21.0 node-cli
+cargo install --force --git https://github.com/airalab/robonomics --tag v0.25.1 robonomics 
 
-Run node in https://telemetry.polkadot.io/#/Robonomics[Robonomics Testnet]:
+And then launch full node of robonomics testnet parachain.
 
 [source, shell]
 robonomics
 
-Or run your local development network:
+Or run your local development network.
 
 [source, shell]
 robonomics --dev
 
 === Building with Nix
 
-Install Nix package manager:
-
+ . Install Nix package manager:
 [source, shell]
 curl https://nixos.org/nix/install | sh
 
-Run in Nix shell:
-
+ . Run in Nix shell:
++
 [source, shell]
 ----
-git clone https://github.com/airalab/robonomics && cd robonomics
+git clone --recursive https://github.com/airalab/robonomics && cd robonomics
 nix-shell --run "cargo run --release"
 ----
 
 == Network maintaining
 
-Currently Robonomics on Substrate https://telemetry.polkadot.io/#/Robonomics[testnet] is maintained by developers but anyone can support the project by several ways described below.
+Currently Robonomics is maintained by developers but anyone can https://www.robonomics.events/#/collators[support the project].
+Every additional full node of blockchain helps it to be more sustainable and fault tolerant.
+Robonomics node binaries is available in https://github.com/airalab/robonomics/releases[release] assets
+or it could be <<building-from-source,build from source>>.
 
-=== Full (collator) node
+== Robotics integration
 
-You can support the network just by launch the node. Every additional full node of blockchain helps it to be more sustainable and fault tolerant. Robonomics node binaries is available on https://github.com/airalab/robonomics/releases[releases] or could be <<building-from-source,build from source>>.
+Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
+The node implements a few features to make robotics integration as easy as it possible.
 
-== Robonomics I/O
+=== Robonomics I/O
 
 Especially to make hardware interaction easy we introduce https://crates.robonomics.network/robonomics_io/index.html[robonomics_io] crate. This crate implements two kinds of devices: `source` - device that intended to read a data and `sink` - device that intended to write data. This approach suits the pipelines paradigm well and implemented in Robonomics CLI as `io` subcommand.
 
 ```
 $ robonomics io
-robonomics-io 0.18.0
+robonomics-io 0.25.1
 Run I/O actions using Robonomics Framework.
 
 USAGE:
@@ -141,17 +127,14 @@ $ robonomics io read sds011
 {"timestamp":"1588090281","pm25":0.5,"pm10":1.5}
 ```
 
-Is it also possible to combine IO actions to get something useful, like this:
+Is it also possible to combine IO actions to get something useful.
+Following sentence reads JSON values from a sensor and publishes it into `my-sensor-data` topic.
 
 ```bash
-$ robonomics io read sds011 | gz | robonomics io write pubsub my-sensor-data
+$ robonomics io read sds011 | robonomics io write pubsub my-sensor-data
 ```
 
-The sentence above reads JSON values from a sensor, compresses it using gzip, and publishes it into `my-sensor-data` topic.
-
-== Robotics integration
-
-Special feature `ros` helps to use Robonomics Substrate modules in http://www.ros.org[ROS]-enabled cyber-physical systems.
+Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki]. 
 
 === Building with ROS feature
 
@@ -163,14 +146,13 @@ source /opt/ros/melodic/setup.bash
 
  . Build with `ros` feature:
 [source, shell]
-cd bin/node/cli && cargo build --release --features ros
+cd bin/node && cargo build --release --features ros
 
-== Examples
+=== Examples
 
 Available examples are in https://github.com/airalab/robonomics/tree/master/examples[this directory].
 
-=== Curiosity Rover under Robonomics control
+==== Curiosity Rover under Robonomics control
 
 Simple but yet a complete sample of Robonomics `launch` and `datalog` functions.
 You can find full documentation on https://wiki.robonomics.network/docs/connect-mars-curiosity-rover-under-robonomics-parachain-control/[Robonomics Wiki].
-
