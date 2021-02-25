@@ -222,7 +222,6 @@ pub fn mars_parachain_config() -> ChainSpec {
         },
     )
 }
-*/
 
 /// Rococo parachain genesis.
 fn rococo_parachain_genesis() -> GenesisConfig {
@@ -265,6 +264,7 @@ pub fn rococo_parachain_config() -> ChainSpec {
         },
     )
 }
+*/
 
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
@@ -276,10 +276,8 @@ pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
-/*
 /// Rococo parachain confing.
 #[cfg(feature = "rococo-parachain")]
 pub fn rococo_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/rococo.json")[..]).unwrap()
 }
-*/
