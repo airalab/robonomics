@@ -461,7 +461,7 @@ parameter_types! {
         t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
         // XRT form Earth
         t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 1_000 }).into()));
-        // XRT form Mars 
+        // XRT form Mars
         t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 2_000 }).into()));
         t
     };
