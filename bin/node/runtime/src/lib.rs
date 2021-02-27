@@ -253,10 +253,18 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
+parameter_types! {
+    pub const WindowSize: u64 = 128;
+    pub const MaximumMessageSize: usize = 512;
+}
+
 impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
+    type WindowSize = WindowSize;
+    type MaximumMessageSize = MaximumMessageSize;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
