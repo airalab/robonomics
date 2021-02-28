@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-18.04, windows-latest]
 
     env:
       EXE_EXT: ${{ contains(matrix.os, 'windows') && '.exe' || '' }}
@@ -43,7 +43,7 @@ jobs:
         path: target/release/robonomics${{ env.EXE_EXT }}
 
   nix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -58,7 +58,7 @@ jobs:
       run: nix-shell --run "cargo build --release"
 
   benchmarks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -82,7 +82,7 @@ jobs:
         path: target/release/robonomics
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -126,7 +126,7 @@ jobs:
         push: true
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
