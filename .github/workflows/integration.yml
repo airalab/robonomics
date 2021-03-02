@@ -72,9 +72,9 @@ jobs:
 
     - name: Build runtime benchmarks version
       run: |
-        cd bin/node/cli
-        cargo build --release --no-default-features --features cli,wasmtime,runtime-benchmarks 
-        cd ../../..
+        cd bin/node
+        cargo build --release --no-default-features --features runtime-benchmarks
+        cd ../..
 
     - uses: actions/upload-artifact@master
       with:

@@ -631,9 +631,9 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+            add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
             /* TODO
             add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
-            add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
             add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
             add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
             */

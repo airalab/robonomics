@@ -31,3 +31,9 @@ default = [
     "node-cli/rococo",
     "node-cli/wasmtime",
 ]
+
+runtime-benchmarks = [
+    "node-cli/cli",
+    "node-cli/runtime-benchmarks",
+    "node-cli/wasmtime",
+]
