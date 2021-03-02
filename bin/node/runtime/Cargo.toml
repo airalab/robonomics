@@ -94,6 +94,7 @@ runtime-benchmarks = [
     "pallet-balances/runtime-benchmarks",
     "pallet-grandpa/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
+    "pallet-robonomics-datalog/runtime-benchmarks",
     "frame-system-benchmarking",
     "hex-literal",
 ]

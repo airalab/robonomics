@@ -20,22 +20,29 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::from_over_into)]
+
 pub use pallet::*;
-
-pub mod weights;
-
 pub use weights::WeightInfo;
+
+mod benchmarking;
+mod weights;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use codec::{Decode, Encode};
     use frame_support::{
         pallet_prelude::*,
         traits::Time,
     };
-    use codec::{Encode, Decode};
     use frame_system::pallet_prelude::*;
     use sp_std::prelude::*;
+
     use super::*;
+
+    #[cfg(not(feature = "use_twox"))]
+    type DatalogHash = Blake2_128Concat;
+    #[cfg(feature = "use_twox")]
+    type DatalogHash = Twox64Concat;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -68,8 +75,6 @@ pub mod pallet {
         NewRecord(T::AccountId, <T::Time as Time>::Moment, T::Record),
         /// Account datalog erased.
         Erased(T::AccountId),
-        /// Record sended to another location.
-        RecordSent(T::AccountId),
     }
 
     #[pallet::hooks]
@@ -80,7 +85,7 @@ pub mod pallet {
     #[pallet::getter(fn datalog)]
     pub(super) type Datalog<T> = StorageMap<
         _,
-        Twox64Concat,
+        DatalogHash,
         <T as frame_system::Config>::AccountId,
         Vec<(<<T as Config>::Time as Time>::Moment, <T as Config>::Record)>,
     >;
@@ -194,6 +199,7 @@ pub mod pallet {
     }
 
     impl<T: Config> RingBufferItem<T> {
+        #[inline]
         fn split(self) -> (<<T as Config>::Time as Time>::Moment, <T as Config>::Record) {
             (self.0, self.1)
         }
@@ -261,12 +267,12 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use crate::{self as datalog, *};
-
     use base58::FromBase58;
     use frame_support::{assert_err, assert_ok, parameter_types};
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{DispatchError, testing::Header, traits::IdentityLookup};
+
+    use crate::{self as datalog, *};
 
     type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -337,7 +343,7 @@ mod tests {
         type WeightInfo = ();
     }
 
-    fn new_test_ext() -> sp_io::TestExternalities {
+    pub fn new_test_ext() -> sp_io::TestExternalities {
         let storage = frame_system::GenesisConfig::default()
             .build_storage::<Runtime>()
             .unwrap();
@@ -445,7 +451,7 @@ mod tests {
         })
     }
 
-    fn hash2vec(ss58hash: &str) -> Vec<u8> {
+    pub fn hash2vec(ss58hash: &str) -> Vec<u8> {
         ss58hash.from_base58().unwrap()
     }
 
