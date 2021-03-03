@@ -9,15 +9,14 @@ on:
 
 jobs:
   binary:
-    name: ${{ matrix.target }}
+    name: Binary (${{ matrix.target }})
     runs-on: ${{ contains(matrix.target, 'windows') && 'windows-latest' || 'ubuntu-18.04' }}
     strategy:
       matrix:
         target:
-        - x86_64-pc-windows-gnu
+        - x86_64-pc-windows-msvc
         - x86_64-unknown-linux-gnu
         - aarch64-unknown-linux-gnu
-        - armv7-unknown-linux-gnueabihf
 
     env:
       EXE_EXT: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
@@ -29,20 +28,42 @@ jobs:
       with:
         submodules: true
 
-    - name: Install Rust
+    - name: Install LLVM (for windows)
+      if: contains(matrix.target, 'windows')
+      run: choco install llvm
+
+    - name: Install ARM64 multilib
+      if: contains(matrix.target, 'aarch64')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib g++-multilib
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        mkdir .cargo
+        printf '[target.aarch64-unknown-linux-gnu]\nlinker = "aarch64-linux-gnu-gcc"' > .cargo/config
+
+    - name: Install ARMv7 multilib
+      if: contains(matrix.target, 'armv7')
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib g++-multilib
+        sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+        mkdir .cargo
+        printf '[target.armv7-unknown-linux-gnu]\nlinker = "arm-linux-gnu-gcc"' > .cargo/config
+
+    - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly-2020-12-29
         target: ${{ matrix.target }}
         default: true
 
-    - name: Add WASM target
+    - name: Install WASM target (for substrate runtime)
       run: rustup target add wasm32-unknown-unknown --toolchain=nightly-2020-12-29
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
       with:
-        use-cross: ${{ toJSON(!contains(matrix.target, 'x86_64')) }}
+        use-cross: false
         command: build
         args: --release --locked --target=${{ matrix.target }}
 
@@ -53,7 +74,8 @@ jobs:
         path: target/release/robonomics${{ env.EXE_EXT }}
 
   nixos:
-    runs-on: ubuntu-18.04
+    name: NixOS
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -68,7 +90,8 @@ jobs:
       run: nix-shell --run "cargo build --release"
 
   docker:
-    runs-on: ubuntu-18.04
+    name: Docker images
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -114,7 +137,8 @@ jobs:
         push: true
 
   docs:
-    runs-on: ubuntu-18.04
+    name: Documentation
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
