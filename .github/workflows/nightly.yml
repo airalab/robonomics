@@ -1,11 +1,8 @@
-name: Integration
+name: Nightly builds 
 on:
   push:
     branches:
     - master
-  create:
-    tags:
-    - v*
 
 jobs:
   binary:
@@ -20,7 +17,6 @@ jobs:
 
     env:
       EXE_EXT: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
-      LIBZ_SYS_STATIC: 1
 
     steps:
     - name: Checkout the source code
@@ -53,12 +49,12 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2020-12-29
+        toolchain: nightly-2021-02-25
         target: ${{ matrix.target }}
         default: true
 
     - name: Install WASM target (for substrate runtime)
-      run: rustup target add wasm32-unknown-unknown --toolchain=nightly-2020-12-29
+      run: rustup target add wasm32-unknown-unknown --toolchain=nightly-2021-02-25
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
@@ -87,77 +83,4 @@ jobs:
         nix_path: nixpkgs=channel:nixos-20.09
 
     - name: Build using Nix shell
-      run: nix-shell --run "cargo build --release"
-
-  docker:
-    name: Docker images
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-
-    - name: Login to DockerHub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Docker meta
-      id: docker_meta
-      uses: crazy-max/ghaction-docker-meta@v1
-      with:
-        images: robonomics/robonomics
-        tag-custom: latest
-        tag-sha: true # add git short SHA as Docker tag
-
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly-2020-12-29
-        target: wasm32-unknown-unknown 
-        default: true
-
-    - name: Build optimized binary
-      run: |
-        cargo build --locked --release
-        cp target/release/robonomics scripts/docker
-
-    - name: Push docker image
-      uses: docker/build-push-action@v2
-      with:
-        context: scripts/docker 
-        platforms: linux/amd64
-        labels: ${{ steps.docker_meta.outputs.labels }}
-        tags: ${{ steps.docker_meta.outputs.tags }}
-        push: true
-
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-
-    - uses: cachix/install-nix-action@v12
-      with:
-        nix_path: nixpkgs=channel:nixos-20.09
-
-    - name: Build crates documentation
-      run: nix-shell --run "cargo doc --all --no-deps"
-
-    - name: Push index.html
-      run: echo "<meta http-equiv=\"refresh\" content=\"0; URL='./robonomics_protocol/index.html'\" />" > ./target/doc/index.html
-
-    - name: Deploy crates.robonomics.network
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./target/doc
-        cname: crates.robonomics.network
+      run: nix-shell --run "cargo build --release --locked"
