@@ -10,7 +10,7 @@ on:
 jobs:
   binary:
     name: ${{ matrix.target }}
-    runs-on: ubuntu-18.04 
+    runs-on: ${{ contains(matrix.target, 'windows') && 'windows-latest' || 'ubuntu-18.04' }}
     strategy:
       matrix:
         target:
@@ -22,7 +22,6 @@ jobs:
     env:
       EXE_EXT: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
       LIBZ_SYS_STATIC: 1
-      NIGHTLY_RUST: nightly-2020-12-29
 
     steps:
     - name: Checkout the source code
@@ -33,21 +32,22 @@ jobs:
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: ${{ NIGHTLY_RUST }} 
-        target: ${{ matrix.target }} 
+        toolchain: nightly-2020-12-29
+        target: ${{ matrix.target }}
         default: true
 
     - name: Add WASM target
-      run: rustup target add wasm32-unknown-unknown --toolchain ${{ NIGHTLY_RUST }} 
+      run: rustup target add wasm32-unknown-unknown --toolchain=nightly-2020-12-29
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
       with:
-        use-cross: ${{ toJSON(matrix.target != 'x86_64-unknown-linux-gnu') }}
+        use-cross: ${{ toJSON(!contains(matrix.target, 'x86_64')) }}
         command: build
         args: --release --locked --target=${{ matrix.target }}
 
-    - uses: actions/upload-artifact@master
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@master
       with:
         name: ${{ matrix.target }}
         path: target/release/robonomics${{ env.EXE_EXT }}
