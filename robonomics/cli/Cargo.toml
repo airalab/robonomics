@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-cli"
 description = "Robonomics Framework console line interfaces."
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -10,13 +10,11 @@ robonomics-protocol = { path = "../protocol" }
 robonomics-io = { path = "../io" }
 derive_more = "0.99.11"
 structopt = "0.3.8"
-async-std = "1.7.0"
-actix-rt = "1.1.1"
+async-std = "1.9.0"
 futures = "0.3.4"
 serde_json = "1.0.0"
 bincode = "1.3"
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-core = "3.0.0" 
 log = "0.4.11"
 hex = "0.4.2"
 csv = "1.1.5"

@@ -1,9 +1,21 @@
-name: Code style
+name: Formatting 
 on: [push]
+
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: hecrj/setup-rust-action@v1
       - uses: actions/checkout@v2
-      - run: cargo fmt -- --check
+        with:
+          submodules: true
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check

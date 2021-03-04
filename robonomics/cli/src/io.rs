@@ -27,15 +27,6 @@ pub struct IoCmd {
     /// I/O device operation to run.
     #[structopt(subcommand)]
     pub operation: Operation,
-    #[allow(missing_docs)]
-    #[structopt(flatten)]
-    pub shared_params: sc_cli::SharedParams,
-}
-
-impl sc_cli::CliConfiguration for IoCmd {
-    fn shared_params(&self) -> &sc_cli::SharedParams {
-        &self.shared_params
-    }
 }
 
 impl IoCmd {

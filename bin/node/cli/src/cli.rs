@@ -33,10 +33,12 @@ pub struct Cli {
 
     #[allow(missing_docs)]
     #[structopt(flatten)]
+    #[cfg(feature = "full")]
     pub run: RunCmd,
 
     /// Polkadot relaychain arguments.
     #[structopt(raw = true)]
+    #[cfg(feature = "parachain")]
     pub relaychain_args: Vec<String>,
 }
 
@@ -47,6 +49,7 @@ pub struct RunCmd {
 
     /// Id of the parachain this collator collates for.
     #[structopt(long)]
+    #[cfg(feature = "parachain")]
     pub parachain_id: Option<u32>,
 }
 
@@ -74,9 +77,11 @@ pub enum Subcommand {
     Sign(SignCmd),
 
     /// Build a chain specification.
+    #[cfg(feature = "full")]
     BuildSpec(sc_cli::BuildSpecCmd),
 
     /// Remove the whole chain.
+    #[cfg(feature = "full")]
     PurgeChain(sc_cli::PurgeChainCmd),
 
     /// Robonomics Framework I/O operations.

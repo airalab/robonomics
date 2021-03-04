@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 fn main() {
-    #[cfg(feature = "cli")]
+    #[cfg(feature = "sc-cli")]
     cli::main();
 }
 
@@ -28,7 +28,7 @@ mod parachain {
     }
 }
 
-#[cfg(feature = "cli")]
+#[cfg(feature = "sc-cli")]
 mod cli {
     include!("src/cli.rs");
     use std::{env, fs, path::Path};
