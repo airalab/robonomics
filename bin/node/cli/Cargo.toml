@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.25.0"
+version = "0.25.1"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
@@ -73,8 +73,8 @@ polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "r
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 
 # node-specific dependencies
-node-rpc = { path = "../rpc" }
-node-runtime = { path = "../runtime" }
+node-rpc = { path = "../rpc", optional = true }
+node-runtime = { path = "../runtime", optional = true }
 parachain-runtime = { path = "../runtime/parachain", optional = true }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
@@ -89,7 +89,7 @@ substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
-node-runtime = { path = "../runtime" }
+node-runtime = { path = "../runtime", optional = true }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
@@ -100,6 +100,25 @@ structopt = { version = "0.3.8", optional = true }
 
 [features]
 default = []
+
+## Enable ultra lightweight node features.
+zero = [
+    "sc-cli",
+    "vergen",
+    "structopt",
+    "robonomics-cli",
+]
+
+## Enable full node basic features.
+full = [
+    "sc-cli",
+    "vergen",
+    "node-rpc",
+    "structopt",
+    "node-runtime",
+    "sc-service/db",
+    "robonomics-cli",
+]
 
 ## Enable Rococo relaychain integration.
 rococo = [
@@ -128,15 +147,6 @@ parachain = [
 wasmtime = [
     "sc-service/wasmtime",
     "sc-cli/wasmtime",
-]
-
-## Enable Console Line Interface basic features.
-cli = [
-    "sc-cli",
-    "vergen",
-    "structopt",
-    "sc-service/db",
-    "robonomics-cli",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
