@@ -25,10 +25,10 @@ path = "src/main.rs"
 parity-util-mem = { version = "0.9.0", default-features = false, features = ["jemalloc-global"] }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-node-cli = { path = "cli", features = ["full", "rococo", "wasmtime"] }
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-node-cli = { path = "cli", features = ["full", "rococo", "wasmtime"] }
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
 
 [target.'cfg(target_arch = "arm")'.dependencies]
-node-cli = { path = "cli", features = ["zero"] }
+node-cli = { path = "cli", default-features = false, features = [ "zero" ] }

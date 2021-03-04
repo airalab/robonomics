@@ -35,6 +35,7 @@ pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
     /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
+    #[cfg(feature = "parachain")]
     Parachain,
 }
 
@@ -43,6 +44,14 @@ pub trait RobonomicsChain {
     fn family(&self) -> RobonomicsFamily;
 }
 
+#[cfg(not(feature = "parachain"))]
+impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
+    fn family(&self) -> RobonomicsFamily {
+        RobonomicsFamily::Development;
+    }
+}
+
+#[cfg(feature = "parachain")]
 impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
         if self.id() == "dev" {

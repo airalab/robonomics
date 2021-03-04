@@ -45,7 +45,7 @@ jobs:
         sudo apt-get install -y gcc-multilib g++-multilib
         sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
         mkdir .cargo
-        printf '[target.armv7-unknown-linux-gnu]\nlinker = "arm-linux-gnu-gcc"' > .cargo/config
+        printf '[target.armv7-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > .cargo/config
 
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1

@@ -53,30 +53,32 @@ impl SubstrateCli for Cli {
         "robonomics".into()
     }
 
+    #[cfg(feature = "full")]
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
-            #[cfg(feature = "full")]
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
-            #[cfg(feature = "zero")]
-            _ => Err("Unknown spec")?,
         })
     }
 
+    #[cfg(not(feature = "full"))]
+    fn load_spec(&self, _id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+        Err("Chain spec isn't supported for zero build")?
+    }
+
+    #[cfg(feature = "full")]
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-        #[cfg(feature = "full")]
         match chain_spec.family() {
             RobonomicsFamily::Development => &node_runtime::VERSION,
             #[cfg(feature = "parachain")]
             RobonomicsFamily::Parachain => &parachain_runtime::VERSION,
-            #[cfg(not(feature = "parachain"))]
-            RobonomicsFamily::Parachain => &node_runtime::VERSION,
         }
-        #[cfg(feature = "zero")]
-        {
-            unimplemented!()
-        }
+    }
+
+    #[cfg(not(feature = "full"))]
+    fn native_runtime_version(_chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        unimplemented!()
     }
 }
 
@@ -85,7 +87,9 @@ pub fn run() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
 
     match &cli.subcommand {
-        #[cfg(not(feature = "zero"))]
+        #[cfg(not(feature = "full"))]
+        None => Ok(()),
+        #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
@@ -118,18 +122,16 @@ pub fn run() -> sc_cli::Result<()> {
             }
             .map_err(Into::into)
         }
-        #[cfg(feature = "zero")]
-        None => Ok(()),
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::Sign(cmd)) => cmd.run(),
         Some(Subcommand::Verify(cmd)) => cmd.run(),
         Some(Subcommand::Vanity(cmd)) => cmd.run(),
-        #[cfg(not(feature = "zero"))]
+        #[cfg(feature = "full")]
         Some(Subcommand::BuildSpec(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
         }
-        #[cfg(not(feature = "zero"))]
+        #[cfg(feature = "full")]
         Some(Subcommand::PurgeChain(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
