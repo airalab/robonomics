@@ -2354,11 +2354,11 @@ name = "frame-try-runtime"
 version = "0.9.0"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#beff566b53ea1eeb4e54edc9416211141195004f"
 dependencies = [
- "frame-support",
+ "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "parity-scale-codec",
- "sp-api",
- "sp-runtime",
- "sp-std",
+ "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
 ]
 
 [[package]]
@@ -5665,16 +5665,16 @@ name = "pallet-election-provider-multi-phase"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#beff566b53ea1eeb4e54edc9416211141195004f"
 dependencies = [
- "frame-support",
- "frame-system",
+ "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "parity-scale-codec",
  "serde",
- "sp-arithmetic",
+ "sp-arithmetic 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "sp-election-providers",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std",
+ "sp-io 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-npos-elections 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "static_assertions",
 ]
 
@@ -6057,6 +6057,7 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-application-crypto 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-election-providers",
  "sp-io 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "sp-npos-elections 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -8387,8 +8388,8 @@ dependencies = [
  "log 0.4.14",
  "sc-rpc",
  "sc-rpc-api",
- "sp-core",
- "sp-io",
+ "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-io 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "tokio 0.1.22",
 ]
 
@@ -10587,7 +10588,7 @@ dependencies = [
  "byteorder",
  "dyn-clonable",
  "ed25519-dalek",
- "futures 0.3.12",
+ "futures 0.3.13",
  "hash-db",
  "hash256-std-hasher",
  "hex",
@@ -10649,6 +10650,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "sp-election-providers"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#beff566b53ea1eeb4e54edc9416211141195004f"
+dependencies = [
+ "parity-scale-codec",
+ "sp-arithmetic 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-npos-elections 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
 ]
 
 [[package]]
@@ -10746,7 +10758,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33fd69f0a6e91bedc2fb1c5cc3689c212474b6c918274cb4cb14dbbe3c428c14"
 dependencies = [
- "futures 0.3.12",
+ "futures 0.3.13",
  "hash-db",
  "libsecp256k1",
  "log 0.4.14",
@@ -10813,7 +10825,7 @@ checksum = "db6ccd2baf189112355338e8b224dc513cd239b974dbd717f12b3dc7a7248c3b"
 dependencies = [
  "async-trait",
  "derive_more",
- "futures 0.3.12",
+ "futures 0.3.13",
  "merlin",
  "parity-scale-codec",
  "parking_lot 0.11.1",
@@ -12250,12 +12262,12 @@ dependencies = [
  "sc-client-api",
  "sc-executor",
  "sc-service",
- "sp-api",
+ "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "sp-blockchain",
- "sp-core",
- "sp-externalities",
- "sp-runtime",
- "sp-state-machine",
+ "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-externalities 0.9.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "sp-state-machine 0.9.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "structopt",
 ]
 

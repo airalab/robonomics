@@ -16,7 +16,7 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 == Try it out
 
 . https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
-. Runs the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
+. Run the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
 
 == The Robonomics Crates 
 
