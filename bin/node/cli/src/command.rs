@@ -16,9 +16,9 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
-use crate::cli::{Cli, Subcommand};
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -74,7 +74,9 @@ impl SubstrateCli for Cli {
             RobonomicsFamily::Parachain => &node_runtime::VERSION,
         }
         #[cfg(feature = "zero")]
-        { unimplemented!() }
+        {
+            unimplemented!()
+        }
     }
 }
 
@@ -117,9 +119,7 @@ pub fn run() -> sc_cli::Result<()> {
             .map_err(Into::into)
         }
         #[cfg(feature = "zero")]
-        None => {
-            Ok(())
-        }
+        None => Ok(()),
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::Sign(cmd)) => cmd.run(),
         Some(Subcommand::Verify(cmd)) => cmd.run(),
@@ -135,9 +135,7 @@ pub fn run() -> sc_cli::Result<()> {
             runner.sync_run(|config| cmd.run(config.database))
         }
         #[cfg(feature = "robonomics-cli")]
-        Some(Subcommand::Io(subcommand)) => {
-            subcommand.run().map_err(|e| e.to_string().into())
-        }
+        Some(Subcommand::Io(subcommand)) => subcommand.run().map_err(|e| e.to_string().into()),
         #[cfg(feature = "frame-benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
@@ -150,10 +148,10 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
+            use codec::Encode;
+            use sp_api::BlockT;
             use sp_core::hexdisplay::HexDisplay;
             use std::io::Write;
-            use sp_api::BlockT;
-            use codec::Encode;
 
             let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
