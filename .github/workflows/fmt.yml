@@ -5,17 +5,21 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout the source code
+        uses: actions/checkout@v2
         with:
           submodules: true
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
           components: rustfmt
+          default: true
 
-      - uses: actions-rs/cargo@v1
+      - name: Check code formatting
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: -- --check
