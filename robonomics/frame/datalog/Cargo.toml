@@ -22,7 +22,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 
 [features]
 default = ["std"]
-use_twox = []
+storage-v0 = []
 std = [
     "serde",
     "codec/std",

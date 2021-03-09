@@ -38,10 +38,9 @@ pub mod pallet {
     use sp_std::prelude::*;
 
     use super::*;
-
-    #[cfg(not(feature = "use_twox"))]
+    #[cfg(feature = "storage-v0")]
     type DatalogHash = Blake2_128Concat;
-    #[cfg(feature = "use_twox")]
+    #[cfg(not(feature = "storage-v0"))]
     type DatalogHash = Twox64Concat;
 
     #[pallet::config]
