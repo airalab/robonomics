@@ -10,8 +10,8 @@ serde = { version = "1.0.106", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"] }
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt.git" }
-substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt.git" }
+substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt.git", rev = "c4405c40" }
+substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt.git", rev = "c4405c40" }
 sp-runtime = "3.0.0"
 sp-core = "3.0.0"
 libp2p = "0.32.2"

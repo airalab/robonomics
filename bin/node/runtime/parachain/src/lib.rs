@@ -484,6 +484,8 @@ impl cumulus_pallet_xcm_handler::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type UpwardMessageSender = ParachainSystem;
     type HrmpMessageSender = ParachainSystem;
+    type SendXcmOrigin = frame_system::EnsureRoot<AccountId>;
+    type AccountIdConverter = LocationConverter;
 }
 
 pub struct RelayToNative;
@@ -730,4 +732,4 @@ impl_runtime_apis! {
     }
 }
 
-cumulus_pallet_parachain_system::register_validate_block!(Block, Executive);
+cumulus_pallet_parachain_system::register_validate_block!(Runtime, Executive);
