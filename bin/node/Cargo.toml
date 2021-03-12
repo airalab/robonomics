@@ -32,3 +32,10 @@ node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
 
 [target.'cfg(target_arch = "arm")'.dependencies]
 node-cli = { path = "cli", default-features = false, features = [ "zero" ] }
+
+[features]
+runtime-benchmarks = [
+    "node-cli/rococo",
+    "node-cli/runtime-benchmarks",
+    "node-cli/wasmtime",
+]

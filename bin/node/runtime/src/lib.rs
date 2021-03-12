@@ -253,10 +253,18 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
+parameter_types! {
+    pub const WindowSize: u64 = 128;
+    pub const MaximumMessageSize: usize = 512;
+}
+
 impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
+    type WindowSize = WindowSize;
+    type MaximumMessageSize = MaximumMessageSize;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
@@ -623,9 +631,9 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+            add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
             /* TODO
             add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
-            add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
             add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
             add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
             */
