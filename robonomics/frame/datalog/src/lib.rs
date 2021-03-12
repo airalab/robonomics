@@ -30,10 +30,7 @@ mod weights;
 #[frame_support::pallet]
 pub mod pallet {
     use codec::{Decode, Encode};
-    use frame_support::{
-        pallet_prelude::*,
-        traits::Time,
-    };
+    use frame_support::{pallet_prelude::*, traits::Time};
     use frame_system::pallet_prelude::*;
     use sp_std::prelude::*;
 
@@ -97,7 +94,7 @@ pub mod pallet {
         Twox64Concat,
         <T as frame_system::Config>::AccountId,
         RingBufferIndex,
-        ValueQuery
+        ValueQuery,
     >;
 
     /// Ringbuffer items
@@ -107,8 +104,8 @@ pub mod pallet {
         _,
         Twox64Concat,
         (<T as frame_system::Config>::AccountId, u64),
-        RingBufferItem::<T>,
-        ValueQuery
+        RingBufferItem<T>,
+        ValueQuery,
     >;
 
     #[pallet::pallet]
@@ -120,7 +117,10 @@ pub mod pallet {
         /// Store new data into blockchain.
         #[pallet::weight(T::WeightInfo::record())]
         pub fn record(origin: OriginFor<T>, record: T::Record) -> DispatchResultWithPostInfo {
-            ensure!(record.size_hint() <= T::MaximumMessageSize::get(), Error::<T>::RecordTooBig );
+            ensure!(
+                record.size_hint() <= T::MaximumMessageSize::get(),
+                Error::<T>::RecordTooBig
+            );
             let sender = ensure_signed(origin)?;
 
             // remove previous version from storage
@@ -158,9 +158,7 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::Erased(sender));
-            Ok(Some(
-                T::WeightInfo::erase(count)
-            ).into())
+            Ok(Some(T::WeightInfo::erase(count)).into())
         }
     }
 
@@ -179,8 +177,7 @@ pub mod pallet {
     #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
     #[derive(Encode, Decode)]
     pub struct RingBufferItem<T: Config>(
-        #[codec(compact)]
-        <<T as Config>::Time as Time>::Moment,
+        #[codec(compact)] <<T as Config>::Time as Time>::Moment,
         <T as Config>::Record,
     );
 
@@ -192,7 +189,10 @@ pub mod pallet {
 
     #[cfg(test)]
     impl<T: Config> RingBufferItem<T> {
-        pub(crate) fn new(now: <<T as Config>::Time as Time>::Moment, record: <T as Config>::Record) -> Self {
+        pub(crate) fn new(
+            now: <<T as Config>::Time as Time>::Moment,
+            record: <T as Config>::Record,
+        ) -> Self {
             Self(now, record)
         }
     }
@@ -269,7 +269,7 @@ mod tests {
     use base58::FromBase58;
     use frame_support::{assert_err, assert_ok, parameter_types};
     use sp_core::H256;
-    use sp_runtime::{DispatchError, testing::Header, traits::IdentityLookup};
+    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
 
     use crate::{self as datalog, *};
 
@@ -395,14 +395,8 @@ mod tests {
 
             assert_eq!(Datalog::data(&sender), data);
             let idx = Datalog::datalogidx(&sender);
-            assert_eq!(
-                idx,
-                RingBufferIndex { start: 11, end: 10 }
-            );
-            assert_eq!(
-                idx.count(WINDOW),
-                WINDOW - 1
-            );
+            assert_eq!(idx, RingBufferIndex { start: 11, end: 10 });
+            assert_eq!(idx.count(WINDOW), WINDOW - 1);
         })
     }
 

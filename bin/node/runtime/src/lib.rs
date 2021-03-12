@@ -38,7 +38,7 @@ pub mod constants;
 
 use codec::Encode;
 use frame_support::{
-    construct_runtime, debug, parameter_types,
+    construct_runtime, parameter_types,
     traits::{KeyOwnerProofSystem, Randomness},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},

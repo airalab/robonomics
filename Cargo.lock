@@ -30,7 +30,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 dependencies = [
  "lazy_static",
- "regex 1.4.3",
+ "regex 1.4.4",
 ]
 
 [[package]]
@@ -553,7 +553,7 @@ dependencies = [
  "peeking_take_while",
  "proc-macro2",
  "quote",
- "regex 1.4.3",
+ "regex 1.4.4",
  "rustc-hash",
  "shlex",
  "which 3.1.1",
@@ -1819,7 +1819,7 @@ dependencies = [
  "atty",
  "humantime 1.3.0",
  "log 0.4.14",
- "regex 1.4.3",
+ "regex 1.4.4",
  "termcolor",
 ]
 
@@ -1832,7 +1832,7 @@ dependencies = [
  "atty",
  "humantime 2.1.0",
  "log 0.4.14",
- "regex 1.4.3",
+ "regex 1.4.4",
  "termcolor",
 ]
 
@@ -2695,7 +2695,7 @@ dependencies = [
  "bstr",
  "fnv",
  "log 0.4.14",
- "regex 1.4.3",
+ "regex 1.4.4",
 ]
 
 [[package]]
@@ -3700,7 +3700,7 @@ dependencies = [
  "owning_ref",
  "parity-util-mem",
  "parking_lot 0.11.1",
- "regex 1.4.3",
+ "regex 1.4.4",
  "rocksdb",
  "smallvec 1.6.1",
 ]
@@ -4031,7 +4031,7 @@ dependencies = [
  "prost 0.7.0",
  "prost-build 0.7.0",
  "rand 0.7.3",
- "regex 1.4.3",
+ "regex 1.4.4",
  "sha2 0.9.3",
  "smallvec 1.6.1",
  "unsigned-varint 0.7.0",
@@ -5184,7 +5184,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "cumulus-client-collator",
  "cumulus-client-consensus-relay-chain",
@@ -5252,7 +5252,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "parity-scale-codec",
@@ -5265,7 +5265,7 @@ dependencies = [
 
 [[package]]
 name = "node-rpc"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "jsonrpc-core",
  "node-primitives",
@@ -5296,7 +5296,7 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-executive",
@@ -5949,9 +5949,10 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-datalog"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "base58",
+ "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "pallet-timestamp 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -6333,7 +6334,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-runtime"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm-handler",
@@ -7872,7 +7873,7 @@ dependencies = [
  "fnv",
  "lazy_static",
  "parking_lot 0.11.1",
- "regex 1.4.3",
+ "regex 1.4.4",
  "thiserror",
 ]
 
@@ -8433,14 +8434,13 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.4.3"
+version = "1.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9251239e129e16308e70d853559389de218ac275b515068abc96829d05b948a"
+checksum = "54fd1046a3107eb58f42de31d656fee6853e5d276c455fd943742dce89fc3dd3"
 dependencies = [
  "aho-corasick 0.7.15",
  "memchr",
- "regex-syntax 0.6.22",
- "thread_local 1.1.3",
+ "regex-syntax 0.6.23",
 ]
 
 [[package]]
@@ -8450,7 +8450,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae1ded71d66a4a97f5e961fd0cb25a5f366a42a41570d16a763a69c092c26ae4"
 dependencies = [
  "byteorder",
- "regex-syntax 0.6.22",
+ "regex-syntax 0.6.23",
 ]
 
 [[package]]
@@ -8464,9 +8464,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.22"
+version = "0.6.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5eb417147ba9860a96cfe72a0b93bf88fee1744b5636ec99ab20c1aa9376581"
+checksum = "24d5f089152e60f62d28b835fbff2cd2e8dc0baf1ac13343bef92ab7eed84548"
 
 [[package]]
 name = "region"
@@ -8538,7 +8538,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "0.25.1"
+version = "0.26.0"
 dependencies = [
  "node-cli",
  "parity-util-mem",
@@ -8698,7 +8698,7 @@ dependencies = [
  "md-5",
  "proc-macro2",
  "quote",
- "regex 1.4.3",
+ "regex 1.4.4",
  "syn",
 ]
 
@@ -9039,7 +9039,7 @@ dependencies = [
  "names",
  "parity-scale-codec",
  "rand 0.7.3",
- "regex 1.4.3",
+ "regex 1.4.4",
  "rpassword",
  "sc-client-api",
  "sc-keystore",
@@ -9806,7 +9806,7 @@ dependencies = [
  "log 0.4.14",
  "once_cell",
  "parking_lot 0.11.1",
- "regex 1.4.3",
+ "regex 1.4.4",
  "rustc-hash",
  "sc-telemetry",
  "sc-tracing-proc-macro",
@@ -10138,7 +10138,7 @@ dependencies = [
  "cfg-if 0.1.10",
  "mach 0.2.3",
  "nix 0.14.1",
- "regex 1.4.3",
+ "regex 1.4.4",
  "winapi 0.3.9",
 ]
 
@@ -10657,7 +10657,7 @@ dependencies = [
  "parking_lot 0.11.1",
  "primitive-types",
  "rand 0.7.3",
- "regex 1.4.3",
+ "regex 1.4.4",
  "schnorrkel",
  "secrecy",
  "serde",
@@ -10702,7 +10702,7 @@ dependencies = [
  "parking_lot 0.11.1",
  "primitive-types",
  "rand 0.7.3",
- "regex 1.4.3",
+ "regex 1.4.4",
  "schnorrkel",
  "secrecy",
  "serde",
@@ -12302,7 +12302,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "matchers",
- "regex 1.4.3",
+ "regex 1.4.4",
  "serde",
  "serde_json",
  "sharded-slab",
