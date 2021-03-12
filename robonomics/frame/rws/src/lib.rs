@@ -287,11 +287,18 @@ mod tests {
         type MinimumPeriod = ();
         type WeightInfo = ();
     }
+    parameter_types! {
+        pub const WindowSize: u64 = 128;
+        pub const MaximumMessageSize: usize = 512;
+    }
 
     impl datalog::Config for Runtime {
         type Record = bool;
         type Event = Event;
         type Time = Timestamp;
+        type WindowSize = WindowSize;
+        type MaximumMessageSize = MaximumMessageSize;
+        type WeightInfo = ();
     }
 
     parameter_types! {
