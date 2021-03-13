@@ -47,7 +47,7 @@ pub trait RobonomicsChain {
 #[cfg(not(feature = "parachain"))]
 impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
-        RobonomicsFamily::Development;
+        RobonomicsFamily::Development
     }
 }
 

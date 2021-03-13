@@ -18,7 +18,10 @@
 
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
-use crate::{chain_spec::*, service::robonomics};
+use crate::{
+    chain_spec::{self, *},
+    service::robonomics,
+};
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -59,6 +62,10 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
+            #[cfg(not(feature = "parachain"))]
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
         })
     }
 
@@ -100,6 +107,7 @@ pub fn run() -> sc_cli::Result<()> {
                     }
                 }),
 
+                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
                         return Err("Light client not supporter!".into());
