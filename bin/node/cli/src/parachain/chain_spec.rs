@@ -121,17 +121,17 @@ fn mk_genesis(
     parachain_id: ParaId,
 ) -> GenesisConfig {
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             code,
             changes_trie_config: Default::default(),
-        }),
-        pallet_balances: Some(BalancesConfig { balances }),
-        pallet_elections_phragmen: Some(Default::default()),
-        pallet_collective_Instance1: Some(Default::default()),
-        pallet_treasury: Some(Default::default()),
-        pallet_sudo: Some(SudoConfig { key: sudo_key }),
-        parachain_info: Some(ParachainInfoConfig { parachain_id }),
-        orml_tokens: Some(Default::default()),
+        },
+        pallet_balances: BalancesConfig { balances },
+        pallet_elections_phragmen: Default::default(),
+        pallet_collective_Instance1: Default::default(),
+        pallet_treasury: Default::default(),
+        pallet_sudo: SudoConfig { key: sudo_key },
+        parachain_info: ParachainInfoConfig { parachain_id },
+        orml_tokens: Default::default(),
     }
 }
 

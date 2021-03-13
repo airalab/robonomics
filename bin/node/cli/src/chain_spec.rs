@@ -149,24 +149,24 @@ fn mk_genesis(
     code: Vec<u8>,
 ) -> GenesisConfig {
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             code,
             changes_trie_config: Default::default(),
-        }),
-        pallet_balances: Some(BalancesConfig { balances }),
-        pallet_babe: Some(BabeConfig {
+        },
+        pallet_balances: BalancesConfig { balances },
+        pallet_babe: BabeConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
-        }),
-        pallet_grandpa: Some(GrandpaConfig {
+        },
+        pallet_grandpa: GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.2.clone(), 1))
                 .collect(),
-        }),
-        pallet_sudo: Some(SudoConfig { key: sudo_key }),
+        },
+        pallet_sudo: SudoConfig { key: sudo_key },
     }
 }
 
