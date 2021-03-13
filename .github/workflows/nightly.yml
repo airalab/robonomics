@@ -18,6 +18,7 @@ jobs:
 
     env:
       EXE_EXT: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+      EXE_PATH: $${{ contains(matrix.target, 'x86_64') && '' || format('/{0}', matrix.target) }} 
 
     steps:
     - name: Checkout the source code
@@ -50,25 +51,26 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2021-02-25
+        toolchain: 1.50.0 
         target: ${{ matrix.target }}
         default: true
 
-    - name: Install WASM target (for substrate runtime)
-      run: rustup target add wasm32-unknown-unknown --toolchain=nightly-2021-02-25
+    - name: Install nightly RUST and WASM target (for runtime building)
+      run: |
+        rustup toolchain install nightly-2021-02-25
+        rustup target add wasm32-unknown-unknown --toolchain nightly-2021-02-25
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
       with:
-        use-cross: false
         command: build
-        args: --release --locked --target=${{ matrix.target }}
+        args: --release --locked --target ${{ matrix.target }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@master
       with:
         name: ${{ matrix.target }}
-        path: target/release/robonomics${{ env.EXE_EXT }}
+        path: target${{ env.EXE_PATH }}/release/robonomics${{ env.EXE_EXT }}
 
   nixos:
     name: NixOS
