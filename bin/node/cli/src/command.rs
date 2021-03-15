@@ -123,7 +123,7 @@ pub fn run() -> sc_cli::Result<()> {
                         config,
                         &cli.relaychain_args,
                         cli.run.parachain_id,
-                        cli.run.validator,
+                        cli.run.eth_account,
                     )
                     .await
                 }),

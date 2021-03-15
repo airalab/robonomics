@@ -40,7 +40,7 @@ async fn start_node_impl(
     collator_key: CollatorPair,
     polkadot_config: Configuration,
     id: polkadot_primitives::v0::Id,
-    validator: bool,
+    validator: Some(H160),
 ) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)> {
     if matches!(parachain_config.role, Role::Light) {
         return Err("Light client not supported!".into());
@@ -109,7 +109,13 @@ async fn start_node_impl(
         Arc::new(move |hash, data| network.announce_block(hash, Some(data)))
     };
 
-    if validator {
+    if let Some(account) = validator {
+        let account_data = Vec::from(account.as_ref());
+        params
+            .inherent_data_providers
+            .register_provider(author_inherent::InherentDataProvider(account_data))
+            .unwrap();
+
         let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
             task_manager.spawn_handle(),
             client.clone(),

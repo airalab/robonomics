@@ -582,6 +582,8 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
+impl author_inherent::Config for Runtime {}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -627,6 +629,9 @@ construct_runtime! {
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
+
+        // Authoring tracking
+        AuthorInherent: author_inherent::{Module, Call, Storage, Inherent},
     }
 }
 

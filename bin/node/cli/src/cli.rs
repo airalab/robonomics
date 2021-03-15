@@ -51,6 +51,12 @@ pub struct RunCmd {
     #[structopt(long)]
     #[cfg(feature = "parachain")]
     pub parachain_id: Option<u32>,
+
+    /// Ethereum address assigned to collator. [default: off]
+    /// Notice: If not set then node will not collate blocks.
+    #[structopt(long)]
+    #[cfg(feature = "parachain")]
+    pub collator_eth_account: Option<H160>,
 }
 
 impl std::ops::Deref for RunCmd {

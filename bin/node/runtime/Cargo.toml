@@ -45,7 +45,6 @@ pallet-robonomics-rws = { path = "../../../robonomics/frame/rws", default-featur
 pallet-robonomics-launch = { path = "../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../../robonomics/frame/digital-twin", default-features = false }
-#pallet-evercity = { git = "https://github.com/EvercityEcosystem/evercity-substrate", tag="v0.0.2", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = "3.0.0"
@@ -83,7 +82,6 @@ std = [
     "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
     "pallet-robonomics-digital-twin/std",
-#    "pallet-evercity/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
