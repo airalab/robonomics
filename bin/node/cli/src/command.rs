@@ -18,10 +18,7 @@
 
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
-use crate::{
-    chain_spec::{self, *},
-    service::robonomics,
-};
+use crate::{chain_spec::*, service::robonomics};
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -63,7 +60,7 @@ impl SubstrateCli for Cli {
             #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
             #[cfg(not(feature = "parachain"))]
-            path => Box::new(chain_spec::ChainSpec::from_json_file(
+            path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
         })
@@ -113,17 +110,15 @@ pub fn run() -> sc_cli::Result<()> {
                         return Err("Light client not supporter!".into());
                     }
 
-                    #[cfg(not(feature = "parachain"))]
-                    {
-                        return Err("Parachain feature isn't enabled".into());
+                    if cli.run.validator && cli.run.collator_eth_account.is_none() {
+                        return Err("For validating set --collator-eth-account option".into());
                     }
 
-                    #[cfg(feature = "parachain")]
                     parachain::command::run(
                         config,
                         &cli.relaychain_args,
                         cli.run.parachain_id,
-                        cli.run.eth_account,
+                        cli.run.collator_eth_account,
                     )
                     .await
                 }),

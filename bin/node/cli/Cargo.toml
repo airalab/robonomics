@@ -92,6 +92,7 @@ robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 [build-dependencies]
 node-runtime = { path = "../runtime", optional = true }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
@@ -107,6 +108,7 @@ default = ["full"]
 # Full node required for collating / validating the parachain or develop Robonomics pallets.
 full = [
     "sc-cli",
+    "sp-core",
     "vergen",
     "node-rpc",
     "structopt",
@@ -119,6 +121,7 @@ full = [
 # Stateless node consumes a minimum of resources and suits for small embedded devices.
 zero = [
     "sc-cli",
+    "sp-core",
     "vergen",
     "structopt",
     "robonomics-cli",
