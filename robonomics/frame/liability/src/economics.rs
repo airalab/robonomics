@@ -17,24 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
-use crate::traits::Economical;
+use codec::{Decode, Encode};
 use frame_support::traits::Currency;
+use sp_runtime::RuntimeDebug;
 
-///
-/// Well, when we get communism it'll all be fucking great.
-/// It will come soon, we just have to wait.
-/// Everything will be free there, everything will be an upper.
-/// We'll probably not even have to die.
-///
-pub struct Communism;
-impl Economical for Communism {
-    // No parameters, because everything is free.
-    type Parameter = ();
-}
-
-/// Open market as approach for liability price estimation.
-pub struct OpenMarket<T, A>(sp_std::marker::PhantomData<(T, A)>);
-impl<T: Currency<A>, A> Economical for OpenMarket<T, A> {
-    // Price as economical parameter for liability.
-    type Parameter = <T as Currency<A>>::Balance;
-}
+/// Simple market as approach: liability has a price of execution.
+#[derive(Encode, Decode, PartialEq, Eq, RuntimeDebug)]
+pub struct SimpleMarket<AccountId, C: Currency<AccountId>>(pub C::Balance);

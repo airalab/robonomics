@@ -17,19 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle technical aspects of agreement.
 
-use crate::traits::{RealWorldOracle, Technical};
+use codec::{Decode, Encode};
+use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
-pub struct PureIPFS;
-impl Technical for PureIPFS {
-    // IPFS hash of objective as parameter for liability.
-    type Parameter = Vec<u8>;
-    // IPFS hash of work results as report for liability.
-    type Report = Vec<u8>;
-    // No confirmation from real world (unsafe, be careful).
-    type Oracle = ();
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug)]
+pub struct IPFS {
+    pub hash: Vec<u8>,
 }
-
-/// Noop oracle.
-impl RealWorldOracle for () {}

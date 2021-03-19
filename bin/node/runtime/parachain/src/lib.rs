@@ -582,7 +582,9 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
-impl author_inherent::Config for Runtime {}
+impl pallet_robonomics_lighthouse::Config for Runtime {
+    type Lighthouse = sp_core::H160;
+}
 
 construct_runtime! {
     pub enum Runtime where
@@ -630,8 +632,8 @@ construct_runtime! {
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
 
-        // Authoring tracking
-        AuthorInherent: author_inherent::{Module, Call, Storage, Inherent},
+        // Robonomics lighthouse inherents.
+        Lighthouse: pallet_robonomics_lighthouse::{Module, Call, Storage, Inherent},
     }
 }
 

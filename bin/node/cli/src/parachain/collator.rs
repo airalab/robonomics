@@ -113,7 +113,9 @@ async fn start_node_impl(
         let account_data = Vec::from(account.as_ref());
         params
             .inherent_data_providers
-            .register_provider(author_inherent::InherentDataProvider(account_data))
+            .register_provider(pallet_robonomics_lighthouse::InherentDataProvider(
+                account_data,
+            ))
             .unwrap();
 
         let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
