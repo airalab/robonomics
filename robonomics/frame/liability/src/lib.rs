@@ -23,9 +23,9 @@ pub mod signed;
 pub mod technics;
 pub mod traits;
 
+pub use pallet::*;
 pub use signed::*;
 pub use traits::*;
-pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
