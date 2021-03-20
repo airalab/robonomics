@@ -291,27 +291,15 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
-/*
-const DEFAULT_DAY_DURATION: u32 = 60; // 86400; seconds in 1 DAY
-
-parameter_types! {
-    pub const BurnRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
-    pub const MintRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
-    pub const MaxMintAmount: pallet_evercity::EverUSDBalance = 60_000_000_000_000_000;
-    pub const TimeStep: pallet_evercity::BondPeriod = DEFAULT_DAY_DURATION;
-}
-
-impl pallet_evercity::Config for Runtime {
+impl pallet_robonomics_liability::Config for Runtime {
+    type Agreement = pallet_robonomics_liability::SignedAgreement<
+        Vec<u8>, (), Self::AccountId, sp_runtime::MultiSignature,
+    >;
+    type Report = pallet_robonomics_liability::SignedReport<
+        Self::Index, Self::AccountId, sp_runtime::MultiSignature, Vec<u8>,
+    >;
     type Event = Event;
-    type BurnRequestTtl = BurnRequestTtl;
-    type MintRequestTtl = MintRequestTtl;
-    type MaxMintAmount = MaxMintAmount;
-    type TimeStep = TimeStep;
-    type WeightInfo = ();
-    type OnAddAccount = ();
-    type OnAddBond = ();
 }
-*/
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -396,6 +384,7 @@ construct_runtime!(
         Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
         // Evercity bonds module
         //Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
         // Sudo. Usable initially.

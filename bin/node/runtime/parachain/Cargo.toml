@@ -55,6 +55,7 @@ pallet-robonomics-launch-xcm = { path = "../../../../robonomics/frame/launch/xcm
 pallet-robonomics-datalog = { path = "../../../../robonomics/frame/datalog", default-features = false }
 pallet-robonomics-datalog-xcm = { path = "../../../../robonomics/frame/datalog/xcm", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../../../robonomics/frame/digital-twin", default-features = false }
+pallet-robonomics-liability = { path = "../../../../robonomics/frame/liability", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../../../robonomics/frame/lighthouse", default-features = false }
 
 # orml dependencies
@@ -125,6 +126,7 @@ std = [
     "pallet-robonomics-datalog/std",
     "pallet-robonomics-datalog-xcm/std",
     "pallet-robonomics-digital-twin/std",
+    "pallet-robonomics-liability/std",
     "pallet-robonomics-lighthouse/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-xcm-handler/std",

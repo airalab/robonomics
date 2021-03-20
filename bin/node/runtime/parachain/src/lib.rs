@@ -582,6 +582,16 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_robonomics_liability::Config for Runtime {
+    type Agreement = pallet_robonomics_liability::SignedAgreement<
+        Vec<u8>, (), Self::AccountId, sp_runtime::MultiSignature,
+    >;
+    type Report = pallet_robonomics_liability::SignedReport<
+        Self::Index, Self::AccountId, sp_runtime::MultiSignature, Vec<u8>,
+    >;
+    type Event = Event;
+}
+
 impl pallet_robonomics_lighthouse::Config for Runtime {
     type Lighthouse = sp_core::H160;
 }
@@ -614,6 +624,7 @@ construct_runtime! {
         LaunchXcm: pallet_robonomics_launch_xcm::{Module, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
 
         // Parachain modules.
         ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},

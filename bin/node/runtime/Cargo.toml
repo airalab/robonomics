@@ -44,6 +44,7 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 pallet-robonomics-rws = { path = "../../../robonomics/frame/rws", default-features = false }
 pallet-robonomics-launch = { path = "../../../robonomics/frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog", default-features = false }
+pallet-robonomics-liability = { path = "../../../robonomics/frame/liability", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../../robonomics/frame/digital-twin", default-features = false }
 
 [build-dependencies]
@@ -81,6 +82,7 @@ std = [
     "pallet-robonomics-rws/std",
     "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
+    "pallet-robonomics-liability/std",
     "pallet-robonomics-digital-twin/std",
 ]
 runtime-benchmarks = [
