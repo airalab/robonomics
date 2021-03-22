@@ -34,7 +34,7 @@ jobs:
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2020-02-25
+        toolchain: nightly-2021-02-25
         target: wasm32-unknown-unknown 
         default: true
 

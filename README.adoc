@@ -97,22 +97,22 @@ Every additional full node of blockchain helps it to be more sustainable and fau
 Robonomics node binaries is available in https://github.com/airalab/robonomics/releases[release] assets
 or it could be <<building-from-source,build from source>>.
 
-== Robotics integration
-
-Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
-The node implements a few features to make robotics integration as easy as it possible.
-
 === Gatekeepers updates
 
-Actual release : https://github.com/airalab/robonomics/releases/tag/v0.25.0[0.25.0 Rococo V1.2 "Gatekeepers on Earth"]
+Actual release : https://github.com/airalab/robonomics/releases/tag/v0.26.0[0.26.0]
 
-Telemetry: https://telemetry.polkadot.io/#list/Earth[Earth parachain]
+Telemetry: https://telemetry.polkadot.io/#list/RobonomicsEarth[Earth parachain]
 
 Launch command: 
 [source, shell]
 ----
-robonomics --parachain-id 1000 --name <Your_name>
+robonomics --validator --parachain-id 1000 --collator-eth-account <your_eth_address>
 ----
+
+== Robotics integration
+
+Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
+The node implements a few features to make robotics integration as easy as it possible.
 
 
 == Robonomics I/O
