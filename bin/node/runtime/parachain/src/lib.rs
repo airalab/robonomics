@@ -72,9 +72,10 @@ use sp_version::RuntimeVersion;
 use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
 use orml_xcm_support::{
     CurrencyIdConverter, IsConcreteWithGeneralKey, MultiCurrencyAdapter, NativePalletAssetOr,
+    XcmHandler as XcmHandlerT,
 };
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{Junction, MultiLocation, NetworkId};
+use xcm::v0::{Junction, MultiLocation, NetworkId, Xcm};
 use xcm_builder::{
     AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
     SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
@@ -200,7 +201,7 @@ impl pallet_balances::Config for Runtime {
     type Event = Event;
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Module<Runtime>;
+    type AccountStore = frame_system::Pallet<Runtime>;
     type WeightInfo = ();
 }
 
@@ -440,6 +441,7 @@ type LocationConverter = (
 
 type LocalAssetTransactor = MultiCurrencyAdapter<
     Currencies,
+    UnknownTokens,
     IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
     LocationConverter,
     AccountId,
@@ -513,15 +515,25 @@ impl Convert<AccountId, [u8; 32]> for AccountId32Convert {
     }
 }
 
+pub struct HandleXcm;
+impl XcmHandlerT<AccountId> for HandleXcm {
+    fn execute_xcm(origin: AccountId, xcm: Xcm) -> sp_runtime::DispatchResult {
+        XcmHandler::execute_xcm(origin, xcm)
+    }
+}
+
 impl orml_xtokens::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
     type ToRelayChainBalance = NativeToRelay;
     type AccountId32Convert = AccountId32Convert;
     type RelayChainNetworkId = RococoNetwork;
-    type AccountIdConverter = LocationConverter;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
     type ParaId = ParachainInfo;
+    type XcmHandler = HandleXcm;
+}
+
+impl orml_unknown_tokens::Config for Runtime {
+    type Event = Event;
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -609,48 +621,49 @@ construct_runtime! {
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Identity: pallet_identity::{Module, Call, Storage, Event<T>},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Utility: pallet_utility::{Pallet, Call, Storage, Event},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Module, Call, Event<T>},
-        Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Currencies: orml_currencies::{Pallet, Call, Event<T>},
+        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
         // Randomness.
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
 
         // Robonomics Network modules.
-        Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        DatalogXcm: pallet_robonomics_datalog_xcm::{Module, Call, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
-        LaunchXcm: pallet_robonomics_launch_xcm::{Module, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
+        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
+        DatalogXcm: pallet_robonomics_datalog_xcm::{Pallet, Call, Event<T>},
+        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
+        LaunchXcm: pallet_robonomics_launch_xcm::{Pallet, Call, Event<T>},
+        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 
         // Parachain modules.
-        ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
-        ParachainInfo: parachain_info::{Module, Storage, Config},
-        XcmHandler: cumulus_pallet_xcm_handler::{Module, Event<T>, Origin},
-        XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
+        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event},
+        ParachainInfo: parachain_info::{Pallet, Storage, Config},
+        XcmHandler: cumulus_pallet_xcm_handler::{Pallet, Event<T>, Origin},
+        XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>},
+        UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event},
 
         // DAO modules
-        Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
-        Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
-        Tips: pallet_tips::{Module, Call, Storage, Event<T>},
+        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
+        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
-        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
 
         // Robonomics lighthouse inherents.
-        Lighthouse: pallet_robonomics_lighthouse::{Module, Call, Storage, Inherent},
+        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent},
     }
 }
 
@@ -689,7 +702,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllModules,
+    AllPallets,
 >;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
@@ -732,7 +745,7 @@ impl_runtime_apis! {
         }
 
         fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
+            RandomnessCollectiveFlip::random_seed().0
         }
     }
 

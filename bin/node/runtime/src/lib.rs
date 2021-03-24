@@ -24,6 +24,13 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+/// The BABE epoch configuration at genesis.
+pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
+    sp_consensus_babe::BabeEpochConfiguration {
+        c: PRIMARY_PROBABILITY,
+        allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
+    };
+
 #[cfg(feature = "std")]
 /// Wasm binary unwrapped. If built with `BUILD_DUMMY_WASM_BINARY`, the function panics.
 pub fn wasm_binary_unwrap() -> &'static [u8] {
@@ -177,7 +184,7 @@ impl pallet_balances::Config for Runtime {
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Module<Runtime>;
+    type AccountStore = frame_system::Pallet<Runtime>;
     type MaxLocks = MaxLocks;
     type WeightInfo = ();
 }
@@ -371,30 +378,29 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
         // Randomness.
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
 
         // Simple consensus.
-        Babe: pallet_babe::{Module, Call, Storage, Config, ValidateUnsigned},
-        Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 
         // Robonomics Network modules.
-        Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
-        // Evercity bonds module
-        //Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
+        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
+        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
+        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+
         // Sudo. Usable initially.
-        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
     }
 );
 
@@ -434,7 +440,7 @@ pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllModules>;
+pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllPallets>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -476,7 +482,7 @@ impl_runtime_apis! {
         }
 
         fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
+            RandomnessCollectiveFlip::random_seed().0
         }
     }
 

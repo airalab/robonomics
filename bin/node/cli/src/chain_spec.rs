@@ -159,6 +159,7 @@ fn mk_genesis(
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
+            epoch_config: Some(node_runtime::BABE_GENESIS_EPOCH_CONFIG),
         },
         pallet_grandpa: GrandpaConfig {
             authorities: initial_authorities

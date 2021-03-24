@@ -28,7 +28,6 @@ use cumulus_client_service::{
 use node_primitives::Block;
 use polkadot_primitives::v0::CollatorPair;
 use sc_service::{Configuration, Role, TFullClient, TaskManager};
-use sp_core::Pair;
 use std::sync::Arc;
 
 /// Start a node with the given parachain `Configuration` and relay chain `Configuration`.
@@ -48,18 +47,23 @@ async fn start_node_impl(
 
     let parachain_config = prepare_node_config(parachain_config);
 
-    let polkadot_full_node =
-        cumulus_client_service::build_polkadot_full_node(polkadot_config, collator_key.public())
-            .map_err(|e| match e {
-                polkadot_service::Error::Sub(x) => x,
-                s => format!("{}", s).into(),
-            })?;
-
     let params = new_partial(&parachain_config)?;
     params
         .inherent_data_providers
         .register_provider(sp_timestamp::InherentDataProvider)
         .unwrap();
+
+    let (mut telemetry, telemetry_worker_handle) = params.other;
+    let polkadot_full_node =
+        cumulus_client_service::build_polkadot_full_node(
+            polkadot_config,
+            collator_key.clone(),
+            telemetry_worker_handle,
+        )
+        .map_err(|e| match e {
+            polkadot_service::Error::Sub(x) => x,
+            s => format!("{}", s).into(),
+        })?;
 
     let client = params.client.clone();
     let backend = params.backend.clone();
@@ -85,13 +89,10 @@ async fn start_node_impl(
             block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
         })?;
 
-    let rpc_extensions_builder = Box::new(|_, _| ());
-    let telemetry_span = sc_telemetry::TelemetrySpan::new();
-    let _telemetry_span_entered = telemetry_span.enter();
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
-        rpc_extensions_builder,
+        rpc_extensions_builder: Box::new(|_, _| ()),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
         task_manager: &mut task_manager,
@@ -101,12 +102,12 @@ async fn start_node_impl(
         network: network.clone(),
         network_status_sinks,
         system_rpc_tx,
-        telemetry_span: Some(telemetry_span.clone()),
+        telemetry: telemetry.as_mut(),
     })?;
 
     let announce_block = {
         let network = network.clone();
-        Arc::new(move |hash, data| network.announce_block(hash, Some(data)))
+        Arc::new(move |hash, data| network.announce_block(hash, data))
     };
 
     if let Some(account) = validator_account {
@@ -123,6 +124,7 @@ async fn start_node_impl(
             client.clone(),
             transaction_pool,
             prometheus_registry.as_ref(),
+            telemetry.as_ref().map(|x| x.handle()),
         );
         let spawner = task_manager.spawn_handle();
 

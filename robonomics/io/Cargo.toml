@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
-ipfs-api = { version = "0.10.0", features = ["with-hyper-rustls"], default-features = false }
+ipfs-api = { version = "0.11.0", features = ["with-hyper-rustls"], default-features = false }
 futures-timer = "3.0.2"
 derive_more = "0.99.11"
 async-std = "1.9.0"

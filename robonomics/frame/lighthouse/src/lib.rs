@@ -22,7 +22,6 @@
 #[cfg(feature = "std")]
 use sp_inherents::{InherentData, ProvideInherentData};
 use sp_inherents::{InherentIdentifier, IsFatalError};
-use sp_runtime::{ConsensusEngineId, DigestItem, RuntimeString};
 
 pub use pallet::*;
 
@@ -83,12 +82,6 @@ pub mod pallet {
             // Update storage
             <Lighthouse<T>>::put(&lighthouse);
 
-            // Add a digest item so Apps can detect the block lighthouse
-            frame_system::Module::<T>::deposit_log(DigestItem::<T::Hash>::Consensus(
-                ENGINE_ID,
-                lighthouse.encode(),
-            ));
-
             Ok(().into())
         }
     }
@@ -121,16 +114,13 @@ pub mod pallet {
     }
 }
 
-/// Lighthouse consensus engine id
-pub const ENGINE_ID: ConsensusEngineId = [b'l', b'i', b'g', b'h'];
-
 /// Lighthouse inherent identifier
 pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"lgthouse";
 
 #[derive(codec::Encode)]
 #[cfg_attr(feature = "std", derive(Debug, codec::Decode))]
 pub enum InherentError {
-    Other(RuntimeString),
+    Other(sp_runtime::RuntimeString),
 }
 
 impl IsFatalError for InherentError {
