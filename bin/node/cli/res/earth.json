@@ -5,12 +5,7 @@
   "bootNodes": [
     "/ip4/188.166.105.160/tcp/30333/p2p/12D3KooWHQAZQhXoAbguTKGC2MfRSNsUTTnskAUR6UjGsdwbrFQr"
   ],
-  "telemetryEndpoints": [
-    [
-      "/dns/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
-      0
-    ]
-  ],
+  "telemetryEndpoints": null,
   "protocolId": "xrt",
   "properties": {
     "ss58Format": 32,
