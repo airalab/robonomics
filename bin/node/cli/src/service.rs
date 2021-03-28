@@ -102,7 +102,9 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let telemetry = config.telemetry_endpoints.clone()
+    let telemetry = config
+        .telemetry_endpoints
+        .clone()
         .filter(|x| !x.is_empty())
         .map(|endpoints| -> Result<_, sc_telemetry::Error> {
             let worker = sc_telemetry::TelemetryWorker::new(16)?;
@@ -119,11 +121,10 @@ where
     let client = Arc::new(client);
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-    let telemetry = telemetry
-        .map(|(worker, telemetry)| {
-            task_manager.spawn_handle().spawn("telemetry", worker.run());
-            telemetry
-        });
+    let telemetry = telemetry.map(|(worker, telemetry)| {
+        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        telemetry
+    });
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
@@ -431,13 +432,15 @@ where
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
-    let telemetry = config.telemetry_endpoints.clone()
+    let telemetry = config
+        .telemetry_endpoints
+        .clone()
         .filter(|x| !x.is_empty())
         .map(|endpoints| -> Result<_, sc_telemetry::Error> {
             #[cfg(feature = "browser")]
-            let transport = Some(
-                sc_telemetry::ExtTransport::new(libp2p_wasm_ext::ffi::websocket_transport())
-            );
+            let transport = Some(sc_telemetry::ExtTransport::new(
+                libp2p_wasm_ext::ffi::websocket_transport(),
+            ));
             #[cfg(not(feature = "browser"))]
             let transport = None;
 
@@ -453,15 +456,17 @@ where
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
         )?;
 
-    let mut telemetry = telemetry
-        .map(|(worker, telemetry)| {
-            task_manager.spawn_handle().spawn("telemetry", worker.run());
-            telemetry
-        });
+    let mut telemetry = telemetry.map(|(worker, telemetry)| {
+        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        telemetry
+    });
 
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-    config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+    config
+        .network
+        .extra_sets
+        .push(grandpa::grandpa_peers_set_config());
 
     let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
         config.transaction_pool.clone(),
@@ -530,22 +535,21 @@ where
 
     let rpc_extensions = node_rpc::create_light(light_deps);
 
-    let rpc_handlers =
-        sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-            on_demand: Some(on_demand),
-            remote_blockchain: Some(backend.remote_blockchain()),
-            rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
-            client: client.clone(),
-            transaction_pool: transaction_pool.clone(),
-            keystore: keystore_container.sync_keystore(),
-            config,
-            backend,
-            network_status_sinks,
-            system_rpc_tx,
-            network: network.clone(),
-            task_manager: &mut task_manager,
-            telemetry: telemetry.as_mut(),
-        })?;
+    let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+        on_demand: Some(on_demand),
+        remote_blockchain: Some(backend.remote_blockchain()),
+        rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
+        client: client.clone(),
+        transaction_pool: transaction_pool.clone(),
+        keystore: keystore_container.sync_keystore(),
+        config,
+        backend,
+        network_status_sinks,
+        system_rpc_tx,
+        network: network.clone(),
+        task_manager: &mut task_manager,
+        telemetry: telemetry.as_mut(),
+    })?;
 
     Ok((
         task_manager,
