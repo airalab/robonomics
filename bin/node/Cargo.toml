@@ -1,6 +1,6 @@
 [package]
 name = "robonomics"
-version = "0.26.0"
+version = "0.27.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 edition = "2018"
