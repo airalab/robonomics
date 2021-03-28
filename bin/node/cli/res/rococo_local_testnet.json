@@ -3,19 +3,14 @@
   "id": "rococo_local_testnet",
   "chainType": "Local",
   "bootNodes": [
-    "/dns/0.rococo-local/tcp/30333/p2p/12D3KooWNL9Y5cQPNAUmY9VejwxbAU5gsd61xsoguUzgahaGaZ2C",
-    "/dns/1.rococo-local/tcp/30333/p2p/12D3KooWNLGToejLxhiqK6fCMY2QvFX4PTjAAm3MM7959dj7hiLh",
-    "/dns/2.rococo-local/tcp/30333/p2p/12D3KooWSycYMM5RBqPcWbyT3Wv9QcWu92Pm79aAowDqhsV6MiMR",
-    "/dns/3.rococo-local/tcp/30333/p2p/12D3KooWKfKT21pdpUmULhXG5M46BufGnsHmBDomK1XHAm4hz6Cd",
-    "/dns/4.rococo-local/tcp/30333/p2p/12D3KooWJ8EJwYLVH1aYSm89XQSSTgrRH9foQbYwcsqDNLByZMf2",
-    "/dns/5.rococo-local/tcp/30333/p2p/12D3KooWSrFA3aWFE5BKTXhsAoTpV2V5kVAJcpXKwWAo3KNgYZTs"
+    "/dns/0.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWNL9Y5cQPNAUmY9VejwxbAU5gsd61xsoguUzgahaGaZ2C",
+    "/dns/1.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWNLGToejLxhiqK6fCMY2QvFX4PTjAAm3MM7959dj7hiLh",
+    "/dns/2.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWSycYMM5RBqPcWbyT3Wv9QcWu92Pm79aAowDqhsV6MiMR",
+    "/dns/3.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWKfKT21pdpUmULhXG5M46BufGnsHmBDomK1XHAm4hz6Cd",
+    "/dns/4.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWJ8EJwYLVH1aYSm89XQSSTgrRH9foQbYwcsqDNLByZMf2",
+    "/dns/5.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWSrFA3aWFE5BKTXhsAoTpV2V5kVAJcpXKwWAo3KNgYZTs"
   ],
-  "telemetryEndpoints": [
-    [
-      "/dns/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
-      0
-    ]
-  ],
+  "telemetryEndpoints": [],
   "protocolId": "dot",
   "properties": null,
   "forkBlocks": null,
