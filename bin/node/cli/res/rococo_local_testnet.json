@@ -4,11 +4,7 @@
   "chainType": "Local",
   "bootNodes": [
     "/dns/0.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWNL9Y5cQPNAUmY9VejwxbAU5gsd61xsoguUzgahaGaZ2C",
-    "/dns/1.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWNLGToejLxhiqK6fCMY2QvFX4PTjAAm3MM7959dj7hiLh",
-    "/dns/2.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWSycYMM5RBqPcWbyT3Wv9QcWu92Pm79aAowDqhsV6MiMR",
-    "/dns/3.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWKfKT21pdpUmULhXG5M46BufGnsHmBDomK1XHAm4hz6Cd",
-    "/dns/4.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWJ8EJwYLVH1aYSm89XQSSTgrRH9foQbYwcsqDNLByZMf2",
-    "/dns/5.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWSrFA3aWFE5BKTXhsAoTpV2V5kVAJcpXKwWAo3KNgYZTs"
+    "/dns/1.rococo-local.robonomics.network/tcp/30333/p2p/12D3KooWKfKT21pdpUmULhXG5M46BufGnsHmBDomK1XHAm4hz6Cd"
   ],
   "telemetryEndpoints": [],
   "protocolId": "dot",
@@ -88,18 +84,6 @@
         "palletSession": {
           "keys": [
             [
-              "5CiF3nnw4ERzDGs3ZpttHYo1QVcCrrxJ26yXqXST5GropZrw",
-              "5CiF3nnw4ERzDGs3ZpttHYo1QVcCrrxJ26yXqXST5GropZrw",
-              {
-                "grandpa": "5HYCyy8aQZ7jHWQfKWKCaxL8f9do4Jc77Ya5CMFKtcZ5jSRg",
-                "babe": "5F6pRthKkCsSsN4PPWb6avgd44uL7XLJ9HjM9QCrrQtoMV8U",
-                "im_online": "5EUNjj5mxJ1tuogQ2u6hHVRycrafRsMw8W5i3eqvSGGpcJZ6",
-                "para_validator": "5GRiopD5o2UkqPX5H7KjVzVPSAHjJyj4W4yzX15CSeJuFAwk",
-                "para_assignment": "5DhZUyHGMhr5GYhyPPCJXDVRvcfR1cCkEBb6wUvoKB2rKDPU",
-                "authority_discovery": "5ECjLyU9WiEmoEG67k323gWpVA4doUKr9wHEfaTTNqhhKqGG"
-              }
-            ],
-            [
               "5HDsg6m3C32MCvn1P1yGzRWfTgeyn3QBpxUU73RNGCoPC1bG",
               "5HDsg6m3C32MCvn1P1yGzRWfTgeyn3QBpxUU73RNGCoPC1bG",
               {
@@ -121,18 +105,6 @@
                 "para_validator": "5Cfiuycb8EeFCrB8LhUQh3sWhG6h3kQgNbXY4njyXY7newqH",
                 "para_assignment": "5H757XFkDfU4JoDRMjga5T2fJZ2kTt6pdnVqguF9mK2BvWSp",
                 "authority_discovery": "5GWPo3N1KCQb16aeSA2UBN7qfd6dHVRbijqqLcQp87u2VETT"
-              }
-            ],
-            [
-              "5CAL8hzmFm4Us3dYe439cdHMCGuhW2BHXrhQUcNMQpWpUVWN",
-              "5CAL8hzmFm4Us3dYe439cdHMCGuhW2BHXrhQUcNMQpWpUVWN",
-              {
-                "grandpa": "5DnE74nrgrpVd6nFFXZg8MmaAXHR16X4cX4SSs4dcQ9au8K7",
-                "babe": "5F1Mf63vFRtDEJis48wyL8vwAEvSivQvg6EMYhm4Q6bWh9PQ",
-                "im_online": "5HW4dFJBbb3PNcvvgqSutHLrVUBeq8nTxfAG68QE8Ae1hJ1L",
-                "para_validator": "5CiXxrCJTZS4t2hvqKTBhu8Ae6bgN67ygh33tQ4aZiFXp5tx",
-                "para_assignment": "5GEkakNsQgGQvzEo9TwWPvMrkY1QMY1cGrHUU77hzfFW69W5",
-                "authority_discovery": "5DHccM8AhWWs1jZr8eNdpXTJWGqew5TNrfjb6HBTfCzgEkrw"
               }
             ],
             [
