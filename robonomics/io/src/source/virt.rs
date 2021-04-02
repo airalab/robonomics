@@ -20,8 +20,10 @@
 use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
 use ipfs_api::{IpfsClient, TryFromUri};
+use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+use sp_core::{crypto::Pair, sr25519};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
@@ -57,6 +59,24 @@ pub fn pubsub(
 
     // Subscribe to given topic
     Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
+}
+
+/// Read data records from blockchain.
+///
+/// Returns datalog data objects.
+pub fn datalog<T: Into<Vec<(u64, Vec<u8>)>>>(
+    remote: String,
+    suri: String,
+) -> Result<(
+    impl Sink<T, Error = Error>,
+    impl Stream<Item = Result<Vec<(u64, Vec<u8>)>>>,
+)> {
+    let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
+    let (sender, receiver) = mpsc::unbounded();
+
+    let data = datalog::fetch(pair.clone(), remote.clone());
+
+    Ok((sender.sink_err_into(), data))
 }
 
 /// Download some data from IPFS network.

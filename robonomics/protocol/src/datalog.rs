@@ -19,7 +19,9 @@
 
 use crate::error::Result;
 use crate::runtime::pallet_datalog;
+use crate::runtime::AccountId;
 use crate::runtime::Robonomics;
+use sp_runtime::AccountId32;
 
 use pallet_datalog::*;
 use sp_core::crypto::Pair;
@@ -43,4 +45,24 @@ where
         "Data record submited in extrinsic with hash {}", xt_hash
     );
     Ok(xt_hash.into())
+}
+
+/// Read datalog records from remote Robonomics node.
+pub async fn fetch<T: Pair>(signer: T, remote: String) -> Result<Vec<(u64, Vec<u8>)>>
+where
+    sp_runtime::MultiSigner: From<<T as Pair>::Public>,
+    sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
+    <T as Pair>::Signature: codec::Codec,
+{
+    // let signer = PairSigner::new(signer);
+    let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .set_url(remote.as_str())
+        .build()
+        .await?;
+
+    // TODO: signer -> account_id
+
+    let account_id: AccountId = AccountId32::new([0u8; 32]);
+    let data = client.datalog(&account_id, None).await?;
+    Ok(data.into())
 }

@@ -64,6 +64,16 @@ pub enum SourceCmd {
         #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
         hearbeat: u64,
     },
+    /// Reading datalog.
+    Datalog {
+        /// Robonomics node API endpoint.
+        #[structopt(long, value_name = "REMOTE_URI", default_value = "ws://127.0.0.1:9944")]
+        remote: String,
+        /// Reader account seed URI.
+        #[structopt(short, value_name = "SECRET_URI")]
+        suri: String,
+        //TODO: follow flag
+    },
     /// Download data from IPFS storage.
     Ipfs {
         /// IPFS node endpoint.
@@ -160,6 +170,10 @@ impl SourceCmd {
                         })
                         .forward(stdout()),
                 )?;
+            }
+            SourceCmd::Datalog { remote, suri } => {
+                let data = virt::datalog(remote, suri)?;
+                task::block_on(data.forward(stdout()))?;
             }
             SourceCmd::Ipfs { remote } => {
                 let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
