@@ -1,6 +1,6 @@
 [package]
 name = "node-cli"
-version = "0.27.0"
+version = "0.27.2"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
