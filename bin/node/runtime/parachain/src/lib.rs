@@ -91,8 +91,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 5,
-    impl_version: 5,
+    spec_version: 6,
+    impl_version: 6,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -169,6 +169,7 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
+    type OnSetCode = ();
 }
 
 impl pallet_utility::Config for Runtime {
@@ -485,7 +486,7 @@ impl cumulus_pallet_xcm_handler::Config for Runtime {
     type Event = Event;
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type UpwardMessageSender = ParachainSystem;
-    type HrmpMessageSender = ParachainSystem;
+    type XcmpMessageSender = ParachainSystem;
     type SendXcmOrigin = frame_system::EnsureRoot<AccountId>;
     type AccountIdConverter = LocationConverter;
 }
@@ -539,7 +540,7 @@ impl orml_unknown_tokens::Config for Runtime {
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type SelfParaId = parachain_info::Module<Runtime>;
     type DownwardMessageHandlers = XcmHandler;
-    type HrmpMessageHandlers = XcmHandler;
+    type XcmpMessageHandlers = XcmHandler;
     type OnValidationData = ();
     type Event = Event;
 }
