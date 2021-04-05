@@ -172,10 +172,11 @@ impl SourceCmd {
                 )?;
             }
             SourceCmd::Datalog { remote, suri } => {
-                let data = virt::datalog(remote, suri)?;
-
-                // ???
-                task::block_on(data.forward(stdout()))?;
+                let (_, data) = virt::datalog(remote, suri)?;
+                task::block_on(
+                    data.map(|m| m.map(|msg| format!("{:?}", msg)))
+                        .forward(stdout()),
+                )?;
             }
             SourceCmd::Ipfs { remote } => {
                 let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
