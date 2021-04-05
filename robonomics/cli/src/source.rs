@@ -173,6 +173,8 @@ impl SourceCmd {
             }
             SourceCmd::Datalog { remote, suri } => {
                 let data = virt::datalog(remote, suri)?;
+
+                // ???
                 task::block_on(data.forward(stdout()))?;
             }
             SourceCmd::Ipfs { remote } => {

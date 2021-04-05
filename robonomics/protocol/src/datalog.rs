@@ -23,6 +23,8 @@ use crate::runtime::AccountId;
 use crate::runtime::Robonomics;
 use sp_runtime::AccountId32;
 
+use pallet_datalog::DatalogStoreExt;
+
 use pallet_datalog::*;
 use sp_core::crypto::Pair;
 use substrate_subxt::PairSigner;
@@ -60,8 +62,7 @@ where
         .build()
         .await?;
 
-    // TODO: signer -> account_id
-
+    // TODO: real account_id
     let account_id: AccountId = AccountId32::new([0u8; 32]);
     let data = client.datalog(&account_id, None).await?;
     Ok(data.into())
