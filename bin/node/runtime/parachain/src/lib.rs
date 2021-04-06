@@ -91,8 +91,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 6,
-    impl_version: 6,
+    spec_version: 7,
+    impl_version: 7,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -169,7 +169,7 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
-    type OnSetCode = ();
+    type OnSetCode = ParachainSystem;
 }
 
 impl pallet_utility::Config for Runtime {
