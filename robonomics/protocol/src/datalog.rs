@@ -18,16 +18,11 @@
 //! Robonomics data blockchainization.
 
 use crate::error::Result;
-use crate::runtime::pallet_datalog;
-use crate::runtime::AccountId;
-use crate::runtime::Robonomics;
-use sp_runtime::AccountId32;
-
-use pallet_datalog::DatalogStoreExt;
+use crate::runtime::{pallet_datalog, Robonomics};
 
 use pallet_datalog::*;
 use sp_core::crypto::Pair;
-use substrate_subxt::PairSigner;
+use substrate_subxt::{PairSigner, Signer};
 
 /// Sign datalog record and send using remote Robonomics node.
 pub async fn submit<T: Pair>(signer: T, remote: String, data_record: Vec<u8>) -> Result<[u8; 32]>
@@ -56,14 +51,12 @@ where
     sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
     <T as Pair>::Signature: codec::Codec,
 {
-    // let signer = PairSigner::new(signer);
+    let signer = PairSigner::new(signer);
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
         .set_url(remote.as_str())
         .build()
         .await?;
 
-    // TODO: real account_id
-    let account_id: AccountId = AccountId32::new([0u8; 32]);
-    let data = client.datalog(&account_id, None).await?;
+    let data = client.datalog(&signer.account_id(), None).await?;
     Ok(data.into())
 }

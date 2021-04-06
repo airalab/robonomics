@@ -74,27 +74,11 @@ pub fn datalog(
     let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
 
     let (sender, receiver) = mpsc::unbounded();
-    let data = receiver.then(move |_msg: String| {
+    let data = receiver.then(move |msg: String| {
         datalog::fetch(pair.clone(), remote.clone()).map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), data))
 }
-
-// pub fn datalog<T: Into<Vec<(u64, Vec<u8>)>>>(
-//     remote: String,
-//     suri: String,
-// ) -> Result<(
-//     impl Sink<T, Error = Error>,
-//     impl Stream<Item = Result<Vec<(u64, Vec<u8>)>>>,
-// )> {
-//     let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
-//
-//     let (sender, receiver) = mpsc::unbounded();
-//     let data = receiver.then(move |_msg: T| {
-//         datalog::fetch(pair.clone(), remote.clone()).map(|r| r.map_err(Into::into))
-//     });
-//     Ok((sender.sink_err_into(), data))
-// }
 
 /// Download some data from IPFS network.
 ///

@@ -172,9 +172,11 @@ impl SourceCmd {
                 )?;
             }
             SourceCmd::Datalog { remote, suri } => {
-                let (_, data) = virt::datalog(remote, suri)?;
+                let (fetch, data) = virt::datalog(remote, suri)?;
+                task::spawn(virt::stdin().forward(fetch));
                 task::block_on(
-                    data.map(|m| m.map(|msg| format!("{:?}", msg)))
+                    // TODO: output format
+                    data.map(|m| m.map(|record| format!("{:?}", record)))
                         .forward(stdout()),
                 )?;
             }
