@@ -18,8 +18,7 @@
 //! Robonomics data blockchainization.
 
 use crate::error::Result;
-use crate::runtime::pallet_datalog;
-use crate::runtime::Robonomics;
+use super::{pallet_datalog, Robonomics};
 
 use pallet_datalog::*;
 use sp_core::crypto::Pair;

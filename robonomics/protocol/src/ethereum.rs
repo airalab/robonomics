@@ -15,6 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Rust Web3 compatible Robonomics Network on Ethereum.
+//! Ethereum compatible Robonomics Network types.
 
 

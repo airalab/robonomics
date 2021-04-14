@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! SubXt compatible Robonomics Network runtime abstration.
+//! SubXt compatible Robonomics Network types.
 
 use sp_runtime::{
     generic::Header,
@@ -30,15 +30,15 @@ use substrate_subxt::{
     EventTypeRegistry, Runtime,
 };
 
-/// Robonomics Datalog pallet.
+pub mod datalog;
+pub mod launch;
 pub mod pallet_datalog;
-use pallet_datalog::DatalogEventTypeRegistry;
-
-/// Robonomics Launch pallet.
 pub mod pallet_launch;
+
+use pallet_datalog::DatalogEventTypeRegistry;
 use pallet_launch::LaunchEventTypeRegistry;
 
-/// Robonomics Network family runtimes.
+/// Robonomics Network family substrate runtimes.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Robonomics;
 

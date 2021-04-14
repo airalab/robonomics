@@ -18,7 +18,7 @@
 //! Launch CPS using Robonomics network.
 
 use crate::error::{Error, Result};
-use crate::runtime::{pallet_launch::*, AccountId, Robonomics};
+use super::{pallet_launch::*, AccountId, Robonomics};
 
 use codec::Decode;
 use sp_core::crypto::{Pair, Ss58Codec};

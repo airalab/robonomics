@@ -17,9 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
-pub mod datalog;
 pub mod error;
 pub mod id;
-pub mod launch;
 pub mod pubsub;
-pub mod runtime;
+pub mod subxt;
+pub mod ethereum;
