@@ -22,7 +22,7 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
-    datalog, launch,
+    subxt::{datalog, launch},
     pubsub::{self, Multiaddr, PubSub as _},
 };
 use sp_core::{crypto::Pair, sr25519};

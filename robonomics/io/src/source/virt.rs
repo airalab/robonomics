@@ -89,7 +89,7 @@ pub fn launch(
 ) -> impl Stream<Item = (String, String, bool)> {
     let (mut sender, receiver) = mpsc::unbounded();
 
-    task::spawn(robonomics_protocol::launch::listen(remote, move |event| {
+    task::spawn(robonomics_protocol::subxt::launch::listen(remote, move |event| {
         let _ = sender.send((
             event.sender.to_ss58check_with_version(format),
             event.robot.to_ss58check_with_version(format),
