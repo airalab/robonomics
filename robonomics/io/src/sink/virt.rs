@@ -22,8 +22,8 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
-    subxt::{datalog, launch},
     pubsub::{self, Multiaddr, PubSub as _},
+    subxt::{datalog, launch},
 };
 use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;

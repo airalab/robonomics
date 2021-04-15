@@ -18,7 +18,7 @@
 //! Robonomics Network protocol.
 
 pub mod error;
+pub mod ethereum;
 pub mod id;
 pub mod pubsub;
 pub mod subxt;
-pub mod ethereum;
