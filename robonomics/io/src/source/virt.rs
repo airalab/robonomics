@@ -20,10 +20,9 @@
 use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
 use ipfs_api::{IpfsClient, TryFromUri};
-use robonomics_protocol::datalog;
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
+use robonomics_protocol::{datalog, runtime::AccountId};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
-use sp_core::{crypto::Pair, sr25519};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
@@ -66,17 +65,13 @@ pub fn pubsub(
 /// Returns datalog data objects.
 pub fn datalog(
     remote: String,
-    suri: String,
 ) -> Result<(
-    impl Sink<String, Error = Error>,
+    impl Sink<AccountId, Error = Error>,
     impl Stream<Item = Result<Vec<(u64, Vec<u8>)>>>,
 )> {
-    // let pair = sr25519::Pair::from_string(suri.as_str(), None)?;
-
-    let (sender, receiver) = mpsc::unbounded();
-    let data = receiver.then(move |msg: String| {
-        // datalog::fetch(pair.clone(), remote.clone()).map(|r| r.map_err(Into::into))
-        datalog::fetch(suri.clone(), remote.clone()).map(|r| r.map_err(Into::into))
+    let (mut sender, receiver) = mpsc::unbounded();
+    let data = receiver.then(move |robot_account: AccountId| {
+        datalog::fetch(robot_account.clone(), remote.clone()).map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), data))
 }

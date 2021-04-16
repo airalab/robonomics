@@ -19,13 +19,14 @@
 
 #![deny(missing_docs)]
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
 use robonomics_protocol::pubsub::Multiaddr;
-use sp_core::crypto::Ss58AddressFormat;
+use robonomics_protocol::runtime::AccountId;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::{convert::TryFrom, time::Duration};
 use structopt::clap::arg_enum;
 
@@ -172,12 +173,25 @@ impl SourceCmd {
                 )?;
             }
             SourceCmd::Datalog { remote, suri } => {
-                let (fetch, data) = virt::datalog(remote, suri)?;
-                task::spawn(virt::stdin().forward(fetch));
+                let (mut sender, data) = virt::datalog(remote)?;
+                let robot_account =
+                    AccountId::from_ss58check(suri.as_str()).map_err(|_| Error::Ss58CodecError)?;
+
+                task::spawn(async move {
+                    sender.send(robot_account).await.unwrap();
+                });
                 task::block_on(
-                    // TODO: output format
-                    data.map(|m| m.map(|record| format!("{:?}", record)))
-                        .forward(stdout()),
+                    data.map(|msg| {
+                        msg.map(|rec| {
+                            rec.iter()
+                                .map(|(_robot_account, record)| {
+                                    String::from_utf8(record.to_vec())
+                                        .unwrap_or("<no string>".to_string())
+                                })
+                                .collect()
+                        })
+                    })
+                    .forward(stdout()),
                 )?;
             }
             SourceCmd::Ipfs { remote } => {

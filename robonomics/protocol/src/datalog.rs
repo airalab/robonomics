@@ -19,12 +19,10 @@
 
 use crate::error::Result;
 use crate::runtime::{pallet_datalog, AccountId, Robonomics};
-use sp_runtime::AccountId32;
-use std::convert::TryInto;
 
 use pallet_datalog::*;
 use sp_core::crypto::Pair;
-use substrate_subxt::{PairSigner, Signer};
+use substrate_subxt::PairSigner;
 
 /// Sign datalog record and send using remote Robonomics node.
 pub async fn submit<T: Pair>(signer: T, remote: String, data_record: Vec<u8>) -> Result<[u8; 32]>
@@ -35,6 +33,7 @@ where
 {
     let subxt_signer = PairSigner::new(signer);
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .skip_type_sizes_check()
         .set_url(remote.as_str())
         .build()
         .await?;
@@ -47,29 +46,12 @@ where
 }
 
 /// Read datalog records from remote Robonomics node.
-pub async fn fetch(account: String, remote: String) -> Result<Vec<(u64, Vec<u8>)>> {
+pub async fn fetch(robot_account: AccountId, remote: String) -> Result<Vec<(u64, Vec<u8>)>> {
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .skip_type_sizes_check()
         .set_url(remote.as_str())
         .build()
         .await?;
-
-    let account_id = AccountId32::new(account.as_bytes().try_into().unwrap_or_else(|_| [0u8; 32]));
-    let data = client.datalog(&account_id, None).await?;
-    Ok(data.into())
+    let data = client.datalog(&robot_account, None).await?;
+    Ok(data)
 }
-
-// pub async fn fetch<T: Pair>(signer: T, remote: String) -> Result<Vec<(u64, Vec<u8>)>>
-// where
-//     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
-//     sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
-//     <T as Pair>::Signature: codec::Codec,
-// {
-//     let signer = PairSigner::new(signer);
-//     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
-//         .set_url(remote.as_str())
-//         .build()
-//         .await?;
-//
-//     let data = client.datalog(&signer.account_id(), None).await?;
-//     Ok(data.into())
-// }

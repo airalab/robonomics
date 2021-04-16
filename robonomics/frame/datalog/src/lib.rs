@@ -65,7 +65,7 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId", T::Record = "Record", < T::Time as Time >::Moment = "Moment")]
+    #[pallet::metadata(T::AccountId = "AccountId", T::Record = "Record", <T::Time as Time>::Moment = "Moment")]
     pub enum Event<T: Config> {
         /// New data added.
         NewRecord(T::AccountId, <T::Time as Time>::Moment, T::Record),
