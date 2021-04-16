@@ -398,7 +398,7 @@ construct_runtime!(
         Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},

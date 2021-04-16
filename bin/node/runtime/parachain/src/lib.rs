@@ -47,8 +47,7 @@ use frame_support::{
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use node_primitives::{
-    AccountId, Amount, Balance, BlockNumber, CurrencyId, Hash, Index, Moment, Signature,
-    TokenSymbol,
+    AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature,
 };
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
@@ -59,11 +58,11 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, IdentityLookup},
+    traits::{BlakeTwo256, Block as BlockT, IdentityLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::{collections::btree_set::BTreeSet, prelude::*};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -628,7 +627,7 @@ construct_runtime! {
         LaunchXcm: pallet_robonomics_launch_xcm::{Pallet, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
 
         // Parachain modules.
         ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},

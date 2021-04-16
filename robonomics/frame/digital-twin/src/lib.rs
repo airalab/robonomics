@@ -125,8 +125,8 @@ mod tests {
             NodeBlock = Block,
             UncheckedExtrinsic = UncheckedExtrinsic,
         {
-            System: frame_system::{Module, Call, Config, Storage, Event<T>},
-            DigitalTwin: digital_twin::{Module, Call, Storage, Event<T>},
+            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            DigitalTwin: digital_twin::{Pallet, Call, Storage, Event<T>},
         }
     );
 
@@ -157,6 +157,7 @@ mod tests {
         type BlockWeights = ();
         type BlockLength = ();
         type SS58Prefix = ();
+        type OnSetCode = ();
     }
 
     impl Config for Runtime {

@@ -313,6 +313,7 @@ mod tests {
         type BlockLength = ();
         type SS58Prefix = ();
         type PalletInfo = PalletInfo;
+        type OnSetCode = ();
     }
 
     parameter_types! {

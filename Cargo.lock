@@ -3338,9 +3338,9 @@ dependencies = [
 
 [[package]]
 name = "idna"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89829a5d69c23d348314a7ac337fe39173b61149a9864deabd260983aed48c21"
+checksum = "418a0a6fab821475f634efe3ccc45c013f742efe03d853e8d3355d5cb850ecf8"
 dependencies = [
  "matches",
  "unicode-bidi",
@@ -5804,7 +5804,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-datalog"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "base58",
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -5832,7 +5832,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-digital-twin"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -5867,7 +5867,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-liability"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "base58",
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -5896,7 +5896,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
@@ -11459,7 +11459,7 @@ dependencies = [
 [[package]]
 name = "substrate-subxt"
 version = "0.15.0"
-source = "git+https://github.com/paritytech/substrate-subxt#02960a3b0e33c239cd0e5612a56c07818a557673"
+source = "git+https://github.com/paritytech/substrate-subxt?rev=02960a3b#02960a3b0e33c239cd0e5612a56c07818a557673"
 dependencies = [
  "dyn-clone",
  "frame-metadata 13.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -11491,7 +11491,7 @@ dependencies = [
 [[package]]
 name = "substrate-subxt-proc-macro"
 version = "0.15.0"
-source = "git+https://github.com/paritytech/substrate-subxt#02960a3b0e33c239cd0e5612a56c07818a557673"
+source = "git+https://github.com/paritytech/substrate-subxt?rev=02960a3b#02960a3b0e33c239cd0e5612a56c07818a557673"
 dependencies = [
  "heck",
  "proc-macro-crate 0.1.5",
@@ -11724,9 +11724,9 @@ dependencies = [
 
 [[package]]
 name = "tiny_http"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1661fa0a44c95d01604bd05c66732a446c657efb62b5164a7a083a3b552b4951"
+checksum = "7ef26912202ff40efe1af278c8b09145e5d5def7a2d684b1bd2fe5f372f61282"
 dependencies = [
  "ascii",
  "chrono",
@@ -12194,7 +12194,7 @@ dependencies = [
  "futures-channel",
  "futures-io",
  "futures-util",
- "idna 0.2.2",
+ "idna 0.2.3",
  "ipnet",
  "lazy_static",
  "log 0.4.14",
@@ -12426,7 +12426,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ccd964113622c8e9322cfac19eb1004a07e636c545f325da085d5cdde6f1f8b"
 dependencies = [
  "form_urlencoded",
- "idna 0.2.2",
+ "idna 0.2.3",
  "matches",
  "percent-encoding 2.1.0",
 ]
