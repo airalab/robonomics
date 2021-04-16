@@ -362,7 +362,10 @@ mod tests {
             };
 
             assert_err!(
-                Liability::create(Origin::signed(agreement.promisor.clone()), agreement.clone()),
+                Liability::create(
+                    Origin::signed(agreement.promisor.clone()),
+                    agreement.clone()
+                ),
                 Error::<Runtime>::BadAgreementProof,
             );
             assert_eq!(Liability::latest_index(), None);
@@ -371,7 +374,10 @@ mod tests {
                 promisee_signature,
                 ..agreement
             };
-            assert_ok!(Liability::create(Origin::signed(agreement.promisor.clone()), agreement.clone()),);
+            assert_ok!(Liability::create(
+                Origin::signed(agreement.promisor.clone()),
+                agreement.clone()
+            ),);
             assert_eq!(Liability::latest_index(), Some(1));
             assert_eq!(Liability::report_of(0), None);
             assert_eq!(Liability::agreement_of(0), Some(agreement));
@@ -401,7 +407,10 @@ mod tests {
                 signature,
                 ..report.clone()
             };
-            assert_ok!(Liability::finalize(Origin::signed(report.sender.clone()), report.clone()));
+            assert_ok!(Liability::finalize(
+                Origin::signed(report.sender.clone()),
+                report.clone()
+            ));
             assert_eq!(Liability::report_of(0), Some(report));
         })
     }

@@ -46,9 +46,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use node_primitives::{
-    AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature,
-};
+use node_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
