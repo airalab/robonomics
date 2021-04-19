@@ -35,22 +35,19 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
-mod currency_adapter;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{LockIdentifier, Randomness, U128CurrencyToVote},
+    traits::{All, IsInVec, LockIdentifier, Randomness, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use node_primitives::{
-    AccountId, Amount, Balance, BlockNumber, CurrencyId, Hash, Index, Moment, Signature,
-    TokenSymbol,
-};
-use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+use node_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -59,40 +56,36 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, IdentityLookup},
+    traits::{BlakeTwo256, Block as BlockT, IdentityLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::{collections::btree_set::BTreeSet, prelude::*};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // XCM imports
-use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
-use orml_xcm_support::{
-    CurrencyIdConverter, IsConcreteWithGeneralKey, MultiCurrencyAdapter, NativePalletAssetOr,
-    XcmHandler as XcmHandlerT,
-};
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{Junction, MultiLocation, NetworkId, Xcm};
+use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-    AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
-    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-    SovereignSignedViaLocation,
+    AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
+    FixedRateOfConcreteFungible, FixedWeightBounds, IsConcrete, LocationInverter, NativeAsset,
+    ParentAsSuperuser, ParentIsDefault, RelayChainAsNative, SiblingParachainAsNative,
+    SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
+    TakeWeightCredit,
 };
 use xcm_executor::{Config, XcmExecutor};
 
 use constants::{currency::*, time::*};
-use currency_adapter::NativeCurrencyAdapter;
 
 /// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 7,
-    impl_version: 7,
+    spec_version: 8,
+    impl_version: 8,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -169,7 +162,7 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
-    type OnSetCode = ParachainSystem;
+    type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -207,38 +200,6 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-    pub DustAccount: AccountId = ModuleId(*b"orml/dst").into_account();
-}
-
-orml_traits::parameter_type_with_key! {
-    pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-        Default::default()
-    };
-}
-
-impl orml_tokens::Config for Runtime {
-    type Balance = Balance;
-    type Amount = Amount;
-    type OnDust = orml_tokens::TransferDust<Runtime, DustAccount>;
-    type CurrencyId = CurrencyId;
-    type ExistentialDeposits = ExistentialDeposits;
-    type WeightInfo = ();
-    type Event = Event;
-}
-
-parameter_types! {
-    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::XRT);
-}
-
-impl orml_currencies::Config for Runtime {
-    type Event = Event;
-    type MultiCurrency = Tokens;
-    type NativeCurrency = NativeCurrencyAdapter<Runtime, Balances, Amount, Balance>;
-    type GetNativeCurrencyId = GetNativeCurrencyId;
-    type WeightInfo = ();
-}
-
-parameter_types! {
     pub const TransactionByteFee: Balance = 100 * COASE;
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
@@ -246,7 +207,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+    type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
@@ -305,11 +266,11 @@ parameter_types! {
     pub const SpendPeriod: BlockNumber = 1 * DAYS;
     pub const Burn: Permill = Permill::from_percent(50);
     pub const DataDepositPerByte: Balance = 1 * COASE;
-    pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
 
 impl pallet_treasury::Config for Runtime {
-    type ModuleId = TreasuryModuleId;
+    type PalletId = TreasuryPalletId;
     type Currency = Balances;
     type ApproveOrigin = frame_system::EnsureOneOf<
         AccountId,
@@ -398,11 +359,10 @@ parameter_types! {
     pub const TermDuration: BlockNumber = 7 * DAYS;
     pub const DesiredMembers: u32 = DESIRED_MEMBERS;
     pub const DesiredRunnersUp: u32 = 5;
-    pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
+    pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
-    type ModuleId = ElectionsPhragmenModuleId;
     type Event = Event;
     type Currency = Balances;
     type ChangeMembers = Council;
@@ -419,6 +379,25 @@ impl pallet_elections_phragmen::Config for Runtime {
     type DesiredRunnersUp = DesiredRunnersUp;
     type TermDuration = TermDuration;
     type WeightInfo = ();
+    type PalletId = ElectionsPhragmenPalletId;
+}
+
+parameter_types! {
+    pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
+}
+
+impl cumulus_pallet_parachain_system::Config for Runtime {
+    type Event = Event;
+    type OnValidationData = ();
+    type SelfParaId = parachain_info::Module<Runtime>;
+    type DownwardMessageHandlers = cumulus_primitives_utility::UnqueuedDmpAsParent<
+        MaxDownwardMessageWeight,
+        XcmExecutor<XcmConfig>,
+        Call,
+    >;
+    type OutboundXcmpMessageSource = XcmpQueue;
+    type XcmpMessageHandler = XcmpQueue;
+    type ReservedXcmpWeight = ReservedXcmpWeight;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -426,123 +405,128 @@ impl parachain_info::Config for Runtime {}
 parameter_types! {
     pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
     pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
-    pub RobonomicsNetwork: NetworkId = NetworkId::Named("robonomics".into());
-    pub RelayChainOrigin: Origin = cumulus_pallet_xcm_handler::Origin::Relay.into();
-    pub const RelayChainCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
+    pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
     pub Ancestry: MultiLocation = Junction::Parachain {
         id: ParachainInfo::parachain_id().into()
     }.into();
 }
 
-type LocationConverter = (
+/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// when determining ownership of accounts for asset transacting and when attempting to use XCM
+/// `Transact` in order to determine the dispatch Origin.
+pub type LocationToAccountId = (
+    // The parent (Relay-chain) origin converts to the default `AccountId`.
     ParentIsDefault<AccountId>,
+    // Sibling parachain origins convert to AccountId via the `ParaId::into`.
     SiblingParachainConvertsVia<Sibling, AccountId>,
-    AccountId32Aliases<RobonomicsNetwork, AccountId>,
+    // Straight up local `AccountId32` origins just alias directly to `AccountId`.
+    AccountId32Aliases<RococoNetwork, AccountId>,
 );
 
-type LocalAssetTransactor = MultiCurrencyAdapter<
-    Currencies,
-    UnknownTokens,
-    IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
-    LocationConverter,
+/// Means for transacting assets on this chain.
+pub type LocalAssetTransactor = xcm_builder::CurrencyAdapter<
+    // Use this currency:
+    Balances,
+    // Use this currency when it is a fungible asset matching the given location or name:
+    IsConcrete<RococoLocation>,
+    // Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
+    LocationToAccountId,
+    // Our chain's account ID type (we can't get away without mentioning it explicitly):
     AccountId,
-    CurrencyIdConverter<CurrencyId, RelayChainCurrencyId>,
-    CurrencyId,
 >;
 
-type LocalOriginConverter = (
-    SovereignSignedViaLocation<LocationConverter, Origin>,
+/// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
+/// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
+/// biases the kind of local `Origin` it will become.
+pub type XcmOriginToTransactDispatchOrigin = (
+    // Sovereign account converter; this attempts to derive an `AccountId` from the origin location
+    // using `LocationToAccountId` and then turn that into the usual `Signed` origin. Useful for
+    // foreign chains who want to have a local sovereign account on this chain which they control.
+    SovereignSignedViaLocation<LocationToAccountId, Origin>,
+    // Native converter for Relay-chain (Parent) location; will converts to a `Relay` origin when
+    // recognised.
     RelayChainAsNative<RelayChainOrigin, Origin>,
-    SiblingParachainAsNative<cumulus_pallet_xcm_handler::Origin, Origin>,
-    SignedAccountId32AsNative<RobonomicsNetwork, Origin>,
+    // Native converter for sibling Parachains; will convert to a `SiblingPara` origin when
+    // recognised.
+    SiblingParachainAsNative<cumulus_pallet_xcm::Origin, Origin>,
+    // Superuser converter for the Relay-chain (Parent) location. This will allow it to issue a
+    // transaction from the Root origin.
+    ParentAsSuperuser<Origin>,
+    // Native signed account converter; this just converts an `AccountId32` origin into a normal
+    // `Origin::Signed` origin of the same 32-byte value.
+    SignedAccountId32AsNative<RococoNetwork, Origin>,
 );
 
 parameter_types! {
-    pub NativeOrmlTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
-        let mut t = BTreeSet::new();
-        // Acala stablecoin
-        t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
-        // XRT form Earth
-        t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 1_000 }).into()));
-        // XRT form Mars
-        t.insert(("XRT".into(), (Junction::Parent, Junction::Parachain { id: 2_000 }).into()));
-        t
-    };
+    pub UnitWeightCost: Weight = 1_000;
 }
+
+parameter_types! {
+    // 1_000_000_000_000 => 1 unit of asset for 1 unit of Weight.
+    // TODO: Should take the actual weight price. This is just 1_000 ROC per second of weight.
+    pub const WeightPrice: (MultiLocation, u128) = (MultiLocation::X1(Junction::Parent), 1_000);
+    pub AllowUnpaidFrom: Vec<MultiLocation> = vec![ MultiLocation::X1(Junction::Parent) ];
+}
+
+pub type Barrier = (
+    TakeWeightCredit,
+    AllowTopLevelPaidExecutionFrom<All<MultiLocation>>,
+    AllowUnpaidExecutionFrom<IsInVec<AllowUnpaidFrom>>, // <- Parent gets free execution
+);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
     type Call = Call;
-    type XcmSender = XcmHandler;
+    type XcmSender = XcmRouter;
     // How to withdraw and deposit an asset.
     type AssetTransactor = LocalAssetTransactor;
-    type OriginConverter = LocalOriginConverter;
-    type IsReserve = NativePalletAssetOr<NativeOrmlTokens>;
-    type IsTeleporter = ();
+    type OriginConverter = XcmOriginToTransactDispatchOrigin;
+    type IsReserve = NativeAsset;
+    type IsTeleporter = NativeAsset; // <- should be enough to allow teleportation of ROC
     type LocationInverter = LocationInverter<Ancestry>;
+    type Barrier = Barrier;
+    type Weigher = FixedWeightBounds<UnitWeightCost, Call>;
+    type Trader = FixedRateOfConcreteFungible<WeightPrice>;
+    type ResponseHandler = (); // Don't handle responses for now.
 }
 
-impl cumulus_pallet_xcm_handler::Config for Runtime {
+parameter_types! {
+    pub const MaxDownwardMessageWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 10;
+}
+
+/// No local origins on this chain are allowed to dispatch XCM sends/executions.
+pub type LocalOriginToLocation = ();
+
+/// The means for routing XCM messages which are not for local execution into the right message
+/// queues.
+pub type XcmRouter = (
+    // Two routers - use UMP to communicate with the relay chain:
+    cumulus_primitives_utility::ParentAsUmp<ParachainSystem>,
+    // ..and XCMP to communicate with the sibling chains.
+    XcmpQueue,
+);
+
+impl pallet_xcm::Config for Runtime {
+    type Event = Event;
+    type SendXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+    type XcmRouter = XcmRouter;
+    type ExecuteXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+    type XcmExecutor = XcmExecutor<XcmConfig>;
+}
+
+impl cumulus_pallet_xcm::Config for Runtime {}
+
+impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type Event = Event;
     type XcmExecutor = XcmExecutor<XcmConfig>;
-    type UpwardMessageSender = ParachainSystem;
-    type XcmpMessageSender = ParachainSystem;
-    type SendXcmOrigin = frame_system::EnsureRoot<AccountId>;
-    type AccountIdConverter = LocationConverter;
+    type ChannelInfo = ParachainSystem;
 }
 
-pub struct RelayToNative;
-impl Convert<RelayChainBalance, Balance> for RelayToNative {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val / 1_000
-    }
-}
-
-pub struct NativeToRelay;
-impl Convert<Balance, RelayChainBalance> for NativeToRelay {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val * 1_000
-    }
-}
-
-pub struct AccountId32Convert;
-impl Convert<AccountId, [u8; 32]> for AccountId32Convert {
-    fn convert(account_id: AccountId) -> [u8; 32] {
-        account_id.into()
-    }
-}
-
-pub struct HandleXcm;
-impl XcmHandlerT<AccountId> for HandleXcm {
-    fn execute_xcm(origin: AccountId, xcm: Xcm) -> sp_runtime::DispatchResult {
-        XcmHandler::execute_xcm(origin, xcm)
-    }
-}
-
-impl orml_xtokens::Config for Runtime {
+impl cumulus_ping::Config for Runtime {
     type Event = Event;
-    type Balance = Balance;
-    type ToRelayChainBalance = NativeToRelay;
-    type AccountId32Convert = AccountId32Convert;
-    type RelayChainNetworkId = RococoNetwork;
-    type ParaId = ParachainInfo;
-    type XcmHandler = HandleXcm;
-}
-
-impl orml_unknown_tokens::Config for Runtime {
-    type Event = Event;
-}
-
-impl cumulus_pallet_parachain_system::Config for Runtime {
-    type SelfParaId = parachain_info::Module<Runtime>;
-    type DownwardMessageHandlers = XcmHandler;
-    type XcmpMessageHandlers = XcmHandler;
-    type OnValidationData = ();
-    type Event = Event;
+    type Origin = Origin;
+    type Call = Call;
+    type XcmSender = XcmRouter;
 }
 
 parameter_types! {
@@ -560,7 +544,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_datalog_xcm::Config for Runtime {
-    type XcmSender = XcmHandler;
+    type XcmSender = XcmRouter;
     type Call = Call;
     type Event = Event;
 }
@@ -571,7 +555,7 @@ impl pallet_robonomics_launch::Config for Runtime {
 }
 
 impl pallet_robonomics_launch_xcm::Config for Runtime {
-    type XcmSender = XcmHandler;
+    type XcmSender = XcmRouter;
     type Call = Call;
     type Event = Event;
 }
@@ -629,8 +613,6 @@ construct_runtime! {
 
         // Native currency and accounts.
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Pallet, Call, Event<T>},
-        Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
         // Randomness.
@@ -643,14 +625,16 @@ construct_runtime! {
         LaunchXcm: pallet_robonomics_launch_xcm::{Pallet, Call, Event<T>},
         RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
 
         // Parachain modules.
-        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event},
+        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},
         ParachainInfo: parachain_info::{Pallet, Storage, Config},
-        XcmHandler: cumulus_pallet_xcm_handler::{Pallet, Event<T>, Origin},
-        XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>},
-        UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event},
+
+        // XCM helpers
+        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>},
+        PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin},
+        CumulusXcm: cumulus_pallet_xcm::{Pallet, Origin},
 
         // DAO modules
         Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
@@ -665,6 +649,9 @@ construct_runtime! {
 
         // Robonomics lighthouse inherents.
         Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent},
+
+        // Ping
+        Spambot: cumulus_ping::{Pallet, Call, Storage, Event<T>} = 99,
     }
 }
 

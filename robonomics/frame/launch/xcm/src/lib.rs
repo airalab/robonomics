@@ -65,9 +65,10 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             let location = Junction::Parachain { id: parachain_id };
             let call: <T as Config>::Call = launch::pallet::Call::<T>::launch(robot, param).into();
-            let message = Xcm::Transact {
-                origin_type: OriginKind::SovereignAccount,
-                call: call.encode(),
+            let message = Xcm::<<T as Config>::Call>::Transact {
+                origin_type: OriginKind::Native,
+                require_weight_at_most: 1_000_000,
+                call: call.encode().into(),
             };
             match T::XcmSender::send_xcm(location.into(), message.into()) {
                 Ok(()) => Self::deposit_event(Event::LaunchSentSuccess(sender)),

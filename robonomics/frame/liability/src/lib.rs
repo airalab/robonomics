@@ -118,7 +118,7 @@ pub mod pallet {
         /// Create agreement between two parties.
         #[pallet::weight(200_000)]
         pub fn create(origin: OriginFor<T>, agreement: T::Agreement) -> DispatchResultWithPostInfo {
-            ensure_none(origin)?;
+            let _ = ensure_signed(origin)?;
 
             ensure!(agreement.verify(), Error::<T>::BadAgreementProof);
 
@@ -145,7 +145,7 @@ pub mod pallet {
         /// Publish technical report of complite works.
         #[pallet::weight(200_000)]
         pub fn finalize(origin: OriginFor<T>, report: ReportFor<T>) -> DispatchResultWithPostInfo {
-            ensure_none(origin)?;
+            let _ = ensure_signed(origin)?;
 
             // Check report proof
             ensure!(report.verify(), Error::<T>::BadReportProof);
@@ -182,34 +182,6 @@ pub mod pallet {
             }
         }
     }
-
-    #[pallet::validate_unsigned]
-    impl<T: Config> ValidateUnsigned for Pallet<T> {
-        type Call = Call<T>;
-        fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-            match call {
-                Call::create(agreement) => ValidTransaction::with_tag_prefix("liability")
-                    .priority(TransactionPriority::max_value())
-                    .and_provides(vec![(
-                        agreement.technical(),
-                        agreement.economical(),
-                        agreement.promisee(),
-                        agreement.promisor(),
-                    )
-                        .encode()])
-                    .longevity(64u64)
-                    .propagate(true)
-                    .build(),
-                Call::finalize(report) => ValidTransaction::with_tag_prefix("liability")
-                    .priority(TransactionPriority::max_value())
-                    .and_provides(vec![(report.index(), report.sender()).encode()])
-                    .longevity(64u64)
-                    .propagate(true)
-                    .build(),
-                _ => InvalidTransaction::Call.into(),
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -236,8 +208,8 @@ mod tests {
             NodeBlock = Block,
             UncheckedExtrinsic = UncheckedExtrinsic,
         {
-            System: frame_system::{Module, Call, Config, Storage, Event<T>},
-            Liability: liability::{Module, Call, Storage, Event<T>, ValidateUnsigned},
+            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            Liability: liability::{Pallet, Call, Storage, Event<T>},
         }
     );
 
@@ -268,6 +240,7 @@ mod tests {
         type BlockWeights = ();
         type BlockLength = ();
         type SS58Prefix = ();
+        type OnSetCode = ();
     }
 
     impl Config for Runtime {
@@ -389,7 +362,10 @@ mod tests {
             };
 
             assert_err!(
-                Liability::create(Origin::none(), agreement.clone()),
+                Liability::create(
+                    Origin::signed(agreement.promisor.clone()),
+                    agreement.clone()
+                ),
                 Error::<Runtime>::BadAgreementProof,
             );
             assert_eq!(Liability::latest_index(), None);
@@ -398,7 +374,10 @@ mod tests {
                 promisee_signature,
                 ..agreement
             };
-            assert_ok!(Liability::create(Origin::none(), agreement.clone()),);
+            assert_ok!(Liability::create(
+                Origin::signed(agreement.promisor.clone()),
+                agreement.clone()
+            ),);
             assert_eq!(Liability::latest_index(), Some(1));
             assert_eq!(Liability::report_of(0), None);
             assert_eq!(Liability::agreement_of(0), Some(agreement));
@@ -419,7 +398,7 @@ mod tests {
                 signature: bad_signature,
             };
             assert_err!(
-                Liability::finalize(Origin::none(), report.clone()),
+                Liability::finalize(Origin::signed(report.sender.clone()), report.clone()),
                 Error::<Runtime>::BadReportProof,
             );
             assert_eq!(Liability::report_of(0), None);
@@ -428,7 +407,10 @@ mod tests {
                 signature,
                 ..report.clone()
             };
-            assert_ok!(Liability::finalize(Origin::none(), report.clone()));
+            assert_ok!(Liability::finalize(
+                Origin::signed(report.sender.clone()),
+                report.clone()
+            ));
             assert_eq!(Liability::report_of(0), Some(report));
         })
     }

@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-digital-twin"
 description = "Robonomics Network digital twin runtime module"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 

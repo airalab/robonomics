@@ -29,8 +29,8 @@ use futures::{
 };
 use libp2p::core::connection::ListenerId;
 use libp2p::gossipsub::{
-    MessageId, Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
-    MessageAuthenticity, Sha256Topic as Topic, TopicHash,
+    Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
+    MessageId, Sha256Topic as Topic, TopicHash,
 };
 use libp2p::{Multiaddr, PeerId, Swarm};
 use std::{
