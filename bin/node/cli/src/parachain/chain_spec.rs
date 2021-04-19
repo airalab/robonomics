@@ -134,6 +134,7 @@ fn mk_genesis(
     }
 }
 
+/*
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 
@@ -262,8 +263,8 @@ pub fn rococo_parachain_config() -> ChainSpec {
         },
     )
 }
+*/
 
-/*
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
@@ -279,4 +280,3 @@ pub fn mars_parachain_config() -> ChainSpec {
 pub fn rococo_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/rococo.json")[..]).unwrap()
 }
-*/
