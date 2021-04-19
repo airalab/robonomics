@@ -3,6 +3,9 @@
   "id": "earth",
   "chainType": "Live",
   "bootNodes": [
+    "/dns/0.earth.robonomics.network/tcp/30333/p2p/12D3KooWHQAZQhXoAbguTKGC2MfRSNsUTTnskAUR6UjGsdwbrFQr",
+    "/dns/1.earth.robonomics.network/tcp/30333/p2p/12D3KooWHdXveaSBgAX2c2X5b7zHPrA3pBRasD6M9Ytd7U21QwBF",
+    "/dns/2.earth.robonomics.network/tcp/30333/p2p/12D3KooWFAXdhp3QDrPkiE2ZAPyQ8GgPhLQZ4otWCCHynQLmLeSV"
   ],
   "telemetryEndpoints": [],
   "protocolId": "xrt",
@@ -41,6 +44,10 @@
           ],
           [
             "5FHNEsp2Yx2qNZkB89ibJ1eAWBy9k69GhcjboQ9ys3GcdfFg",
+            10000000000000
+          ],
+          [
+            "5CM763oLmc1QwKH8U9KZXeDULn5ab97YC5XfRahNRxPTfqpg",
             10000000000000
           ],
           [
