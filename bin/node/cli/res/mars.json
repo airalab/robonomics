@@ -3,8 +3,14 @@
   "id": "mars",
   "chainType": "Live",
   "bootNodes": [
+    "/dns/0.mars.robonomics.network/tcp/30333/p2p/5Ec4AhPUwPeyTFyuhGuBbD224mY85LKLMSqSSo33JYWCazU4"
   ],
-  "telemetryEndpoints": [],
+  "telemetryEndpoints": [
+    [
+      "/dns/telemetry.parachain.robonomics.network/tcp/443/x-parity-wss/%2Fsubmit%2F",
+      0
+    ]
+  ],
   "protocolId": "xrt",
   "properties": {
     "ss58Format": 32,
@@ -41,6 +47,10 @@
           ],
           [
             "5FHNEsp2Yx2qNZkB89ibJ1eAWBy9k69GhcjboQ9ys3GcdfFg",
+            10000000000000
+          ],
+          [
+            "5CM763oLmc1QwKH8U9KZXeDULn5ab97YC5XfRahNRxPTfqpg",
             10000000000000
           ],
           [
