@@ -26,9 +26,9 @@ jobs:
       with:
         submodules: true
 
-    - name: Install LLVM (for windows)
+    - name: Install LLVM 11.1 (for windows)
       if: contains(matrix.target, 'windows')
-      run: choco install llvm
+      run: choco install llvm --version=11.1.0
 
     - name: Install ARM64 multilib
       if: contains(matrix.target, 'aarch64')
