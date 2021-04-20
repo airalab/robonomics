@@ -1,5 +1,5 @@
 {
-  "name": "Mars",
+  "name": "RobonomicsMars",
   "id": "mars",
   "chainType": "Live",
   "bootNodes": [
@@ -11,6 +11,7 @@
       0
     ]
   ],
+  "telemetryEndpoints": [],
   "protocolId": "xrt",
   "properties": {
     "ss58Format": 32,
