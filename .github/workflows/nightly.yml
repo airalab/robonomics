@@ -19,6 +19,7 @@ jobs:
     env:
       EXE_EXT: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
       EXE_PATH: ${{ contains(matrix.target, 'x86_64') && '' || format('/{0}', matrix.target) }} 
+      LIBCLANG_PATH: ${{ contains(matrix.target, 'windows') && 'C:\ProgramData\scoop\apps\llvm\current\bin' || '/usr/lib/x86_64-linux-gnu/' }}
 
     steps:
     - name: Checkout the source code
@@ -26,9 +27,11 @@ jobs:
       with:
         submodules: true
 
-    - name: Install LLVM 11.1 (for windows)
+    - name: Install LLVM (for windows)
       if: contains(matrix.target, 'windows')
-      run: choco install llvm --version=11.1.0
+      run: |
+        iwr -useb get.scoop.sh | iex
+        scoop install llvm --global
 
     - name: Install ARM64 multilib
       if: contains(matrix.target, 'aarch64')
