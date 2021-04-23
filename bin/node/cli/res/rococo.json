@@ -12,7 +12,6 @@
     "tokenSymbol": "XRT"
   },
   "relayChain": "rococo",
-  "relayChain": "rococo",
   "paraId": 3000,
   "consensusEngine": null,
   "lightSyncState": null,
