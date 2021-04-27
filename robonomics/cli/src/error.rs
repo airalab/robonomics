@@ -29,6 +29,8 @@ pub enum Error {
     IoFailure(robonomics_io::error::Error),
     /// Standard I/O error.
     Io(std::io::Error),
+    /// Unable to decode address.
+    Ss58CodecError,
     /// Other error.
     Other(String),
 }
