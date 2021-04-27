@@ -17,9 +17,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics data blockchainization.
 
-use super::{pallet_datalog, Robonomics};
+use super::{pallet_datalog, AccountId, Robonomics, WindowSize};
 use crate::error::Result;
 
+use futures::future::join_all;
 use pallet_datalog::*;
 use sp_core::crypto::Pair;
 use substrate_subxt::PairSigner;
@@ -33,6 +34,7 @@ where
 {
     let subxt_signer = PairSigner::new(signer);
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .skip_type_sizes_check()
         .set_url(remote.as_str())
         .build()
         .await?;
@@ -42,4 +44,25 @@ where
         "Data record submited in extrinsic with hash {}", xt_hash
     );
     Ok(xt_hash.into())
+}
+
+/// Read datalog records from remote Robonomics node.
+pub async fn fetch(robot_account: AccountId, remote: String) -> Result<Vec<RingBufferItem>> {
+    let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
+        .skip_type_sizes_check()
+        .set_url(remote.as_str())
+        .build()
+        .await?;
+
+    let mut index = client.datalog_index(&robot_account, None).await?;
+    let items = join_all(
+        index
+            .iter(WindowSize)
+            .map(|i| client.datalog_item((&robot_account, i), None))
+            .collect::<Vec<_>>(),
+    )
+    .await;
+
+    let data = items.into_iter().filter_map(|item| item.ok()).collect();
+    Ok(data)
 }

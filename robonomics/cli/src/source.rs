@@ -19,13 +19,14 @@
 
 #![deny(missing_docs)]
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
 use robonomics_protocol::pubsub::Multiaddr;
-use sp_core::crypto::Ss58AddressFormat;
+use robonomics_protocol::subxt::AccountId;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::{convert::TryFrom, time::Duration};
 use structopt::clap::arg_enum;
 
@@ -63,6 +64,16 @@ pub enum SourceCmd {
         /// How often node should check another nodes availability, in secs.
         #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
         hearbeat: u64,
+    },
+    /// Reading datalog.
+    Datalog {
+        /// Robonomics node API endpoint.
+        #[structopt(long, value_name = "REMOTE_URI", default_value = "ws://127.0.0.1:9944")]
+        remote: String,
+        /// Reader account seed URI.
+        #[structopt(short, value_name = "SECRET_URI")]
+        suri: String,
+        //TODO: follow flag
     },
     /// Download data from IPFS storage.
     Ipfs {
@@ -159,6 +170,31 @@ impl SourceCmd {
                             })
                         })
                         .forward(stdout()),
+                )?;
+            }
+            SourceCmd::Datalog { remote, suri } => {
+                let (mut sender, data) = virt::datalog(remote)?;
+                let robot_account =
+                    AccountId::from_ss58check(suri.as_str()).map_err(|_| Error::Ss58CodecError)?;
+
+                task::spawn(async move {
+                    sender.send(robot_account).await.unwrap();
+                });
+                task::block_on(
+                    data.map(|msg| {
+                        msg.map(|rec| {
+                            rec.iter()
+                                .map(|item| {
+                                    format!(
+                                        "{:?}\n",
+                                        String::from_utf8(item.1.to_vec())
+                                            .unwrap_or("<no string>".to_string())
+                                    )
+                                })
+                                .collect()
+                        })
+                    })
+                    .forward(stdout()),
                 )?;
             }
             SourceCmd::Ipfs { remote } => {
