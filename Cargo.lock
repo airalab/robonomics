@@ -5037,7 +5037,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "cumulus-client-collator",
  "cumulus-client-consensus-relay-chain",
@@ -5106,7 +5106,7 @@ dependencies = [
 
 [[package]]
 name = "node-primitives"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "parity-scale-codec",
@@ -5119,7 +5119,7 @@ dependencies = [
 
 [[package]]
 name = "node-rpc"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "jsonrpc-core",
  "node-primitives",
@@ -5150,7 +5150,7 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
  "frame-executive",
@@ -6211,7 +6211,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-runtime"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcm",
@@ -8330,7 +8330,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "node-cli",
  "parity-util-mem",

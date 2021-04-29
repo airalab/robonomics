@@ -1,6 +1,6 @@
 [package]
 name = "parachain-runtime"
-version = "0.28.0"
+version = "0.28.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
