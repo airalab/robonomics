@@ -21,7 +21,6 @@ use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
-use robonomics_protocol::subxt::pallet_datalog::RingBufferItem;
 use robonomics_protocol::subxt::{datalog, AccountId};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
@@ -66,15 +65,19 @@ pub fn pubsub(
 /// Returns datalog data objects.
 pub fn datalog(
     remote: String,
-) -> Result<(
-    impl Sink<AccountId, Error = Error>,
-    impl Stream<Item = Result<Vec<RingBufferItem>>>,
-)> {
-    let (sender, receiver) = mpsc::unbounded();
+    address: String,
+) -> Result<impl Stream<Item = Result<Vec<(u64, Vec<u8>)>>>> {
+    let robot_account =
+        AccountId::from_ss58check(address.as_str()).map_err(|_| Error::Ss58CodecError)?;
+
+    let (mut sender, receiver) = mpsc::unbounded();
+    task::spawn(async move {
+        sender.send(robot_account).await.unwrap();
+    });
     let data = receiver.then(move |robot_account: AccountId| {
         datalog::fetch(robot_account.clone(), remote.clone()).map(|r| r.map_err(Into::into))
     });
-    Ok((sender.sink_err_into(), data))
+    Ok(data)
 }
 
 /// Download some data from IPFS network.

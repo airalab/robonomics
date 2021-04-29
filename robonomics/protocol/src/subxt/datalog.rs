@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics data blockchainization.
 
-use super::{pallet_datalog, AccountId, Robonomics, WindowSize};
+use super::{pallet_datalog, AccountId, Robonomics};
 use crate::error::Result;
 
 use futures::future::join_all;
@@ -47,22 +47,30 @@ where
 }
 
 /// Read datalog records from remote Robonomics node.
-pub async fn fetch(robot_account: AccountId, remote: String) -> Result<Vec<RingBufferItem>> {
+pub async fn fetch(robot_account: AccountId, remote: String) -> Result<Vec<(u64, Vec<u8>)>> {
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
         .skip_type_sizes_check()
         .set_url(remote.as_str())
         .build()
         .await?;
 
+    let metadata = client.metadata().module("Datalog")?;
+    let ws_metadata = metadata.constant("WindowSize")?;
+    let window_size = ws_metadata.value()?;
+
     let mut index = client.datalog_index(&robot_account, None).await?;
     let items = join_all(
         index
-            .iter(WindowSize)
+            .iter(window_size)
             .map(|i| client.datalog_item((&robot_account, i), None))
             .collect::<Vec<_>>(),
     )
     .await;
 
-    let data = items.into_iter().filter_map(|item| item.ok()).collect();
+    let data = items
+        .into_iter()
+        .filter_map(|item| item.ok())
+        .map(|item| (item.0, item.1))
+        .collect();
     Ok(data)
 }

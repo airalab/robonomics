@@ -45,9 +45,6 @@ pub struct Robonomics;
 /// Robonomics account is MultiSignature account.
 pub type AccountId = <<MultiSignature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-/// Datalog window size.
-pub const WindowSize: u64 = 128;
-
 impl Runtime for Robonomics {
     type Signature = MultiSignature;
     type Extra = DefaultExtra<Self>;

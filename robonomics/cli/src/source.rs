@@ -19,14 +19,13 @@
 
 #![deny(missing_docs)]
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
 use robonomics_protocol::pubsub::Multiaddr;
-use robonomics_protocol::subxt::AccountId;
-use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
+use sp_core::crypto::Ss58AddressFormat;
 use std::{convert::TryFrom, time::Duration};
 use structopt::clap::arg_enum;
 
@@ -71,8 +70,8 @@ pub enum SourceCmd {
         #[structopt(long, value_name = "REMOTE_URI", default_value = "ws://127.0.0.1:9944")]
         remote: String,
         /// Reader account seed URI.
-        #[structopt(short, value_name = "SECRET_URI")]
-        suri: String,
+        #[structopt(short, value_name = "ADDRESS")]
+        address: String,
         //TODO: follow flag
     },
     /// Download data from IPFS storage.
@@ -172,14 +171,8 @@ impl SourceCmd {
                         .forward(stdout()),
                 )?;
             }
-            SourceCmd::Datalog { remote, suri } => {
-                let (mut sender, data) = virt::datalog(remote)?;
-                let robot_account =
-                    AccountId::from_ss58check(suri.as_str()).map_err(|_| Error::Ss58CodecError)?;
-
-                task::spawn(async move {
-                    sender.send(robot_account).await.unwrap();
-                });
+            SourceCmd::Datalog { remote, address } => {
+                let data = virt::datalog(remote, address)?;
                 task::block_on(
                     data.map(|msg| {
                         msg.map(|rec| {
