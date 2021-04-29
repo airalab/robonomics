@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@
 use codec::{Decode, Encode};
 use futures::executor::block_on;
 use sp_api::ProvideRuntimeApi;
-use sp_blockchain::{Error as ClientError, HeaderBackend};
-use sp_core::{traits::BareCryptoStorePtr, H256};
+use sp_blockchain::HeaderBackend;
+use sp_core::H256;
+use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::{generic, traits};
 use sp_session::SessionKeys;
 use sp_transaction_pool::{
@@ -38,7 +39,7 @@ pub struct Author<P, Client> {
     /// Transactions pool
     pool: Arc<P>,
     /// The key store.
-    keystore: BareCryptoStorePtr,
+    keystore: SyncCryptoStorePtr,
 }
 
 impl<P, Client> Clone for Author<P, Client> {
@@ -53,7 +54,7 @@ impl<P, Client> Clone for Author<P, Client> {
 
 impl<P, Client> Author<P, Client> {
     /// Create new instance of Authoring API.
-    pub fn new(client: Arc<Client>, pool: Arc<P>, keystore: BareCryptoStorePtr) -> Self {
+    pub fn new(client: Arc<Client>, pool: Arc<P>, keystore: SyncCryptoStorePtr) -> Self {
         Author {
             client,
             pool,
@@ -67,7 +68,7 @@ where
     P: TransactionPool<Hash = H256> + Sync + Send + 'static,
     P::Block: traits::Block<Hash = H256>,
     Client: HeaderBackend<P::Block> + ProvideRuntimeApi<P::Block> + Send + Sync + 'static,
-    Client::Api: SessionKeys<P::Block, Error = ClientError>,
+    Client::Api: SessionKeys<P::Block>,
 {
     fn rotate_keys(&self) -> Result<ros_api::Bytes, String> {
         let best_block_hash = self.client.info().best_hash;

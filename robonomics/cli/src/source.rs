@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
 use robonomics_protocol::pubsub::Multiaddr;
-use std::time::Duration;
+use sp_core::crypto::Ss58AddressFormat;
+use std::{convert::TryFrom, time::Duration};
 use structopt::clap::arg_enum;
 
 /// Source device commands.
@@ -65,8 +66,12 @@ pub enum SourceCmd {
     },
     /// Download data from IPFS storage.
     Ipfs {
-        /// IPFS node API endpoint.
-        #[structopt(long, default_value = "http://127.0.0.1:5001")]
+        /// IPFS node endpoint.
+        #[structopt(
+            long,
+            value_name = "REMOTE_URI",
+            default_value = "http://127.0.0.1:5001"
+        )]
         remote: String,
     },
     /// Robot launch request events.
@@ -74,6 +79,16 @@ pub enum SourceCmd {
         /// Robonomics node API endpoint.
         #[structopt(long, default_value = "ws://127.0.0.1:9944")]
         remote: String,
+        /// Output address format.
+        #[structopt(
+            long,
+            short = "n",
+            possible_values = &Ss58AddressFormat::all_names()[..],
+            parse(try_from_str = Ss58AddressFormat::try_from),
+            case_insensitive = true,
+            default_value = "robonomics",
+        )]
+        network: Ss58AddressFormat,
     },
     #[cfg(feature = "ros")]
     /// Subscribe for data from ROS topic.
@@ -121,7 +136,7 @@ impl SourceCmd {
                                 }
                                 Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
                                 Encoding::Json => serde_json::to_string(&msg).unwrap(),
-                                Encoding::Debug => format!("{:?}", msg),
+                                Encoding::Debug => format!("{}", msg),
                             })
                         })
                         .forward(stdout()),
@@ -147,7 +162,7 @@ impl SourceCmd {
                 )?;
             }
             SourceCmd::Ipfs { remote } => {
-                let (download, data) = virt::ipfs(remote.as_str())?;
+                let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
                 task::spawn(virt::stdin().forward(download));
                 task::block_on(
                     data.map(|m| {
@@ -156,9 +171,9 @@ impl SourceCmd {
                     .forward(stdout()),
                 )?;
             }
-            SourceCmd::Launch { remote } => {
+            SourceCmd::Launch { remote, network } => {
                 task::block_on(
-                    virt::launch(remote)
+                    virt::launch(remote, network)
                         .map(|(sender, robot, param)| {
                             Ok(format!("{} >> {} : {}", sender, robot, param))
                         })

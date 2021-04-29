@@ -1,6 +1,6 @@
 [package]
 name = "substrate-ros-api"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -11,19 +11,20 @@ rosrust = "0.9"
 futures = "0.3"
 futures-timer = "3"
 serde_json = "1.0"
-codec = { package = "parity-scale-codec", version = "1.3.0" }
+codec = { package = "parity-scale-codec", version = "2.0" }
 
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-network = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 msgs = { package = "substrate-ros-msgs", path = "../msgs" }

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ pub enum SinkCmd {
     },
     /// Upload data into IPFS storage.
     Ipfs {
-        /// IPFS node API endpoint.
+        /// IPFS node endpoint.
         #[structopt(
             long,
             value_name = "REMOTE_URI",
@@ -109,7 +109,7 @@ impl SinkCmd {
                 task::block_on(hex_encoded.forward(virt::stdout()))?;
             }
             SinkCmd::Ipfs { remote } => {
-                let (upload, hashes) = virt::ipfs(remote.as_str())?;
+                let (upload, hashes) = virt::ipfs(remote.as_str()).expect("ipfs launch");
                 task::spawn(stdin().forward(upload));
                 task::block_on(hashes.forward(virt::stdout()))?;
             }

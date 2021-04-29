@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM ubuntu:20.04 as builder
 
 # metadata
 ARG VCS_REF
@@ -16,29 +16,26 @@ LABEL io.parity.image.authors="research@robonomics.network" \
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-# install tools and dependencies
-RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y \
-		libssl1.1 \
-		ca-certificates \
-		curl && \
-# apt cleanup
-	apt-get autoremove -y && \
-	apt-get clean && \
-	find /var/lib/apt/lists/ -type f -not -name lock -delete; \
 # add user
-	useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics
+RUN useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics && \
+	mkdir -p /robonomics/.local/share && \
+   	mkdir /data && \
+    	chown -R robonomics:robonomics /data && \
+    	ln -s /data /robonomics/.local/share/robonomics && \
+    	rm -rf /usr/bin /usr/sbin
 
+LABEL description="This is the 2nd stage: a very small image where we copy the robonomics binary"
+
+ARG PROFILE=release
 # add binary to docker image
 COPY ./robonomics /usr/local/bin
 
 USER robonomics
 
 # check if executable works in this container
-RUN /usr/local/bin/robonomics --version
+RUN ["robonomics", "--version"]
 
 EXPOSE 30333 9933 9944
-VOLUME ["/robonomics"]
+VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/robonomics"]
+CMD ["/usr/local/bin/robonomics"]

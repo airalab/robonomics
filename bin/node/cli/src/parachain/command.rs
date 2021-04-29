@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use codec::Encode;
+use cumulus_primitives_core::ParaId;
 use log::info;
-use node_primitives::Block;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
@@ -28,51 +28,21 @@ use sc_service::{
     config::{BasePath, Configuration, PrometheusConfig},
     TaskManager,
 };
+use sp_api::BlockT;
 use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::{
-    traits::{Block as BlockT, Hash as HashT, Header as HeaderT, Zero},
-    BuildStorage,
-};
-use std::{net::SocketAddr, sync::Arc};
-
-fn generate_genesis_state() -> sc_service::error::Result<Block> {
-    let storage = (&super::chain_spec::robonomics_parachain_config()).build_storage()?;
-
-    let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
-        let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-            child_content.data.clone().into_iter().collect(),
-        );
-        (sk.clone(), state_root.encode())
-    });
-    let state_root = <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-        storage.top.clone().into_iter().chain(child_roots).collect(),
-    );
-
-    let extrinsics_root =
-        <<<Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(Vec::new());
-
-    Ok(Block::new(
-        <<Block as BlockT>::Header as HeaderT>::new(
-            Zero::zero(),
-            extrinsics_root,
-            state_root,
-            Default::default(),
-            Default::default(),
-        ),
-        Default::default(),
-    ))
-}
+use std::net::SocketAddr;
 
 /// Run a collator node with the given parachain `Configuration`
-pub fn run(
+pub async fn run(
     config: Configuration,
     relaychain_args: &Vec<String>,
-    validator: bool,
+    parachain_id: Option<u32>,
+    validator_account: Option<sp_core::H160>,
 ) -> sc_service::error::Result<TaskManager> {
-    let key = Arc::new(sp_core::Pair::generate().0);
+    let key = sp_core::Pair::generate().0;
 
     let extension = super::chain_spec::Extensions::try_get(&config.chain_spec);
-    let parachain_id = extension.map(|e| e.para_id).unwrap_or(100).into();
+    let parachain_id = ParaId::from(parachain_id.or(extension.map(|e| e.para_id)).unwrap_or(100));
     let relay_chain_id = extension.map(|e| e.relay_chain.clone());
     let polkadot_cli = RelayChainCli::new(
         config.base_path.as_ref().map(|x| x.path().join("polkadot")),
@@ -82,22 +52,38 @@ pub fn run(
             .chain(relaychain_args.iter()),
     );
 
-    let block = generate_genesis_state()?;
-    let header_hex = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
+    let block: node_primitives::Block =
+        super::generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+    let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
 
-    info!("[Para] ID: {}", parachain_id);
-    info!("[Para] Account: {}", parachain_account);
-    info!("[Para] Genesis State: {}", header_hex);
-    info!("Is collating: {}", if validator { "yes" } else { "no" });
+    info!("[Parachain] ID: {}", parachain_id);
+    info!("[Parachain] Account: {}", parachain_account);
+    info!("[Parachain] Genesis State: {}", genesis_state);
+    info!(
+        "[Parachain] Is collating: {}",
+        if let Some(account) = validator_account {
+            format!("yes ({})", account)
+        } else {
+            "no".to_string()
+        }
+    );
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-    super::collator::run_node(config, parachain_id, key, polkadot_config, validator)
+    super::collator::start_node(
+        config,
+        key,
+        polkadot_config,
+        parachain_id,
+        validator_account,
+    )
+    .await
+    .map(|r| r.0)
 }
 
 #[derive(Debug)]
@@ -157,16 +143,21 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn copyright_start_year() -> i32 {
-        2020
-    }
-
-    fn executable_name() -> String {
-        "robonomics".into()
+        2017
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        polkadot_cli::Cli::from_iter([RelayChainCli::executable_name().to_string()].iter())
-            .load_spec(id)
+        if id == "rococo_local_testnet" {
+            Ok(Box::new(
+                polkadot_service::RococoChainSpec::from_json_bytes(
+                    &include_bytes!("../../res/rococo_local_testnet.json")[..],
+                )
+                .unwrap(),
+            ))
+        } else {
+            polkadot_cli::Cli::from_iter([RelayChainCli::executable_name().to_string()].iter())
+                .load_spec(id)
+        }
     }
 
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {

@@ -1,20 +1,31 @@
 [workspace]
-default-members = [ "bin/node/cli" ]
+default-members = [ "bin/node" ]
 members = [
-    "bin/subkey",
+    "bin/node",
     "bin/node/cli",
-    "bin/node/ipci-runtime",
-    "bin/node/robonomics-runtime",
-    "bin/node/robonomics-runtime/parachain",
+    "bin/node/runtime",
+    "bin/node/runtime/parachain",
+    "robonomics/frame/rws",
     "robonomics/frame/launch",
     "robonomics/frame/datalog",
+    "robonomics/frame/datalog/xcm",
     "robonomics/frame/liability",
+    "robonomics/frame/lighthouse",
+    "robonomics/frame/digital-twin",
     "robonomics/protocol",
     "robonomics/cli",
     "robonomics/io",
     "substrate-ros/api",
     "substrate-ros/msgs",
 ]
+
+exclude = [
+    "vendor",
+]
+
+# Enhanced features resolver
+# https://github.com/rust-lang/cargo/issues/1197
+resolver = "2"
 
 [profile.release]
 # Substrate runtime requires unwinding.

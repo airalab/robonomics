@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,337 +18,252 @@
 //! The Robonomics runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Codec, Decode, Encode};
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, StorageValue};
-use frame_system::ensure_none;
-use sp_runtime::transaction_validity::{
-    InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
-    ValidTransaction,
-};
-use sp_std::prelude::*;
-
-/// Import module traits.
-pub mod traits;
-use traits::*;
-
 pub mod economics;
 pub mod signed;
 pub mod technics;
+pub mod traits;
 
-/// Type synonym for technical trait parameter.
-pub type TechnicalParam<T> = <<T as Trait>::Technics as Technical>::Parameter;
+pub use pallet::*;
+pub use signed::*;
+pub use traits::*;
 
-/// Type synonym for technical report trait parameter.
-pub type TechnicalReport<T> = <<T as Trait>::Technics as Technical>::Report;
+#[frame_support::pallet]
+pub mod pallet {
+    use super::traits::*;
+    use frame_support::{dispatch, pallet_prelude::*};
+    use frame_system::pallet_prelude::*;
+    use sp_std::prelude::*;
 
-/// Type synonym for economical trait parameter.
-pub type EconomicalParam<T> = <<T as Trait>::Economics as Economical>::Parameter;
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        /// How to make and process agreement between two parties.
+        type Agreement: dispatch::Parameter + Processing + Agreement<Self::AccountId>;
 
-/// Type synonym for liability proof parameter.
-pub type ProofParam<T> =
-    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Proof;
+        /// How to report of agreement execution.
+        type Report: dispatch::Parameter + Report<Self::Index, Self::AccountId>;
 
-pub type LiabilityIndex<T> =
-    <<T as Trait>::Liability as Agreement<<T as Trait>::Technics, <T as Trait>::Economics>>::Index;
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+    }
 
-/// Current runtime account identificator.
-pub type AccountId<T> = <T as frame_system::Trait>::AccountId;
+    pub type TechnicsFor<T> =
+        <<T as Config>::Agreement as Agreement<<T as frame_system::Config>::AccountId>>::Technical;
+    pub type EconomicsFor<T> =
+        <<T as Config>::Agreement as Agreement<<T as frame_system::Config>::AccountId>>::Economical;
+    pub type ReportFor<T> = <T as Config>::Report;
 
-/// Liability module main trait.
-pub trait Trait: frame_system::Trait {
-    /// Technical aspects of agreement.
-    type Technics: Technical;
-
-    /// Economical aspects of agreement.
-    type Economics: Economical;
-
-    /// How to make and process agreement between two parties.
-    type Liability: Codec
-        + Processing
-        + Agreement<Self::Technics, Self::Economics, AccountId = AccountId<Self>>;
-
-    /// The overarching event type.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
-}
-
-decl_event! {
-    pub enum Event<T>
-    where AccountId = AccountId<T>,
-          LiabilityIndex = LiabilityIndex<T>,
-          TechnicalParam = TechnicalParam<T>,
-          EconomicalParam = EconomicalParam<T>,
-          TechnicalReport = TechnicalReport<T>,
-    {
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(
+        T::Index = "LiabilityIndex",
+        T::AccountId = "AccountId",
+        TechnicsFor<T> = "Technics",
+        EconomicsFor<T> = "Economics",
+        ReportFor<T> = "Report",
+    )]
+    pub enum Event<T: Config> {
         /// Yay! New liability created.
-        NewLiability(LiabilityIndex, TechnicalParam, EconomicalParam, AccountId, AccountId),
+        NewLiability(
+            T::Index,
+            TechnicsFor<T>,
+            EconomicsFor<T>,
+            T::AccountId,
+            T::AccountId,
+        ),
 
         /// Liability report published.
-        NewReport(LiabilityIndex, TechnicalReport),
+        NewReport(T::Index, ReportFor<T>),
     }
-}
 
-decl_error! {
-    pub enum Error for Module<T: Trait> {
-        /// Promisor agreement proof verification failed
-        BadPromisorProof,
-        /// Promisee agreement proof verification failed
-        BadPromiseeProof,
-        /// Promisor report proof verification failed
+    #[pallet::error]
+    pub enum Error<T> {
+        /// Agreement proof verification failed.
+        BadAgreementProof,
+        /// Report proof verification failed.
         BadReportProof,
-        /// Unable to decode liability at given index
-        LiabilityDecodeFailure,
+        /// Wrong report sender account.
+        BadReportSender,
+        /// Liability already finalized.
+        AlreadyFinalized,
+        /// Real world oracle is not ready for this report.
+        OracleIsNotReady,
+        /// Unable to load agreement from storage.
+        AgreementNotFound,
     }
-}
 
-decl_storage! {
-    trait Store for Module<T: Trait> as Liability {
-        /// Latest liability index.
-        LatestIndex get(fn latest_index): LiabilityIndex<T>;
-        /// SCALE-encoded liability parameters.
-        LiabilityOf get(fn liability_of): map hasher(blake2_128_concat)
-                                          LiabilityIndex<T> => Vec<u8>;
-        /// Set `true` when liability report already send.
-        IsFinalized get(fn is_finalized): map hasher(blake2_128_concat)
-                                          LiabilityIndex<T> => bool;
-        /// SCALE-encoded liability report.
-        ReportOf    get(fn report_of): map hasher(blake2_128_concat)
-                                       LiabilityIndex<T> => Vec<u8>;
-    }
-}
+    #[pallet::storage]
+    #[pallet::getter(fn latest_index)]
+    /// Latest liability index.
+    pub(super) type LatestIndex<T: Config> = StorageValue<_, T::Index>;
 
-decl_module! {
-    pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        fn deposit_event() = default;
+    #[pallet::storage]
+    #[pallet::getter(fn agreement_of)]
+    /// Technical and economical parameters of liability.
+    pub(super) type AgreementOf<T: Config> = StorageMap<_, Twox64Concat, T::Index, T::Agreement>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn report_of)]
+    /// Result of liability execution.
+    pub(super) type ReportOf<T: Config> = StorageMap<_, Twox64Concat, T::Index, ReportFor<T>>;
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+    #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         /// Create agreement between two parties.
-        #[weight = 200_000_000]
-        fn create(
-            origin,
-            technics: TechnicalParam<T>,
-            economics: EconomicalParam<T>,
-            promisee: AccountId<T>,
-            promisor: AccountId<T>,
-            promisee_proof: ProofParam<T>,
-            promisor_proof: ProofParam<T>,
-        ) {
-            ensure_none(origin)?;
+        #[pallet::weight(200_000)]
+        pub fn create(origin: OriginFor<T>, agreement: T::Agreement) -> DispatchResultWithPostInfo {
+            let _ = ensure_signed(origin)?;
 
-            // Create liability
-            let liability = T::Liability::new(
-                technics.clone(),
-                economics.clone(),
-                promisee.clone(),
-                promisor.clone(),
-            );
+            ensure!(agreement.verify(), Error::<T>::BadAgreementProof);
 
-            // Check promisee proof
-            if !liability.check_params(&promisee_proof, &promisee) {
-                Err(Error::<T>::BadPromiseeProof)?
-            }
+            // Start agreement processing
+            agreement.on_start()?;
 
-            // Check promisor proof
-            if !liability.check_params(&promisor_proof, &promisor) {
-                Err(Error::<T>::BadPromisorProof)?
-            }
-
-            // Run economical processing
-            liability.on_start()?;
-
-            // Store liability params as bytestring
-            let latest_index = <LatestIndex<T>>::get();
-            liability.using_encoded(|encoded|
-                <LiabilityOf<T>>::insert(latest_index, Vec::from(encoded))
-            );
-            <LatestIndex<T>>::put(latest_index + 1.into());
+            // Store agreement on storage
+            let latest_index = <LatestIndex<T>>::get().unwrap_or(Default::default());
+            <AgreementOf<T>>::insert(latest_index, agreement.clone());
+            <LatestIndex<T>>::put(latest_index + 1u32.into());
 
             // Emit event
-            Self::deposit_event(RawEvent::NewLiability(
+            Self::deposit_event(Event::NewLiability(
                 latest_index,
-                technics,
-                economics,
-                promisee,
-                promisor,
+                agreement.technical(),
+                agreement.economical(),
+                agreement.promisee(),
+                agreement.promisor(),
             ));
+
+            Ok(().into())
         }
 
         /// Publish technical report of complite works.
-        #[weight = 200_000_000]
-        fn finalize(
-            origin,
-            index: LiabilityIndex<T>,
-            report: TechnicalReport<T>,
-            proof: ProofParam<T>,
-        ) {
-            ensure_none(origin)?;
+        #[pallet::weight(200_000)]
+        pub fn finalize(origin: OriginFor<T>, report: ReportFor<T>) -> DispatchResultWithPostInfo {
+            let _ = ensure_signed(origin)?;
 
+            // Check report proof
+            ensure!(report.verify(), Error::<T>::BadReportProof);
+
+            let index = report.index();
             // Is liability already finalized?
-            ensure!(!<IsFinalized<T>>::get(index), "already finalized");
+            ensure!(
+                <ReportOf<T>>::get(index) == None,
+                Error::<T>::AlreadyFinalized
+            );
 
-            // Decode liability from storage
-            if let Ok(liability) = T::Liability::decode(&mut &<LiabilityOf<T>>::get(index)[..]) {
-                // Check report proof
-                if !liability.check_report(&index, &report, &proof) {
-                    Err(Error::<T>::BadReportProof)?
-                }
-
-                // Run economical processing
-                // TODO: get parameter from oracle
-                liability.on_finish(true)?;
-
-                // Store report as bytestring
-                report.using_encoded(|bytes| <ReportOf<T>>::insert(index, Vec::from(bytes)));
-
-                // Set finalized flag
-                <IsFinalized<T>>::insert(index, true);
-
-                // Emit event
-                Self::deposit_event(RawEvent::NewReport(index, report));
-            } else {
-                Err(Error::<T>::LiabilityDecodeFailure)?
-            }
-        }
-    }
-}
-
-impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
-    type Call = Call<T>;
-
-    fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-        match call {
-            Call::create(
-                technics,
-                economics,
-                promisee,
-                promisor,
-                promisee_proof,
-                promisor_proof,
-            ) => {
-                let liability = T::Liability::new(
-                    technics.clone(),
-                    economics.clone(),
-                    promisee.clone(),
-                    promisor.clone(),
+            // Decode agreement from storage
+            if let Some(agreement) = <AgreementOf<T>>::get(index) {
+                // Check report sender
+                ensure!(
+                    report.sender() == agreement.promisor(),
+                    Error::<T>::BadReportSender
                 );
 
-                if !liability.check_params(promisee_proof, promisee) {
-                    return InvalidTransaction::BadProof.into();
+                // Run agreement final processing
+                match report.is_confirmed() {
+                    None => Err(Error::<T>::OracleIsNotReady)?,
+                    Some(x) => agreement.on_finish(x)?,
                 }
 
-                if !liability.check_params(promisor_proof, promisor) {
-                    return InvalidTransaction::BadProof.into();
-                }
+                // Store report on storage
+                <ReportOf<T>>::insert(index, report.clone());
 
-                Ok(ValidTransaction {
-                    priority: TransactionPriority::max_value(),
-                    requires: Default::default(),
-                    provides: vec![(technics, economics, promisee, promisor).encode()],
-                    longevity: 64_u64,
-                    propagate: true,
-                })
+                // Emit event
+                Self::deposit_event(Event::NewReport(index, report));
+                Ok(().into())
+            } else {
+                Err(Error::<T>::AgreementNotFound.into())
             }
-
-            Call::finalize(index, report, proof) => {
-                match T::Liability::decode(&mut &<LiabilityOf<T>>::get(*index)[..]) {
-                    Ok(liability) => {
-                        if !liability.check_report(index, report, proof) {
-                            return InvalidTransaction::BadProof.into();
-                        }
-
-                        Ok(ValidTransaction {
-                            priority: TransactionPriority::max_value(),
-                            requires: Default::default(),
-                            provides: vec![(index, report).encode()],
-                            longevity: 64_u64,
-                            propagate: true,
-                        })
-                    }
-                    _ => InvalidTransaction::Call.into(),
-                }
-            }
-
-            _ => InvalidTransaction::Call.into(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::economics::Communism;
-    use super::signed::{ProofSigner, SignedLiability};
-    use super::technics::PureIPFS;
-    use super::*;
-    use crate as liability;
+    use crate::signed::*;
+    use crate::technics::IPFS;
+    use crate::traits::*;
+    use crate::{self as liability, *};
     use base58::FromBase58;
-    use frame_support::{
-        assert_err, assert_ok, impl_outer_event, impl_outer_origin, parameter_types,
-        weights::Weight,
-    };
-    use node_primitives::{AccountId, Signature};
+    use frame_support::{assert_err, assert_ok, parameter_types};
     use sp_core::{crypto::Pair, sr25519, H256};
     use sp_runtime::{
         testing::Header,
         traits::{IdentifyAccount, IdentityLookup, Verify},
-        Perbill,
+        AccountId32, MultiSignature,
     };
 
-    impl_outer_event! {
-        pub enum MetaEvent for Runtime {
-            frame_system<T>, liability<T>,
+    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
+    type Block = frame_system::mocking::MockBlock<Runtime>;
+
+    frame_support::construct_runtime!(
+        pub enum Runtime where
+            Block = Block,
+            NodeBlock = Block,
+            UncheckedExtrinsic = UncheckedExtrinsic,
+        {
+            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            Liability: liability::{Pallet, Call, Storage, Event<T>},
         }
-    }
-
-    impl_outer_origin! {
-        pub enum Origin for Runtime {}
-    }
-
-    #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct Runtime;
+    );
 
     parameter_types! {
         pub const BlockHashCount: u64 = 250;
-        pub const MaximumBlockWeight: Weight = 1024;
-        pub const MaximumBlockLength: u32 = 2 * 1024;
-        pub const AvailableBlockRatio: Perbill = Perbill::one();
     }
 
-    impl frame_system::Trait for Runtime {
+    impl frame_system::Config for Runtime {
         type Origin = Origin;
         type Index = u64;
         type BlockNumber = u64;
-        type Call = ();
+        type Call = Call;
         type Hash = H256;
         type Hashing = ::sp_runtime::traits::BlakeTwo256;
-        type AccountId = AccountId;
+        type AccountId = AccountId32;
         type Lookup = IdentityLookup<Self::AccountId>;
         type Header = Header;
-        type Event = MetaEvent;
+        type Event = Event;
         type BlockHashCount = BlockHashCount;
-        type MaximumBlockWeight = MaximumBlockWeight;
-        type MaximumBlockLength = MaximumBlockLength;
-        type AvailableBlockRatio = AvailableBlockRatio;
         type Version = ();
-        type ModuleToIndex = ();
+        type PalletInfo = PalletInfo;
         type AccountData = ();
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
-        type BlockExecutionWeight = ();
-        type ExtrinsicBaseWeight = ();
-        type MaximumExtrinsicWeight = ();
         type BaseCallFilter = ();
         type SystemWeightInfo = ();
+        type BlockWeights = ();
+        type BlockLength = ();
+        type SS58Prefix = ();
+        type OnSetCode = ();
     }
 
-    impl Trait for Runtime {
-        type Event = MetaEvent;
-        type Technics = PureIPFS;
-        type Economics = Communism;
-        type Liability = SignedLiability<
-            Self::Technics,
-            Self::Economics,
-            Signature,
-            <Signature as Verify>::Signer,
-            AccountId,
+    impl Config for Runtime {
+        type Event = Event;
+        type Agreement = SignedAgreement<
+            // Provide task in IPFS
+            IPFS,
+            // No payments
+            (),
+            // Use standard accounts
+            Self::AccountId,
+            // Use standard signatures
+            MultiSignature,
+        >;
+        type Report = SignedReport<
+            // Indexing liabilities using system index
+            Self::Index,
+            // Use standard accounts
+            Self::AccountId,
+            // Use standard signatures
+            MultiSignature,
+            // Provide report in IPFS
+            IPFS,
         >;
     }
 
@@ -359,136 +274,144 @@ mod tests {
         storage.into()
     }
 
-    type Liability = Module<Runtime>;
-
     #[test]
     fn test_initial_setup() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::latest_index(), 0);
+            assert_eq!(Liability::latest_index(), None);
         });
     }
 
     fn get_params_proof(
         uri: &str,
-        technics: &TechnicalParam<Runtime>,
-        economics: &EconomicalParam<Runtime>,
-    ) -> (AccountId, ProofParam<Runtime>) {
+        technics: &TechnicsFor<Runtime>,
+        economics: &EconomicsFor<Runtime>,
+    ) -> (AccountId32, MultiSignature) {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
-        let sender = <Signature as Verify>::Signer::from(pair.public()).into_account();
-        let signature = <ProofSigner<sr25519::Pair> as ProofBuilder<
-            <Runtime as Trait>::Technics,
-            <Runtime as Trait>::Economics,
-            LiabilityIndex<Runtime>,
-            _,
-            _,
-        >>::proof_params(technics, economics, pair)
+        let sender = <MultiSignature as Verify>::Signer::from(pair.public()).into_account();
+        let signature = <ProofSigner<_> as AgreementProofBuilder<_, _, _, _>>::proof(
+            technics, economics, &pair,
+        )
         .into();
         (sender, signature)
     }
 
-    fn get_report_proof(
-        uri: &str,
-        index: &LiabilityIndex<Runtime>,
-        report: &TechnicalReport<Runtime>,
-    ) -> ProofParam<Runtime> {
+    fn get_report_proof(uri: &str, index: &u64, message: &IPFS) -> (AccountId32, MultiSignature) {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
-        <ProofSigner<sr25519::Pair> as ProofBuilder<
-            <Runtime as Trait>::Technics,
-            <Runtime as Trait>::Economics,
-            LiabilityIndex<Runtime>,
-            _,
-            _,
-        >>::proof_report(index, report, pair)
-        .into()
+        let sender = <MultiSignature as Verify>::Signer::from(pair.public()).into_account();
+        let signature =
+            <ProofSigner<_> as ReportProofBuilder<_, _, _, _>>::proof(index, message, &pair).into();
+        (sender, signature)
     }
 
     #[test]
     fn test_liability_proofs() {
-        let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-            .from_base58()
-            .unwrap();
+        let technics = IPFS {
+            hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                .from_base58()
+                .unwrap(),
+        };
         let economics = ();
-        let (sender, params_proof) = get_params_proof("//Alice", &technics, &economics);
-        let liability =
-            <Runtime as Trait>::Liability::new(technics, economics, sender.clone(), sender.clone());
-        assert_eq!(liability.check_params(&params_proof, &sender), true);
+        let (sender, signature) = get_params_proof("//Alice", &technics, &economics);
+        let agreement: <Runtime as Config>::Agreement = SignedAgreement {
+            technics,
+            economics,
+            promisee: sender.clone(),
+            promisor: sender.clone(),
+            promisee_signature: signature.clone(),
+            promisor_signature: signature.clone(),
+        };
+        assert_eq!(agreement.verify(), true);
 
         let index = 1;
-        let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-            .from_base58()
-            .unwrap();
-        let report_proof = get_report_proof("//Alice", &index, &report);
-        assert_eq!(liability.check_report(&index, &report, &report_proof), true);
+        let payload = IPFS {
+            hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                .from_base58()
+                .unwrap(),
+        };
+        let (sender, signature) = get_report_proof("//Alice", &index, &payload);
+        let report = SignedReport {
+            index,
+            sender,
+            payload,
+            signature,
+        };
+        assert_eq!(report.verify(), true);
     }
 
     #[test]
     fn test_liability_lifecycle() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::latest_index(), 0);
+            assert_eq!(Liability::latest_index(), None);
 
-            let technics = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                .from_base58()
-                .unwrap();
+            let technics = IPFS {
+                hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                    .from_base58()
+                    .unwrap(),
+            };
             let economics = ();
 
-            let (promisee, promisee_proof) = get_params_proof("//Alice", &technics, &economics);
-            let (promisor, promisor_proof) = get_params_proof("//Bob", &technics, &economics);
-
-            assert_err!(
-                Liability::create(
-                    Origin::none(),
-                    technics.clone(),
-                    economics.clone(),
-                    promisee.clone(),
-                    promisor.clone(),
-                    promisor_proof.clone(),
-                    promisor_proof.clone(),
-                ),
-                Error::<Runtime>::BadPromiseeProof
-            );
-            assert_eq!(Liability::latest_index(), 0);
-
-            assert_err!(
-                Liability::create(
-                    Origin::none(),
-                    technics.clone(),
-                    economics.clone(),
-                    promisee.clone(),
-                    promisor.clone(),
-                    promisee_proof.clone(),
-                    promisee_proof.clone(),
-                ),
-                Error::<Runtime>::BadPromisorProof
-            );
-            assert_eq!(Liability::latest_index(), 0);
-
-            assert_ok!(Liability::create(
-                Origin::none(),
+            let (promisee, promisee_signature) = get_params_proof("//Alice", &technics, &economics);
+            let (promisor, promisor_signature) = get_params_proof("//Bob", &technics, &economics);
+            let agreement = SignedAgreement {
                 technics,
                 economics,
                 promisee,
                 promisor,
-                promisee_proof,
-                promisor_proof
-            ));
-            assert_eq!(Liability::latest_index(), 1);
-            assert_eq!(Liability::is_finalized(0), false);
-
-            let index = 0;
-            let report = "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                .from_base58()
-                .unwrap();
-            let bad_proof = get_report_proof("//Alice", &index, &report);
-            let good_proof = get_report_proof("//Bob", &index, &report);
+                promisee_signature: Default::default(),
+                promisor_signature,
+            };
 
             assert_err!(
-                Liability::finalize(Origin::none(), 0, report.clone(), bad_proof),
-                Error::<Runtime>::BadReportProof
+                Liability::create(
+                    Origin::signed(agreement.promisor.clone()),
+                    agreement.clone()
+                ),
+                Error::<Runtime>::BadAgreementProof,
             );
-            assert_eq!(Liability::is_finalized(0), false);
+            assert_eq!(Liability::latest_index(), None);
 
-            assert_ok!(Liability::finalize(Origin::none(), 0, report, good_proof));
-            assert_eq!(Liability::is_finalized(0), true);
+            let agreement = SignedAgreement {
+                promisee_signature,
+                ..agreement
+            };
+            assert_ok!(Liability::create(
+                Origin::signed(agreement.promisor.clone()),
+                agreement.clone()
+            ),);
+            assert_eq!(Liability::latest_index(), Some(1));
+            assert_eq!(Liability::report_of(0), None);
+            assert_eq!(Liability::agreement_of(0), Some(agreement));
+
+            let index = 0;
+            let payload = IPFS {
+                hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
+                    .from_base58()
+                    .unwrap(),
+            };
+            let (_, bad_signature) = get_report_proof("//Alice", &index, &payload);
+            let (sender, signature) = get_report_proof("//Bob", &index, &payload);
+
+            let report = SignedReport {
+                index,
+                sender,
+                payload,
+                signature: bad_signature,
+            };
+            assert_err!(
+                Liability::finalize(Origin::signed(report.sender.clone()), report.clone()),
+                Error::<Runtime>::BadReportProof,
+            );
+            assert_eq!(Liability::report_of(0), None);
+
+            let report = SignedReport {
+                signature,
+                ..report.clone()
+            };
+            assert_ok!(Liability::finalize(
+                Origin::signed(report.sender.clone()),
+                report.clone()
+            ));
+            assert_eq!(Liability::report_of(0), Some(report));
         })
     }
 }

@@ -1,14 +1,15 @@
-{ nixpkgs ? import ./nixpkgs.nix { }
-, release ? import ./release.nix { }
+{ release ? import ./release.nix { }
 }:
 
-with nixpkgs;
-with llvmPackages_latest;
+with release.pkgs;
+with llvmPackages;
 
 stdenv.mkDerivation {
-  name = "substrate-nix-shell";
+  name = "robonomics-nix-shell";
   propagatedBuildInputs = [ release.substrate-ros-msgs ];
-  buildInputs = [ release.rust wasm-bindgen-cli libudev openssl pkgconfig ];
+  nativeBuildInputs = [ clang ];
+  buildInputs = [ release.rust-nightly ];
+  ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   LIBCLANG_PATH = "${libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";
 }

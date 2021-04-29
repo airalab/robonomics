@@ -1,171 +1,161 @@
 [package]
 name = "node-cli"
-version = "0.21.0"
+version = "0.28.0"
 authors = ["Airalab <research@aira.life>"]
-description = "Robonomics node implementation in Rust & Substrate."
+description = "Robonomics node console line interface."
 build = "build.rs"
 edition = "2018"
 license = "Apache-2.0"
 homepage = "https://robonomics.network"
 repository = "https://github.com/airalab/robonomics" 
-default-run = "robonomics"
-
-[badges]
-maintenance = { status = "actively-developed" }
-is-it-maintained-issue-resolution = { repository = "airalab/robonomics" }
-is-it-maintained-open-issues = { repository = "airalab/robonomics" }
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
-
-[[bin]]
-name = "robonomics"
-path = "bin/main.rs"
-required-features = ["cli"]
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # third-party dependencies
-futures = { version = "0.3.4" }
 serde = { version = "1.0.106", features = ["derive"]}
-codec = { package = "parity-scale-codec", version = "1.3.0" }
-hex-literal = "0.2"
-serde_json = "1.0"
-log = "0.4"
+codec = { package = "parity-scale-codec", version = "2.0" }
 structopt = { version = "0.3.8", optional = true }
-jsonrpc-core = "13.2.0"
+hex-literal = "0.3.1"
+log = "0.4"
 
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
-sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-trie = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # client dependencies
-sc-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-informant = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-informant = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-network = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa-warp-sync = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # frame dependencies
-pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
-frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+pallet-robonomics-lighthouse = { path = "../../../robonomics/frame/lighthouse", optional = true }
 
 # cumulus dependencies
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", optional = true }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", optional = true }
+cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-client-collator = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
+cumulus-client-service = { git = "https://github.com/paritytech/cumulus", branch = "rococo-v1", optional = true }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-collator = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
 
 # node-specific dependencies
-node-rpc = { path = "../rpc" }
-robonomics-runtime = { path = "../robonomics-runtime" }
-ipci-runtime = { path = "../ipci-runtime" }
-robonomics-parachain-runtime = { path = "../robonomics-runtime/parachain", optional = true }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+node-rpc = { path = "../rpc", optional = true }
+node-runtime = { path = "../runtime", optional = true }
+parachain-runtime = { path = "../runtime/parachain", optional = true }
+sc-executor = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 # CLI-specific dependencies
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
-
-# Browser bundle build support
-wasm-bindgen = { version = "0.2.57", optional = true }
-wasm-bindgen-futures = { version = "0.4.7", optional = true }
-substrate-browser-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
 
 # Robonomics-specific dependencies
-rosrust = { version = "0.9", optional = true }
+rosrust = { version = "0.9.5", optional = true }
 substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
 
 [build-dependencies]
-ipci-runtime = { path = "../ipci-runtime" }
-robonomics-runtime = { path = "../robonomics-runtime" }
-robonomics-protocol = { path = "../../../robonomics/protocol", optional = true }
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-branch", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , optional = true }
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
+node-runtime = { path = "../runtime", optional = true }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1", optional = true }
+frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", optional = true }
+substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 robonomics-cli = { path = "../../../robonomics/cli", optional = true }
-vergen = { version = "3.0.4", optional = true }
+vergen = { version = "3.1.0", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
 [features]
-default = ["cli","wasmtime","parachain"]
+## Build fully functional node by default.
+default = ["full"]
 
-## Enable Wasmtime virtual machine.
-wasmtime = [
-    "sc-service/wasmtime",
-    "sc-cli/wasmtime",
-]
-
-## Enable Console Line Interface basic features.
-cli = [
+## Fully functional Robonomics Network node.
+# Full node required for collating / validating the parachain or develop Robonomics pallets.
+full = [
     "sc-cli",
+    "sp-core",
     "vergen",
+    "node-rpc",
     "structopt",
+    "node-runtime",
     "sc-service/db",
     "robonomics-cli",
 ]
 
-## Enable browser bundle features.
-browser = [
-    "wasm-bindgen",
-    "wasm-bindgen-futures",
-    "substrate-browser-utils",
+## Ultra lightweight Robonomics Network node.
+# Stateless node consumes a minimum of resources and suits for small embedded devices.
+zero = [
+    "sc-cli",
+    "sp-core",
+    "vergen",
+    "structopt",
+    "robonomics-cli",
 ]
 
-## Enable parachain runtime and collator services.
-# This feature in additional to Substrate-chain Robonomics runtime
-# builds Robonomics as Polkadot parachain.
+## Enable Rococo relaychain integration.
+rococo = [
+    "rococo-parachain",
+    "parachain",
+]
+
+## Enable official Robonomics Rococo parachain spec.
+rococo-parachain = []
+
+## Enable parachain collator.
 parachain = [
-    "robonomics-parachain-runtime",
-    "cumulus-primitives",
-    "cumulus-consensus",
-    "cumulus-collator",
-    "cumulus-network",
-    "cumulus-service",
+    "parachain-runtime",
+    "pallet-robonomics-lighthouse",
+    "cumulus-primitives-core",
+    "cumulus-client-consensus-relay-chain",
+    "cumulus-client-collator",
+    "cumulus-client-network",
+    "cumulus-client-service",
     "polkadot-primitives",
     "polkadot-parachain",
-    "polkadot-collator",
     "polkadot-service",
     "polkadot-cli",
+    "full",
+]
+
+## Enable Wasmtime for runtime execution.
+wasmtime = [
+    "sc-service/wasmtime",
+    "sc-cli/wasmtime",
 ]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
@@ -177,10 +167,9 @@ ros = [
     "robonomics-cli/ros",
 ]
 
-## Enable runtime benchmarking support.
+## Enable runtime benchmarking.
 runtime-benchmarks = [
-    "robonomics-runtime/runtime-benchmarks",
-    "ipci-runtime/runtime-benchmarks",
+    "node-runtime/runtime-benchmarks",
     "frame-benchmarking-cli",
     "frame-benchmarking",
 ]

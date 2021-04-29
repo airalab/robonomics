@@ -1,0 +1,41 @@
+[package]
+name = "robonomics"
+version = "0.28.0"
+authors = ["Airalab <research@aira.life>"]
+description = "Robonomics node implementation in Rust & Substrate."
+edition = "2018"
+license = "Apache-2.0"
+homepage = "https://robonomics.network"
+repository = "https://github.com/airalab/robonomics" 
+default-run = "robonomics"
+
+[badges]
+maintenance = { status = "actively-developed" }
+is-it-maintained-issue-resolution = { repository = "airalab/robonomics" }
+is-it-maintained-open-issues = { repository = "airalab/robonomics" }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[[bin]]
+name = "robonomics"
+path = "src/main.rs"
+
+[dependencies]
+parity-util-mem = { version = "0.9.0", default-features = false, features = ["jemalloc-global"] }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
+
+[target.'cfg(target_arch = "arm")'.dependencies]
+node-cli = { path = "cli", default-features = false, features = [ "zero" ] }
+
+[features]
+runtime-benchmarks = [
+    "node-cli/rococo",
+    "node-cli/wasmtime",
+    "node-cli/runtime-benchmarks",
+]

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ pub enum Error {
     ProtocolFailure(robonomics_protocol::error::Error),
     /// Robonomics I/O error.
     IoFailure(robonomics_io::error::Error),
+    /// Standard I/O error.
+    Io(std::io::Error),
     /// Other error.
     Other(String),
 }

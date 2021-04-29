@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -24,8 +24,9 @@ use sc_client_api::{
 use sc_network::{ExHashT, NetworkService};
 pub use sc_rpc::system::helpers::SystemInfo;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
-use sp_blockchain::{Error as ClientError, HeaderBackend};
-use sp_core::{traits::BareCryptoStorePtr, H256};
+use sp_blockchain::HeaderBackend;
+use sp_core::H256;
+use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits;
 use sp_session::SessionKeys;
 use sp_transaction_pool::TransactionPool;
@@ -41,7 +42,7 @@ pub fn start<BE, H, P, Client>(
     service_client: Arc<Client>,
     service_network: Arc<NetworkService<P::Block, H>>,
     service_transaction_pool: Arc<P>,
-    service_keystore: BareCryptoStorePtr,
+    service_keystore: SyncCryptoStorePtr,
 ) -> Result<(Vec<rosrust::Service>, impl Future<Output = ()>), Error>
 where
     BE: Backend<P::Block> + 'static,
@@ -58,7 +59,7 @@ where
         + Send
         + Sync
         + 'static,
-    Client::Api: SessionKeys<P::Block, Error = ClientError>,
+    Client::Api: SessionKeys<P::Block>,
     u64: From<<<P::Block as traits::Block>::Header as traits::Header>::Number>,
 {
     let system = system::System::new(system_info, service_network);

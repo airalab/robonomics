@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,12 +18,10 @@
 //! Virtual sensors collection.
 
 use async_std::{io, task};
-use futures::channel::mpsc;
-use futures::prelude::*;
+use futures::{channel::mpsc, prelude::*};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
-use robonomics_protocol::runtime::{pallet_launch::NewLaunchEvent, Robonomics};
-use sp_core::Decode;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
@@ -77,7 +75,7 @@ pub fn ipfs(
     let datas = receiver.map(move |msg: String| {
         runtime
             .block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
-            .map_err(Into::into)
+            .map_err(|e| e.to_string().into())
     });
     Ok((sender.sink_err_into(), datas))
 }
@@ -85,24 +83,22 @@ pub fn ipfs(
 /// Listen for launch events on the blockchain.
 ///
 /// Returns launch parameter, event sender account.
-pub fn launch(remote: String) -> impl Stream<Item = (String, String, bool)> {
+pub fn launch(
+    remote: String,
+    format: Ss58AddressFormat,
+) -> impl Stream<Item = (String, String, bool)> {
     let (mut sender, receiver) = mpsc::unbounded();
 
-    task::spawn(async move {
-        let mut sub = robonomics_protocol::launch::listen(remote).await.unwrap();
-        loop {
-            let raw = sub.next().await.unwrap().unwrap();
-            if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
-                let _ = sender
-                    .send((
-                        event.sender.to_string(),
-                        event.robot.to_string(),
-                        event.param,
-                    ))
-                    .await;
-            }
-        }
-    });
+    task::spawn(robonomics_protocol::subxt::launch::listen(
+        remote,
+        move |event| {
+            let _ = sender.send((
+                event.sender.to_ss58check_with_version(format),
+                event.robot.to_ss58check_with_version(format),
+                event.param,
+            ));
+        },
+    ));
 
     receiver
 }

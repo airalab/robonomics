@@ -1,6 +1,6 @@
 [package]
 name = "node-rpc"
-version = "0.21.0"
+version = "0.28.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -11,25 +11,28 @@ repository = "https://github.com/airalab/robonomics"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "1.3.4" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-jsonrpc-core = "14.2.0"
+codec = { package = "parity-scale-codec", version = "2.0" }
+jsonrpc-core = "15.1.0"
+sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-babe-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-consensus-epochs = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+node-runtime = { path = "../runtime" }
 node-primitives = { path = "../primitives" }
-robonomics-runtime = { path = "../robonomics-runtime" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-consensus-babe-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-consensus-epochs = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-finality-grandpa-rpc = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }

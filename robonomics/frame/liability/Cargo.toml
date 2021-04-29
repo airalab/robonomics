@@ -1,27 +1,28 @@
 [package]
 name = "pallet-robonomics-liability"
 description = "Robonomics Network Robot Liability Substrate runtime module"
-version = "0.4.0"
+version = "0.6.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" , default-features = false }
+serde = { version = "1.0.101", optional = true }
+codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"] }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 
 [dev-dependencies]
 base58 = "0.1.0"
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-branch" }
-node-primitives = { path = "../../../bin/node/primitives" } 
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
 
 [features]
 default = ["std"]
 std = [
+    "serde",
     "codec/std",
     "sp-std/std",
     "sp-core/std",

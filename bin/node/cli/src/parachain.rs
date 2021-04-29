@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,20 +18,23 @@
 //! Robonomics Node as a parachain collator.
 
 use node_primitives::Block;
-use robonomics_parachain_runtime::RuntimeApi;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient};
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
+pub use cumulus_client_service::genesis::generate_genesis_block;
+
 sc_executor::native_executor_instance!(
     pub Executor,
-    robonomics_parachain_runtime::api::dispatch,
-    robonomics_parachain_runtime::native_version,
+    parachain_runtime::api::dispatch,
+    parachain_runtime::native_version,
 );
 
+pub use parachain_runtime::RuntimeApi;
+
 pub fn new_partial(
-    config: &mut Configuration,
+    config: &Configuration,
 ) -> Result<
     PartialComponents<
         TFullClient<Block, RuntimeApi, Executor>,
@@ -39,29 +42,53 @@ pub fn new_partial(
         (),
         sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
         sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
-        (),
+        (
+            Option<sc_telemetry::Telemetry>,
+            Option<sc_telemetry::TelemetryWorkerHandle>,
+        ),
     >,
     sc_service::Error,
 > {
     let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-    let (client, backend, keystore, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+    let telemetry = config
+        .telemetry_endpoints
+        .clone()
+        .filter(|x| !x.is_empty())
+        .map(|endpoints| -> Result<_, sc_telemetry::Error> {
+            let worker = sc_telemetry::TelemetryWorker::new(16)?;
+            let telemetry = worker.handle().new_telemetry(endpoints);
+            Ok((worker, telemetry))
+        })
+        .transpose()?;
+
+    let (client, backend, keystore_container, task_manager) =
+        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+            &config,
+            telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+        )?;
     let client = Arc::new(client);
     let registry = config.prometheus_registry();
+    let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
+
+    let telemetry = telemetry.map(|(worker, telemetry)| {
+        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        telemetry
+    });
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
+        config.role.is_authority().into(),
         config.prometheus_registry(),
         task_manager.spawn_handle(),
         client.clone(),
     );
 
-    let import_queue = cumulus_consensus::import_queue::import_queue(
+    let import_queue = cumulus_client_consensus_relay_chain::import_queue(
         client.clone(),
         client.clone(),
         inherent_data_providers.clone(),
-        &task_manager.spawn_handle(),
+        &task_manager.spawn_essential_handle(),
         registry.clone(),
     )?;
 
@@ -69,17 +96,41 @@ pub fn new_partial(
         backend,
         client,
         import_queue,
-        keystore,
+        keystore_container,
         task_manager,
         transaction_pool,
         inherent_data_providers,
         select_chain: (),
-        other: (),
+        other: (telemetry, telemetry_worker_handle),
     };
 
     Ok(params)
 }
 
+pub fn load_spec(
+    id: &str,
+    para_id: cumulus_primitives_core::ParaId,
+) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+    match id {
+        "" => Ok(Box::new(chain_spec::get_chain_spec(para_id))),
+        path => Ok(Box::new(chain_spec::ChainSpec::from_json_file(
+            path.into(),
+        )?)),
+    }
+}
+
+pub fn extract_genesis_wasm(
+    chain_spec: &Box<dyn sc_service::ChainSpec>,
+) -> sc_cli::Result<Vec<u8>> {
+    let mut storage = chain_spec.build_storage()?;
+
+    storage
+        .top
+        .remove(sp_core::storage::well_known_keys::CODE)
+        .ok_or_else(|| "Could not find wasm file in genesis state!".into())
+}
+
 pub mod chain_spec;
+pub mod cli;
 pub mod collator;
 pub mod command;

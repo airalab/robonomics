@@ -1,10 +1,14 @@
 name: Testing 
-on: [push, pull_request]
+on: [pull_request]
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v10
+      with:
+        submodules: true
+    - uses: cachix/install-nix-action@v12
+      with:
+        nix_path: nixpkgs=channel:nixos-20.09
     - name: Run all tests
-      run: nix-shell --run "cargo test --all"
+      run: nix-shell --run "cargo test --all --locked"

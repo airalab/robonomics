@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -23,13 +23,14 @@
 
 use futures::{
     channel::{mpsc, oneshot},
+    executor::block_on,
     prelude::*,
     Future,
 };
 use libp2p::core::connection::ListenerId;
 use libp2p::gossipsub::{
-    protocol::MessageId, Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage,
-    Topic, TopicHash,
+    Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
+    MessageId, Sha256Topic as Topic, TopicHash,
 };
 use libp2p::{Multiaddr, PeerId, Swarm};
 use std::{
@@ -68,22 +69,24 @@ impl PubSubWorker {
         let peer_id = PeerId::from(local_key.public());
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-        let transport = libp2p::build_tcp_ws_secio_mplex_yamux(local_key)?;
+        let transport = block_on(libp2p::development_transport(local_key.clone()))?;
 
         // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::new()
+        let gossipsub_config = GossipsubConfigBuilder::default()
             .heartbeat_interval(heartbeat_interval)
             .message_id_fn(|message: &GossipsubMessage| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.
                 let mut s = DefaultHasher::new();
                 message.data.hash(&mut s);
-                MessageId(s.finish().to_string())
+                MessageId::from(s.finish().to_string())
             })
-            .build();
+            .build()
+            .expect("Valid gossipsub config");
 
         // Build a gossipsub network behaviour
-        let gossipsub = Gossipsub::new(peer_id.clone(), gossipsub_config);
+        let gossipsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
+            .expect("Correct configuration");
 
         // Create a Swarm to manage peers and events
         let swarm = Swarm::new(transport, gossipsub, peer_id.clone());
@@ -130,35 +133,35 @@ impl PubSubWorker {
         inbox: mpsc::UnboundedSender<super::Message>,
     ) -> bool {
         let topic = Topic::new(topic_name.clone());
-        let subscribed = self.swarm.deref_mut().subscribe(topic.clone());
-        if subscribed {
+        let subscribed = self.swarm.deref_mut().subscribe(&topic);
+        if subscribed.is_ok() {
             log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
-            self.inbox.insert(topic.no_hash(), inbox);
+            self.inbox.insert(topic.hash(), inbox);
         } else {
             log::warn!(target: "robonomics-pubsub",
-                       "Double subscription to {}, ignore", topic_name);
+                       "Subscription error {:?}", subscribed);
         }
-        subscribed
+        subscribed.is_ok()
     }
 
     fn unsubscribe(&mut self, topic_name: String) -> bool {
         let topic = Topic::new(topic_name.clone());
-        let unsubscribed = self.swarm.deref_mut().unsubscribe(topic.clone());
-        if unsubscribed {
+        let unsubscribed = self.swarm.deref_mut().unsubscribe(&topic);
+        if unsubscribed.is_ok() {
             log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
-            self.inbox.remove(&topic.sha256_hash());
+            self.inbox.remove(&topic.hash());
         } else {
             log::warn!(target: "robonomics-pubsub",
-                       "Unable to unsubscribe from {}, ignore", topic_name);
+                       "Unsubscribe error {:?}", unsubscribed);
         }
-        unsubscribed
+        unsubscribed.is_ok()
     }
 
     fn publish(&mut self, topic_name: String, message: Vec<u8>) {
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         let topic = Topic::new(topic_name);
-        self.swarm.deref_mut().publish(&topic, message);
+        let _ = self.swarm.deref_mut().publish(topic, message);
     }
 }
 
@@ -169,25 +172,29 @@ impl Future for PubSubWorker {
         loop {
             match self.swarm.poll_next_unpin(cx) {
                 Poll::Ready(Some(gossip_event)) => match gossip_event {
-                    GossipsubEvent::Message(peer_id, id, message) => {
+                    GossipsubEvent::Message {
+                        propagation_source: peer_id,
+                        message_id: id,
+                        message,
+                    } => {
                         log::debug!(
                             target: "robonomics-pubsub",
                             "Received message with id: {} from peer: {}", id, peer_id.to_base58()
                         );
 
                         // Dispatch handlers by topic name hash
-                        for topic in &message.topics {
-                            if let Some(inbox) = self.inbox.get_mut(topic) {
+                        if let Some(inbox) = self.inbox.get_mut(&message.topic) {
+                            if let Some(sender) = &message.source {
                                 let _ = inbox.unbounded_send(super::Message {
-                                    from: message.source.clone(),
+                                    from: sender.clone(),
                                     data: message.data.clone(),
                                 });
-                            } else {
-                                log::warn!(
-                                    target: "robonomics-pubsub",
-                                    "Topic {} have no associated inbox!", topic
-                                );
                             }
+                        } else {
+                            log::warn!(
+                                target: "robonomics-pubsub",
+                                "Topic {} have no associated inbox!", message.topic
+                            );
                         }
                     }
                     _ => {}
