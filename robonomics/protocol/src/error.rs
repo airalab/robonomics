@@ -22,6 +22,7 @@ use futures::Future;
 use libp2p::core::connection::ConnectionLimit;
 use libp2p::core::transport::TransportError;
 use std::pin::Pin;
+use substrate_subxt::MetadataError;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -47,6 +48,8 @@ pub enum Error {
     Codec(bincode::Error),
     /// Unable to decode address.
     Ss58CodecError,
+    /// Unable to get metadata.
+    MetadataError,
     /// Other error.
     Other(String),
 }
@@ -54,6 +57,12 @@ pub enum Error {
 impl<'a> From<&'a str> for Error {
     fn from(s: &'a str) -> Self {
         Error::Other(s.into())
+    }
+}
+
+impl From<MetadataError> for Error {
+    fn from(_: MetadataError) -> Self {
+        Error::MetadataError
     }
 }
 

@@ -88,7 +88,7 @@ pub mod pallet {
 
     /// Ringbuffer start/end pointers
     #[pallet::storage]
-    #[pallet::getter(fn datalogidx)]
+    #[pallet::getter(fn datalog_index)]
     pub type DatalogIndex<T> = StorageMap<
         _,
         Twox64Concat,
@@ -99,7 +99,7 @@ pub mod pallet {
 
     /// Ringbuffer items
     #[pallet::storage]
-    #[pallet::getter(fn datalogitem)]
+    #[pallet::getter(fn datalog_item)]
     pub type DatalogItem<T> = StorageMap<
         _,
         Twox64Concat,
