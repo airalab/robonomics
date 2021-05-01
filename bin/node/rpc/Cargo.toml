@@ -1,6 +1,6 @@
 [package]
 name = "node-rpc"
-version = "0.28.1"
+version = "0.28.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"
