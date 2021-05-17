@@ -154,18 +154,16 @@ where
         Some(Box::new(justification_import)),
         client.clone(),
         select_chain.clone(),
-        move |_, ()| {
-            async move {                                                                                                   
-                let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-                let slot =
-                    sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
-                        *timestamp,
-                        slot_duration,                                                                                     
-                    );
-                let uncles =
-                    sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
-                Ok((timestamp, slot, uncles))
-            }
+        move |_, ()| async move {
+            let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+            let slot =
+                sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
+                    *timestamp,
+                    slot_duration,
+                );
+            let uncles =
+                sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
+            Ok((timestamp, slot, uncles))
         },
         &task_manager.spawn_essential_handle(),
         config.prometheus_registry(),
@@ -355,9 +353,9 @@ where
                     let uncles = sc_consensus_uncles::create_uncles_inherent_data_provider(
                         &*client_clone,
                         parent,
-                    )?;                                                                                                    
-                    let timestamp = sp_timestamp::InherentDataProvider::from_system_time();                                
-                    let slot =                                                                                             
+                    )?;
+                    let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+                    let slot =
                         sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
                             *timestamp,
                             slot_duration,
@@ -423,12 +421,7 @@ where
     }
 
     network_starter.start_network();
-    Ok((
-        task_manager,
-        client,
-        network,
-        transaction_pool,
-    ))
+    Ok((task_manager, client, network, transaction_pool))
 }
 
 pub fn new_light_base<Runtime, Executor>(
@@ -520,18 +513,16 @@ where
         Some(Box::new(justification_import)),
         client.clone(),
         select_chain.clone(),
-        move |_, ()| {
-            async move {                                                                                                   
-                let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-                let slot =
-                    sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
-                        *timestamp,
-                        slot_duration,                                                                                     
-                    );
-                let uncles =
-                    sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
-                Ok((timestamp, slot, uncles))
-            }
+        move |_, ()| async move {
+            let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+            let slot =
+                sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
+                    *timestamp,
+                    slot_duration,
+                );
+            let uncles =
+                sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
+            Ok((timestamp, slot, uncles))
         },
         &task_manager.spawn_essential_handle(),
         config.prometheus_registry(),

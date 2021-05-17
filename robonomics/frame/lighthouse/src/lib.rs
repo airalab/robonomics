@@ -69,10 +69,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Inherent to set the lighthouse of a block.
         #[pallet::weight((0, DispatchClass::Mandatory))]
-        fn set(
-            origin: OriginFor<T>,
-            lighthouse: T::Lighthouse,
-        ) -> DispatchResultWithPostInfo {
+        fn set(origin: OriginFor<T>, lighthouse: T::Lighthouse) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             ensure!(
                 <Lighthouse<T>>::get().is_none(),
@@ -171,8 +168,8 @@ impl sp_inherents::InherentDataProvider for InherentDataProvider {
         identifier: &InherentIdentifier,
         error: &[u8],
     ) -> Option<Result<(), sp_inherents::Error>> {
-        if *identifier != INHERENT_IDENTIFIER {                                                                            
-            return None
+        if *identifier != INHERENT_IDENTIFIER {
+            return None;
         }
         match InherentError::try_from(&INHERENT_IDENTIFIER, error)? {
             o => Some(Err(sp_inherents::Error::Application(Box::from(o)))),

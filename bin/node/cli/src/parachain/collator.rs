@@ -21,11 +21,11 @@ use super::{new_partial, Executor, RuntimeApi};
 use cumulus_client_consensus_relay_chain::{
     build_relay_chain_consensus, BuildRelayChainConsensusParams,
 };
-use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_client_network::build_block_announce_validator;
 use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
+use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use node_primitives::Block;
 use polkadot_primitives::v0::CollatorPair;
 use sc_service::{Configuration, Role, TFullClient, TaskManager};
@@ -116,35 +116,33 @@ async fn start_node_impl(
         );
         let relay_chain_backend = relay_chain_full_node.backend.clone();
         let relay_chain_client = relay_chain_full_node.client.clone();
-        let parachain_consensus = build_relay_chain_consensus(
-            BuildRelayChainConsensusParams {
-                para_id: id,
-                proposer_factory,
-                block_import: client.clone(),
-                relay_chain_client: relay_chain_full_node.client.clone(),
-                relay_chain_backend: relay_chain_full_node.backend.clone(),
-                create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-                    let parachain_inherent = ParachainInherentData::create_at_with_client(
-                        relay_parent,
-                        &relay_chain_client,
-                        &*relay_chain_backend,
-                        &validation_data,
-                        id,
+        let parachain_consensus = build_relay_chain_consensus(BuildRelayChainConsensusParams {
+            para_id: id,
+            proposer_factory,
+            block_import: client.clone(),
+            relay_chain_client: relay_chain_full_node.client.clone(),
+            relay_chain_backend: relay_chain_full_node.backend.clone(),
+            create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+                let parachain_inherent = ParachainInherentData::create_at_with_client(
+                    relay_parent,
+                    &relay_chain_client,
+                    &*relay_chain_backend,
+                    &validation_data,
+                    id,
+                );
+                async move {
+                    let parachain_inherent = parachain_inherent.ok_or_else(|| {
+                        Box::<dyn std::error::Error + Send + Sync>::from(
+                            "Failed to create parachain inherent",
+                        )
+                    })?;
+                    let lighthouse_inherent = pallet_robonomics_lighthouse::InherentDataProvider(
+                        Vec::from(account.as_ref()),
                     );
-                    async move {
-                        let parachain_inherent = parachain_inherent.ok_or_else(|| {
-                            Box::<dyn std::error::Error + Send + Sync>::from(
-                                "Failed to create parachain inherent",
-                            )
-                        })?;
-                        let lighthouse_inherent = pallet_robonomics_lighthouse::InherentDataProvider(
-                            Vec::from(account.as_ref()),
-                        );
-                        Ok((parachain_inherent, lighthouse_inherent))
-                    }
-                },
+                    Ok((parachain_inherent, lighthouse_inherent))
+                }
             },
-        );
+        });
 
         let spawner = task_manager.spawn_handle();
         let params = StartCollatorParams {
