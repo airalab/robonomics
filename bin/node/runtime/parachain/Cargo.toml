@@ -35,7 +35,6 @@ pallet-collective = { git = "https://github.com/paritytech/substrate", branch = 
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
-pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1", default-features = false }
@@ -58,19 +57,10 @@ pallet-robonomics-lighthouse = { path = "../../../../robonomics/frame/lighthouse
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
-cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
-cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
 cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", default-features = false }
-
-# polkadot dependencies
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.1", default-features = false }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.1", default-features = false }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.1", default-features = false }
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.1", default-features = false }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.1", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
@@ -103,7 +93,6 @@ std = [
     "pallet-elections-phragmen/std",
     "frame-executive/std",
     "pallet-identity/std",
-    "pallet-randomness-collective-flip/std",
     "pallet-scheduler/std",
     "pallet-sudo/std",
     "pallet-treasury/std",
@@ -122,14 +111,7 @@ std = [
     "pallet-robonomics-liability/std",
     "pallet-robonomics-lighthouse/std",
     "cumulus-pallet-parachain-system/std",
-    "cumulus-pallet-xcmp-queue/std",
-    "cumulus-pallet-xcm/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
-    "pallet-xcm/std",
-    "polkadot-parachain/std",
     "parachain-info/std",
-    "xcm-executor/std",
-    "xcm-builder/std",
-    "xcm/std",
 ]

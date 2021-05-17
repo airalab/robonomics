@@ -49,8 +49,6 @@ pub fn new_partial(
     >,
     sc_service::Error,
 > {
-    let inherent_data_providers = sp_inherents::InherentDataProviders::new();
-
     let telemetry = config
         .telemetry_endpoints
         .clone()
@@ -87,7 +85,7 @@ pub fn new_partial(
     let import_queue = cumulus_client_consensus_relay_chain::import_queue(
         client.clone(),
         client.clone(),
-        inherent_data_providers.clone(),
+		|_, _| async { Ok(()) },
         &task_manager.spawn_essential_handle(),
         registry.clone(),
     )?;
@@ -99,7 +97,6 @@ pub fn new_partial(
         keystore_container,
         task_manager,
         transaction_pool,
-        inherent_data_providers,
         select_chain: (),
         other: (telemetry, telemetry_worker_handle),
     };

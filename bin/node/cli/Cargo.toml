@@ -20,6 +20,7 @@ log = "0.4"
 # primitives
 node-primitives = { path = "../primitives", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
+sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
@@ -43,6 +44,7 @@ sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "pol
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
+sc-consensus-uncles = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sc-informant = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.1" }
@@ -62,6 +64,7 @@ pallet-robonomics-lighthouse = { path = "../../../robonomics/frame/lighthouse", 
 
 # cumulus dependencies
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", optional = true }
+cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", optional = true }
 cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", optional = true }
 cumulus-client-collator = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", optional = true }
 cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.1", optional = true }
@@ -141,6 +144,7 @@ parachain = [
     "parachain-runtime",
     "pallet-robonomics-lighthouse",
     "cumulus-primitives-core",
+    "cumulus-primitives-parachain-inherent",
     "cumulus-client-consensus-relay-chain",
     "cumulus-client-collator",
     "cumulus-client-network",

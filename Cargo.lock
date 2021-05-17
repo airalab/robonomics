@@ -1681,29 +1681,10 @@ dependencies = [
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "parity-scale-codec",
- "serde",
  "sp-io 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "xcm",
-]
-
-[[package]]
-name = "cumulus-pallet-xcmp-queue"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus?branch=polkadot-v0.9.1#95d81d499927e508769690fc43a480f00ddd131e"
-dependencies = [
- "cumulus-primitives-core",
- "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
- "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
- "log 0.4.14",
- "parity-scale-codec",
- "rand 0.8.3",
- "rand_chacha 0.3.0",
- "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
- "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
- "xcm",
- "xcm-executor",
 ]
 
 [[package]]
@@ -5370,6 +5351,7 @@ dependencies = [
  "cumulus-client-network",
  "cumulus-client-service",
  "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
@@ -5396,6 +5378,7 @@ dependencies = [
  "sc-consensus",
  "sc-consensus-babe",
  "sc-consensus-slots",
+ "sc-consensus-uncles",
  "sc-executor",
  "sc-finality-grandpa",
  "sc-finality-grandpa-warp-sync",
@@ -5411,6 +5394,7 @@ dependencies = [
  "serde",
  "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-authority-discovery",
+ "sp-authorship 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
@@ -5489,7 +5473,6 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -6200,6 +6183,7 @@ dependencies = [
 name = "pallet-robonomics-lighthouse"
 version = "0.2.0"
 dependencies = [
+ "async-trait",
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "parity-scale-codec",
@@ -6207,6 +6191,7 @@ dependencies = [
  "sp-inherents 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
+ "thiserror",
 ]
 
 [[package]]
@@ -6537,8 +6522,6 @@ name = "parachain-runtime"
 version = "0.28.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
  "cumulus-ping",
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
@@ -6555,7 +6538,6 @@ dependencies = [
  "pallet-collective",
  "pallet-elections-phragmen",
  "pallet-identity",
- "pallet-randomness-collective-flip",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -6570,10 +6552,8 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "pallet-utility",
- "pallet-xcm",
  "parachain-info",
  "parity-scale-codec",
- "polkadot-parachain",
  "serde",
  "serde_derive",
  "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
@@ -6588,9 +6568,6 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.1)",
  "substrate-wasm-builder 4.0.0",
- "xcm",
- "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]
@@ -8694,8 +8671,9 @@ dependencies = [
 
 [[package]]
 name = "robonomics-protocol"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
+ "async-trait",
  "bincode",
  "derive_more",
  "futures 0.3.15",

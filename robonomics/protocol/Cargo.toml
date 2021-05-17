@@ -1,13 +1,14 @@
 [package]
 name = "robonomics-protocol"
 description = "Robonomics Network protocol library."
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"] }
+async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
 substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", branch = "na-bump-jsonrpsee", default-features = false, features = ["tokio02"]} 

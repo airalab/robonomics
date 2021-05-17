@@ -9,7 +9,6 @@ stdenv.mkDerivation {
   propagatedBuildInputs = [ release.substrate-ros-msgs ];
   nativeBuildInputs = [ clang ];
   buildInputs = [ release.rust-nightly ];
-  ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   LIBCLANG_PATH = "${libclang}/lib";
   PROTOC = "${protobuf}/bin/protoc";
 }
