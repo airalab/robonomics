@@ -132,9 +132,9 @@ async fn start_node_impl(
                 );
                 async move {
                     let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-                    let lighthouse = pallet_robonomics_lighthouse::InherentDataProvider(
-                        Vec::from(account.as_ref()),
-                    );
+                    let lighthouse = pallet_robonomics_lighthouse::InherentDataProvider(Vec::from(
+                        account.as_ref(),
+                    ));
                     let parachain = parachain_inherent.ok_or_else(|| {
                         Box::<dyn std::error::Error + Send + Sync>::from(
                             "Failed to create parachain inherent",
