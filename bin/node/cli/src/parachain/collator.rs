@@ -25,6 +25,7 @@ use cumulus_client_network::build_block_announce_validator;
 use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
+use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use node_primitives::Block;
 use polkadot_primitives::v0::CollatorPair;
 use sc_service::{Configuration, Role, TFullClient, TaskManager};
@@ -48,13 +49,9 @@ async fn start_node_impl(
     let parachain_config = prepare_node_config(parachain_config);
 
     let params = new_partial(&parachain_config)?;
-    params
-        .inherent_data_providers
-        .register_provider(sp_timestamp::InherentDataProvider)
-        .unwrap();
 
     let (mut telemetry, telemetry_worker_handle) = params.other;
-    let polkadot_full_node = cumulus_client_service::build_polkadot_full_node(
+    let relay_chain_full_node = cumulus_client_service::build_polkadot_full_node(
         polkadot_config,
         collator_key.clone(),
         telemetry_worker_handle,
@@ -67,10 +64,10 @@ async fn start_node_impl(
     let client = params.client.clone();
     let backend = params.backend.clone();
     let block_announce_validator = build_block_announce_validator(
-        polkadot_full_node.client.clone(),
+        relay_chain_full_node.client.clone(),
         id,
-        Box::new(polkadot_full_node.network.clone()),
-        polkadot_full_node.backend.clone(),
+        Box::new(relay_chain_full_node.network.clone()),
+        relay_chain_full_node.backend.clone(),
     );
 
     let prometheus_registry = parachain_config.prometheus_registry().cloned();
@@ -110,14 +107,6 @@ async fn start_node_impl(
     };
 
     if let Some(account) = validator_account {
-        let account_data = Vec::from(account.as_ref());
-        params
-            .inherent_data_providers
-            .register_provider(pallet_robonomics_lighthouse::InherentDataProvider(
-                account_data,
-            ))
-            .unwrap();
-
         let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
             task_manager.spawn_handle(),
             client.clone(),
@@ -125,17 +114,38 @@ async fn start_node_impl(
             prometheus_registry.as_ref(),
             telemetry.as_ref().map(|x| x.handle()),
         );
-        let spawner = task_manager.spawn_handle();
-
+        let relay_chain_backend = relay_chain_full_node.backend.clone();
+        let relay_chain_client = relay_chain_full_node.client.clone();
         let parachain_consensus = build_relay_chain_consensus(BuildRelayChainConsensusParams {
             para_id: id,
             proposer_factory,
-            inherent_data_providers: params.inherent_data_providers,
             block_import: client.clone(),
-            relay_chain_client: polkadot_full_node.client.clone(),
-            relay_chain_backend: polkadot_full_node.backend.clone(),
+            relay_chain_client: relay_chain_full_node.client.clone(),
+            relay_chain_backend: relay_chain_full_node.backend.clone(),
+            create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+                let parachain_inherent = ParachainInherentData::create_at_with_client(
+                    relay_parent,
+                    &relay_chain_client,
+                    &*relay_chain_backend,
+                    &validation_data,
+                    id,
+                );
+                async move {
+                    let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+                    let lighthouse = pallet_robonomics_lighthouse::InherentDataProvider(Vec::from(
+                        account.as_ref(),
+                    ));
+                    let parachain = parachain_inherent.ok_or_else(|| {
+                        Box::<dyn std::error::Error + Send + Sync>::from(
+                            "Failed to create parachain inherent",
+                        )
+                    })?;
+                    Ok((timestamp, lighthouse, parachain))
+                }
+            },
         });
 
+        let spawner = task_manager.spawn_handle();
         let params = StartCollatorParams {
             para_id: id,
             block_status: client.clone(),
@@ -143,9 +153,8 @@ async fn start_node_impl(
             client: client.clone(),
             task_manager: &mut task_manager,
             collator_key,
-            relay_chain_full_node: polkadot_full_node,
+            relay_chain_full_node,
             spawner,
-            backend,
             parachain_consensus,
         };
 
@@ -156,7 +165,7 @@ async fn start_node_impl(
             announce_block,
             task_manager: &mut task_manager,
             para_id: id,
-            polkadot_full_node,
+            polkadot_full_node: relay_chain_full_node,
         };
 
         start_full_node(params)?;
