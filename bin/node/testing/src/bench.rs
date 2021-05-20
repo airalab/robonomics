@@ -200,6 +200,8 @@ pub enum BlockType {
     RandomTransfersReaping,
     /// Bunch of "no-op" calls.
     Noop,
+    /// Bunch of datalog_record.
+    DatalogRecord,
 }
 
 impl BlockType {
@@ -338,6 +340,11 @@ impl<'a> Iterator for BlockContentIterator<'a> {
                         ))
                     }
                     BlockType::Noop => Call::System(frame_system::Call::remark(Vec::new())),
+                    BlockType::DatalogRecord => {
+                        // String to write
+                        let test_string = "test".to_string().as_bytes().to_vec();
+                        Call::Datalog(pallet_robonomics_datalog::Call::record(test_string))
+                    }
                 },
             },
             self.runtime_version.spec_version,

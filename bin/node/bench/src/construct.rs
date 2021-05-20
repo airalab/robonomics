@@ -73,6 +73,7 @@ impl core::BenchmarkDescription for ConstructionBenchmarkDescription {
             BlockType::RandomTransfersKeepAlive => path.push("transfer"),
             BlockType::RandomTransfersReaping => path.push("transfer_reaping"),
             BlockType::Noop => path.push("noop"),
+            BlockType::DatalogRecord => path.push("datalog_record"),
         }
 
         match self.database_type {

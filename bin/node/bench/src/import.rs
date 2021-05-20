@@ -76,6 +76,7 @@ impl core::BenchmarkDescription for ImportBenchmarkDescription {
             BlockType::RandomTransfersKeepAlive => path.push("transfer_keep_alive"),
             BlockType::RandomTransfersReaping => path.push("transfer_reaping"),
             BlockType::Noop => path.push("noop"),
+            BlockType::DatalogRecord => path.push("datalog_record"),
         }
 
         match self.database_type {
@@ -158,6 +159,9 @@ impl core::Benchmark for ImportBenchmark {
                             //    - extrinsic success
                             (self.block.extrinsics.len() - 1) * 2 + 1,
                         );
+                    }
+                    BlockType::DatalogRecord => {
+                        // TODO: DatalogRecord check
                     }
                     _ => {}
                 }
