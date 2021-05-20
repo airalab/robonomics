@@ -100,6 +100,7 @@ fn main() {
                 BlockType::RandomTransfersKeepAlive,
                 BlockType::RandomTransfersReaping,
                 BlockType::Noop,
+                BlockType::DatalogRecord,
             ]
             .iter()
             {
@@ -170,6 +171,7 @@ fn main() {
         if let Some(filter) = opt.filter.as_ref() {
             println!("\t(filtered by \"{}\")", filter);
         }
+
         for benchmark in benchmarks.iter() {
             if opt
                 .filter
@@ -180,10 +182,12 @@ fn main() {
                 println!("{}: {}", benchmark.name(), benchmark.path().full())
             }
         }
+
         return;
     }
 
     let mut results = Vec::new();
+
     for benchmark in benchmarks {
         if opt
             .filter

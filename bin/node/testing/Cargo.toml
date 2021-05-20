@@ -18,8 +18,8 @@ pallet-contracts = { version = "2.0.0", git = "https://github.com/paritytech/sub
 pallet-grandpa = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 pallet-indices = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sp-keyring = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-node-primitives = { path = "../primitives" } 
-node-runtime = { path = "../runtime" } 
+node-primitives = { path = "../primitives" }
+node-runtime = { path = "../runtime" }
 node-cli = { path = "../cli" }
 sp-core = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 sp-io = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
@@ -45,6 +45,7 @@ log = "0.4.8"
 tempfile = "3.1.0"
 fs_extra = "1"
 futures = "0.3.1"
+pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog" }
 
 [dev-dependencies]
 criterion = "0.3.0"

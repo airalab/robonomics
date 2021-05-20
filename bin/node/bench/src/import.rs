@@ -76,6 +76,7 @@ impl core::BenchmarkDescription for ImportBenchmarkDescription {
             BlockType::RandomTransfersKeepAlive => path.push("transfer_keep_alive"),
             BlockType::RandomTransfersReaping => path.push("transfer_reaping"),
             BlockType::Noop => path.push("noop"),
+            BlockType::DatalogRecord => path.push("datalog_record"),
         }
 
         match self.database_type {
@@ -156,6 +157,12 @@ impl core::Benchmark for ImportBenchmark {
                             // those 2 events per signed are:
                             //    - deposit event for charging transaction fee
                             //    - extrinsic success
+                            (self.block.extrinsics.len() - 1) * 2 + 1,
+                        );
+                    }
+                    BlockType::DatalogRecord => {
+                        assert_eq!(
+                            node_runtime::System::events().len(),
                             (self.block.extrinsics.len() - 1) * 2 + 1,
                         );
                     }
