@@ -341,8 +341,12 @@ impl<'a> Iterator for BlockContentIterator<'a> {
                     }
                     BlockType::Noop => Call::System(frame_system::Call::remark(Vec::new())),
                     BlockType::DatalogRecord => {
-                        // String to write
-                        let test_string = "test".to_string().as_bytes().to_vec();
+                        let test_string =
+                            // IPFS hash of word "test"
+                            "QmeomffUNfmQy76CQGy9NdmqEnnHU9soCexBnGU3ezPHVH"
+                                .to_string()
+                                .as_bytes()
+                                .to_vec();
                         Call::Datalog(pallet_robonomics_datalog::Call::record(test_string))
                     }
                 },

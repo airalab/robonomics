@@ -161,7 +161,10 @@ impl core::Benchmark for ImportBenchmark {
                         );
                     }
                     BlockType::DatalogRecord => {
-                        // TODO: DatalogRecord check
+                        assert_eq!(
+                            node_runtime::System::events().len(),
+                            (self.block.extrinsics.len() - 1) * 2 + 1,
+                        );
                     }
                     _ => {}
                 }
