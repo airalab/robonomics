@@ -11,8 +11,8 @@ codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"]
 async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", branch = "na-bump-jsonrpsee", default-features = false, features = ["tokio02"]} 
-substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt", branch = "na-bump-jsonrpsee" } 
+substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", branch = "master", default-features = false, features = ["tokio02"]} 
+substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt", branch = "master" } 
 sp-runtime = "3.0.0"
 sp-core = "3.0.0"
 libp2p = "0.36"
