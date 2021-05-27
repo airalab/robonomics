@@ -103,8 +103,7 @@ or it could be <<building-from-source,build from source>>.
 
 === Gatekeepers updates
 
-Actual release : https://github.com/airalab/robonomics/releases/tag/v0.26.0[0.26.0]
-
+Actual release : https://github.com/airalab/robonomics/releases/tag/v0.29.0[0.29.0]
 Telemetry: https://telemetry.polkadot.io/#list/RobonomicsEarth[Earth parachain]
 
 Launch command: 
