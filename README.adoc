@@ -1,7 +1,7 @@
-= The Robonomics Framework
+= The Robonomics
 
 :Author: Robonomics Network Developers
-:Revision: 0.4.0
+:Revision: 0.5.0
 :toc:
 :sectnums:
 
@@ -10,6 +10,10 @@ image:https://github.com/airalab/robonomics/workflows/Testing/badge.svg?branch=m
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
+
+Implementation of a https://robonomics.network node in Rust based on the Substrate framework.
+
+This repo contains runtimes for the Earth Parachain, Mars Parachain, and Robonomics Relay chain networks. The README provides information about installing the robonomics binary and developing on the codebase. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
@@ -20,7 +24,7 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 
 == The Robonomics Crates 
 
-Structure of **Robonomics Framework** followed:
+Structure of **Robonomics** followed:
 
 - **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
 - **Robonomics CLI** - console line primitives that make framework functions runnable.
