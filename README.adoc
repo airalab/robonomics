@@ -112,12 +112,6 @@ Launch command:
 robonomics --validator --parachain-id 1000 --collator-eth-account <your_eth_address>
 ----
 
-== Robotics integration
-
-Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
-The node implements a few features to make robotics integration as easy as it possible.
-
-
 == Robonomics I/O
 
 Especially to make hardware interaction easy we introduce https://crates.robonomics.network/robonomics_io/index.html[robonomics_io] crate. This crate implements two kinds of devices: `source` - device that intended to read a data and `sink` - device that intended to write data. This approach suits the pipelines paradigm well and implemented in Robonomics CLI as `io` subcommand.
@@ -151,6 +145,11 @@ $ robonomics io read sds011 | robonomics io write pubsub my-sensor-data
 ```
 
 Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki]. 
+
+== Robotics integration
+
+Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
+The node implements a few features to make robotics integration as easy as it possible.
 
 === Building with ROS feature
 
