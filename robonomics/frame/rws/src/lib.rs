@@ -15,7 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Web Services runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
+//! Robonomics Web Services runtime module.
+
+// This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
