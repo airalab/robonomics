@@ -39,6 +39,8 @@ pub enum Error {
     #[cfg(feature = "ros")]
     /// ROS communication error.
     Ros(rosrust::error::Error),
+    /// Unable to decode address.
+    Ss58CodecError,
     /// Other error.
     Other(String),
 }

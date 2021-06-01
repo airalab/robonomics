@@ -1,7 +1,7 @@
-= The Robonomics Framework
+= Robonomics
 
 :Author: Robonomics Network Developers
-:Revision: 0.4.0
+:Revision: 0.5.0
 :toc:
 :sectnums:
 
@@ -10,6 +10,10 @@ image:https://github.com/airalab/robonomics/workflows/Testing/badge.svg?branch=m
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
+
+Implementation of a https://robonomics.network node in Rust based on the Substrate framework.
+
+This repo contains runtimes for the Earth Parachain, Mars Parachain, and Robonomics Relay chain networks. The README provides information about installing the robonomics binary and developing on the codebase. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
@@ -20,7 +24,7 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 
 == The Robonomics Crates 
 
-Structure of **Robonomics Framework** followed:
+Structure of **Robonomics** followed:
 
 - **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
 - **Robonomics CLI** - console line primitives that make framework functions runnable.
@@ -99,21 +103,14 @@ or it could be <<building-from-source,build from source>>.
 
 === Gatekeepers updates
 
-Actual release : https://github.com/airalab/robonomics/releases/tag/v0.26.0[0.26.0]
-
-Telemetry: https://telemetry.polkadot.io/#list/RobonomicsEarth[Earth parachain]
+* Release: image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
+* Telemetry: https://telemetry.parachain.robonomics.network/#list/RobonomicsEarth
 
 Launch command: 
 [source, shell]
 ----
 robonomics --validator --parachain-id 1000 --collator-eth-account <your_eth_address>
 ----
-
-== Robotics integration
-
-Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
-The node implements a few features to make robotics integration as easy as it possible.
-
 
 == Robonomics I/O
 
@@ -148,6 +145,11 @@ $ robonomics io read sds011 | robonomics io write pubsub my-sensor-data
 ```
 
 Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki]. 
+
+== Robotics integration
+
+Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
+The node implements a few features to make robotics integration as easy as it possible.
 
 === Building with ROS feature
 

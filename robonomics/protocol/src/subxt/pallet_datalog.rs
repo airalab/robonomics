@@ -60,9 +60,72 @@ pub struct ErasedEvent<T: Datalog> {
     pub sender: <T as System>::AccountId,
 }
 
-///
+/// Deprecated!!!
 #[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
 pub struct DatalogStore<'a, T: Datalog> {
     #[store(returns = Vec<(u64, T::Record)>)]
     account_id: &'a <T as System>::AccountId,
+}
+
+/// Datalog index type copy.
+#[derive(Encode, Decode, Default)]
+pub struct RingBufferIndex {
+    #[codec(compact)]
+    pub start: u64,
+    #[codec(compact)]
+    pub end: u64,
+}
+
+///
+impl RingBufferIndex {
+    #[inline]
+    fn next(val: &mut u64, max: u64) {
+        *val += 1;
+        if *val == max {
+            *val = 0
+        }
+    }
+
+    /// Returns the ring buffer item iterator
+    pub fn iter(&mut self, max: u64) -> RingBufferIterator<'_> {
+        RingBufferIterator { inner: self, max }
+    }
+}
+
+///
+pub struct RingBufferIterator<'a> {
+    inner: &'a mut RingBufferIndex,
+    max: u64,
+}
+
+///
+impl Iterator for RingBufferIterator<'_> {
+    type Item = u64;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.inner.end == self.inner.start {
+            None
+        } else {
+            let u = self.inner.start;
+            RingBufferIndex::next(&mut self.inner.start, self.max);
+            Some(u)
+        }
+    }
+}
+
+/// Get datalog index.
+#[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
+pub struct DatalogIndexStore<'a, T: Datalog> {
+    #[store(returns = RingBufferIndex)]
+    account_id: &'a <T as System>::AccountId,
+}
+
+/// Datalog item type copy.
+#[derive(Encode, Decode, Clone)]
+pub struct RingBufferItem(#[codec(compact)] pub u64, pub Vec<u8>);
+
+/// Get data records from blockchain.
+#[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
+pub struct DatalogItemStore<'a, T: Datalog> {
+    #[store(returns = RingBufferItem)]
+    record: (&'a <T as System>::AccountId, u64),
 }
