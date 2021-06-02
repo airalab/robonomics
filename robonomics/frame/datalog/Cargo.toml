@@ -12,6 +12,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1"
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-v1", optional = true }
 
 [dev-dependencies]
 base58 = "0.1.0"
@@ -29,3 +30,5 @@ std = [
     "frame-system/std",
     "frame-support/std",
 ]
+
+runtime-benchmarks = ["frame-benchmarking"]
