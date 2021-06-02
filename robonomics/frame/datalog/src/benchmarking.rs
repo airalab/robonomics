@@ -17,15 +17,12 @@
 
 // Benchmarks for Datalog Pallet
 
-#![cfg(feature = "runtime-benchmarks")]
-
-use super::{Module as Datalog, *};
+use super::{Pallet as Datalog, *};
 use codec::{Decode, Encode};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::pallet_prelude::Get;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
-use sp_std::vec;
 
 fn setup_record<T: Config>() -> T::Record {
     let s = T::MaximumMessageSize::get();

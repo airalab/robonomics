@@ -6410,7 +6410,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-datalog"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "base58",
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
@@ -8953,8 +8953,6 @@ name = "robonomics"
 version = "0.29.1"
 dependencies = [
  "node-cli",
- "pallet-balances",
- "pallet-robonomics-datalog",
  "parity-util-mem",
 ]
 

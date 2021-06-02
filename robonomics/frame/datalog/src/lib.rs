@@ -24,6 +24,7 @@
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 mod weights;
 
@@ -482,27 +483,5 @@ mod tests {
                 ]
             );
         })
-    }
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking {
-    use crate::*;
-    use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
-    use frame_system::RawOrigin;
-    use sp_std::boxed::Box;
-    use sp_std::vec;
-    use sp_std::vec::Vec;
-
-    benchmarks! {
-        datalog_record {
-            let test_string =
-                // IPFS hash of word "test"
-                "QmeomffUNfmQy76CQGy9NdmqEnnHU9soCexBnGU3ezPHVH"
-                .to_string()
-                .as_bytes()
-                .to_vec();
-            let caller = account("caller", 0, 0);
-            }: record(RawOrigin::Signed(caller), test_string.into())
     }
 }
