@@ -1,9 +1,25 @@
-name: Code style
+name: Formatting 
 on: [push]
+
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: hecrj/setup-rust-action@v1
-      - uses: actions/checkout@v2
-      - run: cargo fmt -- --check
+      - name: Checkout the source code
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          default: true
+
+      - name: Check code formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check

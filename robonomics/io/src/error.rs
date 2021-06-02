@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ pub enum Error {
     #[cfg(feature = "ros")]
     /// ROS communication error.
     Ros(rosrust::error::Error),
+    /// Unable to decode address.
+    Ss58CodecError,
     /// Other error.
     Other(String),
 }

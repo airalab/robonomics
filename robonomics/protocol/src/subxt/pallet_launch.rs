@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! SubXt compatible robonomics-launch pallet abstration.
+//! SubXt compatible robonomics-launch pallet.
 
 use codec::{Codec, Decode, Encode, EncodeLike};
 use sp_runtime::traits::Member;
@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use substrate_subxt::system::System;
 use substrate_subxt_proc_macro::{module, Call, Event};
 
-/// The subset of the `pallet_robonomics_launch::Trait` that a client must implement.
+/// The subset of the `pallet_robonomics_launch::Config` that a client must implement.
 #[module]
 pub trait Launch: System {
     type Parameter: Codec + EncodeLike + Member + Default;

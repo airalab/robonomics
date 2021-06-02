@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
-pub mod datalog;
 pub mod error;
+pub mod ethereum;
 pub mod id;
-pub mod launch;
 pub mod pubsub;
-pub mod runtime;
+pub mod subxt;

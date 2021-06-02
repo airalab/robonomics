@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -50,6 +50,9 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_transaction_pool::TransactionPool;
+
+/// A IO handler that uses all Full RPC extensions.
+pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc_api::Metadata>;
 
 /// Light client extra dependencies.
 pub struct LightDeps<C, F, P> {
@@ -105,13 +108,8 @@ pub struct FullDeps<C, P, SC, B> {
     pub grandpa: GrandpaDeps<B>,
 }
 
-/// A IO handler that uses all Full RPC extensions.
-pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
-
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P, SC, B>(
-    deps: FullDeps<C, P, SC, B>,
-) -> jsonrpc_core::IoHandler<sc_rpc_api::Metadata>
+pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> IoHandler
 where
     C: ProvideRuntimeApi<Block>
         + HeaderBackend<Block>

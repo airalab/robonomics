@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,25 +19,25 @@
 
 #![warn(unused_extern_crates)]
 
+#[cfg(feature = "full")]
 pub mod chain_spec;
 
 #[macro_use]
-pub mod service;
+#[cfg(feature = "full")]
+mod service;
 
 #[macro_use]
 #[cfg(feature = "parachain")]
 pub mod parachain;
 
-#[cfg(feature = "cli")]
-pub mod cli;
-#[cfg(feature = "cli")]
-pub mod command;
+#[cfg(feature = "sc-cli")]
+mod cli;
+#[cfg(feature = "sc-cli")]
+mod command;
 
-#[cfg(feature = "browser")]
-pub use browser::*;
-#[cfg(feature = "cli")]
+#[cfg(feature = "sc-cli")]
 pub use cli::*;
-#[cfg(feature = "cli")]
+#[cfg(feature = "sc-cli")]
 pub use command::*;
-#[cfg(feature = "cli")]
+#[cfg(feature = "sc-cli")]
 pub use sc_cli::{Error, Result};

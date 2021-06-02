@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -121,17 +121,16 @@ fn mk_genesis(
     parachain_id: ParaId,
 ) -> GenesisConfig {
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             code,
             changes_trie_config: Default::default(),
-        }),
-        pallet_balances: Some(BalancesConfig { balances }),
-        pallet_elections_phragmen: Some(Default::default()),
-        pallet_collective_Instance1: Some(Default::default()),
-        pallet_treasury: Some(Default::default()),
-        pallet_sudo: Some(SudoConfig { key: sudo_key }),
-        parachain_info: Some(ParachainInfoConfig { parachain_id }),
-        orml_tokens: Some(Default::default()),
+        },
+        pallet_balances: BalancesConfig { balances },
+        pallet_elections_phragmen: Default::default(),
+        pallet_collective_Instance1: Default::default(),
+        pallet_treasury: Default::default(),
+        pallet_sudo: SudoConfig { key: sudo_key },
+        parachain_info: ParachainInfoConfig { parachain_id },
     }
 }
 

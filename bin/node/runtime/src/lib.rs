@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -24,6 +24,13 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+/// The BABE epoch configuration at genesis.
+pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
+    sp_consensus_babe::BabeEpochConfiguration {
+        c: PRIMARY_PROBABILITY,
+        allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
+    };
+
 #[cfg(feature = "std")]
 /// Wasm binary unwrapped. If built with `BUILD_DUMMY_WASM_BINARY`, the function panics.
 pub fn wasm_binary_unwrap() -> &'static [u8] {
@@ -38,8 +45,8 @@ pub mod constants;
 
 use codec::Encode;
 use frame_support::{
-    construct_runtime, debug, parameter_types,
-    traits::{KeyOwnerProofSystem, Randomness},
+    construct_runtime, parameter_types,
+    traits::KeyOwnerProofSystem,
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
@@ -152,6 +159,7 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
+    type OnSetCode = ();
 }
 
 parameter_types! {
@@ -177,7 +185,7 @@ impl pallet_balances::Config for Runtime {
     type DustRemoval = ();
     type Event = Event;
     type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Module<Runtime>;
+    type AccountStore = frame_system::Pallet<Runtime>;
     type MaxLocks = MaxLocks;
     type WeightInfo = ();
 }
@@ -253,10 +261,18 @@ impl pallet_sudo::Config for Runtime {
     type Call = Call;
 }
 
+parameter_types! {
+    pub const WindowSize: u64 = 128;
+    pub const MaximumMessageSize: usize = 512;
+}
+
 impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
+    type WindowSize = WindowSize;
+    type MaximumMessageSize = MaximumMessageSize;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
@@ -283,27 +299,21 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
-/*
-const DEFAULT_DAY_DURATION: u32 = 60; // 86400; seconds in 1 DAY
-
-parameter_types! {
-    pub const BurnRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
-    pub const MintRequestTtl: u32 = DEFAULT_DAY_DURATION as u32 * 7 * 1000;
-    pub const MaxMintAmount: pallet_evercity::EverUSDBalance = 60_000_000_000_000_000;
-    pub const TimeStep: pallet_evercity::BondPeriod = DEFAULT_DAY_DURATION;
-}
-
-impl pallet_evercity::Config for Runtime {
+impl pallet_robonomics_liability::Config for Runtime {
+    type Agreement = pallet_robonomics_liability::SignedAgreement<
+        Vec<u8>,
+        (),
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+    >;
+    type Report = pallet_robonomics_liability::SignedReport<
+        Self::Index,
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+        Vec<u8>,
+    >;
     type Event = Event;
-    type BurnRequestTtl = BurnRequestTtl;
-    type MintRequestTtl = MintRequestTtl;
-    type MaxMintAmount = MaxMintAmount;
-    type TimeStep = TimeStep;
-    type WeightInfo = ();
-    type OnAddAccount = ();
-    type OnAddBond = ();
 }
-*/
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -340,7 +350,7 @@ where
         );
         let raw_payload = SignedPayload::new(call, extra)
             .map_err(|e| {
-                debug::warn!("Unable to create signed payload: {:?}", e);
+                frame_support::runtime_print!("Unable to create signed payload: {:?}", e);
             })
             .ok()?;
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
@@ -369,29 +379,26 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
-
-        // Randomness.
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
         // Simple consensus.
-        Babe: pallet_babe::{Module, Call, Storage, Config, ValidateUnsigned},
-        Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+        Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 
         // Robonomics Network modules.
-        Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
-        // Evercity bonds module
-        //Evercity: pallet_evercity::{Module, Call, Storage, Event<T>},
+        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
+        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
+        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
+
         // Sudo. Usable initially.
-        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
     }
 );
 
@@ -431,7 +438,7 @@ pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllModules>;
+pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllPallets>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -470,10 +477,6 @@ impl_runtime_apis! {
 
         fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
             data.check_extrinsics(&block)
-        }
-
-        fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
         }
     }
 
@@ -618,16 +621,15 @@ impl_runtime_apis! {
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
 
-            // add_benchmark!(params, batches, pallet_babe, Babe);
             add_benchmark!(params, batches, pallet_balances, Balances);
-            // add_benchmark!(params, batches, pallet_grandpa, Grandpa);
-            // add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-            // add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-
-            // add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
+            add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+            add_benchmark!(params, batches, pallet_timestamp, Timestamp);
             add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
-            // add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
-            // add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
+            /* TODO
+            add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
+            add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
+            add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
+            */
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,12 +16,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use crate::{chain_spec::*, service::robonomics, Cli, Subcommand};
-use codec::Encode;
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
-use sp_api::BlockT;
-use sp_core::hexdisplay::HexDisplay;
-use std::io::Write;
+use crate::cli::{Cli, Subcommand};
+#[cfg(feature = "full")]
+use crate::{chain_spec::*, service::robonomics};
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -55,24 +53,36 @@ impl SubstrateCli for Cli {
         "robonomics".into()
     }
 
+    #[cfg(feature = "full")]
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
             path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
             #[cfg(not(feature = "parachain"))]
-            path => Err("Unknown spec")?,
+            path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
+                std::path::PathBuf::from(path),
+            )?),
         })
     }
 
+    #[cfg(not(feature = "full"))]
+    fn load_spec(&self, _id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+        Err("Chain spec isn't supported for zero build")?
+    }
+
+    #[cfg(feature = "full")]
     fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
         match chain_spec.family() {
             RobonomicsFamily::Development => &node_runtime::VERSION,
             #[cfg(feature = "parachain")]
             RobonomicsFamily::Parachain => &parachain_runtime::VERSION,
-            #[cfg(not(feature = "parachain"))]
-            RobonomicsFamily::Parachain => &node_runtime::VERSION,
         }
+    }
+
+    #[cfg(not(feature = "full"))]
+    fn native_runtime_version(_chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+        unimplemented!()
     }
 }
 
@@ -81,32 +91,34 @@ pub fn run() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
 
     match &cli.subcommand {
+        #[cfg(not(feature = "full"))]
+        None => Ok(()),
+        #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
                     match config.role {
-                        Role::Light => robonomics::new_light(config).map(|r| r.0),
+                        sc_cli::Role::Light => robonomics::new_light(config).map(|r| r.0),
                         _ => robonomics::new_full(config),
                     }
                 }),
 
+                #[cfg(feature = "parachain")]
                 RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
-                    if matches!(config.role, Role::Light) {
+                    if matches!(config.role, sc_cli::Role::Light) {
                         return Err("Light client not supporter!".into());
                     }
 
-                    #[cfg(not(feature = "parachain"))]
-                    {
-                        return Err("Parachain feature isn't enabled".into());
+                    if cli.run.validator && cli.run.collator_eth_account.is_none() {
+                        return Err("For validating set --collator-eth-account option".into());
                     }
 
-                    #[cfg(feature = "parachain")]
                     parachain::command::run(
                         config,
                         &cli.relaychain_args,
                         cli.run.parachain_id,
-                        cli.run.validator,
+                        cli.run.collator_eth_account,
                     )
                     .await
                 }),
@@ -117,19 +129,18 @@ pub fn run() -> sc_cli::Result<()> {
         Some(Subcommand::Sign(cmd)) => cmd.run(),
         Some(Subcommand::Verify(cmd)) => cmd.run(),
         Some(Subcommand::Vanity(cmd)) => cmd.run(),
+        #[cfg(feature = "full")]
         Some(Subcommand::BuildSpec(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
         }
+        #[cfg(feature = "full")]
         Some(Subcommand::PurgeChain(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
         }
         #[cfg(feature = "robonomics-cli")]
-        Some(Subcommand::Io(subcommand)) => {
-            let runner = cli.create_runner(subcommand)?;
-            runner.sync_run(|_| subcommand.run().map_err(|e| e.to_string().into()))
-        }
+        Some(Subcommand::Io(subcommand)) => subcommand.run().map_err(|e| e.to_string().into()),
         #[cfg(feature = "frame-benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;
@@ -142,6 +153,11 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisState(params)) => {
+            use codec::Encode;
+            use sp_api::BlockT;
+            use sp_core::hexdisplay::HexDisplay;
+            use std::io::Write;
+
             let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
@@ -168,6 +184,9 @@ pub fn run() -> sc_cli::Result<()> {
         }
         #[cfg(feature = "parachain")]
         Some(Subcommand::ExportGenesisWasm(params)) => {
+            use sp_core::hexdisplay::HexDisplay;
+            use std::io::Write;
+
             let mut builder = sc_cli::LoggerBuilder::new("");
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();

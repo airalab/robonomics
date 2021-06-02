@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -33,10 +33,12 @@ pub struct Cli {
 
     #[allow(missing_docs)]
     #[structopt(flatten)]
+    #[cfg(feature = "full")]
     pub run: RunCmd,
 
     /// Polkadot relaychain arguments.
     #[structopt(raw = true)]
+    #[cfg(feature = "parachain")]
     pub relaychain_args: Vec<String>,
 }
 
@@ -47,7 +49,14 @@ pub struct RunCmd {
 
     /// Id of the parachain this collator collates for.
     #[structopt(long)]
+    #[cfg(feature = "parachain")]
     pub parachain_id: Option<u32>,
+
+    /// Ethereum address assigned to collator. [default: off]
+    /// Notice: If not set then node will not collate blocks.
+    #[structopt(long)]
+    #[cfg(feature = "parachain")]
+    pub collator_eth_account: Option<sp_core::H160>,
 }
 
 impl std::ops::Deref for RunCmd {
@@ -74,9 +83,11 @@ pub enum Subcommand {
     Sign(SignCmd),
 
     /// Build a chain specification.
+    #[cfg(feature = "full")]
     BuildSpec(sc_cli::BuildSpecCmd),
 
     /// Remove the whole chain.
+    #[cfg(feature = "full")]
     PurgeChain(sc_cli::PurgeChainCmd),
 
     /// Robonomics Framework I/O operations.

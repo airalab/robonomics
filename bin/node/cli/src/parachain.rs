@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -42,16 +42,37 @@ pub fn new_partial(
         (),
         sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
         sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
-        (),
+        (
+            Option<sc_telemetry::Telemetry>,
+            Option<sc_telemetry::TelemetryWorkerHandle>,
+        ),
     >,
     sc_service::Error,
 > {
-    let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+    let telemetry = config
+        .telemetry_endpoints
+        .clone()
+        .filter(|x| !x.is_empty())
+        .map(|endpoints| -> Result<_, sc_telemetry::Error> {
+            let worker = sc_telemetry::TelemetryWorker::new(16)?;
+            let telemetry = worker.handle().new_telemetry(endpoints);
+            Ok((worker, telemetry))
+        })
+        .transpose()?;
 
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+            &config,
+            telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+        )?;
     let client = Arc::new(client);
     let registry = config.prometheus_registry();
+    let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
+
+    let telemetry = telemetry.map(|(worker, telemetry)| {
+        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        telemetry
+    });
 
     let transaction_pool = sc_transaction_pool::BasicPool::new_full(
         config.transaction_pool.clone(),
@@ -64,8 +85,11 @@ pub fn new_partial(
     let import_queue = cumulus_client_consensus_relay_chain::import_queue(
         client.clone(),
         client.clone(),
-        inherent_data_providers.clone(),
-        &task_manager.spawn_handle(),
+        |_, _| async {
+            let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+            Ok(timestamp)
+        },
+        &task_manager.spawn_essential_handle(),
         registry.clone(),
     )?;
 
@@ -76,9 +100,8 @@ pub fn new_partial(
         keystore_container,
         task_manager,
         transaction_pool,
-        inherent_data_providers,
         select_chain: (),
-        other: (),
+        other: (telemetry, telemetry_worker_handle),
     };
 
     Ok(params)

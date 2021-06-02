@@ -1,20 +1,21 @@
 [package]
 name = "robonomics-protocol"
 description = "Robonomics Network protocol library."
-version = "0.8.0"
+version = "0.9.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"] }
+async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { path = "../../vendor/substrate-subxt" } 
-substrate-subxt-proc-macro = { path = "../../vendor/substrate-subxt/proc-macro" } 
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
-libp2p = "0.32.2"
+substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", branch = "master", default-features = false, features = ["tokio02"]} 
+substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt", branch = "master" } 
+sp-runtime = "3.0.0"
+sp-core = "3.0.0"
+libp2p = "0.36"
 futures = "0.3.8"
 bincode = "1.3.1"
 log = "0.4.11"

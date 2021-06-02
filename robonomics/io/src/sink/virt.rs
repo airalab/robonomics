@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
-    datalog, launch,
     pubsub::{self, Multiaddr, PubSub as _},
+    subxt::{datalog, launch},
 };
 use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;

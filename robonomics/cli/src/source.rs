@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -63,6 +63,16 @@ pub enum SourceCmd {
         /// How often node should check another nodes availability, in secs.
         #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
         hearbeat: u64,
+    },
+    /// Reading datalog.
+    Datalog {
+        /// Robonomics node API endpoint.
+        #[structopt(long, value_name = "REMOTE_URI", default_value = "ws://127.0.0.1:9944")]
+        remote: String,
+        /// Reader account seed URI.
+        #[structopt(short, value_name = "ADDRESS")]
+        address: String,
+        //TODO: follow flag
     },
     /// Download data from IPFS storage.
     Ipfs {
@@ -159,6 +169,25 @@ impl SourceCmd {
                             })
                         })
                         .forward(stdout()),
+                )?;
+            }
+            SourceCmd::Datalog { remote, address } => {
+                let data = virt::datalog(remote, address)?;
+                task::block_on(
+                    data.map(|msg| {
+                        msg.map(|rec| {
+                            rec.iter()
+                                .map(|item| {
+                                    format!(
+                                        "{:?}\n",
+                                        String::from_utf8(item.1.to_vec())
+                                            .unwrap_or("<no string>".to_string())
+                                    )
+                                })
+                                .collect()
+                        })
+                    })
+                    .forward(stdout()),
                 )?;
             }
             SourceCmd::Ipfs { remote } => {

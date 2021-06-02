@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ pub async fn run(
     config: Configuration,
     relaychain_args: &Vec<String>,
     parachain_id: Option<u32>,
-    validator: bool,
+    validator_account: Option<sp_core::H160>,
 ) -> sc_service::error::Result<TaskManager> {
     let key = sp_core::Pair::generate().0;
 
@@ -63,17 +63,27 @@ pub async fn run(
     info!("[Parachain] Genesis State: {}", genesis_state);
     info!(
         "[Parachain] Is collating: {}",
-        if validator { "yes" } else { "no" }
+        if let Some(account) = validator_account {
+            format!("yes ({})", account)
+        } else {
+            "no".to_string()
+        }
     );
 
     let task_executor = config.task_executor.clone();
     let polkadot_config =
-        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor, None)
+        SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-    super::collator::start_node(config, key, polkadot_config, parachain_id, validator)
-        .await
-        .map(|r| r.0)
+    super::collator::start_node(
+        config,
+        key,
+        polkadot_config,
+        parachain_id,
+        validator_account,
+    )
+    .await
+    .map(|r| r.0)
 }
 
 #[derive(Debug)]
@@ -213,7 +223,7 @@ impl CliConfiguration<Self> for RelayChainCli {
         self.base.base.prometheus_config(default_listen_port)
     }
 
-    fn init<C: SubstrateCli>(&self) -> Result<sc_telemetry::TelemetryWorker> {
+    fn init<C: SubstrateCli>(&self) -> Result<()> {
         unreachable!("PolkadotCli is never initialized; qed");
     }
 

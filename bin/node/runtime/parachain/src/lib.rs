@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -35,22 +35,19 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
-mod currency_adapter;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{LockIdentifier, Randomness, U128CurrencyToVote},
+    traits::{LockIdentifier, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use node_primitives::{
-    AccountId, Amount, Balance, BlockNumber, CurrencyId, Hash, Index, Moment, Signature,
-    TokenSymbol,
-};
-use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
+use node_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -59,39 +56,24 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, Convert, IdentityLookup},
+    traits::{BlakeTwo256, Block as BlockT, IdentityLookup},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-use sp_std::{collections::btree_set::BTreeSet, prelude::*};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-// XCM imports
-use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
-use orml_xcm_support::{
-    CurrencyIdConverter, IsConcreteWithGeneralKey, MultiCurrencyAdapter, NativePalletAssetOr,
-};
-use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{Junction, MultiLocation, NetworkId};
-use xcm_builder::{
-    AccountId32Aliases, LocationInverter, ParentIsDefault, RelayChainAsNative,
-    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-    SovereignSignedViaLocation,
-};
-use xcm_executor::{Config, XcmExecutor};
-
 use constants::{currency::*, time::*};
-use currency_adapter::NativeCurrencyAdapter;
 
 /// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 4,
-    impl_version: 4,
+    spec_version: 1,
+    impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
 };
@@ -168,6 +150,7 @@ impl frame_system::Config for Runtime {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
+    type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -200,39 +183,7 @@ impl pallet_balances::Config for Runtime {
     type Event = Event;
     type MaxLocks = MaxLocks;
     type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Module<Runtime>;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub DustAccount: AccountId = ModuleId(*b"orml/dst").into_account();
-}
-
-orml_traits::parameter_type_with_key! {
-    pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-        Default::default()
-    };
-}
-
-impl orml_tokens::Config for Runtime {
-    type Balance = Balance;
-    type Amount = Amount;
-    type OnDust = orml_tokens::TransferDust<Runtime, DustAccount>;
-    type CurrencyId = CurrencyId;
-    type ExistentialDeposits = ExistentialDeposits;
-    type WeightInfo = ();
-    type Event = Event;
-}
-
-parameter_types! {
-    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::XRT);
-}
-
-impl orml_currencies::Config for Runtime {
-    type Event = Event;
-    type MultiCurrency = Tokens;
-    type NativeCurrency = NativeCurrencyAdapter<Runtime, Balances, Amount, Balance>;
-    type GetNativeCurrencyId = GetNativeCurrencyId;
+    type AccountStore = frame_system::Pallet<Runtime>;
     type WeightInfo = ();
 }
 
@@ -244,7 +195,7 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Config for Runtime {
-    type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+    type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, ()>;
     type TransactionByteFee = TransactionByteFee;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
@@ -303,11 +254,12 @@ parameter_types! {
     pub const SpendPeriod: BlockNumber = 1 * DAYS;
     pub const Burn: Permill = Permill::from_percent(50);
     pub const DataDepositPerByte: Balance = 1 * COASE;
-    pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+    pub const MaxApprovals: u32 = 100;
 }
 
 impl pallet_treasury::Config for Runtime {
-    type ModuleId = TreasuryModuleId;
+    type PalletId = TreasuryPalletId;
     type Currency = Balances;
     type ApproveOrigin = frame_system::EnsureOneOf<
         AccountId,
@@ -328,6 +280,7 @@ impl pallet_treasury::Config for Runtime {
     type BurnDestination = ();
     type SpendFunds = ();
     type WeightInfo = ();
+    type MaxApprovals = MaxApprovals;
 }
 
 parameter_types! {
@@ -396,11 +349,10 @@ parameter_types! {
     pub const TermDuration: BlockNumber = 7 * DAYS;
     pub const DesiredMembers: u32 = DESIRED_MEMBERS;
     pub const DesiredRunnersUp: u32 = 5;
-    pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
+    pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
-    type ModuleId = ElectionsPhragmenModuleId;
     type Event = Event;
     type Currency = Balances;
     type ChangeMembers = Council;
@@ -417,135 +369,43 @@ impl pallet_elections_phragmen::Config for Runtime {
     type DesiredRunnersUp = DesiredRunnersUp;
     type TermDuration = TermDuration;
     type WeightInfo = ();
+    type PalletId = ElectionsPhragmenPalletId;
+}
+
+parameter_types! {
+    // We do anything the parent chain tells us in this runtime.
+    pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 2;
+}
+
+impl cumulus_pallet_parachain_system::Config for Runtime {
+    type Event = Event;
+    type OnValidationData = ();
+    type SelfParaId = parachain_info::Pallet<Runtime>;
+    type OutboundXcmpMessageSource = ();
+    type DmpMessageHandler = ();
+    type ReservedDmpWeight = ReservedDmpWeight;
+    type XcmpMessageHandler = ();
+    type ReservedXcmpWeight = ();
 }
 
 impl parachain_info::Config for Runtime {}
 
 parameter_types! {
-    pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
-    pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
-    pub RobonomicsNetwork: NetworkId = NetworkId::Named("robonomics".into());
-    pub RelayChainOrigin: Origin = cumulus_pallet_xcm_handler::Origin::Relay.into();
-    pub const RelayChainCurrencyId: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
-    pub Ancestry: MultiLocation = Junction::Parachain {
-        id: ParachainInfo::parachain_id().into()
-    }.into();
-}
-
-type LocationConverter = (
-    ParentIsDefault<AccountId>,
-    SiblingParachainConvertsVia<Sibling, AccountId>,
-    AccountId32Aliases<RobonomicsNetwork, AccountId>,
-);
-
-type LocalAssetTransactor = MultiCurrencyAdapter<
-    Currencies,
-    IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
-    LocationConverter,
-    AccountId,
-    CurrencyIdConverter<CurrencyId, RelayChainCurrencyId>,
-    CurrencyId,
->;
-
-type LocalOriginConverter = (
-    SovereignSignedViaLocation<LocationConverter, Origin>,
-    RelayChainAsNative<RelayChainOrigin, Origin>,
-    SiblingParachainAsNative<cumulus_pallet_xcm_handler::Origin, Origin>,
-    SignedAccountId32AsNative<RobonomicsNetwork, Origin>,
-);
-
-parameter_types! {
-    pub NativeOrmlTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
-        let mut t = BTreeSet::new();
-        // Acala stablecoin
-        t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
-        t
-    };
-}
-
-pub struct XcmConfig;
-impl Config for XcmConfig {
-    type Call = Call;
-    type XcmSender = XcmHandler;
-    // How to withdraw and deposit an asset.
-    type AssetTransactor = LocalAssetTransactor;
-    type OriginConverter = LocalOriginConverter;
-    type IsReserve = NativePalletAssetOr<NativeOrmlTokens>;
-    type IsTeleporter = ();
-    type LocationInverter = LocationInverter<Ancestry>;
-}
-
-impl cumulus_pallet_xcm_handler::Config for Runtime {
-    type Event = Event;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
-    type UpwardMessageSender = ParachainSystem;
-    type HrmpMessageSender = ParachainSystem;
-}
-
-pub struct RelayToNative;
-impl Convert<RelayChainBalance, Balance> for RelayToNative {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val / 1_000
-    }
-}
-
-pub struct NativeToRelay;
-impl Convert<Balance, RelayChainBalance> for NativeToRelay {
-    fn convert(val: u128) -> Balance {
-        // native is 9
-        // relay is 12
-        val * 1_000
-    }
-}
-
-pub struct AccountId32Convert;
-impl Convert<AccountId, [u8; 32]> for AccountId32Convert {
-    fn convert(account_id: AccountId) -> [u8; 32] {
-        account_id.into()
-    }
-}
-
-impl orml_xtokens::Config for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type ToRelayChainBalance = NativeToRelay;
-    type AccountId32Convert = AccountId32Convert;
-    type RelayChainNetworkId = RococoNetwork;
-    type AccountIdConverter = LocationConverter;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
-    type ParaId = ParachainInfo;
-}
-
-impl cumulus_pallet_parachain_system::Config for Runtime {
-    type SelfParaId = parachain_info::Module<Runtime>;
-    type DownwardMessageHandlers = XcmHandler;
-    type HrmpMessageHandlers = XcmHandler;
-    type OnValidationData = ();
-    type Event = Event;
+    pub const WindowSize: u64 = 128;
+    pub const MaximumMessageSize: usize = 512;
 }
 
 impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
     type Record = Vec<u8>;
     type Event = Event;
-}
-
-impl pallet_robonomics_datalog_xcm::Config for Runtime {
-    type XcmSender = XcmHandler;
-    type Call = Call;
-    type Event = Event;
+    type WindowSize = WindowSize;
+    type MaximumMessageSize = MaximumMessageSize;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = bool;
-    type Event = Event;
-}
-
-impl pallet_robonomics_launch_xcm::Config for Runtime {
-    type XcmSender = XcmHandler;
-    type Call = Call;
     type Event = Event;
 }
 
@@ -568,6 +428,26 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_robonomics_liability::Config for Runtime {
+    type Agreement = pallet_robonomics_liability::SignedAgreement<
+        Vec<u8>,
+        (),
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+    >;
+    type Report = pallet_robonomics_liability::SignedReport<
+        Self::Index,
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+        Vec<u8>,
+    >;
+    type Event = Event;
+}
+
+impl pallet_robonomics_lighthouse::Config for Runtime {
+    type Lighthouse = sp_core::H160;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -575,44 +455,39 @@ construct_runtime! {
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Module, Call, Storage, Event},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Identity: pallet_identity::{Module, Call, Storage, Event<T>},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Utility: pallet_utility::{Pallet, Call, Storage, Event},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Module, Call, Storage, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Module, Call, Event<T>},
-        Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
-
-        // Randomness.
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 
         // Robonomics Network modules.
-        Datalog: pallet_robonomics_datalog::{Module, Call, Storage, Event<T>},
-        DatalogXcm: pallet_robonomics_datalog_xcm::{Module, Call, Event<T>},
-        Launch: pallet_robonomics_launch::{Module, Call, Event<T>},
-        LaunchXcm: pallet_robonomics_launch_xcm::{Module, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Module, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Module, Call, Storage, Event<T>},
+        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
+        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
+        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
+        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
 
         // Parachain modules.
-        ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
-        ParachainInfo: parachain_info::{Module, Storage, Config},
-        XcmHandler: cumulus_pallet_xcm_handler::{Module, Event<T>, Origin},
-        XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
+        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},
+        ParachainInfo: parachain_info::{Pallet, Storage, Config},
 
         // DAO modules
-        Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
-        Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
-        Tips: pallet_tips::{Module, Call, Storage, Event<T>},
+        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
+        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
+        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 
         // Sudo. Usable initially.
-        Sudo: pallet_sudo::{Module, Call, Storage, Event<T>, Config<T>},
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
+
+        // Robonomics lighthouse inherents.
+        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent},
     }
 }
 
@@ -651,7 +526,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllModules,
+    AllPallets,
 >;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
@@ -692,10 +567,6 @@ impl_runtime_apis! {
         fn check_inherents(block: Block, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
             data.check_extrinsics(&block)
         }
-
-        fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
-        }
     }
 
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
@@ -724,6 +595,12 @@ impl_runtime_apis! {
             SessionKeys::decode_into_raw_public_keys(&encoded)
         }
     }
+
+    impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
+        fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
+            ParachainSystem::collect_collation_info()
+        }
+    }
 }
 
-cumulus_pallet_parachain_system::register_validate_block!(Block, Executive);
+cumulus_pallet_parachain_system::register_validate_block!(Runtime, Executive);

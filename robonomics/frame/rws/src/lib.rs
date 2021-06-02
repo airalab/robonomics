@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -62,6 +62,10 @@ pub mod pallet {
         NoQuota,
         /// The call does not meet the requirements.
         BadCall,
+        /// Subscription is not registered.
+        NoSubscription,
+        /// Subscription is not assigned to sender account.
+        BadSubscription,
         /// This call is for oracle only.
         OracleOnlyCall,
     }
@@ -70,8 +74,10 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     #[pallet::metadata(T::AccountId = "AccountId")]
     pub enum Event<T: Config> {
-        /// RWS subscription registered.
-        Subscription(T::AccountId, Perbill),
+        /// Updated bandwidth for an account.
+        Bandwidth(T::AccountId, Perbill),
+        /// Registered RWS subscription.
+        Subscription(T::AccountId, Vec<T::AccountId>),
         /// Runtime method executed using RWS subscription.
         NewCall(T::AccountId, DispatchResult),
     }
@@ -82,23 +88,24 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn oracle)]
     /// The `AccountId` of Ethereum oracle.
-    pub(super) type Oracle<T> = StorageValue<_, <T as frame_system::Config>::AccountId>;
+    pub(super) type Oracle<T: Config> = StorageValue<_, T::AccountId>;
 
     #[pallet::storage]
     #[pallet::getter(fn bandwidth)]
     /// Bandwidth allocation for account.
-    pub(super) type Bandwidth<T> =
-        StorageMap<_, Twox64Concat, <T as frame_system::Config>::AccountId, Perbill>;
+    pub(super) type Bandwidth<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Perbill>;
 
     #[pallet::storage]
     #[pallet::getter(fn quota)]
     /// Quota acconting, transaction quota grown while account idle.
-    pub(super) type Quota<T> = StorageMap<
-        _,
-        Twox64Concat,
-        <T as frame_system::Config>::AccountId,
-        (<<T as Config>::Time as Time>::Moment, u64),
-    >;
+    pub(super) type Quota<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, (<T::Time as Time>::Moment, u64)>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn share_of)]
+    /// Share account quota between multiple accounts.
+    pub(super) type Subscription<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>>;
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -117,18 +124,47 @@ pub mod pallet {
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
+            subscription: <T::Lookup as StaticLookup>::Source,
             call: Box<<T as Config>::Call>,
         ) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
+            let subscription = T::Lookup::lookup(subscription)?;
+            let devices =
+                <Subscription<T>>::get(&subscription).ok_or(Error::<T>::NoSubscription)?;
+            ensure!(
+                devices.iter().any(|i| *i == sender),
+                Error::<T>::BadSubscription
+            );
+            ensure!(Self::check_quota(subscription), Error::<T>::NoQuota);
             ensure!(Self::check_call(call.clone()), Error::<T>::BadCall);
-            ensure!(Self::check_quota(sender.clone()), Error::<T>::NoQuota);
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
             Self::deposit_event(Event::NewCall(sender, res.map(|_| ()).map_err(|e| e.error)));
             res
         }
+
+        /// Change RWS subscription parameters.
+        ///
+        /// # <weight>
+        /// - O(1).
+        /// - Limited storage reads.
+        /// - One DB change.
+        /// # </weight>
+        #[pallet::weight(10_000)]
+        pub fn set_subscription(
+            origin: OriginFor<T>,
+            subscription: Vec<T::AccountId>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            <Subscription<T>>::insert(sender.clone(), subscription.clone());
+            Self::deposit_event(Event::Subscription(sender, subscription));
+            Ok(().into())
+        }
+
+        /// Change account bandwidth share rate by authority.
+        ///
 
         /// Change RWS oracle account.
         ///
@@ -169,7 +205,9 @@ pub mod pallet {
                 Some(sender) == <Oracle<T>>::get(),
                 Error::<T>::OracleOnlyCall
             );
-            <Bandwidth<T>>::insert(T::Lookup::lookup(source)?, share);
+            let account = T::Lookup::lookup(source)?;
+            <Bandwidth<T>>::insert(account.clone(), share);
+            Self::deposit_event(Event::Bandwidth(account, share));
             Ok(().into())
         }
     }
@@ -241,10 +279,10 @@ mod tests {
             NodeBlock = Block,
             UncheckedExtrinsic = UncheckedExtrinsic,
         {
-            System: frame_system::{Module, Call, Config, Storage, Event<T>},
-            Timestamp: pallet_timestamp::{Module, Storage},
-            Datalog: datalog::{Module, Call, Storage, Event<T>},
-            RWS: rws::{Module, Call, Storage, Event<T>},
+            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            Timestamp: pallet_timestamp::{Pallet, Storage},
+            Datalog: datalog::{Pallet, Call, Storage, Event<T>},
+            RWS: rws::{Pallet, Call, Storage, Event<T>},
         }
     );
 
@@ -275,6 +313,7 @@ mod tests {
         type BlockLength = ();
         type SS58Prefix = ();
         type PalletInfo = PalletInfo;
+        type OnSetCode = ();
     }
 
     parameter_types! {
@@ -287,11 +326,18 @@ mod tests {
         type MinimumPeriod = ();
         type WeightInfo = ();
     }
+    parameter_types! {
+        pub const WindowSize: u64 = 128;
+        pub const MaximumMessageSize: usize = 512;
+    }
 
     impl datalog::Config for Runtime {
         type Record = bool;
         type Event = Event;
         type Time = Timestamp;
+        type WindowSize = WindowSize;
+        type MaximumMessageSize = MaximumMessageSize;
+        type WeightInfo = ();
     }
 
     parameter_types! {
@@ -357,6 +403,42 @@ mod tests {
     }
 
     #[test]
+    fn test_subscription() {
+        let oracle = 1;
+        let alice = 2;
+        let bob = 3;
+
+        new_test_ext().execute_with(|| {
+            Timestamp::set_timestamp(1600438152000);
+
+            assert_ok!(RWS::set_oracle(Origin::root(), oracle));
+
+            let call = Call::from(datalog::Call::record(true));
+
+            assert_eq!(RWS::quota(alice), None);
+            assert_err!(
+                RWS::call(Origin::signed(bob), alice, call.clone().into()),
+                Error::<Runtime>::NoSubscription,
+            );
+
+            assert_ok!(RWS::set_subscription(Origin::signed(alice), vec![bob]));
+            assert_err!(
+                RWS::call(Origin::signed(bob), alice, call.clone().into()),
+                Error::<Runtime>::NoQuota,
+            );
+
+            assert_ok!(RWS::set_bandwidth(
+                Origin::signed(oracle),
+                alice,
+                Perbill::from_percent(1),
+            ),);
+            assert_eq!(RWS::quota(alice), None);
+            assert_ok!(RWS::call(Origin::signed(bob), alice, call.clone().into()));
+            assert_eq!(RWS::quota(alice), Some((1600438152000, 0)));
+        })
+    }
+
+    #[test]
     fn test_transaction() {
         let oracle = 1;
         let alice = 2;
@@ -368,9 +450,15 @@ mod tests {
 
             let call = Call::from(datalog::Call::record(true));
 
-            assert_eq!(RWS::quota(oracle), None);
+            assert_eq!(RWS::quota(alice), None);
             assert_err!(
-                RWS::call(Origin::signed(oracle), call.clone().into()),
+                RWS::call(Origin::signed(alice), alice, call.clone().into()),
+                Error::<Runtime>::NoSubscription,
+            );
+
+            assert_ok!(RWS::set_subscription(Origin::signed(alice), vec![alice]));
+            assert_err!(
+                RWS::call(Origin::signed(alice), alice, call.clone().into()),
                 Error::<Runtime>::NoQuota,
             );
 
@@ -380,25 +468,25 @@ mod tests {
                 Perbill::from_percent(1),
             ),);
             assert_eq!(RWS::quota(alice), None);
-            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
             assert_eq!(RWS::quota(alice), Some((1600438152000, 0)));
 
             Timestamp::set_timestamp(1600438156000);
 
-            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
             assert_eq!(RWS::quota(alice), Some((1600438156000, 3 * CALL_COST)));
 
-            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
             assert_eq!(RWS::quota(alice), Some((1600438156000, 2 * CALL_COST)));
 
-            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
             assert_eq!(RWS::quota(alice), Some((1600438156000, 1 * CALL_COST)));
 
-            assert_ok!(RWS::call(Origin::signed(alice), call.clone().into()));
+            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
             assert_eq!(RWS::quota(alice), Some((1600438156000, 0)));
 
             assert_err!(
-                RWS::call(Origin::signed(alice), call.into()),
+                RWS::call(Origin::signed(alice), alice, call.into()),
                 Error::<Runtime>::NoQuota,
             );
         })

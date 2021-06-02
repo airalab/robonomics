@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
     /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
+    #[cfg(feature = "parachain")]
     Parachain,
 }
 
@@ -43,6 +44,14 @@ pub trait RobonomicsChain {
     fn family(&self) -> RobonomicsFamily;
 }
 
+#[cfg(not(feature = "parachain"))]
+impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
+    fn family(&self) -> RobonomicsFamily {
+        RobonomicsFamily::Development
+    }
+}
+
+#[cfg(feature = "parachain")]
 impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
         if self.id() == "dev" {
@@ -140,24 +149,25 @@ fn mk_genesis(
     code: Vec<u8>,
 ) -> GenesisConfig {
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             code,
             changes_trie_config: Default::default(),
-        }),
-        pallet_balances: Some(BalancesConfig { balances }),
-        pallet_babe: Some(BabeConfig {
+        },
+        pallet_balances: BalancesConfig { balances },
+        pallet_babe: BabeConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
-        }),
-        pallet_grandpa: Some(GrandpaConfig {
+            epoch_config: Some(node_runtime::BABE_GENESIS_EPOCH_CONFIG),
+        },
+        pallet_grandpa: GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.2.clone(), 1))
                 .collect(),
-        }),
-        pallet_sudo: Some(SudoConfig { key: sudo_key }),
+        },
+        pallet_sudo: SudoConfig { key: sudo_key },
     }
 }
 

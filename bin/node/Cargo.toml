@@ -1,6 +1,6 @@
 [package]
 name = "robonomics"
-version = "0.25.0"
+version = "0.29.1"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 edition = "2018"
@@ -22,23 +22,22 @@ name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
-node-cli = { path = "cli" }
 parity-util-mem = { version = "0.9.0", default-features = false, features = ["jemalloc-global"] }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
 pallet-robonomics-datalog = { path = "../../robonomics/frame/datalog", default-features = false }
 
-[features]
-default = [
-    "node-cli/cli",
-    "node-cli/rococo",
-    "node-cli/wasmtime",
-]
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
 
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
+
+[target.'cfg(target_arch = "arm")'.dependencies]
+node-cli = { path = "cli", default-features = false, features = [ "zero" ] }
+
+[features]
 runtime-benchmarks = [
-    "node-cli/cli",
     "node-cli/rococo",
     "node-cli/wasmtime",
     "node-cli/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks",
-    "pallet-robonomics-datalog/runtime-benchmarks",
 ]

@@ -1,23 +1,23 @@
 [package]
 name = "pallet-robonomics-liability"
 description = "Robonomics Network Robot Liability Substrate runtime module"
-version = "0.5.0"
+version = "0.6.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
 
 [dev-dependencies]
 base58 = "0.1.0"
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" } 
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3" } 
 
 [features]
 default = ["std"]

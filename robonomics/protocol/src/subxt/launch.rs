@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2020 Airalab <research@aira.life>
+//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Launch CPS using Robonomics network.
 
+use super::{pallet_launch::*, AccountId, Robonomics};
 use crate::error::{Error, Result};
-use crate::runtime::{pallet_launch::*, AccountId, Robonomics};
 
 use codec::Decode;
 use sp_core::crypto::{Pair, Ss58Codec};
