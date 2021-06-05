@@ -12,6 +12,7 @@ members = [
     "robonomics/frame/liability",
     "robonomics/frame/lighthouse",
     "robonomics/frame/digital-twin",
+    "robonomics/frame/staking",
     "robonomics/protocol",
     "robonomics/cli",
     "robonomics/io",

@@ -9,6 +9,7 @@ edition = "2018"
 serde = { version = "1.0.101", optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"] }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.3", default-features = false }
 
@@ -20,4 +21,5 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"sp-std/std",
+	"sp-runtime/std",
 ]
