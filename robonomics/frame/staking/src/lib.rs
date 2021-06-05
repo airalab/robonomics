@@ -21,10 +21,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, HasCompact};
-use frame_support::traits::{Currency, LockIdentifier, LockableCurrency, WithdrawReasons};
+use frame_support::traits::{
+    Currency, Imbalance, LockIdentifier, LockableCurrency, WithdrawReasons,
+};
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, Saturating, StaticLookup, Zero},
-    RuntimeDebug,
+    Perbill, RuntimeDebug,
 };
 
 //pub mod weights;
@@ -118,9 +120,21 @@ pub mod pallet {
         // Weight information for extrinsics in this pallet.
         //type WeightInfo: WeightInfo;
 
-        /// Time duration that staked funds must remain bonded for.
+        /// Some time that staked funds must remain bonded for.
         #[pallet::constant]
         type BondingDuration: Get<Self::BlockNumber>;
+
+        /// Standard stake income for 1 XRT each block.
+        #[pallet::constant]
+        type StakeIncome: Get<BalanceOf<Self>>;
+
+        /// Bonus stake income for 1 XRT each block.
+        #[pallet::constant]
+        type BonusIncome: Get<BalanceOf<Self>>;
+
+        #[pallet::constant]
+        /// Token decimals for correct reward scaling.
+        type TokenDecimals: Get<BalanceOf<Self>>;
     }
 
     #[pallet::error]
@@ -155,6 +169,8 @@ pub mod pallet {
         /// An account has called `withdraw_unbonded` and removed unbonding chunks worth `Balance`
         /// from the unlocking queue. \[stash, amount\]
         Withdrawn(T::AccountId, BalanceOf<T>),
+        /// The staker has been rewarded by this amount. \[stash, amount\]
+        Reward(T::AccountId, BalanceOf<T>),
     }
 
     #[pallet::pallet]
@@ -176,11 +192,40 @@ pub mod pallet {
         StakerLedger<T::AccountId, BalanceOf<T>, T::BlockNumber>,
     >;
 
+    #[pallet::storage]
+    #[pallet::getter(fn bonus)]
+    /// Map from all locked "stash" accounts to the bonus token amount.
+    /// Note: Bonus tokens has increased staking rate.
+    pub(super) type Bonus<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>>;
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub bonus: Vec<(T::AccountId, BalanceOf<T>)>,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig { bonus: vec![] }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            for &(ref who, bonus_value) in self.bonus.iter() {
+                <Bonus<T>>::insert(who, bonus_value)
+            }
+        }
+    }
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::call]
-    impl<T: Config> Pallet<T> {
+    impl<T: Config> Pallet<T>
+    where
+        BalanceOf<T>: From<T::BlockNumber>,
+    {
         /// Take the origin account as a stash and lock up `value` of its balance. `controller` will
         /// be the account that controls it.
         ///
@@ -366,9 +411,28 @@ pub mod pallet {
 
             Ok(post_info_weight.into())
         }
+
+        #[pallet::weight(100_000)]
+        fn claim_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            let controller = ensure_signed(origin)?;
+            let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
+
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            let reward = Self::get_reward(&ledger, block_number);
+            if reward > Zero::zero() {
+                let imbalance = T::Currency::deposit_into_existing(&ledger.stash, reward)?;
+                ledger.claimed_rewards = block_number;
+                Self::update_ledger(&controller, &ledger);
+                Self::deposit_event(Event::Reward(ledger.stash, imbalance.peek()));
+            }
+            Ok(().into())
+        }
     }
 
-    impl<T: Config> Pallet<T> {
+    impl<T: Config> Pallet<T>
+    where
+        BalanceOf<T>: From<T::BlockNumber>,
+    {
         /// Update the ledger for a controller.
         ///
         /// This will also update the stash lock.
@@ -397,6 +461,32 @@ pub mod pallet {
             <Ledger<T>>::remove(&controller);
             <frame_system::Pallet<T>>::dec_consumers(stash);
             Ok(())
+        }
+
+        /// Get reward for given ledger at block number.
+        fn get_reward(
+            ledger: &StakerLedger<T::AccountId, BalanceOf<T>, T::BlockNumber>,
+            block_number: T::BlockNumber,
+        ) -> BalanceOf<T> {
+            if block_number <= ledger.claimed_rewards {
+                return Zero::zero();
+            }
+            let duration: BalanceOf<T> = (block_number - ledger.claimed_rewards).into();
+
+            let bonus = Self::bonus(&ledger.stash).unwrap_or(Zero::zero());
+            let bonus_stake = if bonus > ledger.active {
+                ledger.active
+            } else {
+                bonus
+            };
+            let bonus_reward = Perbill::from_rational(bonus_stake, T::TokenDecimals::get())
+                * T::BonusIncome::get();
+
+            let stake = ledger.active - bonus_stake;
+            let stake_reward =
+                Perbill::from_rational(stake, T::TokenDecimals::get()) * T::StakeIncome::get();
+
+            duration * (bonus_reward + stake_reward)
         }
     }
 }
