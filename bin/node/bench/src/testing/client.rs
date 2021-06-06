@@ -33,7 +33,7 @@ pub type Backend = sc_client_db::Backend<node_primitives::Block>;
 /// Test client type.
 pub type Client = client::Client<
     Backend,
-    client::LocalCallExecutor<Backend, Executor>,
+    client::LocalCallExecutor<node_primitives::Block, Backend, Executor>,
     node_primitives::Block,
     node_runtime::RuntimeApi,
 >;
@@ -49,7 +49,7 @@ pub struct GenesisParameters {
 
 impl substrate_test_client::GenesisInit for GenesisParameters {
     fn genesis_storage(&self) -> Storage {
-        crate::genesis::config(self.support_changes_trie, None)
+        super::genesis::config(self.support_changes_trie, None)
             .build_storage()
             .unwrap()
     }
@@ -67,7 +67,7 @@ pub trait TestClientBuilderExt: Sized {
 impl TestClientBuilderExt
     for substrate_test_client::TestClientBuilder<
         node_primitives::Block,
-        client::LocalCallExecutor<Backend, Executor>,
+        client::LocalCallExecutor<node_primitives::Block, Backend, Executor>,
         Backend,
         GenesisParameters,
     >

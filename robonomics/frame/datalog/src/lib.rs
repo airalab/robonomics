@@ -396,7 +396,7 @@ mod tests {
                 .collect();
 
             assert_eq!(Datalog::data(&sender), data);
-            let idx = Datalog::datalogidx(&sender);
+            let idx = Datalog::datalog_index(&sender);
             assert_eq!(idx, RingBufferIndex { start: 11, end: 10 });
             assert_eq!(idx.count(WINDOW), WINDOW - 1);
         })
@@ -412,7 +412,7 @@ mod tests {
             assert_eq!(Datalog::datalog(sender), None);
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
             assert_eq!(
-                Datalog::datalogidx(&sender),
+                Datalog::datalog_index(&sender),
                 RingBufferIndex { start: 0, end: 1 }
             );
 
@@ -420,7 +420,7 @@ mod tests {
             assert_eq!(Datalog::data(&sender), vec![]);
 
             assert_eq!(
-                Datalog::datalogidx(&sender),
+                Datalog::datalog_index(&sender),
                 RingBufferIndex { start: 0, end: 0 }
             );
         })

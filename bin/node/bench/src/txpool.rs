@@ -23,7 +23,7 @@
 
 use std::borrow::Cow;
 
-use node_testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes, Profile};
+use crate::testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes, Profile};
 
 use sc_transaction_pool::BasicPool;
 use sp_runtime::generic::BlockId;

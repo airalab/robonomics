@@ -63,7 +63,7 @@ pub mod pallet {
             record: T::Record,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            let location = Junction::Parachain { id: parachain_id };
+            let location = Junction::Parachain(parachain_id);
             let call: <T as Config>::Call = datalog::pallet::Call::<T>::record(record).into();
             let message = Xcm::<<T as Config>::Call>::Transact {
                 origin_type: OriginKind::Native,

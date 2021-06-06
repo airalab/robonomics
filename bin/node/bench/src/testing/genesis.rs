@@ -18,11 +18,11 @@
 
 //! Genesis Configuration.
 
-use crate::keyring::*;
+use super::keyring::*;
 use node_primitives::AccountId;
 use node_runtime::{
     constants::currency::*, wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig,
-    GrandpaConfig, SystemConfig,
+    GrandpaConfig, SystemConfig, BABE_GENESIS_EPOCH_CONFIG,
 };
 use sp_core::ChangesTrieConfiguration;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
@@ -61,7 +61,7 @@ pub fn config_endowed(
     ];
 
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             changes_trie_config: if support_changes_trie {
                 Some(ChangesTrieConfiguration {
                     digest_interval: 2,
@@ -73,14 +73,15 @@ pub fn config_endowed(
             code: code
                 .map(|x| x.to_vec())
                 .unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
-        }),
-        pallet_balances: Some(BalancesConfig { balances: endowed }),
-        pallet_babe: Some(BabeConfig {
+        },
+        pallet_balances: BalancesConfig { balances: endowed },
+        pallet_babe: BabeConfig {
             authorities: keys.iter().map(|x| (x.babe.clone(), 1)).collect(),
-        }),
-        pallet_grandpa: Some(GrandpaConfig {
+            epoch_config: Some(BABE_GENESIS_EPOCH_CONFIG),
+        },
+        pallet_grandpa: GrandpaConfig {
             authorities: keys.iter().map(|x| (x.grandpa.clone(), 1)).collect(),
-        }),
-        pallet_sudo: Some(Default::default()),
+        },
+        pallet_sudo: Default::default(),
     }
 }

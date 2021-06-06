@@ -27,10 +27,10 @@ mod state_sizes;
 mod tempdb;
 mod trie;
 mod txpool;
+mod testing;
 
 use structopt::StructOpt;
 
-use node_testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile};
 
 use crate::{
     common::SizeType,
@@ -40,6 +40,7 @@ use crate::{
     tempdb::DatabaseType,
     trie::{DatabaseSize, TrieReadBenchmarkDescription, TrieWriteBenchmarkDescription},
     txpool::PoolBenchmarkDescription,
+    testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile},
 };
 
 #[derive(Debug, StructOpt)]

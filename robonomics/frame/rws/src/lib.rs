@@ -332,7 +332,7 @@ mod tests {
     }
 
     impl datalog::Config for Runtime {
-        type Record = bool;
+        type Record = Vec<u8>;
         type Event = Event;
         type Time = Timestamp;
         type WindowSize = WindowSize;
@@ -413,7 +413,7 @@ mod tests {
 
             assert_ok!(RWS::set_oracle(Origin::root(), oracle));
 
-            let call = Call::from(datalog::Call::record(true));
+            let call = Call::from(datalog::Call::record("true".into()));
 
             assert_eq!(RWS::quota(alice), None);
             assert_err!(
@@ -448,7 +448,7 @@ mod tests {
 
             assert_ok!(RWS::set_oracle(Origin::root(), oracle));
 
-            let call = Call::from(datalog::Call::record(true));
+            let call = Call::from(datalog::Call::record("true".into()));
 
             assert_eq!(RWS::quota(alice), None);
             assert_err!(
