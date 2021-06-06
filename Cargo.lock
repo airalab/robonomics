@@ -6379,10 +6379,12 @@ version = "0.1.0"
 dependencies = [
  "frame-support 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
+ "pallet-balances",
  "parity-scale-codec",
  "serde",
+ "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
+ "sp-io 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
  "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
- "sp-std 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.3)",
 ]
 
 [[package]]

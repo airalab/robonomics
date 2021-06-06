@@ -124,17 +124,15 @@ pub mod pallet {
         #[pallet::constant]
         type BondingDuration: Get<Self::BlockNumber>;
 
-        /// Standard stake income for 1 XRT each block.
+        /// Standard stake reward for 1 XRT each block.
+        /// Note: Perbill has accuracy 10^9, that equal to Wn.
         #[pallet::constant]
-        type StakeIncome: Get<BalanceOf<Self>>;
+        type StakeReward: Get<Perbill>;
 
         /// Bonus stake income for 1 XRT each block.
+        /// Note: Perbill has accuracy 10^9, that equal to Wn.
         #[pallet::constant]
-        type BonusIncome: Get<BalanceOf<Self>>;
-
-        #[pallet::constant]
-        /// Token decimals for correct reward scaling.
-        type TokenDecimals: Get<BalanceOf<Self>>;
+        type BonusReward: Get<Perbill>;
     }
 
     #[pallet::error]
@@ -149,8 +147,6 @@ pub mod pallet {
         AlreadyPaired,
         /// Internal state has become somehow corrupted and the operation cannot continue.
         BadState,
-        /// Can not bond with value less than minimum balance.
-        InsufficientValue,
         /// Can not schedule more unlock chunks.
         NoMoreChunks,
     }
@@ -160,9 +156,6 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId", BalanceOf<T> = "Balance")]
     pub enum Event<T: Config> {
         /// An account has bonded this amount. \[stash, amount\]
-        ///
-        /// NOTE: This event is only emitted when funds are bonded via a dispatchable. Notably,
-        /// it will not be emitted for staking rewards when they are added to stake.
         Bonded(T::AccountId, BalanceOf<T>),
         /// An account has unbonded this amount. \[stash, amount\]
         Unbonded(T::AccountId, BalanceOf<T>),
@@ -374,7 +367,7 @@ pub mod pallet {
         /// NOTE: Weight annotation is the kill scenario, we refund otherwise.
         /// # </weight>
         #[pallet::weight(100_000)]
-        fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn withdraw_unbonded(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let controller = ensure_signed(origin)?;
             let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
             let (stash, old_total) = (ledger.stash.clone(), ledger.total);
@@ -412,8 +405,28 @@ pub mod pallet {
             Ok(post_info_weight.into())
         }
 
+        /// Claim rewards accumulated from last `claim_rewards` call.
+        ///
+        /// Generally, current reward scheme has fixed income for each block. For example,
+        /// if you have locked 10 XRT you will get 0.00000004 * 10 XRT for each block.
+        ///
+        /// The dispatch origin for this call must be _Signed_ by the controller, not the stash.
+        ///
+        /// Emits `Reward`.
+        ///
+        /// See also [`Call::bond`].
+        ///
+        /// # <weight>
+        /// - Contains a limited number of reads, yet the size of which could be large based on `ledger`.
+        /// - Writes are limited to the `origin` account key.
+        /// ---------------
+        /// Weight: O(1)
+        /// DB Weight:
+        /// - Reads: Ledger, System BlockNumber, Locks, [Origin Account]
+        /// - Writes: [Origin Account], Locks, System Account, Ledger
+        /// # </weight>
         #[pallet::weight(100_000)]
-        fn claim_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let controller = ensure_signed(origin)?;
             let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
 
@@ -464,6 +477,12 @@ pub mod pallet {
         }
 
         /// Get reward for given ledger at block number.
+        ///
+        /// Each reward has bonus and standard rate. When bonus value is zero,
+        /// only standard reward payed for all locked value.
+        ///
+        /// When locked value is more then bonus value,
+        /// value over bonus paid in standard rate.
         fn get_reward(
             ledger: &StakerLedger<T::AccountId, BalanceOf<T>, T::BlockNumber>,
             block_number: T::BlockNumber,
@@ -471,7 +490,7 @@ pub mod pallet {
             if block_number <= ledger.claimed_rewards {
                 return Zero::zero();
             }
-            let duration: BalanceOf<T> = (block_number - ledger.claimed_rewards).into();
+            let duration = block_number - ledger.claimed_rewards;
 
             let bonus = Self::bonus(&ledger.stash).unwrap_or(Zero::zero());
             let bonus_stake = if bonus > ledger.active {
@@ -479,14 +498,265 @@ pub mod pallet {
             } else {
                 bonus
             };
-            let bonus_reward = Perbill::from_rational(bonus_stake, T::TokenDecimals::get())
-                * T::BonusIncome::get();
+            let bonus_reward = T::BonusReward::get() * bonus_stake;
 
             let stake = ledger.active - bonus_stake;
-            let stake_reward =
-                Perbill::from_rational(stake, T::TokenDecimals::get()) * T::StakeIncome::get();
+            let stake_reward = T::StakeReward::get() * stake;
 
-            duration * (bonus_reward + stake_reward)
+            (bonus_reward + stake_reward) * duration.into()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use frame_support::{assert_err, assert_ok, parameter_types, traits::GenesisBuild};
+    use sp_core::H256;
+    use sp_runtime::{testing::Header, traits::IdentityLookup};
+
+    use crate::{self as staking, *};
+
+    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
+    type Block = frame_system::mocking::MockBlock<Runtime>;
+    type Balance = u128;
+
+    const XRT: Balance = 1_000_000_000;
+
+    const ALICE: u64 = 1;
+    const ALICE_C: u64 = 10;
+
+    const BOB: u64 = 2;
+    const BOB_C: u64 = 20;
+
+    const CHARLIE: u64 = 3;
+    const CHARLIE_C: u64 = 30;
+
+    frame_support::construct_runtime!(
+        pub enum Runtime where
+            Block = Block,
+            NodeBlock = Block,
+            UncheckedExtrinsic = UncheckedExtrinsic,
+        {
+            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+            Staking: staking::{Pallet, Call, Storage, Event<T>, Config<T>},
+        }
+    );
+
+    parameter_types! {
+        pub const BlockHashCount: u64 = 250;
+    }
+
+    impl frame_system::Config for Runtime {
+        type Origin = Origin;
+        type Index = u64;
+        type BlockNumber = u64;
+        type Call = Call;
+        type Hash = H256;
+        type Hashing = sp_runtime::traits::BlakeTwo256;
+        type AccountId = u64;
+        type Lookup = IdentityLookup<Self::AccountId>;
+        type Header = Header;
+        type Event = Event;
+        type BlockHashCount = BlockHashCount;
+        type Version = ();
+        type PalletInfo = PalletInfo;
+        type AccountData = pallet_balances::AccountData<Balance>;
+        type OnNewAccount = ();
+        type OnKilledAccount = ();
+        type DbWeight = ();
+        type BaseCallFilter = ();
+        type SystemWeightInfo = ();
+        type BlockWeights = ();
+        type BlockLength = ();
+        type SS58Prefix = ();
+        type OnSetCode = ();
+    }
+
+    parameter_types! {
+        pub const MaxLocks: u32 = 50;
+        pub const ExistentialDeposit: Balance = 10;
+    }
+
+    impl pallet_balances::Config for Runtime {
+        type MaxLocks = MaxLocks;
+        type Balance = Balance;
+        type Event = Event;
+        type DustRemoval = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = System;
+        type WeightInfo = ();
+    }
+
+    parameter_types! {
+        pub const BondingDuration: u64 = 32;
+        pub const StakeReward: Perbill = Perbill::from_parts(40);
+        pub const BonusReward: Perbill = Perbill::from_parts(200);
+    }
+
+    impl Config for Runtime {
+        type Currency = Balances;
+        type Event = Event;
+
+        type BondingDuration = BondingDuration;
+        type StakeReward = StakeReward;
+        type BonusReward = BonusReward;
+    }
+
+    fn new_test_ext() -> sp_io::TestExternalities {
+        let mut storage = frame_system::GenesisConfig::default()
+            .build_storage::<Runtime>()
+            .unwrap();
+
+        let _ = pallet_balances::GenesisConfig::<Runtime> {
+            balances: vec![(ALICE, 10 * XRT), (BOB, 42 * XRT), (CHARLIE, 10_000 * XRT)],
+        }
+        .assimilate_storage(&mut storage);
+
+        let _ = staking::GenesisConfig::<Runtime> {
+            bonus: vec![(BOB, 30 * XRT)],
+        }
+        .assimilate_storage(&mut storage);
+
+        storage.into()
+    }
+
+    fn events() -> Vec<Event> {
+        System::events().iter().map(|e| e.event.clone()).collect()
+    }
+
+    #[test]
+    fn bond_should_works() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+            assert_eq!(System::account(ALICE).data.free, 10 * XRT);
+
+            assert_ok!(Staking::bond(Origin::signed(ALICE), ALICE_C, 5 * XRT));
+            assert_eq!(<Bonded<Runtime>>::get(ALICE), Some(ALICE_C));
+            assert_eq!(
+                events(),
+                vec![staking::Event::Bonded(ALICE, 5 * XRT).into(),]
+            );
+            assert_eq!(
+                <Ledger<Runtime>>::get(ALICE_C).map(|ledger| ledger.claimed_rewards),
+                Some(1),
+            );
+            assert_eq!(Balances::locks(ALICE)[0].amount, 5 * XRT);
+        })
+    }
+
+    #[test]
+    fn unbond_should_works() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+
+            assert_ok!(Staking::bond(Origin::signed(ALICE), ALICE_C, 5 * XRT));
+            assert_eq!(Balances::locks(ALICE)[0].amount, 5 * XRT);
+
+            System::set_block_number(2);
+            assert_ok!(Staking::unbond(Origin::signed(ALICE_C), 2 * XRT));
+            assert_eq!(<Bonded<Runtime>>::get(ALICE), Some(ALICE_C));
+            assert_eq!(
+                <Ledger<Runtime>>::get(ALICE_C).map(|ledger| ledger.active),
+                Some(3 * XRT),
+            );
+            assert_eq!(
+                <Ledger<Runtime>>::get(ALICE_C).map(|ledger| ledger.unlocking),
+                Some(vec![UnlockChunk {
+                    value: 2 * XRT,
+                    moment: 34
+                }]),
+            );
+            assert_eq!(Balances::locks(ALICE)[0].amount, 5 * XRT);
+
+            System::set_block_number(20);
+            assert_ok!(Staking::withdraw_unbonded(Origin::signed(ALICE_C)));
+            assert_eq!(
+                <Ledger<Runtime>>::get(ALICE_C).map(|ledger| ledger.unlocking),
+                Some(vec![UnlockChunk {
+                    value: 2 * XRT,
+                    moment: 34
+                }]),
+            );
+
+            System::set_block_number(35);
+            assert_ok!(Staking::withdraw_unbonded(Origin::signed(ALICE_C)));
+            assert_eq!(
+                <Ledger<Runtime>>::get(ALICE_C).map(|ledger| ledger.unlocking),
+                Some(vec![]),
+            );
+            assert_eq!(Balances::locks(ALICE)[0].amount, 3 * XRT);
+
+            assert_ok!(Staking::unbond(Origin::signed(ALICE_C), 3 * XRT));
+            System::set_block_number(100);
+            assert_ok!(Staking::withdraw_unbonded(Origin::signed(ALICE_C)));
+            assert_eq!(Balances::locks(ALICE), vec![]);
+            assert_eq!(<Bonded<Runtime>>::get(ALICE), None);
+        })
+    }
+
+    #[test]
+    fn reward_should_works() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+
+            assert_ok!(Staking::bond(Origin::signed(BOB), BOB_C, 42 * XRT));
+            assert_ok!(Staking::bond(
+                Origin::signed(CHARLIE),
+                CHARLIE_C,
+                10_000 * XRT
+            ));
+
+            System::set_block_number(1_000);
+            assert_ok!(Staking::claim_rewards(Origin::signed(BOB_C)));
+            assert_ok!(Staking::claim_rewards(Origin::signed(CHARLIE_C)));
+
+            assert_eq!(
+                <Ledger<Runtime>>::get(BOB_C).map(|ledger| ledger.claimed_rewards),
+                Some(1_000),
+            );
+            assert_eq!(
+                <Ledger<Runtime>>::get(CHARLIE_C).map(|ledger| ledger.claimed_rewards),
+                Some(1_000),
+            );
+            assert_eq!(System::account(BOB).data.free, 42006473520);
+            assert_eq!(System::account(CHARLIE).data.free, 10000399600000);
+
+            System::set_block_number(5_000_000);
+            assert_ok!(Staking::claim_rewards(Origin::signed(CHARLIE_C)));
+            assert_eq!(System::account(CHARLIE).data.free, 11999999600000);
+        })
+    }
+
+    #[test]
+    fn fail_double_bonding() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+            assert_ok!(Staking::bond(Origin::signed(BOB), BOB_C, 1 * XRT));
+            assert_err!(
+                Staking::bond(Origin::signed(ALICE), BOB_C, 1 * XRT),
+                staking::Error::<Runtime>::AlreadyPaired,
+            );
+            assert_err!(
+                Staking::bond(Origin::signed(BOB), ALICE_C, 1 * XRT),
+                staking::Error::<Runtime>::AlreadyBonded,
+            );
+        })
+    }
+
+    #[test]
+    fn fail_controller_calls() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+            assert_ok!(Staking::bond(Origin::signed(BOB), BOB_C, 1 * XRT));
+            assert_err!(
+                Staking::claim_rewards(Origin::signed(BOB)),
+                staking::Error::<Runtime>::NotController,
+            );
+            assert_err!(
+                Staking::unbond(Origin::signed(BOB), 1 * XRT),
+                staking::Error::<Runtime>::NotController,
+            );
+        })
     }
 }
