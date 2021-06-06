@@ -24,11 +24,11 @@ pub mod chain_spec;
 
 #[macro_use]
 #[cfg(feature = "full")]
-mod service;
+pub mod service;
 
 #[macro_use]
 #[cfg(feature = "parachain")]
-mod parachain;
+pub mod parachain;
 
 #[cfg(feature = "sc-cli")]
 mod cli;

@@ -24,6 +24,7 @@
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 mod weights;
 
@@ -45,7 +46,7 @@ pub mod pallet {
         /// Current time source.
         type Time: Time;
         /// Datalog record data type.
-        type Record: Parameter + Default;
+        type Record: Parameter + Default + From<Vec<u8>>;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         /// Data log window size
@@ -395,7 +396,7 @@ mod tests {
                 .collect();
 
             assert_eq!(Datalog::data(&sender), data);
-            let idx = Datalog::datalogidx(&sender);
+            let idx = Datalog::datalog_index(&sender);
             assert_eq!(idx, RingBufferIndex { start: 11, end: 10 });
             assert_eq!(idx.count(WINDOW), WINDOW - 1);
         })
@@ -411,7 +412,7 @@ mod tests {
             assert_eq!(Datalog::datalog(sender), None);
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
             assert_eq!(
-                Datalog::datalogidx(&sender),
+                Datalog::datalog_index(&sender),
                 RingBufferIndex { start: 0, end: 1 }
             );
 
@@ -419,7 +420,7 @@ mod tests {
             assert_eq!(Datalog::data(&sender), vec![]);
 
             assert_eq!(
-                Datalog::datalogidx(&sender),
+                Datalog::datalog_index(&sender),
                 RingBufferIndex { start: 0, end: 0 }
             );
         })

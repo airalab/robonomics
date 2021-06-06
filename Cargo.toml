@@ -3,6 +3,7 @@ default-members = [ "bin/node" ]
 members = [
     "bin/node",
     "bin/node/cli",
+    "bin/node/bench",
     "bin/node/runtime",
     "bin/node/runtime/parachain",
     "robonomics/frame/rws",
