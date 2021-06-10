@@ -53,6 +53,9 @@ pub enum SinkCmd {
         /// Sender account seed URI.
         #[structopt(short, value_name = "SECRET_URI")]
         suri: String,
+        /// Start in subscription mode
+        #[structopt(long, value_name = "RWS")]
+        rws: bool,
     },
     /// Upload data into IPFS storage.
     Ipfs {
@@ -75,6 +78,9 @@ pub enum SinkCmd {
         /// Target CPS address.
         #[structopt(short, value_name = "ROBOT_ADDRESS")]
         robot: String,
+        /// Start in subscription mode
+        #[structopt(long, value_name = "RWS")]
+        rws: bool,
     },
     #[cfg(feature = "ros")]
     /// Publish data into ROS topic.
@@ -102,8 +108,8 @@ impl SinkCmd {
                 let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
                 task::block_on(stdin().forward(pubsub))?;
             }
-            SinkCmd::Datalog { remote, suri } => {
-                let (submit, hashes) = virt::datalog(remote, suri)?;
+            SinkCmd::Datalog { remote, suri, rws } => {
+                let (submit, hashes) = virt::datalog(remote, suri, rws)?;
                 task::spawn(stdin().forward(submit));
                 let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
                 task::block_on(hex_encoded.forward(virt::stdout()))?;
@@ -117,8 +123,9 @@ impl SinkCmd {
                 remote,
                 suri,
                 robot,
+                rws,
             } => {
-                let (submit, hashes) = virt::launch(remote, suri, robot)?;
+                let (submit, hashes) = virt::launch(remote, suri, robot, rws)?;
                 task::spawn(stdin().map(|m| m.map(|s| s == "ON")).forward(submit));
                 let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
                 task::block_on(hex_encoded.forward(virt::stdout()))?;

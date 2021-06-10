@@ -34,6 +34,7 @@ pub mod datalog;
 pub mod launch;
 pub mod pallet_datalog;
 pub mod pallet_launch;
+pub mod pallet_rws;
 
 use pallet_datalog::DatalogEventTypeRegistry;
 use pallet_launch::LaunchEventTypeRegistry;
@@ -80,4 +81,8 @@ impl pallet_datalog::Datalog for Robonomics {
 
 impl pallet_launch::Launch for Robonomics {
     type Parameter = bool;
+}
+
+impl pallet_rws::RWS for Robonomics {
+    // type Call = Fn(?) -> ?;
 }
