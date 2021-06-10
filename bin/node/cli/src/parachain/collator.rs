@@ -27,7 +27,6 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use node_primitives::Block;
-use polkadot_primitives::v0::CollatorPair;
 use sc_service::{Configuration, Role, TFullClient, TaskManager};
 use std::sync::Arc;
 
@@ -37,7 +36,6 @@ use std::sync::Arc;
 #[sc_tracing::logging::prefix_logs_with("Parachain")]
 async fn start_node_impl(
     parachain_config: Configuration,
-    collator_key: CollatorPair,
     polkadot_config: Configuration,
     id: polkadot_primitives::v0::Id,
     validator_account: Option<sp_core::H160>,
@@ -53,7 +51,6 @@ async fn start_node_impl(
     let (mut telemetry, telemetry_worker_handle) = params.other;
     let relay_chain_full_node = cumulus_client_service::build_polkadot_full_node(
         polkadot_config,
-        collator_key.clone(),
         telemetry_worker_handle,
     )
     .map_err(|e| match e {
@@ -74,7 +71,7 @@ async fn start_node_impl(
     let transaction_pool = params.transaction_pool.clone();
     let mut task_manager = params.task_manager;
     let import_queue = cumulus_client_service::SharedImportQueue::new(params.import_queue);
-    let (network, network_status_sinks, system_rpc_tx, start_network) =
+    let (network, system_rpc_tx, start_network) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &parachain_config,
             client: client.clone(),
@@ -96,7 +93,6 @@ async fn start_node_impl(
         keystore: params.keystore_container.sync_keystore(),
         backend: backend.clone(),
         network: network.clone(),
-        network_status_sinks,
         system_rpc_tx,
         telemetry: telemetry.as_mut(),
     })?;
@@ -153,7 +149,6 @@ async fn start_node_impl(
             announce_block,
             client: client.clone(),
             task_manager: &mut task_manager,
-            collator_key,
             relay_chain_full_node,
             spawner,
             parachain_consensus,
@@ -180,14 +175,12 @@ async fn start_node_impl(
 /// Start a normal parachain node.
 pub async fn start_node(
     parachain_config: Configuration,
-    collator_key: CollatorPair,
     polkadot_config: Configuration,
     id: polkadot_primitives::v0::Id,
     validator_account: Option<sp_core::H160>,
 ) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)> {
     start_node_impl(
         parachain_config,
-        collator_key,
         polkadot_config,
         id,
         validator_account,

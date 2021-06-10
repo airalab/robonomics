@@ -280,7 +280,7 @@ where
         ),
     );
 
-    let (network, network_status_sinks, system_rpc_tx, network_starter) =
+    let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -319,7 +319,6 @@ where
         task_manager: &mut task_manager,
         on_demand: None,
         remote_blockchain: None,
-        network_status_sinks,
         system_rpc_tx,
         telemetry: telemetry.as_mut(),
     })?;
@@ -391,8 +390,8 @@ where
         justification_period: 512,
         name: Some(name),
         observer_enabled: false,
+        local_role: role,
         keystore,
-        is_authority: role.is_authority(),
         telemetry: telemetry.as_ref().map(|x| x.handle()),
     };
 
@@ -530,7 +529,7 @@ where
         telemetry.as_ref().map(|x| x.handle()),
     )?;
 
-    let (network, network_status_sinks, system_rpc_tx, network_starter) =
+    let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -569,7 +568,6 @@ where
         keystore: keystore_container.sync_keystore(),
         config,
         backend,
-        network_status_sinks,
         system_rpc_tx,
         network: network.clone(),
         task_manager: &mut task_manager,
