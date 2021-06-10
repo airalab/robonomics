@@ -30,6 +30,7 @@ pub async fn submit<T: Pair>(
     remote: String,
     robot: String,
     param: bool,
+    rws: bool,
 ) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
