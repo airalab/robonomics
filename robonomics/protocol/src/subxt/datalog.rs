@@ -17,16 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics data blockchainization.
 
-use super::{pallet_datalog, AccountId, Robonomics};
+use super::{pallet_datalog::*, pallet_rws::*, AccountId, Robonomics};
 use crate::error::Result;
 
 use futures::future::join_all;
-use pallet_datalog::*;
 use sp_core::crypto::Pair;
-use substrate_subxt::PairSigner;
+use substrate_subxt::{Call, PairSigner};
 
 /// Sign datalog record and send using remote Robonomics node.
-pub async fn submit<T: Pair>(signer: T, remote: String, data_record: Vec<u8>) -> Result<[u8; 32]>
+pub async fn submit<T: Pair>(
+    signer: T,
+    remote: String,
+    data_record: Vec<u8>,
+    rws: bool,
+) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
     sp_runtime::MultiSignature: From<<T as Pair>::Signature>,
@@ -38,7 +42,13 @@ where
         .set_url(remote.as_str())
         .build()
         .await?;
-    let xt_hash = client.record(&subxt_signer, data_record).await?;
+
+    let xt_hash = if rws {
+        client.call(client.record(&subxt_signer, data_record).await?)
+    } else {
+        client.record(&subxt_signer, data_record).await?
+    };
+
     log::debug!(
         target: "robonomics-datalog",
         "Data record submited in extrinsic with hash {}", xt_hash

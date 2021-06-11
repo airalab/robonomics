@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Launch CPS using Robonomics network.
 
-use super::{pallet_launch::*, AccountId, Robonomics};
+use super::{pallet_launch::*, pallet_rws::*, AccountId, Robonomics};
 use crate::error::{Error, Result};
 
 use codec::Decode;
 use sp_core::crypto::{Pair, Ss58Codec};
-use substrate_subxt::{EventSubscription, PairSigner};
+use substrate_subxt::{Call, EventSubscription, PairSigner};
 
 /// Send launch request using remote Robonomics node.
 pub async fn submit<T: Pair>(
@@ -30,6 +30,7 @@ pub async fn submit<T: Pair>(
     remote: String,
     robot: String,
     param: bool,
+    rws: bool,
 ) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
@@ -43,7 +44,13 @@ where
         .set_url(remote.as_str())
         .build()
         .await?;
-    let xt_hash = client.launch(&subxt_signer, robot_account, param).await?;
+
+    let xt_hash = if rws {
+        client.call(client.launch(&subxt_signer, robot_account, param).await?)
+    } else {
+        client.launch(&subxt_signer, robot_account, param).await?
+    };
+
     log::debug!(
         target: "robonomics-launch",
         "Launch request submited in extrinsic with hash {}", xt_hash
