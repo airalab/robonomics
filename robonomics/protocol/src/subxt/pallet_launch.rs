@@ -32,17 +32,17 @@ pub trait Launch: System {
 /// Send launch request to robot with given parameter.
 #[derive(Clone, Debug, Eq, PartialEq, Call, Encode)]
 pub struct LaunchCall<T: Launch> {
-    robot: T::AccountId,
-    param: T::Parameter,
+    pub robot: T::AccountId,
+    pub param: T::Parameter,
 }
 
 /// New launch request sent.
 #[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
 pub struct NewLaunchEvent<T: Launch> {
     /// Sender account.
-    pub sender: <T as System>::AccountId,
+    pub sender: T::AccountId,
     /// Robot account with request to launch.
-    pub robot: <T as System>::AccountId,
+    pub robot: T::AccountId,
     /// Robot launch parameter.
     pub param: T::Parameter,
 }

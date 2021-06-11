@@ -17,6 +17,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod bench;
-pub mod keyring;
-pub mod genesis;
 pub mod client;
+pub mod genesis;
+pub mod keyring;

@@ -15,24 +15,42 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! SubXt compatible robonomics-rws pallet.
+//! SubXt compatible RWS pallet.
 
-use codec::{Codec, Encode, EncodeLike};
-use sp_runtime::traits::Extrinsic;
-use sp_runtime::traits::Member;
-use sp_runtime::OpaqueExtrinsic;
+use codec::{Decode, Encode};
+use sp_runtime::{DispatchResult, Perbill};
 use std::fmt::Debug;
-use substrate_subxt::system::System;
-use substrate_subxt_proc_macro::{module, Call};
+use substrate_subxt::{system::System, Encoded};
+use substrate_subxt_proc_macro::{module, Call, Event};
 
 /// The subset of the `pallet_robonomics_rws::Config` that a client must implement.
 #[module]
-pub trait RWS: System {
-    type Call: Codec + EncodeLike + Member + Default;
-}
+pub trait RWS: System {}
 
 /// Wrap extrinsic call.
 #[derive(Clone, Debug, Eq, PartialEq, Call, Encode)]
-pub struct RwsCall<T: RWS> {
-    call: T::Call,
+pub struct CallCall<'a, T: RWS> {
+    pub subscription: &'a T::AccountId,
+    pub call: &'a Encoded,
+}
+
+/// Updated bandwidth for an account.
+#[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
+pub struct BandwidthEvent<T: RWS> {
+    pub subscription: T::AccountId,
+    pub ratio: Perbill,
+}
+
+/// Registered RWS subscription.
+#[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
+pub struct SubscriptionEvent<T: RWS> {
+    pub subscription: T::AccountId,
+    pub devices: Vec<T::AccountId>,
+}
+
+/// Runtime method executed using RWS subscription.
+#[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
+pub struct NewCallEvent<T: RWS> {
+    pub subscription: T::AccountId,
+    pub result: DispatchResult,
 }

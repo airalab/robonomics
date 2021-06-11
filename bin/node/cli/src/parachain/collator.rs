@@ -49,14 +49,12 @@ async fn start_node_impl(
     let params = new_partial(&parachain_config)?;
 
     let (mut telemetry, telemetry_worker_handle) = params.other;
-    let relay_chain_full_node = cumulus_client_service::build_polkadot_full_node(
-        polkadot_config,
-        telemetry_worker_handle,
-    )
-    .map_err(|e| match e {
-        polkadot_service::Error::Sub(x) => x,
-        s => format!("{}", s).into(),
-    })?;
+    let relay_chain_full_node =
+        cumulus_client_service::build_polkadot_full_node(polkadot_config, telemetry_worker_handle)
+            .map_err(|e| match e {
+                polkadot_service::Error::Sub(x) => x,
+                s => format!("{}", s).into(),
+            })?;
 
     let client = params.client.clone();
     let backend = params.backend.clone();
@@ -179,11 +177,5 @@ pub async fn start_node(
     id: polkadot_primitives::v0::Id,
     validator_account: Option<sp_core::H160>,
 ) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)> {
-    start_node_impl(
-        parachain_config,
-        polkadot_config,
-        id,
-        validator_account,
-    )
-    .await
+    start_node_impl(parachain_config, polkadot_config, id, validator_account).await
 }

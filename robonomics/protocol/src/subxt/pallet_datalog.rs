@@ -33,14 +33,14 @@ pub trait Datalog: System {
 /// Send new data record into blockchain.
 #[derive(Clone, Debug, Eq, PartialEq, Call, Encode)]
 pub struct RecordCall<T: Datalog> {
-    record: T::Record,
+    pub record: T::Record,
 }
 
 /// New datalog record created.
 #[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
 pub struct NewRecordEvent<T: Datalog> {
     /// Sender account.
-    pub sender: <T as System>::AccountId,
+    pub sender: T::AccountId,
     /// Inblock time stamp.
     pub timestamp: u64,
     /// Data record.
@@ -57,14 +57,14 @@ pub struct EreaseCall<T: Datalog> {
 /// Account datalog storage ereased.
 #[derive(Clone, Debug, Eq, PartialEq, Event, Decode)]
 pub struct ErasedEvent<T: Datalog> {
-    pub sender: <T as System>::AccountId,
+    pub sender: T::AccountId,
 }
 
 /// Deprecated!!!
 #[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
 pub struct DatalogStore<'a, T: Datalog> {
     #[store(returns = Vec<(u64, T::Record)>)]
-    account_id: &'a <T as System>::AccountId,
+    account_id: &'a T::AccountId,
 }
 
 /// Datalog index type copy.
@@ -116,7 +116,7 @@ impl Iterator for RingBufferIterator<'_> {
 #[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
 pub struct DatalogIndexStore<'a, T: Datalog> {
     #[store(returns = RingBufferIndex)]
-    account_id: &'a <T as System>::AccountId,
+    account_id: &'a T::AccountId,
 }
 
 /// Datalog item type copy.
@@ -127,5 +127,5 @@ pub struct RingBufferItem(#[codec(compact)] pub u64, pub Vec<u8>);
 #[derive(Clone, Debug, Eq, PartialEq, Store, Encode)]
 pub struct DatalogItemStore<'a, T: Datalog> {
     #[store(returns = RingBufferItem)]
-    record: (&'a <T as System>::AccountId, u64),
+    record: (&'a T::AccountId, u64),
 }

@@ -73,14 +73,9 @@ pub async fn run(
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-    super::collator::start_node(
-        config,
-        polkadot_config,
-        parachain_id,
-        validator_account,
-    )
-    .await
-    .map(|r| r.0)
+    super::collator::start_node(config, polkadot_config, parachain_id, validator_account)
+        .await
+        .map(|r| r.0)
 }
 
 #[derive(Debug)]

@@ -53,9 +53,9 @@ pub enum SinkCmd {
         /// Sender account seed URI.
         #[structopt(short, value_name = "SECRET_URI")]
         suri: String,
-        /// Start in subscription mode
-        #[structopt(long, value_name = "RWS")]
-        rws: bool,
+        /// RWS subscription address.
+        #[structopt(long, value_name = "RWS_ADDRESS")]
+        rws: Option<String>,
     },
     /// Upload data into IPFS storage.
     Ipfs {
@@ -78,9 +78,9 @@ pub enum SinkCmd {
         /// Target CPS address.
         #[structopt(short, value_name = "ROBOT_ADDRESS")]
         robot: String,
-        /// Start in subscription mode
-        #[structopt(long, value_name = "RWS")]
-        rws: bool,
+        /// RWS subscription address.
+        #[structopt(long, value_name = "RWS_ADDRESS")]
+        rws: Option<String>,
     },
     #[cfg(feature = "ros")]
     /// Publish data into ROS topic.

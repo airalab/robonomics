@@ -18,18 +18,18 @@
 //! Robonomics data blockchainization.
 
 use super::{pallet_datalog::*, pallet_rws::*, AccountId, Robonomics};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 use futures::future::join_all;
-use sp_core::crypto::Pair;
-use substrate_subxt::{Call, PairSigner};
+use sp_core::crypto::{Pair, Ss58Codec};
+use substrate_subxt::PairSigner;
 
 /// Sign datalog record and send using remote Robonomics node.
 pub async fn submit<T: Pair>(
     signer: T,
     remote: String,
     data_record: Vec<u8>,
-    rws: bool,
+    rws: Option<String>,
 ) -> Result<[u8; 32]>
 where
     sp_runtime::MultiSigner: From<<T as Pair>::Public>,
@@ -43,8 +43,15 @@ where
         .build()
         .await?;
 
-    let xt_hash = if rws {
-        client.call(client.record(&subxt_signer, data_record).await?)
+    let xt_hash = if let Some(subscription) = rws {
+        let call = client.encode(RecordCall {
+            record: data_record,
+        })?;
+        let subscription_account =
+            AccountId::from_ss58check(subscription.as_str()).map_err(|_| Error::Ss58CodecError)?;
+        client
+            .call(&subxt_signer, &subscription_account, &call)
+            .await?
     } else {
         client.record(&subxt_signer, data_record).await?
     };

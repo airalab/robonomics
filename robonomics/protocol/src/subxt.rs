@@ -38,6 +38,7 @@ pub mod pallet_rws;
 
 use pallet_datalog::DatalogEventTypeRegistry;
 use pallet_launch::LaunchEventTypeRegistry;
+use pallet_rws::RWSEventTypeRegistry;
 
 /// Robonomics Network family substrate runtimes.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -55,6 +56,7 @@ impl Runtime for Robonomics {
         event_type_registry.with_balances();
         event_type_registry.with_datalog();
         event_type_registry.with_launch();
+        event_type_registry.with_rws();
         register_default_type_sizes(event_type_registry);
     }
 }
@@ -83,6 +85,4 @@ impl pallet_launch::Launch for Robonomics {
     type Parameter = bool;
 }
 
-impl pallet_rws::RWS for Robonomics {
-    // type Call = Fn(?) -> ?;
-}
+impl pallet_rws::RWS for Robonomics {}

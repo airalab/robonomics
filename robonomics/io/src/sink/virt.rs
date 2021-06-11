@@ -78,7 +78,7 @@ pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
 pub fn datalog<T: Into<Vec<u8>>>(
     remote: String,
     suri: String,
-    rws: bool,
+    rws: Option<String>,
 ) -> Result<(
     impl Sink<T, Error = Error>,
     impl Stream<Item = Result<[u8; 32]>>,
@@ -87,7 +87,7 @@ pub fn datalog<T: Into<Vec<u8>>>(
 
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.then(move |msg: T| {
-        datalog::submit(pair.clone(), remote.clone(), msg.into(), rws)
+        datalog::submit(pair.clone(), remote.clone(), msg.into(), rws.clone())
             .map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), hashes))
@@ -125,7 +125,7 @@ pub fn launch(
     remote: String,
     suri: String,
     robot: String,
-    rws: bool,
+    rws: Option<String>,
 ) -> Result<(
     impl Sink<bool, Error = Error>,
     impl Stream<Item = Result<[u8; 32]>>,
@@ -134,8 +134,14 @@ pub fn launch(
 
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.then(move |signal: bool| {
-        launch::submit(pair.clone(), remote.clone(), robot.clone(), signal, rws)
-            .map(|r| r.map_err(Into::into))
+        launch::submit(
+            pair.clone(),
+            remote.clone(),
+            robot.clone(),
+            signal,
+            rws.clone(),
+        )
+        .map(|r| r.map_err(Into::into))
     });
     Ok((sender.sink_err_into(), hashes))
 }

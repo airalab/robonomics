@@ -25,12 +25,11 @@ mod import;
 mod simple_trie;
 mod state_sizes;
 mod tempdb;
+mod testing;
 mod trie;
 mod txpool;
-mod testing;
 
 use structopt::StructOpt;
-
 
 use crate::{
     common::SizeType,
@@ -38,9 +37,9 @@ use crate::{
     core::{run_benchmark, Mode as BenchmarkMode},
     import::ImportBenchmarkDescription,
     tempdb::DatabaseType,
+    testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile},
     trie::{DatabaseSize, TrieReadBenchmarkDescription, TrieWriteBenchmarkDescription},
     txpool::PoolBenchmarkDescription,
-    testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile},
 };
 
 #[derive(Debug, StructOpt)]

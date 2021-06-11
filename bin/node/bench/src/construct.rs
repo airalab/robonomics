@@ -27,8 +27,8 @@
 use futures::Future;
 use std::{borrow::Cow, collections::HashMap, pin::Pin, sync::Arc};
 
-use node_primitives::Block;
 use crate::testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes, Profile};
+use node_primitives::Block;
 use sp_consensus::{Environment, Proposer};
 use sp_inherents::InherentDataProvider;
 use sp_runtime::{generic::BlockId, traits::NumberFor, OpaqueExtrinsic};
