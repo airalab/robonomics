@@ -39,8 +39,6 @@ pub async fn run(
     parachain_id: Option<u32>,
     validator_account: Option<sp_core::H160>,
 ) -> sc_service::error::Result<TaskManager> {
-    let key = sp_core::Pair::generate().0;
-
     let extension = super::chain_spec::Extensions::try_get(&config.chain_spec);
     let parachain_id = ParaId::from(parachain_id.or(extension.map(|e| e.para_id)).unwrap_or(100));
     let relay_chain_id = extension.map(|e| e.relay_chain.clone());
@@ -77,7 +75,6 @@ pub async fn run(
 
     super::collator::start_node(
         config,
-        key,
         polkadot_config,
         parachain_id,
         validator_account,
