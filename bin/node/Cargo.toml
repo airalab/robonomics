@@ -1,5 +1,5 @@
 [package]
-name = "robonomics"
+name = "robonomics-node"
 version = "0.29.1"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
@@ -23,19 +23,19 @@ path = "src/main.rs"
 
 [dependencies]
 parity-util-mem = { version = "0.9.0", default-features = false, features = ["jemalloc-global"] }
-node-cli = { path = "cli", default-features = false }
+node-service = { path = "service", default-features = false }
 
 [features]
 default = [
-  "node-cli/rococo",
-  "node-cli/wasmtime",
+  "node-service/kusama",
+  "node-service/wasmtime",
 ]
 
 # Lightweight node build
-zero = [ "node-cli/zero" ]
+zero = [ "node-service/zero" ]
 
 # Build node for benchmarking
 benchmarks = [
-  "node-cli/full",
-  "node-cli/runtime-benchmarks",
+  "node-service/full",
+  "node-service/runtime-benchmarks",
 ]
