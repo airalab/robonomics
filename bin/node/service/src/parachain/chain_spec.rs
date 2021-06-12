@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use cumulus_primitives_core::ParaId;
-use robonomics_primitives::{AccountId, Balance};
 use alpha_runtime::{
     wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, SudoConfig,
     SystemConfig,
 };
+use cumulus_primitives_core::ParaId;
+use robonomics_primitives::{AccountId, Balance};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -137,6 +137,7 @@ fn mk_genesis(
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 
+/*
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
     use hex_literal::hex;
@@ -218,11 +219,12 @@ pub fn mars_parachain_config() -> ChainSpec {
         },
     )
 }
+*/
 
 /// Kusama parachain genesis.
-fn rococo_parachain_genesis() -> GenesisConfig {
-    use hex_literal::hex;
+fn kusama_parachain_genesis() -> GenesisConfig {
     use alpha_runtime::constants::currency;
+    use hex_literal::hex;
 
     // akru
     let sudo_key: AccountId =
@@ -244,7 +246,7 @@ pub fn kusama_parachain_config() -> ChainSpec {
         "Robonomics",
         "robonomics",
         ChainType::Live,
-        rococo_parachain_genesis,
+        kusama_parachain_genesis,
         boot_nodes,
         Some(
             sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
@@ -259,7 +261,6 @@ pub fn kusama_parachain_config() -> ChainSpec {
     )
 }
 
-/*
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
@@ -270,6 +271,7 @@ pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
+/*
 /// Rococo parachain confing.
 #[cfg(feature = "kusama-parachain")]
 pub fn kusama_parachain_config() -> ChainSpec {

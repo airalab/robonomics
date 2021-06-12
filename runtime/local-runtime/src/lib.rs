@@ -53,12 +53,12 @@ use frame_support::{
     },
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
+use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};

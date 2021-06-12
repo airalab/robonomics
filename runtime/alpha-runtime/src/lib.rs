@@ -46,8 +46,8 @@ use frame_support::{
     PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,

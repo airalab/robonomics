@@ -17,11 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use local_runtime::{
     wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig,
     SystemConfig,
 };
+use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};

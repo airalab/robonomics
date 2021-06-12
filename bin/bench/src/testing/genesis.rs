@@ -19,11 +19,11 @@
 //! Genesis Configuration.
 
 use super::keyring::*;
-use robonomics_primitives::AccountId;
 use local_runtime::{
     constants::currency::*, wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig,
     GrandpaConfig, SystemConfig, BABE_GENESIS_EPOCH_CONFIG,
 };
+use robonomics_primitives::AccountId;
 use sp_core::ChangesTrieConfiguration;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 

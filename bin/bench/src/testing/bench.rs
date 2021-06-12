@@ -32,10 +32,10 @@ use crate::testing::client::{Backend, Client};
 use crate::testing::keyring::*;
 use codec::{Decode, Encode};
 use futures::executor;
-use robonomics_primitives::{AccountId, Block, Signature};
 use local_runtime::{
     constants::currency::XRT, Call, CheckedExtrinsic, MinimumPeriod, UncheckedExtrinsic,
 };
+use robonomics_primitives::{AccountId, Block, Signature};
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::{
     execution_extensions::{ExecutionExtensions, ExecutionStrategies},

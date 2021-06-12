@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-bench"
-version = "0.8.0"
+version = "0.30.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "Substrate node integration benchmarks."
 edition = "2018"

@@ -39,7 +39,8 @@ pub type Client = client::Client<
 >;
 
 /// Transaction for node-runtime.
-pub type Transaction = sc_client_api::backend::TransactionFor<Backend, robonomics_primitives::Block>;
+pub type Transaction =
+    sc_client_api::backend::TransactionFor<Backend, robonomics_primitives::Block>;
 
 /// Genesis configuration parameters for `TestClient`.
 #[derive(Default)]
