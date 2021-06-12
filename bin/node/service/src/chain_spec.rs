@@ -18,8 +18,8 @@
 //! Chain specification and utils.
 
 use local_runtime::{
-    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, SudoConfig,
-    SystemConfig,
+    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, StakingConfig,
+    SudoConfig, SystemConfig,
 };
 use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
@@ -148,6 +148,7 @@ fn mk_genesis(
     sudo_key: AccountId,
     code: Vec<u8>,
 ) -> GenesisConfig {
+    let bonus = balances.clone();
     GenesisConfig {
         frame_system: SystemConfig {
             code,
@@ -168,6 +169,7 @@ fn mk_genesis(
                 .collect(),
         },
         pallet_sudo: SudoConfig { key: sudo_key },
+        pallet_robonomics_staking: StakingConfig { bonus },
     }
 }
 

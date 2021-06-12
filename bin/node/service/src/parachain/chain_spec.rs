@@ -18,8 +18,8 @@
 //! Chain specification and utils.
 
 use alpha_runtime::{
-    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, SudoConfig,
-    SystemConfig,
+    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, StakingConfig,
+    SudoConfig, SystemConfig,
 };
 use cumulus_primitives_core::ParaId;
 use robonomics_primitives::{AccountId, Balance};
@@ -120,6 +120,7 @@ fn mk_genesis(
     code: Vec<u8>,
     parachain_id: ParaId,
 ) -> GenesisConfig {
+    let bonus = balances.clone();
     GenesisConfig {
         frame_system: SystemConfig {
             code,
@@ -129,6 +130,7 @@ fn mk_genesis(
         pallet_elections_phragmen: Default::default(),
         pallet_collective_Instance1: Default::default(),
         pallet_treasury: Default::default(),
+        pallet_robonomics_staking: StakingConfig { bonus },
         pallet_sudo: SudoConfig { key: sudo_key },
         parachain_info: ParachainInfoConfig { parachain_id },
     }
@@ -140,8 +142,8 @@ const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 /*
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> GenesisConfig {
-    use hex_literal::hex;
     use alpha_runtime::constants::currency;
+    use hex_literal::hex;
 
     // akru
     let sudo_key: AccountId =
@@ -182,8 +184,8 @@ pub fn earth_parachain_config() -> ChainSpec {
 
 /// Mars parachain genesis.
 fn mars_parachain_genesis() -> GenesisConfig {
-    use hex_literal::hex;
     use alpha_runtime::constants::currency;
+    use hex_literal::hex;
 
     // akru
     let sudo_key: AccountId =

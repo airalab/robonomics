@@ -448,6 +448,20 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
     type Lighthouse = sp_core::H160;
 }
 
+parameter_types! {
+    pub const BondingDuration: BlockNumber = 7 * 24 * 60 * 5; // 7 days
+    pub const StakeReward: Perbill = Perbill::from_parts(40);
+    pub const BonusReward: Perbill = Perbill::from_parts(200);
+}
+
+impl pallet_robonomics_staking::Config for Runtime {
+    type Currency = Balances;
+    type Event = Event;
+    type BondingDuration = BondingDuration;
+    type StakeReward = StakeReward;
+    type BonusReward = BonusReward;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -470,6 +484,7 @@ construct_runtime! {
         RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
         DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
         Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
+        Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
 
         // Parachain modules.
         ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},
