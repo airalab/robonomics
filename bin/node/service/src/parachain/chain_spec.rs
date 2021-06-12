@@ -34,6 +34,10 @@ use crate::chain_spec::get_account_id_from_seed;
 const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
 const MARS_ID: u32 = 2000;
+/// Venus parachain ID
+const VENUS_ID: u32 = 3000;
+/// Uranus parachain ID
+const URANUS_ID: u32 = 4000;
 /// Kusama parachain ID
 const KUSAMA_ID: u32 = 2077;
 
@@ -68,6 +72,15 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
+
+    if id == ParaId::from(VENUS_ID) {
+        return venus_parachain_config();
+    }
+
+    if id == ParaId::from(URANUS_ID) {
+        return uranus_parachain_config();
+    }
+
 
     #[cfg(feature = "kusama-parachain")]
     if id == ParaId::from(KUSAMA_ID) {
@@ -271,6 +284,16 @@ pub fn earth_parachain_config() -> ChainSpec {
 /// Mars parachain confing.
 pub fn mars_parachain_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
+}
+
+/// Venus parachain confing.
+pub fn venus_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/venus.json")[..]).unwrap()
+}
+
+/// Uranus parachain confing.
+pub fn uranus_parachain_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
 }
 
 /*
