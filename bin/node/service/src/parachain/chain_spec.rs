@@ -81,7 +81,6 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
         return uranus_parachain_config();
     }
 
-
     #[cfg(feature = "kusama-parachain")]
     if id == ParaId::from(KUSAMA_ID) {
         return kusama_parachain_config();
