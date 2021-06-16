@@ -36,31 +36,33 @@ pub mod currency {
     #[cfg(feature = "std")]
     lazy_static::lazy_static! {
         pub static ref STAKE_HOLDERS: Vec<(AccountId, Balance)> = sp_std::vec![
-            // snapshot of 12.06.2021
-            (AccountId::from(hex!["5c63763273b539fa6ed09b6b9844553922f7c5eb30195062b139b057ac861568"]), 1_000 * XRT),
-            (AccountId::from(hex!["caafae0aaa6333fcf4dc193146945fe8e4da74aa6c16d481eef0ca35b8279d73"]), 5_000 * XRT),
-            (AccountId::from(hex!["1a84dfd9e4e30b0d48c4110bf7c509d5f27a68d4fade696dff3274e0afa09062"]), 1 * XRT),
-            (AccountId::from(hex!["8e5cda83432e069937b7e032ed8f88280a020aba933ee928eb936ab265f4c364"]), 10_000 * XRT),
-            (AccountId::from(hex!["4468ebb7dbdc05fa9c062583fffe942179dcd8b0dff095b265f35fb3c936305d"]), 10 * XRT),
-            (AccountId::from(hex!["c8bdd564dbb9de6c2ded0f1c7649195336ea9a11246499257ecc5d72bc544d24"]), 150 * GLUSHKOV),
+            // Exodus Migrate snapshot 2021/06/16
+            (AccountId::from(hex!["5c63763273b539fa6ed09b6b9844553922f7c5eb30195062b139b057ac861568"]), 1000000000000),
+            (AccountId::from(hex!["caafae0aaa6333fcf4dc193146945fe8e4da74aa6c16d481eef0ca35b8279d73"]), 5000000000000),
+            (AccountId::from(hex!["9c322cfa42b80ffb1fa0a096ffbbe08ff44423ea7e6626183ba14bfb20c98c53"]), 5305599999),
+            (AccountId::from(hex!["1a84dfd9e4e30b0d48c4110bf7c509d5f27a68d4fade696dff3274e0afa09062"]), 1000000000),
+            (AccountId::from(hex!["8e5cda83432e069937b7e032ed8f88280a020aba933ee928eb936ab265f4c364"]), 10000000000000),
+            (AccountId::from(hex!["4468ebb7dbdc05fa9c062583fffe942179dcd8b0dff095b265f35fb3c936305d"]), 10000000000),
+            (AccountId::from(hex!["c8bdd564dbb9de6c2ded0f1c7649195336ea9a11246499257ecc5d72bc544d24"]), 150000000),
             (AccountId::from(hex!["d66ac04ad10dbb5ac16a6a477dce727d647cbfd809d18b150cb402ae1569b555"]), 54983128556),
             (AccountId::from(hex!["2e701510ea99739603eca9b602090f9c9292d3f17ba7a2a58d1a99c26c122372"]), 25745228238),
             (AccountId::from(hex!["7c419853e4527f91c10475108c08c41488ea4c90394a18b48bf5a6dc0c144079"]), 13541598278),
-            (AccountId::from(hex!["140bd550d9367068fe97a6065d50bc8bdf41512c3c056532f314efaa9b407243"]), 214114327643 + 51499079036),
+            (AccountId::from(hex!["140bd550d9367068fe97a6065d50bc8bdf41512c3c056532f314efaa9b407243"]), 265613406679),
             (AccountId::from(hex!["20a1927f851b85a2666b6974291e1b3d080aa4fdf16b7f7a96e12767c8323116"]), 1483287492836),
             (AccountId::from(hex!["0c48e3ac08805cb181484c6bdae2b3c1800cff183fe6662657068883fe923363"]), 55670405588),
             (AccountId::from(hex!["04f2c20a93384e68602305e4ee2fab21efd32b38fe821004339d695096726731"]), 205356000000),
+            (AccountId::from(hex!["467043e7ea63b9327f2ab3a9c3311ef76117a7168ff40ecc4a19062e1374fd1d"]), 76032697041),
             (AccountId::from(hex!["10207cbf5dca98b9915afe6ae001df7d81cd8fd2090a2f150e17ab7751894537"]), 2638200000),
-            (AccountId::from(hex!["ae59474d9bad862954207f1fafc8be18b066e9c20ef776077cf742e6ccb13548"]), 2_000 * XRT),
-            (AccountId::from(hex!["0c8220c20b57d955cd84344bcb97955704f70c88c037a2811b92ba8b81ceed18"]), 1_620 * XRT),
+            (AccountId::from(hex!["ae59474d9bad862954207f1fafc8be18b066e9c20ef776077cf742e6ccb13548"]), 2000000000000),
+            (AccountId::from(hex!["0c8220c20b57d955cd84344bcb97955704f70c88c037a2811b92ba8b81ceed18"]), 1620000000000),
             (AccountId::from(hex!["1e65015f1fcf3b5f0dad80efb6213321b2fbace6b1662722d574d9641bbfa072"]), 10083703970),
             (AccountId::from(hex!["1c12b0d4a58e59124e863a171252a47939e4b7f3131534f9477c0020e04dfd1e"]), 4922233240),
-            (AccountId::from(hex!["ba19513146f4ac49ef7ffc6eca82d823d741a487bd0b3d9c5b17ae04a4191c48"]), 3_000 * XRT),
+            (AccountId::from(hex!["ba19513146f4ac49ef7ffc6eca82d823d741a487bd0b3d9c5b17ae04a4191c48"]), 3000000000000),
             (AccountId::from(hex!["ecc01bcc8ad8bac7406622a18a977ac862ac57a65444f7ec426d9ad20c65c056"]), 331285522627),
             (AccountId::from(hex!["441af87350235ec135c2e388807249f22460588e3f68ea8f6e6cfd7af9159f43"]), 10132996319),
             (AccountId::from(hex!["68ebabf73c36d3f48c9b9c63f681686a94a1b7208b821c34db4d64e1be85e616"]), 18103206092),
             // DAO (https://etherscan.io/tx/0x6b9a9cbe7d21badf565ebce0fb50b865da8f5f784899db5fb455d1b276d14acf)
-            (AccountId::from(hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"]), 692500 * XRT),
+            (frame_support::PalletId(*b"py/trsry").into_account()), 692500000000001),
         ];
     }
 }
