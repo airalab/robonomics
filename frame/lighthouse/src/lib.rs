@@ -28,12 +28,27 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use frame_support::traits::{Currency, OnUnbalanced, Imbalance};
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
+    type NegativeImbalanceOf<T> =
+        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+
+    type BalanceOf<T> =
+        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        type Lighthouse: frame_support::dispatch::Parameter;
+        /// The native token.
+        type Currency: Currency<Self::AccountId>;
+
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+        /// Reward amount for block proposer.
+        #[pallet::constant]
+        type BlockReward: Get<BalanceOf<Self>>;
     }
 
     #[pallet::error]
@@ -42,26 +57,44 @@ pub mod pallet {
         LighthouseAlreadySet,
     }
 
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::metadata(T::AccountId = "AccountId", BalanceOf<T> = "Balance")]
+    pub enum Event<T: Config> {
+        /// An account rewarded for block production. \[lighthouse, amount\]
+        BlockReward(T::AccountId, BalanceOf<T>),
+    }
+
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(PhantomData<T>);
 
+    /// Current block lighthouse account.
     #[pallet::storage]
     #[pallet::getter(fn lighthouse)]
-    pub(super) type Lighthouse<T> = StorageValue<_, <T as Config>::Lighthouse>;
+    pub(super) type Lighthouse<T: Config> = StorageValue<_, T::AccountId>;
+
+    /// Current block lighthouse reward.
+    #[pallet::storage]
+    #[pallet::getter(fn fees_reward)]
+    pub(super) type BlockReward<T: Config> = StorageValue<_, BalanceOf<T>>;
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
             <Lighthouse<T>>::kill();
+            <BlockReward<T>>::kill();
             0
         }
 
         fn on_finalize(_n: T::BlockNumber) {
-            assert!(
-                <Lighthouse<T>>::get().is_some(),
-                "No valid lighthouse set in block"
-            );
+            let lighthouse = <Lighthouse<T>>::get().expect("Lighthouse must be set");
+            let block_reward = <BlockReward<T>>::get().unwrap_or(T::BlockReward::get());
+
+            let reward_imbalance = T::Currency::issue(block_reward);
+            T::Currency::resolve_creating(&lighthouse, reward_imbalance);
+
+            Self::deposit_event(Event::BlockReward(lighthouse, block_reward))
         }
     }
 
@@ -69,7 +102,10 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Inherent to set the lighthouse of a block.
         #[pallet::weight((0, DispatchClass::Mandatory))]
-        fn set(origin: OriginFor<T>, lighthouse: T::Lighthouse) -> DispatchResultWithPostInfo {
+        fn set(
+            origin: OriginFor<T>,
+            lighthouse: T::AccountId, 
+        ) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             ensure!(
                 <Lighthouse<T>>::get().is_none(),
@@ -94,7 +130,7 @@ pub mod pallet {
             let lighthouse_raw = data
                 .get_data::<InherentType>(&INHERENT_IDENTIFIER)
                 .expect("Gets and decodes authorship inherent data")?;
-            let lighthouse = T::Lighthouse::decode(&mut &lighthouse_raw[..])
+            let lighthouse = T::AccountId::decode(&mut &lighthouse_raw[..])
                 .expect("Decodes author raw inherent data");
             Some(Call::set(lighthouse))
         }
@@ -105,6 +141,13 @@ pub mod pallet {
 
         fn is_inherent(call: &Self::Call) -> bool {
             matches!(call, Call::set(_))
+        }
+    }
+
+    impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
+        fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T>) {
+            let current = <BlockReward<T>>::get().unwrap_or(T::BlockReward::get());
+            <BlockReward<T>>::put(current + amount.peek());
         }
     }
 }
