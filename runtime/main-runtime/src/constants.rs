@@ -59,8 +59,10 @@ pub mod currency {
             (AccountId::from(hex!["ecc01bcc8ad8bac7406622a18a977ac862ac57a65444f7ec426d9ad20c65c056"]), 331285522627),
             (AccountId::from(hex!["441af87350235ec135c2e388807249f22460588e3f68ea8f6e6cfd7af9159f43"]), 10132996319),
             (AccountId::from(hex!["68ebabf73c36d3f48c9b9c63f681686a94a1b7208b821c34db4d64e1be85e616"]), 18103206092),
+            (AccountId::from(hex!["467043e7ea63b9327f2ab3a9c3311ef76117a7168ff40ecc4a19062e1374fd1d"]), 76032697041),
+            (AccountId::from(hex!["9c322cfa42b80ffb1fa0a096ffbbe08ff44423ea7e6626183ba14bfb20c98c53"]), 5305599999),
             // DAO (https://etherscan.io/tx/0x6b9a9cbe7d21badf565ebce0fb50b865da8f5f784899db5fb455d1b276d14acf)
-            (AccountId::from(hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"]), 692500 * XRT),
+            (AccountId::from(hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"]), 692500000000001),
         ];
     }
 }
