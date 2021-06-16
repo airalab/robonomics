@@ -81,6 +81,7 @@ polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "relea
 node-rpc = { path = "../rpc", optional = true }
 local-runtime = { path = "../../../runtime/local-runtime", optional = true }
 alpha-runtime = { path = "../../../runtime/alpha-runtime", optional = true }
+main-runtime = { path = "../../../runtime/main-runtime", optional = true }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.4" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.4" }
 
@@ -133,12 +134,9 @@ zero = [
 
 ## Enable Kusama parachain.
 kusama = [
-    "kusama-parachain",
+    "main-runtime",
     "parachain",
 ]
-
-## Enable official Robonomics Kusama parachain.
-kusama-parachain = []
 
 ## Enable parachain collator.
 parachain = [

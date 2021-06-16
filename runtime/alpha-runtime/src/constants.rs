@@ -24,6 +24,8 @@ pub mod currency {
     #[cfg(feature = "std")]
     use robonomics_primitives::AccountId;
     use robonomics_primitives::Balance;
+    #[cfg(feature = "std")]
+    use sp_runtime::traits::AccountIdConversion;
 
     pub const COASE: Balance = 1_000;
     pub const GLUSHKOV: Balance = 1_000 * COASE;
@@ -62,7 +64,7 @@ pub mod currency {
             (AccountId::from(hex!["441af87350235ec135c2e388807249f22460588e3f68ea8f6e6cfd7af9159f43"]), 10132996319),
             (AccountId::from(hex!["68ebabf73c36d3f48c9b9c63f681686a94a1b7208b821c34db4d64e1be85e616"]), 18103206092),
             // DAO (https://etherscan.io/tx/0x6b9a9cbe7d21badf565ebce0fb50b865da8f5f784899db5fb455d1b276d14acf)
-            (frame_support::PalletId(*b"py/trsry").into_account()), 692500000000001),
+            (frame_support::PalletId(*b"py/trsry").into_account(), 692500000000001),
         ];
     }
 }

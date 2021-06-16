@@ -76,7 +76,9 @@ impl SubstrateCli for Cli {
         match chain_spec.family() {
             RobonomicsFamily::Development => &local_runtime::VERSION,
             #[cfg(feature = "parachain")]
-            RobonomicsFamily::Parachain => &alpha_runtime::VERSION,
+            RobonomicsFamily::Alpha => &alpha_runtime::VERSION,
+            #[cfg(feature = "kusama")]
+            RobonomicsFamily::Main => &main_runtime::VERSION,
         }
     }
 
@@ -105,22 +107,47 @@ pub fn run() -> sc_cli::Result<()> {
                 }),
 
                 #[cfg(feature = "parachain")]
-                RobonomicsFamily::Parachain => runner.run_node_until_exit(|config| async move {
+                RobonomicsFamily::Alpha => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
                         return Err("Light client not supporter!".into());
                     }
 
-                    if cli.run.validator && cli.run.collator_eth_account.is_none() {
-                        return Err("For validating set --collator-eth-account option".into());
+                    if cli.run.validator && cli.run.lighthouse_account.is_none() {
+                        return Err(
+                            "Option --lighthouse-account should be set for validator".into()
+                        );
                     }
 
-                    parachain::command::run(
+                    let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
                         cli.run.parachain_id,
-                        cli.run.collator_eth_account,
-                    )
-                    .await
+                        cli.run.lighthouse_account,
+                    )?;
+
+                    parachain::alpha::start_node(params.0, params.1, params.2, params.3).await
+                }),
+
+                #[cfg(feature = "kusama")]
+                RobonomicsFamily::Main => runner.run_node_until_exit(|config| async move {
+                    if matches!(config.role, sc_cli::Role::Light) {
+                        return Err("Light client not supporter!".into());
+                    }
+
+                    if cli.run.validator && cli.run.lighthouse_account.is_none() {
+                        return Err(
+                            "Option --lighthouse-account should be set for validator".into()
+                        );
+                    }
+
+                    let params = parachain::command::parse_args(
+                        config,
+                        &cli.relaychain_args,
+                        cli.run.parachain_id,
+                        cli.run.lighthouse_account,
+                    )?;
+
+                    parachain::main::start_node(params.0, params.1, params.2, params.3).await
                 }),
             }
             .map_err(Into::into)

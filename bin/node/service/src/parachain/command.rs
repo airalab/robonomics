@@ -20,27 +20,31 @@ use codec::Encode;
 use cumulus_primitives_core::ParaId;
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
+use robonomics_primitives::AccountId;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
     NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
-use sc_service::{
-    config::{BasePath, Configuration, PrometheusConfig},
-    TaskManager,
-};
+use sc_service::config::{BasePath, Configuration, PrometheusConfig};
 use sp_api::BlockT;
+use sp_core::crypto::Ss58Codec;
 use sp_core::hexdisplay::HexDisplay;
 use std::net::SocketAddr;
 
-/// Run a collator node with the given parachain `Configuration`
-pub async fn run(
+/// Parse collator arguments and returns full node configuration.
+pub fn parse_args(
     config: Configuration,
     relaychain_args: &Vec<String>,
     parachain_id: Option<u32>,
-    validator_account: Option<sp_core::H160>,
-) -> sc_service::error::Result<TaskManager> {
+    lighthouse_account: Option<String>,
+) -> sc_service::error::Result<(Configuration, Configuration, ParaId, Option<AccountId>)> {
     let extension = super::chain_spec::Extensions::try_get(&config.chain_spec);
     let parachain_id = ParaId::from(parachain_id.or(extension.map(|e| e.para_id)).unwrap_or(100));
+    let lighthouse_account = if let Some(account) = lighthouse_account {
+        AccountId::from_ss58check(account.as_str()).ok()
+    } else {
+        None
+    };
     let relay_chain_id = extension.map(|e| e.relay_chain.clone());
     let polkadot_cli = RelayChainCli::new(
         config.base_path.as_ref().map(|x| x.path().join("polkadot")),
@@ -61,7 +65,7 @@ pub async fn run(
     info!("[Parachain] Genesis State: {}", genesis_state);
     info!(
         "[Parachain] Is collating: {}",
-        if let Some(account) = validator_account {
+        if let Some(ref account) = lighthouse_account {
             format!("yes ({})", account)
         } else {
             "no".to_string()
@@ -73,9 +77,7 @@ pub async fn run(
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-    super::collator::start_node(config, polkadot_config, parachain_id, validator_account)
-        .await
-        .map(|r| r.0)
+    Ok((config, polkadot_config, parachain_id, lighthouse_account))
 }
 
 #[derive(Debug)]

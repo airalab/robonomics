@@ -28,12 +28,13 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::traits::{Currency, OnUnbalanced, Imbalance};
     use frame_support::pallet_prelude::*;
+    use frame_support::traits::{Currency, Imbalance, OnUnbalanced};
     use frame_system::pallet_prelude::*;
 
-    type NegativeImbalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+    type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+        <T as frame_system::Config>::AccountId,
+    >>::NegativeImbalance;
 
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -102,10 +103,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Inherent to set the lighthouse of a block.
         #[pallet::weight((0, DispatchClass::Mandatory))]
-        fn set(
-            origin: OriginFor<T>,
-            lighthouse: T::AccountId, 
-        ) -> DispatchResultWithPostInfo {
+        fn set(origin: OriginFor<T>, lighthouse: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             ensure!(
                 <Lighthouse<T>>::get().is_none(),

@@ -17,10 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use alpha_runtime::{
-    wasm_binary_unwrap, BalancesConfig, GenesisConfig, ParachainInfoConfig, StakingConfig,
-    SudoConfig, SystemConfig,
-};
 use cumulus_primitives_core::ParaId;
 use robonomics_primitives::{AccountId, Balance};
 use sc_chain_spec::ChainSpecExtension;
@@ -31,15 +27,15 @@ use sp_core::sr25519;
 use crate::chain_spec::get_account_id_from_seed;
 
 /// Earth parachain ID
-const EARTH_ID: u32 = 1000;
+pub const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
-const MARS_ID: u32 = 2000;
+pub const MARS_ID: u32 = 2000;
 /// Venus parachain ID
-const VENUS_ID: u32 = 3000;
+pub const VENUS_ID: u32 = 3000;
 /// Uranus parachain ID
-const URANUS_ID: u32 = 4000;
+pub const URANUS_ID: u32 = 4000;
 /// Kusama parachain ID
-const KUSAMA_ID: u32 = 2077;
+pub const KUSAMA_ID: u32 = 2077;
 
 /// Node `ChainSpec` extensions.
 ///
@@ -61,10 +57,10 @@ impl Extensions {
     }
 }
 
-/// Specialized `ChainSpec`.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+/// Specialized `AlphaChainSpec`.
+pub type AlphaChainSpec = sc_service::GenericChainSpec<alpha_runtime::GenesisConfig, Extensions>;
 
-pub fn get_chain_spec(id: ParaId) -> ChainSpec {
+pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
     if id == ParaId::from(EARTH_ID) {
         return earth_parachain_config();
     }
@@ -81,15 +77,19 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
         return uranus_parachain_config();
     }
 
-    #[cfg(feature = "kusama-parachain")]
-    if id == ParaId::from(KUSAMA_ID) {
-        return kusama_parachain_config();
-    }
-
     test_chain_spec(id)
 }
 
-fn test_chain_spec(id: ParaId) -> ChainSpec {
+/// Specialized `AlphaChainSpec`.
+#[cfg(feature = "kusama")]
+pub type MainChainSpec = sc_service::GenericChainSpec<main_runtime::GenesisConfig, Extensions>;
+
+#[cfg(feature = "kusama")]
+pub fn get_main_chain_spec() -> MainChainSpec {
+    kusama_parachain_config()
+}
+
+fn test_chain_spec(id: ParaId) -> AlphaChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -98,19 +98,18 @@ fn test_chain_spec(id: ParaId) -> ChainSpec {
         get_account_id_from_seed::<sr25519::Public>("Eve"),
         get_account_id_from_seed::<sr25519::Public>("Ferdie"),
     ];
-    ChainSpec::from_genesis(
+    AlphaChainSpec::from_genesis(
         "Local Testnet",
         "local_testnet",
         ChainType::Local,
         move || {
-            mk_genesis(
+            mk_genesis_alpha(
                 balances
                     .iter()
                     .cloned()
                     .map(|a| (a, 1_000_000_000_000u128))
                     .collect(),
                 get_account_id_from_seed::<sr25519::Public>("Alice"),
-                wasm_binary_unwrap().to_vec(),
                 id,
             )
         },
@@ -125,26 +124,44 @@ fn test_chain_spec(id: ParaId) -> ChainSpec {
     )
 }
 
-/// Helper function to create GenesisConfig for parachain
-fn mk_genesis(
+/// Helper function to create GenesisConfig for alpha parachain
+fn mk_genesis_alpha(
     balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
-    code: Vec<u8>,
     parachain_id: ParaId,
-) -> GenesisConfig {
+) -> alpha_runtime::GenesisConfig {
     let bonus = balances.clone();
-    GenesisConfig {
-        frame_system: SystemConfig {
-            code,
+    alpha_runtime::GenesisConfig {
+        frame_system: alpha_runtime::SystemConfig {
+            code: alpha_runtime::wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
         },
-        pallet_balances: BalancesConfig { balances },
+        pallet_balances: alpha_runtime::BalancesConfig { balances },
         pallet_elections_phragmen: Default::default(),
         pallet_collective_Instance1: Default::default(),
         pallet_treasury: Default::default(),
-        pallet_robonomics_staking: StakingConfig { bonus },
-        pallet_sudo: SudoConfig { key: sudo_key },
-        parachain_info: ParachainInfoConfig { parachain_id },
+        pallet_robonomics_staking: alpha_runtime::StakingConfig { bonus },
+        pallet_sudo: alpha_runtime::SudoConfig { key: sudo_key },
+        parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
+    }
+}
+
+/// Helper function to create GenesisConfig for main parachain
+fn mk_genesis_main(
+    balances: Vec<(AccountId, Balance)>,
+    sudo_key: AccountId,
+    parachain_id: ParaId,
+) -> main_runtime::GenesisConfig {
+    let bonus = balances.clone();
+    main_runtime::GenesisConfig {
+        frame_system: main_runtime::SystemConfig {
+            code: main_runtime::wasm_binary_unwrap().to_vec(),
+            changes_trie_config: Default::default(),
+        },
+        pallet_balances: main_runtime::BalancesConfig { balances },
+        pallet_robonomics_staking: main_runtime::StakingConfig { bonus },
+        pallet_sudo: main_runtime::SudoConfig { key: sudo_key },
+        parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
     }
 }
 
@@ -153,7 +170,7 @@ const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 
 /*
 /// Earth parachain genesis.
-fn earth_parachain_genesis() -> GenesisConfig {
+fn earth_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
     use hex_literal::hex;
 
@@ -164,10 +181,9 @@ fn earth_parachain_genesis() -> GenesisConfig {
     let mut balances = currency::STAKE_HOLDERS.clone();
     balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
 
-    mk_genesis(
+    mk_genesis_alpha(
         balances.to_vec(),
         sudo_key,
-        wasm_binary_unwrap().to_vec(),
         EARTH_ID.into(),
     )
 }
@@ -175,7 +191,7 @@ fn earth_parachain_genesis() -> GenesisConfig {
 /// Earth parachain config.
 pub fn earth_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
-    ChainSpec::from_genesis(
+    AlphaChainSpec::from_genesis(
         "Earth",
         "earth",
         ChainType::Live,
@@ -195,7 +211,7 @@ pub fn earth_parachain_config() -> ChainSpec {
 }
 
 /// Mars parachain genesis.
-fn mars_parachain_genesis() -> GenesisConfig {
+fn mars_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
     use hex_literal::hex;
 
@@ -204,10 +220,9 @@ fn mars_parachain_genesis() -> GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     let balances = currency::STAKE_HOLDERS.clone();
-    mk_genesis(
+    mk_genesis_alpha(
         balances.to_vec(),
         sudo_key,
-        wasm_binary_unwrap().to_vec(),
         MARS_ID.into(),
     )
 }
@@ -215,7 +230,7 @@ fn mars_parachain_genesis() -> GenesisConfig {
 /// Mars parachain config.
 pub fn mars_parachain_config() -> ChainSpec {
     let boot_nodes = vec![];
-    ChainSpec::from_genesis(
+    AlphaChainSpec::from_genesis(
         "Mars",
         "mars",
         ChainType::Live,
@@ -236,7 +251,7 @@ pub fn mars_parachain_config() -> ChainSpec {
 */
 
 /// Kusama parachain genesis.
-fn kusama_parachain_genesis() -> GenesisConfig {
+fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
     use hex_literal::hex;
 
@@ -245,18 +260,13 @@ fn kusama_parachain_genesis() -> GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     let balances = currency::STAKE_HOLDERS.clone();
-    mk_genesis(
-        balances.to_vec(),
-        sudo_key,
-        wasm_binary_unwrap().to_vec(),
-        KUSAMA_ID.into(),
-    )
+    mk_genesis_main(balances.to_vec(), sudo_key, KUSAMA_ID.into())
 }
 
 /// Kusama parachain config.
-pub fn kusama_parachain_config() -> ChainSpec {
+pub fn kusama_parachain_config() -> MainChainSpec {
     let boot_nodes = vec![];
-    ChainSpec::from_genesis(
+    MainChainSpec::from_genesis(
         "Robonomics",
         "robonomics",
         ChainType::Live,
@@ -276,29 +286,29 @@ pub fn kusama_parachain_config() -> ChainSpec {
 }
 
 /// Earth parachain confing.
-pub fn earth_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
+pub fn earth_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
 }
 
 /// Mars parachain confing.
-pub fn mars_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
+pub fn mars_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
 /// Venus parachain confing.
-pub fn venus_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/venus.json")[..]).unwrap()
+pub fn venus_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/venus.json")[..]).unwrap()
 }
 
 /// Uranus parachain confing.
-pub fn uranus_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
+pub fn uranus_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
 }
 
 /*
-/// Rococo parachain confing.
-#[cfg(feature = "kusama-parachain")]
-pub fn kusama_parachain_config() -> ChainSpec {
-    ChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.json")[..]).unwrap()
+/// Kusama parachain confing.
+#[cfg(feature = "kusama")]
+pub fn kusama_parachain_config() -> MainChainSpec {
+    MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.json")[..]).unwrap()
 }
 */

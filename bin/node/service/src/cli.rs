@@ -56,7 +56,7 @@ pub struct RunCmd {
     /// Notice: If not set then node will not collate blocks.
     #[structopt(long)]
     #[cfg(feature = "parachain")]
-    pub collator_eth_account: Option<sp_core::H160>,
+    pub lighthouse_account: Option<String>,
 }
 
 impl std::ops::Deref for RunCmd {

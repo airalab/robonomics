@@ -38,27 +38,22 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{LockIdentifier, U128CurrencyToVote, OnUnbalanced, Currency},
+    traits::{Currency, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
-    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
-use sp_core::{
-    crypto::KeyTypeId,
-    u32_trait::{_1, _2, _3, _5},
-    OpaqueMetadata,
-};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{BlakeTwo256, Block as BlockT, AccountIdLookup},
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -96,7 +91,7 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             // for fees, 100% to lighthouse until treasury introduced
             Lighthouse::on_unbalanced(fees);
@@ -294,6 +289,20 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
     type BlockReward = BlockReward;
 }
 
+parameter_types! {
+    pub const BondingDuration: BlockNumber = 7 * 24 * 60 * 5; // 7 days
+    pub const StakeReward: Perbill = Perbill::from_parts(40);
+    pub const BonusReward: Perbill = Perbill::from_parts(200);
+}
+
+impl pallet_robonomics_staking::Config for Runtime {
+    type Currency = Balances;
+    type Event = Event;
+    type BondingDuration = BondingDuration;
+    type StakeReward = StakeReward;
+    type BonusReward = BonusReward;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -318,7 +327,8 @@ construct_runtime! {
         // Robonomics Network pallets.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 51,
         Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>} = 52,
-        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 53,
+        Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 60,
     }
 }
 

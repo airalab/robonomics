@@ -43,7 +43,6 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 
-use codec::Encode;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::KeyOwnerProofSystem,
@@ -62,9 +61,7 @@ use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, AccountIdLookup, NumberFor, SaturatedConversion,
-};
+use sp_runtime::traits::{self, AccountIdLookup, BlakeTwo256, Block as BlockT, NumberFor};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,

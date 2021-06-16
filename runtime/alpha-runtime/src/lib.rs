@@ -38,7 +38,7 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{LockIdentifier, U128CurrencyToVote, OnUnbalanced, Currency},
+    traits::{Currency, Imbalance, LockIdentifier, OnUnbalanced, U128CurrencyToVote},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
@@ -56,7 +56,7 @@ use sp_core::{
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{BlakeTwo256, Block as BlockT, AccountIdLookup},
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
@@ -96,12 +96,12 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
             // for fees, 50% to treasury, 50% to lighthouse
             let mut split = fees.ration(50, 50);
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 50% to treasury, 50% to lighthouse 
+                // for tips, if any, 50% to treasury, 50% to lighthouse
                 tips.ration_merge_into(50, 50, &mut split);
             }
             Treasury::on_unbalanced(split.0);

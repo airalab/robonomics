@@ -34,9 +34,12 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
-    /// Robonomics Network parachain (https://telemetry.polkadot.io/#list/Robonomics).
+    /// Robonomics Alpha Network (https://telemetry.parachain.robonomics.network).
     #[cfg(feature = "parachain")]
-    Parachain,
+    Alpha,
+    /// Robonomics Main Network
+    #[cfg(feature = "kusama")]
+    Main,
 }
 
 /// Robonomics family chains idetify.
@@ -58,7 +61,7 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::Development;
         }
 
-        RobonomicsFamily::Parachain
+        RobonomicsFamily::Alpha
     }
 }
 
