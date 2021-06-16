@@ -19,6 +19,7 @@ members = [
     "protocol",
     "runtime/local-runtime",
     "runtime/alpha-runtime",
+    "runtime/main-runtime",
     "substrate-ros/api",
     "substrate-ros/msgs",
 ]

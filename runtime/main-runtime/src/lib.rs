@@ -69,10 +69,10 @@ use constants::{currency::*, time::*};
 
 /// Standalone runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("robonomics-alpha"),
+    spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
-    authoring_version: 12,
-    spec_version: 12,
+    authoring_version: 1,
+    spec_version: 1,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -98,14 +98,12 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
-            // for fees, 50% to treasury, 50% to lighthouse
-            let mut split = fees.ration(50, 50);
+            // for fees, 100% to lighthouse until treasury introduced
+            Lighthouse::on_unbalanced(fees);
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 50% to treasury, 50% to lighthouse 
-                tips.ration_merge_into(50, 50, &mut split);
+                // for tips, if any, 100% to lighthouse until treasury introduced
+                Lighthouse::on_unbalanced(tips);
             }
-            Treasury::on_unbalanced(split.0);
-            Lighthouse::on_unbalanced(split.1);
         }
     }
 }
@@ -250,147 +248,6 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
-        * RuntimeBlockWeights::get().max_block;
-    pub const MaxScheduledPerBlock: u32 = 50;
-}
-
-impl pallet_scheduler::Config for Runtime {
-    type Event = Event;
-    type Origin = Origin;
-    type Call = Call;
-    type PalletsOrigin = OriginCaller;
-    type MaximumWeight = MaximumSchedulerWeight;
-    type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
-    type MaxScheduledPerBlock = MaxScheduledPerBlock;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const ProposalBond: Permill = Permill::from_percent(5);
-    pub const ProposalBondMinimum: Balance = 1 * XRT;
-    pub const SpendPeriod: BlockNumber = 1 * DAYS;
-    pub const Burn: Permill = Permill::from_percent(50);
-    pub const DataDepositPerByte: Balance = 1 * COASE;
-    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-    pub const MaxApprovals: u32 = 100;
-}
-
-impl pallet_treasury::Config for Runtime {
-    type PalletId = TreasuryPalletId;
-    type Currency = Balances;
-    type ApproveOrigin = frame_system::EnsureOneOf<
-        AccountId,
-        frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
-    >;
-    type RejectOrigin = frame_system::EnsureOneOf<
-        AccountId,
-        frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
-    >;
-    type Event = Event;
-    type ProposalBond = ProposalBond;
-    type ProposalBondMinimum = ProposalBondMinimum;
-    type SpendPeriod = SpendPeriod;
-    type OnSlash = ();
-    type Burn = Burn;
-    type BurnDestination = ();
-    type SpendFunds = ();
-    type WeightInfo = ();
-    type MaxApprovals = MaxApprovals;
-}
-
-parameter_types! {
-    pub const MaximumReasonLength: u32 = 16384;
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 5 * XRT;
-    pub const BountyDepositBase: Balance = 1 * XRT;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
-}
-
-impl pallet_bounties::Config for Runtime {
-    type Event = Event;
-    type BountyDepositBase = BountyDepositBase;
-    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-    type BountyUpdatePeriod = BountyUpdatePeriod;
-    type BountyCuratorDeposit = BountyCuratorDeposit;
-    type BountyValueMinimum = BountyValueMinimum;
-    type DataDepositPerByte = DataDepositPerByte;
-    type MaximumReasonLength = MaximumReasonLength;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
-    pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * XRT;
-}
-
-impl pallet_tips::Config for Runtime {
-    type Event = Event;
-    type DataDepositPerByte = DataDepositPerByte;
-    type MaximumReasonLength = MaximumReasonLength;
-    type Tippers = Elections;
-    type TipCountdown = TipCountdown;
-    type TipFindersFee = TipFindersFee;
-    type TipReportDepositBase = TipReportDepositBase;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-    pub const CouncilMaxProposals: u32 = 100;
-    pub const CouncilMaxMembers: u32 = 100;
-}
-
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-    type Origin = Origin;
-    type Proposal = Call;
-    type Event = Event;
-    type MotionDuration = CouncilMotionDuration;
-    type MaxProposals = CouncilMaxProposals;
-    type MaxMembers = CouncilMaxMembers;
-    type DefaultVote = pallet_collective::PrimeDefaultVote;
-    type WeightInfo = ();
-}
-
-const DESIRED_MEMBERS: u32 = 7;
-parameter_types! {
-    pub const CandidacyBond: Balance = 32 * XRT;
-    // 1 storage item created, key size is 32 bytes, value size is 16+16.
-    pub const VotingBondBase: Balance = deposit(1, 64);
-    // additional data per vote is 32 bytes (account id).
-    pub const VotingBondFactor: Balance = deposit(0, 32);
-    pub const TermDuration: BlockNumber = 7 * DAYS;
-    pub const DesiredMembers: u32 = DESIRED_MEMBERS;
-    pub const DesiredRunnersUp: u32 = 5;
-    pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
-}
-
-impl pallet_elections_phragmen::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type ChangeMembers = Council;
-    // NOTE: this implies that council's genesis members cannot be set directly and must come from
-    // this module.
-    type InitializeMembers = Council;
-    type CurrencyToVote = U128CurrencyToVote;
-    type CandidacyBond = CandidacyBond;
-    type VotingBondBase = VotingBondBase;
-    type VotingBondFactor = VotingBondFactor;
-    type LoserCandidate = ();
-    type KickedMember = ();
-    type DesiredMembers = DesiredMembers;
-    type DesiredRunnersUp = DesiredRunnersUp;
-    type TermDuration = TermDuration;
-    type WeightInfo = ();
-    type PalletId = ElectionsPhragmenPalletId;
-}
-
-parameter_types! {
     // We do anything the parent chain tells us in this runtime.
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 2;
 }
@@ -428,41 +285,6 @@ impl pallet_robonomics_launch::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TotalBandwidth: u64 = 100; // 100 TPS allocated for RWS transactions
-    pub const WeightLimit: Weight = 1_000_000_000_000_000;
-    pub const PointsLimit: u64 = 10_000_000_000; // equal to 10 TPS
-}
-
-impl pallet_robonomics_rws::Config for Runtime {
-    type TotalBandwidth = TotalBandwidth;
-    type WeightLimit = WeightLimit;
-    type PointsLimit = PointsLimit;
-    type Time = Timestamp;
-    type Event = Event;
-    type Call = Call;
-}
-
-impl pallet_robonomics_digital_twin::Config for Runtime {
-    type Event = Event;
-}
-
-impl pallet_robonomics_liability::Config for Runtime {
-    type Agreement = pallet_robonomics_liability::SignedAgreement<
-        Vec<u8>,
-        (),
-        Self::AccountId,
-        sp_runtime::MultiSignature,
-    >;
-    type Report = pallet_robonomics_liability::SignedReport<
-        Self::Index,
-        Self::AccountId,
-        sp_runtime::MultiSignature,
-        Vec<u8>,
-    >;
-    type Event = Event;
-}
-
-parameter_types! {
     pub const BlockReward: Balance = 380_520;
 }
 
@@ -472,20 +294,6 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
     type BlockReward = BlockReward;
 }
 
-parameter_types! {
-    pub const BondingDuration: BlockNumber = 7 * 24 * 60 * 5; // 7 days
-    pub const StakeReward: Perbill = Perbill::from_parts(40);
-    pub const BonusReward: Perbill = Perbill::from_parts(200);
-}
-
-impl pallet_robonomics_staking::Config for Runtime {
-    type Currency = Balances;
-    type Event = Event;
-    type BondingDuration = BondingDuration;
-    type StakeReward = StakeReward;
-    type BonusReward = BonusReward;
-}
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -493,37 +301,24 @@ construct_runtime! {
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Storage, Event},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 10,
+        Utility: pallet_utility::{Pallet, Call, Storage, Event} = 11,
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 12,
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 13,
+        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
 
         // Parachain systems.
-        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},
-        ParachainInfo: parachain_info::{Pallet, Storage, Config},
+        ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>} = 21,
+        ParachainInfo: parachain_info::{Pallet, Storage, Config} = 22,
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>} = 31,
+        TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 32,
 
         // Robonomics Network pallets.
-        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
-        Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>},
-
-        // DAO modules
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
-        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
-
+        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 51,
+        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>} = 52,
+        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 53,
     }
 }
 

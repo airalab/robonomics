@@ -63,7 +63,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{
-    self, BlakeTwo256, Block as BlockT, IdentityLookup, NumberFor, SaturatedConversion,
+    self, BlakeTwo256, Block as BlockT, AccountIdLookup, NumberFor, SaturatedConversion,
 };
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
@@ -111,7 +111,7 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 const MAXIMUM_BLOCK_WEIGHT: Weight = 1 * WEIGHT_PER_SECOND;
 
 parameter_types! {
-    pub const BlockHashCount: BlockNumber = 250;
+    pub const BlockHashCount: BlockNumber = 2400;
     pub const Version: RuntimeVersion = VERSION;
     pub RuntimeBlockLength: BlockLength =
         BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
@@ -143,7 +143,7 @@ impl frame_system::Config for Runtime {
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
     type AccountId = AccountId;
-    type Lookup = IdentityLookup<AccountId>;
+    type Lookup = AccountIdLookup<AccountId, ()>;
     type Index = Index;
     type BlockNumber = BlockNumber;
     type Hash = Hash;
@@ -329,50 +329,6 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BonusReward = BonusReward;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
-where
-    Call: From<LocalCall>,
-{
-    fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-        call: Call,
-        public: <Signature as traits::Verify>::Signer,
-        account: AccountId,
-        nonce: Index,
-    ) -> Option<(
-        Call,
-        <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload,
-    )> {
-        // take the biggest period possible.
-        let period = BlockHashCount::get()
-            .checked_next_power_of_two()
-            .map(|c| c / 2)
-            .unwrap_or(2) as u64;
-        let current_block = System::block_number()
-            .saturated_into::<u64>()
-            // The `System::block_number` is initialized with `n+1`,
-            // so the actual block number is `n`.
-            .saturating_sub(1);
-        let tip = 0;
-        let extra: SignedExtra = (
-            frame_system::CheckSpecVersion::<Runtime>::new(),
-            frame_system::CheckTxVersion::<Runtime>::new(),
-            frame_system::CheckGenesis::<Runtime>::new(),
-            frame_system::CheckEra::<Runtime>::from(generic::Era::mortal(period, current_block)),
-            frame_system::CheckNonce::<Runtime>::from(nonce),
-            frame_system::CheckWeight::<Runtime>::new(),
-            pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-        );
-        let raw_payload = SignedPayload::new(call, extra)
-            .map_err(|e| {
-                frame_support::runtime_print!("Unable to create signed payload: {:?}", e);
-            })
-            .ok()?;
-        let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-        let (call, extra, _) = raw_payload.deconstruct();
-        Some((call, (account, signature.into(), extra)))
-    }
-}
-
 impl frame_system::offchain::SigningTypes for Runtime {
     type Public = <Signature as traits::Verify>::Signer;
     type Signature = Signature;
@@ -417,11 +373,8 @@ construct_runtime!(
     }
 );
 
-/// The type used as a helper for interpreting the sender of transactions.
-pub type Context = frame_system::ChainContext<Runtime>;
-
 /// The address format for describing accounts.
-pub type Address = AccountId;
+pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -446,14 +399,17 @@ pub type SignedExtra = (
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 
-/// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
-
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, Context, Runtime, AllPallets>;
+pub type Executive = frame_executive::Executive<
+    Runtime,
+    Block,
+    frame_system::ChainContext<Runtime>,
+    Runtime,
+    AllPallets,
+>;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
