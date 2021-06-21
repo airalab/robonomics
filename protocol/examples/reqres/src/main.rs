@@ -1,6 +1,6 @@
 /// Example of usage simple request response protocol from reqresp crate.
 
-use libp2p_core::{
+use libp2p::core::{
     Multiaddr,
     PeerId,
     identity,
@@ -8,10 +8,11 @@ use libp2p_core::{
     transport::{self, Transport},
     upgrade::self
 };
-use libp2p_noise::{NoiseConfig, X25519Spec, Keypair};
-use libp2p_request_response::*;
-use libp2p_swarm::{Swarm, SwarmEvent};
-use libp2p_tcp::TcpConfig;
+use libp2p::noise::{NoiseConfig, X25519Spec, Keypair};
+use libp2p::yamux::{YamuxConfig};
+use libp2p::request_response::*;
+use libp2p::swarm::{Swarm, SwarmEvent};
+use libp2p::tcp::TcpConfig;
 use std::iter;
 use std::{thread, time};
 use std::env;
@@ -152,6 +153,6 @@ fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
         .nodelay(true)
         .upgrade(upgrade::Version::V1)
         .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(libp2p_yamux::YamuxConfig::default())
+        .multiplex(YamuxConfig::default())
         .boxed())
 }

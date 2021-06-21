@@ -17,6 +17,7 @@ members = [
     "io",
     "primitives",
     "protocol",
+    "protocol/examples/reqres",
     "runtime/local-runtime",
     "runtime/alpha-runtime",
     "runtime/main-runtime",

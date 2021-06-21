@@ -36,7 +36,6 @@ use libp2p::{Multiaddr, PeerId, Swarm};
 use std::{
     collections::hash_map::{DefaultHasher, HashMap},
     hash::{Hash, Hasher},
-    ops::DerefMut,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -133,7 +132,7 @@ impl PubSubWorker {
         inbox: mpsc::UnboundedSender<super::Message>,
     ) -> bool {
         let topic = Topic::new(topic_name.clone());
-        let subscribed = self.swarm.deref_mut().subscribe(&topic);
+        let subscribed = self.swarm.behaviour_mut().subscribe(&topic);
         if subscribed.is_ok() {
             log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
             self.inbox.insert(topic.hash(), inbox);
@@ -146,7 +145,7 @@ impl PubSubWorker {
 
     fn unsubscribe(&mut self, topic_name: String) -> bool {
         let topic = Topic::new(topic_name.clone());
-        let unsubscribed = self.swarm.deref_mut().unsubscribe(&topic);
+        let unsubscribed = self.swarm.behaviour_mut().unsubscribe(&topic);
         if unsubscribed.is_ok() {
             log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
             self.inbox.remove(&topic.hash());
@@ -161,7 +160,7 @@ impl PubSubWorker {
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         let topic = Topic::new(topic_name);
-        let _ = self.swarm.deref_mut().publish(topic, message);
+        let _ = self.swarm.behaviour_mut().publish(topic, message);
     }
 }
 
