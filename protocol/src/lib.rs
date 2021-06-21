@@ -21,5 +21,5 @@ pub mod error;
 pub mod ethereum;
 pub mod id;
 pub mod pubsub;
-pub mod subxt;
 pub mod reqres;
+pub mod subxt;

@@ -18,11 +18,11 @@
 //! Simple Req-Resp Protocol
 
 use async_trait::async_trait;
-use std::{io};
-use futures::{AsyncRead,AsyncWrite,FutureExt};
-use libp2p::request_response::RequestResponseCodec;
-use libp2p::core::upgrade::{read_one,write_one}; 
+use futures::{AsyncRead, AsyncWrite, FutureExt};
+use libp2p::core::upgrade::{read_one, write_one};
 use libp2p::core::ProtocolName;
+use libp2p::request_response::RequestResponseCodec;
+use std::io;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Req(pub Vec<u8>);
@@ -48,44 +48,61 @@ impl RequestResponseCodec for ReqRespCodec {
     type Request = Req;
     type Response = Resp;
 
-    async fn read_request<T>(&mut self, _: &ReqRespProtocol, io: &mut T)
-        -> io::Result<Self::Request>
+    async fn read_request<T>(
+        &mut self,
+        _: &ReqRespProtocol,
+        io: &mut T,
+    ) -> io::Result<Self::Request>
     where
-        T: AsyncRead + Unpin + Send
+        T: AsyncRead + Unpin + Send,
     {
         read_one(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
                 Ok(vec) if vec.is_empty() => Err(io::ErrorKind::UnexpectedEof.into()),
-                Ok(vec) => Ok(Req(vec))
+                Ok(vec) => Ok(Req(vec)),
             })
             .await
     }
 
-    async fn read_response<T>(&mut self, _: &ReqRespProtocol, io: &mut T)
-        -> io::Result<Self::Response>
+    async fn read_response<T>(
+        &mut self,
+        _: &ReqRespProtocol,
+        io: &mut T,
+    ) -> io::Result<Self::Response>
     where
-        T: AsyncRead + Unpin + Send {
+        T: AsyncRead + Unpin + Send,
+    {
         read_one(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
                 Ok(vec) if vec.is_empty() => Err(io::ErrorKind::UnexpectedEof.into()),
-                Ok(vec) => Ok(Resp(vec))
+                Ok(vec) => Ok(Resp(vec)),
             })
             .await
     }
 
-    async fn write_request<T>(&mut self, _: &ReqRespProtocol, io: &mut T, Req(data): Req)
-        -> io::Result<()>
+    async fn write_request<T>(
+        &mut self,
+        _: &ReqRespProtocol,
+        io: &mut T,
+        Req(data): Req,
+    ) -> io::Result<()>
     where
-        T: AsyncWrite + Unpin + Send {
+        T: AsyncWrite + Unpin + Send,
+    {
         write_one(io, data).await
     }
 
-    async fn write_response<T>(&mut self, _: &ReqRespProtocol, io: &mut T, Resp(data): Resp)
-        -> io::Result<()>
+    async fn write_response<T>(
+        &mut self,
+        _: &ReqRespProtocol,
+        io: &mut T,
+        Resp(data): Resp,
+    ) -> io::Result<()>
     where
-        T: AsyncWrite + Unpin + Send {
+        T: AsyncWrite + Unpin + Send,
+    {
         write_one(io, data).await
     }
 }

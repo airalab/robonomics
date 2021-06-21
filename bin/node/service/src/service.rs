@@ -79,7 +79,10 @@ pub fn new_partial<Runtime, Executor>(
         sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
         sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
         (
-            impl Fn(robonomics_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> robonomics_rpc::IoHandler,
+            impl Fn(
+                robonomics_rpc::DenyUnsafe,
+                sc_rpc::SubscriptionTaskExecutor,
+            ) -> robonomics_rpc::IoHandler,
             (
                 sc_consensus_babe::BabeBlockImport<
                     Block,
