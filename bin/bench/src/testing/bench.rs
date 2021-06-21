@@ -31,11 +31,14 @@ use std::{
 use crate::testing::client::{Backend, Client};
 use crate::testing::keyring::*;
 use codec::{Decode, Encode};
+use frame_system::Call as SystemCall;
 use futures::executor;
 use local_runtime::{
     constants::currency::XRT, Call, CheckedExtrinsic, MinimumPeriod, UncheckedExtrinsic,
 };
-use robonomics_primitives::{AccountId, Block, Signature};
+use pallet_balances::Call as BalancesCall;
+use robonomics_primitives::Block;
+use robonomics_primitives::{AccountId, Signature};
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::{
     execution_extensions::{ExecutionExtensions, ExecutionStrategies},
@@ -200,7 +203,7 @@ pub enum BlockType {
     RandomTransfersReaping,
     /// Bunch of "no-op" calls.
     Noop,
-    /// Bunch of datalog_record.
+    /// Bunch of datalog regords.
     DatalogRecord,
 }
 
@@ -326,27 +329,27 @@ impl<'a> Iterator for BlockContentIterator<'a> {
                 )),
                 function: match self.content.block_type {
                     BlockType::RandomTransfersKeepAlive => {
-                        Call::Balances(pallet_balances::Call::transfer_keep_alive(
-                            receiver,
+                        Call::Balances(BalancesCall::transfer_keep_alive(
+                            sp_runtime::MultiAddress::Id(receiver),
                             local_runtime::ExistentialDeposit::get() + 1,
                         ))
                     }
                     BlockType::RandomTransfersReaping => {
-                        Call::Balances(pallet_balances::Call::transfer(
-                            receiver,
+                        Call::Balances(BalancesCall::transfer(
+                            sp_runtime::MultiAddress::Id(receiver),
                             // Transfer so that ending balance would be 1 less than existential deposit
                             // so that we kill the sender account.
                             100 * XRT - (local_runtime::ExistentialDeposit::get() - 1),
                         ))
                     }
-                    BlockType::Noop => Call::System(frame_system::Call::remark(Vec::new())),
+                    BlockType::Noop => Call::System(SystemCall::remark(Vec::new())),
                     BlockType::DatalogRecord => {
                         let test_string =
                             // IPFS hash of word "test"
                             "QmeomffUNfmQy76CQGy9NdmqEnnHU9soCexBnGU3ezPHVH"
-                                .to_string()
-                                .as_bytes()
-                                .to_vec();
+                            .to_string()
+                            .as_bytes()
+                            .to_vec();
                         Call::Datalog(pallet_robonomics_datalog::Call::record(test_string))
                     }
                 },
@@ -626,7 +629,7 @@ impl BenchKeyring {
                     })
                     .into();
                 UncheckedExtrinsic {
-                    signature: Some((signed, signature, extra)),
+                    signature: Some((sp_runtime::MultiAddress::Id(signed), signature, extra)),
                     function: payload.0,
                 }
             }
@@ -639,7 +642,7 @@ impl BenchKeyring {
 
     /// Generate genesis with accounts from this keyring endowed with some balance.
     pub fn generate_genesis(&self) -> local_runtime::GenesisConfig {
-        super::genesis::config_endowed(
+        crate::testing::genesis::config_endowed(
             false,
             Some(local_runtime::wasm_binary_unwrap()),
             self.collect_account_ids(),

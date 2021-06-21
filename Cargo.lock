@@ -8496,7 +8496,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-bench"
-version = "0.30.0"
+version = "0.99.0"
 dependencies = [
  "derive_more",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",

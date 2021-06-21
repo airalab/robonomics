@@ -31,13 +31,14 @@ mod txpool;
 
 use structopt::StructOpt;
 
+use crate::testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile};
+
 use crate::{
     common::SizeType,
     construct::ConstructionBenchmarkDescription,
     core::{run_benchmark, Mode as BenchmarkMode},
     import::ImportBenchmarkDescription,
     tempdb::DatabaseType,
-    testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes, Profile},
     trie::{DatabaseSize, TrieReadBenchmarkDescription, TrieWriteBenchmarkDescription},
     txpool::PoolBenchmarkDescription,
 };
@@ -100,7 +101,6 @@ fn main() {
                 BlockType::RandomTransfersKeepAlive,
                 BlockType::RandomTransfersReaping,
                 BlockType::Noop,
-                BlockType::DatalogRecord,
             ]
             .iter()
             {
@@ -171,7 +171,6 @@ fn main() {
         if let Some(filter) = opt.filter.as_ref() {
             println!("\t(filtered by \"{}\")", filter);
         }
-
         for benchmark in benchmarks.iter() {
             if opt
                 .filter
@@ -182,12 +181,10 @@ fn main() {
                 println!("{}: {}", benchmark.name(), benchmark.path().full())
             }
         }
-
         return;
     }
 
     let mut results = Vec::new();
-
     for benchmark in benchmarks {
         if opt
             .filter

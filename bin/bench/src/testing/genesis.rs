@@ -18,14 +18,14 @@
 
 //! Genesis Configuration.
 
-use super::keyring::*;
+use crate::testing::keyring::*;
+use local_runtime::constants::currency::*;
 use local_runtime::{
-    constants::currency::*, wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig,
-    GrandpaConfig, SystemConfig, BABE_GENESIS_EPOCH_CONFIG,
+    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, StakingConfig,
+    SystemConfig, BABE_GENESIS_EPOCH_CONFIG,
 };
 use robonomics_primitives::AccountId;
 use sp_core::ChangesTrieConfiguration;
-use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 
 /// Create genesis runtime configuration for tests.
 pub fn config(support_changes_trie: bool, code: Option<&[u8]>) -> GenesisConfig {
@@ -54,14 +54,8 @@ pub fn config_endowed(
             .map(|endowed| (endowed, 100 * XRT)),
     );
 
-    let keys = vec![
-        to_session_keys(&Ed25519Keyring::Alice, &Sr25519Keyring::Alice),
-        to_session_keys(&Ed25519Keyring::Bob, &Sr25519Keyring::Bob),
-        to_session_keys(&Ed25519Keyring::Charlie, &Sr25519Keyring::Charlie),
-    ];
-
     GenesisConfig {
-        frame_system: SystemConfig {
+        system: SystemConfig {
             changes_trie_config: if support_changes_trie {
                 Some(ChangesTrieConfiguration {
                     digest_interval: 2,
@@ -74,14 +68,21 @@ pub fn config_endowed(
                 .map(|x| x.to_vec())
                 .unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
         },
-        pallet_balances: BalancesConfig { balances: endowed },
-        pallet_babe: BabeConfig {
-            authorities: keys.iter().map(|x| (x.babe.clone(), 1)).collect(),
+        balances: BalancesConfig { balances: endowed },
+        staking: StakingConfig {
+            bonus: vec![
+                (dave(), 111 * XRT),
+                (eve(), 100 * XRT),
+                (ferdie(), 100 * XRT),
+            ],
+        },
+        babe: BabeConfig {
+            authorities: vec![],
             epoch_config: Some(BABE_GENESIS_EPOCH_CONFIG),
         },
-        pallet_grandpa: GrandpaConfig {
-            authorities: keys.iter().map(|x| (x.grandpa.clone(), 1)).collect(),
+        grandpa: GrandpaConfig {
+            authorities: vec![],
         },
-        pallet_sudo: Default::default(),
+        sudo: Default::default(),
     }
 }

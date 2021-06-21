@@ -18,14 +18,13 @@
 
 //! Utilities to build a `TestClient` for `node-runtime`.
 
-use robonomics_service::service::robonomics;
 use sc_service::client;
 use sp_runtime::BuildStorage;
 /// Re-export test-client utilities.
 pub use substrate_test_client::*;
 
 /// Call executor for `node-runtime` `TestClient`.
-pub type Executor = sc_executor::NativeExecutor<robonomics::Executor>;
+pub type Executor = sc_executor::NativeExecutor<robonomics_service::service::robonomics::Executor>;
 
 /// Default backend type.
 pub type Backend = sc_client_db::Backend<robonomics_primitives::Block>;
@@ -50,7 +49,7 @@ pub struct GenesisParameters {
 
 impl substrate_test_client::GenesisInit for GenesisParameters {
     fn genesis_storage(&self) -> Storage {
-        super::genesis::config(self.support_changes_trie, None)
+        crate::testing::genesis::config(self.support_changes_trie, None)
             .build_storage()
             .unwrap()
     }

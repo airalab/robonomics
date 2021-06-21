@@ -136,7 +136,6 @@ impl core::Benchmark for ConstructionBenchmark {
             None,
             None,
         );
-
         let timestamp_provider = sp_timestamp::InherentDataProvider::from_system_time();
 
         let start = std::time::Instant::now();
