@@ -19,6 +19,6 @@
 
 #![warn(missing_docs)]
 
-fn main() -> node_service::Result<()> {
-    node_service::run()
+fn main() -> robonomics_service::Result<()> {
+    robonomics_service::run()
 }

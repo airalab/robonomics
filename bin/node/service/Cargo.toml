@@ -1,6 +1,6 @@
 [package]
-name = "node-service"
-version = "0.30.0"
+name = "robonomics-service"
+version = "0.99.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
@@ -78,7 +78,7 @@ polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "r
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.6", optional = true }
 
 # node-specific dependencies
-node-rpc = { path = "../rpc", optional = true }
+robonomics-rpc = { path = "../rpc", optional = true }
 local-runtime = { path = "../../../runtime/local-runtime", optional = true }
 alpha-runtime = { path = "../../../runtime/alpha-runtime", optional = true }
 main-runtime = { path = "../../../runtime/main-runtime", optional = true }
@@ -115,10 +115,10 @@ full = [
     "sc-cli",
     "sp-core",
     "vergen",
-    "node-rpc",
     "structopt",
     "local-runtime",
     "sc-service/db",
+    "robonomics-rpc",
     "robonomics-cli",
 ]
 

@@ -18,7 +18,7 @@
 
 //! Utilities to build a `TestClient` for `node-runtime`.
 
-use node_service::service::robonomics;
+use robonomics_service::service::robonomics;
 use sc_service::client;
 use sp_runtime::BuildStorage;
 /// Re-export test-client utilities.

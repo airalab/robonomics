@@ -165,10 +165,10 @@ fn mk_genesis_main(
     }
 }
 
+/*
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 
-/*
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
@@ -189,7 +189,7 @@ fn earth_parachain_genesis() -> alpha_runtime::GenesisConfig {
 }
 
 /// Earth parachain config.
-pub fn earth_parachain_config() -> ChainSpec {
+pub fn earth_parachain_config() -> AlphaChainSpec {
     let boot_nodes = vec![];
     AlphaChainSpec::from_genesis(
         "Earth",
@@ -228,7 +228,7 @@ fn mars_parachain_genesis() -> alpha_runtime::GenesisConfig {
 }
 
 /// Mars parachain config.
-pub fn mars_parachain_config() -> ChainSpec {
+pub fn mars_parachain_config() -> AlphaChainSpec {
     let boot_nodes = vec![];
     AlphaChainSpec::from_genesis(
         "Mars",
@@ -248,7 +248,6 @@ pub fn mars_parachain_config() -> ChainSpec {
         },
     )
 }
-*/
 
 /// Kusama parachain genesis.
 fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
@@ -284,6 +283,7 @@ pub fn kusama_parachain_config() -> MainChainSpec {
         },
     )
 }
+*/
 
 /// Earth parachain confing.
 pub fn earth_parachain_config() -> AlphaChainSpec {
@@ -305,10 +305,8 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
 }
 
-/*
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]
 pub fn kusama_parachain_config() -> MainChainSpec {
     MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.json")[..]).unwrap()
 }
-*/

@@ -79,7 +79,7 @@ pub fn new_partial<Runtime, Executor>(
         sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
         sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
         (
-            impl Fn(node_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> node_rpc::IoHandler,
+            impl Fn(robonomics_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> robonomics_rpc::IoHandler,
             (
                 sc_consensus_babe::BabeBlockImport<
                     Block,
@@ -196,18 +196,18 @@ where
         let chain_spec = config.chain_spec.cloned_box();
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
-            let deps = node_rpc::FullDeps {
+            let deps = robonomics_rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
                 select_chain: select_chain.clone(),
                 chain_spec: chain_spec.cloned_box(),
                 deny_unsafe,
-                babe: node_rpc::BabeDeps {
+                babe: robonomics_rpc::BabeDeps {
                     babe_config: babe_config.clone(),
                     shared_epoch_changes: shared_epoch_changes.clone(),
                     keystore: keystore.clone(),
                 },
-                grandpa: node_rpc::GrandpaDeps {
+                grandpa: robonomics_rpc::GrandpaDeps {
                     shared_voter_state: shared_voter_state.clone(),
                     shared_authority_set: shared_authority_set.clone(),
                     justification_stream: justification_stream.clone(),
@@ -216,7 +216,7 @@ where
                 },
             };
 
-            node_rpc::create_full(deps)
+            robonomics_rpc::create_full(deps)
         };
 
         (rpc_extensions_builder, rpc_setup)
@@ -551,14 +551,14 @@ where
         );
     }
 
-    let light_deps = node_rpc::LightDeps {
+    let light_deps = robonomics_rpc::LightDeps {
         remote_blockchain: backend.remote_blockchain(),
         fetcher: on_demand.clone(),
         client: client.clone(),
         pool: transaction_pool.clone(),
     };
 
-    let rpc_extensions = node_rpc::create_light(light_deps);
+    let rpc_extensions = robonomics_rpc::create_light(light_deps);
 
     let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: Some(on_demand),

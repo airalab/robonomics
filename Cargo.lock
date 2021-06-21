@@ -169,7 +169,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "0.30.0"
+version = "0.99.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -4700,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "local-runtime"
-version = "0.30.0"
+version = "0.99.0"
 dependencies = [
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
  "frame-executive",
@@ -5368,111 +5368,6 @@ dependencies = [
  "cc",
  "cfg-if 1.0.0",
  "libc",
-]
-
-[[package]]
-name = "node-rpc"
-version = "0.30.0"
-dependencies = [
- "jsonrpc-core",
- "local-runtime",
- "pallet-transaction-payment-rpc",
- "parity-scale-codec",
- "robonomics-primitives",
- "sc-chain-spec",
- "sc-client-api",
- "sc-consensus-babe",
- "sc-consensus-babe-rpc",
- "sc-consensus-epochs",
- "sc-finality-grandpa",
- "sc-finality-grandpa-rpc",
- "sc-keystore",
- "sc-rpc",
- "sc-rpc-api",
- "sc-sync-state-rpc",
- "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-babe",
- "sp-keystore 0.9.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-transaction-pool",
- "substrate-frame-rpc-system",
-]
-
-[[package]]
-name = "node-service"
-version = "0.30.0"
-dependencies = [
- "alpha-runtime",
- "cumulus-client-collator",
- "cumulus-client-consensus-relay-chain",
- "cumulus-client-network",
- "cumulus-client-service",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "frame-benchmarking-cli",
- "frame-system-rpc-runtime-api",
- "hex-literal 0.3.1",
- "local-runtime",
- "log 0.4.14",
- "main-runtime",
- "node-rpc",
- "pallet-robonomics-datalog",
- "pallet-robonomics-lighthouse",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "polkadot-cli",
- "polkadot-parachain",
- "polkadot-primitives",
- "polkadot-service",
- "robonomics-cli",
- "robonomics-primitives",
- "rosrust",
- "sc-basic-authorship",
- "sc-chain-spec",
- "sc-cli",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-consensus-babe",
- "sc-consensus-slots",
- "sc-consensus-uncles",
- "sc-executor",
- "sc-finality-grandpa",
- "sc-finality-grandpa-warp-sync",
- "sc-informant",
- "sc-keystore",
- "sc-network",
- "sc-offchain",
- "sc-rpc",
- "sc-service",
- "sc-telemetry",
- "sc-tracing",
- "sc-transaction-pool",
- "serde",
- "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-authority-discovery",
- "sp-authorship 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-babe",
- "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-finality-grandpa",
- "sp-inherents 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-offchain",
- "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-session 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-timestamp 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "sp-transaction-pool",
- "sp-trie 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
- "structopt",
- "substrate-build-script-utils",
- "substrate-ros-api",
- "vergen",
 ]
 
 [[package]]
@@ -8614,7 +8509,6 @@ dependencies = [
  "lazy_static",
  "local-runtime",
  "log 0.4.14",
- "node-service",
  "pallet-balances",
  "pallet-robonomics-datalog",
  "pallet-timestamp 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
@@ -8624,6 +8518,7 @@ dependencies = [
  "parity-util-mem",
  "rand 0.7.3",
  "robonomics-primitives",
+ "robonomics-service",
  "sc-basic-authorship",
  "sc-block-builder",
  "sc-cli",
@@ -8692,15 +8587,15 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "0.30.0"
+version = "0.99.0"
 dependencies = [
- "node-service",
  "parity-util-mem",
+ "robonomics-service",
 ]
 
 [[package]]
 name = "robonomics-primitives"
-version = "0.99.0"
+version = "1.0.0"
 dependencies = [
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
  "parity-scale-codec",
@@ -8739,6 +8634,111 @@ dependencies = [
  "libp2prs-runtime",
  "robonomics-protocol",
  "rust-base58",
+]
+
+[[package]]
+name = "robonomics-rpc"
+version = "0.99.0"
+dependencies = [
+ "jsonrpc-core",
+ "local-runtime",
+ "pallet-transaction-payment-rpc",
+ "parity-scale-codec",
+ "robonomics-primitives",
+ "sc-chain-spec",
+ "sc-client-api",
+ "sc-consensus-babe",
+ "sc-consensus-babe-rpc",
+ "sc-consensus-epochs",
+ "sc-finality-grandpa",
+ "sc-finality-grandpa-rpc",
+ "sc-keystore",
+ "sc-rpc",
+ "sc-rpc-api",
+ "sc-sync-state-rpc",
+ "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-babe",
+ "sp-keystore 0.9.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-transaction-pool",
+ "substrate-frame-rpc-system",
+]
+
+[[package]]
+name = "robonomics-service"
+version = "0.99.0"
+dependencies = [
+ "alpha-runtime",
+ "cumulus-client-collator",
+ "cumulus-client-consensus-relay-chain",
+ "cumulus-client-network",
+ "cumulus-client-service",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "frame-benchmarking-cli",
+ "frame-system-rpc-runtime-api",
+ "hex-literal 0.3.1",
+ "local-runtime",
+ "log 0.4.14",
+ "main-runtime",
+ "pallet-robonomics-datalog",
+ "pallet-robonomics-lighthouse",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "parity-scale-codec",
+ "polkadot-cli",
+ "polkadot-parachain",
+ "polkadot-primitives",
+ "polkadot-service",
+ "robonomics-cli",
+ "robonomics-primitives",
+ "robonomics-rpc",
+ "rosrust",
+ "sc-basic-authorship",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-consensus-babe",
+ "sc-consensus-slots",
+ "sc-consensus-uncles",
+ "sc-executor",
+ "sc-finality-grandpa",
+ "sc-finality-grandpa-warp-sync",
+ "sc-informant",
+ "sc-keystore",
+ "sc-network",
+ "sc-offchain",
+ "sc-rpc",
+ "sc-service",
+ "sc-telemetry",
+ "sc-tracing",
+ "sc-transaction-pool",
+ "serde",
+ "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-authority-discovery",
+ "sp-authorship 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-consensus-babe",
+ "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-finality-grandpa",
+ "sp-inherents 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-offchain",
+ "sp-runtime 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-session 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-timestamp 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "sp-transaction-pool",
+ "sp-trie 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.6)",
+ "structopt",
+ "substrate-build-script-utils",
+ "substrate-ros-api",
+ "vergen",
 ]
 
 [[package]]
