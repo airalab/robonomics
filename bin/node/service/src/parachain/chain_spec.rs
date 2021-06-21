@@ -132,16 +132,16 @@ fn mk_genesis_alpha(
 ) -> alpha_runtime::GenesisConfig {
     let bonus = balances.clone();
     alpha_runtime::GenesisConfig {
-        frame_system: alpha_runtime::SystemConfig {
+        system: alpha_runtime::SystemConfig {
             code: alpha_runtime::wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
         },
-        pallet_balances: alpha_runtime::BalancesConfig { balances },
-        pallet_elections_phragmen: Default::default(),
-        pallet_collective_Instance1: Default::default(),
-        pallet_treasury: Default::default(),
-        pallet_robonomics_staking: alpha_runtime::StakingConfig { bonus },
-        pallet_sudo: alpha_runtime::SudoConfig { key: sudo_key },
+        balances: alpha_runtime::BalancesConfig { balances },
+        elections: Default::default(),
+        council: Default::default(),
+        treasury: Default::default(),
+        staking: alpha_runtime::StakingConfig { bonus },
+        sudo: alpha_runtime::SudoConfig { key: sudo_key },
         parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
     }
 }
@@ -154,13 +154,13 @@ fn mk_genesis_main(
 ) -> main_runtime::GenesisConfig {
     let bonus = balances.clone();
     main_runtime::GenesisConfig {
-        frame_system: main_runtime::SystemConfig {
+        system: main_runtime::SystemConfig {
             code: main_runtime::wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
         },
-        pallet_balances: main_runtime::BalancesConfig { balances },
-        pallet_robonomics_staking: main_runtime::StakingConfig { bonus },
-        pallet_sudo: main_runtime::SudoConfig { key: sudo_key },
+        balances: main_runtime::BalancesConfig { balances },
+        staking: main_runtime::StakingConfig { bonus },
+        sudo: main_runtime::SudoConfig { key: sudo_key },
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
     }
 }

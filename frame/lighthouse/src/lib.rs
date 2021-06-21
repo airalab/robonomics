@@ -103,7 +103,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Inherent to set the lighthouse of a block.
         #[pallet::weight((0, DispatchClass::Mandatory))]
-        fn set(origin: OriginFor<T>, lighthouse: T::AccountId) -> DispatchResultWithPostInfo {
+        pub fn set(origin: OriginFor<T>, lighthouse: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             ensure!(
                 <Lighthouse<T>>::get().is_none(),

@@ -153,26 +153,26 @@ fn mk_genesis(
 ) -> GenesisConfig {
     let bonus = balances.clone();
     GenesisConfig {
-        frame_system: SystemConfig {
+        system: SystemConfig {
             code,
             changes_trie_config: Default::default(),
         },
-        pallet_balances: BalancesConfig { balances },
-        pallet_babe: BabeConfig {
+        balances: BalancesConfig { balances },
+        babe: BabeConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
             epoch_config: Some(local_runtime::BABE_GENESIS_EPOCH_CONFIG),
         },
-        pallet_grandpa: GrandpaConfig {
+        grandpa: GrandpaConfig {
             authorities: initial_authorities
                 .iter()
                 .map(|x| (x.2.clone(), 1))
                 .collect(),
         },
-        pallet_sudo: SudoConfig { key: sudo_key },
-        pallet_robonomics_staking: StakingConfig { bonus },
+        sudo: SudoConfig { key: sudo_key },
+        staking: StakingConfig { bonus },
     }
 }
 
