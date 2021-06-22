@@ -3,6 +3,7 @@
   "id": "robonomics",
   "chainType": "Live",
   "bootNodes": [
+    "/dns/0.westend.robonomics.network/tcp/30333/p2p/12D3KooWBrDX2YM3WqJ56X1qy5pS9YkUxa5RK3bo2DxTh6x57umD"
   ],
   "telemetryEndpoints": [
     [
