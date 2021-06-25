@@ -38,9 +38,7 @@ pub fn load_spec(
             }
         }
         // Load Alpha chain spec by default
-        path => Box::new(chain_spec::AlphaChainSpec::from_json_file(
-            path.into(),
-        )?),
+        path => Box::new(chain_spec::AlphaChainSpec::from_json_file(path.into())?),
     })
 }
 

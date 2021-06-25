@@ -80,7 +80,7 @@ impl SubstrateCli for Cli {
             #[cfg(feature = "kusama")]
             RobonomicsFamily::Main => &main_runtime::VERSION,
             #[cfg(feature = "ipci")]
-            RobonomicsFamily::Ipci=> &ipci_runtime::VERSION,
+            RobonomicsFamily::Ipci => &ipci_runtime::VERSION,
         }
     }
 

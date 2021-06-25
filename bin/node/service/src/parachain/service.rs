@@ -21,27 +21,27 @@ use codec::Encode;
 use cumulus_client_consensus_aura::{
     build_aura_consensus, BuildAuraConsensusParams, SlotProportion,
 };
+use cumulus_client_consensus_common::ParachainConsensus;
 use cumulus_client_consensus_relay_chain::{
     build_relay_chain_consensus, BuildRelayChainConsensusParams,
 };
-use cumulus_client_consensus_common::ParachainConsensus;
 use cumulus_client_network::build_block_announce_validator;
 use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
-use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use robonomics_primitives::{Block, Hash};
-use sp_keystore::SyncCryptoStorePtr;
-use sp_consensus::SlotData;
-use substrate_prometheus_endpoint::Registry;
-use sc_telemetry::TelemetryHandle;
-use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
-use sc_network::NetworkService;
 use sc_client_api::ExecutorProvider;
+use sc_network::NetworkService;
+use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
+use sc_telemetry::TelemetryHandle;
+use sp_consensus::SlotData;
+use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
+use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
+use substrate_prometheus_endpoint::Registry;
 
 fn new_partial<RuntimeApi, Executor, BIQ>(
     config: &sc_service::Configuration,
@@ -395,7 +395,7 @@ where
         &task_manager.spawn_essential_handle(),
         registry.clone(),
     )
-        .map_err(Into::into)
+    .map_err(Into::into)
 }
 
 /// Build the open set consensus.
@@ -520,11 +520,21 @@ where
 
     let relay_chain_backend = relay_chain_node.backend.clone();
     let relay_chain_client = relay_chain_node.client.clone();
-    let consensus = build_aura_consensus::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
-        BuildAuraConsensusParams {
-            proposer_factory,
-            create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-                let parachain_inherent =
+    let consensus = build_aura_consensus::<
+        sp_consensus_aura::sr25519::AuthorityPair,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    >(BuildAuraConsensusParams {
+        proposer_factory,
+        create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+            let parachain_inherent =
                 cumulus_primitives_parachain_inherent::ParachainInherentData::create_at_with_client(
                     relay_parent,
                     &relay_chain_client,
@@ -532,35 +542,35 @@ where
                     &validation_data,
                     para_id,
                 );
-                async move {
-                    let time = sp_timestamp::InherentDataProvider::from_system_time();
-                    let slot = sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
-                    *time,
-                    slot_duration.slot_duration(),
-                );
+            async move {
+                let time = sp_timestamp::InherentDataProvider::from_system_time();
+                let slot =
+                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                        *time,
+                        slot_duration.slot_duration(),
+                    );
 
-                    let parachain_inherent = parachain_inherent.ok_or_else(|| {
-                        Box::<dyn std::error::Error + Send + Sync>::from(
-                            "Failed to create parachain inherent",
-                        )
-                    })?;
-                    Ok((time, slot, parachain_inherent))
-                }
-            },
-            block_import: client.clone(),
-            relay_chain_client: relay_chain_node.client.clone(),
-            relay_chain_backend: relay_chain_node.backend.clone(),
-            para_client: client.clone(),
-            backoff_authoring_blocks: Option::<()>::None,
-            sync_oracle,
-            keystore,
-            force_authoring,
-            slot_duration,
-            // We got around 500ms for proposing
-            block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-            telemetry,
+                let parachain_inherent = parachain_inherent.ok_or_else(|| {
+                    Box::<dyn std::error::Error + Send + Sync>::from(
+                        "Failed to create parachain inherent",
+                    )
+                })?;
+                Ok((time, slot, parachain_inherent))
+            }
         },
-    );
+        block_import: client.clone(),
+        relay_chain_client: relay_chain_node.client.clone(),
+        relay_chain_backend: relay_chain_node.backend.clone(),
+        para_client: client.clone(),
+        backoff_authoring_blocks: Option::<()>::None,
+        sync_oracle,
+        keystore,
+        force_authoring,
+        slot_duration,
+        // We got around 500ms for proposing
+        block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
+        telemetry,
+    });
 
     Ok(consensus)
 }
