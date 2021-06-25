@@ -40,6 +40,9 @@ pub enum RobonomicsFamily {
     /// Robonomics Main Network
     #[cfg(feature = "kusama")]
     Main,
+    /// IPCI Network
+    #[cfg(feature = "ipci")]
+    Ipci,
 }
 
 /// Robonomics family chains idetify.
@@ -59,6 +62,16 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
         if self.id() == "dev" {
             return RobonomicsFamily::Development;
+        }
+
+        #[cfg(feature = "ipci")]
+        if self.id() == "ipci" {
+            return RobonomicsFamily::Ipci;
+        }
+
+        #[cfg(feature = "kusama")]
+        if self.id() == "robonomics" {
+            return RobonomicsFamily::Main;
         }
 
         RobonomicsFamily::Alpha
@@ -84,7 +97,7 @@ pub struct Extensions {
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 /// Helper function to generate a crypto pair from seed
-fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
     TPublic::Pair::from_string(&format!("//{}", seed), None)
         .expect("static values are valid; qed")
         .public()

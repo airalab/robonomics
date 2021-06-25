@@ -27,19 +27,21 @@ pub fn load_spec(
     id: &str,
     para_id: cumulus_primitives_core::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-    match id {
+    Ok(match id {
         "" => {
             if para_id == chain_spec::KUSAMA_ID.into() {
-                Ok(Box::new(chain_spec::get_main_chain_spec()))
+                Box::new(chain_spec::get_main_chain_spec())
+            } else if para_id == chain_spec::IPCI_ID.into() {
+                Box::new(chain_spec::get_ipci_chain_spec())
             } else {
-                Ok(Box::new(chain_spec::get_alpha_chain_spec(para_id)))
+                Box::new(chain_spec::get_alpha_chain_spec(para_id))
             }
         }
         // Load Alpha chain spec by default
-        path => Ok(Box::new(chain_spec::AlphaChainSpec::from_json_file(
+        path => Box::new(chain_spec::AlphaChainSpec::from_json_file(
             path.into(),
-        )?)),
-    }
+        )?),
+    })
 }
 
 pub fn extract_genesis_wasm(
@@ -71,11 +73,13 @@ pub mod alpha {
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, Executor>(
+        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
             parachain_config,
             polkadot_config,
             para_id,
             lighthouse_account,
+            super::service::build_open_import_queue,
+            super::service::build_open_consensus,
         )
         .await
     }
@@ -100,11 +104,44 @@ pub mod main {
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, Executor>(
+        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
             parachain_config,
             polkadot_config,
             para_id,
             lighthouse_account,
+            super::service::build_open_import_queue,
+            super::service::build_open_consensus,
+        )
+        .await
+    }
+}
+
+/// IPCI Network parachain.
+#[cfg(feature = "ipci")]
+pub mod ipci {
+    pub use ipci_runtime::RuntimeApi;
+    use robonomics_primitives::AccountId;
+
+    sc_executor::native_executor_instance!(
+        pub Executor,
+        ipci_runtime::api::dispatch,
+        ipci_runtime::native_version,
+    );
+
+    /// Start a normal parachain node.
+    pub async fn start_node(
+        parachain_config: sc_service::Configuration,
+        polkadot_config: sc_service::Configuration,
+        para_id: cumulus_primitives_core::ParaId,
+        lighthouse_account: Option<AccountId>,
+    ) -> sc_service::error::Result<sc_service::TaskManager> {
+        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
+            parachain_config,
+            polkadot_config,
+            para_id,
+            lighthouse_account,
+            super::service::build_pos_import_queue,
+            super::service::build_pos_consensus,
         )
         .await
     }
