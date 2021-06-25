@@ -17,6 +17,8 @@ This repo contains runtimes for the Earth Parachain, Mars Parachain, and Robonom
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
+image:https://github.com/airalab/robonomics/web3_foundation_grants_badge_black.jpg["Web3 Foundation Grants — Wave Two Recipient", link="https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d"]
+
 == Try it out
 
 . https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
