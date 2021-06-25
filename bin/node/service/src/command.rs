@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
@@ -79,6 +79,8 @@ impl SubstrateCli for Cli {
             RobonomicsFamily::Alpha => &alpha_runtime::VERSION,
             #[cfg(feature = "kusama")]
             RobonomicsFamily::Main => &main_runtime::VERSION,
+            #[cfg(feature = "ipci")]
+            RobonomicsFamily::Ipci=> &ipci_runtime::VERSION,
         }
     }
 
@@ -148,6 +150,22 @@ pub fn run() -> sc_cli::Result<()> {
                     )?;
 
                     parachain::main::start_node(params.0, params.1, params.2, params.3).await
+                }),
+
+                #[cfg(feature = "ipci")]
+                RobonomicsFamily::Ipci => runner.run_node_until_exit(|config| async move {
+                    if matches!(config.role, sc_cli::Role::Light) {
+                        return Err("Light client not supporter!".into());
+                    }
+
+                    let params = parachain::command::parse_args(
+                        config,
+                        &cli.relaychain_args,
+                        cli.run.parachain_id,
+                        cli.run.lighthouse_account,
+                    )?;
+
+                    parachain::ipci::start_node(params.0, params.1, params.2, params.3).await
                 }),
             }
             .map_err(Into::into)

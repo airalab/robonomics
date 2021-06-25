@@ -18,9 +18,10 @@ members = [
     "primitives",
     "protocol",
     "protocol/examples/reqres",
-    "runtime/local-runtime",
-    "runtime/alpha-runtime",
-    "runtime/main-runtime",
+    "runtime/local",
+    "runtime/alpha",
+    "runtime/main",
+    "runtime/ipci",
     "substrate-ros/api",
     "substrate-ros/msgs",
 ]
