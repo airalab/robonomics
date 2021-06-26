@@ -127,7 +127,11 @@
           ],
           [
             "5EYCAe5ijiYfyeZ2JJCGq56LmPyNRAKzpG4QkoQkkQNB5e6Z",
-            692500000000001
+            692000000000001
+          ],
+          [
+            "5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF",
+            500000000000
           ]
         ]
       },
@@ -228,10 +232,6 @@
           [
             "5ESGr3CySwKiUNzqmnanqj5By84DC9TpdJ9re6EZYG9CezGr",
             18103206092
-          ],
-          [
-            "5EYCAe5ijiYfyeZ2JJCGq56LmPyNRAKzpG4QkoQkkQNB5e6Z",
-            692500000000001
           ]
         ]
       }
