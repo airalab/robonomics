@@ -272,8 +272,8 @@ impl pallet_scheduler::Config for Runtime {
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
     pub const ProposalBondMinimum: Balance = 1 * XRT;
-    pub const SpendPeriod: BlockNumber = 1 * DAYS;
-    pub const Burn: Permill = Permill::from_percent(50);
+    pub const SpendPeriod: BlockNumber = 365 * DAYS;
+    pub const Burn: Permill = Permill::from_percent(10);
     pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
     pub const MaxApprovals: u32 = 100;

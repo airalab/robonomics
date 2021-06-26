@@ -87,6 +87,18 @@ impl_opaque_keys! {
     }
 }
 
+pub struct BaseFilter;
+impl frame_support::traits::Filter<Call> for BaseFilter {
+    fn filter(call: &Call) -> bool {
+        match call {
+            // These modules are not allowed to be called by transactions:
+            Call::Balances(_) => false,
+            // Other modules should works:
+            _ => true,
+        }
+    }
+}
+
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
 pub struct DealWithFees;
@@ -140,7 +152,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = ();
+    type BaseCallFilter = BaseFilter;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;

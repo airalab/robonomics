@@ -30,12 +30,17 @@ use crate::chain_spec::get_account_id_from_seed;
 pub const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
 pub const MARS_ID: u32 = 2000;
-/// Uranus parachain ID
-pub const URANUS_ID: u32 = 4000;
+// Uranus parachain ID
+//pub const URANUS_ID: u32 = 4000;
 /// Ipci parachain ID
 pub const IPCI_ID: u32 = 3000;
 /// Kusama parachain ID
 pub const KUSAMA_ID: u32 = 2077;
+
+/*
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+const IPCI_PROTOCOL_ID: &str = "mito";
+*/
 
 /// Node `ChainSpec` extensions.
 ///
@@ -69,9 +74,11 @@ pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
         return mars_parachain_config();
     }
 
+    /*
     if id == ParaId::from(URANUS_ID) {
         return uranus_parachain_config();
     }
+    */
 
     test_chain_spec(id)
 }
@@ -227,10 +234,6 @@ fn mk_genesis_ipci(
     }
 }
 
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
-const IPCI_PROTOCOL_ID: &str = "mito";
-
 /// Earth parachain genesis.
 fn earth_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
@@ -259,10 +262,7 @@ pub fn earth_parachain_config() -> AlphaChainSpec {
         ChainType::Live,
         earth_parachain_genesis,
         boot_nodes,
-        Some(
-            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .unwrap(),
-        ),
+        None,
         Some(ROBONOMICS_PROTOCOL_ID),
         None,
         Extensions {
@@ -298,10 +298,7 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
         ChainType::Live,
         mars_parachain_genesis,
         boot_nodes,
-        Some(
-            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .unwrap(),
-        ),
+        None,
         Some(ROBONOMICS_PROTOCOL_ID),
         None,
         Extensions {
@@ -333,10 +330,7 @@ pub fn kusama_parachain_config() -> MainChainSpec {
         ChainType::Live,
         kusama_parachain_genesis,
         boot_nodes,
-        Some(
-            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .unwrap(),
-        ),
+        None,
         Some(ROBONOMICS_PROTOCOL_ID),
         None,
         Extensions {
@@ -375,10 +369,7 @@ pub fn ipci_parachain_config() -> IpciChainSpec {
         ChainType::Live,
         ipci_parachain_genesis,
         boot_nodes,
-        Some(
-            sc_telemetry::TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-                .unwrap(),
-        ),
+        None,
         Some(IPCI_PROTOCOL_ID),
         None,
         Extensions {
@@ -399,10 +390,12 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
+/*
 /// Uranus parachain confing.
 pub fn uranus_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
 }
+*/
 
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]

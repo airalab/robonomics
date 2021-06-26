@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(3000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
