@@ -3,8 +3,15 @@
   "id": "ipci",
   "chainType": "Live",
   "bootNodes": [
+    "/dns/0.venus.robonomics.network/tcp/30333/p2p/12D3KooWQpKqiDoNkWRN4sf9chetCxSJRddptBdceLZXxNPfSFDF",
+    "/dns/0.ipci.robonomics.network/tcp/30333/ws/p2p/12D3KooWC7ZhkTThBpqaadQjXpzPtHPSfQyU9b3XKacD3x7zAbuk",
+    "/dns/1.ipci.robonomics.network/tcp/30333/ws/p2p/12D3KooWCjpgPsBoV6XDXh28iygsTAbjuo7BSkP9oyH1iCW116EL"
   ],
   "telemetryEndpoints": [
+    [
+      "/dns4/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
+      0
+    ]
   ],
   "protocolId": "mito",
   "properties": {
