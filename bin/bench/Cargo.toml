@@ -45,7 +45,7 @@ frame-system = { version = "3.0.0", git = "https://github.com/paritytech/substra
 pallet-balances = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.6" }
 pallet-timestamp = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.6" }
 pallet-transaction-payment = { version = "3.0.0", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.6" }
-pallet-robonomics-datalog = { path = "../../../robonomics/frame/datalog" } 
+pallet-robonomics-datalog = { path = "../../frame/datalog" } 
 hash-db = "0.15.2"
 tempfile = "3.1.0"
 fs_extra = "1"
