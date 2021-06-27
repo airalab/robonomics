@@ -30,10 +30,12 @@ use crate::chain_spec::get_account_id_from_seed;
 pub const EARTH_ID: u32 = 1000;
 /// Mars parachain ID
 pub const MARS_ID: u32 = 2000;
-// Uranus parachain ID
-//pub const URANUS_ID: u32 = 4000;
 /// Ipci parachain ID
 pub const IPCI_ID: u32 = 3000;
+// Uranus parachain ID
+pub const URANUS_ID: u32 = 4000;
+// Mercury parachain ID
+pub const MERCURY_ID: u32 = 5000;
 /// Kusama parachain ID
 pub const KUSAMA_ID: u32 = 2077;
 
@@ -73,12 +75,14 @@ pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
-
-    /*
+    
     if id == ParaId::from(URANUS_ID) {
         return uranus_parachain_config();
     }
-    */
+
+    if id == ParaId::from(MERCURY_ID) {
+        return mercury_parachain_config();
+    }
 
     test_chain_spec(id)
 }
@@ -390,12 +394,15 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mars.json")[..]).unwrap()
 }
 
-/*
 /// Uranus parachain confing.
 pub fn uranus_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
 }
-*/
+
+/// Mercury parachain confing.
+pub fn mercury_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mercury.json")[..]).unwrap()
+}
 
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]
