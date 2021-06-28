@@ -57,7 +57,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(5_000_000)]
-        fn record(
+        pub fn record(
             origin: OriginFor<T>,
             parachain_id: u32,
             record: T::Record,

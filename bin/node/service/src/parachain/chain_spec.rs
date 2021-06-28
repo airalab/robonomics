@@ -75,7 +75,7 @@ pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
-    
+
     if id == ParaId::from(URANUS_ID) {
         return uranus_parachain_config();
     }
