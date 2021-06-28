@@ -2,8 +2,17 @@
   "name": "Robonomics",
   "id": "robonomics",
   "chainType": "Live",
-  "bootNodes": [],
-  "telemetryEndpoints": null,
+  "bootNodes": [
+    "/dns/0.kusama.robonomics.network/tcp/30333/p2p/12D3KooWEuAgQXCKPz7uQy8j3GoagbXpGYKL8yo4Dfm3yeab7LSL",
+    "/dns/1.kusama.robonomics.network/tcp/30333/p2p/12D3KooWNDmcsr1YxrcVJj9MXQQVs8PSYy8YLwGu6Xajj1B9Diw8",
+    "/dns/2.kusama.robonomics.network/tcp/30333/p2p/12D3KooWNWLz1cRD2j1o3BBdhqyRRssCP9zCbK3TU26MA8ps6Zvs"
+  ],
+  "telemetryEndpoints": [
+    [
+      "/dns4/telemetry.polkadot.io/tcp/443/x-parity-wss/%2Fsubmit%2F",
+      0
+    ]
+  ],
   "protocolId": "xrt",
   "properties": {
     "ss58Format": 32,
