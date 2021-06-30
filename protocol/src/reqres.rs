@@ -42,7 +42,9 @@ impl ProtocolName for RobonomicsProtocol {
 }
 
 #[derive(Clone)]
-pub struct RobonomicsCodec();
+pub struct RobonomicsCodec {
+    pub is_ping: bool
+}
 
 #[derive(Debug, Clone)]
 pub struct RobonomicsProtocol();
@@ -61,7 +63,10 @@ impl RequestResponseCodec for RobonomicsCodec {
         read_one(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
-                Ok(vec) if vec.is_empty() => Ok(Request::Ping),
+                Ok(vec) if vec.is_empty() => {
+                    self.is_ping = true; // set Ping flag; expected to reset with Pong response
+                    Ok(Request::Ping)
+                },
                 Ok(vec) => Ok(Request::Get(vec)),
             })
             .await
@@ -95,8 +100,19 @@ impl RequestResponseCodec for RobonomicsCodec {
     where
         T: AsyncWrite + Unpin + Send {
          match resp {
-         Response::Pong =>  write_one(io, "".as_bytes()).await,
-         Response::Data(data) =>  write_one(io, data).await,
-       }
+            Response::Pong => {
+                self.is_ping = false; // reset Ping flag 
+                write_one(io, "".as_bytes()).await
+            },
+            // send Pong if somebody try in app logic to obfuscate Ping by sending Data instead of Pong
+            Response::Data(data) => {
+                if self.is_ping == false {
+                    write_one(io, data).await
+                } 
+                else {
+                    write_one(io, "".as_bytes()).await
+                }
+            },
+        }
     }
 }

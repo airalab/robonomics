@@ -29,7 +29,7 @@ fn main() {
         let cfg = RequestResponseConfig::default();
 
         let (peer1_id, trans) = mk_transport();
-        let ping_proto1 = RequestResponse::new(RobonomicsCodec(), protocols.clone(), cfg.clone());
+        let ping_proto1 = RequestResponse::new(RobonomicsCodec{is_ping: false}, protocols.clone(), cfg.clone());
         let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
 
         let addr_local = std::env::args().nth(1).unwrap(); // local i.e. "/ip4/192.168.1.10/tcp/61241"
@@ -80,7 +80,7 @@ fn main() {
                     println!("Response sent to {:?}",  peer);
                 }
 
-                SwarmEvent::Behaviour(e) => panic!("Peer1: Unexpected event: {:?}", e),
+                SwarmEvent::Behaviour(e) =>println!("Peer1: Unexpected event: {:?}", e),
                 _ => {}
             }
         }
@@ -97,7 +97,7 @@ fn main() {
         let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
 
         let (peer2_id, trans) = mk_transport();
-        let ping_proto2 = RequestResponse::new(RobonomicsCodec(), protocols, cfg);
+        let ping_proto2 = RequestResponse::new(RobonomicsCodec {is_ping: false}, protocols, cfg);
         let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
         println!("Local peer 2 id: {:?}", peer2_id);
  
