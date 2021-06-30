@@ -25,35 +25,35 @@ use libp2p::request_response::RequestResponseCodec;
 use std::io;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Req {
-    Ping (),
-    Get (Vec<u8>),
+pub enum Request {
+    Ping,
+    Get(Vec<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Resp {
-    Pong (),
-    Data (Vec<u8>),
+pub enum Response {
+    Pong,
+    Data(Vec<u8>),
 }
-impl ProtocolName for ReqRespProtocol {
+impl ProtocolName for RobonomicsProtocol {
     fn protocol_name(&self) -> &[u8] {
         "/robonomics/1".as_bytes()
     }
 }
 
 #[derive(Clone)]
-pub struct ReqRespCodec();
+pub struct RobonomicsCodec();
 
 #[derive(Debug, Clone)]
-pub struct ReqRespProtocol();
+pub struct RobonomicsProtocol();
 
 #[async_trait]
-impl RequestResponseCodec for ReqRespCodec {
-    type Protocol = ReqRespProtocol;
-    type Request = Req;
-    type Response = Resp;
+impl RequestResponseCodec for RobonomicsCodec {
+    type Protocol = RobonomicsProtocol;
+    type Request = Request;
+    type Response = Response;
 
-    async fn read_request<T>(&mut self, _: &ReqRespProtocol, io: &mut T)
+    async fn read_request<T>(&mut self, _: &RobonomicsProtocol, io: &mut T)
         -> io::Result<Self::Request>
     where
         T: AsyncRead + Unpin + Send
@@ -61,42 +61,42 @@ impl RequestResponseCodec for ReqRespCodec {
         read_one(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
-                Ok(vec) if vec.is_empty() => Ok(Req::Ping()),
-                Ok(vec) => Ok(Req::Get(vec)),
+                Ok(vec) if vec.is_empty() => Ok(Request::Ping),
+                Ok(vec) => Ok(Request::Get(vec)),
             })
             .await
     }
 
-    async fn read_response<T>(&mut self, _: &ReqRespProtocol, io: &mut T)
+    async fn read_response<T>(&mut self, _: &RobonomicsProtocol, io: &mut T)
         -> io::Result<Self::Response>
     where
         T: AsyncRead + Unpin + Send {
         read_one(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
-                Ok(vec) if vec.is_empty() => Ok(Resp::Pong()),
-                Ok(vec) => Ok(Resp::Data(vec)),
+                Ok(vec) if vec.is_empty() => Ok(Response::Pong),
+                Ok(vec) => Ok(Response::Data(vec)),
             })
             .await
     }
 
-    async fn write_request<T>(&mut self, _: &ReqRespProtocol, io: &mut T, req : Req )
+    async fn write_request<T>(&mut self, _: &RobonomicsProtocol, io: &mut T, req : Request )
         -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send {
         match req {
-         Req::Ping() =>  write_one(io, "".as_bytes()).await,
-         Req::Get(data) =>  write_one(io, data).await,
+         Request::Ping =>  write_one(io, "".as_bytes()).await,
+         Request::Get(data) =>  write_one(io, data).await,
        }
     }
 
-    async fn write_response<T>(&mut self, _: &ReqRespProtocol, io: &mut T, resp: Resp)
+    async fn write_response<T>(&mut self, _: &RobonomicsProtocol, io: &mut T, resp: Response)
         -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send {
          match resp {
-         Resp::Pong() =>  write_one(io, "".as_bytes()).await,
-         Resp::Data(data) =>  write_one(io, data).await,
+         Response::Pong =>  write_one(io, "".as_bytes()).await,
+         Response::Data(data) =>  write_one(io, data).await,
        }
     }
 }
