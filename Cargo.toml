@@ -18,6 +18,7 @@ members = [
     "primitives",
     "protocol",
     "protocol/examples/reqres",
+	"protocol/examples/cli",
     "runtime/local",
     "runtime/alpha",
     "runtime/main",
