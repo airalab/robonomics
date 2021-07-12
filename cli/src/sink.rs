@@ -92,6 +92,25 @@ pub enum SinkCmd {
         #[structopt(long, default_value = "10")]
         queue_size: usize,
     },
+    /// request-response client
+    #[structopt(name = "reqres")]
+    ReqRes {
+        /// multiaddress of server, i.e. /ip4/192.168.0.102/tcp/61241
+        #[structopt(value_name = "MULTIADDR")]
+        address: String,
+
+        /// server peer ID, i.e. 12D3KooWHdqJNpszJR4na6pheUwSMNQCuGXU6sFTGDQMyQWEsszS
+        #[structopt(value_name = "PEER_ID")]
+        peerid: String,
+
+        /// request type: `ping` or `get`
+        #[structopt(value_name = "METHOD")]
+        method: String,
+
+        /// value: only required when `method` is `get`
+        #[structopt(name = "VALUE", required_if("method", "get"))]
+        value:  Option<String>,
+    }
 }
 
 impl SinkCmd {
@@ -137,6 +156,14 @@ impl SinkCmd {
             } => {
                 let topic = virt::ros(topic_name.as_str(), queue_size)?;
                 task::block_on(stdin().forward(topic))?;
+            }
+            SinkCmd::ReqRes {
+                address,
+                peerid,
+                method,
+                value,                
+            } => {
+            // todo reqres cli client 
             }
         }
         Ok(())
