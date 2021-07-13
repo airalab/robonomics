@@ -19,6 +19,7 @@
 
 use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
+use futures_timer::Delay;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::subxt::{datalog, AccountId};
@@ -142,4 +143,26 @@ pub fn ros(
         },
     )?;
     Ok((receiver, subscriber))
+}
+
+pub fn reqres(address: String) -> 
+    //Result<impl Stream<Item = Result<String>>> {
+    Result<impl Stream<Item = String>> { 
+    log::debug!(
+        target: "robonomics-io",
+        "reqres: bind address {}", address
+    );
+
+    let period = 1;
+    let delay = Duration::from_secs(period as u64 * 6);
+    let (sender, receiver) = mpsc::unbounded();
+    task::spawn(async move {
+        // todo: real reqest to remote server
+        loop {
+            let _ = sender.unbounded_send("hey".to_string());
+            Delay::new(delay).await;
+        }
+    });
+
+    Ok(receiver)
 }

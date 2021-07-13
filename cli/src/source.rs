@@ -228,6 +228,8 @@ impl SourceCmd {
                 address,
             } => {
             // todo reqres cli server
+            let val = virt::reqres(address.as_str().to_string())?;
+            task::block_on(val.map(|msg| Ok(msg)).forward(stdout()))?;
             }
         }
         Ok(())
