@@ -110,6 +110,13 @@ pub enum SourceCmd {
         #[structopt(long, default_value = "10")]
         queue_size: usize,
     },
+    /// request-response server
+    #[structopt(name = "reqres")]
+    ReqRes {
+        /// multiaddress of server, i.e. /ip4/192.168.0.102/tcp/61241
+        #[structopt(value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
+        address: String,
+    }
 }
 
 arg_enum! {
@@ -216,6 +223,11 @@ impl SourceCmd {
             } => {
                 let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
                 task::block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
+            }
+            SourceCmd::ReqRes {
+                address,
+            } => {
+            // todo reqres cli server
             }
         }
         Ok(())
