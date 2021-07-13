@@ -1102,7 +1102,7 @@ decl_module! {
                 assert!(item.bond_credit == 0);
                 assert!(item.issued_amount == 0);
 
-                BondUnitPackageRegistry::<T>::remove_prefix(&bond);
+                BondUnitPackageRegistry::<T>::remove_prefix(&bond, None);
 
                 Self::deposit_event(RawEvent::BondWithdrawal(caller, bond));
                 Ok(())

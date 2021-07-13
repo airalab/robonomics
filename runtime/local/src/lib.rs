@@ -75,6 +75,7 @@ use sp_version::RuntimeVersion;
 use crate::constants::{currency::*, time::*};
 
 /// This runtime version.
+#[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-local"),
     impl_name: create_runtime_str!("robonomics-airalab"),
@@ -454,9 +455,10 @@ impl_runtime_apis! {
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(
             source: TransactionSource,
-            tx: <Block as BlockT>::Extrinsic
+            tx: <Block as BlockT>::Extrinsic,
+            block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
-            Executive::validate_transaction(source, tx)
+            Executive::validate_transaction(source, tx, block_hash)
         }
     }
 

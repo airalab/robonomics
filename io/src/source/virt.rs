@@ -90,12 +90,10 @@ pub fn ipfs(
     impl Stream<Item = Result<Vec<u8>>>,
 )> {
     let client = IpfsClient::from_str(uri).expect("unvalid uri");
-    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
 
     let (sender, receiver) = mpsc::unbounded();
     let datas = receiver.map(move |msg: String| {
-        runtime
-            .block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
+        task::block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
             .map_err(|e| e.to_string().into())
     });
     Ok((sender.sink_err_into(), datas))

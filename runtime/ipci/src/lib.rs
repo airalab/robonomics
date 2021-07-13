@@ -74,11 +74,12 @@ pub use pallet_staking::StakerStatus;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 /// Standalone runtime version.
+#[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -431,10 +432,19 @@ parameter_types! {
     // phase durations. 1/4 of the last session for each.
     pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
     pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
+
+    // signed config
+    pub const SignedMaxSubmissions: u32 = 10;
+    pub const SignedRewardBase: Balance = 1 * MITO;
+    pub const SignedDepositBase: Balance = 1 * MITO;
+    pub const SignedDepositByte: Balance = 1 * U_MITO;
+
     // fallback: no need to do on-chain phragmen initially.
     pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
         pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
+
     pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
+
     // miner configs
     pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;
     pub const MinerMaxIterations: u32 = 10;
@@ -470,6 +480,14 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type MinerMaxWeight = MinerMaxWeight;
     type MinerMaxLength = MinerMaxLength;
     type MinerTxPriority = MultiPhaseUnsignedPriority;
+    type SignedMaxSubmissions = SignedMaxSubmissions;
+    type SignedRewardBase = SignedRewardBase;
+    type SignedDepositBase = SignedDepositBase;
+    type SignedDepositByte = SignedDepositByte;
+    type SignedDepositWeight = ();
+    type SignedMaxWeight = MinerMaxWeight;
+    type SlashHandler = (); // burn slashes
+    type RewardHandler = (); // nothing to do upon rewards
     type DataProvider = Staking;
     type OnChainAccuracy = Perbill;
     type CompactSolution = NposCompactSolution16;
@@ -650,7 +668,7 @@ construct_runtime! {
         AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 44,
         Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent} = 45,
         ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 46,
-        Offences: pallet_offences::{Pallet, Call, Storage, Event} = 47,
+        Offences: pallet_offences::{Pallet, Storage, Event} = 47,
         Historical: pallet_session_historical::{Pallet} = 48,
 
         // Governance staff
@@ -750,9 +768,10 @@ impl_runtime_apis! {
     impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
         fn validate_transaction(
             source: TransactionSource,
-            tx: <Block as BlockT>::Extrinsic
+            tx: <Block as BlockT>::Extrinsic,
+            block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
-            Executive::validate_transaction(source, tx)
+            Executive::validate_transaction(source, tx, block_hash)
         }
     }
 

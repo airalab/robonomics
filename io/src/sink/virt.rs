@@ -106,12 +106,10 @@ where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
     let client = IpfsClient::from_str(uri).expect("unvalid uri");
-    let mut runtime = tokio::runtime::Runtime::new().expect("unable to start runtime");
 
     let (sender, receiver) = mpsc::unbounded();
     let hashes = receiver.map(move |msg: T| {
-        runtime
-            .block_on(client.add(Cursor::new(msg)))
+        task::block_on(client.add(Cursor::new(msg)))
             .map(|x| x.hash)
             .map_err(|e| e.to_string().into())
     });
