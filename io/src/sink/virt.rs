@@ -17,9 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sinkable devices.
 
-use async_std::{io, task};
-use futures::channel::mpsc;
-use futures::prelude::*;
+use async_compat::CompatExt;
+use futures::{channel::mpsc, io::BufWriter, prelude::*, stream::StreamExt};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
     pubsub::{self, Multiaddr, PubSub as _},
@@ -28,12 +27,13 @@ use robonomics_protocol::{
 use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;
 use std::time::Duration;
+use tokio::task;
 
 use crate::error::{Error, Result};
 
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
-    io::BufWriter::new(io::stdout())
+    BufWriter::new(tokio::io::stdout().compat())
         .into_sink()
         .with(|s| {
             let line: Result<String> = Ok(format!("{}\n", s));
@@ -96,22 +96,23 @@ pub fn datalog<T: Into<Vec<u8>>>(
 /// Upload some data into IPFS network.
 ///
 /// Returns IPFS hash of consumed data objects.
-pub fn ipfs<T>(
-    uri: &str,
+pub fn ipfs<'a, T>(
+    uri: &'a str,
 ) -> Result<(
     impl Sink<T, Error = Error>,
-    impl Stream<Item = Result<String>>,
+    impl Stream<Item = Result<String>> + 'a,
 )>
 where
     T: AsRef<[u8]> + Send + Sync + 'static,
 {
-    let client = IpfsClient::from_str(uri).expect("unvalid uri");
-
     let (sender, receiver) = mpsc::unbounded();
-    let hashes = receiver.map(move |msg: T| {
-        task::block_on(client.add(Cursor::new(msg)))
-            .map(|x| x.hash)
+    let hashes = receiver.then(move |msg: T| async move {
+        let client = IpfsClient::from_str(uri).expect("unvalid uri");
+        client
+            .add(Cursor::new(msg))
+            .map_ok(|x| x.hash)
             .map_err(|e| e.to_string().into())
+            .await
     });
     Ok((sender.sink_err_into(), hashes))
 }

@@ -65,6 +65,15 @@ pub fn parse_args(
     info!("[Parachain] Genesis State: {}", genesis_state);
     info!(
         "[Parachain] Is collating: {}",
+        if config.role().is_authority {
+            "yes"
+        } else {
+            "no"
+        }
+        .to_string()
+    );
+    info!(
+        "[Parachain] Is lighthouse: {}",
         if let Some(ref account) = lighthouse_account {
             format!("yes ({})", account)
         } else {

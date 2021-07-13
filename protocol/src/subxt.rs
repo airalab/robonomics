@@ -20,7 +20,7 @@
 use sp_runtime::{
     generic::Header,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
+    MultiAddress, MultiSignature, OpaqueExtrinsic,
 };
 use substrate_subxt::{
     balances::{self, BalancesEventTypeRegistry},
@@ -67,7 +67,7 @@ impl system::System for Robonomics {
     type Hash = sp_core::H256;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
-    type Address = Self::AccountId;
+    type Address = MultiAddress<Self::AccountId, ()>;
     type Header = Header<Self::BlockNumber, BlakeTwo256>;
     type Extrinsic = OpaqueExtrinsic;
     type AccountData = balances::AccountData<<Self as balances::Balances>::Balance>;

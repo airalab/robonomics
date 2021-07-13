@@ -1,7 +1,7 @@
 [package]
 name = "robonomics-protocol"
 description = "Robonomics Network protocol library."
-version = "0.11.1"
+version = "0.12.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 

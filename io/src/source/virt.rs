@@ -17,19 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sensors collection.
 
-use async_std::{io, task};
-use futures::{channel::mpsc, prelude::*};
+use async_compat::CompatExt;
+use futures::{channel::mpsc, io::BufReader, prelude::*, stream::StreamExt};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::subxt::{datalog, AccountId};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
+use tokio::task;
 
 use crate::error::{Error, Result};
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
-    let lines = io::BufReader::new(io::stdin()).lines();
+    let lines = BufReader::new(tokio::io::stdin().compat()).lines();
     lines.map(|r| r.map_err(Into::into))
 }
 
@@ -92,8 +93,11 @@ pub fn ipfs(
     let client = IpfsClient::from_str(uri).expect("unvalid uri");
 
     let (sender, receiver) = mpsc::unbounded();
-    let datas = receiver.map(move |msg: String| {
-        task::block_on(client.cat(msg.as_str()).map_ok(|c| c.to_vec()).try_concat())
+    let datas = receiver.then(move |msg: String| {
+        client
+            .cat(msg.as_str())
+            .map_ok(|c| c.to_vec())
+            .try_concat()
             .map_err(|e| e.to_string().into())
     });
     Ok((sender.sink_err_into(), datas))

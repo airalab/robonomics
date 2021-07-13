@@ -147,9 +147,9 @@ fn main() {
     };
 
     if args.len() < 3 {
-        let () = async_std::task::block_on(peer1);
+        let _ = futures::executor::block_on(peer1);
     } else {
-        let () = async_std::task::block_on(peer2);
+        let _ = futures::executor::block_on(peer2);
     }
 }
 

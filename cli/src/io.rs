@@ -32,9 +32,12 @@ pub struct IoCmd {
 impl IoCmd {
     /// Run I/O operation on device.
     pub fn run(&self) -> Result<()> {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?;
         match &self.operation {
-            Operation::Read(source) => source.run(),
-            Operation::Write(sink) => sink.run(),
+            Operation::Read(source) => source.run(&rt),
+            Operation::Write(sink) => sink.run(&rt),
         }
     }
 }

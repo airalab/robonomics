@@ -20,7 +20,6 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
-use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
@@ -124,7 +123,7 @@ arg_enum! {
 
 impl SourceCmd {
     /// Read data from source device.
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self, rt: &tokio::runtime::Runtime) -> Result<()> {
         match self.clone() {
             SourceCmd::SDS011 {
                 port,
@@ -133,7 +132,7 @@ impl SourceCmd {
             } => {
                 let sensor = serial::sds011(port, period)?;
 
-                task::block_on(
+                rt.block_on(
                     sensor
                         .map(|m| {
                             m.map(|msg| match encoding {
@@ -161,7 +160,7 @@ impl SourceCmd {
                 let pubsub =
                     virt::pubsub(listen, bootnodes, topic_name, Duration::from_secs(hearbeat))?;
 
-                task::block_on(
+                rt.block_on(
                     pubsub
                         .map(|m| {
                             m.map(|msg| {
@@ -173,7 +172,7 @@ impl SourceCmd {
             }
             SourceCmd::Datalog { remote, address } => {
                 let data = virt::datalog(remote, address)?;
-                task::block_on(
+                rt.block_on(
                     data.map(|msg| {
                         msg.map(|rec| {
                             rec.iter()
@@ -192,8 +191,8 @@ impl SourceCmd {
             }
             SourceCmd::Ipfs { remote } => {
                 let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
-                task::spawn(virt::stdin().forward(download));
-                task::block_on(
+                rt.spawn(virt::stdin().forward(download));
+                rt.block_on(
                     data.map(|m| {
                         m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
                     })
@@ -201,7 +200,7 @@ impl SourceCmd {
                 )?;
             }
             SourceCmd::Launch { remote, network } => {
-                task::block_on(
+                rt.block_on(
                     virt::launch(remote, network)
                         .map(|(sender, robot, param)| {
                             Ok(format!("{} >> {} : {}", sender, robot, param))
@@ -215,7 +214,7 @@ impl SourceCmd {
                 queue_size,
             } => {
                 let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
-                task::block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
+                rt.block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
             }
         }
         Ok(())

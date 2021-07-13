@@ -1,20 +1,20 @@
 [package]
 name = "robonomics-io"
 description = "Robonomics framework I/O operations."
-version = "0.10.1"
+version = "0.11.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
 ipfs-api = { version = "0.11.0", features = ["with-hyper-rustls"], default-features = false }
+tokio = { version = "1.8.0", features = ["rt-multi-thread", "io-std", "io-util"] }
+async-compat = "0.2"
 futures-timer = "3.0.2"
 derive_more = "0.99.11"
-async-std = "1.9.0"
 sp-core = "3.0.0"
-futures = "0.3.8"
+futures = "0.3.15"
 sds011 = "0.2.1"
-tokio = "0.3"
 serde = "1.0.106"
 log = "0.4.11"
 
