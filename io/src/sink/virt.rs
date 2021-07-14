@@ -179,7 +179,9 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
     Ok(sender.sink_err_into())
 }
 
-/// client what sends get or ping requests and expects response from server 
+/// Sends get or ping requests 
+///
+/// Returns response from server on get method
 pub fn reqres( address: String, peerid: String, method : String,  in_value: Option<String>)
     -> Result<(
         impl Sink<Result <String>, Error = Error>,

@@ -19,7 +19,6 @@
 
 use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
-//use futures_timer::Delay;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::subxt::{datalog, AccountId};
@@ -44,10 +43,8 @@ use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::tcp::TcpConfig;
 use std::fmt;
 use std::iter;
-//use structopt::StructOpt;
 
 use robonomics_protocol::reqres::*;
-
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
@@ -166,19 +163,12 @@ pub fn ros(
     Ok((receiver, subscriber))
 }
 
-pub fn reqres(address: String) -> 
-    //Result<impl Stream<Item = Result<String>>> {
-    Result<impl Stream<Item = String>> { 
-    log::debug!(
-        target: "robonomics-io",
-        "reqres: bind address {}", address
-    );
+pub fn reqres(address: String) -> Result<impl Stream<Item = String>> { 
+    log::debug!(target: "robonomics-io", "reqres: bind address {}", address);
 
-   // let period = 1;
-   // let delay = Duration::from_secs(period as u64 * 6);
     let (sender, receiver) = mpsc::unbounded();
+
     task::spawn(async move {
-        // todo: real reqest to remote server
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
 
@@ -195,42 +185,30 @@ pub fn reqres(address: String) ->
         log::debug!("Local peer 1 id: {}", peer_id.clone());
         let mut file = File::create("peerid.txt").unwrap();
         file.write_all(peer_id.as_bytes()).expect("Unable to write data");
-         
-        /*
+
         loop {
-            let _ = sender.unbounded_send("hey".to_string());
-            Delay::new(delay).await;
-        }
-        */
-        loop {
-            
             match swarm1.next_event().await {
                 SwarmEvent::NewListenAddr(addr) => {
                     log::debug!("Peer 1 listening on {}", addr.clone());
                 },
-                
+
                 SwarmEvent::Behaviour(RequestResponseEvent::Message {
                     peer,
                     message: RequestResponseMessage::Request { request, channel, .. }
                 }) => {
-                 
                     // match type of request: Ping or Get and handle
                     match request {
                         Request::Get(data) =>  {
                             //decode received request
                             let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
                             log::debug!(" peer1 Get '{}' from  {:?}", String::from_utf8_lossy(&decoded[..]), peer);
-                            //let _ = sender.unbounded_send(String::from_utf8_lossy(&decoded[..]));
                             let mut msg = String::new();
                             fmt::write (&mut msg, format_args!("{}", String::from_utf8_lossy(&decoded[..]))).unwrap();
                             let _ = sender.unbounded_send(msg);
                             // send encoded response
-                            //let resp_encoded: Vec<u8> = bincode::serialize(&format!("Hello {}", String::from_utf8_lossy(&decoded[..])).into_bytes()).unwrap();
-                            
                             let resp_encoded: Vec<u8> = bincode::serialize(&format!("{}", epoch()).into_bytes()).unwrap();
                             swarm1.behaviour_mut().send_response(channel, Response::Data(resp_encoded)).unwrap();
                         },
-                      
                         Request::Ping =>  {
                             log::debug!(" peer1 {:?} from {:?}", request, peer);
                             let resp: Response = Response::Pong;
@@ -238,8 +216,8 @@ pub fn reqres(address: String) ->
                             swarm1.behaviour_mut().send_response(channel, resp.clone()).unwrap();
                         },
                     }
-                
                 },
+
                 SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent {
                     peer, ..
                 }) => {
@@ -248,16 +226,13 @@ pub fn reqres(address: String) ->
 
                 SwarmEvent::Behaviour(e) =>println!("Peer1: Unexpected event: {:?}", e),
                 _ => {}
-               
             }
          };
     });
-
     Ok(receiver)
 }
 
 fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
-
     // if provided pk8 file with keys use it to have static PeerID 
     // in other case PeerID  will be randomly generated
     let mut id_keys = identity::Keypair::generate_ed25519();
