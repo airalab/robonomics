@@ -162,3 +162,14 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
 
     Ok(sender.sink_err_into())
 }
+
+pub fn reqres( multiaddr: String, peerid: String, method : String, value: Option<String>
+) //-> impl Stream<Item = String > {
+  ->  Result<impl Sink<String, Error = Error>> {
+    let (sender, receiver) = mpsc::unbounded();
+    task::spawn(async move {
+        let mut msg = String::new();
+    });
+
+    Ok(sender.sink_err_into())
+}
