@@ -32,9 +32,6 @@ use std::time::Duration;
 use crate::error::{Error, Result};
 
 use bincode;
-//use chrono::prelude::*;
-//use std::fs::File;
-//use std::io::prelude::*;
 use libp2p::core::{
     identity,
     muxing::StreamMuxerBox,
@@ -46,7 +43,6 @@ use libp2p::request_response::*;
 use libp2p::swarm::Swarm;
 use libp2p::tcp::TcpConfig;
 use rust_base58::FromBase58;
-//use std::fmt;
 use std::iter;
 use std::process;
 use robonomics_protocol::reqres::*;
@@ -183,12 +179,15 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
     Ok(sender.sink_err_into())
 }
 
-pub fn reqres( address: String, peerid: String, method : String,  in_value: Option<String>
-) //-> impl Stream<Item = String > {
-  ->  Result<impl Sink<String, Error = Error>> {
-    let (sender, _receiver) = mpsc::unbounded();
-    task::spawn(async move {
-        //let mut msg = String::new();
+/// client what sends get or ping requests and expects response from server 
+pub fn reqres( address: String, peerid: String, method : String,  in_value: Option<String>)
+    -> Result<(
+        impl Sink<Result <String>, Error = Error>,
+        impl Stream<Item = Result<String>>,
+)>  {
+        let (sender, receiver) = mpsc::unbounded();
+      
+        task::spawn(async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
 
@@ -223,7 +222,7 @@ pub fn reqres( address: String, peerid: String, method : String,  in_value: Opti
             println!("unsuported command {} ", method);
             process::exit(-1);
         }
-      
+            
         loop {
             match swarm2.next().await {
                 RequestResponseEvent::Message {
@@ -252,11 +251,8 @@ pub fn reqres( address: String, peerid: String, method : String,  in_value: Opti
                 }
             }
        }
-    
-
     });
-
-    Ok(sender.sink_err_into())
+   Ok((sender.sink_err_into(),receiver))
 }
 
 fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {

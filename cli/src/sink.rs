@@ -163,8 +163,8 @@ impl SinkCmd {
                 method,
                 value,                
             } => {
-            // todo reqres cli client
-            let _ = virt::reqres(address,peerid, method,value)?; 
+                let ( _err, res) = virt::reqres(address,peerid, method,value)?;
+                task::block_on(res.forward(virt::stdout()))?;
             }
         }
         Ok(())
