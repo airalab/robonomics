@@ -19,7 +19,7 @@
 
 use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*};
-use futures_timer::Delay;
+//use futures_timer::Delay;
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::subxt::{datalog, AccountId};
@@ -27,6 +27,27 @@ use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
+
+use bincode;
+use chrono::prelude::*;
+use std::fs::File;
+use std::io::prelude::*;
+use libp2p::core::{
+    identity,
+    muxing::StreamMuxerBox,
+    transport::{self, Transport},
+    upgrade, PeerId,
+};
+use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
+use libp2p::request_response::*;
+use libp2p::swarm::{Swarm, SwarmEvent};
+use libp2p::tcp::TcpConfig;
+use std::fmt;
+use std::iter;
+//use structopt::StructOpt;
+
+use robonomics_protocol::reqres::*;
+
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
@@ -153,16 +174,115 @@ pub fn reqres(address: String) ->
         "reqres: bind address {}", address
     );
 
-    let period = 1;
-    let delay = Duration::from_secs(period as u64 * 6);
+   // let period = 1;
+   // let delay = Duration::from_secs(period as u64 * 6);
     let (sender, receiver) = mpsc::unbounded();
     task::spawn(async move {
         // todo: real reqest to remote server
+        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+        let cfg = RequestResponseConfig::default();
+
+        let (peer1_id, trans) = mk_transport();
+        let ping_proto1 = RequestResponse::new(RobonomicsCodec{is_ping: false}, protocols.clone(), cfg.clone());
+        let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+
+        let addr_local = address;
+        let addr: Multiaddr = addr_local.parse().unwrap();
+
+        swarm1.listen_on(addr.clone()).unwrap();
+        let mut peer_id = String::new();
+        fmt::write (&mut peer_id, format_args!("{:?}", peer1_id)).unwrap();
+        log::debug!("Local peer 1 id: {}", peer_id.clone());
+        let mut file = File::create("peerid.txt").unwrap();
+        file.write_all(peer_id.as_bytes()).expect("Unable to write data");
+         
+        /*
         loop {
             let _ = sender.unbounded_send("hey".to_string());
             Delay::new(delay).await;
         }
+        */
+        loop {
+            
+            match swarm1.next_event().await {
+                SwarmEvent::NewListenAddr(addr) => {
+                    log::debug!("Peer 1 listening on {}", addr.clone());
+                },
+                
+                SwarmEvent::Behaviour(RequestResponseEvent::Message {
+                    peer,
+                    message: RequestResponseMessage::Request { request, channel, .. }
+                }) => {
+                 
+                    // match type of request: Ping or Get and handle
+                    match request {
+                        Request::Get(data) =>  {
+                            //decode received request
+                            let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                            log::debug!(" peer1 Get '{}' from  {:?}", String::from_utf8_lossy(&decoded[..]), peer);
+                            //let _ = sender.unbounded_send(String::from_utf8_lossy(&decoded[..]));
+                            let mut msg = String::new();
+                            fmt::write (&mut msg, format_args!("{}", String::from_utf8_lossy(&decoded[..]))).unwrap();
+                            let _ = sender.unbounded_send(msg);
+                            // send encoded response
+                            //let resp_encoded: Vec<u8> = bincode::serialize(&format!("Hello {}", String::from_utf8_lossy(&decoded[..])).into_bytes()).unwrap();
+                            
+                            let resp_encoded: Vec<u8> = bincode::serialize(&format!("{}", epoch()).into_bytes()).unwrap();
+                            swarm1.behaviour_mut().send_response(channel, Response::Data(resp_encoded)).unwrap();
+                        },
+                      
+                        Request::Ping =>  {
+                            log::debug!(" peer1 {:?} from {:?}", request, peer);
+                            let resp: Response = Response::Pong;
+                            log::debug!(" peer1 {:?} to   {:?}", resp, peer);
+                            swarm1.behaviour_mut().send_response(channel, resp.clone()).unwrap();
+                        },
+                    }
+                
+                },
+                SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent {
+                    peer, ..
+                }) => {
+                    log::debug!("Response sent to {:?}",  peer);
+                }
+
+                SwarmEvent::Behaviour(e) =>println!("Peer1: Unexpected event: {:?}", e),
+                _ => {}
+               
+            }
+         };
     });
 
     Ok(receiver)
+}
+
+fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
+
+    // if provided pk8 file with keys use it to have static PeerID 
+    // in other case PeerID  will be randomly generated
+    let mut id_keys = identity::Keypair::generate_ed25519();
+    let mut peer_id = id_keys.public().into_peer_id();
+
+    let f = std::fs::read("private.pk8");
+    let _ = match f {
+        Ok(mut bytes) =>  {
+        id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
+        peer_id = id_keys.public().into_peer_id();
+        log::debug!("try get peer ID from keypair at file");
+       },
+        Err(_e) =>  log::debug!("try to use peer ID from random keypair"),
+    };
+
+    let noise_keys = Keypair::<X25519Spec>::new().into_authentic(&id_keys).unwrap();
+    (peer_id, TcpConfig::new()
+        .nodelay(true)
+        .upgrade(upgrade::Version::V1)
+        .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
+        .multiplex(libp2p_yamux::YamuxConfig::default())
+        .boxed())
+}
+
+fn epoch () -> i64 {
+   let ts =  Utc::now();
+   ts.timestamp() * 1000 + ( ts.nanosecond() as i64 )/ 1000 / 1000
 }
