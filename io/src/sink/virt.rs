@@ -31,6 +31,26 @@ use std::time::Duration;
 
 use crate::error::{Error, Result};
 
+use bincode;
+//use chrono::prelude::*;
+//use std::fs::File;
+//use std::io::prelude::*;
+use libp2p::core::{
+    identity,
+    muxing::StreamMuxerBox,
+    transport::{self, Transport},
+    upgrade, PeerId,
+};
+use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
+use libp2p::request_response::*;
+use libp2p::swarm::Swarm;
+use libp2p::tcp::TcpConfig;
+use rust_base58::FromBase58;
+//use std::fmt;
+use std::iter;
+use std::process;
+use robonomics_protocol::reqres::*;
+
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
     io::BufWriter::new(io::stdout())
@@ -163,13 +183,104 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
     Ok(sender.sink_err_into())
 }
 
-pub fn reqres( multiaddr: String, peerid: String, method : String, value: Option<String>
+pub fn reqres( address: String, peerid: String, method : String,  in_value: Option<String>
 ) //-> impl Stream<Item = String > {
   ->  Result<impl Sink<String, Error = Error>> {
-    let (sender, receiver) = mpsc::unbounded();
+    let (sender, _receiver) = mpsc::unbounded();
     task::spawn(async move {
-        let mut msg = String::new();
+        //let mut msg = String::new();
+        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+        let cfg = RequestResponseConfig::default();
+
+        let peer_id = peerid;
+        let remote_bytes = peer_id.from_base58().unwrap();
+        let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+
+        let (peer2_id, trans) = mk_transport();
+        let ping_proto2 = RequestResponse::new(RobonomicsCodec {is_ping: false}, protocols, cfg);
+        let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+        log::debug!("Local peer 2 id: {:?}", peer2_id);
+
+        let addr_remote = address;
+        let addr_r : Multiaddr = addr_remote.parse().unwrap();
+        swarm2.behaviour_mut().add_address(&remote_peer, addr_r.clone());
+
+        let mut rq = Request::Ping;
+
+        if method == "ping" {
+            let req_id = swarm2.behaviour_mut().send_request(&remote_peer,rq);
+            log::debug!(" peer2 Req{}: Ping  -> {:?}", req_id, remote_peer);
+        } else if method == "get" {
+            let value = in_value.unwrap();
+            rq = Request::Get(value.clone().into_bytes());
+
+            if let Request::Get(y) = rq {
+                log::debug!(" peer2  Req: Get -> {:?} : '{}'", remote_peer, String::from_utf8_lossy(&y));
+            }
+            let req_encoded: Vec<u8> = bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
+            swarm2.behaviour_mut().send_request(&remote_peer, Request::Get(req_encoded));
+        } else {
+            println!("unsuported command {} ", method);
+            process::exit(-1);
+        }
+      
+        loop {
+            match swarm2.next().await {
+                RequestResponseEvent::Message {
+                    peer,
+                    message: RequestResponseMessage::Response { request_id, response }
+                } => {
+                    match response {
+                        Response::Pong => {
+                            log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                            println!("{:?}", &response);
+                            process::exit(0);
+                        },
+                        Response::Data (data) => {
+                            // decode response 
+                            let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                            log::debug!(" peer2 Resp: Data '{}' from {:?}", String::from_utf8_lossy(&decoded[..]), remote_peer);
+                            println!("{}", String::from_utf8_lossy(&decoded[..]));
+                            process::exit(0);
+                        }
+                    }
+                },
+
+                e =>  {
+                    println!("Peer2 err: {:?}", e);
+                    process::exit(-2)
+                }
+            }
+       }
+    
+
     });
 
     Ok(sender.sink_err_into())
+}
+
+fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
+
+    // if provided pk8 file with keys use it to have static PeerID 
+    // in other case PeerID  will be randomly generated
+    let mut id_keys = identity::Keypair::generate_ed25519();
+    let mut peer_id = id_keys.public().into_peer_id();
+
+    let f = std::fs::read("private.pk8");
+    let _ = match f {
+        Ok(mut bytes) =>  {
+        id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
+        peer_id = id_keys.public().into_peer_id();
+        log::debug!("try get peer ID from keypair at file");
+       },
+        Err(_e) =>  log::debug!("try to use peer ID from random keypair"),
+    };
+
+    let noise_keys = Keypair::<X25519Spec>::new().into_authentic(&id_keys).unwrap();
+    (peer_id, TcpConfig::new()
+        .nodelay(true)
+        .upgrade(upgrade::Version::V1)
+        .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
+        .multiplex(libp2p_yamux::YamuxConfig::default())
+        .boxed())
 }
