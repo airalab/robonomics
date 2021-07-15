@@ -238,11 +238,11 @@ where
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
-        rpc_extensions_builder: Box::new(|deny_unsafe, _| {
+        rpc_extensions_builder: Box::new(move |deny_unsafe, _| {
             let mut io = jsonrpc_core::IoHandler::default();
             io.extend_with(SystemApi::to_delegate(FullSystem::new(
-                rpc_client,
-                rpc_pool,
+                rpc_client.clone(),
+                rpc_pool.clone(),
                 deny_unsafe,
             )));
             io
