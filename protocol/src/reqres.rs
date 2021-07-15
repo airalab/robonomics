@@ -20,9 +20,16 @@
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
 use libp2p::core::upgrade::{read_one, write_one};
-use libp2p::core::ProtocolName;
+use libp2p::core::{ ProtocolName,
+    identity, upgrade,
+    muxing::StreamMuxerBox, PeerId,
+    transport::{self, Transport}};
+use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
 use libp2p::request_response::RequestResponseCodec;
+use libp2p::tcp::TcpConfig;
+use libp2p::yamux::YamuxConfig;
 use std::io;
+use log;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
@@ -115,4 +122,29 @@ impl RequestResponseCodec for RobonomicsCodec {
             },
         }
     }
+}
+
+pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
+    // if provided pk8 file with keys use it to have static PeerID 
+    // in other case PeerID  will be randomly generated
+    let mut id_keys = identity::Keypair::generate_ed25519();
+    let mut peer_id = id_keys.public().into_peer_id();
+
+    let f = std::fs::read("private.pk8");
+    let _ = match f {
+        Ok(mut bytes) =>  {
+        id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
+        peer_id = id_keys.public().into_peer_id();
+        log::debug!("try get peer ID from keypair at file");
+       },
+        Err(_e) => log::debug!("try to use peer ID from random keypair"),
+    };
+
+    let noise_keys = Keypair::<X25519Spec>::new().into_authentic(&id_keys).unwrap();
+    (peer_id, TcpConfig::new()
+        .nodelay(true)
+        .upgrade(upgrade::Version::V1)
+        .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
+        .multiplex(YamuxConfig::default())
+        .boxed())
 }

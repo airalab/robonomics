@@ -3,16 +3,9 @@ use bincode;
 use chrono::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
-use libp2p::core::{
-    identity,
-    muxing::StreamMuxerBox,
-    transport::{self, Transport},
-    upgrade, Multiaddr, PeerId,
-};
-use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
+use libp2p::core::Multiaddr;
 use libp2p::request_response::*;
 use libp2p::swarm::{Swarm, SwarmEvent};
-use libp2p::tcp::TcpConfig;
 use std::fmt;
 use std::iter;
 use structopt::StructOpt;
@@ -106,32 +99,6 @@ fn main() {
     };
 
     let () = async_std::task::block_on(peer1);
-}
-
-fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
-
-    // if provided pk8 file with keys use it to have static PeerID 
-    // in other case PeerID  will be randomly generated
-    let mut id_keys = identity::Keypair::generate_ed25519();
-    let mut peer_id = id_keys.public().into_peer_id();
-
-    let f = std::fs::read("private.pk8");
-    let _ = match f {
-        Ok(mut bytes) =>  {
-        id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
-        peer_id = id_keys.public().into_peer_id();
-        debug!("try get peer ID from keypair at file");
-       },
-        Err(_e) =>  debug!("try to use peer ID from random keypair"),
-    };
-
-    let noise_keys = Keypair::<X25519Spec>::new().into_authentic(&id_keys).unwrap();
-    (peer_id, TcpConfig::new()
-        .nodelay(true)
-        .upgrade(upgrade::Version::V1)
-        .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(libp2p_yamux::YamuxConfig::default())
-        .boxed())
 }
 
 fn epoch () -> i64 {

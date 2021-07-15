@@ -12,3 +12,5 @@ libp2p-yamux = "0.32.0"
 libp2prs-runtime = {  version = "0.3.0" }
 rust-base58  = "0.0.4"
 robonomics-protocol = { path = "../.." }
+log = "0.4.6"
+#env_logger = "0.6.0"

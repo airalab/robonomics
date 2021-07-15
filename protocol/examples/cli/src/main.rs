@@ -1,15 +1,8 @@
 /// Example of usage simple request response protocol
 use bincode;
-use libp2p::core::{
-    identity,
-    muxing::StreamMuxerBox,
-    transport::{self, Transport},
-    upgrade, Multiaddr, PeerId,
-};
-use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
+use libp2p::core::{Multiaddr, PeerId};
 use libp2p::request_response::*;
 use libp2p::swarm::Swarm;
-use libp2p::tcp::TcpConfig;
 use rust_base58::FromBase58;
 use std::iter;
 use std::process;
@@ -123,7 +116,7 @@ fn main() {
     let () = async_std::task::block_on(peer2);
 
 }
-
+/*
 fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
 
     // if provided pk8 file with keys use it to have static PeerID 
@@ -149,3 +142,4 @@ fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
         .multiplex(libp2p_yamux::YamuxConfig::default())
         .boxed())
 }
+*/
