@@ -65,7 +65,7 @@ pub fn parse_args(
     info!("[Parachain] Genesis State: {}", genesis_state);
     info!(
         "[Parachain] Is collating: {}",
-        if config.role().is_authority {
+        if config.role.is_authority() {
             "yes"
         } else {
             "no"

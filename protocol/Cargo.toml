@@ -11,7 +11,7 @@ codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"]
 async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", rev = "08a3e65" } 
+substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", rev = "08a3e65", default-features = false, features = ["tokio02"] } 
 substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt", rev = "08a3e65" } 
 sp-runtime = "3.0.0"
 sp-core = "3.0.0"

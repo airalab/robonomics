@@ -145,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -3649,7 +3649,7 @@ checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 
 [[package]]
 name = "ipci-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -3945,8 +3945,8 @@ checksum = "e7275601ba6f9f6feaa82d3c66b51e34d190e75f1cf23d5c40f7801f3a7610a6"
 dependencies = [
  "async-trait",
  "fnv",
- "hyper 0.14.10",
- "hyper-rustls 0.22.1",
+ "hyper 0.13.10",
+ "hyper-rustls 0.21.0",
  "jsonrpsee-types",
  "jsonrpsee-utils",
  "log 0.4.14",
@@ -3994,7 +3994,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47554ecaacb479285da68799d9b6afc258c32b332cc8b85829c6a9304ee98776"
 dependencies = [
  "futures-util",
- "hyper 0.14.10",
+ "hyper 0.13.10",
  "jsonrpsee-types",
 ]
 
@@ -4017,11 +4017,8 @@ dependencies = [
  "soketto 0.5.0",
  "thiserror",
  "tokio 0.2.25",
- "tokio 1.8.1",
  "tokio-rustls 0.15.0",
- "tokio-rustls 0.22.0",
  "tokio-util 0.3.1",
- "tokio-util 0.6.7",
  "url 2.2.2",
 ]
 
@@ -4645,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "local-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking 3.1.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8)",
  "frame-executive",
@@ -4769,7 +4766,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -8265,7 +8262,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-bench"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "derive_more",
  "frame-system 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8)",
@@ -8356,7 +8353,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -8406,7 +8403,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "jsonrpc-core",
  "local-runtime",
@@ -8437,7 +8434,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "alpha-runtime",
  "cumulus-client-collator",
@@ -12336,7 +12333,6 @@ checksum = "1caa0b0c8d94a049db56b5acf8cba99dc0623aab1b26d5b5f5e2d945846b3592"
 dependencies = [
  "bytes 1.0.1",
  "futures-core",
- "futures-io",
  "futures-sink",
  "log 0.4.14",
  "pin-project-lite 0.2.7",
