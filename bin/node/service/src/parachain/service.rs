@@ -30,7 +30,7 @@ use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use robonomics_primitives::{Block, Hash};
+use robonomics_primitives::{AccountId, Block, Hash, Index};
 use sc_client_api::ExecutorProvider;
 use sc_network::NetworkService;
 use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
@@ -41,6 +41,7 @@ use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
+use substrate_frame_rpc_system::{FullSystem, SystemApi};
 use substrate_prometheus_endpoint::Registry;
 
 fn new_partial<RuntimeApi, Executor, BIQ>(
@@ -146,7 +147,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     parachain_config: sc_service::Configuration,
     polkadot_config: sc_service::Configuration,
     id: polkadot_primitives::v0::Id,
-    lighthouse_account: Option<robonomics_primitives::AccountId>,
+    lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
     build_consensus: BIC,
 ) -> sc_service::error::Result<TaskManager>
@@ -164,7 +165,8 @@ where
             StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>,
         > + sp_offchain::OffchainWorkerApi<Block>
         + sp_block_builder::BlockBuilder<Block>
-        + cumulus_primitives_core::CollectCollationInfo<Block>,
+        + cumulus_primitives_core::CollectCollationInfo<Block>
+        + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
         Arc<TFullClient<Block, RuntimeApi, Executor>>,
@@ -177,7 +179,7 @@ where
     >,
     BIC: FnOnce(
         polkadot_primitives::v0::Id,
-        Option<robonomics_primitives::AccountId>,
+        Option<AccountId>,
         Arc<TFullClient<Block, RuntimeApi, Executor>>,
         Option<&Registry>,
         Option<TelemetryHandle>,
@@ -231,10 +233,20 @@ where
             block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
         })?;
 
+    let rpc_client = client.clone();
+    let rpc_pool = transaction_pool.clone();
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
-        rpc_extensions_builder: Box::new(|_, _| ()),
+        rpc_extensions_builder: Box::new(|deny_unsafe, _| {
+            let mut io = jsonrpc_core::IoHandler::default();
+            io.extend_with(SystemApi::to_delegate(FullSystem::new(
+                rpc_client,
+                rpc_pool,
+                deny_unsafe,
+            )));
+            io
+        }),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
         task_manager: &mut task_manager,
@@ -401,7 +413,7 @@ where
 /// Build the open set consensus.
 pub fn build_open_consensus<RuntimeApi, Executor>(
     para_id: polkadot_primitives::v0::Id,
-    lighthouse_account: Option<robonomics_primitives::AccountId>,
+    lighthouse_account: Option<AccountId>,
     client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
@@ -477,7 +489,7 @@ where
 /// Build the PoS consensus.
 pub fn build_pos_consensus<RuntimeApi, Executor>(
     para_id: polkadot_primitives::v0::Id,
-    _lighthouse_account: Option<robonomics_primitives::AccountId>,
+    _lighthouse_account: Option<AccountId>,
     client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,

@@ -14,6 +14,7 @@ repository = "https://github.com/airalab/robonomics"
 serde = { version = "1.0.106", features = ["derive"]}
 codec = { package = "parity-scale-codec", version = "2.0" }
 structopt = { version = "0.3.8", optional = true }
+jsonrpc-core = { version = "15.1.0", optional = true }
 hex-literal = "0.3.1"
 log = "0.4"
 
@@ -96,6 +97,7 @@ sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", optional = true }
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8" }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", optional = true }
 
 # Robonomics-specific dependencies
 rosrust = { version = "0.9.5", optional = true }
@@ -156,6 +158,8 @@ ipci = [
 parachain = [
     "alpha-runtime",
     "pallet-robonomics-lighthouse",
+    "substrate-frame-rpc-system",
+    "jsonrpc-core",
     "cumulus-primitives-core",
     "cumulus-primitives-parachain-inherent",
     "cumulus-client-consensus-aura",
