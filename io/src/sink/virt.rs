@@ -27,24 +27,18 @@ use robonomics_protocol::{
 };
 use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;
+use std::fs::File;
+use std::io::prelude::*;
 use std::time::Duration;
 
 use crate::error::{Error, Result};
 
 use bincode;
-use libp2p::core::{
-    identity,
-    muxing::StreamMuxerBox,
-    transport::{self, Transport},
-    upgrade, PeerId,
-};
-use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
+use chrono::prelude::*;
 use libp2p::request_response::*;
-use libp2p::swarm::Swarm;
-use libp2p::tcp::TcpConfig;
-use rust_base58::FromBase58;
+use libp2p::swarm::{Swarm, SwarmEvent};
 use std::iter;
-use std::process;
+use std::fmt;
 use robonomics_protocol::reqres::*;
 
 /// Print on standard console output.
@@ -179,80 +173,79 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
     Ok(sender.sink_err_into())
 }
 
-/// Sends get or ping requests 
+/// Listen for ping or get requests from clients
 ///
-/// Returns response from server on get method
-pub fn reqres( address: String, peerid: String, method : String,  in_value: Option<String>)
-    -> Result<(
-        impl Sink<Result <String>, Error = Error>,
-        impl Stream<Item = Result<String>>,
-)>  {
-        let (sender, receiver) = mpsc::unbounded();
-      
-        task::spawn(async move {
+/// Returns response to clients pong or data
+pub fn reqres(address: String) -> Result<impl Stream<Item = String>> { 
+    log::debug!(target: "robonomics-io", "reqres: bind address {}", address);
+
+    let (sender, receiver) = mpsc::unbounded();
+
+    task::spawn(async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
 
-        let peer_id = peerid;
-        let remote_bytes = peer_id.from_base58().unwrap();
-        let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+        let (peer1_id, trans) = mk_transport();
+        let ping_proto1 = RequestResponse::new(RobonomicsCodec{is_ping: false}, protocols.clone(), cfg.clone());
+        let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
 
-        let (peer2_id, trans) = mk_transport();
-        let ping_proto2 = RequestResponse::new(RobonomicsCodec {is_ping: false}, protocols, cfg);
-        let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
-        log::debug!("Local peer 2 id: {:?}", peer2_id);
+        let addr_local = address;
+        let addr: Multiaddr = addr_local.parse().unwrap();
 
-        let addr_remote = address;
-        let addr_r : Multiaddr = addr_remote.parse().unwrap();
-        swarm2.behaviour_mut().add_address(&remote_peer, addr_r.clone());
+        swarm1.listen_on(addr.clone()).unwrap();
+        let mut peer_id = String::new();
+        fmt::write (&mut peer_id, format_args!("{:?}", peer1_id)).unwrap();
+        log::debug!("Local peer 1 id: {}", peer_id.clone());
+        let mut file = File::create("peerid.txt").unwrap();
+        file.write_all(peer_id.as_bytes()).expect("Unable to write data");
 
-        let mut rq = Request::Ping;
-
-        if method == "ping" {
-            let req_id = swarm2.behaviour_mut().send_request(&remote_peer,rq);
-            log::debug!(" peer2 Req{}: Ping  -> {:?}", req_id, remote_peer);
-        } else if method == "get" {
-            let value = in_value.unwrap();
-            rq = Request::Get(value.clone().into_bytes());
-
-            if let Request::Get(y) = rq {
-                log::debug!(" peer2  Req: Get -> {:?} : '{}'", remote_peer, String::from_utf8_lossy(&y));
-            }
-            let req_encoded: Vec<u8> = bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
-            swarm2.behaviour_mut().send_request(&remote_peer, Request::Get(req_encoded));
-        } else {
-            println!("unsuported command {} ", method);
-            process::exit(-1);
-        }
-            
         loop {
-            match swarm2.next().await {
-                RequestResponseEvent::Message {
+            match swarm1.next_event().await {
+                SwarmEvent::NewListenAddr(addr) => {
+                    log::debug!("Peer 1 listening on {}", addr.clone());
+                },
+
+                SwarmEvent::Behaviour(RequestResponseEvent::Message {
                     peer,
-                    message: RequestResponseMessage::Response { request_id, response }
-                } => {
-                    match response {
-                        Response::Pong => {
-                            log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                            println!("{:?}", &response);
-                            process::exit(0);
-                        },
-                        Response::Data (data) => {
-                            // decode response 
+                    message: RequestResponseMessage::Request { request, channel, .. }
+                }) => {
+                    // match type of request: Ping or Get and handle
+                    match request {
+                        Request::Get(data) =>  {
+                            //decode received request
                             let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
-                            log::debug!(" peer2 Resp: Data '{}' from {:?}", String::from_utf8_lossy(&decoded[..]), remote_peer);
-                            println!("{}", String::from_utf8_lossy(&decoded[..]));
-                            process::exit(0);
-                        }
+                            log::debug!(" peer1 Get '{}' from  {:?}", String::from_utf8_lossy(&decoded[..]), peer);
+                            let mut msg = String::new();
+                            fmt::write (&mut msg, format_args!("{}", String::from_utf8_lossy(&decoded[..]))).unwrap();
+                            let _ = sender.unbounded_send(msg);
+                            // send encoded response
+                            let resp_encoded: Vec<u8> = bincode::serialize(&format!("{}", epoch()).into_bytes()).unwrap();
+                            swarm1.behaviour_mut().send_response(channel, Response::Data(resp_encoded)).unwrap();
+                        },
+                        Request::Ping =>  {
+                            log::debug!(" peer1 {:?} from {:?}", request, peer);
+                            let resp: Response = Response::Pong;
+                            log::debug!(" peer1 {:?} to   {:?}", resp, peer);
+                            swarm1.behaviour_mut().send_response(channel, resp.clone()).unwrap();
+                        },
                     }
                 },
 
-                e =>  {
-                    println!("Peer2 err: {:?}", e);
-                    process::exit(-2)
+                SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent {
+                    peer, ..
+                }) => {
+                    log::debug!("Response sent to {:?}",  peer);
                 }
+
+                SwarmEvent::Behaviour(e) =>println!("Peer1: Unexpected event: {:?}", e),
+                _ => {}
             }
-       }
+         };
     });
-   Ok((sender.sink_err_into(),receiver))
+    Ok(receiver)
+}
+
+fn epoch () -> i64 {
+   let ts =  Utc::now();
+   ts.timestamp() * 1000 + ( ts.nanosecond() as i64 )/ 1000 / 1000
 }
