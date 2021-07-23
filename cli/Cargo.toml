@@ -10,6 +10,7 @@ robonomics-protocol = { path = "../protocol" }
 robonomics-io = { path = "../io" }
 derive_more = "0.99.11"
 structopt = "0.3.8"
+async-std = "1.9.0"
 futures = "0.3.8"
 serde_json = "1.0.0"
 bincode = "1.3"
