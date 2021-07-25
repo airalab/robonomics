@@ -35,6 +35,7 @@ use std::process;
 use rust_base58::FromBase58;
 use robonomics_protocol::reqres::*;
 use crate::error::{Error, Result};
+use tokio::runtime::Builder;
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
@@ -164,7 +165,9 @@ pub fn reqres( address: String, peerid: String, method : String,  in_value: Opti
 )>  {
         let (sender, receiver) = mpsc::unbounded();
         //thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime', io/src/source/virt.rs:167:9
-        task::spawn(async move {
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+        rt.spawn ( async move {
+        //task::spawn(async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
 
