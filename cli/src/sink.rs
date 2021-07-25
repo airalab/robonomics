@@ -91,6 +91,13 @@ pub enum SinkCmd {
         #[structopt(long, default_value = "10")]
         queue_size: usize,
     },
+    /// request-response client
+    #[structopt(name = "reqres")]
+    ReqRes {
+        /// multiaddress of server, i.e. /ip4/192.168.0.102/tcp/61241
+        #[structopt(value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
+        address: String,
+    }
 }
 
 impl SinkCmd {
@@ -136,6 +143,12 @@ impl SinkCmd {
             } => {
                 let topic = virt::ros(topic_name.as_str(), queue_size)?;
                 rt.block_on(stdin().forward(topic))?;
+            }
+            SinkCmd::ReqRes {
+                address,
+            } => {
+                let val = virt::reqres(address.as_str().to_string())?;
+                rt.block_on(val.map(|msg| Ok(msg)).forward(virt::stdout()))?;
             }
         }
         Ok(())
