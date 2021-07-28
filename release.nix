@@ -9,7 +9,7 @@ let
       (import "${ros_overlay}/overlay.nix")
     ];
   };
-  rust-nightly = pkgs.rustChannelOfTargets "nightly" "2021-03-23" [ "wasm32-unknown-unknown" ];
+  rust-nightly = pkgs.rustChannelOfTargets "nightly" "2021-06-03" [ "wasm32-unknown-unknown" ];
 in
   with pkgs;
   with rosPackages.noetic;

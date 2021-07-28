@@ -1,0 +1,113 @@
+[package]
+name = "main-runtime"
+version = "1.1.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+# third-party dependencies
+serde = { version = "1.0", optional = true }
+serde_derive = { version = "1.0", optional = true }
+codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"] }
+lazy_static = { version = "1.4.0", optional = true }
+hex-literal = { version = "0.2", optional = true }
+
+# primitives
+robonomics-primitives = { path = "../../primitives", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+
+# standard dependencies
+pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-bounties = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
+
+# robonomics dependencies
+pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
+pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
+pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
+pallet-robonomics-staking = { path = "../../frame/staking", default-features = false }
+
+# cumulus dependencies
+cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.8", default-features = false }
+cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.8", default-features = false }
+cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.8", default-features = false }
+cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.8", default-features = false }
+parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.8", default-features = false }
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8" }
+
+[features]
+default = ["std"]
+with-tracing = [ "frame-executive/with-tracing" ]
+std = [
+    "serde",
+    "serde_derive",
+    "lazy_static",
+    "hex-literal",
+    "codec/std",
+    "robonomics-primitives/std",
+    "sp-api/std",
+    "sp-block-builder/std",
+    "sp-core/std",
+    "sp-inherents/std",
+    "sp-offchain/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "sp-session/std",
+    "sp-staking/std",
+    "sp-transaction-pool/std",
+    "sp-version/std",
+    "pallet-assets/std",
+    "pallet-balances/std",
+    "pallet-bounties/std",
+    "pallet-collective/std",
+    "pallet-elections-phragmen/std",
+    "frame-executive/std",
+    "pallet-identity/std",
+    "pallet-scheduler/std",
+    "pallet-sudo/std",
+    "pallet-treasury/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-system-rpc-runtime-api/std",
+    "pallet-utility/std",
+    "pallet-tips/std",
+    "pallet-timestamp/std",
+    "pallet-transaction-payment/std",
+    "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-robonomics-launch/std",
+    "pallet-robonomics-datalog/std",
+    "pallet-robonomics-lighthouse/std",
+    "pallet-robonomics-staking/std",
+    "cumulus-pallet-parachain-system/std",
+    "cumulus-primitives-core/std",
+    "cumulus-primitives-utility/std",
+    "parachain-info/std",
+]

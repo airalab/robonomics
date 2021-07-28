@@ -1,12 +1,12 @@
 [package]
-name = "robonomics"
-version = "0.29.1"
+name = "robonomics-node"
+version = "1.1.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 edition = "2018"
 license = "Apache-2.0"
 homepage = "https://robonomics.network"
-repository = "https://github.com/airalab/robonomics" 
+repository = "https://github.com/airalab/robonomics"
 default-run = "robonomics"
 
 [badges]
@@ -23,19 +23,20 @@ path = "src/main.rs"
 
 [dependencies]
 parity-util-mem = { version = "0.9.0", default-features = false, features = ["jemalloc-global"] }
-
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
-
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-node-cli = { path = "cli", features = [ "rococo", "wasmtime" ] }
-
-[target.'cfg(target_arch = "arm")'.dependencies]
-node-cli = { path = "cli", default-features = false, features = [ "zero" ] }
+robonomics-service = { path = "service", default-features = false }
 
 [features]
-runtime-benchmarks = [
-    "node-cli/rococo",
-    "node-cli/wasmtime",
-    "node-cli/runtime-benchmarks",
+default = [
+  "robonomics-service/ipci",
+  "robonomics-service/kusama",
+  "robonomics-service/wasmtime",
+]
+
+# Lightweight node build
+zero = [ "robonomics-service/zero" ]
+
+# Build node for benchmarking
+benchmarks = [
+  "robonomics-service/full",
+  "robonomics-service/runtime-benchmarks",
 ]

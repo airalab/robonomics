@@ -1,8 +1,0 @@
-{
-  "Record": "Vec<u8>",
-  "TechnicalParam": "Vec<u8>",
-  "TechnicalReport": "Vec<u8>",
-  "EconomicalParam": "{}",
-  "ProofParam": "MultiSignature",
-  "LiabilityIndex": "u64"
-}
