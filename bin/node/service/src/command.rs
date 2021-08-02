@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(1000).into())?,
+            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(2077).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
@@ -185,7 +185,10 @@ pub fn run() -> sc_cli::Result<()> {
             runner.sync_run(|config| cmd.run(config.database))
         }
         #[cfg(feature = "robonomics-cli")]
-        Some(Subcommand::Io(subcommand)) => subcommand.run().map_err(|e| e.to_string().into()),
+        Some(Subcommand::Io(cmd)) => {
+            let runner = cli.create_runner(&*cli.run)?;
+            runner.sync_run(|_| cmd.run().map_err(|e| e.to_string().into()))
+        }
         #[cfg(feature = "frame-benchmarking-cli")]
         Some(Subcommand::Benchmark(subcommand)) => {
             let runner = cli.create_runner(subcommand)?;

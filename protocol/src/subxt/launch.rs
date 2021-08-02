@@ -21,6 +21,7 @@ use super::{pallet_launch::*, pallet_rws::*, AccountId, Robonomics};
 use crate::error::{Error, Result};
 
 use codec::Decode;
+use futures::{channel::mpsc, prelude::*, stream::Stream};
 use sp_core::crypto::{Pair, Ss58Codec};
 use substrate_subxt::{EventSubscription, PairSigner};
 
@@ -68,24 +69,27 @@ where
 
 /// Listen for incoming launch requests.
 pub async fn listen(
-    remote: String,
-    mut callback: impl FnMut(NewLaunchEvent<Robonomics>),
-) -> Result<()> {
+    remote: &str,
+) -> Result<(
+    impl Future<Output = ()>,
+    impl Stream<Item = NewLaunchEvent<Robonomics>>,
+)> {
     let client = substrate_subxt::ClientBuilder::<Robonomics>::new()
-        .set_url(remote.as_str())
+        .set_url(remote)
         .build()
         .await?;
-
     let sub = client.subscribe_events().await?;
-    let mut sub = EventSubscription::<Robonomics>::new(sub, client.events_decoder());
-    sub.filter_event::<NewLaunchEvent<_>>();
-    while let Some(Ok(raw)) = sub.next().await {
-        if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
-            callback(event)
-        } else {
-            log::warn!("Unable decode launch event: {:?}", raw);
+    let (mut sender, receiver) = mpsc::unbounded();
+    let task = async move {
+        let mut subscription = EventSubscription::<Robonomics>::new(sub, client.events_decoder());
+        subscription.filter_event::<NewLaunchEvent<_>>();
+        loop {
+            if let Some(Ok(raw)) = subscription.next().await {
+                if let Ok(event) = NewLaunchEvent::<Robonomics>::decode(&mut &raw.data[..]) {
+                    let _ = sender.send(event);
+                }
+            }
         }
-    }
-
-    Ok(())
+    };
+    Ok((task, receiver))
 }

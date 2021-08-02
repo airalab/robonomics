@@ -52,7 +52,7 @@ impl ProtocolName for RobonomicsProtocol {
 
 #[derive(Clone)]
 pub struct RobonomicsCodec {
-    pub is_ping: bool
+    pub is_ping: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -73,15 +73,15 @@ impl RequestResponseCodec for RobonomicsCodec {
         T: AsyncRead + Unpin + Send,
     {
         read_one(io, 1024)
-        .map(|res| match res {
-            Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
-            Ok(vec) if vec.is_empty() => {
-                self.is_ping = true; // set Ping flag; expected to reset with Pong response
-                Ok(Request::Ping)
-            },
-            Ok(vec) => Ok(Request::Get(vec)),
-        })
-        .await
+            .map(|res| match res {
+                Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
+                Ok(vec) if vec.is_empty() => {
+                    self.is_ping = true; // set Ping flag; expected to reset with Pong response
+                    Ok(Request::Ping)
+                }
+                Ok(vec) => Ok(Request::Get(vec)),
+            })
+            .await
     }
 
     async fn read_response<T>(
@@ -105,14 +105,14 @@ impl RequestResponseCodec for RobonomicsCodec {
         &mut self,
         _: &RobonomicsProtocol,
         io: &mut T,
-        req : Request
+        req: Request,
     ) -> io::Result<()>
     where
         T: AsyncWrite + Unpin + Send,
     {
         match req {
-            Request::Ping =>  write_one(io, "".as_bytes()).await,
-            Request::Get(data) =>  write_one(io, data).await,
+            Request::Ping => write_one(io, "".as_bytes()).await,
+            Request::Get(data) => write_one(io, data).await,
         }
     }
 
@@ -127,43 +127,47 @@ impl RequestResponseCodec for RobonomicsCodec {
     {
         match resp {
             Response::Pong => {
-                self.is_ping = false; // reset Ping flag 
+                self.is_ping = false; // reset Ping flag
                 write_one(io, "".as_bytes()).await
-            },
+            }
             // send Pong if somebody try in app logic to obfuscate Ping by sending Data instead of Pong
             Response::Data(data) => {
                 if self.is_ping == false {
                     write_one(io, data).await
-                } 
-                else {
+                } else {
                     write_one(io, "".as_bytes()).await
                 }
-            },
+            }
         }
     }
 }
 
 pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
-    // if provided pk8 file with keys use it to have static PeerID 
+    // if provided pk8 file with keys use it to have static PeerID
     // in other case PeerID  will be randomly generated
     let mut id_keys = identity::Keypair::generate_ed25519();
     let mut peer_id = id_keys.public().into_peer_id();
 
     let f = std::fs::read("private.pk8");
     let _ = match f {
-        Ok(mut bytes) =>  {
-        id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
-        peer_id = id_keys.public().into_peer_id();
-        log::debug!("try get peer ID from keypair at file");
-       },
+        Ok(mut bytes) => {
+            id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
+            peer_id = id_keys.public().into_peer_id();
+            log::debug!("try get peer ID from keypair at file");
+        }
         Err(_e) => log::debug!("try to use peer ID from random keypair"),
     };
 
-    let noise_keys = Keypair::<X25519Spec>::new().into_authentic(&id_keys).unwrap();
-    (peer_id, TcpConfig::new()
-        .nodelay(true)
-        .upgrade(upgrade::Version::V1)
-        .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
-        .multiplex(YamuxConfig::default())
-        .boxed())
+    let noise_keys = Keypair::<X25519Spec>::new()
+        .into_authentic(&id_keys)
+        .unwrap();
+    (
+        peer_id,
+        TcpConfig::new()
+            .nodelay(true)
+            .upgrade(upgrade::Version::V1)
+            .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
+            .multiplex(YamuxConfig::default())
+            .boxed(),
+    )
 }

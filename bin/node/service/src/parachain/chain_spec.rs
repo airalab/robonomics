@@ -39,8 +39,8 @@ pub const MERCURY_ID: u32 = 5000;
 /// Kusama parachain ID
 pub const KUSAMA_ID: u32 = 2077;
 
-/*
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+/*
 const IPCI_PROTOCOL_ID: &str = "mito";
 */
 
@@ -162,7 +162,6 @@ fn mk_genesis_alpha(
     }
 }
 
-/*
 /// Helper function to create GenesisConfig for main parachain
 fn mk_genesis_main(
     balances: Vec<(AccountId, Balance)>,
@@ -181,6 +180,8 @@ fn mk_genesis_main(
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
     }
 }
+
+/*
 
 fn ipci_session_keys(
     aura: ipci_runtime::AuraId,
@@ -314,8 +315,8 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
 
 /// Kusama parachain genesis.
 fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
-    use main_runtime::constants::currency;
     use hex_literal::hex;
+    use main_runtime::constants::currency;
 
     // akru
     let sudo_key: AccountId =

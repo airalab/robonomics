@@ -69,7 +69,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 1,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -95,6 +95,7 @@ impl frame_support::traits::Filter<Call> for BaseFilter {
         match call {
             // These modules are not allowed to be called by transactions:
             Call::Balances(_) => false,
+            Call::Staking(_) => false,
             // Other modules should works:
             _ => true,
         }

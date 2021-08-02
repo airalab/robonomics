@@ -21,7 +21,7 @@ use futures::channel::mpsc;
 use futures::prelude::*;
 use futures_timer::Delay;
 use std::time::Duration;
-use tokio::task;
+use async_std::task;
 
 use crate::error::Result;
 

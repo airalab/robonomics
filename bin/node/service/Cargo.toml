@@ -129,7 +129,7 @@ full = [
     "local-runtime",
     "sc-service/db",
     "robonomics-rpc",
-    "robonomics-cli",
+#    "robonomics-cli",
 ]
 
 ## Ultra lightweight Robonomics Network node.
@@ -139,7 +139,7 @@ zero = [
     "sp-core",
     "vergen",
     "structopt",
-    "robonomics-cli",
+#    "robonomics-cli",
 ]
 
 ## Enable Kusama parachain.
