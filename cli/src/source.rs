@@ -109,6 +109,25 @@ pub enum SourceCmd {
         #[structopt(long, default_value = "10")]
         queue_size: usize,
     },
+    /// request-response server
+    #[structopt(name = "reqres")]
+    ReqRes {
+        /// multiaddress of server, i.e. /ip4/192.168.0.102/tcp/61241
+        #[structopt(value_name = "MULTIADDR")]
+        address: String,
+
+        /// server peer ID, i.e. 12D3KooWHdqJNpszJR4na6pheUwSMNQCuGXU6sFTGDQMyQWEsszS
+        #[structopt(value_name = "PEER_ID")]
+        peerid: String,
+
+        /// request type: `ping` or `get`
+        #[structopt(value_name = "METHOD")]
+        method: String,
+
+        /// value: only required when `method` is `get`
+        #[structopt(name = "VALUE", required_if("method", "get"))]
+        value:  Option<String>,
+    }
 }
 
 arg_enum! {
@@ -215,6 +234,15 @@ impl SourceCmd {
             } => {
                 let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
                 rt.block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
+            }
+            SourceCmd::ReqRes {
+                address,
+                peerid,
+                method,
+                value,                
+            } => {
+                let ( _err, res) = virt::reqres(address,peerid, method,value)?;
+                rt.block_on(res.forward(stdout()))?;
             }
         }
         Ok(())

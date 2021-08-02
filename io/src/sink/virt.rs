@@ -29,7 +29,19 @@ use std::io::Cursor;
 use std::time::Duration;
 use tokio::task;
 
+use bincode;
+use std::io::Write;
+use std::fs::File;
+use chrono::prelude::*;
+use libp2p::request_response::*;
+use libp2p::swarm::{Swarm, SwarmEvent};
+use std::iter;
+use std::fmt;
+use robonomics_protocol::reqres::*;
+
 use crate::error::{Error, Result};
+
+use tokio::runtime::Builder;
 
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
@@ -160,4 +172,84 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
     }));
 
     Ok(sender.sink_err_into())
+}
+
+/// Listen for ping or get requests from clients
+///
+/// Returns response to clients pong or data
+pub fn reqres(address: String) -> Result<impl Stream<Item = String>> { 
+    log::debug!(target: "robonomics-io", "reqres: bind address {}", address);
+
+    let (sender, receiver) = mpsc::unbounded();
+    // thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime', io/src/sink/virt.rs:183:5
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    rt.spawn ( async move
+    // task::spawn(async move 
+        {
+        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+        let cfg = RequestResponseConfig::default();
+
+        let (peer1_id, trans) = mk_transport();
+        let ping_proto1 = RequestResponse::new(RobonomicsCodec{is_ping: false}, protocols.clone(), cfg.clone());
+        let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+
+        let addr_local = address;
+        let addr: Multiaddr = addr_local.parse().unwrap();
+
+        swarm1.listen_on(addr.clone()).unwrap();
+        let mut peer_id = String::new();
+        fmt::write (&mut peer_id, format_args!("{:?}", peer1_id)).unwrap();
+        log::debug!("Local peer 1 id: {}", peer_id.clone());
+        let mut file = File::create("peerid.txt").unwrap();
+        file.write_all(peer_id.as_bytes()).expect("Unable to write data");
+
+        loop {
+            match swarm1.next_event().await {
+                SwarmEvent::NewListenAddr(addr) => {
+                    log::debug!("Peer 1 listening on {}", addr.clone());
+                },
+
+                SwarmEvent::Behaviour(RequestResponseEvent::Message {
+                    peer,
+                    message: RequestResponseMessage::Request { request, channel, .. }
+                }) => {
+                    // match type of request: Ping or Get and handle
+                    match request {
+                        Request::Get(data) =>  {
+                            //decode received request
+                            let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                            log::debug!(" peer1 Get '{}' from  {:?}", String::from_utf8_lossy(&decoded[..]), peer);
+                            let mut msg = String::new();
+                            fmt::write (&mut msg, format_args!("{}", String::from_utf8_lossy(&decoded[..]))).unwrap();
+                            let _ = sender.unbounded_send(msg);
+                            // send encoded response
+                            let resp_encoded: Vec<u8> = bincode::serialize(&format!("{}", epoch()).into_bytes()).unwrap();
+                            swarm1.behaviour_mut().send_response(channel, Response::Data(resp_encoded)).unwrap();
+                        },
+                        Request::Ping =>  {
+                            log::debug!(" peer1 {:?} from {:?}", request, peer);
+                            let resp: Response = Response::Pong;
+                            log::debug!(" peer1 {:?} to   {:?}", resp, peer);
+                            swarm1.behaviour_mut().send_response(channel, resp.clone()).unwrap();
+                        },
+                    }
+                },
+
+                SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent {
+                    peer, ..
+                }) => {
+                    log::debug!("Response sent to {:?}",  peer);
+                }
+
+                SwarmEvent::Behaviour(e) =>println!("Peer1: Unexpected event: {:?}", e),
+                _ => {}
+            }
+         };
+    });
+    Ok(receiver)
+}
+
+fn epoch () -> i64 {
+   let ts =  Utc::now();
+   ts.timestamp() * 1000 + ( ts.nanosecond() as i64 )/ 1000 / 1000
 }
