@@ -41,8 +41,6 @@ use robonomics_protocol::reqres::*;
 
 use crate::error::{Error, Result};
 
-use tokio::runtime::Builder;
-
 /// Print on standard console output.
 pub fn stdout() -> impl Sink<String, Error = Error> {
     BufWriter::new(tokio::io::stdout().compat())
@@ -177,15 +175,12 @@ pub fn ros(topic: &str, queue_size: usize) -> Result<impl Sink<String, Error = E
 /// Listen for ping or get requests from clients
 ///
 /// Returns response to clients pong or data
-pub fn reqres(address: String) -> Result<impl Stream<Item = String>> { 
+pub fn reqres(address: String, rt: &tokio::runtime::Runtime) -> Result<impl Stream<Item = String>> { 
     log::debug!(target: "robonomics-io", "reqres: bind address {}", address);
 
     let (sender, receiver) = mpsc::unbounded();
-    // thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime', io/src/sink/virt.rs:183:5
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    rt.spawn ( async move
-    // task::spawn(async move 
-        {
+  
+    rt.spawn ( async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
 

@@ -147,7 +147,7 @@ impl SinkCmd {
             SinkCmd::ReqRes {
                 address,
             } => {
-                let val = virt::reqres(address.as_str().to_string())?;
+                let val = virt::reqres(address.as_str().to_string(), &rt)?;
                 rt.block_on(val.map(|msg| Ok(msg)).forward(virt::stdout()))?;
             }
         }

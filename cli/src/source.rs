@@ -241,7 +241,7 @@ impl SourceCmd {
                 method,
                 value,                
             } => {
-                let ( _err, res) = virt::reqres(address,peerid, method,value)?;
+                let ( _err, res) = virt::reqres(address, peerid, method, value, &rt)?;
                 rt.block_on(res.forward(stdout()))?;
             }
         }
