@@ -17,11 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Serial port sensors collection.
 
+use async_std::task;
 use futures::channel::mpsc;
 use futures::prelude::*;
 use futures_timer::Delay;
 use std::time::Duration;
-use async_std::task;
 
 use crate::error::Result;
 

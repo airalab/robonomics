@@ -20,6 +20,7 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
+use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
@@ -27,7 +28,6 @@ use robonomics_protocol::pubsub::Multiaddr;
 use sp_core::crypto::Ss58AddressFormat;
 use std::{convert::TryFrom, time::Duration};
 use structopt::clap::arg_enum;
-use async_std::task;
 
 /// Source device commands.
 #[derive(structopt::StructOpt, Clone, Debug)]

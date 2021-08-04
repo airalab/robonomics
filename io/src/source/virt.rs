@@ -25,6 +25,7 @@ use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
+use async_std::{io, task};
 use bincode;
 use libp2p::core::PeerId;
 use libp2p::request_response::*;
@@ -32,7 +33,6 @@ use libp2p::swarm::Swarm;
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::{iter, process};
-use async_std::{task, io};
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {

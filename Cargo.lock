@@ -5006,6 +5006,7 @@ dependencies = [
  "robonomics-primitives",
  "serde",
  "serde_derive",
+ "smallvec 1.6.1",
  "sp-api 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8)",
  "sp-block-builder",
  "sp-core 3.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8)",

@@ -20,12 +20,12 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
+use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt;
 use robonomics_io::source::virt::stdin;
 use robonomics_protocol::pubsub::Multiaddr;
 use std::time::Duration;
-use async_std::task;
 
 /// Sink device commands.
 #[derive(structopt::StructOpt, Clone, Debug)]

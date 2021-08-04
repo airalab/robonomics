@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sinkable devices.
 
+use async_std::{io, task};
 use futures::{channel::mpsc, prelude::*, stream::StreamExt};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::{
@@ -26,7 +27,6 @@ use robonomics_protocol::{
 use sp_core::{crypto::Pair, sr25519};
 use std::io::Cursor;
 use std::time::Duration;
-use async_std::{io, task};
 
 use bincode;
 use chrono::prelude::*;
