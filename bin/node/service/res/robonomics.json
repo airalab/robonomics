@@ -3,9 +3,9 @@
   "id": "robonomics",
   "chainType": "Live",
   "bootNodes": [
-    "/dns/0.earth.frontier.robonomics.network/tcp/30333/p2p/12D3KooWEuAgQXCKPz7uQy8j3GoagbXpGYKL8yo4Dfm3yeab7LSL",
-    "/dns/1.earth.frontier.robonomics.network/tcp/30333/p2p/12D3KooWNDmcsr1YxrcVJj9MXQQVs8PSYy8YLwGu6Xajj1B9Diw8",
-    "/dns/2.earth.frontier.robonomics.network/tcp/30333/p2p/12D3KooWNWLz1cRD2j1o3BBdhqyRRssCP9zCbK3TU26MA8ps6Zvs"
+    "/dns/0.main.frontier.robonomics.network/tcp/30333/p2p/12D3KooWEuAgQXCKPz7uQy8j3GoagbXpGYKL8yo4Dfm3yeab7LSL",
+    "/dns/1.main.frontier.robonomics.network/tcp/30333/p2p/12D3KooWNDmcsr1YxrcVJj9MXQQVs8PSYy8YLwGu6Xajj1B9Diw8",
+    "/dns/2.main.frontier.robonomics.network/tcp/30333/p2p/12D3KooWNWLz1cRD2j1o3BBdhqyRRssCP9zCbK3TU26MA8ps6Zvs"
   ],
   "telemetryEndpoints": [
     [
