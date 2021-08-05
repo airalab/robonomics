@@ -3,9 +3,9 @@
   "id": "rococo_local_testnet",
   "chainType": "Local",
   "bootNodes": [
-    "/dns/0.rococo-098.robonomics.network/tcp/30333/ws/p2p/12D3KooWCGv9roEPwU8MBpFXUJsCC7Kb35Y2xgqFHGgEE6yfSEZ1",
-    "/dns/1.rococo-098.robonomics.network/tcp/30333/ws/p2p/12D3KooWHk2qkTSu6QgYuxboBWnhtnmV7zwHgk8qACzRk6vbubB6",
-    "/dns/2.rococo-098.robonomics.network/tcp/30333/ws/p2p/12D3KooWMLW9Xeet4V35Zvuz7wpVyMZQa74vAyM29esnNENEryB7"
+    "/dns/0.frontier.robonomics.network/tcp/30333/ws/p2p/12D3KooWCGv9roEPwU8MBpFXUJsCC7Kb35Y2xgqFHGgEE6yfSEZ1",
+    "/dns/1.frontier.robonomics.network/tcp/30333/ws/p2p/12D3KooWHk2qkTSu6QgYuxboBWnhtnmV7zwHgk8qACzRk6vbubB6",
+    "/dns/2.frontier.robonomics.network/tcp/30333/ws/p2p/12D3KooWMLW9Xeet4V35Zvuz7wpVyMZQa74vAyM29esnNENEryB7"
   ],
   "telemetryEndpoints": [
     [
