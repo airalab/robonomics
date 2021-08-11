@@ -18,6 +18,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
 use sc_finality_grandpa::{self as grandpa, FinalityProofProvider as GrandpaFinalityProofProvider};
@@ -198,6 +199,9 @@ where
         let keystore = keystore_container.sync_keystore();
         let chain_spec = config.chain_spec.cloned_box();
 
+        let heartbeat_interval = std::time::Duration::from_secs(1);
+        let (pubsub_worker, _) = PubSub::new(heartbeat_interval).expect("");
+
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = robonomics_rpc::FullDeps {
                 client: client.clone(),
@@ -217,6 +221,7 @@ where
                     subscription_executor,
                     finality_provider: finality_proof_provider.clone(),
                 },
+                pubsub_worker: pubsub_worker.clone(),
             };
 
             robonomics_rpc::create_full(deps)

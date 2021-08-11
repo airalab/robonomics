@@ -20,6 +20,7 @@ log = "0.4"
 
 # primitives
 robonomics-primitives = { path = "../../../primitives", default-features = false }
+robonomics-protocol = { path = "../../../protocol", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8" }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8" }

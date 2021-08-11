@@ -19,12 +19,14 @@
 
 use crate::error::FutureResult;
 use futures::Stream;
+use jsonrpc_derive::rpc;
 use std::pin::Pin;
 
 pub use libp2p::{Multiaddr, PeerId};
 
 pub mod discovery;
 pub mod gossipsub;
+pub mod pubsubapi;
 
 pub use gossipsub::PubSub as Gossipsub;
 
