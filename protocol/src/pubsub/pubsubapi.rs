@@ -1,6 +1,5 @@
-use crate::pubsub::{gossipsub::ToWorkerMsg, Gossipsub, Inbox};
-
-use futures::{channel::mpsc, prelude::*};
+use crate::pubsub::Inbox;
+use crate::pubsub::{Gossipsub, PubSub};
 use jsonrpc_derive::rpc;
 use std::sync::Arc;
 
@@ -21,18 +20,34 @@ impl PubSubApi {
 pub trait PubSubT {
     /// Subscribe for a topic with given name.
     ///
-    /// Returns stream of incoming messages.
+    /// Returns ???.
     #[rpc(name = "pubsub_subscribe")]
     fn subscribe(&self, topic_name: String) -> RpcResult<Inbox>;
+
+    /// Unsubscribe for incoming messages from topic.
+    ///
+    /// Returns true when success.???
+    #[rpc(name = "pubsub_unsubscribe")]
+    fn unsubscribe(&self, topic_name: String) -> RpcResult<bool>;
+
+    /// Publish message into the topic by name.
+    #[rpc(name = "pubsub_publish")]
+    fn publish(&self, topic_name: String, message: String) -> RpcResult<()>;
 }
 
 impl PubSubT for PubSubApi {
     fn subscribe(&self, topic_name: String) -> RpcResult<Inbox> {
-        let (sender, receiver) = mpsc::unbounded();
-        let _ = self
-            .pubsub
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
-        Ok(receiver.boxed())
+        Ok(self.pubsub.subscribe(&topic_name))
+    }
+
+    fn unsubscribe(&self, topic_name: String) -> RpcResult<bool> {
+        self.pubsub.unsubscribe(&topic_name);
+        Ok(true)
+    }
+
+    fn publish(&self, topic_name: String, message: String) -> RpcResult<()> {
+        self.pubsub
+            .publish(&topic_name, message.as_bytes().to_vec());
+        Ok(())
     }
 }

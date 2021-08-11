@@ -33,9 +33,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use robonomics_protocol::pubsub::{
-    gossipsub::PubSub, pubsubapi::PubSubApi, pubsubapi::PubSubT, Gossipsub,
-};
+use robonomics_protocol::pubsub::{pubsubapi::PubSubApi, pubsubapi::PubSubT, Gossipsub};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -144,7 +142,7 @@ where
         deny_unsafe,
         babe,
         grandpa,
-        pubsub_worker,
+        pubsub,
     } = deps;
 
     let BabeDeps {
@@ -197,7 +195,7 @@ where
             deny_unsafe,
         ),
     ));
-    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub_worker)));
+    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
 
     io
 }
