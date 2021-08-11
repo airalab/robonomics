@@ -110,7 +110,7 @@ pub struct FullDeps<C, P, SC, B> {
     /// GRANDPA specific dependencies.
     pub grandpa: GrandpaDeps<B>,
     /// PubSub worker.
-    pub pubsub_worker: Arc<Gossipsub>,
+    pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.

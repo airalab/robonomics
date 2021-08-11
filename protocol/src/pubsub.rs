@@ -19,7 +19,6 @@
 
 use crate::error::FutureResult;
 use futures::Stream;
-use jsonrpc_derive::rpc;
 use std::pin::Pin;
 
 pub use libp2p::{Multiaddr, PeerId};

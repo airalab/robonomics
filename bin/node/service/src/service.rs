@@ -199,8 +199,9 @@ where
         let keystore = keystore_container.sync_keystore();
         let chain_spec = config.chain_spec.cloned_box();
 
+        // ???
         let heartbeat_interval = std::time::Duration::from_secs(1);
-        let (pubsub_worker, _) = PubSub::new(heartbeat_interval).expect("");
+        let (pubsub, _) = PubSub::new(heartbeat_interval).expect("");
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = robonomics_rpc::FullDeps {
@@ -221,7 +222,7 @@ where
                     subscription_executor,
                     finality_provider: finality_proof_provider.clone(),
                 },
-                pubsub_worker: pubsub_worker.clone(),
+                pubsub: pubsub.clone(),
             };
 
             robonomics_rpc::create_full(deps)
