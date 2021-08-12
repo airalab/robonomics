@@ -20,6 +20,9 @@
 
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::pallet_prelude::*;
@@ -38,7 +41,8 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
     pub enum Event<T: Config> {
         /// Launch a robot with given parameter: sender, robot, parameter.
-        NewLaunch(T::AccountId, T::AccountId, T::Parameter),
+        //NewLaunch(T::AccountId, T::AccountId, T::Parameter),
+        NewLaunch(T::AccountId, T::AccountId),
     }
 
     #[pallet::hooks]
@@ -55,10 +59,11 @@ pub mod pallet {
         pub fn launch(
             origin: OriginFor<T>,
             robot: T::AccountId,
-            param: T::Parameter,
+           // param: T::Parameter,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            Self::deposit_event(Event::NewLaunch(sender, robot, param));
+            //Self::deposit_event(Event::NewLaunch(sender, robot, param));
+            Self::deposit_event(Event::NewLaunch(sender, robot));
             Ok(().into())
         }
     }
