@@ -17,9 +17,13 @@
 
 // Benchmarks for Launch Pallet
 
+pub use pallet::*;
 use super::{Pallet as Launch, *};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
+
+//#[pallet::type_value]
+//fn dummy <T: Config>() -> T::Parameter { 3.into() }
 
 const SEED: u32 = 0;
 
@@ -27,7 +31,7 @@ fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str>
 {
     let data: T::AccountId =  account("caller", 1, SEED );
     for _ in 0..1000 {
-        Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone())?;
+       // Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), )?;
     }
     Ok(())
 }
@@ -38,9 +42,9 @@ benchmarks! {
         let caller: T::AccountId =  account("caller", 1, SEED );
         let data: T::AccountId =  account("caller", 1, SEED );
         let param: T::Parameter;
-          setup_launch::<T>( caller.clone() )?;
-    }: _( RawOrigin::Signed(caller), data)
-   
+        setup_launch::<T>( caller.clone() )?;
+    }: _( RawOrigin::Signed(caller), data, param)
+    
 }
 
 impl_benchmark_test_suite!(Launch, crate::tests::new_test_ext(), crate::tests::Runtime,);
