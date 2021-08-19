@@ -19,6 +19,7 @@
 
 use crate::error::FutureResult;
 use futures::Stream;
+use std::fmt;
 use std::pin::Pin;
 
 pub use libp2p::{Multiaddr, PeerId};
@@ -34,6 +35,12 @@ pub use gossipsub::PubSub as Gossipsub;
 pub struct Message {
     pub from: PeerId,
     pub data: Vec<u8>,
+}
+
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PeerId: {:?}, Data: {:?}", self.from, self.data)
+    }
 }
 
 /// Stream of incoming messages.

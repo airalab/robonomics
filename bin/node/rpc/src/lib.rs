@@ -30,10 +30,14 @@
 
 #![warn(missing_docs)]
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
+use jsonrpc_pubsub::manager::SubscriptionManager;
 use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use robonomics_protocol::pubsub::{pubsubapi::PubSubApi, pubsubapi::PubSubT, Gossipsub};
+// use robonomics_protocol::pubsub::pubsubapi::{HexEncodedIdProvider, PubSubApi, PubSubT};
+use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
+use robonomics_protocol::pubsub::Gossipsub;
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -181,7 +185,7 @@ where
             shared_authority_set.clone(),
             shared_voter_state,
             justification_stream,
-            subscription_executor,
+            subscription_executor.clone(),
             finality_provider,
         ),
     ));
@@ -195,7 +199,17 @@ where
             deny_unsafe,
         ),
     ));
-    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
+    // io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
+    //     pubsub,
+    //     SubscriptionManager::<HexEncodedIdProvider>::with_id_provider(
+    //         HexEncodedIdProvider::default(),
+    //         Arc::new(subscription_executor),
+    //     ),
+    // )));
+    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
+        pubsub,
+        Arc::new(Mutex::new(HashMap::new())),
+    )));
 
     io
 }
