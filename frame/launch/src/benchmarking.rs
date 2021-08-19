@@ -21,17 +21,25 @@ pub use pallet::*;
 use super::{Pallet as Launch, *};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
-
-//#[pallet::type_value]
-//fn dummy <T: Config>() -> T::Parameter { 3.into() }
+use codec::{Decode, Encode};
 
 const SEED: u32 = 0;
+
+fn setup_param<T: Config>() -> T::Parameter {
+    //let s = T::MaximumMessageSize::get();
+    let s = 1024;
+    let mut v = Vec::with_capacity(s - 4);
+    v.resize(s - 4, 0x1F);
+
+    v.using_encoded(|mut slice| T::Parameter::decode(&mut slice).unwrap_or_default())
+}
 
 fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str>
 {
     let data: T::AccountId =  account("caller", 1, SEED );
+    let param = setup_param::<T>();
     for _ in 0..1000 {
-       // Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), )?;
+       Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), param.clone())?;
     }
     Ok(())
 }
@@ -41,10 +49,12 @@ benchmarks! {
     launch {
         let caller: T::AccountId =  account("caller", 1, SEED );
         let data: T::AccountId =  account("caller", 1, SEED );
-        let param: T::Parameter;
+        let param = setup_param::<T>();
         setup_launch::<T>( caller.clone() )?;
     }: _( RawOrigin::Signed(caller), data, param)
     
+    verify {
+    }
 }
 
 impl_benchmark_test_suite!(Launch, crate::tests::new_test_ext(), crate::tests::Runtime,);
