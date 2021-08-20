@@ -35,7 +35,6 @@ use std::sync::{Arc, Mutex};
 
 use jsonrpc_pubsub::manager::SubscriptionManager;
 use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-// use robonomics_protocol::pubsub::pubsubapi::{HexEncodedIdProvider, PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
 use sc_client_api::AuxStore;
@@ -199,13 +198,6 @@ where
             deny_unsafe,
         ),
     ));
-    // io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
-    //     pubsub,
-    //     SubscriptionManager::<HexEncodedIdProvider>::with_id_provider(
-    //         HexEncodedIdProvider::default(),
-    //         Arc::new(subscription_executor),
-    //     ),
-    // )));
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
         pubsub,
         Arc::new(Mutex::new(HashMap::new())),

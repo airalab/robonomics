@@ -1,55 +1,24 @@
 use crate::pubsub::{Gossipsub, Message, PubSub};
 use futures::StreamExt;
+use jsonrpc_core::futures::Future;
+use jsonrpc_core::FutureResult;
 use jsonrpc_core::{futures::Sink, Result};
 use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{
-    // manager::{IdProvider, SubscriptionManager},
-    typed::Subscriber,
-    SubscriptionId,
-};
-// use log::warn;
-// use rand::distributions::Alphanumeric;
+use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
+pub use libp2p::{Multiaddr, PeerId};
 use rand::{thread_rng, Rng};
-// use rustc_hex::ToHex;
-use std::{sync::Arc, sync::Mutex, thread};
-
-// #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-// pub struct HexEncodedIdProvider {
-//     len: usize,
-// }
-//
-// impl Default for HexEncodedIdProvider {
-//     fn default() -> Self {
-//         Self { len: 16 }
-//     }
-// }
-//
-// impl IdProvider for HexEncodedIdProvider {
-//     type Id = String;
-//     fn next_id(&self) -> Self::Id {
-//         let id: String = rand::thread_rng()
-//             .sample_iter(&Alphanumeric)
-//             .take(self.len)
-//             .map(char::from)
-//             .collect();
-//         let out: String = id.as_bytes().to_hex();
-//         format!("0x{}", out)
-//     }
-// }
-
 use std::collections::HashMap;
+use std::{sync::Arc, sync::Mutex, thread};
 
 #[derive(Clone)]
 pub struct PubSubApi {
     pubsub: Arc<Gossipsub>,
-    // subscriptions: SubscriptionManager<HexEncodedIdProvider>,
     subscriptions: Arc<Mutex<HashMap<SubscriptionId, String>>>,
 }
 
 impl PubSubApi {
     pub fn new(
         pubsub: Arc<Gossipsub>,
-        // subscriptions: SubscriptionManager<HexEncodedIdProvider>,
         subscriptions: Arc<Mutex<HashMap<SubscriptionId, String>>>,
     ) -> Self {
         PubSubApi {
@@ -62,6 +31,10 @@ impl PubSubApi {
 #[rpc(server)]
 pub trait PubSubT {
     type Metadata;
+
+    /// Returns local peer ID.
+    #[rpc(name = "pubsub_peer")]
+    fn peer_id(&self) -> Result<String>;
 
     /// Subscribe for a topic with given name.
     #[pubsub(
@@ -78,21 +51,22 @@ pub trait PubSubT {
         name = "pubsub_unsubscribe"
     )]
     fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+
+    /// Publish message into the topic by name.
+    #[rpc(name = "pubsub_publish")]
+    fn publish(&self, topic_name: String, message: String) -> Result<()>;
 }
 
-use jsonrpc_core::futures::Future;
+use futures::FutureExt;
 impl PubSubT for PubSubApi {
     type Metadata = sc_rpc_api::Metadata;
 
+    fn peer_id(&self) -> Result<String> {
+        Ok(self.pubsub.peer_id().to_string())
+    }
+
     fn subscribe(&self, _: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
         let inbox = self.pubsub.subscribe(&topic_name);
-
-        // ???
-        // self.subscriptions.add(subscriber, |sink| {
-        //     sink.send_all(inbox.into())
-        //         .sink_map_err(|e| warn!("Error sending notifications: {:?}", e))
-        //         .map(|_| ())
-        // });
 
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
@@ -122,6 +96,11 @@ impl PubSubT for PubSubApi {
             }
             _ => Ok(false),
         }
-        // Ok(self.subscriptions.cancel(subscription_id))
+    }
+
+    fn publish(&self, topic_name: String, message: String) -> Result<()> {
+        self.pubsub
+            .publish(&topic_name, message.as_bytes().to_vec());
+        Ok(())
     }
 }
