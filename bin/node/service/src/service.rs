@@ -201,7 +201,7 @@ where
 
         // ???
         let heartbeat_interval = std::time::Duration::from_secs(1);
-        let (pubsub, _) = PubSub::new(heartbeat_interval).expect("");
+        let (pubsub, _) = PubSub::new(heartbeat_interval).expect("New PubSub");
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = robonomics_rpc::FullDeps {

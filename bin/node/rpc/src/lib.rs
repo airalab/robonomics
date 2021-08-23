@@ -33,7 +33,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use jsonrpc_pubsub::manager::SubscriptionManager;
 use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
