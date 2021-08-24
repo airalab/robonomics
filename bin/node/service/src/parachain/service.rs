@@ -31,6 +31,8 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use sc_client_api::ExecutorProvider;
 use sc_network::NetworkService;
 use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
@@ -40,7 +42,9 @@ use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use substrate_frame_rpc_system::{FullSystem, SystemApi};
 use substrate_prometheus_endpoint::Registry;
 
@@ -150,6 +154,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
     build_consensus: BIC,
+    heartbeat_interval: u64,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -235,6 +240,8 @@ where
 
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
+    let (pubsub, _) = PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
@@ -244,6 +251,10 @@ where
                 rpc_client.clone(),
                 rpc_pool.clone(),
                 deny_unsafe,
+            )));
+            io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
+                pubsub.clone(),
+                Arc::new(Mutex::new(HashMap::new())),
             )));
             io
         }),

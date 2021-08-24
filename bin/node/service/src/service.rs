@@ -26,7 +26,7 @@ use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sp_api::ConstructRuntimeApi;
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -72,6 +72,7 @@ where
 
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
+    heartbeat_interval: u64,
 ) -> Result<
     sc_service::PartialComponents<
         FullClient<Runtime, Executor>,
@@ -198,10 +199,8 @@ where
         let select_chain = select_chain.clone();
         let keystore = keystore_container.sync_keystore();
         let chain_spec = config.chain_spec.cloned_box();
-
-        // ???
-        let heartbeat_interval = std::time::Duration::from_secs(1);
-        let (pubsub, _) = PubSub::new(heartbeat_interval).expect("New PubSub");
+        let (pubsub, _) =
+            PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
 
         let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
             let deps = robonomics_rpc::FullDeps {
@@ -246,6 +245,7 @@ where
 /// Creates a full service from the configuration.
 pub fn new_full_base<Runtime, Executor>(
     mut config: Configuration,
+    heartbeat_interval: u64,
 ) -> Result<
     (
         TaskManager,
@@ -270,7 +270,7 @@ where
         select_chain,
         transaction_pool,
         other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
-    } = new_partial(&config)?;
+    } = new_partial(&config, heartbeat_interval)?;
 
     let shared_voter_state = rpc_setup;
 
@@ -615,8 +615,8 @@ pub mod robonomics {
     );
 
     /// Create a new Robonomics service for a full node.
-    pub fn new_full(config: Configuration) -> Result<TaskManager> {
-        super::new_full_base::<RuntimeApi, Executor>(config)
+    pub fn new_full(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {
+        super::new_full_base::<RuntimeApi, Executor>(config, heartbeat_interval)
             .map(|(task_manager, _, _, _)| task_manager)
     }
 
