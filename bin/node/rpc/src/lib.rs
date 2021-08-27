@@ -49,7 +49,7 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
-use sp_transaction_pool::TransactionPool;
+use sc_transaction_pool_api::TransactionPool;
 
 /// A IO handler that uses all Full RPC extensions.
 pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc_api::Metadata>;
@@ -109,7 +109,9 @@ pub struct FullDeps<C, P, SC, B> {
 }
 
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> IoHandler
+pub fn create_full<C, P, SC, B>(
+    deps: FullDeps<C, P, SC, B>,
+) -> Result<IoHandler, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
         + HeaderBackend<Block>
@@ -189,10 +191,10 @@ where
             shared_authority_set,
             shared_epoch_changes,
             deny_unsafe,
-        ),
+        )?,
     ));
 
-    io
+    Ok(io)
 }
 
 /// Instantiate all Light RPC extensions.

@@ -76,13 +76,13 @@ pub fn new_partial<Runtime, Executor>(
         FullClient<Runtime, Executor>,
         FullBackend,
         FullSelectChain,
-        sp_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
+        sc_consensus::DefaultImportQueue<Block, FullClient<Runtime, Executor>>,
         sc_transaction_pool::FullPool<Block, FullClient<Runtime, Executor>>,
         (
             impl Fn(
                 robonomics_rpc::DenyUnsafe,
                 sc_rpc::SubscriptionTaskExecutor,
-            ) -> robonomics_rpc::IoHandler,
+            ) -> Result<robonomics_rpc::IoHandler, sc_service::Error>,
             (
                 sc_consensus_babe::BabeBlockImport<
                     Block,
@@ -220,6 +220,7 @@ where
             };
 
             robonomics_rpc::create_full(deps)
+                .map_err(Into::into)
         };
 
         (rpc_extensions_builder, rpc_setup)
@@ -292,6 +293,7 @@ where
             import_queue,
             on_demand: None,
             block_announce_validator_builder: None,
+            warp_sync: None,
         })?;
 
     if config.offchain_worker.enabled {
@@ -543,6 +545,7 @@ where
             import_queue,
             on_demand: Some(on_demand.clone()),
             block_announce_validator_builder: None,
+            warp_sync: None,
         })?;
     network_starter.start_network();
 

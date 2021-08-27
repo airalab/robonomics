@@ -6,7 +6,7 @@ with llvmPackages;
 
 stdenv.mkDerivation {
   name = "robonomics-nix-shell";
-  propagatedBuildInputs = [ release.substrate-ros-msgs ];
+  #  propagatedBuildInputs = [ release.substrate-ros-msgs ];
   nativeBuildInputs = [ clang ];
   buildInputs = [ release.rust-nightly ];
   LIBCLANG_PATH = "${clang-unwrapped.lib}/lib";

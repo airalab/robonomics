@@ -70,7 +70,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -91,8 +91,8 @@ impl_opaque_keys! {
 }
 
 pub struct BaseFilter;
-impl frame_support::traits::Filter<Call> for BaseFilter {
-    fn filter(call: &Call) -> bool {
+impl frame_support::traits::Contains<Call> for BaseFilter {
+    fn contains(call: &Call) -> bool {
         match call {
             // These modules are not allowed to be called by transactions:
             Call::Balances(_) => false,

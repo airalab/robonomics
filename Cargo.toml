@@ -5,7 +5,7 @@ members = [
     "bin/node/rpc",
     "bin/node/service",
     "bin/bench",
-    "cli",
+#    "cli",
     "frame/rws",
     "frame/launch",
     "frame/datalog",
@@ -14,10 +14,10 @@ members = [
     "frame/lighthouse",
     "frame/digital-twin",
     "frame/staking",
-    "io",
+#    "io",
     "primitives",
-    "protocol",
-    "protocol/examples/reqres",
+#    "protocol",
+#    "protocol/examples/reqres",
     "runtime/local",
     "runtime/alpha",
     "runtime/main",
@@ -27,6 +27,9 @@ members = [
 ]
 
 exclude = [
+    "io",
+    "cli",
+    "protocol",
     "vendor",
 ]
 

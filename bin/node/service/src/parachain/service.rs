@@ -52,7 +52,7 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
         TFullClient<Block, RuntimeApi, Executor>,
         TFullBackend<Block>,
         (),
-        sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
+        sc_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
         sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
         (
             Option<sc_telemetry::Telemetry>,
@@ -82,7 +82,7 @@ where
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
         sc_service::Error,
     >,
 {
@@ -174,7 +174,7 @@ where
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
         sc_service::Error,
     >,
     BIC: FnOnce(
@@ -231,6 +231,7 @@ where
             import_queue: import_queue.clone(),
             on_demand: None,
             block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
+            warp_sync: None,
         })?;
 
     let rpc_client = client.clone();
@@ -245,7 +246,7 @@ where
                 rpc_pool.clone(),
                 deny_unsafe,
             )));
-            io
+            Ok(io)
         }),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
@@ -316,7 +317,7 @@ pub fn build_pos_import_queue<RuntimeApi, Executor>(
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
     sc_service::Error,
 >
 where
@@ -376,7 +377,7 @@ pub fn build_open_import_queue<RuntimeApi, Executor>(
     _telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
     sc_service::Error,
 >
 where

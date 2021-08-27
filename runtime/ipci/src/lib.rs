@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 3,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -332,6 +332,7 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
+    type DisabledValidators = ();
 }
 
 parameter_types! {
@@ -473,6 +474,7 @@ pub const MAX_NOMINATIONS: u32 =
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type EstimateCallFee = TransactionPayment;
     type SignedPhase = SignedPhase;
     type UnsignedPhase = UnsignedPhase;
     type SolutionImprovementThreshold = SolutionImprovementThreshold;
