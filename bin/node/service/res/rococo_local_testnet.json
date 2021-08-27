@@ -18,7 +18,6 @@
   "forkBlocks": null,
   "badBlocks": null,
   "consensusEngine": null,
-  "lightSyncState": null,
   "codeSubstitutes": {},
   "genesis": {
     "raw": {

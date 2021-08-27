@@ -20,7 +20,6 @@
   "relayChain": "rococo_local_testnet",
   "paraId": 5000,
   "consensusEngine": null,
-  "lightSyncState": null,
   "codeSubstitutes": {},
   "genesis": {
     "runtime": {

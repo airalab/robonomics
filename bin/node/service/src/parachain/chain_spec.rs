@@ -26,18 +26,16 @@ use sp_core::sr25519;
 
 use crate::chain_spec::get_account_id_from_seed;
 
-/// Earth parachain ID
-pub const EARTH_ID: u32 = 1000;
+/// Kusama parachain ID
+pub const KUSAMA_ID: u32 = 2077;
 /// Mars parachain ID
 pub const MARS_ID: u32 = 2000;
 /// Ipci parachain ID
 pub const IPCI_ID: u32 = 3000;
-// Uranus parachain ID
+/// Uranus parachain ID
 pub const URANUS_ID: u32 = 4000;
-// Mercury parachain ID
+/// Mercury parachain ID
 pub const MERCURY_ID: u32 = 5000;
-/// Kusama parachain ID
-pub const KUSAMA_ID: u32 = 2077;
 
 /*
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
@@ -68,10 +66,6 @@ impl Extensions {
 pub type AlphaChainSpec = sc_service::GenericChainSpec<alpha_runtime::GenesisConfig, Extensions>;
 
 pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
-    if id == ParaId::from(EARTH_ID) {
-        return earth_parachain_config();
-    }
-
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
@@ -238,44 +232,6 @@ fn mk_genesis_ipci(
     }
 }
 
-/// Earth parachain genesis.
-fn earth_parachain_genesis() -> alpha_runtime::GenesisConfig {
-    use alpha_runtime::constants::currency;
-    use hex_literal::hex;
-
-    // akru
-    let sudo_key: AccountId =
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
-
-    let mut balances = currency::STAKE_HOLDERS.clone();
-    balances.extend(vec![(sudo_key.clone(), 50_000 * currency::XRT)]);
-
-    mk_genesis_alpha(
-        balances.to_vec(),
-        sudo_key,
-        EARTH_ID.into(),
-    )
-}
-
-/// Earth parachain config.
-pub fn earth_parachain_config() -> AlphaChainSpec {
-    let boot_nodes = vec![];
-    AlphaChainSpec::from_genesis(
-        "Earth",
-        "earth",
-        ChainType::Live,
-        earth_parachain_genesis,
-        boot_nodes,
-        None,
-        Some(ROBONOMICS_PROTOCOL_ID),
-        None,
-        Extensions {
-            relay_chain: "rococo_local_testnet".into(),
-            para_id: EARTH_ID.into(),
-        },
-    )
-}
-
 /// Mars parachain genesis.
 fn mars_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
@@ -383,11 +339,6 @@ pub fn ipci_parachain_config() -> IpciChainSpec {
     )
 }
 */
-
-/// Earth parachain confing.
-pub fn earth_parachain_config() -> AlphaChainSpec {
-    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/earth.json")[..]).unwrap()
-}
 
 /// Mars parachain confing.
 pub fn mars_parachain_config() -> AlphaChainSpec {
