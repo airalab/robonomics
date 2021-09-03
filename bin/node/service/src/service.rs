@@ -219,8 +219,7 @@ where
                 },
             };
 
-            robonomics_rpc::create_full(deps)
-                .map_err(Into::into)
+            robonomics_rpc::create_full(deps).map_err(Into::into)
         };
 
         (rpc_extensions_builder, rpc_setup)
