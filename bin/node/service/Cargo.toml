@@ -57,6 +57,7 @@ sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
+sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 
 # frame dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }

@@ -24,6 +24,7 @@ use local_runtime::{
 use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
+use sc_sync_state_rpc::LightSyncStateExtension;
 use serde::{Deserialize, Serialize};
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
@@ -91,6 +92,8 @@ pub struct Extensions {
     pub fork_blocks: sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
     pub bad_blocks: sc_client_api::BadBlocks<Block>,
+    ///
+    pub light_sync_state: LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
