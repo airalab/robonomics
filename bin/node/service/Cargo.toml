@@ -100,8 +100,6 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9", optional = true }
 
 # Robonomics-specific dependencies
-rosrust = { version = "0.9.5", optional = true }
-substrate-ros-api = { path = "../../../substrate-ros/api", optional = true }
 #robonomics-cli = { path = "../../../cli", optional = true }
 
 [build-dependencies]
@@ -184,11 +182,7 @@ wasmtime = [
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
 # To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
 # It also require roscore service to be launched.
-ros = [
-    "rosrust",
-    "substrate-ros-api",
-#    "robonomics-cli/ros",
-]
+ros = []
 
 ## Enable runtime benchmarking.
 runtime-benchmarks = [

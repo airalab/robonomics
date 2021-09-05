@@ -1,4 +1,0 @@
-BlockHash block
-StorageKey key
----
-uint8[] data

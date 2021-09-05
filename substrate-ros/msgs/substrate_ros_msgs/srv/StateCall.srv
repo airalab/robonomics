@@ -1,5 +1,0 @@
-string method
-uint8[] data
-BlockHash block
----
-uint8[] data

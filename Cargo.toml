@@ -22,8 +22,6 @@ members = [
     "runtime/alpha",
     "runtime/main",
     "runtime/ipci",
-    "substrate-ros/api",
-    "substrate-ros/msgs",
 ]
 
 exclude = [
