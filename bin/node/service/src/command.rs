@@ -102,16 +102,17 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&*cli.run)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
-                    match config.role {
-                        sc_cli::Role::Light => robonomics::new_light(config).map(|r| r.0),
-                        _ => robonomics::new_full(config),
+                    if matches!(config.role, sc_cli::Role::Light) {
+                        return Err("Light client not supported!".into());
                     }
+
+                    robonomics::new(config)
                 }),
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Alpha => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supporter!".into());
+                        return Err("Light client not supported!".into());
                     }
 
                     if cli.run.validator && cli.run.lighthouse_account.is_none() {
@@ -133,7 +134,7 @@ pub fn run() -> sc_cli::Result<()> {
                 #[cfg(feature = "kusama")]
                 RobonomicsFamily::Main => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supporter!".into());
+                        return Err("Light client not supported!".into());
                     }
 
                     if cli.run.validator && cli.run.lighthouse_account.is_none() {
@@ -155,7 +156,7 @@ pub fn run() -> sc_cli::Result<()> {
                 #[cfg(feature = "ipci")]
                 RobonomicsFamily::Ipci => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supporter!".into());
+                        return Err("Light client not supported!".into());
                     }
 
                     let params = parachain::command::parse_args(

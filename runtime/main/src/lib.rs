@@ -38,24 +38,26 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{Currency, OnUnbalanced},
+    traits::{Currency, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
+use sp_core::u32_trait::{_1, _2};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, Perbill, Perquintill,
+    FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -70,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 3,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -96,7 +98,6 @@ impl frame_support::traits::Contains<Call> for BaseFilter {
         match call {
             // These modules are not allowed to be called by transactions:
             Call::Balances(_) => false,
-            Call::Staking(_) => false,
             // Other modules should works:
             _ => true,
         }
@@ -109,12 +110,14 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
         if let Some(fees) = fees_then_tips.next() {
-            // for fees, 100% to lighthouse until treasury introduced
-            Lighthouse::on_unbalanced(fees);
+            // for fees, 50% to treasury, 50% to block author
+            let mut split = fees.ration(50, 50);
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 100% to lighthouse until treasury introduced
-                Lighthouse::on_unbalanced(tips);
+                // for tips, if any, 50% to treasury, 50% to lighthouse
+                tips.ration_merge_into(50, 50, &mut split);
             }
+            Treasury::on_unbalanced(split.0);
+            Lighthouse::on_unbalanced(split.1);
         }
     }
 }
@@ -282,6 +285,87 @@ impl pallet_identity::Config for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
+        * RuntimeBlockWeights::get().max_block;
+    pub const MaxScheduledPerBlock: u32 = 50;
+}
+
+impl pallet_scheduler::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type Call = Call;
+    type PalletsOrigin = OriginCaller;
+    type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = MoreThanHalfTechnicals;
+    type MaxScheduledPerBlock = MaxScheduledPerBlock;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const ProposalBond: Permill = Permill::from_percent(5);
+    pub const ProposalBondMinimum: Balance = 10 * XRT;
+    pub const SpendPeriod: BlockNumber = 365 * DAYS;
+    pub const Burn: Permill = Permill::from_percent(1);
+    pub const DataDepositPerByte: Balance = 1 * COASE;
+    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+    pub const MaxApprovals: u32 = 100;
+}
+
+impl pallet_treasury::Config for Runtime {
+    type PalletId = TreasuryPalletId;
+    type Currency = Balances;
+    type ApproveOrigin = MoreThanHalfTechnicals;
+    type RejectOrigin = MoreThanHalfTechnicals;
+    type Event = Event;
+    type ProposalBond = ProposalBond;
+    type ProposalBondMinimum = ProposalBondMinimum;
+    type SpendPeriod = SpendPeriod;
+    type OnSlash = ();
+    type Burn = Burn;
+    type BurnDestination = ();
+    type SpendFunds = ();
+    type WeightInfo = ();
+    type MaxApprovals = MaxApprovals;
+}
+
+parameter_types! {
+    pub const TechnicalMotionDuration: BlockNumber = 3 * DAYS;
+    pub const TechnicalMaxProposals: u32 = 100;
+    pub const TechnicalMaxMembers: u32 = 100;
+}
+
+type TechnicalCollective = pallet_collective::Instance2;
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+    type Origin = Origin;
+    type Proposal = Call;
+    type Event = Event;
+    type MotionDuration = TechnicalMotionDuration;
+    type MaxProposals = TechnicalMaxProposals;
+    type MaxMembers = TechnicalMaxMembers;
+    type DefaultVote = pallet_collective::PrimeDefaultVote;
+    type WeightInfo = ();
+}
+
+type MoreThanHalfTechnicals = frame_system::EnsureOneOf<
+    AccountId,
+    frame_system::EnsureRoot<AccountId>,
+    pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>,
+>;
+
+impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
+    type Event = Event;
+    type AddOrigin = MoreThanHalfTechnicals;
+    type RemoveOrigin = MoreThanHalfTechnicals;
+    type SwapOrigin = MoreThanHalfTechnicals;
+    type ResetOrigin = MoreThanHalfTechnicals;
+    type PrimeOrigin = MoreThanHalfTechnicals;
+    type MembershipInitialized = TechnicalCommittee;
+    type MembershipChanged = TechnicalCommittee;
+    type MaxMembers = TechnicalMaxMembers;
+    type WeightInfo = ();
+}
+
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
@@ -369,10 +453,17 @@ construct_runtime! {
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>} = 31,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 32,
 
+        // Governance staff.
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 40,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 41,
+        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 42,
+        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 43,
+
         // Robonomics Network pallets.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 51,
         Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>} = 52,
         Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+
         Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 60,
     }
 }
