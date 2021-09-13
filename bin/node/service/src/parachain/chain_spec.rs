@@ -156,6 +156,7 @@ fn mk_genesis_alpha(
     }
 }
 
+/*
 /// Mercury parachain genesis.
 fn mercury_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
@@ -166,7 +167,7 @@ fn mercury_parachain_genesis() -> alpha_runtime::GenesisConfig {
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
     let balances = currency::STAKE_HOLDERS.clone();
-    mk_genesis_alpha(balances.to_vec(), sudo_key, MARS_ID.into())
+    mk_genesis_alpha(balances.to_vec(), sudo_key, MERCURY_ID.into())
 }
 
 /// Mercury parachain config.
@@ -183,12 +184,11 @@ pub fn mercury_parachain_config() -> AlphaChainSpec {
         None,
         Extensions {
             relay_chain: "rococo_local_testnet".into(),
-            para_id: MARS_ID.into(),
+            para_id: MERCURY_ID.into(),
         },
     )
 }
 
-/*
 /// Helper function to create GenesisConfig for main parachain
 fn mk_genesis_main(
     balances: Vec<(AccountId, Balance)>,
@@ -370,12 +370,12 @@ pub fn ipci_parachain_config() -> IpciChainSpec {
         },
     )
 }
+*/
 
 /// Mercury parachain confing.
 pub fn mercury_parachain_config() -> AlphaChainSpec {
-    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mercury.json")[..]).unwrap()
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mercury.raw.json")[..]).unwrap()
 }
-*/
 
 /// Mars parachain confing.
 pub fn mars_parachain_config() -> AlphaChainSpec {
