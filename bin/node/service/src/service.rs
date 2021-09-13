@@ -18,11 +18,14 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use sc_client_api::{ExecutorProvider, RemoteBackend};
-use sc_finality_grandpa::{self as grandpa, FinalityProofProvider as GrandpaFinalityProofProvider};
+use sc_client_api::ExecutorProvider;
+use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use sc_finality_grandpa as grandpa;
 use sc_network::NetworkService;
-use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
+use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_api::ConstructRuntimeApi;
+use sp_consensus::SlotData;
+use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
 
@@ -31,15 +34,12 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport<Runtime, Executor> =
     grandpa::GrandpaBlockImport<FullBackend, Block, FullClient<Runtime, Executor>, FullSelectChain>;
-type LightBackend = sc_service::TLightBackendWithHash<Block, BlakeTwo256>;
-type LightClient<Runtime, Executor> =
-    sc_service::TLightClientWithBackend<Block, Runtime, Executor, LightBackend>;
 
 /// A set of APIs that robonomics-like runtimes must implement.
 pub trait RuntimeApiCollection:
     sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
     + sp_api::ApiExt<Block>
-    + sp_consensus_aura::AuraApi<Block>
+    + sp_consensus_aura::AuraApi<Block, AuraId>
     + sp_finality_grandpa::GrandpaApi<Block>
     + sp_block_builder::BlockBuilder<Block>
     + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
@@ -56,7 +56,7 @@ impl<Api> RuntimeApiCollection for Api
 where
     Api: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
         + sp_api::ApiExt<Block>
-        + sp_consensus_aura::AuraApi<Block>
+        + sp_consensus_aura::AuraApi<Block, AuraId>
         + sp_finality_grandpa::GrandpaApi<Block>
         + sp_block_builder::BlockBuilder<Block>
         + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
@@ -134,6 +134,7 @@ where
         telemetry.as_ref().map(|x| x.handle()),
     )?;
 
+    let slot_duration = sc_consensus_aura::slot_duration(&*client)?.slot_duration();
     let import_queue =
         sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(ImportQueueParams {
             block_import: grandpa_block_import.clone(),
@@ -160,23 +161,13 @@ where
         })?;
 
     let rpc_extensions_builder = {
-        let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(
-            backend.clone(),
-            Some(shared_authority_set.clone()),
-        );
-
         let client = client.clone();
         let pool = transaction_pool.clone();
-        let select_chain = select_chain.clone();
-        let keystore = keystore_container.sync_keystore();
-        let chain_spec = config.chain_spec.cloned_box();
 
-        move |deny_unsafe, subscription_executor| {
+        move |deny_unsafe, _| {
             let deps = robonomics_rpc::FullDeps {
                 client: client.clone(),
                 pool: pool.clone(),
-                select_chain: select_chain.clone(),
-                chain_spec: chain_spec.cloned_box(),
                 deny_unsafe,
             };
 
@@ -227,16 +218,17 @@ where
         keystore_container,
         select_chain,
         transaction_pool,
-        other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
+        other: (rpc_extensions_builder, block_import, grandpa_link, mut telemetry),
     } = new_partial(&config)?;
 
     config
         .network
         .extra_sets
         .push(grandpa::grandpa_peers_set_config());
+
     let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
-        import_setup.1.shared_authority_set().clone(),
+        grandpa_link.shared_authority_set().clone(),
     ));
 
     let (network, system_rpc_tx, network_starter) =
@@ -283,10 +275,8 @@ where
         telemetry: telemetry.as_mut(),
     })?;
 
-    let (block_import, grandpa_link, babe_link) = import_setup;
-
-    if let sc_service::config::Role::Authority { .. } = &role {
-        let proposer = sc_basic_authorship::ProposerFactory::new(
+    if role.is_authority() {
+        let proposer_factory = sc_basic_authorship::ProposerFactory::new(
             task_manager.spawn_handle(),
             client.clone(),
             transaction_pool.clone(),
@@ -369,7 +359,7 @@ where
             network: network.clone(),
             voting_rule: grandpa::VotingRulesBuilder::default().build(),
             prometheus_registry,
-            shared_voter_state,
+            shared_voter_state: grandpa::SharedVoterState::empty(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
         };
 
@@ -387,7 +377,7 @@ where
 /// Robonomics chain services.
 pub mod robonomics {
     use local_runtime::RuntimeApi;
-    use sc_service::{config::Configuration, error::Result, RpcHandlers, TaskManager};
+    use sc_service::{config::Configuration, error::Result, TaskManager};
 
     #[cfg(feature = "frame-benchmarking")]
     sc_executor::native_executor_instance!(

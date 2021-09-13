@@ -37,8 +37,8 @@ pub const URANUS_ID: u32 = 4000;
 /// Mercury parachain ID
 pub const MERCURY_ID: u32 = 5000;
 
-/*
 const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
+/*
 const IPCI_PROTOCOL_ID: &str = "mito";
 */
 
@@ -154,6 +154,38 @@ fn mk_genesis_alpha(
         sudo: alpha_runtime::SudoConfig { key: sudo_key },
         parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
     }
+}
+
+/// Mercury parachain genesis.
+fn mercury_parachain_genesis() -> alpha_runtime::GenesisConfig {
+    use alpha_runtime::constants::currency;
+    use hex_literal::hex;
+
+    // akru
+    let sudo_key: AccountId =
+        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
+
+    let balances = currency::STAKE_HOLDERS.clone();
+    mk_genesis_alpha(balances.to_vec(), sudo_key, MARS_ID.into())
+}
+
+/// Mercury parachain config.
+pub fn mercury_parachain_config() -> AlphaChainSpec {
+    let boot_nodes = vec![];
+    AlphaChainSpec::from_genesis(
+        "Mercury",
+        "mercury",
+        ChainType::Live,
+        mercury_parachain_genesis,
+        boot_nodes,
+        None,
+        Some(ROBONOMICS_PROTOCOL_ID),
+        None,
+        Extensions {
+            relay_chain: "rococo_local_testnet".into(),
+            para_id: MARS_ID.into(),
+        },
+    )
 }
 
 /*
@@ -338,6 +370,11 @@ pub fn ipci_parachain_config() -> IpciChainSpec {
         },
     )
 }
+
+/// Mercury parachain confing.
+pub fn mercury_parachain_config() -> AlphaChainSpec {
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mercury.json")[..]).unwrap()
+}
 */
 
 /// Mars parachain confing.
@@ -348,11 +385,6 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
 /// Uranus parachain confing.
 pub fn uranus_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
-}
-
-/// Mercury parachain confing.
-pub fn mercury_parachain_config() -> AlphaChainSpec {
-    AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/mercury.json")[..]).unwrap()
 }
 
 /// Kusama parachain confing.

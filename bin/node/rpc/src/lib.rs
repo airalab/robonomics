@@ -32,39 +32,30 @@
 
 use std::sync::Arc;
 
-use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use robonomics_primitives::{AccountId, Balance, Block, Index};
 use sc_client_api::AuxStore;
-use sc_consensus_epochs::SharedEpochChanges;
-use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_consensus::SelectChain;
-use sp_consensus_babe::BabeApi;
-use sp_keystore::SyncCryptoStorePtr;
 
 /// A IO handler that uses all Full RPC extensions.
 pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc_api::Metadata>;
 
 /// Full client dependencies.
-pub struct FullDeps<C, P, SC, B> {
+pub struct FullDeps<C, P> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
-    /// The SelectChain Strategy
-    pub select_chain: SC,
-    /// A copy of the chain spec.
-    pub chain_spec: Box<dyn sc_chain_spec::ChainSpec>,
     /// Whether to deny unsafe calls
     pub deny_unsafe: DenyUnsafe,
 }
 
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P, SC, B>(
-    deps: FullDeps<C, P, SC, B>,
+pub fn create_full<C, P>(
+    deps: FullDeps<C, P>,
 ) -> Result<IoHandler, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
@@ -78,9 +69,6 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    SC: SelectChain<Block> + 'static,
-    B: sc_client_api::Backend<Block> + Send + Sync + 'static,
-    B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
     use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -89,8 +77,6 @@ where
     let FullDeps {
         client,
         pool,
-        select_chain,
-        chain_spec,
         deny_unsafe,
     } = deps;
 
