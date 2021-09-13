@@ -149,7 +149,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;

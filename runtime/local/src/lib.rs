@@ -55,7 +55,7 @@ use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::traits::{self, AccountIdLookup, BlakeTwo256, Block as BlockT, NumberFor};
+use sp_runtime::traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, NumberFor};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
@@ -130,7 +130,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
@@ -303,19 +303,6 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BonusReward = BonusReward;
 }
 
-impl frame_system::offchain::SigningTypes for Runtime {
-    type Public = <Signature as traits::Verify>::Signer;
-    type Signature = Signature;
-}
-
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
-where
-    Call: From<C>,
-{
-    type OverarchingCall = Call;
-    type Extrinsic = UncheckedExtrinsic;
-}
-
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -325,14 +312,12 @@ construct_runtime!(
         // Basic stuff.
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+        Aura: pallet_aura::{Pallet, Config<T>},
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 
         // Native currency and accounts.
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-
-        // Simple consensus.
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
 
         // Robonomics Network modules.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},

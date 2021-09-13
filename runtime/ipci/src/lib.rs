@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 3,
+    spec_version: 4,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -164,7 +164,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
