@@ -11,7 +11,7 @@ ipfs-api = { version = "0.10.0", features = ["with-hyper-rustls"], default-featu
 async-std = "1.9"
 futures-timer = "3.0.2"
 derive_more = "0.99.11"
-sp-core = "3.0.0"
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 futures = "0.3.15"
 sds011 = "0.2.1"
 serde = "1.0.106"
@@ -23,7 +23,7 @@ libp2p = " 0.38.0"
 rust-base58  = "0.0.4"
 env_logger = "0.6.0"
 
-# ROS integration 
+# ROS integration
 substrate-ros-msgs = { path = "../substrate-ros/msgs", optional = true }
 rosrust = { version = "0.9", optional = true }
 

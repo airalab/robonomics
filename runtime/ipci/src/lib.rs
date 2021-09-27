@@ -461,7 +461,7 @@ parameter_types! {
 
 sp_npos_elections::generate_solution_type!(
     #[compact]
-    pub struct NposCompactSolution16::<
+    pub struct NposSolution16::<
         VoterIndex = u32,
         TargetIndex = u16,
         Accuracy = sp_runtime::PerU16,

@@ -44,7 +44,7 @@ use std::{
 
 use crate::error::{FutureResult, Result};
 
-enum ToWorkerMsg {
+pub enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
     Connect(Multiaddr, oneshot::Sender<bool>),
     Listeners(oneshot::Sender<Vec<Multiaddr>>),
@@ -234,7 +234,7 @@ impl Future for PubSubWorker {
 /// LibP2P Gossipsub based publisher/subscriber service.
 pub struct PubSub {
     peer_id: PeerId,
-    to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
+    pub to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
 }
 
 impl PubSub {

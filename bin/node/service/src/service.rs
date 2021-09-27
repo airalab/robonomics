@@ -18,6 +18,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_finality_grandpa as grandpa;
@@ -27,7 +28,7 @@ use sp_api::ConstructRuntimeApi;
 use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -70,6 +71,7 @@ where
 
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
+    heartbeat_interval: u64,
 ) -> Result<
     sc_service::PartialComponents<
         FullClient<Runtime, Executor>,
@@ -160,6 +162,8 @@ where
             telemetry: telemetry.as_ref().map(|x| x.handle()),
         })?;
 
+    let (pubsub, _) = PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+
     let rpc_extensions_builder = {
         let client = client.clone();
         let pool = transaction_pool.clone();
@@ -169,6 +173,7 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
+                pubsub: pubsub.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)
@@ -195,6 +200,7 @@ where
 /// Creates a full service from the configuration.
 pub fn full_base<Runtime, Executor>(
     mut config: Configuration,
+    heartbeat_interval: u64,
 ) -> Result<
     (
         TaskManager,
@@ -219,7 +225,7 @@ where
         select_chain,
         transaction_pool,
         other: (rpc_extensions_builder, block_import, grandpa_link, mut telemetry),
-    } = new_partial(&config)?;
+    } = new_partial(&config, heartbeat_interval)?;
 
     config
         .network
@@ -395,7 +401,8 @@ pub mod robonomics {
     );
 
     /// Create a new Robonomics service.
-    pub fn new(config: Configuration) -> Result<TaskManager> {
-        super::full_base::<RuntimeApi, Executor>(config).map(|(task_manager, _, _, _)| task_manager)
+    pub fn new(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {
+        super::full_base::<RuntimeApi, Executor>(config, heartbeat_interval)
+            .map(|(task_manager, _, _, _)| task_manager)
     }
 }

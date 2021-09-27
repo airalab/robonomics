@@ -52,7 +52,7 @@ fs_extra = "1"
 hex = "0.4.0"
 rand = { version = "0.7.2", features = ["small_rng"] }
 lazy_static = "1.4.0"
-parity-util-mem = { default-features = false, version = "0.10.0", features = ["primitive-types"] }
+parity-util-mem = { default-features = false, version = "0.10.2", features = ["primitive-types"] }
 parity-db = { version = "0.2.2" }
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 futures = { version = "0.3.4", features = ["thread-pool"] }

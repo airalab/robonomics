@@ -30,9 +30,12 @@
 
 #![warn(missing_docs)]
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
+use robonomics_protocol::pubsub::Gossipsub;
 use sc_client_api::AuxStore;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
@@ -49,8 +52,10 @@ pub struct FullDeps<C, P> {
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
-    /// Whether to deny unsafe calls
+    /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
+    /// PubSub worker.
+    pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -78,6 +83,7 @@ where
         client,
         pool,
         deny_unsafe,
+        pubsub,
     } = deps;
 
     io.extend_with(SystemApi::to_delegate(FullSystem::new(
@@ -88,6 +94,11 @@ where
 
     io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
         client.clone(),
+    )));
+
+    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
+        pubsub,
+        Arc::new(Mutex::new(HashMap::new())),
     )));
 
     Ok(io)
