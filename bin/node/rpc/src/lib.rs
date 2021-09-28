@@ -30,8 +30,7 @@
 
 #![warn(missing_docs)]
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
@@ -96,10 +95,7 @@ where
         client.clone(),
     )));
 
-    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
-        pubsub,
-        Arc::new(Mutex::new(HashMap::new())),
-    )));
+    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
 
     Ok(io)
 }

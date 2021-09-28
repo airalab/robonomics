@@ -42,8 +42,7 @@ use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 use substrate_frame_rpc_system::{FullSystem, SystemApi};
 use substrate_prometheus_endpoint::Registry;
@@ -253,10 +252,7 @@ where
                 rpc_pool.clone(),
                 deny_unsafe,
             )));
-            io.extend_with(PubSubApi::to_delegate(PubSubApi::new(
-                pubsub.clone(),
-                Arc::new(Mutex::new(HashMap::new())),
-            )));
+            io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub.clone())));
             Ok(io)
         }),
         client: client.clone(),

@@ -15,13 +15,10 @@ pub struct PubSubApi {
 }
 
 impl PubSubApi {
-    pub fn new(
-        pubsub: Arc<Gossipsub>,
-        subscriptions: Arc<Mutex<HashMap<SubscriptionId, String>>>,
-    ) -> Self {
+    pub fn new(pubsub: Arc<Gossipsub>) -> Self {
         PubSubApi {
             pubsub,
-            subscriptions,
+            subscriptions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
