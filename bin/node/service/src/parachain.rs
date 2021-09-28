@@ -70,6 +70,7 @@ pub mod alpha {
         polkadot_config: sc_service::Configuration,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
             parachain_config,
@@ -78,6 +79,7 @@ pub mod alpha {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
+            heartbeat_interval,
         )
         .await
     }
@@ -101,6 +103,7 @@ pub mod main {
         polkadot_config: sc_service::Configuration,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
             parachain_config,
@@ -109,6 +112,7 @@ pub mod main {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
+            heartbeat_interval,
         )
         .await
     }
@@ -132,6 +136,7 @@ pub mod ipci {
         polkadot_config: sc_service::Configuration,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
             parachain_config,
@@ -140,6 +145,7 @@ pub mod ipci {
             lighthouse_account,
             super::service::build_pos_import_queue,
             super::service::build_pos_consensus,
+            heartbeat_interval,
         )
         .await
     }

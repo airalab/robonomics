@@ -57,6 +57,10 @@ pub struct RunCmd {
     #[structopt(long)]
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
+
+    /// PubSub heartbeat interval
+    #[structopt(long)]
+    pub heartbeat_interval: Option<u64>,
 }
 
 impl std::ops::Deref for RunCmd {

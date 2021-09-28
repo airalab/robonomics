@@ -100,13 +100,16 @@ pub fn run() -> sc_cli::Result<()> {
         #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&*cli.run)?;
+            // Default interval 1 sec
+            let heartbeat_interval = cli.run.heartbeat_interval.unwrap_or_else(|| 1000);
+
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
                         return Err("Light client not supported!".into());
                     }
 
-                    robonomics::new(config)
+                    robonomics::new(config, heartbeat_interval)
                 }),
 
                 #[cfg(feature = "parachain")]
@@ -128,7 +131,14 @@ pub fn run() -> sc_cli::Result<()> {
                         cli.run.lighthouse_account,
                     )?;
 
-                    parachain::alpha::start_node(params.0, params.1, params.2, params.3).await
+                    parachain::alpha::start_node(
+                        params.0,
+                        params.1,
+                        params.2,
+                        params.3,
+                        heartbeat_interval,
+                    )
+                    .await
                 }),
 
                 #[cfg(feature = "kusama")]
@@ -150,7 +160,14 @@ pub fn run() -> sc_cli::Result<()> {
                         cli.run.lighthouse_account,
                     )?;
 
-                    parachain::main::start_node(params.0, params.1, params.2, params.3).await
+                    parachain::main::start_node(
+                        params.0,
+                        params.1,
+                        params.2,
+                        params.3,
+                        heartbeat_interval,
+                    )
+                    .await
                 }),
 
                 #[cfg(feature = "ipci")]
@@ -166,7 +183,14 @@ pub fn run() -> sc_cli::Result<()> {
                         cli.run.lighthouse_account,
                     )?;
 
-                    parachain::ipci::start_node(params.0, params.1, params.2, params.3).await
+                    parachain::ipci::start_node(
+                        params.0,
+                        params.1,
+                        params.2,
+                        params.3,
+                        heartbeat_interval,
+                    )
+                    .await
                 }),
             }
             .map_err(Into::into)
