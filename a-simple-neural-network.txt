@@ -1,0 +1,24 @@
+import tensorflow as tf
+data = tf.keras.datasets.mnist
+
+(training_images, training_labels), (val_images, val_labels) = data.load_data()
+
+training_images  = training_images / 255.0
+val_images = val_images / 255.0
+layer_1 = tf.keras.layers.Dense(20, activation=tf.nn.relu)
+layer_2 = tf.keras.layers.Dense(10, activation=tf.nn.softmax)
+model = tf.keras.models.Sequential([tf.keras.layers.Flatten(input_shape=(28,28)),
+                                    layer_1,
+                                    layer_2])
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(training_images, training_labels, epochs=20)
+
+model.evaluate(val_images, val_labels)
+
+classifications = model.predict(val_images)
+print(classifications[0])
+print(val_labels[0])
