@@ -35,6 +35,7 @@ use std::sync::Arc;
 use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
+use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
 use sc_client_api::AuxStore;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
@@ -96,6 +97,6 @@ where
     )));
 
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
-
+    io.extend_with(ReqRespApi::to_delegate(robonomics_protocol::reqres::reqresapi::ReqRespApi{}));
     Ok(io)
 }
