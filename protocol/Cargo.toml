@@ -30,4 +30,7 @@ sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkad
 rand = "0.8.4"
 rustc-hex = "2.1.0"
 rust-base58  = "0.0.4"
+<<<<<<< HEAD
 chrono = "0.4"
+=======
+>>>>>>> implemented reqres rpc
