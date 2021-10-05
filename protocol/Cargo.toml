@@ -27,3 +27,4 @@ jsonrpc-core-client = "15.1.0"
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 rand = "0.8.4"
 rustc-hex = "2.1.0"
+rust-base58  = "0.0.4"

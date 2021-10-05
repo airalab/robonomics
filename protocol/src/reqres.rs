@@ -16,6 +16,12 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! Simple Req-Resp Protocol
+use bincode;
+use libp2p::core::{ Multiaddr};
+use libp2p::request_response::*;
+use libp2p::swarm::{Swarm};
+use rust_base58::FromBase58;
+use std::iter;
 
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
@@ -32,6 +38,8 @@ use libp2p::request_response::RequestResponseCodec;
 use libp2p::tcp::TcpConfig;
 use libp2p::yamux::YamuxConfig;
 use std::io;
+
+pub mod reqresapi;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
@@ -171,3 +179,76 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
             .boxed(),
     )
 }
+
+/// Request Response client API
+/// Sends get or ping requests
+///
+/// Returns response from server on get method
+pub fn reqres( address: String, peerid: String, method: String, in_value: Option<String>) -> Result<String,String> {
+   
+        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+        let cfg = RequestResponseConfig::default();
+
+        let peer_id = peerid;
+        let remote_bytes = peer_id.from_base58().unwrap();
+        let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+
+        let (peer2_id, trans) = mk_transport();
+        let ping_proto2 = RequestResponse::new(RobonomicsCodec {is_ping: false}, protocols, cfg);
+        let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+        log::debug!("Local peer 2 id: {:?}", peer2_id);
+
+        let addr_remote = address;
+        let addr_r : Multiaddr = addr_remote.parse().unwrap();
+        swarm2.behaviour_mut().add_address(&remote_peer, addr_r.clone());
+
+        let mut rq = Request::Ping;
+
+        if method == "ping" {
+            let req_id = swarm2.behaviour_mut().send_request(&remote_peer,rq);
+            log::debug!(" peer2 Req{}: Ping  -> {:?}", req_id, remote_peer);
+        } else if method == "get" {
+            let value = in_value.unwrap();
+            rq = Request::Get(value.clone().into_bytes());
+
+            if let Request::Get(y) = rq {
+                log::debug!(" peer2  Req: Get -> {:?} : '{}'", remote_peer, String::from_utf8_lossy(&y));
+            }
+            let req_encoded: Vec<u8> = bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
+            swarm2.behaviour_mut().send_request(&remote_peer, Request::Get(req_encoded));
+        } else {
+            println!("unsuported command {} ", method);
+            //process::exit(-1);
+        }
+    let cl = async move {
+        match swarm2.next().await {
+                RequestResponseEvent::Message {
+                    peer,
+                    message: RequestResponseMessage::Response { request_id, response }
+                } => {
+                    match response {
+                        Response::Pong => {
+                            log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                            println!("{:?}", &response);
+                          //  process::exit(0);
+                        },
+                        Response::Data (data) => {
+                            // decode response
+                            let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                            log::debug!(" peer2 Resp: Data '{}' from {:?}", String::from_utf8_lossy(&decoded[..]), remote_peer);
+                            println!("{}", String::from_utf8_lossy(&decoded[..]));
+                           // process::exit(0);
+                        }
+                    }
+                },
+
+                e =>  {
+                    println!("Peer2 err: {:?}", e);
+                   // process::exit(-2)
+                }
+        }; 
+    };
+    let _ = futures::executor::block_on(cl);
+    Ok("decoded".to_string())
+}
+

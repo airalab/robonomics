@@ -33,6 +33,7 @@ use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use robonomics_primitives::{AccountId, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
+use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
 use sc_client_api::ExecutorProvider;
 use sc_network::NetworkService;
 use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
@@ -257,6 +258,7 @@ where
                 deny_unsafe,
             )));
             io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub.clone())));
+            io.extend_with(ReqRespApi::to_delegate(robonomics_protocol::reqres::reqresapi::ReqRespApi{}));
             Ok(io)
         }),
         client: client.clone(),
