@@ -19,7 +19,6 @@
 use bincode;
 use libp2p::core::{ Multiaddr};
 use libp2p::request_response::*;
-//use libp2p::swarm::{Swarm};
 use libp2p::swarm::{Swarm, SwarmEvent};
 use rust_base58::FromBase58;
 use std::iter;
@@ -27,7 +26,6 @@ use std::iter;
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
-//use libp2p::core::upgrade::{read_one, write_one};
 use libp2p::core::ProtocolName;
 use libp2p::core::{
     identity,
@@ -41,8 +39,6 @@ use libp2p::tcp::TcpConfig;
 use libp2p::yamux::YamuxConfig;
 use std::io;
 
-//use std::iter::Iterator;
-//use async_std::stream::StreamExt;
 use futures::StreamExt;
 
 pub mod reqresapi;
@@ -86,7 +82,6 @@ impl RequestResponseCodec for RobonomicsCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        //read_one(io, 1024)
         read_length_prefixed(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
@@ -107,7 +102,6 @@ impl RequestResponseCodec for RobonomicsCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        //read_one(io, 1024)
         read_length_prefixed(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
@@ -129,8 +123,6 @@ impl RequestResponseCodec for RobonomicsCodec {
         match req {
             Request::Ping => write_length_prefixed(io, "".as_bytes()).await,
             Request::Get(data) => write_length_prefixed(io, data).await,
-            //Request::Ping =>  write_one(io, "".as_bytes()).await,
-            //Request::Get(data) =>  write_one(io, data).await,
         }
     }
 
@@ -147,16 +139,13 @@ impl RequestResponseCodec for RobonomicsCodec {
             Response::Pong => {
                 self.is_ping = false; // reset Ping flag
                 write_length_prefixed(io, "".as_bytes()).await
-                //write_one(io, "".as_bytes()).await
             }
             // send Pong if somebody try in app logic to obfuscate Ping by sending Data instead of Pong
             Response::Data(data) => {
                 if self.is_ping == false {
                     write_length_prefixed(io, data).await
-                    //write_one(io, data).await
                 } else {
                     write_length_prefixed(io, "".as_bytes()).await
-                    //write_one(io, "".as_bytes()).await
                 }
             }
         }
@@ -233,8 +222,6 @@ pub async fn reqres( address: String, peerid: String, method: String, in_value: 
             println!("unsuported command {} ", method);
         }
 
-        //match swarm2.next().await {
-        //match swarm2.filter_map().await {   
         match swarm2.select_next_some().await {
             SwarmEvent::Behaviour(event) => match event {
             RequestResponseEvent::Message {
