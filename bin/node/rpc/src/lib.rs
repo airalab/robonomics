@@ -97,6 +97,6 @@ where
     )));
 
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
-    io.extend_with(ReqRespApi::to_delegate(robonomics_protocol::reqres::reqresapi::ReqRespApi{}));
+    io.extend_with(ReqRespApi::to_delegate(ReqRespApi{}));
     Ok(io)
 }
