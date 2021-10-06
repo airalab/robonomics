@@ -56,13 +56,13 @@ impl ReqRespT for ReqRespApi {
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None).unwrap();
+        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
+        let fres = futures::executor::block_on(res);
         let dt = epochu() - t0;
         
         let mut line = String::new();
-        println!("sent: {} {} {} {} us",multiaddr.clone(), peerid, ping.clone(), dt);
-        fmt::write (&mut line, format_args!("{} {} {} {:?} {} us",multiaddr.clone(), peerid, ping, res, dt)).unwrap_or(());
-      
+        fmt::write (&mut line, format_args!("{} {} {} {:?} {} us",multiaddr.clone(), peerid, ping, fres, dt)).unwrap_or(());
+        log::debug!("{}",line.clone());
         Ok(line)
   }
 }
