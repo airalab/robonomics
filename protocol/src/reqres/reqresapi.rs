@@ -1,7 +1,16 @@
+extern crate chrono;
 use crate::reqres::*;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use std::fmt;
+use chrono::prelude::*;
+
+fn epochu() -> i64 {
+  let now = Utc::now();
+  let seconds: i64 = now.timestamp();
+  let nanoseconds: i64 = now.nanosecond() as i64;
+  (seconds * 1000 * 1000) + (nanoseconds / 1000)
+}
 
 fn get_addr(address: String) -> (String,String) {
   let ma = address.clone();
@@ -43,13 +52,15 @@ impl ReqRespT for ReqRespApi {
 
   fn p2p_ping(&self, address: String) -> Result<String> {
         let (multiaddr, peerid) = get_addr (address.clone());
-        let ping = "ping".to_string();   
+        let ping = "ping".to_string();
 
+        let t0 = epochu();
         let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None).unwrap();
-
+        let dt = epochu() - t0;
+        
         let mut line = String::new();
-        println!("sent: {} {} {}",multiaddr.clone(), peerid, ping.clone());
-        fmt::write (&mut line, format_args!("{} {} {} {:?}",multiaddr.clone(), peerid, ping, res)).unwrap_or(());
+        println!("sent: {} {} {} {} us",multiaddr.clone(), peerid, ping.clone(), dt);
+        fmt::write (&mut line, format_args!("{} {} {} {:?} {} us",multiaddr.clone(), peerid, ping, res, dt)).unwrap_or(());
       
         Ok(line)
   }

@@ -258,7 +258,7 @@ where
                 deny_unsafe,
             )));
             io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub.clone())));
-            io.extend_with(ReqRespApi::to_delegate(robonomics_protocol::reqres::reqresapi::ReqRespApi{}));
+            io.extend_with(ReqRespApi::to_delegate(ReqRespApi{}));
             Ok(io)
         }),
         client: client.clone(),
