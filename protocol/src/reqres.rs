@@ -184,7 +184,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
 /// Sends get or ping requests
 ///
 /// Returns response from server on get method
-pub fn reqres( address: String, peerid: String, method: String, in_value: Option<String>) -> Result<String,String> {
+pub async fn reqres( address: String, peerid: String, method: String, in_value: Option<String>) -> Result<String,String> {
    
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
@@ -218,37 +218,30 @@ pub fn reqres( address: String, peerid: String, method: String, in_value: Option
             swarm2.behaviour_mut().send_request(&remote_peer, Request::Get(req_encoded));
         } else {
             println!("unsuported command {} ", method);
-            //process::exit(-1);
         }
-    let cl = async move {
+
         match swarm2.next().await {
-                RequestResponseEvent::Message {
-                    peer,
-                    message: RequestResponseMessage::Response { request_id, response }
-                } => {
-                    match response {
-                        Response::Pong => {
-                            log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                            println!("{:?}", &response);
-                          //  process::exit(0);
+            RequestResponseEvent::Message {
+                peer,
+                message: RequestResponseMessage::Response { request_id, response }
+            } => {
+                match response {
+                    Response::Pong => {
+                        log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                        println!("{:?}", &response);
                         },
-                        Response::Data (data) => {
-                            // decode response
+                    Response::Data (data) => {
                             let decoded : Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
                             log::debug!(" peer2 Resp: Data '{}' from {:?}", String::from_utf8_lossy(&decoded[..]), remote_peer);
                             println!("{}", String::from_utf8_lossy(&decoded[..]));
-                           // process::exit(0);
                         }
                     }
                 },
 
-                e =>  {
-                    println!("Peer2 err: {:?}", e);
-                   // process::exit(-2)
-                }
+            e => {
+                println!("Peer2 err: {:?}", e);
+            }
         }; 
-    };
-    let _ = futures::executor::block_on(cl);
+
     Ok("decoded".to_string())
 }
-

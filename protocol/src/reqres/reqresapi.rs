@@ -24,11 +24,12 @@ fn get_addr(address: String) -> (String,String) {
 
 #[rpc]
 pub trait  ReqRespT {
+    /// Returns for p2p rpc get responce   
     #[rpc(name = "p2p_get")]
-    /// Returns for p2p rpc get responce    
     fn p2p_get(&self, address: String, message: String) -> Result<String> ;
-    #[rpc(name = "p2p_ping")]
+
     /// Returns for reqresp p2p rpc ping responce
+    #[rpc(name = "p2p_ping")]
     fn p2p_ping(&self, address: String) -> Result<String> ;
 }
 
@@ -41,12 +42,12 @@ impl ReqRespT for ReqRespApi {
         let value = Some(message.clone().to_string()); 
         let method = "get".to_string();   
 
-        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), method.clone(), value.clone()).unwrap();
+        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), method.clone(), value.clone());
+        let fres = futures::executor::block_on(res);
 
         let mut line = String::new();
-        println!("sent: {} {} {}",multiaddr.clone(), peerid, method);
-        fmt::write (&mut line, format_args!("{} {} {} {} {:?}",multiaddr.clone(), peerid, method, message, res)).unwrap_or(());
-      
+        fmt::write (&mut line, format_args!("{} {} {} {} {:?}",multiaddr.clone(), peerid, method, message, fres)).unwrap_or(());
+        log::debug!("{}",line.clone());
         Ok(line)
   }
 
@@ -55,13 +56,13 @@ impl ReqRespT for ReqRespApi {
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None).unwrap();
+        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
+        let fres = futures::executor::block_on(res);
         let dt = epochu() - t0;
         
         let mut line = String::new();
-        println!("sent: {} {} {} {} us",multiaddr.clone(), peerid, ping.clone(), dt);
-        fmt::write (&mut line, format_args!("{} {} {} {:?} {} us",multiaddr.clone(), peerid, ping, res, dt)).unwrap_or(());
-      
+        fmt::write (&mut line, format_args!("{} {} {} {:?} {} us",multiaddr.clone(), peerid, ping, fres, dt)).unwrap_or(());
+        log::debug!("{}",line.clone());
         Ok(line)
   }
 }
