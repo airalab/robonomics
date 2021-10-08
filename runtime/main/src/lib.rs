@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 4,
+    spec_version: 5,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -366,6 +366,24 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    // One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+    pub const DepositBase: Balance = deposit(1, 88);
+    // Additional storage item size of 32 bytes.
+    pub const DepositFactor: Balance = deposit(0, 32);
+    pub const MaxSignatories: u16 = 100;
+}
+
+impl pallet_multisig::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type Currency = Balances;
+    type DepositBase = DepositBase;
+    type DepositFactor = DepositFactor;
+    type MaxSignatories = MaxSignatories;
+    type WeightInfo = ();
+}
+
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
@@ -444,6 +462,7 @@ construct_runtime! {
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 12,
         Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 13,
         Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 15,
 
         // Parachain systems.
         ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>} = 21,

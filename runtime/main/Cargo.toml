@@ -39,6 +39,7 @@ pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 pallet-membership = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
+pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
@@ -94,6 +95,7 @@ std = [
     "pallet-sudo/std",
     "pallet-treasury/std",
     "pallet-membership/std",
+    "pallet-multisig/std",
     "frame-support/std",
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
