@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -3223,7 +3223,7 @@ checksum = "2ee15951c035f79eddbef745611ec962f63f4558f1dadf98ab723cc603487c6f"
 
 [[package]]
 name = "ipci-runtime"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4649,7 +4649,7 @@ dependencies = [
 
 [[package]]
 name = "local-runtime"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4746,7 +4746,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -8287,7 +8287,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -8335,7 +8335,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-pubsub",
@@ -8361,7 +8361,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "1.2.0"
+version = "1.2.2"
 dependencies = [
  "alpha-runtime",
  "cumulus-client-collator",
@@ -10932,7 +10932,7 @@ dependencies = [
 [[package]]
 name = "substrate-subxt"
 version = "0.15.0"
-source = "git+https://github.com/paritytech/substrate-subxt#d582479367d4c912e86fb5077523d0faacce8cc9"
+source = "git+https://github.com/paritytech/substrate-subxt#8f0641e6606846b1e7a8c4b98a1a11d6f61a4773"
 dependencies = [
  "async-trait",
  "dyn-clone",
@@ -10965,7 +10965,7 @@ dependencies = [
 [[package]]
 name = "substrate-subxt-proc-macro"
 version = "0.15.0"
-source = "git+https://github.com/paritytech/substrate-subxt#d582479367d4c912e86fb5077523d0faacce8cc9"
+source = "git+https://github.com/paritytech/substrate-subxt#8f0641e6606846b1e7a8c4b98a1a11d6f61a4773"
 dependencies = [
  "async-trait",
  "heck",
