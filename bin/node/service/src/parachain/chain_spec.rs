@@ -390,11 +390,11 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]
 pub fn kusama_parachain_config() -> MainChainSpec {
-    MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.json")[..]).unwrap()
+    MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.raw.json")[..]).unwrap()
 }
 
 /// IPCI parachain confing.
 #[cfg(feature = "ipci")]
 pub fn ipci_parachain_config() -> IpciChainSpec {
-    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.json")[..]).unwrap()
+    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.raw.json")[..]).unwrap()
 }
