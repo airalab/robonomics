@@ -5823,6 +5823,7 @@ dependencies = [
 name = "pallet-robonomics-launch"
 version = "0.3.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
