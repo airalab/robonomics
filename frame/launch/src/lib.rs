@@ -28,14 +28,12 @@ pub mod pallet {
 
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    //use frame_support::inherent::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
         //type Parameter: Parameter + Default + From<Vec<u8>>;
         type Parameter: Parameter + Default + From<bool>;
-        //type Parameter: Parameter;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
@@ -95,7 +93,7 @@ mod tests {
         {
             System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
             Timestamp: pallet_timestamp::{Pallet, Storage},
-            Datalog: datalog::{Pallet, Call, Storage, Event<T>},
+            Launch: launch::{Pallet, Call, Event<T>},
         }
     );
 
@@ -144,7 +142,6 @@ mod tests {
 
     impl Config for Runtime {
         type Time = Timestamp;
-        //type Parameter = Vec<u8>;
         type Parameter = bool;
         type Event = Event;
 
@@ -164,10 +161,8 @@ mod tests {
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            //let param = b"launch".to_vec();
             let param = true;
             assert_ok!(Launch::record(Origin::signed(sender), param.clone()));
-            //assert_eq!(Launch::data(&sender), vec![Item::new(0, record)]);
         })
     }
 }

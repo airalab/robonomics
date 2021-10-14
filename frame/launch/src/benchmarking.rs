@@ -16,7 +16,7 @@
 // limitations under the License.
 
 // Benchmarks for Launch Pallet
-
+use frame_benchmarking::Vec;
 pub use pallet::*;
 use super::{Pallet as Launch, *};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
@@ -26,11 +26,9 @@ use codec::{Decode, Encode};
 const SEED: u32 = 0;
 
 fn setup_param<T: Config>() -> T::Parameter {
-    //let s = T::MaximumMessageSize::get();
     let s = 1024;
     let mut v = Vec::with_capacity(s - 4);
     v.resize(s - 4, 0x1F);
-
     v.using_encoded(|mut slice| T::Parameter::decode(&mut slice).unwrap_or_default())
 }
 
