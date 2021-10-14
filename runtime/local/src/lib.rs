@@ -546,7 +546,6 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
             /* TODO
             add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
-            add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
             add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
             */
 
