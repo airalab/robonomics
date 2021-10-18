@@ -20,7 +20,7 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
-use async_std::task;
+// use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt;
 use robonomics_io::source::virt::stdin;
@@ -103,7 +103,7 @@ pub enum SinkCmd {
 
 impl SinkCmd {
     /// Write data into sink device.
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self, rt: &tokio::runtime::Runtime) -> Result<()> {
         match self.clone() {
             SinkCmd::PubSub {
                 topic_name,
@@ -111,20 +111,20 @@ impl SinkCmd {
                 bootnodes,
                 hearbeat_secs,
             } => {
-                let hearbeat = Duration::from_secs(hearbeat_secs);
-                let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
-                task::block_on(stdin().forward(pubsub))?;
+                // let hearbeat = Duration::from_secs(hearbeat_secs);
+                // let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
+                // task::block_on(stdin().forward(pubsub))?;
             }
             SinkCmd::Datalog { remote, suri, rws } => {
                 let (submit, hashes) = virt::datalog(remote, suri, rws)?;
-                task::spawn(stdin().forward(submit));
+                rt.spawn(stdin().forward(submit));
                 let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
-                task::block_on(hex_encoded.forward(virt::stdout()))?;
+                rt.block_on(hex_encoded.forward(virt::stdout()))?;
             }
             SinkCmd::Ipfs { remote } => {
-                let (upload, hashes) = virt::ipfs(remote.as_str()).expect("ipfs launch");
-                task::spawn(stdin().forward(upload));
-                task::block_on(hashes.forward(virt::stdout()))?;
+                // let (upload, hashes) = virt::ipfs(remote.as_str()).expect("ipfs launch");
+                // task::spawn(stdin().forward(upload));
+                // task::block_on(hashes.forward(virt::stdout()))?;
             }
             SinkCmd::Launch {
                 remote,
@@ -132,22 +132,22 @@ impl SinkCmd {
                 robot,
                 rws,
             } => {
-                let (submit, hashes) = virt::launch(remote, suri, robot, rws)?;
-                task::spawn(stdin().map(|m| m.map(|s| s == "ON")).forward(submit));
-                let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
-                task::block_on(hex_encoded.forward(virt::stdout()))?;
+                // let (submit, hashes) = virt::launch(remote, suri, robot, rws)?;
+                // task::spawn(stdin().map(|m| m.map(|s| s == "ON")).forward(submit));
+                // let hex_encoded = hashes.map(|r| r.map(|h| hex::encode(h)));
+                // task::block_on(hex_encoded.forward(virt::stdout()))?;
             }
             #[cfg(feature = "ros")]
             SinkCmd::Ros {
                 topic_name,
                 queue_size,
             } => {
-                let topic = virt::ros(topic_name.as_str(), queue_size)?;
-                task::block_on(stdin().forward(topic))?;
+                // let topic = virt::ros(topic_name.as_str(), queue_size)?;
+                // task::block_on(stdin().forward(topic))?;
             }
             SinkCmd::ReqRes { address } => {
-                let val = virt::reqres(address.as_str().to_string())?;
-                task::block_on(val.map(|msg| Ok(msg)).forward(virt::stdout()))?;
+                // let val = virt::reqres(address.as_str().to_string())?;
+                // task::block_on(val.map(|msg| Ok(msg)).forward(virt::stdout()))?;
             }
         }
         Ok(())

@@ -102,7 +102,7 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", optional = true }
 
 # Robonomics-specific dependencies
-#robonomics-cli = { path = "../../../cli", optional = true }
+robonomics-cli = { path = "../../../cli", optional = true }
 
 [build-dependencies]
 local-runtime = { path = "../../../runtime/local", optional = true }
@@ -111,7 +111,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.10", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
-#robonomics-cli = { path = "../../../cli", optional = true }
+robonomics-cli = { path = "../../../cli", optional = true }
 vergen = { version = "3.1.0", optional = true }
 structopt = { version = "0.3.8", optional = true }
 
@@ -129,7 +129,7 @@ full = [
     "local-runtime",
     "sc-service/db",
     "robonomics-rpc",
-#    "robonomics-cli",
+    "robonomics-cli",
 ]
 
 ## Ultra lightweight Robonomics Network node.
@@ -139,7 +139,7 @@ zero = [
     "sp-core",
     "vergen",
     "structopt",
-#    "robonomics-cli",
+    # "robonomics-cli",
 ]
 
 ## Enable Kusama parachain.

@@ -17,7 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Virtual sensors collection.
 
-use futures::{channel::mpsc, prelude::*, stream::StreamExt};
+use async_compat::CompatExt;
+use futures::{channel::mpsc, io::BufReader, prelude::*, stream::StreamExt};
 use ipfs_api::{IpfsClient, TryFromUri};
 use robonomics_protocol::pubsub::{self, Multiaddr, PubSub as PubSubT};
 use robonomics_protocol::subxt::{datalog, launch, AccountId};
@@ -25,7 +26,6 @@ use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use std::time::Duration;
 
 use crate::error::{Error, Result};
-use async_std::{io, task};
 use bincode;
 use libp2p::core::PeerId;
 use libp2p::request_response::*;
@@ -33,40 +33,40 @@ use libp2p::swarm::Swarm;
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::{iter, process};
+use tokio::task;
 
 /// Read line from standard console input.
 pub fn stdin() -> impl Stream<Item = Result<String>> {
-    io::BufReader::new(io::stdin())
-        .lines()
-        .map(|r| r.map_err(Into::into))
+    let lines = BufReader::new(tokio::io::stdin().compat()).lines();
+    lines.map(|r| r.map_err(Into::into))
 }
 
-/// Subscribe for data from PubSub topic.
-pub fn pubsub(
-    listen: Multiaddr,
-    bootnodes: Vec<Multiaddr>,
-    topic_name: String,
-    heartbeat: Duration,
-) -> Result<impl Stream<Item = Result<pubsub::Message>>> {
-    let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
-
-    // Listen address
-    let _ = pubsub.listen(listen);
-
-    // Connect to bootnodes
-    for addr in bootnodes {
-        let _ = pubsub.connect(addr);
-    }
-
-    // Spawn peer discovery
-    task::spawn(pubsub::discovery::start(pubsub.clone()));
-
-    // Spawn network worker
-    task::spawn(worker);
-
-    // Subscribe to given topic
-    Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
-}
+///// Subscribe for data from PubSub topic.
+// pub fn pubsub(
+//     listen: Multiaddr,
+//     bootnodes: Vec<Multiaddr>,
+//     topic_name: String,
+//     heartbeat: Duration,
+// ) -> Result<impl Stream<Item = Result<pubsub::Message>>> {
+//     let (pubsub, worker) = pubsub::Gossipsub::new(heartbeat)?;
+//
+//     // Listen address
+//     let _ = pubsub.listen(listen);
+//
+//     // Connect to bootnodes
+//     for addr in bootnodes {
+//         let _ = pubsub.connect(addr);
+//     }
+//
+//     // Spawn peer discovery
+//     task::spawn(pubsub::discovery::start(pubsub.clone()));
+//
+//     // Spawn network worker
+//     task::spawn(worker);
+//
+//     // Subscribe to given topic
+//     Ok(pubsub.subscribe(&topic_name).map(|v| Ok(v)))
+// }
 
 /// Read data records from blockchain.
 ///
@@ -84,167 +84,167 @@ pub fn datalog(
     Ok(stream)
 }
 
-/// Download some data from IPFS network.
-///
-/// Returns IPFS data objects.
-pub fn ipfs(
-    uri: &str,
-) -> Result<(
-    impl Sink<String, Error = Error>,
-    impl Stream<Item = Result<Vec<u8>>>,
-)> {
-    let client = IpfsClient::from_str(uri).expect("unvalid uri");
+///// Download some data from IPFS network.
+/////
+///// Returns IPFS data objects.
+// pub fn ipfs(
+//     uri: &str,
+// ) -> Result<(
+//     impl Sink<String, Error = Error>,
+//     impl Stream<Item = Result<Vec<u8>>>,
+// )> {
+//     let client = IpfsClient::from_str(uri).expect("unvalid uri");
+//
+//     let (sender, receiver) = mpsc::unbounded();
+//     let datas = receiver.then(move |msg: String| {
+//         client
+//             .cat(msg.as_str())
+//             .map_ok(|c| c.to_vec())
+//             .try_concat()
+//             .map_err(|e| e.to_string().into())
+//     });
+//     Ok((sender.sink_err_into(), datas))
+// }
 
-    let (sender, receiver) = mpsc::unbounded();
-    let datas = receiver.then(move |msg: String| {
-        client
-            .cat(msg.as_str())
-            .map_ok(|c| c.to_vec())
-            .try_concat()
-            .map_err(|e| e.to_string().into())
-    });
-    Ok((sender.sink_err_into(), datas))
-}
+///// Listen for launch events on the blockchain.
+/////
+///// Returns launch parameter, event sender account.
+// pub async fn launch(
+//     remote: String,
+//     format: Ss58AddressFormat,
+// ) -> Result<impl Stream<Item = (String, String, bool)>> {
+//     let (task, receiver) = launch::listen(remote.as_str()).await?;
+//     task::spawn(task);
+//
+//     Ok(receiver.map(move |event| {
+//         (
+//             event.sender.to_ss58check_with_version(format),
+//             event.robot.to_ss58check_with_version(format),
+//             event.param,
+//         )
+//     }))
+// }
 
-/// Listen for launch events on the blockchain.
-///
-/// Returns launch parameter, event sender account.
-pub async fn launch(
-    remote: String,
-    format: Ss58AddressFormat,
-) -> Result<impl Stream<Item = (String, String, bool)>> {
-    let (task, receiver) = launch::listen(remote.as_str()).await?;
-    task::spawn(task);
+// #[cfg(feature = "ros")]
+// /// Subscribe for messages from ROS topic.
+// pub fn ros(
+//     topic: &str,
+//     queue_size: usize,
+// ) -> Result<(impl Stream<Item = String>, rosrust::Subscriber)> {
+//     let _ = rosrust::try_init_with_options("robonomics", false);
+//     let (sender, receiver) = mpsc::unbounded();
+//     let safe_sender = std::sync::RwLock::new(sender);
+//     let subscriber = rosrust::subscribe(
+//         topic,
+//         queue_size,
+//         move |msg: substrate_ros_msgs::std_msgs::String| {
+//             let mut sender = safe_sender.write().unwrap();
+//             let _ = sender.send(msg.data);
+//         },
+//     )?;
+//     Ok((receiver, subscriber))
+// }
 
-    Ok(receiver.map(move |event| {
-        (
-            event.sender.to_ss58check_with_version(format),
-            event.robot.to_ss58check_with_version(format),
-            event.param,
-        )
-    }))
-}
-
-#[cfg(feature = "ros")]
-/// Subscribe for messages from ROS topic.
-pub fn ros(
-    topic: &str,
-    queue_size: usize,
-) -> Result<(impl Stream<Item = String>, rosrust::Subscriber)> {
-    let _ = rosrust::try_init_with_options("robonomics", false);
-    let (sender, receiver) = mpsc::unbounded();
-    let safe_sender = std::sync::RwLock::new(sender);
-    let subscriber = rosrust::subscribe(
-        topic,
-        queue_size,
-        move |msg: substrate_ros_msgs::std_msgs::String| {
-            let mut sender = safe_sender.write().unwrap();
-            let _ = sender.send(msg.data);
-        },
-    )?;
-    Ok((receiver, subscriber))
-}
-
-/// Sends get or ping requests
-///
-/// Returns response from server on get method
-pub fn reqres(
-    address: String,
-    peerid: String,
-    method: String,
-    in_value: Option<String>,
-) -> Result<(
-    impl Sink<Result<String>, Error = Error>,
-    impl Stream<Item = Result<String>>,
-)> {
-    let (sender, receiver) = mpsc::unbounded();
-    //thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime', io/src/source/virt.rs:167:9
-    task::spawn(async move {
-        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let cfg = RequestResponseConfig::default();
-
-        let peer_id = peerid;
-        let remote_bytes = peer_id.from_base58().unwrap();
-        let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
-
-        let (peer2_id, trans) = mk_transport();
-        let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-        let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
-        log::debug!("Local peer 2 id: {:?}", peer2_id);
-
-        let addr_remote = address;
-        let addr_r: Multiaddr = addr_remote.parse().unwrap();
-        swarm2
-            .behaviour_mut()
-            .add_address(&remote_peer, addr_r.clone());
-
-        let mut rq = Request::Ping;
-
-        if method == "ping" {
-            let req_id = swarm2.behaviour_mut().send_request(&remote_peer, rq);
-            log::debug!(" peer2 Req{}: Ping  -> {:?}", req_id, remote_peer);
-        } else if method == "get" {
-            let value = in_value.unwrap();
-            rq = Request::Get(value.clone().into_bytes());
-
-            if let Request::Get(y) = rq {
-                log::debug!(
-                    " peer2  Req: Get -> {:?} : '{}'",
-                    remote_peer,
-                    String::from_utf8_lossy(&y)
-                );
-            }
-            let req_encoded: Vec<u8> =
-                bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
-            swarm2
-                .behaviour_mut()
-                .send_request(&remote_peer, Request::Get(req_encoded));
-        } else {
-            println!("unsuported command {} ", method);
-            process::exit(-1);
-        }
-
-        loop {
-            match swarm2.next().await {
-                RequestResponseEvent::Message {
-                    peer,
-                    message:
-                        RequestResponseMessage::Response {
-                            request_id,
-                            response,
-                        },
-                } => {
-                    match response {
-                        Response::Pong => {
-                            log::debug!(
-                                " peer2 Resp{} {:?} from {:?}",
-                                request_id,
-                                &response,
-                                peer
-                            );
-                            println!("{:?}", &response);
-                            process::exit(0);
-                        }
-                        Response::Data(data) => {
-                            // decode response
-                            let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
-                            log::debug!(
-                                " peer2 Resp: Data '{}' from {:?}",
-                                String::from_utf8_lossy(&decoded[..]),
-                                remote_peer
-                            );
-                            println!("{}", String::from_utf8_lossy(&decoded[..]));
-                            process::exit(0);
-                        }
-                    }
-                }
-
-                e => {
-                    println!("Peer2 err: {:?}", e);
-                    process::exit(-2)
-                }
-            }
-        }
-    });
-    Ok((sender.sink_err_into(), receiver))
-}
+///// Sends get or ping requests
+/////
+///// Returns response from server on get method
+// pub fn reqres(
+//     address: String,
+//     peerid: String,
+//     method: String,
+//     in_value: Option<String>,
+// ) -> Result<(
+//     impl Sink<Result<String>, Error = Error>,
+//     impl Stream<Item = Result<String>>,
+// )> {
+//     let (sender, receiver) = mpsc::unbounded();
+//     //thread 'main' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime', io/src/source/virt.rs:167:9
+//     task::spawn(async move {
+//         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+//         let cfg = RequestResponseConfig::default();
+//
+//         let peer_id = peerid;
+//         let remote_bytes = peer_id.from_base58().unwrap();
+//         let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+//
+//         let (peer2_id, trans) = mk_transport();
+//         let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
+//         let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+//         log::debug!("Local peer 2 id: {:?}", peer2_id);
+//
+//         let addr_remote = address;
+//         let addr_r: Multiaddr = addr_remote.parse().unwrap();
+//         swarm2
+//             .behaviour_mut()
+//             .add_address(&remote_peer, addr_r.clone());
+//
+//         let mut rq = Request::Ping;
+//
+//         if method == "ping" {
+//             let req_id = swarm2.behaviour_mut().send_request(&remote_peer, rq);
+//             log::debug!(" peer2 Req{}: Ping  -> {:?}", req_id, remote_peer);
+//         } else if method == "get" {
+//             let value = in_value.unwrap();
+//             rq = Request::Get(value.clone().into_bytes());
+//
+//             if let Request::Get(y) = rq {
+//                 log::debug!(
+//                     " peer2  Req: Get -> {:?} : '{}'",
+//                     remote_peer,
+//                     String::from_utf8_lossy(&y)
+//                 );
+//             }
+//             let req_encoded: Vec<u8> =
+//                 bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
+//             swarm2
+//                 .behaviour_mut()
+//                 .send_request(&remote_peer, Request::Get(req_encoded));
+//         } else {
+//             println!("unsuported command {} ", method);
+//             process::exit(-1);
+//         }
+//
+//         loop {
+//             match swarm2.next().await {
+//                 RequestResponseEvent::Message {
+//                     peer,
+//                     message:
+//                         RequestResponseMessage::Response {
+//                             request_id,
+//                             response,
+//                         },
+//                 } => {
+//                     match response {
+//                         Response::Pong => {
+//                             log::debug!(
+//                                 " peer2 Resp{} {:?} from {:?}",
+//                                 request_id,
+//                                 &response,
+//                                 peer
+//                             );
+//                             println!("{:?}", &response);
+//                             process::exit(0);
+//                         }
+//                         Response::Data(data) => {
+//                             // decode response
+//                             let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+//                             log::debug!(
+//                                 " peer2 Resp: Data '{}' from {:?}",
+//                                 String::from_utf8_lossy(&decoded[..]),
+//                                 remote_peer
+//                             );
+//                             println!("{}", String::from_utf8_lossy(&decoded[..]));
+//                             process::exit(0);
+//                         }
+//                     }
+//                 }
+//
+//                 e => {
+//                     println!("Peer2 err: {:?}", e);
+//                     process::exit(-2)
+//                 }
+//             }
+//         }
+//     });
+//     Ok((sender.sink_err_into(), receiver))
+// }

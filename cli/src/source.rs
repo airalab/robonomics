@@ -20,7 +20,7 @@
 #![deny(missing_docs)]
 
 use crate::error::Result;
-use async_std::task;
+// use async_std::task;
 use futures::prelude::*;
 use robonomics_io::sink::virt::stdout;
 use robonomics_io::source::{serial, virt};
@@ -143,32 +143,32 @@ arg_enum! {
 
 impl SourceCmd {
     /// Read data from source device.
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self, rt: &tokio::runtime::Runtime) -> Result<()> {
         match self.clone() {
             SourceCmd::SDS011 {
                 port,
                 period,
                 encoding,
             } => {
-                let sensor = serial::sds011(port, period)?;
-                task::block_on(
-                    sensor
-                        .map(|m| {
-                            m.map(|msg| match encoding {
-                                Encoding::Csv => {
-                                    let mut wtr = csv::WriterBuilder::new()
-                                        .has_headers(false)
-                                        .from_writer(vec![]);
-                                    wtr.serialize(msg).unwrap();
-                                    String::from_utf8(wtr.into_inner().unwrap()).unwrap()
-                                }
-                                Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
-                                Encoding::Json => serde_json::to_string(&msg).unwrap(),
-                                Encoding::Debug => format!("{}", msg),
-                            })
-                        })
-                        .forward(stdout()),
-                )?;
+                // let sensor = serial::sds011(port, period)?;
+                // task::block_on(
+                //     sensor
+                //         .map(|m| {
+                //             m.map(|msg| match encoding {
+                //                 Encoding::Csv => {
+                //                     let mut wtr = csv::WriterBuilder::new()
+                //                         .has_headers(false)
+                //                         .from_writer(vec![]);
+                //                     wtr.serialize(msg).unwrap();
+                //                     String::from_utf8(wtr.into_inner().unwrap()).unwrap()
+                //                 }
+                //                 Encoding::Hex => hex::encode(bincode::serialize(&msg).unwrap()),
+                //                 Encoding::Json => serde_json::to_string(&msg).unwrap(),
+                //                 Encoding::Debug => format!("{}", msg),
+                //             })
+                //         })
+                //         .forward(stdout()),
+                // )?;
             }
             SourceCmd::PubSub {
                 topic_name,
@@ -176,65 +176,85 @@ impl SourceCmd {
                 bootnodes,
                 hearbeat,
             } => {
-                let pubsub =
-                    virt::pubsub(listen, bootnodes, topic_name, Duration::from_secs(hearbeat))?;
-
-                task::block_on(
-                    pubsub
-                        .map(|m| {
-                            m.map(|msg| {
-                                String::from_utf8(msg.data).unwrap_or("<no string>".to_string())
-                            })
-                        })
-                        .forward(stdout()),
-                )?;
+                // let pubsub =
+                //     virt::pubsub(listen, bootnodes, topic_name, Duration::from_secs(hearbeat))?;
+                //
+                // task::block_on(
+                //     pubsub
+                //         .map(|m| {
+                //             m.map(|msg| {
+                //                 String::from_utf8(msg.data).unwrap_or("<no string>".to_string())
+                //             })
+                //         })
+                //         .forward(stdout()),
+                // )?;
             }
             SourceCmd::Datalog { remote, address } => {
+                // let data = virt::datalog(remote, address)?;
+                // task::block_on(
+                //     data.map(|msg| {
+                //         msg.map(|rec| {
+                //             rec.iter()
+                //                 .map(|item| {
+                //                     format!(
+                //                         "{:?}\n",
+                //                         String::from_utf8(item.1.to_vec())
+                //                             .unwrap_or("<no string>".to_string())
+                //                     )
+                //                 })
+                //                 .collect()
+                //         })
+                //     })
+                //     .forward(stdout()),
+                // )?;
                 let data = virt::datalog(remote, address)?;
-                task::block_on(
-                    data.map(|msg| {
-                        msg.map(|rec| {
-                            rec.iter()
-                                .map(|item| {
-                                    format!(
-                                        "{:?}\n",
-                                        String::from_utf8(item.1.to_vec())
-                                            .unwrap_or("<no string>".to_string())
-                                    )
-                                })
-                                .collect()
+                rt.block_on(async {
+                    tokio::spawn(async move {
+                        data.map(|msg| {
+                            msg.map(|rec| {
+                                rec.iter()
+                                    .map(|item| {
+                                        format!(
+                                            "{:?}\n",
+                                            String::from_utf8(item.1.to_vec())
+                                                .unwrap_or("<no string>".to_string())
+                                        )
+                                    })
+                                    .collect()
+                            })
                         })
+                        .forward(stdout())
+                        .await
                     })
-                    .forward(stdout()),
-                )?;
+                });
             }
             SourceCmd::Ipfs { remote } => {
-                let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
-                task::spawn(virt::stdin().forward(download));
-                task::block_on(
-                    data.map(|m| {
-                        m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
-                    })
-                    .forward(stdout()),
-                )?;
+                // let (download, data) = virt::ipfs(remote.as_str()).expect("ipfs launch");
+                // task::spawn(virt::stdin().forward(download));
+                // task::block_on(
+                //     data.map(|m| {
+                //         m.map(|msg| String::from_utf8(msg).unwrap_or("<no string>".to_string()))
+                //     })
+                //     .forward(stdout()),
+                // )?;
             }
             SourceCmd::Launch { remote, network } => {
-                let stream = task::block_on(virt::launch(remote, network))?;
-                task::block_on(
-                    stream
-                        .map(|(sender, robot, param)| {
-                            Ok(format!("{} >> {} : {}", sender, robot, param))
-                        })
-                        .forward(stdout()),
-                )?;
+                // let stream = task::block_on(virt::launch(remote, network))?;
+                // task::block_on(
+                //     stream
+                //         .map(|(sender, robot, param)| {
+                //             Ok(format!("{} >> {} : {}", sender, robot, param))
+                //         })
+                //         .forward(stdout()),
+                // )?;
             }
             #[cfg(feature = "ros")]
             SourceCmd::Ros {
                 topic_name,
                 queue_size,
             } => {
-                let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
-                task::block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
+                // let (topic, _sub) = virt::ros(topic_name.as_str(), queue_size)?;
+                // task::block_on(topic.map(|msg| Ok(msg)).forward(stdout()))?;
             }
             SourceCmd::ReqRes {
                 address,
@@ -242,8 +262,8 @@ impl SourceCmd {
                 method,
                 value,
             } => {
-                let (_err, res) = virt::reqres(address, peerid, method, value)?;
-                task::block_on(res.forward(stdout()))?;
+                // let (_err, res) = virt::reqres(address, peerid, method, value)?;
+                // task::block_on(res.forward(stdout()))?;
             }
         }
         Ok(())
