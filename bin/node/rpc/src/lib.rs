@@ -33,6 +33,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::ethereum::{EthApi, EthApiT};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
 use sc_client_api::AuxStore;
@@ -96,6 +97,8 @@ where
     )));
 
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
+
+    io.extend_with(EthApi::to_delegate(EthApi::new()));
 
     Ok(io)
 }

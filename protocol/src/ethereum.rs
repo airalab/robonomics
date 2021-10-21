@@ -16,3 +16,43 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! Ethereum compatible Robonomics Network types.
+
+use jsonrpc_core::types::error::Error;
+use jsonrpc_core::Result;
+use jsonrpc_derive::rpc;
+use std::str::FromStr;
+
+#[derive(Clone)]
+pub struct EthApi;
+
+impl EthApi {
+    pub fn new() -> Self {
+        EthApi {}
+    }
+}
+
+#[rpc(server)]
+pub trait EthApiT {
+    type Metadata;
+
+    /// Test method
+    #[rpc(name = "eth_balance")]
+    fn eth_balance(&self, eth_account: String, eth_node: String) -> Result<String>;
+}
+
+impl EthApiT for EthApi {
+    type Metadata = sc_rpc_api::Metadata;
+
+    fn eth_balance(&self, eth_account: String, eth_node: String) -> Result<String> {
+        let account = web3::types::Address::from_str(&eth_account).unwrap();
+        let transport = web3::transports::Http::new(&eth_node).unwrap();
+        let web3 = web3::Web3::new(transport);
+
+        // TODO: move to service
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        rt.block_on(async { web3.eth().balance(account, None).await })
+            .map(|balance| balance.to_string())
+            .map_err(|_| Error::internal_error())
+    }
+}
