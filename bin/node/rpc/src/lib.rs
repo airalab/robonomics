@@ -38,6 +38,7 @@ use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
 use sc_client_api::AuxStore;
 pub use sc_rpc_api::DenyUnsafe;
+use sc_service::SpawnTaskHandle;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
@@ -56,6 +57,8 @@ pub struct FullDeps<C, P> {
     pub deny_unsafe: DenyUnsafe,
     /// PubSub worker.
     pub pubsub: Arc<Gossipsub>,
+    /// Substrate Task Handler.
+    pub task_handle: SpawnTaskHandle,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -84,6 +87,7 @@ where
         pool,
         deny_unsafe,
         pubsub,
+        task_handle,
     } = deps;
 
     io.extend_with(SystemApi::to_delegate(FullSystem::new(
@@ -98,7 +102,7 @@ where
 
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
 
-    io.extend_with(EthApi::to_delegate(EthApi::new()));
+    io.extend_with(EthApi::to_delegate(EthApi::new(task_handle)));
 
     Ok(io)
 }

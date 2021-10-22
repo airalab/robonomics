@@ -20,14 +20,17 @@
 use jsonrpc_core::types::error::Error;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
+use sc_service::SpawnTaskHandle;
 use std::str::FromStr;
 
 #[derive(Clone)]
-pub struct EthApi;
+pub struct EthApi {
+    task_handle: SpawnTaskHandle,
+}
 
 impl EthApi {
-    pub fn new() -> Self {
-        EthApi {}
+    pub fn new(task_handle: SpawnTaskHandle) -> Self {
+        EthApi { task_handle }
     }
 }
 
@@ -48,11 +51,11 @@ impl EthApiT for EthApi {
         let transport = web3::transports::Http::new(&eth_node).unwrap();
         let web3 = web3::Web3::new(transport);
 
-        // TODO: move to service
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        self.task_handle.spawn("eth_balance", async move {
+            let bs = web3.eth().balance(account, None).await;
+            println!("Balance: {:?}", bs);
+        });
 
-        rt.block_on(async { web3.eth().balance(account, None).await })
-            .map(|balance| balance.to_string())
-            .map_err(|_| Error::internal_error())
+        Ok("".to_string())
     }
 }

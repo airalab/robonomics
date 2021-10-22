@@ -20,6 +20,7 @@ sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }

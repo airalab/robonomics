@@ -163,6 +163,7 @@ where
         })?;
 
     let (pubsub, _) = PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    let task_handle = task_manager.spawn_handle();
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -174,6 +175,7 @@ where
                 pool: pool.clone(),
                 deny_unsafe,
                 pubsub: pubsub.clone(),
+                task_handle: task_handle.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)
