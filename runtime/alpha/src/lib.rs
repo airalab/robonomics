@@ -428,7 +428,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
-    type Parameter = bool;
+    type Parameter = Vec<u8>;
     type Event = Event;
 }
 
