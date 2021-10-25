@@ -28,18 +28,18 @@ pub mod pallet {
 
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+    use frame_support::inherent::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
-        //type Parameter: Parameter + Default + From<Vec<u8>>;
-        type Parameter: Parameter + Default + From<bool>;
+        type Parameter: Parameter + Default + From<Vec<u8>>;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
 
     #[pallet::storage]
-	pub type Goal<T> = StorageValue<_, u32>;
+	pub type Goal<T> = StorageValue<_, <T as Config>::Parameter>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -65,10 +65,9 @@ pub mod pallet {
             origin: OriginFor<T>,
             robot: T::AccountId,
             param: T::Parameter,
-            goal: u32,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            <Goal<T>>::put(goal); // Update storage
+            <Goal<T>>::put(param.clone()); // Update storage
             Self::deposit_event(Event::NewLaunch(sender, robot, param));
             Ok(().into())
         }

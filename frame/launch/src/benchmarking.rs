@@ -36,9 +36,8 @@ fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str>
 {
     let data: T::AccountId =  account("caller", 1, SEED );
     let param = setup_param::<T>();
-    let goal = 42; 
     for _ in 0..1000 {
-       Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), param.clone(), goal)?;
+       Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), param.clone())?;
     }
     Ok(())
 }
@@ -49,9 +48,8 @@ benchmarks! {
         let caller: T::AccountId =  account("caller", 1, SEED );
         let data: T::AccountId =  account("caller", 1, SEED );
         let param = setup_param::<T>();
-        let goal = 42;
         setup_launch::<T>( caller.clone() )?;
-    }: _( RawOrigin::Signed(caller), data, param, goal)
+    }: _( RawOrigin::Signed(caller), data, param)
     
     verify {
     }
