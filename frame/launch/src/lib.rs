@@ -38,6 +38,9 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
 
+    #[pallet::storage]
+	pub type Goal<T> = StorageValue<_, u32>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
@@ -62,14 +65,15 @@ pub mod pallet {
             origin: OriginFor<T>,
             robot: T::AccountId,
             param: T::Parameter,
+            goal: u32,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+            <Goal<T>>::put(goal); // Update storage
             Self::deposit_event(Event::NewLaunch(sender, robot, param));
             Ok(().into())
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
