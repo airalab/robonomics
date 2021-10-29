@@ -12,6 +12,7 @@ use frame_support::{
     sp_std::ops::Deref,
     sp_std::str::from_utf8_unchecked,
 };
+use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +24,7 @@ pub const DEFAULT_DAY_DURATION: u32 = 86400;
 pub const MIN_PAYMENT_PERIOD: BondPeriod = 1;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Clone, Copy, Default, Encode, Eq, Decode, RuntimeDebug)]
+#[derive(Clone, Copy, Default, Encode, Eq, Decode, RuntimeDebug, TypeInfo)]
 pub struct BondId([u8; 16]);
 
 impl fmt::Display for BondId {
@@ -65,7 +66,7 @@ impl From<&str> for BondId {
 }
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, TypeInfo)]
 #[allow(non_camel_case_types)]
 pub enum BondImpactType {
     POWER_GENERATED,
@@ -81,7 +82,7 @@ impl Default for BondImpactType {
 /// Bond state
 #[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq)]
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, TypeInfo)]
 pub enum BondState {
     PREPARE,
     BOOKING,
@@ -110,7 +111,7 @@ pub type BondPeriodNumber = u32;
 /// This part of bond data can be configured only at BondState::PREPARE
 /// and cannot be changed when Bond Units sell process is started
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct BondInnerStruct<Moment, Hash> {
     // bond document hashes
     /// Merkle root hash of general purpose documents pack of bond
@@ -275,7 +276,7 @@ impl<Moment, Hash> BondInnerStruct<Moment, Hash> {
 ///  - working part: bond state, connected accounts, raised and issued amounts, dates, etc
 /// </pre>
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct BondStruct<AccountId, Moment, Hash> {
     pub inner: BondInnerStruct<Moment, Hash>,
 
@@ -454,7 +455,7 @@ impl<AccountId, Moment: UniqueSaturatedInto<u64> + AtLeast32Bit + Copy, Hash>
 }
 
 /// Struct, accumulating per-account coupon_yield for each period num
-#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct AccountYield {
     #[codec(compact)]
     pub coupon_yield: EverUSDBalance,
@@ -465,7 +466,7 @@ pub struct AccountYield {
 /// Pack of bond units, bought at given time, belonging to given Bearer.
 /// Created when performed a deal to aquire bond uints (booking, buy from bond, buy from market).
 /// Contains data about amount of bondholder's acquired bond units, aquisition period and coupon_yield
-#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct BondUnitPackage {
     /// amount of bond units
     #[codec(compact)]
@@ -482,7 +483,7 @@ pub struct BondUnitPackage {
 /// more complicated for other types of impact_data and processing logic.
 /// Field "signed" is set to true by Auditor, when impact_data is verified.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct BondImpactReportStruct {
     #[codec(compact)]
     pub create_period: BondPeriod,
@@ -504,7 +505,7 @@ impl Default for BondImpactReportStruct {
 /// Struct, representing pack of bond units for sale.
 /// Can include target bearer (to sell bond units only to given person)
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, Eq, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, Eq, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct BondUnitSaleLotStruct<AccountId, Moment> {
     /// Sale lot is available for buy only before this deadline
     #[codec(compact)]
