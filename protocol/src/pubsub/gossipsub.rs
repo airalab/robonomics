@@ -33,6 +33,7 @@ use libp2p::gossipsub::{
     MessageId, Sha256Topic as Topic, TopicHash,
 };
 use libp2p::{Multiaddr, PeerId, Swarm};
+use libp2p_swarm::SwarmEvent;
 use std::{
     collections::hash_map::{DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -170,33 +171,38 @@ impl Future for PubSubWorker {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         loop {
             match self.swarm.poll_next_unpin(cx) {
-                Poll::Ready(Some(gossip_event)) => match gossip_event {
-                    GossipsubEvent::Message {
-                        propagation_source: peer_id,
-                        message_id: id,
-                        message,
-                    } => {
-                        log::debug!(
-                            target: "robonomics-pubsub",
-                            "Received message with id: {} from peer: {}", id, peer_id.to_base58()
-                        );
-
-                        // Dispatch handlers by topic name hash
-                        if let Some(inbox) = self.inbox.get_mut(&message.topic) {
-                            if let Some(sender) = &message.source {
-                                let _ = inbox.unbounded_send(super::Message {
-                                    from: sender.clone(),
-                                    data: message.data.clone(),
-                                });
-                            }
-                        } else {
-                            log::warn!(
+                // Poll::Ready(Some(gossip_event)) => match gossip_event {
+                Poll::Ready(Some(swarm_event)) => match swarm_event {
+                    // enum `SwarmEvent<GossipsubEvent, GossipsubHandlerError>`
+                    SwarmEvent::GossipsubEvent(event) => match event {
+                        GossipsubEvent::Message {
+                            propagation_source: peer_id,
+                            message_id: id,
+                            message,
+                        } => {
+                            log::debug!(
                                 target: "robonomics-pubsub",
-                                "Topic {} have no associated inbox!", message.topic
+                                "Received message with id: {} from peer: {}", id, peer_id.to_base58()
                             );
+
+                            // Dispatch handlers by topic name hash
+                            if let Some(inbox) = self.inbox.get_mut(&message.topic) {
+                                if let Some(sender) = &message.source {
+                                    let _ = inbox.unbounded_send(super::Message {
+                                        from: sender.clone(),
+                                        data: message.data.clone(),
+                                    });
+                                }
+                            } else {
+                                log::warn!(
+                                    target: "robonomics-pubsub",
+                                    "Topic {} have no associated inbox!", message.topic
+                                );
+                            }
                         }
-                    }
-                    _ => {}
+                        _ => {}
+                    },
+                    SwarmEvent::GossipsubHandlerError => {}
                 },
                 Poll::Ready(None) | Poll::Pending => break,
             }

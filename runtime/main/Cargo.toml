@@ -58,8 +58,8 @@ pallet-robonomics-staking = { path = "../../frame/staking", default-features = f
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
-# cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
-cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.11", default-features = false }
+cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
+# cumulus-ping = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.11", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }
 
 [build-dependencies]

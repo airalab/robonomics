@@ -29,4 +29,5 @@ std = [
 	"sp-inherents/std",
 	"sp-runtime/std",
 	"sp-std/std",
+    "scale-info/std",
 ]

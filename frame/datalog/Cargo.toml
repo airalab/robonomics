@@ -32,6 +32,7 @@ std = [
     "frame-system/std",
     "frame-support/std",
     "frame-benchmarking/std",
+    "scale-info/std",
 ]
 
 runtime-benchmarks = [
