@@ -40,6 +40,7 @@ sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polk
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
+sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 
 # client dependencies
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
@@ -129,6 +130,7 @@ full = [
     "local-runtime",
     "sc-service/db",
     "robonomics-rpc",
+    "frame-benchmarking",
 #    "robonomics-cli",
 ]
 

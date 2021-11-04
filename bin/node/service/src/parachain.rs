@@ -58,11 +58,19 @@ pub mod alpha {
     pub use alpha_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        alpha_runtime::api::dispatch,
-        alpha_runtime::native_version,
-    );
+    pub struct Executor;
+
+    impl sc_executor::NativeExecutionDispatch for Executor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            alpha_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            alpha_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(
@@ -91,11 +99,19 @@ pub mod main {
     pub use main_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        main_runtime::api::dispatch,
-        main_runtime::native_version,
-    );
+    pub struct Executor;
+
+    impl sc_executor::NativeExecutionDispatch for Executor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            main_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            main_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(
@@ -124,11 +140,19 @@ pub mod ipci {
     pub use ipci_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        ipci_runtime::api::dispatch,
-        ipci_runtime::native_version,
-    );
+    pub struct Executor;
+
+    impl sc_executor::NativeExecutionDispatch for Executor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            ipci_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            ipci_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(

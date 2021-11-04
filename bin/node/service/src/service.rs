@@ -21,6 +21,7 @@ use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa as grandpa;
 use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
@@ -30,11 +31,36 @@ use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPai
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::{sync::Arc, time::Duration};
 
-type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
+// Our native executor instance.
+pub struct ExecutorDispatch;
+
+impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+    /// Only enable the benchmarking host functions when we actually want to benchmark.
+    #[cfg(feature = "runtime-benchmarks")]
+    type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+    /// Otherwise we only use the default Substrate host functions.
+    #[cfg(not(feature = "runtime-benchmarks"))]
+    type ExtendHostFunctions = ();
+
+    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+        node_template_runtime::api::dispatch(method, data)
+    }
+
+    fn native_version() -> sc_executor::NativeVersion {
+        node_template_runtime::native_version()
+    }
+}
+
+type FullClient<Runtime, Executor> =
+    sc_service::TFullClient<Block, Runtime, NativeElseWasmExecutor<ExecutorDispatch>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type FullGrandpaBlockImport<Runtime, Executor> =
-    grandpa::GrandpaBlockImport<FullBackend, Block, FullClient<Runtime, Executor>, FullSelectChain>;
+type FullGrandpaBlockImport<Runtime, Executor> = grandpa::GrandpaBlockImport<
+    FullBackend,
+    Block,
+    FullClient<Runtime, NativeElseWasmExecutor<ExecutorDispatch>>,
+    FullSelectChain,
+>;
 
 /// A set of APIs that robonomics-like runtimes must implement.
 pub trait RuntimeApiCollection:
@@ -95,7 +121,11 @@ where
     Runtime: ConstructRuntimeApi<Block, FullClient<Runtime, Executor>> + Send + Sync + 'static,
     Runtime::RuntimeApi:
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf
+        + sp_version::GetNativeVersion,
 {
     let telemetry = config
         .telemetry_endpoints
@@ -107,10 +137,19 @@ where
             Ok((worker, telemetry))
         })
         .transpose()?;
+
+    let executor = NativeElseWasmExecutor::<Executor>::new(
+        config.wasm_method,
+        config.default_heap_pages,
+        config.max_runtime_instances,
+    );
+
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, Runtime, Executor>(
+        // sc_service::new_full_parts::<Block, Runtime, Executor>(
+        sc_service::new_full_parts::<Block, Runtime, _>(
             &config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+            executor,
         )?;
 
     let client = Arc::new(client);
@@ -214,7 +253,10 @@ where
     Runtime: ConstructRuntimeApi<Block, FullClient<Runtime, Executor>> + Send + Sync + 'static,
     Runtime::RuntimeApi:
         RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
 {
     let sc_service::PartialComponents {
         client,
@@ -385,20 +427,21 @@ pub mod robonomics {
     use local_runtime::RuntimeApi;
     use sc_service::{config::Configuration, error::Result, TaskManager};
 
-    #[cfg(feature = "frame-benchmarking")]
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        local_runtime::api::dispatch,
-        local_runtime::native_version,
-        frame_benchmarking::benchmarking::HostFunctions,
-    );
+    pub use sc_executor::NativeElseWasmExecutor;
 
-    #[cfg(not(feature = "frame-benchmarking"))]
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        local_runtime::api::dispatch,
-        local_runtime::native_version,
-    );
+    pub struct Executor;
+
+    impl sc_executor::NativeExecutionDispatch for Executor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            local_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            local_runtime::native_version()
+        }
+    }
 
     /// Create a new Robonomics service.
     pub fn new(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {

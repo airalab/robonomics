@@ -171,10 +171,8 @@ impl Future for PubSubWorker {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         loop {
             match self.swarm.poll_next_unpin(cx) {
-                // Poll::Ready(Some(gossip_event)) => match gossip_event {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
-                    // enum `SwarmEvent<GossipsubEvent, GossipsubHandlerError>`
-                    SwarmEvent::GossipsubEvent(event) => match event {
+                    SwarmEvent::Behaviour(event) => match event {
                         GossipsubEvent::Message {
                             propagation_source: peer_id,
                             message_id: id,
@@ -202,7 +200,7 @@ impl Future for PubSubWorker {
                         }
                         _ => {}
                     },
-                    SwarmEvent::GossipsubHandlerError => {}
+                    _ => {}
                 },
                 Poll::Ready(None) | Poll::Pending => break,
             }

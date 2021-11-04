@@ -34,6 +34,7 @@ use robonomics_primitives::{AccountId, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use sc_client_api::ExecutorProvider;
+pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkService;
 use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::TelemetryHandle;
@@ -65,7 +66,10 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -100,10 +104,17 @@ where
         })
         .transpose()?;
 
+    let executor = NativeElseWasmExecutor::<Executor>::new(
+        config.wasm_method,
+        config.default_heap_pages,
+        config.max_runtime_instances,
+    );
+
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+        sc_service::new_full_parts::<Block, RuntimeApi, _>(
             &config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+            executor,
         )?;
     let client = Arc::new(client);
     let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
@@ -156,7 +167,10 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     heartbeat_interval: u64,
 ) -> sc_service::error::Result<TaskManager>
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -328,7 +342,11 @@ pub fn build_pos_import_queue<RuntimeApi, Executor>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sp_version::GetNativeVersion
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -388,7 +406,10 @@ pub fn build_open_import_queue<RuntimeApi, Executor>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -435,7 +456,10 @@ pub fn build_open_consensus<RuntimeApi, Executor>(
     _force_authoring: bool,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -511,7 +535,10 @@ pub fn build_pos_consensus<RuntimeApi, Executor>(
     force_authoring: bool,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
-    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    Executor: sc_executor::NativeExecutionDispatch
+        + 'static
+        + sp_core::traits::CodeExecutor
+        + sc_executor::RuntimeVersionOf,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
