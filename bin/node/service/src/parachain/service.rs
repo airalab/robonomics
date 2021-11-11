@@ -53,11 +53,14 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
     build_import_queue: BIQ,
 ) -> Result<
     sc_service::PartialComponents<
-        TFullClient<Block, RuntimeApi, Executor>,
+        TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
         TFullBackend<Block>,
         (),
         sc_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
-        sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_transaction_pool::FullPool<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        >,
         (
             Option<sc_telemetry::Telemetry>,
             Option<sc_telemetry::TelemetryWorkerHandle>,
@@ -69,8 +72,10 @@ where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
     // + sc_executor::RuntimeVersionOf
     // + sp_core::traits::CodeExecutor,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
@@ -167,8 +172,10 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
@@ -183,23 +190,31 @@ where
         + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
-        Arc<TFullClient<Block, RuntimeApi, Executor>>,
+        Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
         &sc_service::Configuration,
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        >,
         sc_service::Error,
     >,
     BIC: FnOnce(
         polkadot_primitives::v0::Id,
         Option<AccountId>,
-        Arc<TFullClient<Block, RuntimeApi, Executor>>,
+        Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
         Option<&Registry>,
         Option<TelemetryHandle>,
         &TaskManager,
         &polkadot_service::NewFull<polkadot_service::Client>,
-        Arc<sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>>,
+        Arc<
+            sc_transaction_pool::FullPool<
+                Block,
+                TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+            >,
+        >,
         Arc<NetworkService<Block, Hash>>,
         SyncCryptoStorePtr,
         bool,
@@ -329,18 +344,23 @@ where
 
 /// Build the import queue for the PoS parachain runtime.
 pub fn build_pos_import_queue<RuntimeApi, Executor>(
-    client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
+    client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
     config: &sc_service::Configuration,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<
+        Block,
+        TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+    >,
     sc_service::Error,
 >
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
@@ -394,13 +414,18 @@ pub fn build_open_import_queue<RuntimeApi, Executor>(
     _telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<
+        Block,
+        TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+    >,
     sc_service::Error,
 >
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
@@ -432,13 +457,16 @@ where
 pub fn build_open_consensus<RuntimeApi, Executor>(
     para_id: polkadot_primitives::v0::Id,
     lighthouse_account: Option<AccountId>,
-    client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
+    client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
     relay_chain_node: &polkadot_service::NewFull<polkadot_service::Client>,
     transaction_pool: Arc<
-        sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_transaction_pool::FullPool<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        >,
     >,
     _sync_oracle: Arc<NetworkService<Block, Hash>>,
     _keystore: SyncCryptoStorePtr,
@@ -446,8 +474,10 @@ pub fn build_open_consensus<RuntimeApi, Executor>(
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
@@ -508,13 +538,16 @@ where
 pub fn build_pos_consensus<RuntimeApi, Executor>(
     para_id: polkadot_primitives::v0::Id,
     _lighthouse_account: Option<AccountId>,
-    client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
+    client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
     relay_chain_node: &polkadot_service::NewFull<polkadot_service::Client>,
     transaction_pool: Arc<
-        sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_transaction_pool::FullPool<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        >,
     >,
     sync_oracle: Arc<NetworkService<Block, Hash>>,
     keystore: SyncCryptoStorePtr,
@@ -522,8 +555,10 @@ pub fn build_pos_consensus<RuntimeApi, Executor>(
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-        + Send
+    RuntimeApi: sp_api::ConstructRuntimeApi<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        > + Send
         + Sync
         + 'static,
     RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
