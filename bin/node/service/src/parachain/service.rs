@@ -66,10 +66,9 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
+    // + sc_executor::RuntimeVersionOf
+    // + sp_core::traits::CodeExecutor,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -167,10 +166,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     heartbeat_interval: u64,
 ) -> sc_service::error::Result<TaskManager>
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -342,11 +338,7 @@ pub fn build_pos_import_queue<RuntimeApi, Executor>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sp_version::GetNativeVersion
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -406,10 +398,7 @@ pub fn build_open_import_queue<RuntimeApi, Executor>(
     sc_service::Error,
 >
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -456,10 +445,7 @@ pub fn build_open_consensus<RuntimeApi, Executor>(
     _force_authoring: bool,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync
@@ -535,10 +521,7 @@ pub fn build_pos_consensus<RuntimeApi, Executor>(
     force_authoring: bool,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>
 where
-    Executor: sc_executor::NativeExecutionDispatch
-        + 'static
-        + sp_core::traits::CodeExecutor
-        + sc_executor::RuntimeVersionOf,
+    Executor: sc_executor::NativeExecutionDispatch + 'static,
     RuntimeApi: sp_api::ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
         + Send
         + Sync

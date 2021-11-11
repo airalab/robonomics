@@ -17,6 +17,7 @@ structopt = { version = "0.3.8", optional = true }
 jsonrpc-core = { version = "18.0.0", optional = true }
 hex-literal = "0.3.1"
 log = "0.4"
+parking_lot = "0.11.1"
 
 # primitives
 robonomics-primitives = { path = "../../../primitives", default-features = false }
@@ -41,6 +42,8 @@ sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
+sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
+sp-tasks = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 
 # client dependencies
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
@@ -61,6 +64,7 @@ sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
+sc-executor-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
 
 # frame dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }
