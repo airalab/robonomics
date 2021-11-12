@@ -20,98 +20,193 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
+use frame_support::pallet_prelude::Weight;
+use sp_runtime::RuntimeDebug;
+
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+pub enum Subscription {
+    /// Lifetime subscription, it have TPS as parameter.
+    Lifetime(u32),
+    /// Daily subscription, it have duration in days as parameter.
+    Daily(u32),
+}
+
+impl Default for Subscription {
+    fn default() -> Self {
+        Subscription::Daily(0)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Default, Encode, Decode, RuntimeDebug)]
+pub struct AuctionLedger<AccountId, Balance> {
+    /// Auction leader account
+    pub winner: Option<(AccountId, Balance)>,
+    /// Kind of subscription for this auction
+    pub kind: Subscription,
+}
+
+impl<AccountId, Balance> AuctionLedger<AccountId, Balance> {
+    pub fn new(kind: Subscription) -> Self {
+        Self { winner: None, kind }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+pub struct SubscriptionLedger<Moment> {
+    /// Free execution weights accumulator.
+    free_weight: Weight,
+    /// Subscription creation timestamp.
+    issue_time: Moment,
+    /// Moment of time for last subscription update (used for TPS estimation).
+    last_update: Moment,
+    /// Kind of subscription (lifetime, daily, etc).
+    kind: Subscription,
+}
+
+impl<Moment: Clone> SubscriptionLedger<Moment> {
+    pub fn new(last_update: Moment, kind: Subscription) -> Self {
+        Self {
+            free_weight: Default::default(),
+            issue_time: last_update.clone(),
+            last_update,
+            kind,
+        }
+    }
+}
 
 #[frame_support::pallet]
 pub mod pallet {
+    use super::*;
     use frame_support::{
         pallet_prelude::*,
-        traits::{Time, UnfilteredDispatchable},
+        traits::{BalanceStatus, Currency, ReservableCurrency, Time, UnfilteredDispatchable},
         weights::GetDispatchInfo,
+        PalletId,
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{
-        traits::{SaturatedConversion, StaticLookup},
-        DispatchResult, Perbill,
+        traits::{AccountIdConversion, AtLeast32Bit, StaticLookup},
+        DispatchResult,
     };
     use sp_std::prelude::*;
 
-    /// One call cost in quota points (points for 1 sec).
-    pub const CALL_COST: u64 = 1_000_000_000;
+    type BalanceOf<T> = <<T as Config>::AuctionCurrency as Currency<
+        <T as frame_system::Config>::AccountId,
+    >>::Balance;
+
+    const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Call subscription method.
         type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
         /// Current time source.
-        type Time: Time;
+        type Time: Time<Moment = Self::Moment>;
+        /// Time should be aligned to weights for TPS calculations.
+        type Moment: Parameter + AtLeast32Bit + Into<Weight>;
+        /// The auction index value.
+        type AuctionIndex: Parameter;
+        /// The auction bid currency.
+        type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        /// The top limit weight for signle call.
+        /// Reference call weight, general transaction consumes this weight.
+        #[pallet::constant]
+        type ReferenceCallWeight: Get<Weight>;
+        /// Subscription weight accumulator limit.
         #[pallet::constant]
         type WeightLimit: Get<Weight>;
-        /// Transactions bandwidth allocated for subscription (in TPS).
+        /// Subscription auction duration in blocks.
         #[pallet::constant]
-        type TotalBandwidth: Get<u64>;
-        /// Limit for quota points accumulation.
+        type AuctionDuration: Get<Self::BlockNumber>;
+        /// Minimal auction bid.
         #[pallet::constant]
-        type PointsLimit: Get<u64>;
+        type MinimalBid: Get<BalanceOf<Self>>;
+        /// RWS pallet_id used for pool account derivation.
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        /// The origin account have no enough quota to process these call.
-        NoQuota,
-        /// The call does not meet the requirements.
-        BadCall,
+        /// Auction is not ongoing.
+        NotLiveAuction,
+        /// Auction with the index doesn't exist.
+        NotExistAuction,
+        /// The bid is too small.
+        TooSmallBid,
         /// Subscription is not registered.
         NoSubscription,
-        /// Subscription is not assigned to sender account.
-        BadSubscription,
+        /// Devices isn't assigned to this subscription.
+        NotLinkedDevice,
+        /// The origin account have no enough free weight to process these call: [free_weight, required_weight].
+        FreeWeightIsNotEnough,
         /// This call is for oracle only.
         OracleOnlyCall,
     }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId")]
+    #[pallet::metadata(T::AuctionIndex = "AuctionIndex", T::AccountId = "AccountId")]
     pub enum Event<T: Config> {
-        /// Updated bandwidth for an account.
-        Bandwidth(T::AccountId, Perbill),
-        /// Registered RWS subscription.
-        Subscription(T::AccountId, Vec<T::AccountId>),
+        /// New subscription auction bid received.
+        NewBid(T::AuctionIndex, T::AccountId, BalanceOf<T>),
         /// Runtime method executed using RWS subscription.
         NewCall(T::AccountId, DispatchResult),
+        /// Registered RWS subscription devices.
+        NewDevices(T::AccountId, Vec<T::AccountId>),
+        /// Registered new RWS subscription.
+        NewSubscription(T::AccountId, Subscription),
     }
-
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::storage]
     #[pallet::getter(fn oracle)]
-    /// The `AccountId` of Ethereum oracle.
+    /// The `AccountId` of Ethereum RWS oracle.
     pub(super) type Oracle<T: Config> = StorageValue<_, T::AccountId>;
 
     #[pallet::storage]
-    #[pallet::getter(fn bandwidth)]
-    /// Bandwidth allocation for account.
-    pub(super) type Bandwidth<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Perbill>;
+    #[pallet::getter(fn ledger)]
+    /// RWS subscriptions storage.
+    pub(super) type Ledger<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, SubscriptionLedger<<T::Time as Time>::Moment>>;
 
     #[pallet::storage]
-    #[pallet::getter(fn quota)]
-    /// Quota acconting, transaction quota grown while account idle.
-    pub(super) type Quota<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, (<T::Time as Time>::Moment, u64)>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn share_of)]
-    /// Share account quota between multiple accounts.
-    pub(super) type Subscription<T: Config> =
+    #[pallet::getter(fn devices)]
+    /// Subscription linked devices.
+    pub(super) type Devices<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>>;
+
+    /// Ongoing subscription auctions.
+    #[pallet::storage]
+    #[pallet::getter(fn auction_queue)]
+    pub(super) type AuctionQueue<T: Config> = StorageValue<_, Vec<T::AuctionIndex>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn auction)]
+    /// Indexed auction ledger.
+    pub(super) type Auction<T: Config> =
+        StorageMap<_, Twox64Concat, T::AuctionIndex, AuctionLedger<T::AccountId, BalanceOf<T>>>;
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_initialize(now: T::BlockNumber) -> Weight {
+            if T::AuctionDuration::get() % now == 0u32.into() {
+                Self::rotate_auctions()
+            } else {
+                1 as Weight
+            }
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -126,48 +221,86 @@ pub mod pallet {
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
-            subscription: <T::Lookup as StaticLookup>::Source,
+            subscription_id: T::AccountId,
             call: Box<<T as Config>::Call>,
         ) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
-            let subscription = T::Lookup::lookup(subscription)?;
-            let devices =
-                <Subscription<T>>::get(&subscription).ok_or(Error::<T>::NoSubscription)?;
+
+            let devices = Self::devices(&subscription_id).ok_or(Error::<T>::NoSubscription)?;
             ensure!(
                 devices.iter().any(|i| *i == sender),
-                Error::<T>::BadSubscription
+                Error::<T>::NotLinkedDevice,
             );
-            ensure!(Self::check_quota(subscription), Error::<T>::NoQuota);
-            ensure!(Self::check_call(call.clone()), Error::<T>::BadCall);
+
+            let subscription = Self::update_subscription(&subscription_id)?;
+            let call_info = call.get_dispatch_info();
+            ensure!(
+                call_info.weight > subscription.free_weight,
+                Error::<T>::FreeWeightIsNotEnough,
+            );
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
+
             Self::deposit_event(Event::NewCall(sender, res.map(|_| ()).map_err(|e| e.error)));
             res
         }
 
-        /// Change RWS subscription parameters.
+        #[pallet::weight(100_000)]
+        pub fn bid(
+            origin: OriginFor<T>,
+            index: T::AuctionIndex,
+            #[pallet::compact] amount: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            // This is a public call, so we ensure that the origin is some signed account.
+            let sender = ensure_signed(origin)?;
+
+            let queue = Self::auction_queue();
+            ensure!(
+                queue.iter().any(|i| *i == index),
+                Error::<T>::NotLiveAuction,
+            );
+
+            let mut auction = Self::auction(&index).ok_or(Error::<T>::NotExistAuction)?;
+            if let Some((winner, winner_amount)) = &auction.winner {
+                ensure!(*winner_amount < amount, Error::<T>::TooSmallBid);
+
+                T::AuctionCurrency::reserve(&sender, amount.clone())?;
+                T::AuctionCurrency::unreserve(&winner, winner_amount.clone());
+                auction.winner = Some((sender.clone(), amount.clone()));
+            } else {
+                ensure!(T::MinimalBid::get() < amount, Error::<T>::TooSmallBid);
+
+                T::AuctionCurrency::reserve(&sender, amount.clone())?;
+                auction.winner = Some((sender.clone(), amount.clone()));
+            }
+            <Auction<T>>::insert(&index, auction);
+
+            Self::deposit_event(Event::NewBid(index, sender, amount));
+            Ok(().into())
+        }
+
+        /// Set RWS subscription devices.
         ///
         /// # <weight>
         /// - O(1).
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(10_000)]
-        pub fn set_subscription(
+        #[pallet::weight(100_000)]
+        pub fn set_devices(
             origin: OriginFor<T>,
-            subscription: Vec<T::AccountId>,
+            devices: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            <Subscription<T>>::insert(sender.clone(), subscription.clone());
-            Self::deposit_event(Event::Subscription(sender, subscription));
+            <Devices<T>>::insert(sender.clone(), devices.clone());
+            Self::deposit_event(Event::NewDevices(sender, devices));
             Ok(().into())
         }
 
         /// Change account bandwidth share rate by authority.
         ///
-
         /// Change RWS oracle account.
         ///
         /// The dispatch origin for this call must be _Root_.
@@ -177,7 +310,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(0)]
+        #[pallet::weight(100_000)]
         pub fn set_oracle(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
@@ -196,301 +329,93 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(0)]
-        pub fn set_bandwidth(
+        #[pallet::weight(100_000)]
+        pub fn set_subscription(
             origin: OriginFor<T>,
-            source: <T::Lookup as StaticLookup>::Source,
-            share: Perbill,
+            target: T::AccountId,
+            subscription: Subscription,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             ensure!(
                 Some(sender) == <Oracle<T>>::get(),
                 Error::<T>::OracleOnlyCall
             );
-            let account = T::Lookup::lookup(source)?;
-            <Bandwidth<T>>::insert(account.clone(), share);
-            Self::deposit_event(Event::Bandwidth(account, share));
+            <Ledger<T>>::insert(
+                target.clone(),
+                SubscriptionLedger::new(T::Time::now(), subscription.clone()),
+            );
+            Self::deposit_event(Event::NewSubscription(target, subscription));
             Ok(().into())
         }
     }
 
     impl<T: Config> Pallet<T> {
-        /// Check staker quota for execute call.
-        fn check_quota(staker: T::AccountId) -> bool {
-            if let Some(share) = <Bandwidth<T>>::get(staker.clone()) {
-                let now = T::Time::now();
+        /// Rotate current auctions, register subscriptions and queue next.
+        fn rotate_auctions() -> Weight {
+            let queue = Self::auction_queue();
+            let auctions: Vec<_> = queue
+                .iter()
+                .map(|index| (index.clone(), Self::auction(index).unwrap_or_default()))
+                .collect();
 
-                if let Some((last_active, points)) = <Quota<T>>::get(staker.clone()) {
-                    let delta = now - last_active;
-                    let new_points =
-                        Self::estimate_points(share, delta.saturated_into::<u64>(), points);
-                    if new_points >= CALL_COST {
-                        // Enough quota points for the call, permit to call.
-                        <Quota<T>>::insert(staker, (now, new_points - CALL_COST));
-                        return true;
-                    }
-                } else {
-                    // Quota points initialized, permit to call one time.
-                    <Quota<T>>::insert(staker, (now, 0));
-                    return true;
+            let (finished, next): (Vec<_>, Vec<_>) = auctions
+                .iter()
+                .partition(|(_, auction)| auction.winner.is_some());
+
+            // store auction indexes without bids to queue
+            <AuctionQueue<T>>::put(next.iter().map(|(i, _)| i).collect::<Vec<_>>());
+
+            for (_, auction) in finished.iter() {
+                if let Some((subscription_id, value)) = &auction.winner {
+                    // transfer reserve to reward pool
+                    T::AuctionCurrency::repatriate_reserved(
+                        &subscription_id,
+                        &T::PalletId::get().into_account(),
+                        *value,
+                        BalanceStatus::Free,
+                    )
+                    .ok()
+                    .expect("repatriate reserved balance");
+                    // register subscription
+                    <Ledger<T>>::insert(
+                        subscription_id,
+                        SubscriptionLedger::new(T::Time::now(), auction.kind.clone()),
+                    );
                 }
             }
-            // Cancel execution by default
-            false
+
+            let db = T::DbWeight::get();
+            db.reads(queue.len() as u64) + db.writes(1 + 2 * finished.len() as u64)
         }
+        /// Update subscription internals and return updated ledger.
+        fn update_subscription(
+            subscription_id: &T::AccountId,
+        ) -> Result<SubscriptionLedger<<T::Time as Time>::Moment>, Error<T>> {
+            let mut subscription =
+                Self::ledger(subscription_id).ok_or(Error::<T>::NoSubscription)?;
 
-        /// Check call to be executed via RWS.
-        fn check_call(call: Box<<T as Config>::Call>) -> bool {
-            // RWS calls weight should be lower than limit
-            call.get_dispatch_info().weight < T::WeightLimit::get()
-            // TODO: call internals filtering
+            let now = T::Time::now();
+            let tps = match subscription.kind {
+                Subscription::Lifetime(tps) => tps,
+                Subscription::Daily(days) => {
+                    let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
+                    // If subscription active then 1 TPS else 0 TPS
+                    if now > subscription.issue_time.clone() + duration_ms {
+                        0u32
+                    } else {
+                        1u32
+                    }
+                }
+            };
+
+            let delta: Weight = (now.clone() - subscription.last_update).into();
+            // Reference call weight * TPS * secons passed from last update
+            subscription.free_weight +=
+                T::ReferenceCallWeight::get() * (tps as Weight) * delta / 1_000;
+            subscription.last_update = now;
+            <Ledger<T>>::insert(subscription_id, subscription.clone());
+
+            Ok(subscription)
         }
-
-        /// Estimate quota points for given share rate, timedelta and previous value.
-        fn estimate_points(share: Perbill, delta: u64, points: u64) -> u64 {
-            // Simple filter to prevent excessive point accumulation.
-            if points > T::PointsLimit::get() {
-                points
-            } else {
-                points + share.mul_ceil(Self::total_points_ms() * delta)
-            }
-        }
-
-        /// Total quota points in ms
-        fn total_points_ms() -> u64 {
-            // 1_000_000_000 points per sec
-            T::TotalBandwidth::get() * 1_000_000
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{self as rws, *};
-    use frame_support::{assert_err, assert_ok, parameter_types, weights::Weight};
-    use pallet_robonomics_datalog as datalog;
-    use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, Perbill};
-
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
-    type Block = frame_system::mocking::MockBlock<Runtime>;
-
-    frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            Timestamp: pallet_timestamp::{Pallet, Storage},
-            Datalog: datalog::{Pallet, Call, Storage, Event<T>},
-            RWS: rws::{Pallet, Call, Storage, Event<T>},
-        }
-    );
-
-    parameter_types! {
-        pub const BlockHashCount: u64 = 250;
-    }
-
-    impl frame_system::Config for Runtime {
-        type Origin = Origin;
-        type Index = u64;
-        type BlockNumber = u64;
-        type Call = Call;
-        type Hash = H256;
-        type Hashing = sp_runtime::traits::BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = Event;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type AccountData = ();
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = ();
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type PalletInfo = PalletInfo;
-        type OnSetCode = ();
-    }
-
-    parameter_types! {
-        pub const MinimumPeriod: u64 = 5;
-    }
-
-    impl pallet_timestamp::Config for Runtime {
-        type Moment = u64;
-        type OnTimestampSet = ();
-        type MinimumPeriod = ();
-        type WeightInfo = ();
-    }
-    parameter_types! {
-        pub const WindowSize: u64 = 128;
-        pub const MaximumMessageSize: usize = 512;
-    }
-
-    impl datalog::Config for Runtime {
-        type Record = Vec<u8>;
-        type Event = Event;
-        type Time = Timestamp;
-        type WindowSize = WindowSize;
-        type MaximumMessageSize = MaximumMessageSize;
-        type WeightInfo = ();
-    }
-
-    parameter_types! {
-        pub const WeightLimit: Weight = 1_000_000_000_000;
-        pub const TotalBandwidth: u64 = 100;
-        pub const PointsLimit: u64 = 1_000_000_000_000_000;
-    }
-
-    impl Config for Runtime {
-        type TotalBandwidth = TotalBandwidth;
-        type WeightLimit = WeightLimit;
-        type PointsLimit = PointsLimit;
-        type Time = Timestamp;
-        type Event = Event;
-        type Call = Call;
-    }
-
-    fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
-            .unwrap();
-        storage.into()
-    }
-
-    #[test]
-    fn test_set_oracle() {
-        let oracle = 1;
-        new_test_ext().execute_with(|| {
-            assert_err!(
-                RWS::set_oracle(Origin::none(), oracle),
-                DispatchError::BadOrigin
-            );
-
-            assert_err!(
-                RWS::set_oracle(Origin::signed(oracle), oracle),
-                DispatchError::BadOrigin
-            );
-
-            assert_ok!(RWS::set_oracle(Origin::root(), oracle),);
-            assert_eq!(RWS::oracle(), Some(oracle));
-        })
-    }
-
-    #[test]
-    fn test_set_bandwidth() {
-        let oracle = 1;
-        let alice = 2;
-        new_test_ext().execute_with(|| {
-            assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-
-            assert_err!(
-                RWS::set_bandwidth(Origin::none(), alice, Default::default()),
-                DispatchError::BadOrigin,
-            );
-
-            assert_ok!(RWS::set_bandwidth(
-                Origin::signed(oracle),
-                alice,
-                Perbill::from_percent(1),
-            ));
-            assert_eq!(RWS::bandwidth(alice), Some(Perbill::from_percent(1)));
-        })
-    }
-
-    #[test]
-    fn test_subscription() {
-        let oracle = 1;
-        let alice = 2;
-        let bob = 3;
-
-        new_test_ext().execute_with(|| {
-            Timestamp::set_timestamp(1600438152000);
-
-            assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-
-            let call = Call::from(datalog::Call::record("true".into()));
-
-            assert_eq!(RWS::quota(alice), None);
-            assert_err!(
-                RWS::call(Origin::signed(bob), alice, call.clone().into()),
-                Error::<Runtime>::NoSubscription,
-            );
-
-            assert_ok!(RWS::set_subscription(Origin::signed(alice), vec![bob]));
-            assert_err!(
-                RWS::call(Origin::signed(bob), alice, call.clone().into()),
-                Error::<Runtime>::NoQuota,
-            );
-
-            assert_ok!(RWS::set_bandwidth(
-                Origin::signed(oracle),
-                alice,
-                Perbill::from_percent(1),
-            ),);
-            assert_eq!(RWS::quota(alice), None);
-            assert_ok!(RWS::call(Origin::signed(bob), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438152000, 0)));
-        })
-    }
-
-    #[test]
-    fn test_transaction() {
-        let oracle = 1;
-        let alice = 2;
-
-        new_test_ext().execute_with(|| {
-            Timestamp::set_timestamp(1600438152000);
-
-            assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-
-            let call = Call::from(datalog::Call::record("true".into()));
-
-            assert_eq!(RWS::quota(alice), None);
-            assert_err!(
-                RWS::call(Origin::signed(alice), alice, call.clone().into()),
-                Error::<Runtime>::NoSubscription,
-            );
-
-            assert_ok!(RWS::set_subscription(Origin::signed(alice), vec![alice]));
-            assert_err!(
-                RWS::call(Origin::signed(alice), alice, call.clone().into()),
-                Error::<Runtime>::NoQuota,
-            );
-
-            assert_ok!(RWS::set_bandwidth(
-                Origin::signed(oracle),
-                alice,
-                Perbill::from_percent(1),
-            ),);
-            assert_eq!(RWS::quota(alice), None);
-            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438152000, 0)));
-
-            Timestamp::set_timestamp(1600438156000);
-
-            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438156000, 3 * CALL_COST)));
-
-            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438156000, 2 * CALL_COST)));
-
-            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438156000, 1 * CALL_COST)));
-
-            assert_ok!(RWS::call(Origin::signed(alice), alice, call.clone().into()));
-            assert_eq!(RWS::quota(alice), Some((1600438156000, 0)));
-
-            assert_err!(
-                RWS::call(Origin::signed(alice), alice, call.into()),
-                Error::<Runtime>::NoQuota,
-            );
-        })
     }
 }
