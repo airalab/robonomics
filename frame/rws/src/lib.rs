@@ -20,7 +20,7 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, HasCompact};
 use frame_support::pallet_prelude::Weight;
 use sp_runtime::RuntimeDebug;
 
@@ -31,45 +31,59 @@ pub use pallet::*;
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
 pub enum Subscription {
-    /// Lifetime subscription, it have TPS as parameter.
-    Lifetime(u32),
-    /// Daily subscription, it have duration in days as parameter.
-    Daily(u32),
+    /// Lifetime subscription.
+    Lifetime {
+        /// How much Transactions Per Second this subscription gives.
+        #[codec(compact)]
+        tps: u32,
+    },
+    /// Daily subscription (each daily subscription have 1 TPS).
+    Daily {
+        /// How long days this subscription active.
+        #[codec(compact)]
+        days: u32,
+    },
 }
 
 impl Default for Subscription {
     fn default() -> Self {
-        Subscription::Daily(0)
+        Subscription::Daily { days: 0 }
     }
 }
 
 #[derive(PartialEq, Eq, Clone, Default, Encode, Decode, RuntimeDebug)]
-pub struct AuctionLedger<AccountId, Balance> {
-    /// Auction leader account
-    pub winner: Option<(AccountId, Balance)>,
+pub struct AuctionLedger<AccountId, Balance: HasCompact> {
+    /// Auction winner address. 
+    pub winner: Option<AccountId>,
+    /// Current best price.
+    #[codec(compact)]
+    pub best_price: Balance,
     /// Kind of subscription for this auction
     pub kind: Subscription,
 }
 
-impl<AccountId, Balance> AuctionLedger<AccountId, Balance> {
+impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance> {
     pub fn new(kind: Subscription) -> Self {
-        Self { winner: None, kind }
+        Self { winner: None, best_price: Default::default(), kind }
     }
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
-pub struct SubscriptionLedger<Moment> {
+pub struct SubscriptionLedger<Moment: HasCompact> {
     /// Free execution weights accumulator.
+    #[codec(compact)]
     free_weight: Weight,
     /// Subscription creation timestamp.
+    #[codec(compact)]
     issue_time: Moment,
     /// Moment of time for last subscription update (used for TPS estimation).
+    #[codec(compact)]
     last_update: Moment,
     /// Kind of subscription (lifetime, daily, etc).
     kind: Subscription,
 }
 
-impl<Moment: Clone> SubscriptionLedger<Moment> {
+impl<Moment: HasCompact + Clone> SubscriptionLedger<Moment> {
     pub fn new(last_update: Moment, kind: Subscription) -> Self {
         Self {
             free_weight: Default::default(),
@@ -83,6 +97,7 @@ impl<Moment: Clone> SubscriptionLedger<Moment> {
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use pallet_robonomics_staking::OnBondHandler;
     use frame_support::{
         pallet_prelude::*,
         traits::{BalanceStatus, Currency, ReservableCurrency, Time, UnfilteredDispatchable},
@@ -111,7 +126,7 @@ pub mod pallet {
         /// Time should be aligned to weights for TPS calculations.
         type Moment: Parameter + AtLeast32Bit + Into<Weight>;
         /// The auction index value.
-        type AuctionIndex: Parameter;
+        type AuctionIndex: Parameter + AtLeast32Bit + Default;
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
@@ -125,6 +140,9 @@ pub mod pallet {
         /// Subscription auction duration in blocks.
         #[pallet::constant]
         type AuctionDuration: Get<Self::BlockNumber>;
+        /// How much token should be bonded to launch new auction.
+        #[pallet::constant]
+        type AuctionCost: Get<BalanceOf<Self>>;
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
@@ -187,11 +205,23 @@ pub mod pallet {
     #[pallet::getter(fn auction_queue)]
     pub(super) type AuctionQueue<T: Config> = StorageValue<_, Vec<T::AuctionIndex>, ValueQuery>;
 
+    /// Next auction index.
+    #[pallet::storage]
+    #[pallet::getter(fn auction_next)]
+    pub(super) type AuctionNext<T: Config> = StorageValue<_, T::AuctionIndex, ValueQuery>;
+
     #[pallet::storage]
     #[pallet::getter(fn auction)]
     /// Indexed auction ledger.
     pub(super) type Auction<T: Config> =
         StorageMap<_, Twox64Concat, T::AuctionIndex, AuctionLedger<T::AccountId, BalanceOf<T>>>;
+
+    /// This is intermediate value used to escape bonded value loss.
+    /// For each bond if value is not enough to issue new subscription then bonded value will
+    /// be written here.
+    #[pallet::storage]
+    #[pallet::getter(fn unspend_bond_value)]
+    pub(super) type UnspendBondValue<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -247,6 +277,13 @@ pub mod pallet {
             res
         }
 
+        /// Plasce a bid for live subscription auction. 
+        ///
+        /// # <weight>
+        /// - reads auction & auction_queue 
+        /// - writes auction bid
+        /// - AuctionCurrency reserve & unreserve
+        /// # </weight>
         #[pallet::weight(100_000)]
         pub fn bid(
             origin: OriginFor<T>,
@@ -263,17 +300,19 @@ pub mod pallet {
             );
 
             let mut auction = Self::auction(&index).ok_or(Error::<T>::NotExistAuction)?;
-            if let Some((winner, winner_amount)) = &auction.winner {
-                ensure!(*winner_amount < amount, Error::<T>::TooSmallBid);
+            if let Some(winner) = &auction.winner {
+                ensure!(auction.best_price < amount, Error::<T>::TooSmallBid);
 
                 T::AuctionCurrency::reserve(&sender, amount.clone())?;
-                T::AuctionCurrency::unreserve(&winner, winner_amount.clone());
-                auction.winner = Some((sender.clone(), amount.clone()));
+                T::AuctionCurrency::unreserve(&winner, auction.best_price);
+                auction.winner = Some(sender.clone());
+                auction.best_price = amount.clone();
             } else {
                 ensure!(T::MinimalBid::get() < amount, Error::<T>::TooSmallBid);
 
                 T::AuctionCurrency::reserve(&sender, amount.clone())?;
-                auction.winner = Some((sender.clone(), amount.clone()));
+                auction.winner = Some(sender.clone());
+                auction.best_price = amount.clone();
             }
             <Auction<T>>::insert(&index, auction);
 
@@ -350,6 +389,19 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        /// Create new auction.
+        fn new_auction(kind: Subscription) {
+            // get next index and increment
+            let index = Self::auction_next();
+            <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
+
+            // insert auction ledger
+            <Auction<T>>::insert(&index, AuctionLedger::new(kind)); 
+
+            // insert auction into queue
+            <AuctionQueue<T>>::mutate(|queue| queue.push(index));
+        }
+
         /// Rotate current auctions, register subscriptions and queue next.
         fn rotate_auctions() -> Weight {
             let queue = Self::auction_queue();
@@ -366,12 +418,12 @@ pub mod pallet {
             <AuctionQueue<T>>::put(next.iter().map(|(i, _)| i).collect::<Vec<_>>());
 
             for (_, auction) in finished.iter() {
-                if let Some((subscription_id, value)) = &auction.winner {
+                if let Some(subscription_id) = &auction.winner {
                     // transfer reserve to reward pool
                     T::AuctionCurrency::repatriate_reserved(
                         &subscription_id,
                         &T::PalletId::get().into_account(),
-                        *value,
+                        auction.best_price,
                         BalanceStatus::Free,
                     )
                     .ok()
@@ -396,8 +448,8 @@ pub mod pallet {
 
             let now = T::Time::now();
             let tps = match subscription.kind {
-                Subscription::Lifetime(tps) => tps,
-                Subscription::Daily(days) => {
+                Subscription::Lifetime { tps } => tps,
+                Subscription::Daily { days } => {
                     let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
                     // If subscription active then 1 TPS else 0 TPS
                     if now > subscription.issue_time.clone() + duration_ms {
@@ -416,6 +468,21 @@ pub mod pallet {
             <Ledger<T>>::insert(subscription_id, subscription.clone());
 
             Ok(subscription)
+        }
+    }
+
+    impl<T: Config> OnBondHandler<BalanceOf<T>> for Pallet<T> {
+        fn on_bond(value: BalanceOf<T>) {
+            let cost = T::AuctionCost::get();
+            let bond_value = value + Self::unspend_bond_value();
+            <UnspendBondValue<T>>::put(bond_value % cost);
+
+            let mut auction_num = bond_value / cost;
+            while auction_num > 0u32.into() {
+                // XXX: start monthly auctions by default
+                Self::new_auction(Subscription::Daily { days: 30 });
+                auction_num -= 1u32.into();
+            }
         }
     }
 }
