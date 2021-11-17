@@ -190,7 +190,6 @@ parameter_types! {
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
-    // ???
     pub OperationalFeeMultiplier: u8 = 5;
     pub const MaxAuthorities: u32 = 32;
 }

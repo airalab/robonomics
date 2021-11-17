@@ -70,8 +70,6 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
 >
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
-    // + sc_executor::RuntimeVersionOf
-    // + sp_core::traits::CodeExecutor,
     RuntimeApi: sp_api::ConstructRuntimeApi<
             Block,
             TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
@@ -88,12 +86,15 @@ where
         + sp_block_builder::BlockBuilder<Block>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
-        Arc<TFullClient<Block, RuntimeApi, Executor>>,
+        Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
         &sc_service::Configuration,
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<
+            Block,
+            TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>,
+        >,
         sc_service::Error,
     >,
 {
@@ -409,7 +410,7 @@ where
 
 /// Build the import queue for the open consensus parachain runtime.
 pub fn build_open_import_queue<RuntimeApi, Executor>(
-    client: Arc<TFullClient<Block, RuntimeApi, Executor>>,
+    client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
     config: &sc_service::Configuration,
     _telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
