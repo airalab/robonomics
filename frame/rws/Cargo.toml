@@ -17,6 +17,7 @@ pallet-robonomics-staking = { path = "../staking", default-features = false }
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 pallet-robonomics-datalog = { path = "../datalog" }
 

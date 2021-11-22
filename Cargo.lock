@@ -5856,11 +5856,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "0.4.1"
+version = "1.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "pallet-robonomics-datalog",
+ "pallet-robonomics-staking",
  "pallet-timestamp",
  "parity-scale-codec",
  "serde",
@@ -5872,7 +5874,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-staking"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
