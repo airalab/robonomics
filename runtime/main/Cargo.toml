@@ -49,9 +49,11 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10", default-features = false }
 
 # robonomics dependencies
-pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
+pallet-robonomics-digital-twin = { path = "../../frame/digital-twin", default-features = false }
+pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
+pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
 pallet-robonomics-staking = { path = "../../frame/staking", default-features = false }
 
 # cumulus dependencies
@@ -103,9 +105,11 @@ std = [
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
-    "pallet-robonomics-launch/std",
     "pallet-robonomics-datalog/std",
+    "pallet-robonomics-digital-twin/std",
+    "pallet-robonomics-launch/std",
     "pallet-robonomics-lighthouse/std",
+    "pallet-robonomics-rws/std",
     "pallet-robonomics-staking/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-primitives-core/std",

@@ -43,6 +43,7 @@ use frame_support::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
     },
+    PalletId,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_grandpa::{
@@ -255,18 +256,27 @@ impl pallet_robonomics_launch::Config for Runtime {
 }
 
 parameter_types! {
-    pub const TotalBandwidth: u64 = 100; // 100 TPS allocated for RWS transactions
-    pub const WeightLimit: Weight = 1_000_000_000_000_000;
-    pub const PointsLimit: u64 = 10_000_000_000; // equal to 10 TPS
+    pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
+    pub const WeightLimit: Weight = Weight::max_value() / 2;
+    pub const AuctionDuration: BlockNumber = 10;
+    pub const AuctionCost: Balance = 5_000;
+    pub const MinimalBid: Balance = 100;
+    pub const RwsPalletId: PalletId = PalletId(*b"rbncsrws");
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
-    type TotalBandwidth = TotalBandwidth;
-    type WeightLimit = WeightLimit;
-    type PointsLimit = PointsLimit;
-    type Time = Timestamp;
-    type Event = Event;
     type Call = Call;
+    type Time = Timestamp;
+    type Moment = Moment;
+    type AuctionIndex = u32;
+    type AuctionCurrency = Balances;
+    type Event = Event;
+    type ReferenceCallWeight = ReferenceCallWeight;
+    type WeightLimit = WeightLimit;
+    type AuctionDuration = AuctionDuration;
+    type AuctionCost = AuctionCost;
+    type MinimalBid = MinimalBid;
+    type PalletId = RwsPalletId;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
@@ -301,6 +311,7 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;
     type BonusReward = BonusReward;
+    type OnBond = RWS;
 }
 
 construct_runtime!(
