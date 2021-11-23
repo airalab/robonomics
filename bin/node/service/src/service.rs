@@ -162,7 +162,11 @@ where
             telemetry: telemetry.as_ref().map(|x| x.handle()),
         })?;
 
-    let (pubsub, _) = PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    let (pubsub, pubsub_worker) =
+        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    task_manager
+        .spawn_handle()
+        .spawn("pubsub_service", pubsub_worker);
 
     let rpc_extensions_builder = {
         let client = client.clone();
