@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::traits::{IdentifyAccount, Verify, AccountIdConversion};
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
@@ -144,6 +144,7 @@ fn development_genesis(
                 get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+                local_runtime::RwsPalletId::get().into_account(),
             ]
         })
         .iter()
