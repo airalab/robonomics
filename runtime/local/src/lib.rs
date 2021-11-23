@@ -259,8 +259,8 @@ parameter_types! {
     pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
     pub const WeightLimit: Weight = Weight::max_value() / 2;
     pub const AuctionDuration: BlockNumber = 10;
-    pub const AuctionCost: Balance = 5_000;
-    pub const MinimalBid: Balance = 100;
+    pub const AuctionCost: Balance = 200 * XRT;
+    pub const MinimalBid: Balance = 1 * XRT;
     pub const RwsPalletId: PalletId = PalletId(*b"rbncsrws");
 }
 
