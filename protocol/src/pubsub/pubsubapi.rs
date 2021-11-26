@@ -61,7 +61,7 @@ pub trait PubSubT {
 
     /// Publish message into the topic by name.
     #[rpc(name = "pubsub_publish")]
-    fn publish(&self, topic_name: String, message: String);
+    fn publish(&self, topic_name: String, message: String) -> Result<bool>;
 }
 
 impl PubSubT for PubSubApi {
@@ -114,10 +114,12 @@ impl PubSubT for PubSubApi {
         }
     }
 
-    fn publish(&self, topic_name: String, message: String) {
+    fn publish(&self, topic_name: String, message: String) -> Result<bool> {
         executor::block_on(async {
             self.pubsub
                 .publish(&topic_name, message.as_bytes().to_vec())
-        })
+        });
+
+        Ok(true)
     }
 }
