@@ -19,7 +19,7 @@
 
 use crate::{self as rws, *};
 use frame_support::{
-    assert_err, assert_ok, parameter_types, traits::OnInitialize, weights::Weight, PalletId,
+    assert_err, assert_ok, parameter_types, traits::OnInitialize, weights::Weight,
 };
 use pallet_robonomics_datalog as datalog;
 use pallet_robonomics_staking as staking;
@@ -150,7 +150,6 @@ parameter_types! {
     pub const AuctionDuration: BlockNumber = 10;
     pub const AuctionCost: Balance = 5_000;
     pub const MinimalBid: Balance = 100;
-    pub const RwsPalletId: PalletId = PalletId(*b"rbncsrws");
 }
 
 impl Config for Runtime {
@@ -165,7 +164,6 @@ impl Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
-    type PalletId = RwsPalletId;
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -178,7 +176,6 @@ fn new_test_ext() -> sp_io::TestExternalities {
             (ALICE, 10_000_000),
             (BOB, 42_000),
             (CHARLIE, 10_000),
-            (RWS::account_id(), 1_000),
         ],
     }
     .assimilate_storage(&mut storage);

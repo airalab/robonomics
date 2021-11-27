@@ -144,7 +144,6 @@ fn development_genesis(
                 get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-                local_runtime::RwsPalletId::get().into_account(),
             ]
         })
         .iter()

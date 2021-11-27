@@ -103,14 +103,13 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        traits::{BalanceStatus, Currency, ReservableCurrency, Time, UnfilteredDispatchable},
+        traits::{Currency, ReservableCurrency, Time, UnfilteredDispatchable, Imbalance},
         weights::GetDispatchInfo,
-        PalletId,
     };
     use frame_system::pallet_prelude::*;
     use pallet_robonomics_staking::OnBondHandler;
     use sp_runtime::{
-        traits::{AccountIdConversion, AtLeast32Bit, StaticLookup},
+        traits::{AtLeast32Bit, StaticLookup},
         DispatchResult,
     };
     use sp_std::prelude::*;
@@ -150,9 +149,6 @@ pub mod pallet {
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
-        /// RWS pallet_id used for pool account derivation.
-        #[pallet::constant]
-        type PalletId: Get<PalletId>;
     }
 
     #[pallet::error]
@@ -393,11 +389,6 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// Returns pallet account id.
-        pub fn account_id() -> T::AccountId {
-            T::PalletId::get().into_account()
-        }
-
         /// Create new auction.
         fn new_auction(kind: Subscription) {
             // get next index and increment
@@ -429,13 +420,11 @@ pub mod pallet {
             for (_, auction) in finished.iter() {
                 if let Some(subscription_id) = &auction.winner {
                     // transfer reserve to reward pool
-                    T::AuctionCurrency::repatriate_reserved(
+                    let (slash, _) = T::AuctionCurrency::slash_reserved(
                         &subscription_id,
-                        &Self::account_id(),
                         auction.best_price,
-                        BalanceStatus::Free,
-                    )
-                    .expect("repatriate reserved balance");
+                    );
+                    T::AuctionCurrency::burn(slash.peek());
                     // register subscription
                     <Ledger<T>>::insert(
                         subscription_id,
