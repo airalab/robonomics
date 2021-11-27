@@ -438,7 +438,6 @@ parameter_types! {
     pub const AuctionDuration: BlockNumber = 10;
     pub const AuctionCost: Balance = 200 * XRT;
     pub const MinimalBid: Balance = 1 * XRT;
-    pub const RwsPalletId: PalletId = PalletId(*b"rbncsrws");
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
@@ -453,7 +452,6 @@ impl pallet_robonomics_rws::Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
-    type PalletId = RwsPalletId;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
