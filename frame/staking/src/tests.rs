@@ -107,6 +107,7 @@ parameter_types! {
 impl Config for Runtime {
     type Currency = Balances;
     type Event = Event;
+    type OnBond = ();
 
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;

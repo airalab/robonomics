@@ -405,13 +405,9 @@ pub mod pallet {
         /// Rotate current auctions, register subscriptions and queue next.
         fn rotate_auctions() -> Weight {
             let queue = Self::auction_queue();
-            let auctions: Vec<_> = queue
+            let (finished, next): (Vec<_>, Vec<_>) = queue
                 .iter()
                 .map(|index| (index.clone(), Self::auction(index).unwrap_or_default()))
-                .collect();
-
-            let (finished, next): (Vec<_>, Vec<_>) = auctions
-                .iter()
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
@@ -434,7 +430,7 @@ pub mod pallet {
             }
 
             let db = T::DbWeight::get();
-            db.reads(queue.len() as u64) + db.writes(1 + 2 * finished.len() as u64)
+            db.reads(1 + queue.len() as u64) + db.writes(1 + 2 * finished.len() as u64)
         }
         /// Update subscription internals and return updated ledger.
         fn update_subscription(
