@@ -230,7 +230,7 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(now: T::BlockNumber) -> Weight {
-            if T::AuctionDuration::get() % now == 0u32.into() {
+            if now % T::AuctionDuration::get() == 0u32.into() {
                 Self::rotate_auctions()
             } else {
                 1 as Weight
