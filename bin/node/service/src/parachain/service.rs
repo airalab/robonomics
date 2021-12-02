@@ -31,6 +31,8 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use sc_client_api::ExecutorProvider;
 use sc_network::NetworkService;
 use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
@@ -41,6 +43,7 @@ use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
+use std::time::Duration;
 use substrate_frame_rpc_system::{FullSystem, SystemApi};
 use substrate_prometheus_endpoint::Registry;
 
@@ -52,7 +55,7 @@ fn new_partial<RuntimeApi, Executor, BIQ>(
         TFullClient<Block, RuntimeApi, Executor>,
         TFullBackend<Block>,
         (),
-        sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
+        sc_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
         sc_transaction_pool::FullPool<Block, TFullClient<Block, RuntimeApi, Executor>>,
         (
             Option<sc_telemetry::Telemetry>,
@@ -82,7 +85,7 @@ where
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
         sc_service::Error,
     >,
 {
@@ -150,6 +153,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
     build_consensus: BIC,
+    heartbeat_interval: u64,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -174,7 +178,7 @@ where
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
-        sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+        sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
         sc_service::Error,
     >,
     BIC: FnOnce(
@@ -231,10 +235,17 @@ where
             import_queue: import_queue.clone(),
             on_demand: None,
             block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
+            warp_sync: None,
         })?;
 
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
+    let (pubsub, pubsub_worker) =
+        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    task_manager
+        .spawn_handle()
+        .spawn("pubsub_parachain", pubsub_worker);
+
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         on_demand: None,
         remote_blockchain: None,
@@ -245,7 +256,8 @@ where
                 rpc_pool.clone(),
                 deny_unsafe,
             )));
-            io
+            io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub.clone())));
+            Ok(io)
         }),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),
@@ -316,7 +328,7 @@ pub fn build_pos_import_queue<RuntimeApi, Executor>(
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
     sc_service::Error,
 >
 where
@@ -376,7 +388,7 @@ pub fn build_open_import_queue<RuntimeApi, Executor>(
     _telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
-    sp_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
+    sc_consensus::DefaultImportQueue<Block, TFullClient<Block, RuntimeApi, Executor>>,
     sc_service::Error,
 >
 where

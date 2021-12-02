@@ -14,7 +14,6 @@ in
   with pkgs;
   with rosPackages.noetic;
 rec {
-  substrate-ros-msgs = callPackage ./substrate-ros/msgs/substrate_ros_msgs { };
   ros_tutorials = callPackage ./examples/ros_tutorials { };
   turtlesim = callPackage ./examples/turtlesim_liability { };
 

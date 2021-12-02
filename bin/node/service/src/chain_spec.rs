@@ -18,14 +18,15 @@
 //! Chain specification and utils.
 
 use local_runtime::{
-    wasm_binary_unwrap, BabeConfig, BalancesConfig, GenesisConfig, GrandpaConfig, StakingConfig,
+    wasm_binary_unwrap, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, StakingConfig,
     SudoConfig, SystemConfig,
 };
 use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
+use sc_sync_state_rpc::LightSyncStateExtension;
 use serde::{Deserialize, Serialize};
-use sp_consensus_babe::AuthorityId as BabeId;
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
@@ -91,6 +92,8 @@ pub struct Extensions {
     pub fork_blocks: sc_client_api::ForkBlocks<Block>,
     /// Known bad block hashes.
     pub bad_blocks: sc_client_api::BadBlocks<Block>,
+    ///
+    pub light_sync_state: LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
@@ -112,16 +115,15 @@ where
 }
 
 /// Helper function to generate stash, controller and session key from seed
-fn get_authority_keys_from_seed(seed: &str) -> (AccountId, BabeId, GrandpaId) {
+fn get_authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
     (
-        get_account_id_from_seed::<sr25519::Public>(seed),
-        get_from_seed::<BabeId>(seed),
+        get_from_seed::<AuraId>(seed),
         get_from_seed::<GrandpaId>(seed),
     )
 }
 
 fn development_genesis(
-    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
+    initial_authorities: Vec<(AuraId, GrandpaId)>,
     endowed_accounts: Option<Vec<AccountId>>,
     sudo_key: AccountId,
 ) -> GenesisConfig {
@@ -159,7 +161,7 @@ fn development_genesis(
 
 /// Helper function to create GenesisConfig
 fn mk_genesis(
-    initial_authorities: Vec<(AccountId, BabeId, GrandpaId)>,
+    initial_authorities: Vec<(AuraId, GrandpaId)>,
     balances: Vec<(AccountId, Balance)>,
     sudo_key: AccountId,
     code: Vec<u8>,
@@ -171,17 +173,13 @@ fn mk_genesis(
             changes_trie_config: Default::default(),
         },
         balances: BalancesConfig { balances },
-        babe: BabeConfig {
-            authorities: initial_authorities
-                .iter()
-                .map(|x| (x.1.clone(), 1))
-                .collect(),
-            epoch_config: Some(local_runtime::BABE_GENESIS_EPOCH_CONFIG),
+        aura: AuraConfig {
+            authorities: initial_authorities.iter().map(|x| x.0.clone()).collect(),
         },
         grandpa: GrandpaConfig {
             authorities: initial_authorities
                 .iter()
-                .map(|x| (x.2.clone(), 1))
+                .map(|x| (x.1.clone(), 1))
                 .collect(),
         },
         sudo: SudoConfig { key: sudo_key },

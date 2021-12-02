@@ -25,7 +25,7 @@ use frame_support::traits::{
     Currency, Imbalance, LockIdentifier, LockableCurrency, WithdrawReasons,
 };
 use sp_runtime::{
-    traits::{AtLeast32BitUnsigned, Saturating, StaticLookup, Zero},
+    traits::{AtLeast32BitUnsigned, CheckedSub, Saturating, StaticLookup, Zero},
     Perbill, RuntimeDebug,
 };
 use sp_std::prelude::*;
@@ -150,6 +150,8 @@ pub mod pallet {
         BadState,
         /// Can not schedule more unlock chunks.
         NoMoreChunks,
+        /// Can not bond with value less than minimum required.
+        InsufficientBond,
     }
 
     #[pallet::event]
@@ -248,7 +250,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             controller: <T::Lookup as StaticLookup>::Source,
             #[pallet::compact] value: BalanceOf<T>,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let stash = ensure_signed(origin)?;
             if <Bonded<T>>::contains_key(&stash) {
                 Err(Error::<T>::AlreadyBonded)?
@@ -276,6 +278,49 @@ pub mod pallet {
             };
             Self::update_ledger(&controller, &item);
             Ok(().into())
+        }
+
+        /// Add some extra amount that have appeared in the stash `free_balance` into the balance up
+        /// for staking.
+        ///
+        /// The dispatch origin for this call must be _Signed_ by the stash, not the controller.
+        ///
+        /// Use this if there are additional funds in your stash account that you wish to bond.
+        /// Unlike [`bond`](Self::bond) or [`unbond`](Self::unbond) this function does not impose any limitation
+        /// on the amount that can be added.
+        ///
+        /// Emits `Bonded`.
+        ///
+        /// # <weight>
+        /// - Independent of the arguments. Insignificant complexity.
+        /// - O(1).
+        /// # </weight>
+        #[pallet::weight(100_000)]
+        pub fn bond_extra(
+            origin: OriginFor<T>,
+            #[pallet::compact] max_additional: BalanceOf<T>,
+        ) -> DispatchResult {
+            let stash = ensure_signed(origin)?;
+
+            let controller = Self::bonded(&stash).ok_or(Error::<T>::NotStash)?;
+            let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
+            Self::claim(&controller, &mut ledger)?;
+
+            let stash_balance = T::Currency::free_balance(&stash);
+            if let Some(extra) = stash_balance.checked_sub(&ledger.total) {
+                let extra = extra.min(max_additional);
+                ledger.total += extra;
+                ledger.active += extra;
+                // Last check: the new active amount of ledger must be more than ED.
+                ensure!(
+                    ledger.active >= T::Currency::minimum_balance(),
+                    Error::<T>::InsufficientBond
+                );
+
+                Self::deposit_event(Event::<T>::Bonded(stash, extra));
+                Self::update_ledger(&controller, &ledger);
+            }
+            Ok(())
         }
 
         /// Schedule a portion of the stash to be unlocked ready for transfer out after the bond
@@ -313,7 +358,7 @@ pub mod pallet {
         pub fn unbond(
             origin: OriginFor<T>,
             #[pallet::compact] value: BalanceOf<T>,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let controller = ensure_signed(origin)?;
             let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
             ensure!(
@@ -428,17 +473,23 @@ pub mod pallet {
         /// - Writes: [Origin Account], Locks, System Account, Ledger
         /// # </weight>
         #[pallet::weight(100_000)]
-        pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn claim_rewards(origin: OriginFor<T>) -> DispatchResult {
             let controller = ensure_signed(origin)?;
             let mut ledger = Self::ledger(&controller).ok_or(Error::<T>::NotController)?;
+            Self::claim(&controller, &mut ledger)
+        }
 
-            let block_number = <frame_system::Pallet<T>>::block_number();
-            let reward = Self::get_reward(&ledger, block_number);
-            if reward > Zero::zero() {
-                let imbalance = T::Currency::deposit_into_existing(&ledger.stash, reward)?;
-                ledger.claimed_rewards = block_number;
-                Self::update_ledger(&controller, &ledger);
-                Self::deposit_event(Event::Reward(ledger.stash, imbalance.peek()));
+        /// Sudo call for extending list of bonus rates.
+        #[pallet::weight(100_000)]
+        pub fn extend_bonus(
+            origin: OriginFor<T>,
+            extra: Vec<(T::AccountId, BalanceOf<T>)>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+            for &(ref who, bonus_value) in extra.iter() {
+                <Bonus<T>>::mutate(who, |value| {
+                    *value = Some(value.unwrap_or(Zero::zero()) + bonus_value);
+                })
             }
             Ok(().into())
         }
@@ -506,6 +557,22 @@ pub mod pallet {
             let stake_reward = T::StakeReward::get() * stake;
 
             (bonus_reward + stake_reward) * duration.into()
+        }
+
+        /// Claim rewards and update ledger.
+        fn claim(
+            controller: &T::AccountId,
+            ledger: &mut StakerLedger<T::AccountId, BalanceOf<T>, T::BlockNumber>,
+        ) -> DispatchResult {
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            let reward = Self::get_reward(&ledger, block_number);
+            if reward > Zero::zero() {
+                let imbalance = T::Currency::deposit_into_existing(&ledger.stash, reward)?;
+                ledger.claimed_rewards = block_number;
+                Self::update_ledger(&controller, &ledger);
+                Self::deposit_event(Event::Reward(ledger.stash.clone(), imbalance.peek()));
+            }
+            Ok(().into())
         }
     }
 }
@@ -701,6 +768,24 @@ mod tests {
     }
 
     #[test]
+    fn bond_extra_should_works() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+
+            assert_ok!(Staking::bond(Origin::signed(BOB), BOB_C, 1 * XRT));
+            System::set_block_number(10);
+            assert_eq!(System::account(BOB).data.free, 42000000000);
+
+            assert_ok!(Staking::bond_extra(Origin::signed(BOB), 41 * XRT));
+            assert_eq!(System::account(BOB).data.free, 42000001800);
+
+            System::set_block_number(1_000);
+            assert_ok!(Staking::claim_rewards(Origin::signed(BOB_C)));
+            assert_eq!(System::account(BOB).data.free, 42006417000);
+        })
+    }
+
+    #[test]
     fn reward_should_works() {
         new_test_ext().execute_with(|| {
             System::set_block_number(1);
@@ -730,6 +815,25 @@ mod tests {
             System::set_block_number(5_000_000);
             assert_ok!(Staking::claim_rewards(Origin::signed(CHARLIE_C)));
             assert_eq!(System::account(CHARLIE).data.free, 11999999600000);
+        })
+    }
+
+    #[test]
+    fn extend_bonus_should_works() {
+        new_test_ext().execute_with(|| {
+            System::set_block_number(1);
+
+            assert_err!(
+                Staking::extend_bonus(Origin::signed(BOB), Default::default()),
+                sp_runtime::traits::BadOrigin,
+            );
+            assert_eq!(Staking::bonus(BOB), Some(30000000000));
+
+            assert_ok!(Staking::extend_bonus(Origin::root(), vec![(BOB, 100_000)]));
+            assert_eq!(Staking::bonus(BOB), Some(30000100000));
+
+            assert_ok!(Staking::extend_bonus(Origin::root(), vec![(BOB, 100_000)]));
+            assert_eq!(Staking::bonus(BOB), Some(30000200000));
         })
     }
 

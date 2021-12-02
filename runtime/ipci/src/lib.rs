@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 5,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -164,7 +164,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
@@ -332,6 +332,7 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
+    type DisabledValidators = ();
 }
 
 parameter_types! {
@@ -417,7 +418,7 @@ impl pallet_staking::Config for Runtime {
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
-    /// A super-majority of the council can cancel the slash.                                                             
+    /// A super-majority of the council can cancel the slash.
     type SlashCancelOrigin = MoreThanHalfTechnicals;
     type SessionInterface = Self;
     type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
@@ -460,19 +461,19 @@ parameter_types! {
 
 sp_npos_elections::generate_solution_type!(
     #[compact]
-    pub struct NposCompactSolution16::<
+    pub struct NposSolution16::<
         VoterIndex = u32,
         TargetIndex = u16,
         Accuracy = sp_runtime::PerU16,
     >(16)
 );
 
-pub const MAX_NOMINATIONS: u32 =
-    <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+pub const MAX_NOMINATIONS: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type EstimateCallFee = TransactionPayment;
     type SignedPhase = SignedPhase;
     type UnsignedPhase = UnsignedPhase;
     type SolutionImprovementThreshold = SolutionImprovementThreshold;
@@ -491,7 +492,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type RewardHandler = (); // nothing to do upon rewards
     type DataProvider = Staking;
     type OnChainAccuracy = Perbill;
-    type CompactSolution = NposCompactSolution16;
+    type Solution = NposSolution16;
     type Fallback = Fallback;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = MoreThanHalfTechnicals;
