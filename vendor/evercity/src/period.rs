@@ -5,6 +5,7 @@ use frame_support::{
     sp_runtime::RuntimeDebug,
     sp_std::cmp::Ordering,
 };
+use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +39,7 @@ impl PeriodDescr {
 }
 
 /// Struct, storing per-period coupon_yield and effective interest_rate for given bond
-#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug, TypeInfo)]
 pub struct PeriodYield {
     /// bond cumulative accrued yield for this period
     #[codec(compact)]

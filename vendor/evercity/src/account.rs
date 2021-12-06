@@ -2,6 +2,7 @@ use frame_support::{
     codec::{Decode, Encode},
     sp_runtime::RuntimeDebug,
 };
+use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +33,7 @@ pub const fn is_roles_correct(roles: u8) -> bool {
 /// Main structure, containing account data: roles(bit mask), identity(external id), creation_time.
 /// This structure is used to check and assign account roles
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, TypeInfo)]
 pub struct EvercityAccountStructT<Moment> {
     pub roles: u8,
     #[codec(compact)]
@@ -48,7 +49,7 @@ pub type EvercityAccountStructOf<T> =
 /// by paying USD to Custodian. Then Custodian confirms request, adding corresponding
 /// amount to mint request creator's balance
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, TypeInfo)]
 pub struct TokenMintRequestStruct<Moment> {
     #[codec(compact)]
     pub amount: EverUSDBalance,
@@ -68,7 +69,7 @@ pub type TokenMintRequestStructOf<T> =
 /// Structure, created by Issuer or Investor to burn EverUSD on her balance
 /// and receive corresponding amount of USD from Custodian.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, TypeInfo)]
 pub struct TokenBurnRequestStruct<Moment> {
     #[codec(compact)]
     pub amount: EverUSDBalance,

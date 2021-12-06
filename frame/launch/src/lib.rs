@@ -43,8 +43,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
-    
     pub enum Event<T: Config> {
         /// Launch a robot with given parameter: sender, robot, parameter.
         NewLaunch(T::AccountId, T::AccountId, T::Parameter),

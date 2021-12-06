@@ -58,11 +58,23 @@ pub mod alpha {
     pub use alpha_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        alpha_runtime::api::dispatch,
-        alpha_runtime::native_version,
-    );
+    pub struct AlphaExecutor;
+    impl sc_executor::NativeExecutionDispatch for AlphaExecutor {
+        /// Only enable the benchmarking host functions when we actually want to benchmark.
+        #[cfg(feature = "runtime-benchmarks")]
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+        /// Otherwise we only use the default Substrate host functions.
+        #[cfg(not(feature = "runtime-benchmarks"))]
+        type ExtendHostFunctions = ();
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            alpha_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            alpha_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(
@@ -72,7 +84,7 @@ pub mod alpha {
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
+        super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
             parachain_config,
             polkadot_config,
             para_id,
@@ -91,11 +103,18 @@ pub mod main {
     pub use main_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        main_runtime::api::dispatch,
-        main_runtime::native_version,
-    );
+    pub struct MainExecutor;
+    impl sc_executor::NativeExecutionDispatch for MainExecutor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            main_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            main_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(
@@ -105,7 +124,7 @@ pub mod main {
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
+        super::service::start_node_impl::<RuntimeApi, MainExecutor, _, _>(
             parachain_config,
             polkadot_config,
             para_id,
@@ -124,11 +143,18 @@ pub mod ipci {
     pub use ipci_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        ipci_runtime::api::dispatch,
-        ipci_runtime::native_version,
-    );
+    pub struct IPCIExecutor;
+    impl sc_executor::NativeExecutionDispatch for IPCIExecutor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            ipci_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            ipci_runtime::native_version()
+        }
+    }
 
     /// Start a normal parachain node.
     pub async fn start_node(
@@ -138,7 +164,7 @@ pub mod ipci {
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, Executor, _, _>(
+        super::service::start_node_impl::<RuntimeApi, IPCIExecutor, _, _>(
             parachain_config,
             polkadot_config,
             para_id,
