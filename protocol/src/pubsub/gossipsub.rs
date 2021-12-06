@@ -166,7 +166,7 @@ impl PubSubWorker {
 }
 
 impl Future for PubSubWorker {
-    type Output = Result<()>;
+    type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         loop {
@@ -243,9 +243,7 @@ pub struct PubSub {
 
 impl PubSub {
     /// Create Gossipsub based PubSub service and worker.
-    pub fn new(
-        heartbeat_interval: Duration,
-    ) -> Result<(Arc<Self>, impl Future<Output = Result<()>>)> {
+    pub fn new(heartbeat_interval: Duration) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
         PubSubWorker::new(heartbeat_interval).map(|worker| (worker.service.clone(), worker))
     }
 }
