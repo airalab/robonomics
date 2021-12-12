@@ -16,12 +16,12 @@
 // limitations under the License.
 
 // Benchmarks for Launch Pallet
-use frame_benchmarking::Vec;
-pub use pallet::*;
 use super::{Pallet as Launch, *};
+use codec::{Decode, Encode};
+use frame_benchmarking::Vec;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
-use codec::{Decode, Encode};
+pub use pallet::*;
 
 const SEED: u32 = 0;
 
@@ -32,12 +32,15 @@ fn setup_param<T: Config>() -> T::Parameter {
     v.using_encoded(|mut slice| T::Parameter::decode(&mut slice).unwrap_or_default())
 }
 
-fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str>
-{
-    let data: T::AccountId =  account("caller", 1, SEED );
+fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str> {
+    let data: T::AccountId = account("caller", 1, SEED);
     let param = setup_param::<T>();
     for _ in 0..1000 {
-       Launch::<T>::launch(RawOrigin::Signed(caller.clone()).into(), data.clone(), param.clone())?;
+        Launch::<T>::launch(
+            RawOrigin::Signed(caller.clone()).into(),
+            data.clone(),
+            param.clone(),
+        )?;
     }
     Ok(())
 }
@@ -50,7 +53,7 @@ benchmarks! {
         let param = setup_param::<T>();
         setup_launch::<T>( caller.clone() )?;
     }: _( RawOrigin::Signed(caller), data, param)
-    
+
     verify {
     }
 }

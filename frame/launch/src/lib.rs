@@ -26,9 +26,9 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
 
+    use frame_support::inherent::Vec;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use frame_support::inherent::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -39,12 +39,12 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-	pub type Goal<T> = StorageValue<_, <T as Config>::Parameter>;
+    pub type Goal<T> = StorageValue<_, <T as Config>::Parameter>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
-    
+
     pub enum Event<T: Config> {
         /// Launch a robot with given parameter: sender, robot, parameter.
         NewLaunch(T::AccountId, T::AccountId, T::Parameter),
