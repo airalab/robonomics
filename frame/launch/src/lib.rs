@@ -76,17 +76,15 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use base58::FromBase58;
-    use frame_support::{assert_err, assert_ok, parameter_types};
+
+    use frame_support::{assert_ok, parameter_types};
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{testing::Header, traits::IdentityLookup};
 
     use crate::{self as launch, *};
 
     type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
-    type Item = RingBufferItem<Runtime>;
-    type RuntimeError = Error<Runtime>;
 
     frame_support::construct_runtime!(
         pub enum Runtime where
@@ -144,13 +142,8 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Time = Timestamp;
-        type Parameter = bool;
+        type Parameter = Vec <u8>;
         type Event = Event;
-
-        type WindowSize = WindowSize;
-        type MaximumMessageSize = MaximumMessageSize;
-        type WeightInfo = ();
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -159,13 +152,14 @@ mod tests {
             .unwrap();
         storage.into()
     }
-
+    
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let param = true;
-            assert_ok!(Launch::record(Origin::signed(sender), param.clone()));
+            let param = vec![0,1];
+            let data = 0;
+            assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
     }
 }
