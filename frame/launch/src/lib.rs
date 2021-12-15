@@ -142,7 +142,7 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Parameter = Vec <u8>;
+        type Parameter = Vec<u8>;
         type Event = Event;
     }
 
@@ -152,12 +152,12 @@ mod tests {
             .unwrap();
         storage.into()
     }
-    
+
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let param = vec![0,1];
+            let param = vec![0, 1];
             let data = 0;
             assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
