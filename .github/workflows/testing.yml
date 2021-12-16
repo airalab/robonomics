@@ -15,6 +15,7 @@ jobs:
         uname -a
         sudo apt update -qy
         sudo apt install zlib1g-dev lib32z1
+        export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu
         sudo ldconfig
         find /usr /home /snap /nix -name libz.so* | grep libz.so*
     - name: Run all tests
