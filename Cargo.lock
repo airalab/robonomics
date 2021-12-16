@@ -8329,7 +8329,6 @@ dependencies = [
  "hex-literal 0.3.3",
  "ipci-runtime",
  "jsonrpc-core",
- "libz-sys",
  "local-runtime",
  "log",
  "main-runtime",
