@@ -12,7 +12,7 @@ jobs:
         nix_path: nixpkgs=channel:nixos-21.05
     - name: Install packages
       run: |
-        apt update -qy
-        apt install zlib1g-dev
+        sudo apt update -qy
+        sudo apt install zlib1g-dev
     - name: Run all tests
       run: nix-shell --run "cargo test --all --locked"
