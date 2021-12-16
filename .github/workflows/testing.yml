@@ -11,4 +11,4 @@ jobs:
       with:
         nix_path: nixpkgs=channel:nixos-21.05
     - name: Run all tests
-      run: nix-shell --run "export LD_LIBRARY_PATH=$(dirname $(find /nix/store -name libz.so.1.* | grep libz.so.1)) && cargo test --all --locked"
+      run: nix-shell --run "export LD_LIBRARY_PATH=$(dirname $(find /nix/store -name libz.so.1.* )) && cargo test --all --locked"
