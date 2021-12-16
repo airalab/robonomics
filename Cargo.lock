@@ -8236,60 +8236,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "robonomics-bench"
-version = "1.1.0"
-dependencies = [
- "derive_more",
- "frame-system",
- "fs_extra",
- "futures 0.3.17",
- "hash-db",
- "hex",
- "kvdb",
- "kvdb-rocksdb",
- "lazy_static",
- "local-runtime",
- "log",
- "pallet-balances",
- "pallet-robonomics-datalog",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "parity-db",
- "parity-scale-codec",
- "parity-util-mem",
- "rand 0.7.3",
- "robonomics-primitives",
- "robonomics-service",
- "sc-basic-authorship",
- "sc-block-builder",
- "sc-cli",
- "sc-client-api",
- "sc-client-db",
- "sc-executor",
- "sc-service",
- "sc-transaction-pool",
- "serde",
- "serde_json",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-state-machine",
- "sp-timestamp",
- "sp-tracing",
- "sp-transaction-pool",
- "sp-trie",
- "structopt",
- "substrate-test-client",
- "tempfile",
-]
-
-[[package]]
 name = "robonomics-node"
 version = "1.2.2"
 dependencies = [
@@ -10979,35 +10925,6 @@ dependencies = [
  "quote",
  "syn",
  "synstructure",
-]
-
-[[package]]
-name = "substrate-test-client"
-version = "2.0.1"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.10#acb44df78015906174daf359b40916b7bef58c57"
-dependencies = [
- "async-trait",
- "futures 0.1.31",
- "futures 0.3.17",
- "hash-db",
- "hex",
- "parity-scale-codec",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-executor",
- "sc-light",
- "sc-offchain",
- "sc-service",
- "serde",
- "serde_json",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-keyring",
- "sp-keystore",
- "sp-runtime",
- "sp-state-machine",
 ]
 
 [[package]]
