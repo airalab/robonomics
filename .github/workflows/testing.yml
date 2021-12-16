@@ -16,6 +16,6 @@ jobs:
         sudo apt update -qy
         sudo apt install zlib1g-dev lib32z1
         sudo ldconfig
-        find / -name libz.so* | grep libz.so*
+        find /usr /home /snap /nix -name libz.so* | grep libz.so*
     - name: Run all tests
       run: nix-shell --run "cargo test --all --locked"
