@@ -13,5 +13,6 @@ jobs:
     - name: Install packages
       run: |
         uname -a
+        find /nix/store -name libz.so.1.* | grep libz.so.1.*
     - name: Run all tests
-      run: nix-shell --run 'export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu" && cargo test --all --locked'
+      run: nix-shell --run "export LD_LIBRARY_PATH=$(dirname $(find /nix/store -name libz.so.1.* | grep libz.so.1)) && cargo test --all --locked"
