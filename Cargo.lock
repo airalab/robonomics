@@ -5819,9 +5819,13 @@ dependencies = [
 name = "pallet-robonomics-launch"
 version = "0.3.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-timestamp",
  "parity-scale-codec",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
 ]
 
@@ -8233,60 +8237,6 @@ checksum = "999508abb0ae792aabed2460c45b89106d97fe4adac593bdaef433c2605847b5"
 dependencies = [
  "bytes 1.1.0",
  "rustc-hex",
-]
-
-[[package]]
-name = "robonomics-bench"
-version = "1.1.0"
-dependencies = [
- "derive_more",
- "frame-system",
- "fs_extra",
- "futures 0.3.17",
- "hash-db",
- "hex",
- "kvdb",
- "kvdb-rocksdb",
- "lazy_static",
- "local-runtime",
- "log",
- "pallet-balances",
- "pallet-robonomics-datalog",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "parity-db",
- "parity-scale-codec",
- "parity-util-mem",
- "rand 0.7.3",
- "robonomics-primitives",
- "robonomics-service",
- "sc-basic-authorship",
- "sc-block-builder",
- "sc-cli",
- "sc-client-api",
- "sc-client-db",
- "sc-executor",
- "sc-service",
- "sc-transaction-pool",
- "serde",
- "serde_json",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-state-machine",
- "sp-timestamp",
- "sp-tracing",
- "sp-transaction-pool",
- "sp-trie",
- "structopt",
- "substrate-test-client",
- "tempfile",
 ]
 
 [[package]]
@@ -10979,35 +10929,6 @@ dependencies = [
  "quote",
  "syn",
  "synstructure",
-]
-
-[[package]]
-name = "substrate-test-client"
-version = "2.0.1"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.10#acb44df78015906174daf359b40916b7bef58c57"
-dependencies = [
- "async-trait",
- "futures 0.1.31",
- "futures 0.3.17",
- "hash-db",
- "hex",
- "parity-scale-codec",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-executor",
- "sc-light",
- "sc-offchain",
- "sc-service",
- "serde",
- "serde_json",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-keyring",
- "sp-keystore",
- "sp-runtime",
- "sp-state-machine",
 ]
 
 [[package]]
