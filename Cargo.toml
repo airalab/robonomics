@@ -4,7 +4,7 @@ members = [
     "bin/node",
     "bin/node/rpc",
     "bin/node/service",
-    "bin/bench",
+#    "bin/bench",
 #    "cli",
     "frame/rws",
     "frame/launch",
@@ -29,6 +29,7 @@ exclude = [
     "cli",
     "protocol",
     "vendor",
+    "bin/bench",
 ]
 
 # Enhanced features resolver
