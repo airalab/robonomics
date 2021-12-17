@@ -19,7 +19,6 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 
 [features]
 default = ["std"]
-storage-v0 = []
 std = [
     "codec/std",
     "sp-runtime/std",

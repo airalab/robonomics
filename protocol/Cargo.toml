@@ -12,8 +12,8 @@ codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"]
 async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", default-features = false, features = ["tokio02"] }
-substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt" }
+substrate-subxt = { git = "https://github.com/paritytech/subxt", rev = "8f0641e6606846b1e7a8c4b98a1a11d6f61a4773", default-features = false, features = ["tokio02"] }
+substrate-subxt-proc-macro = { git = "https://github.com/paritytech/subxt", rev = "8f0641e6606846b1e7a8c4b98a1a11d6f61a4773" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
 libp2p = "0.38"
