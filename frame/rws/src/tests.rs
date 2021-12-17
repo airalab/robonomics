@@ -172,11 +172,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     let _ = pallet_balances::GenesisConfig::<Runtime> {
-        balances: vec![
-            (ALICE, 10_000_000),
-            (BOB, 42_000),
-            (CHARLIE, 10_000),
-        ],
+        balances: vec![(ALICE, 10_000_000), (BOB, 42_000), (CHARLIE, 10_000)],
     }
     .assimilate_storage(&mut storage);
 

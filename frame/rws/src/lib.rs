@@ -103,7 +103,7 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ReservableCurrency, Time, UnfilteredDispatchable, Imbalance},
+        traits::{Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable},
         weights::GetDispatchInfo,
     };
     use frame_system::pallet_prelude::*;
@@ -416,10 +416,8 @@ pub mod pallet {
             for (_, auction) in finished.iter() {
                 if let Some(subscription_id) = &auction.winner {
                     // transfer reserve to reward pool
-                    let (slash, _) = T::AuctionCurrency::slash_reserved(
-                        &subscription_id,
-                        auction.best_price,
-                    );
+                    let (slash, _) =
+                        T::AuctionCurrency::slash_reserved(&subscription_id, auction.best_price);
                     T::AuctionCurrency::burn(slash.peek());
                     // register subscription
                     <Ledger<T>>::insert(
