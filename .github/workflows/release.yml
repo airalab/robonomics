@@ -66,7 +66,7 @@ jobs:
         nix_path: nixpkgs=channel:nixos-21.11
 
     - name: Build crates documentation
-      run: nix-shell --run "cargo doc --workspace --release --no-deps"
+      run: nix-shell --run "cargo doc --workspace --no-deps"
 
     - name: Push index.html
       run: echo "<meta http-equiv=\"refresh\" content=\"0; URL='./robonomics_protocol/index.html'\" />" > ./target/doc/index.html

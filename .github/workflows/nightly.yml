@@ -86,4 +86,4 @@ jobs:
         nix_path: nixpkgs=channel:nixos-21.11
 
     - name: Build using Nix shell
-      run: nix-shell --run "cargo build --release --locked"
+      run: nix-shell --run "cargo build --locked"
