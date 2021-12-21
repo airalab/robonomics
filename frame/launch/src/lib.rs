@@ -26,14 +26,13 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
 
-    use frame_support::inherent::Vec;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
-        type Parameter: Parameter + Default + From<Vec<u8>>;
+        type Parameter: Parameter + Default + From<bool>;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
@@ -142,7 +141,7 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Parameter = Vec<u8>;
+        type Parameter = bool;
         type Event = Event;
     }
 
@@ -157,7 +156,7 @@ mod tests {
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let param = vec![0, 1];
+            let param = true;
             let data = 0;
             assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
