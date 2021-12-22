@@ -32,7 +32,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
-        type Parameter: Parameter + Default + From<bool>;
+        type Parameter: Parameter + Default;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
