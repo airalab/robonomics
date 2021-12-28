@@ -25,13 +25,13 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2021-06-03
+        toolchain: nightly-2021-11-02
         target: ${{ matrix.target }}
         components: rustfmt, clippy
         default: true
 
     - name: Install WASM target (for runtime building)
-      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-06-03
+      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-02
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
