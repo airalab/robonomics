@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 5,
+    spec_version: 6,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -422,7 +422,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
-    type Parameter = Vec<u8>;
+    type Parameter = bool;
     type Event = Event;
 }
 
@@ -437,7 +437,7 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
 }
 
 parameter_types! {
-    pub const BondingDuration: BlockNumber = 7 * 24 * 60 * 5; // 7 days
+    pub const BondingDuration: BlockNumber = 30 * 24 * 60 * 5; // 30 days
     pub const StakeReward: Perbill = Perbill::from_parts(40);
     pub const BonusReward: Perbill = Perbill::from_parts(200);
 }
@@ -448,6 +448,33 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;
     type BonusReward = BonusReward;
+    type OnBond = RWS;
+}
+
+parameter_types! {
+    pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
+    pub const WeightLimit: Weight = Weight::max_value() / 2;
+    pub const AuctionDuration: BlockNumber = 10;
+    pub const AuctionCost: Balance = 200 * XRT;
+    pub const MinimalBid: Balance = 1 * XRT;
+}
+
+impl pallet_robonomics_rws::Config for Runtime {
+    type Call = Call;
+    type Time = Timestamp;
+    type Moment = Moment;
+    type AuctionIndex = u32;
+    type AuctionCurrency = Balances;
+    type Event = Event;
+    type ReferenceCallWeight = ReferenceCallWeight;
+    type WeightLimit = WeightLimit;
+    type AuctionDuration = AuctionDuration;
+    type AuctionCost = AuctionCost;
+    type MinimalBid = MinimalBid;
+}
+
+impl pallet_robonomics_digital_twin::Config for Runtime {
+    type Event = Event;
 }
 
 construct_runtime! {
@@ -482,6 +509,8 @@ construct_runtime! {
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 51,
         Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>} = 52,
         Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>} = 54,
+        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>} = 55,
 
         Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 60,
     }

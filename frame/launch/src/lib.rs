@@ -28,23 +28,22 @@ pub mod pallet {
 
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use frame_support::inherent::Vec;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
-        type Parameter: Parameter + Default + From<Vec<u8>>;
+        type Parameter: Parameter + Default;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
 
     #[pallet::storage]
-	pub type Goal<T> = StorageValue<_, <T as Config>::Parameter>;
+    pub type Goal<T> = StorageValue<_, <T as Config>::Parameter>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     #[pallet::metadata(T::AccountId = "AccountId", T::Parameter = "LaunchParameter")]
-    
+
     pub enum Event<T: Config> {
         /// Launch a robot with given parameter: sender, robot, parameter.
         NewLaunch(T::AccountId, T::AccountId, T::Parameter),
@@ -76,17 +75,15 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use base58::FromBase58;
-    use frame_support::{assert_err, assert_ok, parameter_types};
+
+    use frame_support::{assert_ok, parameter_types};
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{testing::Header, traits::IdentityLookup};
 
     use crate::{self as launch, *};
 
     type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
-    type Item = RingBufferItem<Runtime>;
-    type RuntimeError = Error<Runtime>;
 
     frame_support::construct_runtime!(
         pub enum Runtime where
@@ -144,13 +141,8 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Time = Timestamp;
         type Parameter = bool;
         type Event = Event;
-
-        type WindowSize = WindowSize;
-        type MaximumMessageSize = MaximumMessageSize;
-        type WeightInfo = ();
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -165,7 +157,8 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let param = true;
-            assert_ok!(Launch::record(Origin::signed(sender), param.clone()));
+            let data = 0;
+            assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
     }
 }
