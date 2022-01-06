@@ -36,7 +36,10 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 
 pub mod constants;
 
-use frame_election_provider_support::onchain::OnChainSequentialPhragmen;
+/// Generated voter bag information.
+mod voter_bags;
+
+use codec::Decode;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{Currency, Imbalance, OnUnbalanced},
@@ -80,7 +83,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 5,
+    spec_version: 6,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -256,6 +259,7 @@ parameter_types! {
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
+    pub OperationalFeeMultiplier: u8 = 5;
 }
 
 pub struct WeightToFee;
@@ -279,6 +283,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type WeightToFee = WeightToFee;
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 parameter_types! {
@@ -313,6 +318,7 @@ impl pallet_sudo::Config for Runtime {
 parameter_types! {
     // We do anything the parent chain tells us in this runtime.
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 2;
+    pub const MaxAuthorities: u32 = 32;
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -331,12 +337,17 @@ impl parachain_info::Config for Runtime {}
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_aura::Config for Runtime {
+    type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
 }
 
 parameter_types! {
     pub const UncleGenerations: BlockNumber = 5;
+    pub const MaxKeys: u32 = 10_000;
+    pub const MaxPeerInHeartbeats: u32 = 10_000;
+    pub const MaxPeerDataEncodingSize: u32 = 1_000;
+
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -354,6 +365,9 @@ impl pallet_im_online::Config for Runtime {
     type ReportUnresponsiveness = Offences;
     type UnsignedPriority = ImOnlineUnsignedPriority;
     type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
+    type MaxKeys = MaxKeys;
+    type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+    type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
 }
 
 impl pallet_offences::Config for Runtime {
@@ -377,7 +391,6 @@ impl pallet_session::Config for Runtime {
     type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
     type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
     type Keys = SessionKeys;
-    type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
     type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
@@ -404,6 +417,13 @@ parameter_types! {
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
     pub OffchainRepeat: BlockNumber = 5;
+    pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
+}
+
+use frame_election_provider_support::onchain;
+impl onchain::Config for Runtime {
+    type Accuracy = Perbill;
+    type DataProvider = Staking;
 }
 
 impl pallet_staking::Config for Runtime {
@@ -425,9 +445,12 @@ impl pallet_staking::Config for Runtime {
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type ElectionProvider = ElectionProviderMultiPhase;
-    type GenesisElectionProvider =
-        OnChainSequentialPhragmen<pallet_election_provider_multi_phase::OnChainConfig<Self>>;
+    type GenesisElectionProvider = onchain::OnChainSequentialPhragmen<Self>;
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
+    type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
+    // Alternatively, use pallet_staking::UseNominatorsMap<Runtime> to just use the nominators map
+    // Note that the aforementioned does not scale to a very large number of nominators.
+    type SortedListProvider = BagsList;
 }
 
 parameter_types! {
@@ -441,10 +464,6 @@ parameter_types! {
     pub const SignedDepositBase: Balance = 1 * MITO;
     pub const SignedDepositByte: Balance = 1 * U_MITO;
 
-    // fallback: no need to do on-chain phragmen initially.
-    pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-        pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
-
     pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
     // miner configs
@@ -457,6 +476,22 @@ parameter_types! {
     // Solution can occupy 90% of normal block size
     pub MinerMaxLength: u32 = Perbill::from_rational(9u32, 10) *
         * RuntimeBlockLength::get().max.get(DispatchClass::Normal);
+
+    // BagsList allows a practically unbounded count of nominators to participate in NPoS election
+    // To ensure we respect memory limits when using the BagsList this must be set to a number of
+    // voters we know can fit into a single vec allocation.
+    pub const VoterSnapshotPerBlock: u32 = 10_000;
+}
+
+parameter_types! {
+    pub const BagThresholds: &'static [u64] = &voter_bags::THRESHOLDS;
+}
+
+impl pallet_bags_list::Config for Runtime {
+    type Event = Event;
+    type VoteWeightProvider = Staking;
+    type WeightInfo = pallet_bags_list::weights::SubstrateWeight<Runtime>;
+    type BagThresholds = BagThresholds;
 }
 
 sp_npos_elections::generate_solution_type!(
@@ -470,6 +505,32 @@ sp_npos_elections::generate_solution_type!(
 
 pub const MAX_NOMINATIONS: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 
+/// Maximum number of iterations for balancing that will be executed in the embedded OCW
+/// miner of election provider multi phase.
+pub const MINER_MAX_ITERATIONS: u32 = 10;
+
+/// A source of random balance for NposSolver, which is meant to be run by the OCW election miner.
+pub struct OffchainRandomBalancing;
+impl frame_support::pallet_prelude::Get<Option<(usize, sp_npos_elections::ExtendedBalance)>>
+    for OffchainRandomBalancing
+{
+    fn get() -> Option<(usize, sp_npos_elections::ExtendedBalance)> {
+        use sp_runtime::traits::TrailingZeroInput;
+        let iters = match MINER_MAX_ITERATIONS {
+            0 => 0,
+            max @ _ => {
+                let seed = sp_io::offchain::random_seed();
+                let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
+                    .expect("input is padded with zeroes; qed")
+                    % max.saturating_add(1);
+                random as usize
+            }
+        };
+
+        Some((iters, 0))
+    }
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -478,7 +539,6 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type UnsignedPhase = UnsignedPhase;
     type SolutionImprovementThreshold = SolutionImprovementThreshold;
     type OffchainRepeat = OffchainRepeat;
-    type MinerMaxIterations = MinerMaxIterations;
     type MinerMaxWeight = MinerMaxWeight;
     type MinerMaxLength = MinerMaxLength;
     type MinerTxPriority = MultiPhaseUnsignedPriority;
@@ -491,12 +551,17 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type SlashHandler = (); // burn slashes
     type RewardHandler = (); // nothing to do upon rewards
     type DataProvider = Staking;
-    type OnChainAccuracy = Perbill;
     type Solution = NposSolution16;
-    type Fallback = Fallback;
+    type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
+    type Solver = frame_election_provider_support::SequentialPhragmen<
+        AccountId,
+        pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
+        OffchainRandomBalancing,
+    >;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = MoreThanHalfTechnicals;
     type BenchmarkingConfig = ();
+    type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
 }
 
 parameter_types! {
@@ -686,6 +751,7 @@ construct_runtime! {
         // Evercity pallets.
         Evercity: pallet_evercity::{Pallet, Call, Storage, Event<T>} = 70,
         EvercityTransfer: pallet_evercity_transfer::{Pallet, Call, Storage, Event<T>} = 71,
+        BagsList: pallet_bags_list::{Pallet, Call, Storage, Event<T>},
     }
 }
 
@@ -745,7 +811,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-            Runtime::metadata().into()
+            OpaqueMetadata::new(Runtime::metadata().into())
         }
     }
 
@@ -820,7 +886,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities()
+            Aura::authorities().into_inner()
         }
     }
 

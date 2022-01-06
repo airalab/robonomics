@@ -171,7 +171,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(T::AuctionIndex = "AuctionIndex", T::AccountId = "AccountId")]
     pub enum Event<T: Config> {
         /// New subscription auction bid received.
         NewBid(T::AuctionIndex, T::AccountId, BalanceOf<T>),
