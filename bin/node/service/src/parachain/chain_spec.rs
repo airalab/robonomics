@@ -66,10 +66,6 @@ impl Extensions {
 pub type AlphaChainSpec = sc_service::GenericChainSpec<alpha_runtime::GenesisConfig, Extensions>;
 
 pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
-    if id == ParaId::from(KUSAMA_ID) {
-        return kusama_parachain_config();
-    }
-
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
