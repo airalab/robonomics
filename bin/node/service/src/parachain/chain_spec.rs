@@ -66,6 +66,10 @@ impl Extensions {
 pub type AlphaChainSpec = sc_service::GenericChainSpec<alpha_runtime::GenesisConfig, Extensions>;
 
 pub fn get_alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
+    if id == ParaId::from(KUSAMA_ID) {
+        return kusama_parachain_config();
+    }
+
     if id == ParaId::from(MARS_ID) {
         return mars_parachain_config();
     }
@@ -300,7 +304,6 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
         },
     )
 }
-*/
 
 /// Kusama parachain genesis.
 fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
@@ -334,7 +337,6 @@ pub fn kusama_parachain_config() -> MainChainSpec {
     )
 }
 
-/*
 /// Ipci parachain genesis.
 fn ipci_parachain_genesis() -> ipci_runtime::GenesisConfig {
     use ipci_runtime::constants::currency;
@@ -392,7 +394,7 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
 
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]
-pub fn frontier_parachain_config() -> MainChainSpec {
+pub fn kusama_parachain_config() -> MainChainSpec {
     MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.raw.json")[..]).unwrap()
 }
 
