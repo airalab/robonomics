@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
@@ -168,10 +168,7 @@ fn mk_genesis(
 ) -> GenesisConfig {
     let bonus = balances.clone();
     GenesisConfig {
-        system: SystemConfig {
-            code,
-            changes_trie_config: Default::default(),
-        },
+        system: SystemConfig { code },
         balances: BalancesConfig { balances },
         aura: AuraConfig {
             authorities: initial_authorities.iter().map(|x| x.0.clone()).collect(),

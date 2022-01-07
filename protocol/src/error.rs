@@ -22,7 +22,7 @@ use futures::Future;
 use libp2p::core::connection::ConnectionLimit;
 use libp2p::core::transport::TransportError;
 use std::pin::Pin;
-use substrate_subxt::MetadataError;
+// use substrate_subxt::MetadataError;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -42,8 +42,8 @@ pub enum Error {
     Transport(TransportError<std::io::Error>),
     /// Libp2p connection limit error.
     ConnectionLimit(ConnectionLimit),
-    /// Transaction sending error.
-    SubmitFailure(substrate_subxt::Error),
+    // /// Transaction sending error.
+    // SubmitFailure(substrate_subxt::Error),
     /// Codec error.
     Codec(bincode::Error),
     /// Unable to decode address.
@@ -60,11 +60,11 @@ impl<'a> From<&'a str> for Error {
     }
 }
 
-impl From<MetadataError> for Error {
-    fn from(_: MetadataError) -> Self {
-        Error::MetadataError
-    }
-}
+// impl From<MetadataError> for Error {
+//     fn from(_: MetadataError) -> Self {
+//         Error::MetadataError
+//     }
+// }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {

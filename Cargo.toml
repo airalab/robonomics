@@ -9,7 +9,6 @@ members = [
     "frame/rws",
     "frame/launch",
     "frame/datalog",
-    "frame/datalog/xcm",
     "frame/liability",
     "frame/lighthouse",
     "frame/digital-twin",

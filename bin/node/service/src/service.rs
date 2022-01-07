@@ -21,6 +21,7 @@ use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa as grandpa;
 use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
@@ -30,7 +31,8 @@ use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPai
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::{sync::Arc, time::Duration};
 
-type FullClient<Runtime, Executor> = sc_service::TFullClient<Block, Runtime, Executor>;
+type FullClient<Runtime, Executor> =
+    sc_service::TFullClient<Block, Runtime, NativeElseWasmExecutor<Executor>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport<Runtime, Executor> =
@@ -107,17 +109,27 @@ where
             Ok((worker, telemetry))
         })
         .transpose()?;
+
+    let executor = NativeElseWasmExecutor::<Executor>::new(
+        config.wasm_method,
+        config.default_heap_pages,
+        config.max_runtime_instances,
+    );
+
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, Runtime, Executor>(
+        sc_service::new_full_parts::<Block, Runtime, _>(
             &config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+            executor,
         )?;
 
     let client = Arc::new(client);
     let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        task_manager
+            .spawn_handle()
+            .spawn("telemetry", None, worker.run());
         telemetry
     });
 
@@ -166,7 +178,7 @@ where
         PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
     task_manager
         .spawn_handle()
-        .spawn("pubsub_service", pubsub_worker);
+        .spawn("pubsub_service", None, pubsub_worker);
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -239,6 +251,7 @@ where
     let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
         grandpa_link.shared_authority_set().clone(),
+        Vec::default(),
     ));
 
     let (network, system_rpc_tx, network_starter) =
@@ -248,7 +261,6 @@ where
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
-            on_demand: None,
             block_announce_validator_builder: None,
             warp_sync: Some(warp_sync),
         })?;
@@ -279,8 +291,6 @@ where
         rpc_extensions_builder: Box::new(rpc_extensions_builder),
         transaction_pool: transaction_pool.clone(),
         task_manager: &mut task_manager,
-        on_demand: None,
-        remote_blockchain: None,
         system_rpc_tx,
         telemetry: telemetry.as_mut(),
     })?;
@@ -334,7 +344,7 @@ where
         // fails we take down the service with it.
         task_manager
             .spawn_essential_handle()
-            .spawn_blocking("aura", aura);
+            .spawn_blocking("aura", Some("block-authoring"), aura);
     }
 
     // if the node isn't actively participating in consensus then it doesn't
@@ -375,9 +385,11 @@ where
 
         // the GRANDPA voter task is considered infallible, i.e.
         // if it fails we take down the service with it.
-        task_manager
-            .spawn_essential_handle()
-            .spawn_blocking("grandpa-voter", grandpa::run_grandpa_voter(grandpa_config)?);
+        task_manager.spawn_essential_handle().spawn_blocking(
+            "grandpa-voter",
+            None,
+            grandpa::run_grandpa_voter(grandpa_config)?,
+        );
     }
 
     network_starter.start_network();
@@ -389,24 +401,27 @@ pub mod robonomics {
     use local_runtime::RuntimeApi;
     use sc_service::{config::Configuration, error::Result, TaskManager};
 
-    #[cfg(feature = "frame-benchmarking")]
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        local_runtime::api::dispatch,
-        local_runtime::native_version,
-        frame_benchmarking::benchmarking::HostFunctions,
-    );
+    pub struct LocalExecutor;
+    impl sc_executor::NativeExecutionDispatch for LocalExecutor {
+        /// Only enable the benchmarking host functions when we actually want to benchmark.
+        #[cfg(feature = "runtime-benchmarks")]
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+        /// Otherwise we only use the default Substrate host functions.
+        #[cfg(not(feature = "runtime-benchmarks"))]
+        type ExtendHostFunctions = ();
 
-    #[cfg(not(feature = "frame-benchmarking"))]
-    sc_executor::native_executor_instance!(
-        pub Executor,
-        local_runtime::api::dispatch,
-        local_runtime::native_version,
-    );
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            local_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            local_runtime::native_version()
+        }
+    }
 
     /// Create a new Robonomics service.
     pub fn new(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {
-        super::full_base::<RuntimeApi, Executor>(config, heartbeat_interval)
+        super::full_base::<RuntimeApi, LocalExecutor>(config, heartbeat_interval)
             .map(|(task_manager, _, _, _)| task_manager)
     }
 }

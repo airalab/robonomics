@@ -27,7 +27,7 @@ use sp_core::sr25519;
 use crate::chain_spec::get_account_id_from_seed;
 
 /// Kusama parachain ID
-pub const KUSAMA_ID: u32 = 2077;
+pub const KUSAMA_ID: u32 = 2048;
 /// Mars parachain ID
 pub const MARS_ID: u32 = 2000;
 /// Ipci parachain ID
@@ -144,7 +144,6 @@ fn mk_genesis_alpha(
     alpha_runtime::GenesisConfig {
         system: alpha_runtime::SystemConfig {
             code: alpha_runtime::wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
         },
         balances: alpha_runtime::BalancesConfig { balances },
         elections: Default::default(),
@@ -188,6 +187,7 @@ pub fn mercury_parachain_config() -> AlphaChainSpec {
         },
     )
 }
+*/
 
 /// Helper function to create GenesisConfig for main parachain
 fn mk_genesis_main(
@@ -195,19 +195,21 @@ fn mk_genesis_main(
     sudo_key: AccountId,
     parachain_id: ParaId,
 ) -> main_runtime::GenesisConfig {
-    let bonus = balances.clone();
     main_runtime::GenesisConfig {
         system: main_runtime::SystemConfig {
             code: main_runtime::wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
         },
         balances: main_runtime::BalancesConfig { balances },
-        staking: main_runtime::StakingConfig { bonus },
+        staking: main_runtime::StakingConfig { bonus: vec![] },
         sudo: main_runtime::SudoConfig { key: sudo_key },
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
+        treasury: Default::default(),
+        technical_committee: Default::default(),
+        technical_membership: Default::default(),
     }
 }
 
+/*
 fn ipci_session_keys(
     aura: ipci_runtime::AuraId,
     im_online: ipci_runtime::ImOnlineId,
@@ -226,7 +228,6 @@ fn mk_genesis_ipci(
     ipci_runtime::GenesisConfig {
         system: ipci_runtime::SystemConfig {
             code: ipci_runtime::wasm_binary_unwrap().to_vec(),
-            changes_trie_config: Default::default(),
         },
         balances: ipci_runtime::BalancesConfig { balances },
         parachain_info: ipci_runtime::ParachainInfoConfig { parachain_id },
@@ -299,6 +300,7 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
         },
     )
 }
+*/
 
 /// Kusama parachain genesis.
 fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
@@ -309,7 +311,7 @@ fn kusama_parachain_genesis() -> main_runtime::GenesisConfig {
     let sudo_key: AccountId =
         hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
 
-    let balances = currency::STAKE_HOLDERS.clone();
+    let balances = vec![(sudo_key.clone(), 1000 * currency::XRT)];
     mk_genesis_main(balances.to_vec(), sudo_key, KUSAMA_ID.into())
 }
 
@@ -332,6 +334,7 @@ pub fn kusama_parachain_config() -> MainChainSpec {
     )
 }
 
+/*
 /// Ipci parachain genesis.
 fn ipci_parachain_genesis() -> ipci_runtime::GenesisConfig {
     use ipci_runtime::constants::currency;
@@ -389,7 +392,7 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
 
 /// Kusama parachain confing.
 #[cfg(feature = "kusama")]
-pub fn kusama_parachain_config() -> MainChainSpec {
+pub fn frontier_parachain_config() -> MainChainSpec {
     MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.raw.json")[..]).unwrap()
 }
 
