@@ -77,7 +77,7 @@ impl frame_system::Config for Runtime {
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type DbWeight = ();
-    type BaseCallFilter = ();
+    type BaseCallFilter = frame_support::traits::Everything;
     type SystemWeightInfo = ();
     type BlockWeights = ();
     type BlockLength = ();
@@ -263,7 +263,9 @@ fn test_simple_subscription() {
         assert_eq!(RWS::ledger(ALICE).unwrap().issue_time, 1600438152000);
         assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 0);
 
-        let call = Call::from(datalog::Call::record("true".into()));
+        let call = Call::from(datalog::Call::record {
+            record: "true".into(),
+        });
         assert_err!(
             RWS::call(Origin::signed(BOB), ALICE, Box::new(call.clone())),
             Error::<Runtime>::FreeWeightIsNotEnough,

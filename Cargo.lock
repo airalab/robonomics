@@ -5703,17 +5703,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-robonomics-datalog-xcm"
-version = "0.3.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-robonomics-datalog",
- "parity-scale-codec",
- "xcm",
-]
-
-[[package]]
 name = "pallet-robonomics-digital-twin"
 version = "0.2.1"
 dependencies = [
@@ -5782,6 +5771,7 @@ version = "1.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "pallet-robonomics-datalog",
  "pallet-robonomics-staking",
  "pallet-timestamp",
