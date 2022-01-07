@@ -22,7 +22,6 @@
 #![allow(clippy::from_over_into)]
 
 pub use pallet::*;
-use scale_info::TypeInfo;
 pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]

@@ -22,6 +22,7 @@
 
 use codec::{Decode, Encode, HasCompact};
 use frame_support::pallet_prelude::Weight;
+use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 #[cfg(test)]
@@ -29,7 +30,7 @@ mod tests;
 
 pub use pallet::*;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub enum Subscription {
     /// Lifetime subscription.
     Lifetime {
@@ -51,7 +52,7 @@ impl Default for Subscription {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Default, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Default, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct AuctionLedger<AccountId, Balance: HasCompact> {
     /// Auction winner address.
     pub winner: Option<AccountId>,
@@ -72,7 +73,7 @@ impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance>
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct SubscriptionLedger<Moment: HasCompact> {
     /// Free execution weights accumulator.
     #[codec(compact)]

@@ -38,7 +38,9 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{Currency, Imbalance, LockIdentifier, OnUnbalanced, U128CurrencyToVote},
+    traits::{
+        Currency, EqualPrivilegeOnly, Imbalance, LockIdentifier, OnUnbalanced, U128CurrencyToVote,
+    },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
@@ -176,6 +178,7 @@ impl frame_system::Config for Runtime {
 impl pallet_utility::Config for Runtime {
     type Call = Call;
     type Event = Event;
+    type PalletsOrigin = OriginCaller;
     type WeightInfo = ();
 }
 
@@ -270,6 +273,7 @@ impl pallet_scheduler::Config for Runtime {
     type MaximumWeight = MaximumSchedulerWeight;
     type ScheduleOrigin = frame_system::EnsureRoot<AccountId>;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
+    type OriginPrivilegeCmp = EqualPrivilegeOnly;
     type WeightInfo = ();
 }
 

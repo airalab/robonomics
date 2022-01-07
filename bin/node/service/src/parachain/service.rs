@@ -125,7 +125,9 @@ where
     let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
-        task_manager.spawn_handle().spawn("telemetry", worker.run());
+        task_manager
+            .spawn_handle()
+            .spawn("telemetry", None, worker.run());
         telemetry
     });
 
@@ -259,7 +261,6 @@ where
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue: import_queue.clone(),
-            on_demand: None,
             block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
             warp_sync: None,
         })?;
@@ -270,11 +271,9 @@ where
         PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
     task_manager
         .spawn_handle()
-        .spawn("pubsub_parachain", pubsub_worker);
+        .spawn("pubsub_parachain", None, pubsub_worker);
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-        on_demand: None,
-        remote_blockchain: None,
         rpc_extensions_builder: Box::new(move |deny_unsafe, _| {
             let mut io = jsonrpc_core::IoHandler::default();
             io.extend_with(SystemApi::to_delegate(FullSystem::new(

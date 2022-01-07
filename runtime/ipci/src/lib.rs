@@ -42,7 +42,7 @@ mod voter_bags;
 use codec::Decode;
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{Currency, Imbalance, OnUnbalanced},
+    traits::{Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -194,6 +194,7 @@ impl frame_system::Config for Runtime {
 impl pallet_utility::Config for Runtime {
     type Call = Call;
     type Event = Event;
+    type PalletsOrigin = OriginCaller;
     type WeightInfo = ();
 }
 
@@ -578,6 +579,7 @@ impl pallet_scheduler::Config for Runtime {
     type MaximumWeight = MaximumSchedulerWeight;
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
+    type OriginPrivilegeCmp = EqualPrivilegeOnly;
     type WeightInfo = ();
 }
 
