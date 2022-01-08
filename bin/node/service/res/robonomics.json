@@ -6,7 +6,7 @@
     "/dns/0.kusama.robonomics.network/tcp/30333/p2p/12D3KooWKy9Frfbi5btyeVJTNRV66xSDHrt1y5JPi5o7yAr6n6Lg",
     "/dns/1.kusama.robonomics.network/tcp/30333/p2p/12D3KooWHSp3sj2gTxGR31zCAUVjQXwNgL1VujFXrXGZqRe1JsBM",
     "/dns/2.kusama.robonomics.network/tcp/30333/p2p/12D3KooWJGFNK1p5L3jPPz7VDdS8oS2sWYc3RBCoe25KTn5biSyE",
-    "/dns/bootnode-1.robonomics.p2p.world/tcp/30334/p2p/12D3KooWQRVuWCo42v8gXQwbGkBCEsp8hcwwSxec4wWm2d7QoSWn"
+    "/dns/bootnode-1.robonomics.p2p.world/tcp/30334/p2p/12D3KooWJYTVan4bbxvpRWXKT6w4GkzQgjoyvdtAkX7RXBi6Fi8H"
   ],
   "telemetryEndpoints": null,
   "protocolId": "xrt",
