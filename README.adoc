@@ -47,6 +47,11 @@ curl https://sh.rustup.rs -sSf | sh
 # from https://rustup.rs instead
 rustup target add wasm32-unknown-unknown --toolchain nightly
 ----
+[source, shell]
+----
+In case of error: toolchain 'nightly-x86_64-unknown-linux-gnu' is not installed
+rustup toolchain install nightly
+----
 
 You will also need to install the following packages:
 
