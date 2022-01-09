@@ -60,7 +60,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId", BalanceOf<T> = "Balance")]
     pub enum Event<T: Config> {
         /// An account rewarded for block production. \[lighthouse, amount\]
         BlockReward(T::AccountId, BalanceOf<T>),
@@ -130,7 +129,9 @@ pub mod pallet {
                 .expect("Gets and decodes authorship inherent data")?;
             let lighthouse = T::AccountId::decode(&mut &lighthouse_raw[..])
                 .expect("Decodes author raw inherent data");
-            Some(Call::set(lighthouse))
+            Some(Call::set {
+                lighthouse: lighthouse,
+            })
         }
 
         fn check_inherent(_call: &Self::Call, _data: &InherentData) -> Result<(), Self::Error> {
@@ -138,7 +139,7 @@ pub mod pallet {
         }
 
         fn is_inherent(call: &Self::Call) -> bool {
-            matches!(call, Call::set(_))
+            matches!(call, Call::set { lighthouse: _ })
         }
     }
 

@@ -190,6 +190,8 @@ parameter_types! {
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
+    pub OperationalFeeMultiplier: u8 = 5;
+    pub const MaxAuthorities: u32 = 32;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -198,6 +200,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 impl_opaque_keys! {
@@ -208,6 +211,7 @@ impl_opaque_keys! {
 }
 
 impl pallet_aura::Config for Runtime {
+    type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
 }
@@ -228,6 +232,7 @@ impl pallet_grandpa::Config for Runtime {
 
     type HandleEquivocation = ();
     type WeightInfo = ();
+    type MaxAuthorities = MaxAuthorities;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -396,7 +401,7 @@ impl_runtime_apis! {
 
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
-            Runtime::metadata().into()
+            OpaqueMetadata::new(Runtime::metadata().into())
         }
     }
 
@@ -440,7 +445,7 @@ impl_runtime_apis! {
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities()
+            Aura::authorities().into_inner()
         }
     }
 

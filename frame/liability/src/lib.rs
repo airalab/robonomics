@@ -54,13 +54,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(
-        T::Index = "LiabilityIndex",
-        T::AccountId = "AccountId",
-        TechnicsFor<T> = "Technics",
-        EconomicsFor<T> = "Economics",
-        ReportFor<T> = "Report",
-    )]
     pub enum Event<T: Config> {
         /// Yay! New liability created.
         NewLiability(
@@ -235,7 +228,7 @@ mod tests {
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
-        type BaseCallFilter = ();
+        type BaseCallFilter = frame_support::traits::Everything;
         type SystemWeightInfo = ();
         type BlockWeights = ();
         type BlockLength = ();

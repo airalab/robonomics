@@ -42,7 +42,7 @@ pub mod pallet {
     type DatalogHash = Twox64Concat;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + TypeInfo {
         /// Current time source.
         type Time: Time;
         /// Datalog record data type.
@@ -66,7 +66,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId", T::Record = "Record", < T::Time as Time >::Moment = "Moment")]
     pub enum Event<T: Config> {
         /// New data added.
         NewRecord(T::AccountId, <T::Time as Time>::Moment, T::Record),
@@ -176,7 +175,7 @@ pub mod pallet {
     }
 
     #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode)]
+    #[derive(Encode, Decode, TypeInfo)]
     pub struct RingBufferItem<T: Config>(
         #[codec(compact)] <<T as Config>::Time as Time>::Moment,
         <T as Config>::Record,
@@ -206,7 +205,7 @@ pub mod pallet {
     }
 
     #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode, Default)]
+    #[derive(Encode, Decode, Default, TypeInfo)]
     pub struct RingBufferIndex {
         #[codec(compact)]
         pub(crate) start: u64,
@@ -313,7 +312,7 @@ mod tests {
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
-        type BaseCallFilter = ();
+        type BaseCallFilter = frame_support::traits::Everything;
         type SystemWeightInfo = ();
         type BlockWeights = ();
         type BlockLength = ();
