@@ -24,6 +24,7 @@ use codec::{Decode, Encode, HasCompact};
 use frame_support::traits::{
     Currency, Imbalance, LockIdentifier, LockableCurrency, WithdrawReasons,
 };
+use scale_info::TypeInfo;
 use sp_runtime::{
     traits::{AtLeast32BitUnsigned, CheckedSub, Saturating, StaticLookup, Zero},
     Perbill, RuntimeDebug,
@@ -42,7 +43,7 @@ const STAKING_ID: LockIdentifier = *b"rbcstake";
 const MAX_UNLOCKING_CHUNKS: usize = 32;
 
 /// Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub struct UnlockChunk<Balance: HasCompact, Moment: HasCompact> {
     /// Amount of funds to be unlocked.
     #[codec(compact)]
@@ -53,7 +54,7 @@ pub struct UnlockChunk<Balance: HasCompact, Moment: HasCompact> {
 }
 
 /// The ledger of a (bonded) stash.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
 pub struct StakerLedger<AccountId, Balance: HasCompact, Moment: HasCompact> {
     /// The stash account whose balance is actually locked and at stake.
     pub stash: AccountId,
@@ -171,7 +172,6 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    #[pallet::metadata(T::AccountId = "AccountId", BalanceOf<T> = "Balance")]
     pub enum Event<T: Config> {
         /// An account has bonded this amount. \[stash, amount\]
         Bonded(T::AccountId, BalanceOf<T>),

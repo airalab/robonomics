@@ -81,7 +81,7 @@ pub fn parse_args(
         }
     );
 
-    let task_executor = config.task_executor.clone();
+    let task_executor = config.tokio_handle.clone();
     let polkadot_config =
         SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
             .map_err(|err| format!("Relay chain argument error: {}", err))?;
@@ -264,10 +264,6 @@ impl CliConfiguration<Self> for RelayChainCli {
         self.base.base.rpc_cors(is_dev)
     }
 
-    fn telemetry_external_transport(&self) -> Result<Option<sc_service::config::ExtTransport>> {
-        self.base.base.telemetry_external_transport()
-    }
-
     fn default_heap_pages(&self) -> Result<Option<u64>> {
         self.base.base.default_heap_pages()
     }
@@ -286,5 +282,12 @@ impl CliConfiguration<Self> for RelayChainCli {
 
     fn announce_block(&self) -> Result<bool> {
         self.base.base.announce_block()
+    }
+
+    fn telemetry_endpoints(
+        &self,
+        chain_spec: &Box<dyn ChainSpec>,
+    ) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
+        self.base.base.telemetry_endpoints(chain_spec)
     }
 }
