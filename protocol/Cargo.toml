@@ -6,25 +6,27 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
-serde = { version = "1.0.106", features = ["derive"] }
-serde_json = "1.0.66"
-codec = { package = "parity-scale-codec", version = "2.0", features = ["derive"] }
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+codec = { package = "parity-scale-codec", version = "2.3", features = ["derive"] }
 async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-substrate-subxt = { git = "https://github.com/paritytech/subxt", rev = "8f0641e6606846b1e7a8c4b98a1a11d6f61a4773", default-features = false, features = ["tokio02"] }
-substrate-subxt-proc-macro = { git = "https://github.com/paritytech/subxt", rev = "8f0641e6606846b1e7a8c4b98a1a11d6f61a4773" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
-libp2p = "0.38"
-futures = "0.3.8"
+# substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", rev="c19d2e6", default-features = false, features = ["tokio02"] }
+# substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt"}
+# subxt = { git = "https://github.com/paritytech/subxt", rev="c19d2e6", default-features = false, features = ["tokio02"] }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
+libp2p = "0.39"
+libp2p-swarm = "0.30.0"
+futures = "0.3.15"
 bincode = "1.3.1"
 log = "0.4.11"
-jsonrpc-core = "15.1.0"
-jsonrpc-derive = "15.1.0"
-jsonrpc-pubsub = "15.1.0"
-jsonrpc-core-client = "15.1.0"
-sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.10" }
+jsonrpc-core = "18.0.0"
+jsonrpc-derive = "18.0.0"
+jsonrpc-pubsub = "18.0.0"
+jsonrpc-core-client = "18.0.0"
+sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 rand = "0.8.4"
 rustc-hex = "2.1.0"
 rust-base58  = "0.0.4"
