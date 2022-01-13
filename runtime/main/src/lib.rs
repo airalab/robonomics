@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 7,
+    spec_version: 8,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -97,7 +97,6 @@ impl frame_support::traits::Contains<Call> for BaseFilter {
     fn contains(call: &Call) -> bool {
         match call {
             // These modules are not allowed to be called by transactions:
-            Call::Balances(_) => false,
             // Other modules should works:
             _ => true,
         }
@@ -459,7 +458,7 @@ parameter_types! {
     pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
     pub const WeightLimit: Weight = Weight::max_value() / 2;
     pub const AuctionDuration: BlockNumber = 10;
-    pub const AuctionCost: Balance = 200 * XRT;
+    pub const AuctionCost: Balance = 25000 * XRT;  // start subscription auction when amount locked
     pub const MinimalBid: Balance = 1 * XRT;
 }
 
