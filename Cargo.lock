@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -4602,7 +4602,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.5.0"
+version = "1.6.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -4617,6 +4617,7 @@ dependencies = [
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
+ "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-identity",
  "pallet-membership",
@@ -4634,6 +4635,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "pallet-utility",
+ "pallet-vesting",
  "parachain-info",
  "parity-scale-codec",
  "robonomics-primitives",

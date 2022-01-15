@@ -51,11 +51,11 @@ use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
-use sp_core::u32_trait::{_1, _2};
+use sp_core::u32_trait::{_1, _2, _3};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
     FixedPointNumber, Perbill, Permill, Perquintill,
 };
@@ -396,7 +396,7 @@ impl pallet_democracy::Config for Runtime {
     type CancellationOrigin = MoreThanHalfTechnicals;
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
-    type CancelProposalOrigin = EnsureOneOf<
+    type CancelProposalOrigin = frame_system::EnsureOneOf<
         AccountId,
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
@@ -580,6 +580,7 @@ construct_runtime! {
         // Native currency and accounts.
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>} = 31,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 32,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 33,
 
         // Governance staff.
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 40,
@@ -634,7 +635,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+    AllPalletsWithSystem,
 >;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
