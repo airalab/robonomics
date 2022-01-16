@@ -42,7 +42,7 @@ mod voter_bags;
 use codec::Decode;
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
+    traits::{ConstU32, Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -83,7 +83,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 6,
+    spec_version: 7,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -427,6 +427,12 @@ impl onchain::Config for Runtime {
     type DataProvider = Staking;
 }
 
+pub struct StakingBenchmarkingConfig;
+impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
+    type MaxNominators = ConstU32<1000>;
+    type MaxValidators = ConstU32<1000>;
+}
+
 impl pallet_staking::Config for Runtime {
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
     type Currency = Balances;
@@ -452,6 +458,7 @@ impl pallet_staking::Config for Runtime {
     // Alternatively, use pallet_staking::UseNominatorsMap<Runtime> to just use the nominators map
     // Note that the aforementioned does not scale to a very large number of nominators.
     type SortedListProvider = BagsList;
+    type BenchmarkingConfig = StakingBenchmarkingConfig;
 }
 
 parameter_types! {
@@ -532,6 +539,17 @@ impl frame_support::pallet_prelude::Get<Option<(usize, sp_npos_elections::Extend
     }
 }
 
+pub struct ElectionProviderBenchmarkConfig;
+impl pallet_election_provider_multi_phase::BenchmarkingConfig for ElectionProviderBenchmarkConfig {
+    const VOTERS: [u32; 2] = [1000, 2000];
+    const TARGETS: [u32; 2] = [500, 1000];
+    const ACTIVE_VOTERS: [u32; 2] = [500, 800];
+    const DESIRED_TARGETS: [u32; 2] = [200, 400];
+    const SNAPSHOT_MAXIMUM_VOTERS: u32 = 1000;
+    const MINER_MAXIMUM_VOTERS: u32 = 1000;
+    const MAXIMUM_TARGETS: u32 = 300;
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -561,7 +579,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     >;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = MoreThanHalfTechnicals;
-    type BenchmarkingConfig = ();
+    type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
     type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
 }
 
@@ -792,7 +810,7 @@ pub type Executive = frame_executive::Executive<
     Block,
     frame_system::ChainContext<Runtime>,
     Runtime,
-    AllPallets,
+    AllPalletsWithSystem,
 >;
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
