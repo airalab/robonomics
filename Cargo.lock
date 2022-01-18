@@ -52,7 +52,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e8b47f52ea9bae42228d07ec09eb676433d7c4ed1ebdf0f1d1c29ed446f1ab8"
 dependencies = [
  "cfg-if 1.0.0",
- "cipher 0.3.0",
+ "cipher",
  "cpufeatures 0.2.1",
  "opaque-debug 0.3.0",
 ]
@@ -65,7 +65,7 @@ checksum = "df5f85a83a7d8b0442b6aa7b504b8212c1733da07b98aae43d4bc21b2cb3cdf6"
 dependencies = [
  "aead",
  "aes",
- "cipher 0.3.0",
+ "cipher",
  "ctr",
  "ghash",
  "subtle 2.4.1",
@@ -879,7 +879,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fee7ad89dc1128635074c268ee661f90c3f7e83d9fd12910608c36b47d6c3412"
 dependencies = [
  "cfg-if 1.0.0",
- "cipher 0.3.0",
+ "cipher",
  "cpufeatures 0.1.5",
  "zeroize",
 ]
@@ -892,7 +892,7 @@ checksum = "1580317203210c517b6d44794abfbe600698276db18127e37ad3e69bf5e848e5"
 dependencies = [
  "aead",
  "chacha20",
- "cipher 0.3.0",
+ "cipher",
  "poly1305",
  "zeroize",
 ]
@@ -919,15 +919,6 @@ dependencies = [
  "multibase",
  "multihash 0.13.2",
  "unsigned-varint 0.5.1",
-]
-
-[[package]]
-name = "cipher"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f8e7987cbd042a63249497f41aed09f8e65add917ea6566effbc56578d6801"
-dependencies = [
- "generic-array 0.14.5",
 ]
 
 [[package]]
@@ -1251,7 +1242,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "049bb91fb4aaf0e3c7efa6cd5ef877dbbbd15b39dad06d9948de4ec8a75761ea"
 dependencies = [
- "cipher 0.3.0",
+ "cipher",
 ]
 
 [[package]]
@@ -3468,9 +3459,9 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "libp2p"
-version = "0.37.1"
+version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08053fbef67cd777049ef7a95ebaca2ece370b4ed7712c3fa404d69a88cb741b"
+checksum = "ebbb17eece4aec5bb970880c73825c16ca59ca05a4e41803751e68c7e5f0c618"
 dependencies = [
  "atomic",
  "bytes 1.1.0",
@@ -3480,15 +3471,15 @@ dependencies = [
  "libp2p-deflate 0.28.0",
  "libp2p-dns 0.28.1",
  "libp2p-floodsub 0.29.0",
- "libp2p-gossipsub 0.30.1",
+ "libp2p-gossipsub 0.31.0",
  "libp2p-identify 0.29.0",
  "libp2p-kad 0.30.0",
  "libp2p-mdns 0.30.2",
  "libp2p-mplex 0.28.0",
- "libp2p-noise 0.30.1",
+ "libp2p-noise 0.31.0",
  "libp2p-ping 0.29.0",
  "libp2p-plaintext 0.28.0",
- "libp2p-pnet 0.20.0",
+ "libp2p-pnet 0.21.0",
  "libp2p-relay 0.2.0",
  "libp2p-request-response 0.11.0",
  "libp2p-swarm 0.29.0",
@@ -3702,9 +3693,9 @@ dependencies = [
 
 [[package]]
 name = "libp2p-gossipsub"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7b0c8506a6ec3344b9e706d7c7a6dba826f8ede735cfe13dde12a8c263c4af9"
+checksum = "e562308761818b0c52f2a81a0544b9c22d0cf56d7b2d928a0ff61382404498ce"
 dependencies = [
  "asynchronous-codec 0.6.0",
  "base64 0.13.0",
@@ -3931,9 +3922,9 @@ dependencies = [
 
 [[package]]
 name = "libp2p-noise"
-version = "0.30.1"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73ab46d3de1b6e70a794ad48d6e05c29b4f00d3a467639b16772ea20421c862d"
+checksum = "57a2aa6fc4e6855eaf9ea1941a14f7ec4df35636fb6b85951e17481df8dcecf6"
 dependencies = [
  "bytes 1.1.0",
  "curve25519-dalek 3.2.0",
@@ -4039,15 +4030,15 @@ dependencies = [
 
 [[package]]
 name = "libp2p-pnet"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ce3374f3b28162db9d3442c9347c4f14cb01e8290052615c7d341d40eae0599"
+checksum = "07cb4dd4b917e5b40ddefe49b96b07adcd8d342e0317011d175b7b2bb1dcc974"
 dependencies = [
  "futures 0.3.19",
  "log",
  "pin-project 1.0.10",
  "rand 0.7.3",
- "salsa20 0.7.2",
+ "salsa20 0.8.1",
  "sha3",
 ]
 
@@ -8134,7 +8125,7 @@ dependencies = [
  "jsonrpc-core-client",
  "jsonrpc-derive",
  "jsonrpc-pubsub",
- "libp2p 0.37.1",
+ "libp2p 0.38.0",
  "log",
  "parity-scale-codec",
  "rand 0.8.4",
@@ -8387,11 +8378,11 @@ checksum = "73b4b750c782965c211b42f022f59af1fbceabdd026623714f104152f1ec149f"
 
 [[package]]
 name = "salsa20"
-version = "0.7.2"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399f290ffc409596022fce5ea5d4138184be4784f2b28c62c59f0d8389059a15"
+checksum = "ecbd2eb639fd7cab5804a0837fe373cc2172d15437e804c054a9fb885cb923b0"
 dependencies = [
- "cipher 0.2.5",
+ "cipher",
 ]
 
 [[package]]
@@ -8400,7 +8391,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c0fbb5f676da676c260ba276a8f43a8dc67cf02d1438423aeb1c677a7212686"
 dependencies = [
- "cipher 0.3.0",
+ "cipher",
 ]
 
 [[package]]
