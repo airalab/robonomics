@@ -31,17 +31,25 @@ jobs:
         tag-custom: latest
         tag-sha: true # add git short SHA as Docker tag
 
-    - name: Install Rust
+    - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly-2021-11-02
-        target: wasm32-unknown-unknown 
+        target: ${{ matrix.target }}
+        components: rustfmt, clippy
         default: true
 
+    - name: Install WASM target (for runtime building)
+      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-02
+
     - name: Build optimized binary
-      run: |
-        cargo build --locked --release
-        cp target/release/robonomics scripts/docker
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --locked
+
+    - name: Copy binary to docker env
+      run: cp target/release/robonomics scripts/docker
 
     - name: Push docker image
       uses: docker/build-push-action@v2

@@ -181,6 +181,8 @@ pub mod pallet {
         NewDevices(T::AccountId, Vec<T::AccountId>),
         /// Registered new RWS subscription.
         NewSubscription(T::AccountId, Subscription),
+        /// Started new RWS subscription auction.
+        NewAuction(Subscription, T::AuctionIndex),
     }
 
     #[pallet::storage]
@@ -386,6 +388,25 @@ pub mod pallet {
             Self::deposit_event(Event::NewSubscription(target, subscription));
             Ok(().into())
         }
+
+        /// Start subscription auction.
+        ///
+        /// The dispatch origin for this call must be _root_.
+        ///
+        /// # <weight>
+        /// - O(1).
+        /// - Limited storage reads.
+        /// - One DB change.
+        /// # </weight>
+        #[pallet::weight(100_000)]
+        pub fn start_auction(
+            origin: OriginFor<T>,
+            kind: Subscription,
+        ) -> DispatchResultWithPostInfo {
+            let _ = ensure_root(origin)?;
+            Self::new_auction(kind);
+            Ok(().into())
+        }
     }
 
     impl<T: Config> Pallet<T> {
@@ -396,10 +417,13 @@ pub mod pallet {
             <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
 
             // insert auction ledger
-            <Auction<T>>::insert(&index, AuctionLedger::new(kind));
+            <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
 
             // insert auction into queue
-            <AuctionQueue<T>>::mutate(|queue| queue.push(index));
+            <AuctionQueue<T>>::mutate(|queue| queue.push(index.clone()));
+
+            // deposit descriptive event
+            Self::deposit_event(Event::NewAuction(kind, index));
         }
 
         /// Rotate current auctions, register subscriptions and queue next.
