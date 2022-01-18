@@ -25,7 +25,8 @@ use std::iter;
 
 use async_trait::async_trait;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
-use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
+//use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
+use libp2p::core::upgrade::{read_one, write_one};
 use libp2p::core::ProtocolName;
 use libp2p::core::{
     identity,
@@ -80,7 +81,8 @@ impl RequestResponseCodec for RobonomicsCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        read_length_prefixed(io, 1024)
+        read_one(io, 1024)
+        //read_length_prefixed(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
                 Ok(vec) if vec.is_empty() => {
@@ -100,7 +102,8 @@ impl RequestResponseCodec for RobonomicsCodec {
     where
         T: AsyncRead + Unpin + Send,
     {
-        read_length_prefixed(io, 1024)
+        read_one(io, 1024)
+        //read_length_prefixed(io, 1024)
             .map(|res| match res {
                 Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
                 Ok(vec) if vec.is_empty() => Ok(Response::Pong),
@@ -119,8 +122,10 @@ impl RequestResponseCodec for RobonomicsCodec {
         T: AsyncWrite + Unpin + Send,
     {
         match req {
-            Request::Ping => write_length_prefixed(io, "".as_bytes()).await,
-            Request::Get(data) => write_length_prefixed(io, data).await,
+            //Request::Ping => write_length_prefixed(io, "".as_bytes()).await,
+            //Request::Get(data) => write_length_prefixed(io, data).await,
+            Request::Ping =>  write_one(io, "".as_bytes()).await,
+            Request::Get(data) =>  write_one(io, data).await,
         }
     }
 
@@ -136,14 +141,17 @@ impl RequestResponseCodec for RobonomicsCodec {
         match resp {
             Response::Pong => {
                 self.is_ping = false; // reset Ping flag
-                write_length_prefixed(io, "".as_bytes()).await
+                //write_length_prefixed(io, "".as_bytes()).await
+                write_one(io, "".as_bytes()).await
             }
             // send Pong if somebody try in app logic to obfuscate Ping by sending Data instead of Pong
             Response::Data(data) => {
                 if self.is_ping == false {
-                    write_length_prefixed(io, data).await
+                    //write_length_prefixed(io, data).await
+                    write_one(io, data).await
                 } else {
-                    write_length_prefixed(io, "".as_bytes()).await
+                    //write_length_prefixed(io, "".as_bytes()).await
+                    write_one(io, "".as_bytes()).await
                 }
             }
         }
