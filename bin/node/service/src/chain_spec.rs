@@ -18,8 +18,8 @@
 //! Chain specification and utils.
 
 use local_runtime::{
-    wasm_binary_unwrap, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, StakingConfig,
-    SudoConfig, SystemConfig,
+    wasm_binary_unwrap, AuraConfig, BalancesConfig, DemocracyConfig, GenesisConfig, GrandpaConfig,
+    StakingConfig, SudoConfig, SystemConfig,
 };
 use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
@@ -180,7 +180,12 @@ fn mk_genesis(
                 .collect(),
         },
         sudo: SudoConfig { key: sudo_key },
+        vesting: Default::default(),
         staking: StakingConfig { bonus },
+        democracy: DemocracyConfig::default(),
+        treasury: Default::default(),
+        technical_committee: Default::default(),
+        technical_membership: Default::default(),
     }
 }
 
