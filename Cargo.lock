@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -2977,7 +2977,7 @@ checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
 
 [[package]]
 name = "ipci-runtime"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4475,7 +4475,7 @@ checksum = "687387ff42ec7ea4f2149035a5675fedb675d26f98db90a1846ac63d3addb5f5"
 
 [[package]]
 name = "local-runtime"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4486,18 +4486,26 @@ dependencies = [
  "hex-literal 0.2.1",
  "pallet-aura",
  "pallet-balances",
+ "pallet-collective",
+ "pallet-democracy",
  "pallet-grandpa",
+ "pallet-identity",
+ "pallet-membership",
+ "pallet-multisig",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
  "pallet-robonomics-staking",
+ "pallet-scheduler",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
  "pallet-utility",
+ "pallet-vesting",
  "parity-scale-codec",
  "robonomics-primitives",
  "scale-info",
@@ -4602,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-ping",
@@ -4613,12 +4621,9 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "lazy_static",
- "pallet-assets",
  "pallet-balances",
- "pallet-bounties",
  "pallet-collective",
  "pallet-democracy",
- "pallet-elections-phragmen",
  "pallet-identity",
  "pallet-membership",
  "pallet-multisig",
@@ -8029,7 +8034,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -8076,7 +8081,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-pubsub",
@@ -8102,7 +8107,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "alpha-runtime",
  "cumulus-client-collator",
