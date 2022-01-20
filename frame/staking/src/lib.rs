@@ -500,16 +500,13 @@ pub mod pallet {
 
         /// Sudo call for extending list of bonus rates.
         #[pallet::weight(100_000)]
-        pub fn extend_bonus(
+        pub fn force_set_bonus(
             origin: OriginFor<T>,
-            extra: Vec<(T::AccountId, BalanceOf<T>)>,
+            target: T::AccountId,
+            bonus: BalanceOf<T>,
         ) -> DispatchResult {
             ensure_root(origin)?;
-            for &(ref who, bonus_value) in extra.iter() {
-                <Bonus<T>>::mutate(who, |value| {
-                    *value = Some(value.unwrap_or(Zero::zero()) + bonus_value);
-                })
-            }
+            <Bonus<T>>::insert(&target, bonus);
             Ok(().into())
         }
     }
