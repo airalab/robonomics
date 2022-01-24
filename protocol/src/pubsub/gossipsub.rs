@@ -33,7 +33,7 @@ use libp2p::gossipsub::{
     MessageId, Sha256Topic as Topic, TopicHash,
 };
 use libp2p::{Multiaddr, PeerId, Swarm};
-//use libp2p_swarm::SwarmEvent;
+use libp2p_swarm::SwarmEvent;
 //use libp2p::swarm::SwarmEvent;
 use std::{
     collections::hash_map::{DefaultHasher, HashMap},
@@ -173,7 +173,7 @@ impl Future for PubSubWorker {
         loop {
             match self.swarm.poll_next_unpin(cx) {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
-                    //SwarmEvent::Behaviour(event) => match event {
+                    SwarmEvent::Behaviour(event) => match event {
                         GossipsubEvent::Message {
                             propagation_source: peer_id,
                             message_id: id,
@@ -200,8 +200,8 @@ impl Future for PubSubWorker {
                             }
                         }
                         _ => {}
-                    //},
-                    //_ => {}
+                    },
+                    _ => {}
                 },
                 Poll::Ready(None) | Poll::Pending => break,
             }
