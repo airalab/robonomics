@@ -37,8 +37,8 @@ pub const URANUS_ID: u32 = 4000;
 /// Mercury parachain ID
 pub const MERCURY_ID: u32 = 5000;
 
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 /*
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const IPCI_PROTOCOL_ID: &str = "mito";
 */
 
@@ -187,7 +187,6 @@ pub fn mercury_parachain_config() -> AlphaChainSpec {
         },
     )
 }
-*/
 
 /// Helper function to create GenesisConfig for main parachain
 fn mk_genesis_main(
@@ -211,7 +210,6 @@ fn mk_genesis_main(
     }
 }
 
-/*
 fn ipci_session_keys(
     aura: ipci_runtime::AuraId,
     im_online: ipci_runtime::ImOnlineId,
