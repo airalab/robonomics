@@ -58,7 +58,7 @@ jobs:
         default: true
 
     - name: Install WASM target (for runtime building)
-      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-02
+      run: rustup target add wasm32-unknown-unknown --toolchain stable
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
