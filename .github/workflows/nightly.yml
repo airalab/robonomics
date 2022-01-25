@@ -52,7 +52,7 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2021-11-02
+        toolchain: stable
         target: ${{ matrix.target }}
         components: rustfmt, clippy
         default: true
