@@ -30,10 +30,8 @@ use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
-use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
-use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
 use sc_client_api::ExecutorProvider;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkService;
@@ -190,6 +188,7 @@ where
         > + sp_offchain::OffchainWorkerApi<Block>
         + sp_block_builder::BlockBuilder<Block>
         + cumulus_primitives_core::CollectCollationInfo<Block>
+        + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
         + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
