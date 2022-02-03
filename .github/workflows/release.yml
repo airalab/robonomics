@@ -46,7 +46,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --release --locked
+        args: --release --locked --target x86_64-unknown-linux-gnu
 
     - name: Copy binary to docker env
       run: cp target/release/robonomics scripts/docker
