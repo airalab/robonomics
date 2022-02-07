@@ -16,7 +16,6 @@ fn main() {
     let ms = time::Duration::from_millis(100);
 
     //  server part
-
     let peer1 = async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
@@ -133,7 +132,6 @@ fn main() {
         );
 
         loop {
-            //match swarm2.next().await {
             match swarm2.select_next_some().await {
                 SwarmEvent::Behaviour(event) => match event {
                     RequestResponseEvent::Message {
@@ -184,11 +182,19 @@ fn main() {
                     _ => {}
                 },
 
+                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                    println!("Peer2 connected: {:?}", peer_id);
+                }
+
+                SwarmEvent::Dialing(peer_id) => {
+                    println!("Peer2 dial: {:?}", peer_id);
+                }
+
                 e => {
-                    println!("Peer2 err: {:?}", e);
+                    println!("Peer2 error: {:?}", e);
                     process::exit(0x0100)
                 }
-            } // await
+            }
         }
     };
 
