@@ -30,9 +30,8 @@ use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
-use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use sc_client_api::ExecutorProvider;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkService;
@@ -45,7 +44,6 @@ use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 use std::time::Duration;
-use substrate_frame_rpc_system::{FullSystem, SystemApi};
 use substrate_prometheus_endpoint::Registry;
 
 fn new_partial<RuntimeApi, Executor, BIQ>(
@@ -190,6 +188,7 @@ where
         > + sp_offchain::OffchainWorkerApi<Block>
         + sp_block_builder::BlockBuilder<Block>
         + cumulus_primitives_core::CollectCollationInfo<Block>
+        + pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
         + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
@@ -275,14 +274,14 @@ where
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_extensions_builder: Box::new(move |deny_unsafe, _| {
-            let mut io = jsonrpc_core::IoHandler::default();
-            io.extend_with(SystemApi::to_delegate(FullSystem::new(
-                rpc_client.clone(),
-                rpc_pool.clone(),
+            let deps = robonomics_rpc::FullDeps {
+                client: rpc_client.clone(),
+                pool: rpc_pool.clone(),
                 deny_unsafe,
-            )));
-            io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub.clone())));
-            Ok(io)
+                pubsub: pubsub.clone(),
+            };
+
+            robonomics_rpc::create_full(deps).map_err(Into::into)
         }),
         client: client.clone(),
         transaction_pool: transaction_pool.clone(),

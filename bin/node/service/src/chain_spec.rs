@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
+use hex_literal::hex;
 use local_runtime::{
     wasm_binary_unwrap, AuraConfig, BalancesConfig, DemocracyConfig, GenesisConfig, GrandpaConfig,
     StakingConfig, SudoConfig, SystemConfig,
@@ -144,6 +145,8 @@ fn development_genesis(
                 get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
                 get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+                // Treasury
+                hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
             ]
         })
         .iter()
