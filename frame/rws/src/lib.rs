@@ -52,7 +52,7 @@ impl Default for Subscription {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Default, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct AuctionLedger<AccountId, Balance: HasCompact> {
     /// Auction winner address.
     pub winner: Option<AccountId>,
@@ -69,6 +69,14 @@ impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance>
             winner: None,
             best_price: Default::default(),
             kind,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            winner: None,
+            best_price: Default::default(),
+            kind: Default::default(),
         }
     }
 }
@@ -227,6 +235,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::hooks]
@@ -431,7 +440,7 @@ pub mod pallet {
             let queue = Self::auction_queue();
             let (finished, next): (Vec<_>, Vec<_>) = queue
                 .iter()
-                .map(|index| (index.clone(), Self::auction(index).unwrap_or_default()))
+                .map(|index| (index.clone(), Self::auction(index).unwrap_or(AuctionLedger::empty())))
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue

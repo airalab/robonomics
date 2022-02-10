@@ -25,7 +25,6 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
@@ -52,6 +51,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
