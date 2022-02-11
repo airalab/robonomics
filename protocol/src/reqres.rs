@@ -255,7 +255,6 @@ pub async fn reqres(
             } => match response {
                 Response::Pong => {
                     log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                    log::debug!("{:?}", &response);
                     break;
                 }
                 Response::Data(data) => {
