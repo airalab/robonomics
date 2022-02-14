@@ -34,6 +34,7 @@ pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+pallet-preimage = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
@@ -78,6 +79,7 @@ std = [
     "serde",
     "sp-runtime/std",
     "pallet-identity/std",
+    "pallet-preimage/std",
     "pallet-scheduler/std",
     "pallet-sudo/std",
     "frame-support/std",

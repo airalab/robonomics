@@ -40,6 +40,7 @@ use frame_support::{
     construct_runtime, parameter_types, match_type, 
     traits::{
         Currency, EqualPrivilegeOnly, Imbalance, LockIdentifier, OnUnbalanced, U128CurrencyToVote, Everything, Nothing,
+        EnsureOneOf,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -49,7 +50,7 @@ use frame_support::{
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
-    EnsureOneOf, EnsureRoot,
+    EnsureRoot,
 };
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
@@ -72,6 +73,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // Polkadot imports
+/*
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use xcm::latest::prelude::*;
@@ -84,6 +86,7 @@ use xcm_builder::{
     SignedAccountId32AsNative, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
 };
 use xcm_executor::{traits::JustTry, Config, XcmExecutor};
+*/
 
 use constants::{currency::*, time::*};
 
@@ -97,6 +100,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
+    state_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -190,6 +194,7 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -262,7 +267,6 @@ parameter_types! {
     // https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
     pub const MetadataDepositBase: Balance = deposit(1, 68);
     pub const MetadataDepositPerByte: Balance = deposit(0, 1);
-    pub const ExecutiveBody: BodyId = BodyId::Executive;
 }
 
 impl pallet_assets::Config for Runtime {
@@ -272,6 +276,7 @@ impl pallet_assets::Config for Runtime {
     type Currency = Balances;
     type ForceOrigin = EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
+    type AssetAccountDeposit = frame_support::traits::ConstU128<XRT>;
     type MetadataDepositBase = MetadataDepositBase;
     type MetadataDepositPerByte = MetadataDepositPerByte;
     type ApprovalDeposit = ExistentialDeposit;
@@ -322,6 +327,7 @@ parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
         * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
+    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -333,7 +339,25 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = EnsureRoot<AccountId>;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = Preimage;                                                                                     
+    type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const PreimageMaxSize: u32 = 4096 * 1024;
+    pub const PreimageBaseDeposit: Balance = 1 * XRT;
+    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
+}
+
+impl pallet_preimage::Config for Runtime {
+    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Event = Event;
+    type Currency = Balances;
+    type ManagerOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxSize = PreimageMaxSize;
+    type BaseDeposit = PreimageBaseDeposit;
+    type ByteDeposit = PreimageByteDeposit;
 }
 
 parameter_types! {
@@ -350,18 +374,17 @@ impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type Currency = Balances;
     type ApproveOrigin = EnsureOneOf<
-        AccountId,
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
     >;
     type RejectOrigin = EnsureOneOf<
-        AccountId,
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
     >;
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ();
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
@@ -369,44 +392,6 @@ impl pallet_treasury::Config for Runtime {
     type SpendFunds = ();
     type WeightInfo = ();
     type MaxApprovals = MaxApprovals;
-}
-
-parameter_types! {
-    pub const MaximumReasonLength: u32 = 16384;
-    pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-    pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-    pub const BountyValueMinimum: Balance = 5 * XRT;
-    pub const BountyDepositBase: Balance = 1 * XRT;
-    pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
-}
-
-impl pallet_bounties::Config for Runtime {
-    type Event = Event;
-    type BountyDepositBase = BountyDepositBase;
-    type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-    type BountyUpdatePeriod = BountyUpdatePeriod;
-    type BountyCuratorDeposit = BountyCuratorDeposit;
-    type BountyValueMinimum = BountyValueMinimum;
-    type DataDepositPerByte = DataDepositPerByte;
-    type MaximumReasonLength = MaximumReasonLength;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const TipCountdown: BlockNumber = 1 * DAYS;
-    pub const TipFindersFee: Percent = Percent::from_percent(20);
-    pub const TipReportDepositBase: Balance = 1 * XRT;
-}
-
-impl pallet_tips::Config for Runtime {
-    type Event = Event;
-    type DataDepositPerByte = DataDepositPerByte;
-    type MaximumReasonLength = MaximumReasonLength;
-    type Tippers = Elections;
-    type TipCountdown = TipCountdown;
-    type TipFindersFee = TipFindersFee;
-    type TipReportDepositBase = TipReportDepositBase;
-    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -468,17 +453,18 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type Event = Event;
-    type OnValidationData = ();
+    type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
-    type DmpMessageHandler = DmpQueue;
+    type DmpMessageHandler = ();
     type ReservedDmpWeight = ReservedDmpWeight;
-    type OutboundXcmpMessageSource = XcmpQueue;
-    type XcmpMessageHandler = XcmpQueue;
-    type ReservedXcmpWeight = ReservedXcmpWeight;
+    type OutboundXcmpMessageSource = ();
+    type XcmpMessageHandler = ();
+    type ReservedXcmpWeight = ();
 }
 
 impl parachain_info::Config for Runtime {}
 
+/*
 parameter_types! {
     pub const KsmLocation: MultiLocation = MultiLocation::parent();
     pub const RelayNetwork: NetworkId = NetworkId::Kusama;
@@ -661,6 +647,7 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 }
+*/
 
 parameter_types! {
     pub const WindowSize: u64 = 128;
@@ -787,14 +774,13 @@ construct_runtime! {
         Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
-        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
+        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
 
         // XCM helpers.
-        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>},
-        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
-        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin},
-        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>},
+        //XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>},
+        //PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
+        //CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin},
+        //DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>},
     }
 }
 
@@ -924,8 +910,8 @@ impl_runtime_apis! {
     }
 
     impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
-        fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
-            ParachainSystem::collect_collation_info()
+        fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
+            ParachainSystem::collect_collation_info(header)
         }
     }
 }

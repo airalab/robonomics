@@ -105,6 +105,7 @@ dependencies = [
  "pallet-collective",
  "pallet-elections-phragmen",
  "pallet-identity",
+ "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -115,7 +116,6 @@ dependencies = [
  "pallet-scheduler",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-tips",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -1479,7 +1479,7 @@ dependencies = [
  "environmental",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "pallet-balances",
  "parity-scale-codec",
@@ -1542,23 +1542,6 @@ dependencies = [
  "sp-std",
  "xcm",
  "xcm-executor",
-]
-
-[[package]]
-name = "cumulus-ping"
-version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus?branch=polkadot-v0.9.16#86f76c5619c64d1300315612695ad4b4fcd0f562"
-dependencies = [
- "cumulus-pallet-xcm",
- "cumulus-primitives-core",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-std",
- "xcm",
 ]
 
 [[package]]
@@ -2218,7 +2201,7 @@ dependencies = [
  "bitflags",
  "frame-metadata",
  "frame-support-procedural",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "once_cell",
  "parity-scale-codec",
@@ -2937,17 +2920,6 @@ dependencies = [
 
 [[package]]
 name = "impl-trait-for-tuples"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ef5550a42e3740a0e71f909d4c861056a284060af885ae7aa6242820f920d9d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "impl-trait-for-tuples"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d7a9f6330b71fea57921c9b61c47ee6e84f72d394754eff6163ae67e7395eb"
@@ -3022,7 +2994,6 @@ version = "1.6.4"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
- "cumulus-ping",
  "cumulus-primitives-core",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
@@ -3040,12 +3011,11 @@ dependencies = [
  "pallet-bounties",
  "pallet-collective",
  "pallet-election-provider-multi-phase",
- "pallet-evercity",
- "pallet-evercity-transfer",
  "pallet-identity",
  "pallet-im-online",
  "pallet-membership",
  "pallet-offences",
+ "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-scheduler",
  "pallet-session",
@@ -3053,7 +3023,6 @@ dependencies = [
  "pallet-staking-reward-curve",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-tips",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -4147,6 +4116,7 @@ dependencies = [
  "pallet-identity",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -4268,7 +4238,6 @@ name = "main-runtime"
 version = "1.6.4"
 dependencies = [
  "cumulus-pallet-parachain-system",
- "cumulus-ping",
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
  "frame-executive",
@@ -4282,6 +4251,7 @@ dependencies = [
  "pallet-identity",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -4963,7 +4933,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4a
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
  "sp-authorship",
@@ -5151,31 +5121,6 @@ dependencies = [
  "sp-npos-elections",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-evercity"
-version = "0.1.2"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples 0.1.3",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-api",
-]
-
-[[package]]
-name = "pallet-evercity-transfer"
-version = "0.1.1"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
 ]
 
 [[package]]
@@ -5563,7 +5508,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4a
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -5734,7 +5679,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4a
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -5831,7 +5776,7 @@ dependencies = [
  "arrayvec 0.7.2",
  "bitvec",
  "byte-slice-cast",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec-derive",
  "serde",
 ]
@@ -5877,7 +5822,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "ethereum-types",
  "hashbrown 0.11.2",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "lru 0.6.6",
  "parity-util-mem-derive",
  "parking_lot 0.11.2",
@@ -7013,7 +6958,7 @@ dependencies = [
  "frame-election-provider-support",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "libsecp256k1",
  "log",
  "pallet-authorship",
@@ -8164,7 +8109,7 @@ name = "sc-chain-spec"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4aeb95f7f38fcd519e2628f32f79044a8fef99d5"
 dependencies = [
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "memmap2 0.5.3",
  "parity-scale-codec",
  "sc-chain-spec-derive",
@@ -9746,7 +9691,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4aeb95f7f38fcd519e2628f32f79044a8fef99d5"
 dependencies = [
  "async-trait",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "sp-core",
  "sp-runtime",
@@ -9877,7 +9822,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4a
 dependencies = [
  "either",
  "hash256-std-hasher",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "parity-util-mem",
@@ -9897,7 +9842,7 @@ name = "sp-runtime-interface"
 version = "4.1.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4aeb95f7f38fcd519e2628f32f79044a8fef99d5"
 dependencies = [
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "primitive-types",
  "sp-externalities",
@@ -10110,7 +10055,7 @@ name = "sp-wasm-interface"
 version = "4.1.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#4aeb95f7f38fcd519e2628f32f79044a8fef99d5"
 dependencies = [
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "sp-std",
@@ -11473,7 +11418,7 @@ version = "0.9.16"
 source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.16#41ab002d7451766324a9f314fee11c9c53314350"
 dependencies = [
  "derivative",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "scale-info",
@@ -11506,7 +11451,7 @@ version = "0.9.16"
 source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.16#41ab002d7451766324a9f314fee11c9c53314350"
 dependencies = [
  "frame-support",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "sp-arithmetic",
