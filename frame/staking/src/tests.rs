@@ -258,21 +258,21 @@ fn reward_should_works() {
 }
 
 #[test]
-fn extend_bonus_should_works() {
+fn force_set_bonus_should_works() {
     new_test_ext().execute_with(|| {
         System::set_block_number(1);
 
         assert_err!(
-            Staking::extend_bonus(Origin::signed(BOB), Default::default()),
+            Staking::force_set_bonus(Origin::signed(BOB), Default::default(), Default::default()),
             sp_runtime::traits::BadOrigin,
         );
         assert_eq!(Staking::bonus(BOB), Some(30000000000));
 
-        assert_ok!(Staking::extend_bonus(Origin::root(), vec![(BOB, 100_000)]));
-        assert_eq!(Staking::bonus(BOB), Some(30000100000));
+        assert_ok!(Staking::force_set_bonus(Origin::root(), BOB, 100_000));
+        assert_eq!(Staking::bonus(BOB), Some(100000));
 
-        assert_ok!(Staking::extend_bonus(Origin::root(), vec![(BOB, 100_000)]));
-        assert_eq!(Staking::bonus(BOB), Some(30000200000));
+        assert_ok!(Staking::force_set_bonus(Origin::root(), BOB, 200_000));
+        assert_eq!(Staking::bonus(BOB), Some(200000));
     })
 }
 

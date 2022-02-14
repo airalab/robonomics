@@ -37,8 +37,8 @@ pub const URANUS_ID: u32 = 4000;
 /// Mercury parachain ID
 pub const MERCURY_ID: u32 = 5000;
 
-const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 /*
+const ROBONOMICS_PROTOCOL_ID: &str = "xrt";
 const IPCI_PROTOCOL_ID: &str = "mito";
 */
 
@@ -127,6 +127,7 @@ fn test_chain_spec(id: ParaId) -> AlphaChainSpec {
         None,
         None,
         None,
+        None,
         Extensions {
             relay_chain: "westend-dev".into(),
             para_id: id.into(),
@@ -150,8 +151,9 @@ fn mk_genesis_alpha(
         council: Default::default(),
         treasury: Default::default(),
         staking: alpha_runtime::StakingConfig { bonus },
-        sudo: alpha_runtime::SudoConfig { key: sudo_key },
+        sudo: alpha_runtime::SudoConfig { key: Some(sudo_key) },
         parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
+        parachain_system: Default::default(),
     }
 }
 
@@ -187,7 +189,6 @@ pub fn mercury_parachain_config() -> AlphaChainSpec {
         },
     )
 }
-*/
 
 /// Helper function to create GenesisConfig for main parachain
 fn mk_genesis_main(
@@ -200,16 +201,17 @@ fn mk_genesis_main(
             code: main_runtime::wasm_binary_unwrap().to_vec(),
         },
         balances: main_runtime::BalancesConfig { balances },
+        vesting: Default::default(),
         staking: main_runtime::StakingConfig { bonus: vec![] },
         sudo: main_runtime::SudoConfig { key: sudo_key },
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
+        democracy: main_runtime::DemocracyConfig::default(),
         treasury: Default::default(),
         technical_committee: Default::default(),
         technical_membership: Default::default(),
     }
 }
 
-/*
 fn ipci_session_keys(
     aura: ipci_runtime::AuraId,
     im_online: ipci_runtime::ImOnlineId,

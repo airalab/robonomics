@@ -36,10 +36,6 @@ pub mod pallet {
     use sp_std::prelude::*;
 
     use super::*;
-    #[cfg(feature = "storage-v0")]
-    type DatalogHash = Blake2_128Concat;
-    #[cfg(not(feature = "storage-v0"))]
-    type DatalogHash = Twox64Concat;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + TypeInfo {
@@ -76,16 +72,6 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    /// Time tagged data of given account (deprecated).
-    #[pallet::storage]
-    #[pallet::getter(fn datalog)]
-    pub(super) type Datalog<T> = StorageMap<
-        _,
-        DatalogHash,
-        <T as frame_system::Config>::AccountId,
-        Vec<(<<T as Config>::Time as Time>::Moment, <T as Config>::Record)>,
-    >;
-
     /// Ringbuffer start/end pointers
     #[pallet::storage]
     #[pallet::getter(fn datalog_index)]
@@ -110,6 +96,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::generate_store(pub (super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
@@ -124,7 +111,6 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             // remove previous version from storage
-            Datalog::<T>::remove(&sender);
             let now = T::Time::now();
             let item = RingBufferItem(now, record);
 
@@ -145,7 +131,6 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::erase(T::WindowSize::get()))]
         pub fn erase(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            Datalog::<T>::remove(&sender);
 
             let mut idx = DatalogIndex::<T>::take(&sender);
 

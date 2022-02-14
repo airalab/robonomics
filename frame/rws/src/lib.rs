@@ -52,7 +52,7 @@ impl Default for Subscription {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Default, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
 pub struct AuctionLedger<AccountId, Balance: HasCompact> {
     /// Auction winner address.
     pub winner: Option<AccountId>,
@@ -69,6 +69,14 @@ impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance>
             winner: None,
             best_price: Default::default(),
             kind,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            winner: None,
+            best_price: Default::default(),
+            kind: Default::default(),
         }
     }
 }
@@ -181,6 +189,8 @@ pub mod pallet {
         NewDevices(T::AccountId, Vec<T::AccountId>),
         /// Registered new RWS subscription.
         NewSubscription(T::AccountId, Subscription),
+        /// Started new RWS subscription auction.
+        NewAuction(Subscription, T::AuctionIndex),
     }
 
     #[pallet::storage]
@@ -225,6 +235,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::hooks]
@@ -386,6 +397,25 @@ pub mod pallet {
             Self::deposit_event(Event::NewSubscription(target, subscription));
             Ok(().into())
         }
+
+        /// Start subscription auction.
+        ///
+        /// The dispatch origin for this call must be _root_.
+        ///
+        /// # <weight>
+        /// - O(1).
+        /// - Limited storage reads.
+        /// - One DB change.
+        /// # </weight>
+        #[pallet::weight(100_000)]
+        pub fn start_auction(
+            origin: OriginFor<T>,
+            kind: Subscription,
+        ) -> DispatchResultWithPostInfo {
+            let _ = ensure_root(origin)?;
+            Self::new_auction(kind);
+            Ok(().into())
+        }
     }
 
     impl<T: Config> Pallet<T> {
@@ -396,10 +426,13 @@ pub mod pallet {
             <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
 
             // insert auction ledger
-            <Auction<T>>::insert(&index, AuctionLedger::new(kind));
+            <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
 
             // insert auction into queue
-            <AuctionQueue<T>>::mutate(|queue| queue.push(index));
+            <AuctionQueue<T>>::mutate(|queue| queue.push(index.clone()));
+
+            // deposit descriptive event
+            Self::deposit_event(Event::NewAuction(kind, index));
         }
 
         /// Rotate current auctions, register subscriptions and queue next.
@@ -407,7 +440,7 @@ pub mod pallet {
             let queue = Self::auction_queue();
             let (finished, next): (Vec<_>, Vec<_>) = queue
                 .iter()
-                .map(|index| (index.clone(), Self::auction(index).unwrap_or_default()))
+                .map(|index| (index.clone(), Self::auction(index).unwrap_or(AuctionLedger::empty())))
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
