@@ -38,7 +38,7 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
+    traits::{Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced, EnsureOneOf},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -76,6 +76,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
+    state_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -180,6 +181,7 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -306,6 +308,7 @@ parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
         * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
+    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -317,7 +320,25 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = Preimage;                                                                                     
+    type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const PreimageMaxSize: u32 = 4096 * 1024;
+    pub const PreimageBaseDeposit: Balance = 1 * XRT;
+    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
+}
+
+impl pallet_preimage::Config for Runtime {
+    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Event = Event;
+    type Currency = Balances;
+    type ManagerOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxSize = PreimageMaxSize;
+    type BaseDeposit = PreimageBaseDeposit;
+    type ByteDeposit = PreimageByteDeposit;
 }
 
 parameter_types! {
@@ -338,6 +359,7 @@ impl pallet_treasury::Config for Runtime {
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ();
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
@@ -361,8 +383,6 @@ parameter_types! {
     pub const MinimumDeposit: Balance = 50 * XRT;
     pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTES;
     pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-    // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
 }
@@ -396,8 +416,7 @@ impl pallet_democracy::Config for Runtime {
     type CancellationOrigin = MoreThanHalfTechnicals;
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
-    type CancelProposalOrigin = frame_system::EnsureOneOf<
-        AccountId,
+    type CancelProposalOrigin = EnsureOneOf<
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
     >;
@@ -429,8 +448,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type WeightInfo = ();
 }
 
-type MoreThanHalfTechnicals = frame_system::EnsureOneOf<
-    AccountId,
+type MoreThanHalfTechnicals = EnsureOneOf<
     frame_system::EnsureRoot<AccountId>,
     pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>,
 >;
@@ -478,7 +496,7 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type Event = Event;
-    type OnValidationData = ();
+    type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
     type OutboundXcmpMessageSource = ();
     type DmpMessageHandler = ();
@@ -588,6 +606,7 @@ construct_runtime! {
         TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 42,
         TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 43,
         Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 44,
+        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 45,
 
         // Robonomics Network pallets.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 51,
@@ -727,8 +746,8 @@ impl_runtime_apis! {
     }
 
     impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
-        fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
-            ParachainSystem::collect_collation_info()
+        fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
+            ParachainSystem::collect_collation_info(header)
         }
     }
 }

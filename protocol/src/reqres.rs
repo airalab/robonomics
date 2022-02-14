@@ -157,13 +157,13 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
     // if provided pk8 file with keys use it to have static PeerID
     // in other case PeerID  will be randomly generated
     let mut id_keys = identity::Keypair::generate_ed25519();
-    let mut peer_id = id_keys.public().into_peer_id();
+    let mut peer_id = id_keys.public().to_peer_id();
 
     let f = std::fs::read("private.pk8");
     let _ = match f {
         Ok(mut bytes) => {
             id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
-            peer_id = id_keys.public().into_peer_id();
+            peer_id = id_keys.public().to_peer_id();
             log::debug!("try get peer ID from keypair at file");
         }
         Err(_e) => log::debug!("try to use peer ID from random keypair"),
