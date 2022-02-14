@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-service"
-version = "1.6.4"
+version = "1.7.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
@@ -81,6 +81,8 @@ cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/c
 cumulus-client-consensus-aura = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
 cumulus-client-consensus-common = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
 cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
+cumulus-relay-chain-local = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
+cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
 cumulus-client-collator = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
 cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
 cumulus-client-service = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.16", optional = true }
@@ -171,6 +173,8 @@ parachain = [
     "cumulus-client-consensus-aura",
     "cumulus-client-consensus-common",
     "cumulus-client-consensus-relay-chain",
+    "cumulus-relay-chain-interface",
+    "cumulus-relay-chain-local",
     "cumulus-client-collator",
     "cumulus-client-network",
     "cumulus-client-service",

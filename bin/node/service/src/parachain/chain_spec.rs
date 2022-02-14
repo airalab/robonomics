@@ -127,6 +127,7 @@ fn test_chain_spec(id: ParaId) -> AlphaChainSpec {
         None,
         None,
         None,
+        None,
         Extensions {
             relay_chain: "westend-dev".into(),
             para_id: id.into(),
@@ -150,8 +151,9 @@ fn mk_genesis_alpha(
         council: Default::default(),
         treasury: Default::default(),
         staking: alpha_runtime::StakingConfig { bonus },
-        sudo: alpha_runtime::SudoConfig { key: sudo_key },
+        sudo: alpha_runtime::SudoConfig { key: Some(sudo_key) },
         parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
+        parachain_system: Default::default(),
     }
 }
 

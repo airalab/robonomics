@@ -235,11 +235,14 @@ pub fn run() -> sc_cli::Result<()> {
             builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
             let _ = builder.init();
 
+            let spec = parachain::load_spec(
+                &params.chain.clone().unwrap_or_default(),
+                params.parachain_id.into(),
+            )?;
+            let state_version = Cli::native_runtime_version(&spec).state_version();
+
             let block: robonomics_primitives::Block =
-                parachain::generate_genesis_block(&parachain::load_spec(
-                    &params.chain.clone().unwrap_or_default(),
-                    params.parachain_id.into(),
-                )?)?;
+                parachain::generate_genesis_block(&spec, state_version)?;
             let raw_header = block.header().encode();
             let output_buf = if params.raw {
                 raw_header
