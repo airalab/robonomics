@@ -52,7 +52,7 @@ use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo
 use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
 use sp_core::u32_trait::{_1, _2, _3};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
@@ -504,8 +504,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
-    // type Parameter = bool;
-    type Parameter = Vec<u8>;
+    type Parameter = H256;
     type Event = Event;
 }
 

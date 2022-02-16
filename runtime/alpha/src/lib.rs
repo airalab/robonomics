@@ -55,7 +55,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
     u32_trait::{_1, _2, _3, _5},
-    OpaqueMetadata,
+    OpaqueMetadata, H256,
 };
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
@@ -434,8 +434,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
-    //type Parameter = bool;
-    type Parameter = Vec<u8>;
+    type Parameter = H256;
     type Event = Event;
 }
 

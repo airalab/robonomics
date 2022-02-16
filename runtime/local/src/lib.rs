@@ -55,7 +55,7 @@ use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::u32_trait::{_1, _2, _3};
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
@@ -467,8 +467,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
-    //type Parameter = bool;
-    type Parameter = Vec<u8>;
+    type Parameter = H256;
     type Event = Event;
 }
 

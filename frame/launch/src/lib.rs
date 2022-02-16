@@ -139,7 +139,8 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Parameter = bool;
+        //type Parameter = bool;
+        type Parameter = H256;
         type Event = Event;
     }
 
@@ -150,11 +151,18 @@ mod tests {
         storage.into()
     }
 
+    use std::convert::TryInto;
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let param = true;
+            //let param = true;
+            let param = H256(
+                "QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST"
+                    .as_bytes()
+                    .try_into()
+                    .expect("Slice paniced"),
+            );
             let data = 0;
             assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
