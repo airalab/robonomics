@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-launch"
 description = "Robonomics Network robot launch Substrate runtime module"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
@@ -12,6 +12,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false, optional = true }
+bs58 = "0.4.0"
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }

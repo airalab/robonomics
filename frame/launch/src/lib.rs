@@ -151,18 +151,17 @@ mod tests {
         storage.into()
     }
 
+    use bs58;
     use std::convert::TryInto;
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
             //let param = true;
-            let param = H256(
-                "QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST"
-                    .as_bytes()
-                    .try_into()
-                    .expect("Slice paniced"),
-            );
+            let mut decoded = [0; 34];
+            bs58::decode("QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST").into(&mut decoded).expect("");
+            let d: [u8; 32] = decoded[2..34].try_into().expect("");
+            let param = H256(d);
             let data = 0;
             assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
         })
