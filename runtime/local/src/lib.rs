@@ -38,7 +38,7 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{EqualPrivilegeOnly, KeyOwnerProofSystem},
+    traits::{EqualPrivilegeOnly, KeyOwnerProofSystem, EnsureOneOf},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
@@ -84,6 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
+    state_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -154,6 +155,7 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -305,6 +307,8 @@ parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
         * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
+    // Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.                                       
+    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -316,14 +320,32 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = Preimage;                                                                                     
+    type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const PreimageMaxSize: u32 = 4096 * 1024;
+    pub const PreimageBaseDeposit: Balance = 1 * XRT;
+    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
+}
+
+impl pallet_preimage::Config for Runtime {
+    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Event = Event;
+    type Currency = Balances;
+    type ManagerOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxSize = PreimageMaxSize;
+    type BaseDeposit = PreimageBaseDeposit;
+    type ByteDeposit = PreimageByteDeposit;
 }
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
     pub const ProposalBondMinimum: Balance = 10 * XRT;
     pub const SpendPeriod: BlockNumber = 2 * HOURS;
-    pub const Burn: Permill = Permill::from_percent(1);
+    pub const Burn: Permill = Permill::from_parts(2_000);
     pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
     pub const MaxApprovals: u32 = 100;
@@ -337,6 +359,7 @@ impl pallet_treasury::Config for Runtime {
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ();
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
@@ -360,8 +383,6 @@ parameter_types! {
     pub const MinimumDeposit: Balance = 50 * XRT;
     pub const EnactmentPeriod: BlockNumber = 60 * MINUTES;
     pub const CooloffPeriod: BlockNumber = 50 * MINUTES;
-    // One cent: $10,000 / MB
-    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
 }
@@ -374,6 +395,7 @@ impl pallet_democracy::Config for Runtime {
     type LaunchPeriod = LaunchPeriod;
     type VotingPeriod = VotingPeriod;
     type VoteLockingPeriod = EnactmentPeriod; // Same as EnactmentPeriod
+    type PreimageByteDeposit = PreimageByteDeposit;
     type MinimumDeposit = MinimumDeposit;
     /// A straight majority of the council can decide what their next motion is.
     type ExternalOrigin = MoreThanHalfTechnicals;
@@ -395,8 +417,7 @@ impl pallet_democracy::Config for Runtime {
     type CancellationOrigin = MoreThanHalfTechnicals;
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
-    type CancelProposalOrigin = frame_system::EnsureOneOf<
-        AccountId,
+    type CancelProposalOrigin = EnsureOneOf<
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
     >;
@@ -405,7 +426,6 @@ impl pallet_democracy::Config for Runtime {
     // only do it once and it lasts only for the cool-off period.
     type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
     type CooloffPeriod = CooloffPeriod;
-    type PreimageByteDeposit = PreimageByteDeposit;
     type OperationalPreimageOrigin =
         pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
     type Slash = Treasury;
@@ -428,8 +448,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type WeightInfo = ();
 }
 
-type MoreThanHalfTechnicals = frame_system::EnsureOneOf<
-    AccountId,
+type MoreThanHalfTechnicals = EnsureOneOf<
     frame_system::EnsureRoot<AccountId>,
     pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>,
 >;
@@ -554,6 +573,7 @@ construct_runtime!(
         TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
         TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
         Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
 
         // Robonomics Network modules.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},

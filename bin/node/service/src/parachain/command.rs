@@ -54,8 +54,9 @@ pub fn parse_args(
             .chain(relaychain_args.iter()),
     );
 
+    let state_version = crate::Cli::native_runtime_version(&config.chain_spec).state_version();
     let block: robonomics_primitives::Block =
-        super::generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+        super::generate_genesis_block(&config.chain_spec, state_version).map_err(|e| format!("{:?}", e))?;
     let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
         AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
@@ -222,11 +223,24 @@ impl CliConfiguration<Self> for RelayChainCli {
         self.base.base.rpc_ws(default_listen_port)
     }
 
-    fn prometheus_config(&self, default_listen_port: u16) -> Result<Option<PrometheusConfig>> {
-        self.base.base.prometheus_config(default_listen_port)
+    fn prometheus_config(
+        &self,
+        default_listen_port: u16,
+        chain_spec: &Box<dyn ChainSpec>,
+    ) -> Result<Option<PrometheusConfig>> {
+        self.base.base.prometheus_config(default_listen_port, chain_spec)
     }
 
-    fn init<C: SubstrateCli>(&self) -> Result<()> {
+    fn init<F>(
+        &self,
+        _support_url: &String,
+        _impl_version: &String,
+        _logger_hook: F,
+        _config: &sc_service::Configuration,
+    ) -> Result<()>
+    where
+        F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration)
+    {
         unreachable!("PolkadotCli is never initialized; qed");
     }
 

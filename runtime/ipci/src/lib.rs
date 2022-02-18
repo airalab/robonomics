@@ -42,7 +42,7 @@ mod voter_bags;
 use codec::Decode;
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{ConstU32, Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
+    traits::{ConstU32, Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced, EnsureOneOf},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -83,10 +83,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 7,
+    spec_version: 8,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+    transaction_version: 2,
+    state_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -110,7 +111,9 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub struct Author;
 impl OnUnbalanced<NegativeImbalance> for Author {
     fn on_nonzero_unbalanced(amount: NegativeImbalance) {
-        Balances::resolve_creating(&Authorship::author(), amount);
+        if let Some(author) = Authorship::author() {
+            Balances::resolve_creating(&author, amount)
+        }
     }
 }
 
@@ -189,6 +192,7 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -246,6 +250,7 @@ impl pallet_assets::Config for Runtime {
     type Currency = Balances;
     type ForceOrigin = MoreThanHalfTechnicals;
     type AssetDeposit = AssetDeposit;
+    type AssetAccountDeposit = frame_support::traits::ConstU128<MITO>;
     type MetadataDepositBase = MetadataDepositBase;
     type MetadataDepositPerByte = MetadataDepositPerByte;
     type ApprovalDeposit = ApprovalDeposit;
@@ -324,7 +329,7 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type Event = Event;
-    type OnValidationData = ();
+    type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
     type OutboundXcmpMessageSource = ();
     type DmpMessageHandler = ();
@@ -413,8 +418,8 @@ pallet_staking_reward_curve::build! {
 
 parameter_types! {
     pub const SessionsPerEra: sp_staking::SessionIndex = 24 * 7; // session is one hour
-    pub const BondingDuration: pallet_staking::EraIndex = 4; // 1 month
-    pub const SlashDeferDuration: pallet_staking::EraIndex = 1; // 1/4 the bonding duration.
+    pub const BondingDuration: sp_staking::EraIndex = 4; // 1 month
+    pub const SlashDeferDuration: sp_staking::EraIndex = 1; // 1/4 the bonding duration.
     pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
     pub OffchainRepeat: BlockNumber = 5;
@@ -587,6 +592,7 @@ parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
         * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
+    pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -598,8 +604,27 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
+    type PreimageProvider = Preimage;                                                                                     
+    type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
 }
+
+parameter_types! {
+    pub const PreimageMaxSize: u32 = 4096 * 1024;
+    pub const PreimageBaseDeposit: Balance = 1 * MITO;
+    pub const PreimageByteDeposit: Balance = 10 * U_MITO;
+}
+
+impl pallet_preimage::Config for Runtime {
+    type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Event = Event;
+    type Currency = Balances;
+    type ManagerOrigin = frame_system::EnsureRoot<AccountId>;
+    type MaxSize = PreimageMaxSize;
+    type BaseDeposit = PreimageBaseDeposit;
+    type ByteDeposit = PreimageByteDeposit;
+}
+
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
@@ -619,6 +644,7 @@ impl pallet_treasury::Config for Runtime {
     type Event = Event;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
+    type ProposalBondMaximum = ();
     type SpendPeriod = SpendPeriod;
     type OnSlash = ();
     type Burn = Burn;
@@ -646,8 +672,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type WeightInfo = ();
 }
 
-type MoreThanHalfTechnicals = frame_system::EnsureOneOf<
-    AccountId,
+type MoreThanHalfTechnicals = EnsureOneOf<
     frame_system::EnsureRoot<AccountId>,
     pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>,
 >;
@@ -679,6 +704,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
     type WeightInfo = ();
 }
 
+/*
 mod evercity {
     pub const DEFAULT_DAY_DURATION: u32 = 60; //86400;
 }
@@ -712,6 +738,7 @@ impl pallet_evercity_transfer::Config for Runtime {
     type Currency = Balances;
     type WeightInfo = ();
 }
+*/
 
 parameter_types! {
     pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
@@ -757,21 +784,22 @@ construct_runtime! {
         ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 46,
         Offences: pallet_offences::{Pallet, Storage, Event} = 47,
         Historical: pallet_session_historical::{Pallet} = 48,
+        BagsList: pallet_bags_list::{Pallet, Call, Storage, Event<T>} = 49,
 
         // Governance staff
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 50,
         Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 51,
         TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 52,
         TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 54,
         Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 59,
 
         // Robonomics pallets.
         Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>} = 60,
 
         // Evercity pallets.
-        Evercity: pallet_evercity::{Pallet, Call, Storage, Event<T>} = 70,
-        EvercityTransfer: pallet_evercity_transfer::{Pallet, Call, Storage, Event<T>} = 71,
-        BagsList: pallet_bags_list::{Pallet, Call, Storage, Event<T>},
+        //Evercity: pallet_evercity::{Pallet, Call, Storage, Event<T>} = 70,
+        //EvercityTransfer: pallet_evercity_transfer::{Pallet, Call, Storage, Event<T>} = 71,
     }
 }
 
@@ -911,8 +939,8 @@ impl_runtime_apis! {
     }
 
     impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
-        fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
-            ParachainSystem::collect_collation_info()
+        fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
+            ParachainSystem::collect_collation_info(header)
         }
     }
 }
