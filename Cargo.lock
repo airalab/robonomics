@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -4127,7 +4127,7 @@ checksum = "a261afc61b7a5e323933b402ca6a1765183687c614789b1e4db7762ed4230bca"
 
 [[package]]
 name = "local-runtime"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4263,7 +4263,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -5432,8 +5432,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-launch"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
+ "bs58",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
