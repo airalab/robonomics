@@ -144,7 +144,6 @@ impl RequestResponseCodec for RobonomicsCodec {
             Response::Data(data) => {
                 if self.is_ping == false {
                     write_length_prefixed(io, data).await
-                    //write_one(io, data).await
                 } else {
                     write_length_prefixed(io, "".as_bytes()).await
                 }
@@ -235,7 +234,16 @@ pub async fn reqres(
         println!("unsuported command {} ", method);
     }
 
+    loop {
         match swarm2.select_next_some().await {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                log::debug!("Peer2 connected: {:?}", peer_id);
+            }
+
+            SwarmEvent::Dialing(peer_id) => {
+                log::debug!("Peer2 dial: {:?}", peer_id);
+            }
+
             SwarmEvent::Behaviour(event) => match event {
             RequestResponseEvent::Message {
                 peer,
@@ -247,7 +255,7 @@ pub async fn reqres(
             } => match response {
                 Response::Pong => {
                     log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                    println!("{:?}", &response);
+                    break;
                 }
                 Response::Data(data) => {
                     let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
@@ -256,16 +264,19 @@ pub async fn reqres(
                         String::from_utf8_lossy(&decoded[..]),
                         remote_peer
                     );
-                    println!("{}", String::from_utf8_lossy(&decoded[..]));
+                    log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
+                    break;
                 }
             },
 
             e => {
                 println!("Peer2 err: {:?}", e);
+                break;
             }            
         },
+        
             _ => {}
         }; 
-
+    }
     Ok("decoded".to_string())
 }

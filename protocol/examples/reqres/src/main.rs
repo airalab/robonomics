@@ -1,22 +1,21 @@
 /// Example of usage simple request response protocol from reqresp crate.
 use bincode;
+use futures::StreamExt;
 use libp2p::core::{Multiaddr, PeerId};
 use libp2p::request_response::*;
 use libp2p::swarm::{Swarm, SwarmEvent};
+use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::env;
 use std::iter;
 use std::process;
 use std::{thread, time};
 
-use robonomics_protocol::reqres::*;
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let ms = time::Duration::from_millis(100);
 
     //  server part
-
     let peer1 = async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
@@ -36,11 +35,10 @@ fn main() {
         println!("Local peer 1 id: {:?}", peer1_id);
 
         loop {
-            match swarm1.next_event().await {
-                SwarmEvent::NewListenAddr(addr) => {
-                    println!("Peer 1 listening on {}", addr.clone());
+            match swarm1.select_next_some().await {
+                SwarmEvent::NewListenAddr { address, .. } => {
+                    println!("Peer 1 listening on {}", address.clone());
                 }
-
                 SwarmEvent::Behaviour(RequestResponseEvent::Message {
                     peer,
                     message:
@@ -134,51 +132,66 @@ fn main() {
         );
 
         loop {
-            match swarm2.next().await {
-                RequestResponseEvent::Message {
-                    peer,
-                    message:
-                        RequestResponseMessage::Response {
-                            request_id,
-                            response,
-                        },
-                } => {
-                    match response {
-                        Response::Pong => {
-                            println!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+            match swarm2.select_next_some().await {
+                SwarmEvent::Behaviour(event) => match event {
+                    RequestResponseEvent::Message {
+                        peer,
+                        message:
+                            RequestResponseMessage::Response {
+                                request_id,
+                                response,
+                            },
+                    } => {
+                        match response {
+                            Response::Pong => {
+                                println!(
+                                    " peer2 Resp{} {:?} from {:?}",
+                                    request_id, &response, peer
+                                );
+                            }
+                            Response::Data(data) => {
+                                // decode response
+                                let decoded: Vec<u8> =
+                                    bincode::deserialize(&data.to_vec()).unwrap();
+                                println!(
+                                    " peer2 Resp{}: Data '{}' from {:?}",
+                                    req_id,
+                                    String::from_utf8_lossy(&decoded[..]),
+                                    remote_peer
+                                );
+                            }
                         }
-                        Response::Data(data) => {
-                            // decode response
-                            let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                        rq = Request::Get(count.to_string().into_bytes());
+                        // send encoded request
+                        if let Request::Get(y) = rq {
                             println!(
-                                " peer2 Resp{}: Data '{}' from {:?}",
+                                " peer2  Req{}: Get -> {:?} : '{}'",
                                 req_id,
-                                String::from_utf8_lossy(&decoded[..]),
-                                remote_peer
+                                remote_peer,
+                                String::from_utf8_lossy(&y)
                             );
                         }
+                        let req_encoded: Vec<u8> =
+                            bincode::serialize(&format!("{}", count).into_bytes()).unwrap();
+                        req_id = swarm2
+                            .behaviour_mut()
+                            .send_request(&remote_peer, Request::Get(req_encoded));
+                        count += 1;
+                        thread::sleep(ms);
                     }
-                    rq = Request::Get(count.to_string().into_bytes());
-                    // send encoded request
-                    if let Request::Get(y) = rq {
-                        println!(
-                            " peer2  Req{}: Get -> {:?} : '{}'",
-                            req_id,
-                            remote_peer,
-                            String::from_utf8_lossy(&y)
-                        );
-                    }
-                    let req_encoded: Vec<u8> =
-                        bincode::serialize(&format!("{}", count).into_bytes()).unwrap();
-                    req_id = swarm2
-                        .behaviour_mut()
-                        .send_request(&remote_peer, Request::Get(req_encoded));
-                    count += 1;
-                    thread::sleep(ms);
+                    _ => {}
+                },
+
+                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                    println!("Peer2 connected: {:?}", peer_id);
+                }
+
+                SwarmEvent::Dialing(peer_id) => {
+                    println!("Peer2 dial: {:?}", peer_id);
                 }
 
                 e => {
-                    println!("Peer2 err: {:?}", e);
+                    println!("Peer2 error: {:?}", e);
                     process::exit(0x0100)
                 }
             }
