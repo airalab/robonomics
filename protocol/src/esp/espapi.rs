@@ -17,10 +17,19 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
-pub mod error;
-pub mod esp;
-pub mod ethereum;
-pub mod id;
-pub mod pubsub;
-pub mod reqres;
-pub mod subxt;
+use jsonrpc_core::Result;
+use jsonrpc_derive::rpc;
+
+#[rpc]
+pub trait ESPApi {
+    #[rpc(name = "esp_ok")]
+    fn ok(&self) -> Result<u64>;
+}
+
+pub struct ESP;
+
+impl ESPApi for ESP {
+    fn ok(&self) -> Result<u64> {
+        Ok(8)
+    }
+}

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2022 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,12 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Robonomics Network broadcasting layer.
 
-pub mod error;
-pub mod esp;
-pub mod ethereum;
-pub mod id;
-pub mod pubsub;
-pub mod reqres;
-pub mod subxt;
+pub mod espapi;
