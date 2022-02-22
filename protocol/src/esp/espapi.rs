@@ -22,14 +22,21 @@ use jsonrpc_derive::rpc;
 
 #[rpc]
 pub trait ESPApi {
-    #[rpc(name = "esp_ok")]
-    fn ok(&self) -> Result<u64>;
+    #[rpc(name = "esp_init")]
+    fn init(&self) -> Result<u64>;
+
+    #[rpc(name = "esp_send")]
+    fn send(&self) -> Result<u64>;
 }
 
 pub struct ESP;
 
 impl ESPApi for ESP {
-    fn ok(&self) -> Result<u64> {
+    fn init(&self) -> Result<u64> {
         Ok(8)
+    }
+
+    fn send(&self) -> Result<u64> {
+        Ok(42)
     }
 }
