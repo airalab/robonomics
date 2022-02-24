@@ -7797,6 +7797,7 @@ dependencies = [
  "sc-rpc-api",
  "serde",
  "serde_json",
+ "sp-arithmetic",
  "sp-core",
  "sp-runtime",
 ]

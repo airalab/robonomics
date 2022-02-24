@@ -19,81 +19,113 @@
 
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use sp_core::{sr25519, Pair};
+use sp_core::crypto::Ss58Codec;
 
-use local_runtime::{
-    BlockHashCount, CheckedExtrinsic, Runtime, SessionKeys, SignedExtra, System, UncheckedExtrinsic,
-};
-use robonomics_primitives::{AccountId, Balance, Index};
-use sp_runtime::generic::Era;
-use sp_runtime::traits::Zero;
+use crate::error::Error;
+use local_runtime::{Runtime, System};
+use robonomics_primitives::{AccountId, Index};
 
 #[rpc]
 pub trait ESPApi {
     #[rpc(name = "get_payload")]
-    fn get_payload(&self, account_id: String) -> Result<(String, String)>;
+    fn get_payload(
+        &self,
+        account_id: String,
+    ) -> Result<(
+        AccountId, // address
+        String,    // block_hash
+        u32,       // block_number
+        String,    // genesis_hash
+        String,    // metadata
+        u32,       // nonce
+        u32,       // spec_version
+        u32,       // tip
+        u32,       // era
+        u32,       // tx_version
+    )>;
 }
 
 pub struct ESP;
 
 impl ESPApi for ESP {
     /// ESP asks for transaction params
-    fn get_payload(&self, account: String) -> Result<(String, String)> {
-        let pair = sr25519::Pair::from_string(account.as_str(), None).unwrap();
-        println!("account: {}", account);
-
-        // Подготовка метаданных (время жизни, nonce, хеш генезис-блока и тп)
-        // -----------------------------------------------------------------------
+    fn get_payload(
+        &self,
+        address: String,
+    ) -> Result<(
+        AccountId,
+        String,
+        u32,
+        String,
+        String,
+        u32,
+        u32,
+        u32,
+        u32,
+        u32,
+    )> {
         // Address: The SS58-encoded address of the sending account.
+        let address = AccountId::from_ss58check(address.as_str())
+            .map_err(|_| Error::Ss58CodecError)
+            .unwrap();
+        println!("address: {:?}", address);
+
         // Block Hash: The hash of the checkpoint block.
+        // let block_hash = System::block_hash();
+        let block_hash = "block_hash".to_string();
+        println!("block_hash: {:?}", block_hash);
+
         // Block Number: The number of the checkpoint block.
-        // Genesis Hash: The genesis hash of the chain.
-        // Metadata: The SCALE-encoded metadata for the runtime when submitted.
-        // Nonce: The nonce for this transaction.*
-        // Spec Version: The current spec version for the runtime.
-        // Transaction Version: The current version for transaction format.
-        // Tip: Optional, the tip to increase transaction priority.
-        // Era Period: Optional, the number of blocks after the checkpoint for which a transaction is valid. If zero, the transaction is immortal.
-        // -----------------------------------------------------------------------
-
-        use futures::{executor, StreamExt};
-        use robonomics_primitives::BlockNumber;
-        // let h1 = frame_system::Module::<T>::block_hash(T::BlockNumber::zero());
-        // let a = frame_system::runtime_version();
-        // let a = System::block_number();
-
-        executor::block_on(async {
-            let a = System::block_number();
-            println!("a: {:?}", a);
-        });
-
-        // let h2 = <system::Module<T>>::block_hash(T::BlockNumber::from(0));
-        // println!("a: {:?}", a);
-
-        // let period = BlockHashCount::get() as u64;
+        // let block_number = System::block_number();
+        // use sp_arithmetic::traits::SaturatedConversion;
         // let current_block = System::block_number()
         //     .saturated_into::<u64>()
         //     .saturating_sub(1);
-        // let genesis_hash = client
-        //     .block_hash(Zero::zero())
-        //     .expect("Database error?")
-        //     .expect("Genesis block always exists; qed")
-        //     .into();
-        //         frame_system::CheckTxVersion::new(),
-        //         frame_system::CheckGenesis::new(),
-        //         frame_system::CheckEra::from(Era::mortal(256, 0)),
-        //         frame_system::CheckNonce::from(nonce),
-        //         frame_system::CheckWeight::new(),
+        // println!("current_block: {:?}", current_block);
+        let block_number = 42;
+        println!("block_number: {:?}", block_number);
 
-        // println!("genesis: {:?}", genesis);
+        // Genesis Hash: The genesis hash of the chain.
+        let genesis_hash = "genesis_hash".to_string();
+        println!("genesis_hash: {:?}", genesis_hash);
 
-        let payload = "payload".to_string();
-        let extrinsic = "extrinsic".to_string();
+        // Metadata: The SCALE-encoded metadata for the runtime when submitted.
+        let metadata = "metadata".to_string();
+        println!("metadata: {:?}", metadata);
 
-        // payload - данные которые нужно подписать
-        // extrinsic - данные к которым нужно добавить подпись перед отправкой
-        //
-        // в итоге только данные нужны
-        Ok((payload, extrinsic))
+        // Nonce: The nonce for this transaction.
+        // let nonce = System::account_nonce(address);
+        // let nonce = frame_system::::account_nonce(&address);
+        let nonce = 0;
+        println!("nonce: {:?}", nonce);
+
+        // Spec Version: The current spec version for the runtime.
+        let spec_version = System::runtime_version().spec_version;
+        println!("spec_version: {:?}", spec_version);
+
+        // Tip: Optional, the tip to increase transaction priority.
+        let tip = 0;
+        println!("tip: {:?}", tip);
+
+        // Era Period: Optional, the number of blocks after the checkpoint for which a transaction is valid. If zero, the transaction is immortal.
+        let era = 0;
+        println!("era: {:?}", era);
+
+        // Transaction Version: The current version for transaction format.
+        let tx_version = 1;
+        println!("tx_version: {:?}", tx_version);
+
+        Ok((
+            address,
+            block_hash,
+            block_number,
+            genesis_hash,
+            metadata,
+            nonce,
+            spec_version,
+            tip,
+            era,
+            tx_version,
+        ))
     }
 }
