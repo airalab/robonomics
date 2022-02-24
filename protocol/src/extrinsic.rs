@@ -15,6 +15,6 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network broadcasting layer.
+//! Robonomics Network protocol.
 
 pub mod espapi;
