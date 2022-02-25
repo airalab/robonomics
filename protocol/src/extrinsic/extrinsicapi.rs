@@ -20,16 +20,14 @@
 use crate::error::Error;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use robonomics_primitives::{AccountId, Block, BlockNumber, Index};
+use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_core::crypto::Ss58Codec;
 use std::sync::Arc;
 use substrate_frame_rpc_system::AccountNonceApi;
 
-type BlockHash = String;
 type GenesisHash = String;
-type Metadata = String;
 type Nonce = u32;
 type SpecVersion = u32;
 type Tip = u32;
@@ -42,18 +40,7 @@ pub trait ExtrinsicT {
     fn get_payload(
         &self,
         account_id: String,
-    ) -> Result<(
-        AccountId,
-        BlockHash,
-        BlockNumber,
-        GenesisHash,
-        Metadata,
-        Nonce,
-        SpecVersion,
-        Tip,
-        Era,
-        TxVersion,
-    )>;
+    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)>;
 }
 
 pub struct ExtrinsicApi<C> {
@@ -78,47 +65,27 @@ where
     fn get_payload(
         &self,
         address: String,
-    ) -> Result<(
-        AccountId,
-        BlockHash,
-        BlockNumber,
-        GenesisHash,
-        Metadata,
-        Nonce,
-        SpecVersion,
-        Tip,
-        Era,
-        TxVersion,
-    )> {
+    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)> {
         // Address: The SS58-encoded address of the sending account.
         let address = AccountId::from_ss58check(address.as_str())
             .map_err(|_| Error::Ss58CodecError)
             .unwrap();
 
-        // Block Hash: The hash of the checkpoint block.
-        let block_hash = self.client.info().best_hash;
-
-        // Block Number: The number of the checkpoint block.
-        let block_number = self.client.info().best_number;
-
         // Genesis Hash: The genesis hash of the chain.
-        let genesis_hash = self.client.info().genesis_hash;
-
-        // Metadata: The SCALE-encoded metadata for the runtime when submitted.
-        let metadata = "metadata".to_string();
+        let genesis_hash = self.client.info().genesis_hash.to_string();
 
         // Nonce: The nonce for this transaction.
         let nonce = self
             .client
             .runtime_api()
-            .account_nonce(&BlockId::Hash(block_hash), address.clone())
+            .account_nonce(&BlockId::Hash(self.client.info().best_hash), address)
             .expect("Fetching account nonce works");
 
         // Spec Version: The current spec version for the runtime.
         let version = self
             .client
             .runtime_api()
-            .version(&BlockId::Hash(block_hash))
+            .version(&BlockId::Hash(self.client.info().best_hash))
             .expect("There should be runtime version at 0");
         let spec_version = version.spec_version;
 
@@ -132,17 +99,6 @@ where
         // Transaction Version: The current version for transaction format.
         let tx_version = 1;
 
-        Ok((
-            address,
-            block_hash.to_string(),
-            block_number,
-            genesis_hash.to_string(),
-            metadata,
-            nonce,
-            spec_version,
-            tip,
-            era,
-            tx_version,
-        ))
+        Ok((genesis_hash, nonce, spec_version, tip, era, tx_version))
     }
 }
