@@ -39,3 +39,14 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 robonomics-primitives = { path = "../primitives" }
 local-runtime = { path = "../runtime/local" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16"}
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16"}
