@@ -12,13 +12,14 @@ cd $PROJECT_ROOT/scripts/docker
 #VERSION=`grep "^version" ./Cargo.toml | egrep -o "([0-9\.]+)"`
 GITUSER=robonomics
 GITREPO=robonomics
+ARCH="$(uname -m | sed -e 's/aarch64$/arm64/' | sed -e 's/x86_64$/amd64/')"
 
 # Copy robonomics binary if it's argument
 [[ ! -z "$1" ]] && cp $1 .
 
 # Build the image
 echo "Building ${GITUSER}/${GITREPO}:latest docker image"
-if [ ! -e robonomics ]
+if [ ! -e ./"${ARCH}"/robonomics ]
 then
     # checks if file exist
     if [ ! -f "$FILE" ] 
@@ -28,7 +29,8 @@ then
     fi
     # contine if file exists
     echo "If first docker build, copying file robonomics to working directory"
-    cp ../../target/release/robonomics .
+    mkdir "${ARCH}"
+    cp ../../target/release/robonomics ./$(uname -m)/
 else
     echo "If not first build, proceed to docker-compose build and run"
 fi
