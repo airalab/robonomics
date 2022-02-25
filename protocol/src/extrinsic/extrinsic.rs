@@ -17,23 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
+use crate::error::Error;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
+use robonomics_primitives::{AccountId, Block, BlockNumber, Index};
+use sp_api::{BlockId, Core, ProvideRuntimeApi};
+use sp_blockchain::HeaderBackend;
 use sp_core::crypto::Ss58Codec;
 use std::sync::Arc;
 use substrate_frame_rpc_system::AccountNonceApi;
-
-use crate::error::Error;
-// use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Index};
-use robonomics_primitives::{AccountId, Block, BlockNumber, Index};
-// use sc_client_api::AuxStore;
-// use sc_transaction_pool_api::TransactionPool;
-use sp_api::BlockId;
-use sp_api::Core;
-use sp_api::ProvideRuntimeApi;
-// use sp_block_builder::BlockBuilder;
-// use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sp_blockchain::HeaderBackend;
 
 type BlockHash = String;
 type GenesisHash = String;
@@ -71,17 +63,8 @@ pub struct ExtrinsicApi<C> {
 impl<C> ExtrinsicApi<C> {
     pub fn new(client: Arc<C>) -> ExtrinsicApi<C>
     where
-        C: ProvideRuntimeApi<Block>
-            + HeaderBackend<Block>
-            // + AuxStore
-            // + HeaderMetadata<Block, Error = BlockChainError>
-            + Sync
-            + Send
-            + 'static,
+        C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
         C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-        // C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-        // C::Api: BlockBuilder<Block>,
-        // P: TransactionPool + 'static,
     {
         ExtrinsicApi { client }
     }
@@ -89,17 +72,8 @@ impl<C> ExtrinsicApi<C> {
 
 impl<C> ExtrinsicT for ExtrinsicApi<C>
 where
-    C: ProvideRuntimeApi<Block>
-        + HeaderBackend<Block>
-        // + AuxStore
-        // + HeaderMetadata<Block, Error = BlockChainError>
-        + Sync
-        + Send
-        + 'static,
+    C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-    // C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-    // C::Api: BlockBuilder<Block>,
-    // P: TransactionPool + 'static,
 {
     fn get_payload(
         &self,
@@ -134,11 +108,10 @@ where
         let genesis_hash = self.client.info().genesis_hash;
         println!("genesis_hash: {:?}", genesis_hash);
 
-        // ------------------------------------------------
         // Metadata: The SCALE-encoded metadata for the runtime when submitted.
+        // TODO:
         let metadata = "metadata".to_string();
         println!("metadata: {:?}", metadata);
-        // ------------------------------------------------
 
         // Nonce: The nonce for this transaction.
         let nonce = self
