@@ -94,24 +94,18 @@ where
         let address = AccountId::from_ss58check(address.as_str())
             .map_err(|_| Error::Ss58CodecError)
             .unwrap();
-        println!("address: {:?}", address);
 
         // Block Hash: The hash of the checkpoint block.
         let block_hash = self.client.info().best_hash;
-        println!("block_hash: {:?}", block_hash);
 
         // Block Number: The number of the checkpoint block.
         let block_number = self.client.info().best_number;
-        println!("block_number: {:?}", block_number);
 
         // Genesis Hash: The genesis hash of the chain.
         let genesis_hash = self.client.info().genesis_hash;
-        println!("genesis_hash: {:?}", genesis_hash);
 
         // Metadata: The SCALE-encoded metadata for the runtime when submitted.
-        // TODO:
         let metadata = "metadata".to_string();
-        println!("metadata: {:?}", metadata);
 
         // Nonce: The nonce for this transaction.
         let nonce = self
@@ -119,7 +113,6 @@ where
             .runtime_api()
             .account_nonce(&BlockId::Hash(block_hash), address.clone())
             .expect("Fetching account nonce works");
-        println!("nonce: {:?}", nonce);
 
         // Spec Version: The current spec version for the runtime.
         let version = self
@@ -128,20 +121,16 @@ where
             .version(&BlockId::Hash(block_hash))
             .expect("There should be runtime version at 0");
         let spec_version = version.spec_version;
-        println!("spec_version: {:?}", spec_version);
 
         // Tip: Optional, the tip to increase transaction priority.
         let tip = 0;
-        println!("tip: {:?}", tip);
 
         // Era Period: Optional, the number of blocks after the checkpoint
         // for which a transaction is valid. If zero, the transaction is immortal.
         let era = 0;
-        println!("era: {:?}", era);
 
         // Transaction Version: The current version for transaction format.
         let tx_version = 1;
-        println!("tx_version: {:?}", tx_version);
 
         Ok((
             address,
