@@ -17,8 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
-use crate::error::Error;
-use jsonrpc_core::Result;
+use jsonrpc_core::{Error, Result};
 use jsonrpc_derive::rpc;
 use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
@@ -39,7 +38,7 @@ pub trait ExtrinsicT {
     #[rpc(name = "get_payload")]
     fn get_payload(
         &self,
-        account_id: String,
+        address: String,
     ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)>;
 }
 
@@ -66,27 +65,26 @@ where
         &self,
         address: String,
     ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)> {
-        // Address: The SS58-encoded address of the sending account.
-        let address = AccountId::from_ss58check(address.as_str())
-            .map_err(|_| Error::Ss58CodecError)
-            .unwrap();
-
         // Genesis Hash: The genesis hash of the chain.
         let genesis_hash = self.client.info().genesis_hash.to_string();
+
+        // Address: The SS58-encoded address of the sending account.
+        let address = AccountId::from_ss58check(address.as_str())
+            .map_err(|_| Error::invalid_params("Invalid account"))?;
 
         // Nonce: The nonce for this transaction.
         let nonce = self
             .client
             .runtime_api()
             .account_nonce(&BlockId::Hash(self.client.info().best_hash), address)
-            .expect("Fetching account nonce works");
+            .map_err(|_| Error::internal_error())?;
 
         // Spec Version: The current spec version for the runtime.
         let version = self
             .client
             .runtime_api()
             .version(&BlockId::Hash(self.client.info().best_hash))
-            .expect("There should be runtime version at 0");
+            .map_err(|_| Error::internal_error())?;
         let spec_version = version.spec_version;
 
         // Tip: Optional, the tip to increase transaction priority.
