@@ -24,14 +24,16 @@ use std::sync::Arc;
 use substrate_frame_rpc_system::AccountNonceApi;
 
 use crate::error::Error;
-use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Index};
-use sc_client_api::AuxStore;
-use sc_transaction_pool_api::TransactionPool;
+// use robonomics_primitives::{AccountId, Balance, Block, BlockNumber, Index};
+use robonomics_primitives::{AccountId, Block, BlockNumber, Index};
+// use sc_client_api::AuxStore;
+// use sc_transaction_pool_api::TransactionPool;
 use sp_api::BlockId;
 use sp_api::Core;
 use sp_api::ProvideRuntimeApi;
-use sp_block_builder::BlockBuilder;
-use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+// use sp_block_builder::BlockBuilder;
+// use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+use sp_blockchain::HeaderBackend;
 
 type BlockHash = String;
 type GenesisHash = String;
@@ -69,17 +71,16 @@ pub struct ExtrinsicApi<C> {
 impl<C> ExtrinsicApi<C> {
     pub fn new(client: Arc<C>) -> ExtrinsicApi<C>
     where
-        // C: std::marker::Send + std::marker::Sync,
         C: ProvideRuntimeApi<Block>
             + HeaderBackend<Block>
-            + AuxStore
-            + HeaderMetadata<Block, Error = BlockChainError>
+            // + AuxStore
+            // + HeaderMetadata<Block, Error = BlockChainError>
             + Sync
             + Send
             + 'static,
         C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
         // C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-        C::Api: BlockBuilder<Block>,
+        // C::Api: BlockBuilder<Block>,
         // P: TransactionPool + 'static,
     {
         ExtrinsicApi { client }
@@ -88,17 +89,16 @@ impl<C> ExtrinsicApi<C> {
 
 impl<C> ExtrinsicT for ExtrinsicApi<C>
 where
-    // C: 'static + std::marker::Send + std::marker::Sync,
     C: ProvideRuntimeApi<Block>
         + HeaderBackend<Block>
-        + AuxStore
-        + HeaderMetadata<Block, Error = BlockChainError>
+        // + AuxStore
+        // + HeaderMetadata<Block, Error = BlockChainError>
         + Sync
         + Send
         + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     // C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-    C::Api: BlockBuilder<Block>,
+    // C::Api: BlockBuilder<Block>,
     // P: TransactionPool + 'static,
 {
     fn get_payload(
