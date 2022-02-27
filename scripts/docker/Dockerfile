@@ -28,7 +28,9 @@ LABEL description="This is the 2nd stage: a very small image where we copy the r
 
 ARG PROFILE=release
 # add binary to docker image
-COPY ./robonomics /usr/local/bin
+ARG TARGETOS
+ARG TARGETARCH
+COPY $TARGETARCH/robonomics /usr/local/bin
 
 USER robonomics
 
