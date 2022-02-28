@@ -276,6 +276,7 @@ jobs:
         cd tmp/robonomics;tar -czvf ../../runtime-"$(jq -r '.core_version' main-info.json | awk '{print $1}')".tar.gz *;cd ../../
         cd tmp/robonomics-alpha;tar -czvf ../../runtime-"$(jq -r '.core_version' alpha-info.json | awk '{print $1}')".tar.gz *;cd ../../
         cd tmp/ipci;tar -czvf ../../runtime-"$(jq -r '.core_version' ipci-info.json | awk '{print $1}')".tar.gz *;cd ../../
+        echo "${{ steps.get_version.outputs.version-without-v }}" > version
         sha256sum *.tar.gz > sha256sum
         rm -rf tmp/
 
