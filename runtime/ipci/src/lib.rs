@@ -42,7 +42,7 @@ mod voter_bags;
 use codec::Decode;
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{ConstU32, Currency, EqualPrivilegeOnly, Imbalance, OnUnbalanced, EnsureOneOf},
+    traits::{ConstU32, Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -604,7 +604,7 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = Preimage;                                                                                     
+    type PreimageProvider = Preimage;
     type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
 }
@@ -624,7 +624,6 @@ impl pallet_preimage::Config for Runtime {
     type BaseDeposit = PreimageBaseDeposit;
     type ByteDeposit = PreimageByteDeposit;
 }
-
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);

@@ -440,7 +440,12 @@ pub mod pallet {
             let queue = Self::auction_queue();
             let (finished, next): (Vec<_>, Vec<_>) = queue
                 .iter()
-                .map(|index| (index.clone(), Self::auction(index).unwrap_or(AuctionLedger::empty())))
+                .map(|index| {
+                    (
+                        index.clone(),
+                        Self::auction(index).unwrap_or(AuctionLedger::empty()),
+                    )
+                })
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue

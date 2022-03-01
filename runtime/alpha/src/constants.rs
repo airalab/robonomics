@@ -30,8 +30,8 @@ pub mod currency {
     }
 
     use frame_support::traits::{
-	    fungibles::{self, Balanced, CreditOf},
-	    Contains, Get,
+        fungibles::{self, Balanced, CreditOf},
+        Contains, Get,
     };
     use pallet_asset_tx_payment::HandleCredit;
     use sp_runtime::traits::Zero;
@@ -76,8 +76,8 @@ pub mod currency {
     impl<T: Get<MultiLocation>> FilterAssetLocation for AssetsFrom<T> {
         fn filter_asset_location(asset: &MultiAsset, origin: &MultiLocation) -> bool {
             let loc = T::get();
-            &loc == origin &&
-                matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
+            &loc == origin
+                && matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
                     if asset_loc.match_and_split(&loc).is_some())
         }
     }

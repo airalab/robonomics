@@ -37,10 +37,10 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 pub mod constants;
 
 use frame_support::{
-    construct_runtime, parameter_types, match_type, 
+    construct_runtime, match_type, parameter_types,
     traits::{
-        Currency, EqualPrivilegeOnly, Imbalance, LockIdentifier, OnUnbalanced, U128CurrencyToVote, Everything, Nothing,
-        EnsureOneOf,
+        Currency, EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, LockIdentifier, Nothing,
+        OnUnbalanced, U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -54,7 +54,9 @@ use frame_system::{
 };
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
-use robonomics_primitives::{AssetId, AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
+use robonomics_primitives::{
+    AccountId, AssetId, Balance, BlockNumber, Hash, Index, Moment, Signature,
+};
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
@@ -339,7 +341,7 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = EnsureRoot<AccountId>;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = Preimage;                                                                                     
+    type PreimageProvider = Preimage;
     type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
 }
