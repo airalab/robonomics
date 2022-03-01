@@ -19,18 +19,17 @@
 
 use jsonrpc_core::{Error, Result};
 use jsonrpc_derive::rpc;
-use robonomics_primitives::{AccountId, Block, Index};
+use robonomics_primitives::{AccountId, Block, Hash, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::crypto::Ss58Codec;
-use std::sync::Arc;
+use sp_runtime::generic::Era;
+use std::{str::FromStr, sync::Arc};
 use substrate_frame_rpc_system::AccountNonceApi;
 
-type GenesisHash = String;
-type Nonce = u32;
+type GenesisHash = Hash;
+type Nonce = Index;
 type SpecVersion = u32;
 type Tip = u32;
-type Era = u32;
 type TxVersion = u32;
 
 #[rpc]
@@ -66,11 +65,12 @@ where
         address: String,
     ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)> {
         // Genesis Hash: The genesis hash of the chain.
-        let genesis_hash = self.client.info().genesis_hash.to_string();
+        // let genesis_hash = self.client.info().genesis_hash.to_string();
+        let genesis_hash = self.client.info().genesis_hash;
 
-        // Address: The SS58-encoded address of the sending account.
-        let address = AccountId::from_ss58check(address.as_str())
-            .map_err(|_| Error::invalid_params("Invalid account"))?;
+        // Address: The address of the sending account.
+        let address =
+            AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
 
         // Nonce: The nonce for this transaction.
         let nonce = self
@@ -92,7 +92,7 @@ where
 
         // Era Period: Optional, the number of blocks after the checkpoint
         // for which a transaction is valid. If zero, the transaction is immortal.
-        let era = 0;
+        let era = Era::immortal();
 
         // Transaction Version: The current version for transaction format.
         let tx_version = 1;
