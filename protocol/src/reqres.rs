@@ -245,38 +245,38 @@ pub async fn reqres(
             }
 
             SwarmEvent::Behaviour(event) => match event {
-            RequestResponseEvent::Message {
-                peer,
-                message:
-                    RequestResponseMessage::Response {
-                        request_id,
-                        response,
-                    },
-            } => match response {
-                Response::Pong => {
-                    log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                    break;
-                }
-                Response::Data(data) => {
-                    let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
-                    log::debug!(
-                        " peer2 Resp: Data '{}' from {:?}",
-                        String::from_utf8_lossy(&decoded[..]),
-                        remote_peer
-                    );
-                    log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
+                RequestResponseEvent::Message {
+                    peer,
+                    message:
+                        RequestResponseMessage::Response {
+                            request_id,
+                            response,
+                        },
+                } => match response {
+                    Response::Pong => {
+                        log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                        break;
+                    }
+                    Response::Data(data) => {
+                        let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                        log::debug!(
+                            " peer2 Resp: Data '{}' from {:?}",
+                            String::from_utf8_lossy(&decoded[..]),
+                            remote_peer
+                        );
+                        log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
+                        break;
+                    }
+                },
+
+                e => {
+                    println!("Peer2 err: {:?}", e);
                     break;
                 }
             },
 
-            e => {
-                println!("Peer2 err: {:?}", e);
-                break;
-            }            
-        },
-        
             _ => {}
-        }; 
+        };
     }
     Ok("decoded".to_string())
 }

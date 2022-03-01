@@ -182,7 +182,9 @@ fn mk_genesis(
                 .map(|x| (x.1.clone(), 1))
                 .collect(),
         },
-        sudo: SudoConfig { key: Some(sudo_key) },
+        sudo: SudoConfig {
+            key: Some(sudo_key),
+        },
         vesting: Default::default(),
         staking: StakingConfig { bonus },
         democracy: DemocracyConfig::default(),

@@ -18,9 +18,7 @@
 //! Polkadot collator service implementation.
 
 use codec::Encode;
-use cumulus_client_consensus_aura::{
-    AuraConsensus, BuildAuraConsensusParams, SlotProportion,
-};
+use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
 use cumulus_client_consensus_common::ParachainConsensus;
 use cumulus_client_consensus_relay_chain::{
     build_relay_chain_consensus, BuildRelayChainConsensusParams,
@@ -243,7 +241,7 @@ where
             .map_err(|e| match e {
                 polkadot_service::Error::Sub(x) => x,
                 s => format!("{}", s).into(),
-        })?;
+            })?;
     let block_announce_validator = BlockAnnounceValidator::new(relay_chain_interface.clone(), id);
 
     let prometheus_registry = parachain_config.prometheus_registry().cloned();
@@ -258,7 +256,9 @@ where
             transaction_pool: transaction_pool.clone(),
             spawn_handle: task_manager.spawn_handle(),
             import_queue: import_queue.clone(),
-            block_announce_validator_builder: Some(Box::new(|_| Box::new(block_announce_validator))),
+            block_announce_validator_builder: Some(Box::new(|_| {
+                Box::new(block_announce_validator)
+            })),
             warp_sync: None,
         })?;
 
@@ -468,7 +468,7 @@ pub fn build_open_consensus<RuntimeApi, Executor>(
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
-    relay_chain_interface: Arc<dyn RelayChainInterface>, 
+    relay_chain_interface: Arc<dyn RelayChainInterface>,
     transaction_pool: Arc<
         sc_transaction_pool::FullPool<
             Block,
@@ -521,7 +521,8 @@ where
                     &relay_chain_interface,
                     &validation_data,
                     para_id,
-                ).await;
+                )
+                .await;
                 let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
                 let lighthouse =
                     pallet_robonomics_lighthouse::InherentDataProvider(encoded_account);
@@ -546,7 +547,7 @@ pub fn build_pos_consensus<RuntimeApi, Executor>(
     prometheus_registry: Option<&Registry>,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
-    relay_chain_interface: Arc<dyn RelayChainInterface>, 
+    relay_chain_interface: Arc<dyn RelayChainInterface>,
     transaction_pool: Arc<
         sc_transaction_pool::FullPool<
             Block,
@@ -587,53 +588,48 @@ where
         telemetry.clone(),
     );
 
-    let consensus = AuraConsensus::build::<
-        sp_consensus_aura::sr25519::AuthorityPair,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-    >(BuildAuraConsensusParams {
-        proposer_factory,
-        create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-            let relay_chain_for_aura = relay_chain_interface.clone();
-            async move {
-                let parachain_inherent =
+    let consensus =
+        AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(
+            BuildAuraConsensusParams {
+                proposer_factory,
+                create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+                    let relay_chain_for_aura = relay_chain_interface.clone();
+                    async move {
+                        let parachain_inherent =
                     cumulus_primitives_parachain_inherent::ParachainInherentData::create_at(
                         relay_parent,
                         &relay_chain_for_aura,
                         &validation_data,
                         para_id,
                     ).await;
-                let time = sp_timestamp::InherentDataProvider::from_system_time();
-                let slot =
+                        let time = sp_timestamp::InherentDataProvider::from_system_time();
+                        let slot =
                     sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
                         *time,
                         slot_duration.slot_duration(),
                     );
 
-                let parachain_inherent = parachain_inherent.ok_or_else(|| {
-                    Box::<dyn std::error::Error + Send + Sync>::from(
-                        "Failed to create parachain inherent",
-                    )
-                })?;
-                Ok((time, slot, parachain_inherent))
-            }
-        },
-        block_import: client.clone(),
-        para_client: client.clone(),
-        backoff_authoring_blocks: Option::<()>::None,
-        sync_oracle,
-        keystore,
-        force_authoring,
-        slot_duration,
-        // We got around 500ms for proposing
-        block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-        max_block_proposal_slot_portion: None,
-        telemetry,
-    });
+                        let parachain_inherent = parachain_inherent.ok_or_else(|| {
+                            Box::<dyn std::error::Error + Send + Sync>::from(
+                                "Failed to create parachain inherent",
+                            )
+                        })?;
+                        Ok((time, slot, parachain_inherent))
+                    }
+                },
+                block_import: client.clone(),
+                para_client: client.clone(),
+                backoff_authoring_blocks: Option::<()>::None,
+                sync_oracle,
+                keystore,
+                force_authoring,
+                slot_duration,
+                // We got around 500ms for proposing
+                block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
+                max_block_proposal_slot_portion: None,
+                telemetry,
+            },
+        );
 
     Ok(consensus)
 }

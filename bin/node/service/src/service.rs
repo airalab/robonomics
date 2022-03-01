@@ -19,7 +19,7 @@
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
-use sc_client_api::{ExecutorProvider,BlockBackend};
+use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa as grandpa;
@@ -244,7 +244,6 @@ where
         other: (rpc_extensions_builder, block_import, grandpa_link, mut telemetry),
     } = new_partial(&config, heartbeat_interval)?;
 
-
     let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
         grandpa_link.shared_authority_set().clone(),
@@ -252,14 +251,19 @@ where
     ));
 
     let grandpa_protocol_name = grandpa::protocol_standard_name(
-        &client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+        &client
+            .block_hash(0)
+            .ok()
+            .flatten()
+            .expect("Genesis block exists; qed"),
         &config.chain_spec,
     );
     config
         .network
         .extra_sets
-        .push(grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
-
+        .push(grandpa::grandpa_peers_set_config(
+            grandpa_protocol_name.clone(),
+        ));
 
     let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {

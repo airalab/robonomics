@@ -38,7 +38,7 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{EqualPrivilegeOnly, KeyOwnerProofSystem, EnsureOneOf},
+    traits::{EnsureOneOf, EqualPrivilegeOnly, KeyOwnerProofSystem},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         DispatchClass, IdentityFee, Weight,
@@ -307,7 +307,7 @@ parameter_types! {
     pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80)
         * RuntimeBlockWeights::get().max_block;
     pub const MaxScheduledPerBlock: u32 = 50;
-    // Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.                                       
+    // Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.
     pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
@@ -320,7 +320,7 @@ impl pallet_scheduler::Config for Runtime {
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = Preimage;                                                                                     
+    type PreimageProvider = Preimage;
     type NoPreimagePostponement = NoPreimagePostponement;
     type WeightInfo = ();
 }
