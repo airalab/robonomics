@@ -7,17 +7,19 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 
 [dependencies]
+robonomics-primitives = { path = "../primitives" }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
 codec = { package = "parity-scale-codec", version = "2.3", features = ["derive"] }
 async-trait = "0.1.30"
 derive_more = "0.99.11"
 futures-timer = "3.0.2"
-# substrate-subxt = { git = "https://github.com/paritytech/substrate-subxt", rev="c19d2e6", default-features = false, features = ["tokio02"] }
-# substrate-subxt-proc-macro = { git = "https://github.com/paritytech/substrate-subxt"}
-# subxt = { git = "https://github.com/paritytech/subxt", rev="c19d2e6", default-features = false, features = ["tokio02"] }
+# subxt = "0.17.0"
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16"}
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 libp2p = "0.40.0"
 libp2p-swarm = "0.31.0"
 futures = "0.3.15"

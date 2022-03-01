@@ -33,6 +33,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
 use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
@@ -99,6 +100,8 @@ where
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
 
     io.extend_with(ReqRespApi::to_delegate(ReqRespApi {}));
+
+    io.extend_with(ExtrinsicApi::to_delegate(ExtrinsicApi::new(client.clone())));
 
     Ok(io)
 }
