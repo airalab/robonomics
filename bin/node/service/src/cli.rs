@@ -22,7 +22,6 @@ use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 /// An overarching CLI command definition.
 #[derive(Debug, Parser)]
 #[clap(
-    propagate_version = true,
     args_conflicts_with_subcommands = true,
     subcommand_negates_reqs = true
 )]

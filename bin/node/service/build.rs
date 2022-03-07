@@ -67,6 +67,6 @@ mod cli {
 
         fs::create_dir(&path).ok();
 
-        let _ = generate_to(*shell, &mut Cli::command(), "substrate-node", &path);
+        let _ = generate_to(*shell, &mut Cli::command(), "robonomics", &path);
     }
 }
