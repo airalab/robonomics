@@ -7,9 +7,9 @@ edition = "2018"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3", default-features = false, features = ["derive"] }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "release-v0.9.16" }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "release-v0.9.17" }
 datalog = { package = "pallet-robonomics-datalog", path = "..", default-features = false }
 
 [features]
