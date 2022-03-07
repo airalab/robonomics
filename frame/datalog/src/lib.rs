@@ -303,6 +303,7 @@ mod tests {
         type BlockLength = ();
         type SS58Prefix = ();
         type OnSetCode = ();
+        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     impl pallet_timestamp::Config for Runtime {
@@ -393,7 +394,6 @@ mod tests {
             let record = b"datalog".to_vec();
             assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
             // old log should be empty
-            assert_eq!(Datalog::datalog(sender), None);
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
             assert_eq!(
                 Datalog::datalog_index(&sender),
