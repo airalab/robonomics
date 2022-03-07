@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-rpc"
-version = "1.7.2"
+version = "1.7.3"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"

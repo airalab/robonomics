@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 12,
+    spec_version: 13,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -328,7 +328,7 @@ impl pallet_scheduler::Config for Runtime {
 parameter_types! {
     pub const PreimageMaxSize: u32 = 4096 * 1024;
     pub const PreimageBaseDeposit: Balance = 1 * XRT;
-    pub const PreimageByteDeposit: Balance = 10 * GLUSHKOV;
+    pub const PreimageByteDeposit: Balance = 10 * COASE;
 }
 
 impl pallet_preimage::Config for Runtime {
