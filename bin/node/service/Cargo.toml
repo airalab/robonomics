@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-service"
-version = "1.7.0"
+version = "1.7.2"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
@@ -11,9 +11,9 @@ repository = "https://github.com/airalab/robonomics"
 
 [dependencies]
 # third-party dependencies
+clap = { version = "3.0", features = ["derive"], optional = true }
 serde = { version = "1.0.130", features = ["derive"]}
 codec = { package = "parity-scale-codec", version = "2.3" }
-structopt = { version = "0.3.8", optional = true }
 jsonrpc-core = { version = "18.0.0", optional = true }
 hex-literal = "0.3.1"
 log = "0.4"
@@ -120,7 +120,8 @@ frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", bran
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17" }
 #robonomics-cli = { path = "../../../cli", optional = true }
 vergen = { version = "3.1.0", optional = true }
-structopt = { version = "0.3.8", optional = true }
+clap = { version = "3.0", features = ["derive"], optional = true }
+clap_complete = { version = "3.0", optional = true }
 
 [features]
 ## Build fully functional node by default.
@@ -132,7 +133,8 @@ full = [
     "sc-cli",
     "sp-core",
     "vergen",
-    "structopt",
+    "clap",
+    "clap_complete",
     "local-runtime",
     "sc-service/db",
     "robonomics-rpc",
@@ -146,7 +148,8 @@ zero = [
     "sc-cli",
     "sp-core",
     "vergen",
-    "structopt",
+    "clap",
+    "clap_complete",
 #    "robonomics-cli",
 ]
 

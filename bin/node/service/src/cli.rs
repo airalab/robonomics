@@ -17,49 +17,49 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
-use structopt::StructOpt;
+use clap::Parser;
 
 /// An overarching CLI command definition.
-#[derive(Debug, StructOpt)]
-#[structopt(settings = &[
-    structopt::clap::AppSettings::GlobalVersion,
-    structopt::clap::AppSettings::ArgsNegateSubcommands,
-    structopt::clap::AppSettings::SubcommandsNegateReqs,
-])]
+#[derive(Debug, Parser)]
+#[clap(
+    propagate_version = true,
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true
+)]
 pub struct Cli {
     /// Possible subcommand with parameters.
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub subcommand: Option<Subcommand>,
 
     #[allow(missing_docs)]
-    #[structopt(flatten)]
+    #[clap(flatten)]
     #[cfg(feature = "full")]
     pub run: RunCmd,
 
     /// Polkadot relaychain arguments.
-    #[structopt(raw = true)]
+    #[clap(raw = true)]
     #[cfg(feature = "parachain")]
     pub relaychain_args: Vec<String>,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct RunCmd {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub base: sc_cli::RunCmd,
 
     /// Id of the parachain this collator collates for.
-    #[structopt(long)]
+    #[clap(long)]
     #[cfg(feature = "parachain")]
     pub parachain_id: Option<u32>,
 
     /// Ethereum address assigned to collator. [default: off]
     /// Notice: If not set then node will not collate blocks.
-    #[structopt(long)]
+    #[clap(long)]
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
 
     /// PubSub heartbeat interval
-    #[structopt(long)]
+    #[clap(long)]
     pub heartbeat_interval: Option<u64>,
 }
 
@@ -72,9 +72,10 @@ impl std::ops::Deref for RunCmd {
 }
 
 /// Possible subcommands of the main binary.
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
     /// Key management cli utilities
+    #[clap(subcommand)]
     Key(KeySubcommand),
 
     /// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
@@ -103,12 +104,12 @@ pub enum Subcommand {
     Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
     /// Export the genesis state of the parachain.
-    #[structopt(name = "export-genesis-state")]
+    #[clap(name = "export-genesis-state")]
     #[cfg(feature = "parachain")]
     ExportGenesisState(super::parachain::cli::ExportGenesisStateCommand),
 
     /// Export the genesis wasm of the parachain.
-    #[structopt(name = "export-genesis-wasm")]
+    #[clap(name = "export-genesis-wasm")]
     #[cfg(feature = "parachain")]
     ExportGenesisWasm(super::parachain::cli::ExportGenesisWasmCommand),
 }
