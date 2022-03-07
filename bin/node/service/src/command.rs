@@ -118,12 +118,6 @@ pub fn run() -> sc_cli::Result<()> {
                         return Err("Light client not supported!".into());
                     }
 
-                    if cli.run.validator && cli.run.lighthouse_account.is_none() {
-                        return Err(
-                            "Option --lighthouse-account should be set for validator".into()
-                        );
-                    }
-
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
@@ -145,12 +139,6 @@ pub fn run() -> sc_cli::Result<()> {
                 RobonomicsFamily::Main => runner.run_node_until_exit(|config| async move {
                     if matches!(config.role, sc_cli::Role::Light) {
                         return Err("Light client not supported!".into());
-                    }
-
-                    if cli.run.validator && cli.run.lighthouse_account.is_none() {
-                        return Err(
-                            "Option --lighthouse-account should be set for validator".into()
-                        );
                     }
 
                     let params = parachain::command::parse_args(

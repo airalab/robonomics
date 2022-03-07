@@ -235,6 +235,7 @@ mod tests {
         type BlockLength = ();
         type SS58Prefix = ();
         type OnSetCode = ();
+        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     impl Config for Runtime {
@@ -351,7 +352,7 @@ mod tests {
                 economics,
                 promisee,
                 promisor,
-                promisee_signature: Default::default(),
+                promisee_signature: promisor_signature.clone(),
                 promisor_signature,
             };
 

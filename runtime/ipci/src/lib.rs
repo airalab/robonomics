@@ -83,7 +83,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 8,
+    spec_version: 9,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -439,7 +439,6 @@ impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
 }
 
 impl pallet_staking::Config for Runtime {
-    const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
     type Currency = Balances;
     type UnixTime = Timestamp;
     type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
@@ -456,6 +455,7 @@ impl pallet_staking::Config for Runtime {
     type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+    type MaxNominations = MaxNominations;
     type ElectionProvider = ElectionProviderMultiPhase;
     type GenesisElectionProvider = onchain::OnChainSequentialPhragmen<Self>;
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
@@ -516,7 +516,9 @@ sp_npos_elections::generate_solution_type!(
     >(16)
 );
 
-pub const MAX_NOMINATIONS: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
+parameter_types! {
+    pub MaxNominations: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
+}
 
 /// Maximum number of iterations for balancing that will be executed in the embedded OCW
 /// miner of election provider multi phase.
@@ -582,6 +584,8 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
         pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
         OffchainRandomBalancing,
     >;
+    type GovernanceFallback =
+        frame_election_provider_support::onchain::OnChainSequentialPhragmen<Self>;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = MoreThanHalfTechnicals;
     type BenchmarkingConfig = ElectionProviderBenchmarkConfig;
