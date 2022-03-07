@@ -516,8 +516,8 @@ sp_npos_elections::generate_solution_type!(
     >(16)
 );
 
-parameter_types! {                                                                                                        
-    pub MaxNominations: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;                          
+parameter_types! {
+    pub MaxNominations: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 }
 
 /// Maximum number of iterations for balancing that will be executed in the embedded OCW

@@ -16,8 +16,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use std::path::PathBuf;
 use clap::Parser;
+use std::path::PathBuf;
 
 /// Command for exporting the genesis state of the parachain
 #[derive(Debug, Parser)]

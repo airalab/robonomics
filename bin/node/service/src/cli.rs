@@ -16,8 +16,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 use clap::Parser;
+use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 
 /// An overarching CLI command definition.
 #[derive(Debug, Parser)]
@@ -52,8 +52,8 @@ pub struct RunCmd {
     #[cfg(feature = "parachain")]
     pub parachain_id: Option<u32>,
 
-    /// Ethereum address assigned to collator. [default: off]
-    /// Notice: If not set then node will not collate blocks.
+    /// An address assigned to collator. [default: off]
+    /// Notice: If not set then collator rewards will go to treasury.
     #[clap(long)]
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,

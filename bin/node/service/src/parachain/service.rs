@@ -30,6 +30,7 @@ use cumulus_client_service::{
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_relay_chain_interface::RelayChainInterface;
 use cumulus_relay_chain_local::build_relay_chain_interface;
+use hex_literal::hex;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::ExecutorProvider;
@@ -498,7 +499,11 @@ where
         + cumulus_primitives_core::CollectCollationInfo<Block>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
 {
-    let account = lighthouse_account.unwrap_or(Default::default());
+    let account = lighthouse_account.unwrap_or(
+        // Treasury by default
+        hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+    );
+
     let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
         task_manager.spawn_handle(),
         client.clone(),
