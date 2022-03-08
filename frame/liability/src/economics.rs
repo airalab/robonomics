@@ -19,8 +19,13 @@
 
 use codec::{Decode, Encode};
 use frame_support::traits::Currency;
+use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 /// Simple market as approach: liability has a price of execution.
-#[derive(Encode, Decode, PartialEq, Eq, RuntimeDebug)]
-pub struct SimpleMarket<AccountId, C: Currency<AccountId>>(pub C::Balance);
+#[derive(Encode, Decode, PartialEq, Clone, Eq, TypeInfo, RuntimeDebug)]
+#[scale_info(skip_type_params(C))]
+pub struct SimpleMarket<AccountId, C: Currency<AccountId>> {
+    #[codec(compact)]
+    pub price: C::Balance,
+}

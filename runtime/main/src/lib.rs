@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 13,
+    spec_version: 14,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -577,6 +577,22 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type Event = Event;
 }
 
+impl pallet_robonomics_liability::Config for Runtime {
+    type Agreement = pallet_robonomics_liability::SignedAgreement<
+        pallet_robonomics_liability::technics::IPFS,
+        pallet_robonomics_liability::economics::SimpleMarket<Self::AccountId, Balances>,
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+    >;
+    type Report = pallet_robonomics_liability::SignedReport<
+        Self::Index,
+        Self::AccountId,
+        sp_runtime::MultiSignature,
+        pallet_robonomics_liability::technics::IPFS,
+    >;
+    type Event = Event;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -614,6 +630,7 @@ construct_runtime! {
         Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
         DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>} = 54,
         RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>} = 55,
+        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>} = 56,
 
         Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 60,
     }
