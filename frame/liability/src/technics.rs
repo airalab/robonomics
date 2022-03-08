@@ -19,9 +19,9 @@
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
+use sp_core::H256;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
-use sp_core::H256;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug)]

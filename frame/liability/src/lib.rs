@@ -180,20 +180,20 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
+    use crate::economics::SimpleMarket;
     use crate::signed::*;
     use crate::technics::IPFS;
-    use crate::economics::SimpleMarket;
     use crate::traits::*;
     use crate::{self as liability, *};
     use frame_support::{assert_err, assert_ok, parameter_types};
+    use hex_literal::hex;
     use sp_core::{crypto::Pair, sr25519, H256};
+    use sp_keyring::AccountKeyring;
     use sp_runtime::{
         testing::Header,
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, MultiSignature,
     };
-    use sp_keyring::AccountKeyring;
-    use hex_literal::hex;
 
     type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -267,7 +267,7 @@ mod tests {
         type Agreement = SignedAgreement<
             // Provide task in IPFS
             IPFS,
-            // Liability has a price 
+            // Liability has a price
             SimpleMarket<Self::AccountId, Balances>,
             // Use standard accounts
             Self::AccountId,
@@ -287,7 +287,8 @@ mod tests {
     }
 
     // IPFS raw hash (sha256)
-    const IPFS_HASH: [u8; 32] = hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
+    const IPFS_HASH: [u8; 32] =
+        hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
         let mut storage = frame_system::GenesisConfig::default()
@@ -334,7 +335,6 @@ mod tests {
         (sender, signature)
     }
 
-
     #[test]
     fn test_liability_proofs() {
         let technics = IPFS {
@@ -374,9 +374,7 @@ mod tests {
             let technics = IPFS {
                 hash: IPFS_HASH.into(),
             };
-            let economics = SimpleMarket {
-                price: 10 * XRT,
-            };
+            let economics = SimpleMarket { price: 10 * XRT };
 
             let (alice, promisee_signature) = get_params_proof("//Alice", &technics, &economics);
             let (bob, promisor_signature) = get_params_proof("//Bob", &technics, &economics);
