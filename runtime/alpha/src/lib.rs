@@ -98,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 13,
-    spec_version: 22,
+    spec_version: 23,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -698,8 +698,8 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
 
 impl pallet_robonomics_liability::Config for Runtime {
     type Agreement = pallet_robonomics_liability::SignedAgreement<
-        Vec<u8>,
-        (),
+        pallet_robonomics_liability::technics::IPFS,
+        pallet_robonomics_liability::economics::SimpleMarket<Self::AccountId, Balances>,
         Self::AccountId,
         sp_runtime::MultiSignature,
     >;
@@ -707,7 +707,7 @@ impl pallet_robonomics_liability::Config for Runtime {
         Self::Index,
         Self::AccountId,
         sp_runtime::MultiSignature,
-        Vec<u8>,
+        pallet_robonomics_liability::technics::IPFS,
     >;
     type Event = Event;
 }

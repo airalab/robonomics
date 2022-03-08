@@ -182,9 +182,9 @@ pub mod pallet {
 mod tests {
     use crate::signed::*;
     use crate::technics::IPFS;
+    use crate::economics::SimpleMarket;
     use crate::traits::*;
     use crate::{self as liability, *};
-    use base58::FromBase58;
     use frame_support::{assert_err, assert_ok, parameter_types};
     use sp_core::{crypto::Pair, sr25519, H256};
     use sp_runtime::{
@@ -192,9 +192,14 @@ mod tests {
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, MultiSignature,
     };
+    use sp_keyring::AccountKeyring;
+    use hex_literal::hex;
 
     type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
+    type Balance = u128;
+
+    const XRT: Balance = 1_000_000_000;
 
     frame_support::construct_runtime!(
         pub enum Runtime where
@@ -203,6 +208,7 @@ mod tests {
             UncheckedExtrinsic = UncheckedExtrinsic,
         {
             System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+            Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
             Liability: liability::{Pallet, Call, Storage, Event<T>},
         }
     );
@@ -225,7 +231,7 @@ mod tests {
         type BlockHashCount = BlockHashCount;
         type Version = ();
         type PalletInfo = PalletInfo;
-        type AccountData = ();
+        type AccountData = pallet_balances::AccountData<Balance>;
         type OnNewAccount = ();
         type OnKilledAccount = ();
         type DbWeight = ();
@@ -238,13 +244,31 @@ mod tests {
         type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
+    parameter_types! {
+        pub const MaxLocks: u32 = 50;
+        pub const MaxReserves: u32 = 50;
+        pub const ExistentialDeposit: Balance = 10;
+    }
+
+    impl pallet_balances::Config for Runtime {
+        type MaxLocks = MaxLocks;
+        type MaxReserves = MaxReserves;
+        type ReserveIdentifier = [u8; 8];
+        type Balance = Balance;
+        type Event = Event;
+        type DustRemoval = ();
+        type ExistentialDeposit = ExistentialDeposit;
+        type AccountStore = System;
+        type WeightInfo = ();
+    }
+
     impl Config for Runtime {
         type Event = Event;
         type Agreement = SignedAgreement<
             // Provide task in IPFS
             IPFS,
-            // No payments
-            (),
+            // Liability has a price 
+            SimpleMarket<Self::AccountId, Balances>,
             // Use standard accounts
             Self::AccountId,
             // Use standard signatures
@@ -262,10 +286,22 @@ mod tests {
         >;
     }
 
+    // IPFS raw hash (sha256)
+    const IPFS_HASH: [u8; 32] = hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
+
     fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
+        let mut storage = frame_system::GenesisConfig::default()
             .build_storage::<Runtime>()
             .unwrap();
+
+        let _ = pallet_balances::GenesisConfig::<Runtime> {
+            balances: vec![
+                (AccountKeyring::Alice.into(), 100 * XRT),
+                (AccountKeyring::Bob.into(), 100 * XRT),
+            ],
+        }
+        .assimilate_storage(&mut storage);
+
         storage.into()
     }
 
@@ -298,14 +334,13 @@ mod tests {
         (sender, signature)
     }
 
+
     #[test]
     fn test_liability_proofs() {
         let technics = IPFS {
-            hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                .from_base58()
-                .unwrap(),
+            hash: IPFS_HASH.into(),
         };
-        let economics = ();
+        let economics = SimpleMarket { price: 10 };
         let (sender, signature) = get_params_proof("//Alice", &technics, &economics);
         let agreement: <Runtime as Config>::Agreement = SignedAgreement {
             technics,
@@ -319,9 +354,7 @@ mod tests {
 
         let index = 1;
         let payload = IPFS {
-            hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                .from_base58()
-                .unwrap(),
+            hash: IPFS_HASH.into(),
         };
         let (sender, signature) = get_report_proof("//Alice", &index, &payload);
         let report = SignedReport {
@@ -339,19 +372,23 @@ mod tests {
             assert_eq!(Liability::latest_index(), None);
 
             let technics = IPFS {
-                hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                    .from_base58()
-                    .unwrap(),
+                hash: IPFS_HASH.into(),
             };
-            let economics = ();
+            let economics = SimpleMarket {
+                price: 10 * XRT,
+            };
 
-            let (promisee, promisee_signature) = get_params_proof("//Alice", &technics, &economics);
-            let (promisor, promisor_signature) = get_params_proof("//Bob", &technics, &economics);
+            let (alice, promisee_signature) = get_params_proof("//Alice", &technics, &economics);
+            let (bob, promisor_signature) = get_params_proof("//Bob", &technics, &economics);
+
+            assert_eq!(System::account(&alice).data.free, 100 * XRT);
+            assert_eq!(System::account(&bob).data.free, 100 * XRT);
+
             let agreement = SignedAgreement {
                 technics,
                 economics,
-                promisee,
-                promisor,
+                promisee: alice.clone(),
+                promisor: bob.clone(),
                 promisee_signature: promisor_signature.clone(),
                 promisor_signature,
             };
@@ -364,6 +401,8 @@ mod tests {
                 Error::<Runtime>::BadAgreementProof,
             );
             assert_eq!(Liability::latest_index(), None);
+            assert_eq!(System::account(&alice).data.free, 100 * XRT);
+            assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
             let agreement = SignedAgreement {
                 promisee_signature,
@@ -376,12 +415,12 @@ mod tests {
             assert_eq!(Liability::latest_index(), Some(1));
             assert_eq!(Liability::report_of(0), None);
             assert_eq!(Liability::agreement_of(0), Some(agreement));
+            assert_eq!(System::account(&alice).data.free, 90 * XRT);
+            assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
             let index = 0;
             let payload = IPFS {
-                hash: "QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4"
-                    .from_base58()
-                    .unwrap(),
+                hash: IPFS_HASH.into(),
             };
             let (_, bad_signature) = get_report_proof("//Alice", &index, &payload);
             let (sender, signature) = get_report_proof("//Bob", &index, &payload);
@@ -397,6 +436,8 @@ mod tests {
                 Error::<Runtime>::BadReportProof,
             );
             assert_eq!(Liability::report_of(0), None);
+            assert_eq!(System::account(&alice).data.free, 90 * XRT);
+            assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
             let report = SignedReport {
                 signature,
@@ -407,6 +448,8 @@ mod tests {
                 report.clone()
             ));
             assert_eq!(Liability::report_of(0), Some(report));
+            assert_eq!(System::account(&alice).data.free, 90 * XRT);
+            assert_eq!(System::account(&bob).data.free, 110 * XRT);
         })
     }
 }

@@ -518,8 +518,8 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
 
 impl pallet_robonomics_liability::Config for Runtime {
     type Agreement = pallet_robonomics_liability::SignedAgreement<
-        Vec<u8>,
-        (),
+        pallet_robonomics_liability::technics::IPFS,
+        pallet_robonomics_liability::economics::SimpleMarket<Self::AccountId, Balances>,
         Self::AccountId,
         sp_runtime::MultiSignature,
     >;
@@ -527,7 +527,7 @@ impl pallet_robonomics_liability::Config for Runtime {
         Self::Index,
         Self::AccountId,
         sp_runtime::MultiSignature,
-        Vec<u8>,
+        pallet_robonomics_liability::technics::IPFS,
     >;
     type Event = Event;
 }

@@ -61,7 +61,7 @@ where
     C: ReservableCurrency<A>,
 {
     fn on_start(&self) -> DispatchResult {
-        C::reserve(&self.promisee, self.economics.0)
+        C::reserve(&self.promisee, self.economics.price)
     }
 
     fn on_finish(&self, success: bool) -> DispatchResult {
@@ -69,12 +69,12 @@ where
             C::repatriate_reserved(
                 &self.promisee,
                 &self.promisor,
-                self.economics.0,
+                self.economics.price,
                 BalanceStatus::Free,
             )
             .map(|_| ())
         } else {
-            if C::unreserve(&self.promisee, self.economics.0) == self.economics.0 {
+            if C::unreserve(&self.promisee, self.economics.price) == self.economics.price {
                 Ok(())
             } else {
                 Err("reserved less than expected")?
