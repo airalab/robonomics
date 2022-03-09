@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -3014,7 +3014,7 @@ checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
 
 [[package]]
 name = "ipci-runtime"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4202,7 +4202,7 @@ checksum = "a261afc61b7a5e323933b402ca6a1765183687c614789b1e4db7762ed4230bca"
 
 [[package]]
 name = "local-runtime"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4338,7 +4338,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7840,7 +7840,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -7893,7 +7893,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-pubsub",
@@ -7919,7 +7919,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "alpha-runtime",
  "clap",
@@ -10715,9 +10715,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.19"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8276d9a4a3a558d7b7ad5303ad50b53d58264641b82914b7ada36bd762e7a716"
+checksum = "2e65ce065b4b5c53e73bb28912318cb8c9e9ad3921f1d669eb0e68b4c8143a2b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10726,9 +10726,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03cfcb51380632a72d3111cb8d3447a8d908e577d31beeac006f836383d29a23"
+checksum = "aa31669fa42c09c34d94d8165dd2012e8ff3c66aca50f3bb226b68f216f2706c"
 dependencies = [
  "lazy_static",
  "valuable",
