@@ -19,14 +19,13 @@
 
 use jsonrpc_core::{Error, Result};
 use jsonrpc_derive::rpc;
-use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
 use sp_runtime::generic::Era;
 use std::{str::FromStr, sync::Arc};
 use substrate_frame_rpc_system::AccountNonceApi;
 
-type GenesisHash = Hash;
 type Nonce = Index;
 type SpecVersion = u32;
 type Tip = u32;
@@ -35,10 +34,7 @@ type TxVersion = u32;
 #[rpc]
 pub trait ExtrinsicT {
     #[rpc(name = "get_payload")]
-    fn get_payload(
-        &self,
-        address: String,
-    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)>;
+    fn get_payload(&self, address: String) -> Result<(Nonce, SpecVersion, Tip, Era, TxVersion)>;
 }
 
 pub struct ExtrinsicApi<C> {
@@ -60,14 +56,7 @@ where
     C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 {
-    fn get_payload(
-        &self,
-        address: String,
-    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)> {
-        // Genesis Hash: The genesis hash of the chain.
-        // let genesis_hash = self.client.info().genesis_hash.to_string();
-        let genesis_hash = self.client.info().genesis_hash;
-
+    fn get_payload(&self, address: String) -> Result<(Nonce, SpecVersion, Tip, Era, TxVersion)> {
         // Address: The address of the sending account.
         let address =
             AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
@@ -97,6 +86,6 @@ where
         // Transaction Version: The current version for transaction format.
         let tx_version = 1;
 
-        Ok((genesis_hash, nonce, spec_version, tip, era, tx_version))
+        Ok((nonce, spec_version, tip, era, tx_version))
     }
 }
