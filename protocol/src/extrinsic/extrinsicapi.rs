@@ -27,27 +27,30 @@ use sp_blockchain::HeaderBackend;
 use std::{str::FromStr, sync::Arc};
 use substrate_frame_rpc_system::AccountNonceApi;
 
-type Nonce = Index;
-type SpecVersion = u32;
-type Tip = u32;
-type TxVersion = u32;
+// type Nonce = Index;
+// type SpecVersion = u32;
+// type Tip = u32;
+// type TxVersion = u32;
 
 use parity_scale_codec::{Compact, Decode, Encode, HasCompact};
 use parity_scale_codec_derive::{Decode, Encode};
-// #[derive(Debug, PartialEq, Encode, Decode, Serialize, Deserialize)]
-// struct TxData {
-//     #[codec(compact)]
-//     nonce: Index,
-//     spec_version: u32,
-//     tip: u32,
-//     era: u32,
-//     tx_version: u32,
-// }
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct CompactNonce {
+    #[codec(compact)]
+    nonce: u64,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct CompactTip {
+    #[codec(compact)]
+    tip: u64,
+}
 
 #[rpc]
 pub trait ExtrinsicT {
     #[rpc(name = "get_payload")]
-    fn get_payload(&self, address: String) -> Result<Vec<u8>>;
+    fn get_payload(&self, address: String) -> Result<Vec<Vec<u8>>>;
 }
 
 pub struct ExtrinsicApi<C> {
@@ -69,7 +72,7 @@ where
     C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 {
-    fn get_payload(&self, address: String) -> Result<Vec<u8>> {
+    fn get_payload(&self, address: String) -> Result<Vec<Vec<u8>>> {
         // Address: The address of the sending account.
         let address =
             AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
@@ -90,16 +93,27 @@ where
         let spec_version = version.spec_version;
 
         // Tip: Optional, the tip to increase transaction priority.
-        let tip = 0;
+        let tip = 0 as u64;
 
         // Era Period: Optional, the number of blocks after the checkpoint
         // for which a transaction is valid. If zero, the transaction is immortal.
         // let era = Era::immortal();
-        let era = 0;
+        let era = 0 as u64;
 
         // Transaction Version: The current version for transaction format.
-        let tx_version = 1;
+        let tx_version = 1 as u64;
 
-        Ok(vec![nonce, spec_version, tip, era, tx_version].encode())
+        Ok(vec![
+            // comp
+            CompactNonce {
+                nonce: nonce.into(),
+            }
+            .encode(),
+            spec_version.encode(),
+            // comp
+            CompactTip { tip }.encode(),
+            era.encode(),
+            tx_version.encode(),
+        ])
     }
 }
