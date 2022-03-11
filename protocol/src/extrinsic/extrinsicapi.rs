@@ -22,7 +22,8 @@ use jsonrpc_derive::rpc;
 use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_runtime::generic::Era;
+// use sp_runtime::generic::Era;
+// use sp_runtime::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
 use substrate_frame_rpc_system::AccountNonceApi;
 
@@ -31,10 +32,22 @@ type SpecVersion = u32;
 type Tip = u32;
 type TxVersion = u32;
 
+use parity_scale_codec::{Compact, Decode, Encode, HasCompact};
+use parity_scale_codec_derive::{Decode, Encode};
+// #[derive(Debug, PartialEq, Encode, Decode, Serialize, Deserialize)]
+// struct TxData {
+//     #[codec(compact)]
+//     nonce: Index,
+//     spec_version: u32,
+//     tip: u32,
+//     era: u32,
+//     tx_version: u32,
+// }
+
 #[rpc]
 pub trait ExtrinsicT {
     #[rpc(name = "get_payload")]
-    fn get_payload(&self, address: String) -> Result<(Nonce, SpecVersion, Tip, Era, TxVersion)>;
+    fn get_payload(&self, address: String) -> Result<Vec<u8>>;
 }
 
 pub struct ExtrinsicApi<C> {
@@ -56,7 +69,7 @@ where
     C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 {
-    fn get_payload(&self, address: String) -> Result<(Nonce, SpecVersion, Tip, Era, TxVersion)> {
+    fn get_payload(&self, address: String) -> Result<Vec<u8>> {
         // Address: The address of the sending account.
         let address =
             AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
@@ -81,11 +94,12 @@ where
 
         // Era Period: Optional, the number of blocks after the checkpoint
         // for which a transaction is valid. If zero, the transaction is immortal.
-        let era = Era::immortal();
+        // let era = Era::immortal();
+        let era = 0;
 
         // Transaction Version: The current version for transaction format.
         let tx_version = 1;
 
-        Ok((nonce, spec_version, tip, era, tx_version))
+        Ok(vec![nonce, spec_version, tip, era, tx_version].encode())
     }
 }
