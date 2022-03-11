@@ -5838,6 +5838,7 @@ dependencies = [
  "bitvec 1.0.0",
  "byte-slice-cast",
  "impl-trait-for-tuples",
+ "parity-scale-codec-derive 3.0.0",
  "serde",
 ]
 
@@ -7828,6 +7829,7 @@ dependencies = [
  "derive_more",
  "futures 0.3.21",
  "futures-timer",
+ "hex",
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
@@ -7835,9 +7837,7 @@ dependencies = [
  "libp2p",
  "libp2p-swarm",
  "log",
- "parity-scale-codec 2.3.1",
  "parity-scale-codec 3.0.0",
- "parity-scale-codec-derive 3.0.0",
  "rand 0.8.4",
  "robonomics-primitives",
  "rust-base58",
