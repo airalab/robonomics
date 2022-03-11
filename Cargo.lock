@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -2617,9 +2617,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.11"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9f1f717ddc7b2ba36df7e871fd88db79326551d3d6f1fc406fbfd28b582ff8e"
+checksum = "62eeb471aa3e3c9197aa4bfeabfe02982f6dc96f750486c0bb0009ac58b26d2b"
 dependencies = [
  "bytes 1.1.0",
  "fnv",
@@ -2636,9 +2636,9 @@ dependencies = [
 
 [[package]]
 name = "handlebars"
-version = "4.2.1"
+version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25546a65e5cf1f471f3438796fc634650b31d7fcde01d444c309aeb28b92e3a8"
+checksum = "99d6a30320f094710245150395bc763ad23128d6a1ebbad7594dc4164b62c56b"
 dependencies = [
  "log",
  "pest",
@@ -3014,7 +3014,7 @@ checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
 
 [[package]]
 name = "ipci-runtime"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -4202,7 +4202,7 @@ checksum = "a261afc61b7a5e323933b402ca6a1765183687c614789b1e4db7762ed4230bca"
 
 [[package]]
 name = "local-runtime"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4338,7 +4338,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4363,7 +4363,6 @@ dependencies = [
  "pallet-robonomics-rws",
  "pallet-robonomics-staking",
  "pallet-scheduler",
- "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -4512,9 +4511,9 @@ dependencies = [
 
 [[package]]
 name = "mick-jaeger"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd2c2cc134e57461f0898b0e921f0a7819b5e3f3a4335b9aa390ce81a5f36fb9"
+checksum = "69672161530e8aeca1d1400fbf3f1a1747ff60ea604265a4e906c2442df20532"
 dependencies = [
  "futures 0.3.21",
  "rand 0.8.5",
@@ -7840,7 +7839,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -7893,7 +7892,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "jsonrpc-core",
  "jsonrpc-pubsub",
@@ -7919,7 +7918,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "alpha-runtime",
  "clap",
@@ -10703,9 +10702,9 @@ checksum = "360dfd1d6d30e05fda32ace2c8c70e9c0a9da713275777f5a4dbb8a1893930c6"
 
 [[package]]
 name = "tracing"
-version = "0.1.31"
+version = "0.1.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6c650a8ef0cd2dd93736f033d21cbd1224c5a967aa0c258d00fcf7dafef9b9f"
+checksum = "4a1bdf54a7c28a2bbf701e1d2233f6c77f473486b94bee4f9678da5a148dca7f"
 dependencies = [
  "cfg-if 1.0.0",
  "pin-project-lite 0.2.8",

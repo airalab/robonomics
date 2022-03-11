@@ -1,6 +1,6 @@
 [package]
 name = "main-runtime"
-version = "1.8.1"
+version = "1.8.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"
@@ -35,7 +35,6 @@ pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
-pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 pallet-membership = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
@@ -93,7 +92,6 @@ std = [
     "frame-executive/std",
     "pallet-identity/std",
     "pallet-scheduler/std",
-    "pallet-sudo/std",
     "pallet-treasury/std",
     "pallet-membership/std",
     "pallet-multisig/std",

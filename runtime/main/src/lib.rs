@@ -72,7 +72,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 15,
+    spec_version: 16,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -484,11 +484,6 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = ();
 }
 
-impl pallet_sudo::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
-}
-
 parameter_types! {
     // We do anything the parent chain tells us in this runtime.
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 2;
@@ -604,7 +599,6 @@ construct_runtime! {
         Utility: pallet_utility::{Pallet, Call, Storage, Event} = 11,
         Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 12,
         Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 13,
-        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 15,
 
         // Parachain systems.

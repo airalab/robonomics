@@ -1,6 +1,6 @@
 [package]
 name = "local-runtime"
-version = "1.8.1"
+version = "1.8.2"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 build = "build.rs"

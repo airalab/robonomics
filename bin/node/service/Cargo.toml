@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-service"
-version = "1.8.1"
+version = "1.8.2"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
