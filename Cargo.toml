@@ -4,7 +4,6 @@ members = [
     "bin/node",
     "bin/node/rpc",
     "bin/node/service",
-#    "bin/bench",
 #    "cli",
     "frame/rws",
     "frame/launch",
@@ -20,7 +19,7 @@ members = [
     "runtime/local",
     "runtime/alpha",
     "runtime/main",
-#    "runtime/ipci",
+    "runtime/ipci",
 ]
 
 exclude = [
