@@ -27,6 +27,7 @@ use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
 use sc_sync_state_rpc::LightSyncStateExtension;
 use serde::{Deserialize, Serialize};
+use serde_json::map::Map;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -203,6 +204,9 @@ pub fn development_config() -> ChainSpec {
             get_account_id_from_seed::<sr25519::Public>("Alice"),
         )
     };
+    let mut properties = Map::new();
+    properties.insert("tokenSymbol".into(), "XRT".into());
+    properties.insert("tokenDecimals".into(), 9.into());
     ChainSpec::from_genesis(
         "Development",
         "dev",
@@ -212,7 +216,7 @@ pub fn development_config() -> ChainSpec {
         None,
         None,
         None,
-        None,
+        Some(properties),
         Default::default(),
     )
 }

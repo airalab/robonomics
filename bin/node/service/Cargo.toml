@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-service"
-version = "1.8.2"
+version = "1.8.3"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
@@ -13,6 +13,7 @@ repository = "https://github.com/airalab/robonomics"
 # third-party dependencies
 clap = { version = "3.0", features = ["derive"], optional = true }
 serde = { version = "1.0.130", features = ["derive"]}
+serde_json = "1.0"
 codec = { package = "parity-scale-codec", version = "2.3" }
 jsonrpc-core = { version = "18.0.0", optional = true }
 hex-literal = "0.3.1"

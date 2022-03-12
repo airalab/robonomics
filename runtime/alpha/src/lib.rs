@@ -37,9 +37,9 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 pub mod constants;
 
 use frame_support::{
-    construct_runtime, match_type, parameter_types,
+    construct_runtime, parameter_types,
     traits::{
-        Currency, EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, LockIdentifier, Nothing,
+        Currency, EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, LockIdentifier,
         OnUnbalanced, U128CurrencyToVote,
     },
     weights::{
@@ -67,7 +67,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -98,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 13,
-    spec_version: 23,
+    spec_version: 24,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
