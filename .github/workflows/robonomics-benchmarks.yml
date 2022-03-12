@@ -1,21 +1,13 @@
-name: robonomics-benchmarks build 
+name: robonomics-benchmarks
 on:
   push:
     branches:
-    - master 
+    - master
 
 jobs:
   binary:
-    name: Binary (${{ matrix.target }})
+    name: Benchmark binary 
     runs-on: ubuntu-18.04
-    strategy:
-      matrix:
-        target:
-        - x86_64-unknown-linux-gnu
-
-    env:
-      EXE_PATH: ${{ contains(matrix.target, 'x86_64') && '' || format('/{0}', matrix.target) }}
-
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
@@ -26,7 +18,6 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly-2021-11-02
-        target: ${{ matrix.target }}
         components: rustfmt, clippy
         default: true
 
@@ -37,10 +28,10 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --release --locked --target ${{ matrix.target }} --no-default-features --features benchmarks
+        args: --release --locked --no-default-features --features benchmarks
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@master
       with:
-        name: robonomics-benchmarks-${{ matrix.target }}
-        path: target${{ env.EXE_PATH }}/release/robonomics
+        name: robonomics-benchmarks
+        path: target/release/robonomics
