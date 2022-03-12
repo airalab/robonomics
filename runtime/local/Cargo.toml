@@ -112,6 +112,7 @@ runtime-benchmarks = [
     "frame-system/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
+    "pallet-collective/runtime-benchmarks",
     "pallet-timestamp/runtime-benchmarks",
     "pallet-robonomics-launch/runtime-benchmarks",
     "pallet-robonomics-datalog/runtime-benchmarks",

@@ -207,9 +207,9 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(subcommand)?;
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.sync_run(|config| {
-                    subcommand.run::<robonomics_primitives::Block, robonomics::Executor>(config)
+                    subcommand
+                        .run::<robonomics_primitives::Block, robonomics::LocalExecutor>(config)
                 }),
-                _ => Err("Unknown chain")?,
             }
         }
         #[cfg(feature = "parachain")]
