@@ -85,11 +85,11 @@ where
         let tx_version = 1 as u64;
 
         Ok(vec![
-            hex::encode(AsCompact(nonce as u64).encode()),
-            hex::encode(spec_version.encode()),
-            hex::encode(AsCompact(tip).encode()),
-            hex::encode(era.encode()),
-            hex::encode(tx_version.encode()),
+            "0x".to_string() + &hex::encode(AsCompact(nonce as u64).encode()),
+            "0x".to_string() + &hex::encode(spec_version.encode()),
+            "0x".to_string() + &hex::encode(AsCompact(tip).encode()),
+            "0x".to_string() + &hex::encode(era.encode()),
+            "0x".to_string() + &hex::encode(tx_version.encode()),
         ])
     }
 }
