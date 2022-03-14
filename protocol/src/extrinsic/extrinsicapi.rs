@@ -17,28 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network protocol.
 
+use codec::{Compact, Decode, Encode, HasCompact};
 use jsonrpc_core::{Error, Result};
 use jsonrpc_derive::rpc;
-use robonomics_primitives::{AccountId, Block, Hash, Index};
+use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_runtime::generic::Era;
 use std::{str::FromStr, sync::Arc};
 use substrate_frame_rpc_system::AccountNonceApi;
 
-type GenesisHash = Hash;
-type Nonce = Index;
-type SpecVersion = u32;
-type Tip = u32;
-type TxVersion = u32;
+#[derive(Debug, PartialEq, Encode, Decode)]
+struct AsCompact<T: HasCompact>(#[codec(compact)] pub T);
 
 #[rpc]
 pub trait ExtrinsicT {
     #[rpc(name = "get_payload")]
-    fn get_payload(
-        &self,
-        address: String,
-    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)>;
+    fn get_payload(&self, address: String) -> Result<Vec<String>>;
 }
 
 pub struct ExtrinsicApi<C> {
@@ -60,14 +54,7 @@ where
     C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 {
-    fn get_payload(
-        &self,
-        address: String,
-    ) -> Result<(GenesisHash, Nonce, SpecVersion, Tip, Era, TxVersion)> {
-        // Genesis Hash: The genesis hash of the chain.
-        // let genesis_hash = self.client.info().genesis_hash.to_string();
-        let genesis_hash = self.client.info().genesis_hash;
-
+    fn get_payload(&self, address: String) -> Result<Vec<String>> {
         // Address: The address of the sending account.
         let address =
             AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
@@ -88,15 +75,21 @@ where
         let spec_version = version.spec_version;
 
         // Tip: Optional, the tip to increase transaction priority.
-        let tip = 0;
+        let tip = 0 as u64;
 
         // Era Period: Optional, the number of blocks after the checkpoint
         // for which a transaction is valid. If zero, the transaction is immortal.
-        let era = Era::immortal();
+        let era = 0 as u64;
 
         // Transaction Version: The current version for transaction format.
-        let tx_version = 1;
+        let tx_version = 1 as u64;
 
-        Ok((genesis_hash, nonce, spec_version, tip, era, tx_version))
+        Ok(vec![
+            "0x".to_string() + &hex::encode(AsCompact(nonce as u64).encode()),
+            "0x".to_string() + &hex::encode(spec_version.encode()),
+            "0x".to_string() + &hex::encode(AsCompact(tip).encode()),
+            "0x".to_string() + &hex::encode(era.encode()),
+            "0x".to_string() + &hex::encode(tx_version.encode()),
+        ])
     }
 }
