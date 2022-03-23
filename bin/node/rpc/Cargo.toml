@@ -11,7 +11,7 @@ repository = "https://github.com/airalab/robonomics"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.3" }
+codec = { package = "parity-scale-codec", version = "3.0" }
 jsonrpc-core = "18.0.0"
 jsonrpc-pubsub = "18.0.0"
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18" }

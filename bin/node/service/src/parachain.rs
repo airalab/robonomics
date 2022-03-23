@@ -75,6 +75,7 @@ pub mod alpha {
     pub async fn start_node(
         parachain_config: sc_service::Configuration,
         polkadot_config: sc_service::Configuration,
+        collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
@@ -82,6 +83,7 @@ pub mod alpha {
         super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
             parachain_config,
             polkadot_config,
+            collator_options,
             para_id,
             lighthouse_account,
             super::service::build_open_import_queue,
@@ -115,6 +117,7 @@ pub mod main {
     pub async fn start_node(
         parachain_config: sc_service::Configuration,
         polkadot_config: sc_service::Configuration,
+        collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
@@ -122,6 +125,7 @@ pub mod main {
         super::service::start_node_impl::<RuntimeApi, MainExecutor, _, _>(
             parachain_config,
             polkadot_config,
+            collator_options,
             para_id,
             lighthouse_account,
             super::service::build_open_import_queue,
@@ -155,6 +159,7 @@ pub mod ipci {
     pub async fn start_node(
         parachain_config: sc_service::Configuration,
         polkadot_config: sc_service::Configuration,
+        collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
@@ -162,6 +167,7 @@ pub mod ipci {
         super::service::start_node_impl::<RuntimeApi, IPCIExecutor, _, _>(
             parachain_config,
             polkadot_config,
+            collator_options,
             para_id,
             lighthouse_account,
             super::service::build_pos_import_queue,

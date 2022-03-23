@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
         Ok(match id {
             "dev" => Box::new(development_config()),
             #[cfg(feature = "parachain")]
-            path => parachain::load_spec(path, self.run.parachain_id.unwrap_or(2048).into())?,
+            path => parachain::load_spec(path, self.parachain_id.unwrap_or(2048).into())?,
             #[cfg(not(feature = "parachain"))]
             path => Box::new(crate::chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
@@ -99,9 +99,11 @@ pub fn run() -> sc_cli::Result<()> {
         None => Ok(()),
         #[cfg(feature = "full")]
         None => {
-            let runner = cli.create_runner(&*cli.run)?;
+            let runner = cli.create_runner(&cli.run.normalize())?;
+            let collator_options = cli.run.collator_options();
+
             // Default interval 1 sec
-            let heartbeat_interval = cli.run.heartbeat_interval.unwrap_or_else(|| 1000);
+            let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
 
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
@@ -121,13 +123,14 @@ pub fn run() -> sc_cli::Result<()> {
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
-                        cli.run.parachain_id,
-                        cli.run.lighthouse_account,
+                        cli.parachain_id,
+                        cli.lighthouse_account,
                     )?;
 
                     parachain::alpha::start_node(
                         params.0,
                         params.1,
+                        collator_options,
                         params.2,
                         params.3,
                         heartbeat_interval,
@@ -144,13 +147,14 @@ pub fn run() -> sc_cli::Result<()> {
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
-                        cli.run.parachain_id,
-                        cli.run.lighthouse_account,
+                        cli.parachain_id,
+                        cli.lighthouse_account,
                     )?;
 
                     parachain::main::start_node(
                         params.0,
                         params.1,
+                        collator_options,
                         params.2,
                         params.3,
                         heartbeat_interval,
@@ -167,13 +171,14 @@ pub fn run() -> sc_cli::Result<()> {
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
-                        cli.run.parachain_id,
-                        cli.run.lighthouse_account,
+                        cli.parachain_id,
+                        cli.lighthouse_account,
                     )?;
 
                     parachain::ipci::start_node(
                         params.0,
                         params.1,
+                        collator_options,
                         params.2,
                         params.3,
                         heartbeat_interval,
