@@ -143,6 +143,7 @@ full = [
     "sc-service/db",
     "robonomics-rpc",
     "frame-benchmarking",
+    "cumulus-client-cli",
 #    "robonomics-cli",
 ]
 
@@ -154,6 +155,7 @@ zero = [
     "vergen",
     "clap",
     "clap_complete",
+    "cumulus-client-cli",
 #    "robonomics-cli",
 ]
 
@@ -183,7 +185,6 @@ parachain = [
     "cumulus-relay-chain-interface",
     "cumulus-relay-chain-rpc-interface",
     "cumulus-relay-chain-inprocess-interface",
-    "cumulus-client-cli",
     "cumulus-client-collator",
     "cumulus-client-network",
     "cumulus-client-service",
@@ -208,6 +209,7 @@ ros = []
 ## Enable runtime benchmarking.
 runtime-benchmarks = [
     "local-runtime/runtime-benchmarks",
+    "cumulus-client-cli",
     "frame-benchmarking-cli",
     "frame-benchmarking",
     "pallet-robonomics-datalog/runtime-benchmarks",
