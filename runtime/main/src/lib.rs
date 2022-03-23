@@ -51,7 +51,6 @@ use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
 use sp_api::impl_runtime_apis;
-use sp_core::u32_trait::{_1, _2, _3};
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
@@ -72,7 +71,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 16,
+    spec_version: 17,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -403,13 +402,13 @@ impl pallet_democracy::Config for Runtime {
     /// A unanimous council can have the next scheduled referendum be a straight default-carries
     /// (NTB) vote.
     type ExternalDefaultOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
+        pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
     /// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
     /// be tabled immediately and with a shorter voting/enactment period.
     type FastTrackOrigin =
-        pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>;
+        pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>;
     type InstantOrigin =
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>;
+        pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
     type InstantAllowed = InstantAllowed;
     type FastTrackVotingPeriod = FastTrackVotingPeriod;
     // To cancel a proposal which has been passed, 2/3 of the council must agree to it.
@@ -418,7 +417,7 @@ impl pallet_democracy::Config for Runtime {
     // Root must agree.
     type CancelProposalOrigin = EnsureOneOf<
         frame_system::EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+        pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
     >;
     type BlacklistOrigin = frame_system::EnsureRoot<AccountId>;
     // Any single technical committee member may veto a coming council proposal, however they can
@@ -450,7 +449,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 
 type MoreThanHalfTechnicals = EnsureOneOf<
     frame_system::EnsureRoot<AccountId>,
-    pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>,
+    pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {

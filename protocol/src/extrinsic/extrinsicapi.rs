@@ -15,9 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Robonomics Network extrinsic API.
 
-use codec::{Compact, Decode, Encode, HasCompact};
+use codec::{Decode, Encode, HasCompact};
 use jsonrpc_core::{Error, Result};
 use jsonrpc_derive::rpc;
 use robonomics_primitives::{AccountId, Block, Index};

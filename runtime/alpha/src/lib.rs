@@ -60,7 +60,6 @@ use robonomics_primitives::{
 use sp_api::impl_runtime_apis;
 use sp_core::{
     crypto::KeyTypeId,
-    u32_trait::{_1, _2, _3, _5},
     OpaqueMetadata, H256,
 };
 use sp_runtime::{
@@ -98,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 13,
-    spec_version: 24,
+    spec_version: 25,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -377,11 +376,11 @@ impl pallet_treasury::Config for Runtime {
     type Currency = Balances;
     type ApproveOrigin = EnsureOneOf<
         EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+        pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
     >;
     type RejectOrigin = EnsureOneOf<
         EnsureRoot<AccountId>,
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+        pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
     >;
     type Event = Event;
     type ProposalBond = ProposalBond;

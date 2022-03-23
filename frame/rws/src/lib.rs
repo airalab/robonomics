@@ -274,12 +274,11 @@ pub mod pallet {
                 Error::<T>::NotLinkedDevice,
             );
 
-            let subscription = Self::update_subscription(&subscription_id)?;
             let call_info = call.get_dispatch_info();
-            ensure!(
-                subscription.free_weight > call_info.weight,
-                Error::<T>::FreeWeightIsNotEnough,
-            );
+            Self::update_subscription(
+                &subscription_id,
+                call_info.weight,
+            )?;
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
@@ -471,7 +470,8 @@ pub mod pallet {
         /// Update subscription internals and return updated ledger.
         fn update_subscription(
             subscription_id: &T::AccountId,
-        ) -> Result<SubscriptionLedger<<T::Time as Time>::Moment>, Error<T>> {
+            call_weight: Weight,
+        ) -> Result<(), Error<T>> {
             let mut subscription =
                 Self::ledger(subscription_id).ok_or(Error::<T>::NoSubscription)?;
 
@@ -494,9 +494,16 @@ pub mod pallet {
             subscription.free_weight +=
                 T::ReferenceCallWeight::get() * (utps as Weight) * delta / 1_000_000_000;
             subscription.last_update = now;
-            <Ledger<T>>::insert(subscription_id, subscription.clone());
 
-            Ok(subscription)
+            // Ensure than free weight is enough for call
+            if subscription.free_weight < call_weight {
+                <Ledger<T>>::insert(subscription_id, subscription.clone());
+                Err(Error::<T>::FreeWeightIsNotEnough)
+            } else {
+                subscription.free_weight -= call_weight;
+                <Ledger<T>>::insert(subscription_id, subscription.clone());
+                Ok(())
+            }
         }
     }
 
