@@ -21,7 +21,10 @@ use crate::pubsub::{Gossipsub, Message, PubSub};
 use futures::{executor, StreamExt};
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
+use jsonrpc_pubsub::{
+    typed::{Sink, Subscriber},
+    SubscriptionId,
+};
 use libp2p::Multiaddr;
 use rand::Rng;
 use std::sync::{Arc, Mutex};
@@ -30,7 +33,7 @@ use std::{collections::HashMap, thread};
 #[derive(Clone)]
 pub struct PubSubApi {
     pubsub: Arc<Gossipsub>,
-    subscriptions: Arc<Mutex<HashMap<SubscriptionId, String>>>,
+    subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
 }
 
 impl PubSubApi {
@@ -106,14 +109,15 @@ impl PubSubT for PubSubApi {
         let inbox = self.pubsub.subscribe(&topic_name);
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
+        let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
         self.subscriptions
             .lock()
             .unwrap()
-            .insert(subscription_id.clone(), topic_name);
+            .insert(subscription_id, sink.clone());
 
         thread::spawn(move || {
-            let sink = subscriber.assign_id(subscription_id).unwrap();
             let _ = inbox.map(|m: Message| {
+                println!("------------------message: {}", m);
                 let _ = sink.notify(Ok(m.to_string()));
             });
         });
@@ -124,9 +128,19 @@ impl PubSubT for PubSubApi {
         _: Option<Self::Metadata>,
         subscription_id: SubscriptionId,
     ) -> Result<bool> {
-        if let Some(topic_name) = self.subscriptions.lock().unwrap().get(&subscription_id) {
-            self.pubsub.unsubscribe(&topic_name);
-            self.subscriptions.lock().unwrap().remove(&subscription_id);
+        println!("------------------unsubscribe!!!");
+        // if let Some(topic_name) = self.subscriptions.lock().unwrap().get(&subscription_id) {
+        //     self.pubsub.unsubscribe(&topic_name);
+        //     self.subscriptions.lock().unwrap().remove(&subscription_id);
+        //     Ok(true)
+        // } else {
+        //     Ok(false)
+        // }
+
+        let r = self.subscriptions.lock().unwrap().remove(&subscription_id);
+        if r.is_some() {
+            // self.pubsub.unsubscribe(&topic_name);
+            // self.subscriptions.lock().unwrap().remove(&subscription_id);
             Ok(true)
         } else {
             Ok(false)
