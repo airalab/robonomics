@@ -79,8 +79,8 @@ mod xcm_config;
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
-    authoring_version: 13,
-    spec_version: 25,
+    authoring_version: 1,
+    spec_version: 1,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,

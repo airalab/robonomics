@@ -28,15 +28,9 @@ pub fn load_spec(
     para_id: cumulus_primitives_core::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     Ok(match id {
-        "" => {
-            if para_id == chain_spec::KUSAMA_ID.into() {
-                Box::new(chain_spec::get_main_chain_spec())
-            } else if para_id == chain_spec::IPCI_ID.into() {
-                Box::new(chain_spec::get_ipci_chain_spec())
-            } else {
-                Box::new(chain_spec::get_alpha_chain_spec(para_id))
-            }
-        }
+        "" => Box::new(chain_spec::get_main_chain_spec()),
+        "ipci" =>  Box::new(chain_spec::get_ipci_chain_spec()),
+        "alpha-local" => Box::new(chain_spec::get_alpha_chain_spec(para_id)),
         // Load Alpha chain spec by default
         path => Box::new(chain_spec::AlphaChainSpec::from_json_file(path.into())?),
     })
