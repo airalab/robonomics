@@ -172,12 +172,6 @@
 <span id="171">171</span>
 <span id="172">172</span>
 <span id="173">173</span>
-<span id="174">174</span>
-<span id="175">175</span>
-<span id="176">176</span>
-<span id="177">177</span>
-<span id="178">178</span>
-<span id="179">179</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -208,15 +202,9 @@
     <span class="ident">para_id</span>: <span class="ident">cumulus_primitives_core::ParaId</span>,
 ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">sc_service::ChainSpec</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> {
     <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">id</span> {
-        <span class="string">&quot;&quot;</span> =&gt; {
-            <span class="kw">if</span> <span class="ident">para_id</span> <span class="op">==</span> <span class="ident">chain_spec::KUSAMA_ID</span>.<span class="ident">into</span>() {
-                <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_main_chain_spec</span>())
-            } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">para_id</span> <span class="op">==</span> <span class="ident">chain_spec::IPCI_ID</span>.<span class="ident">into</span>() {
-                <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_ipci_chain_spec</span>())
-            } <span class="kw">else</span> {
-                <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_alpha_chain_spec</span>(<span class="ident">para_id</span>))
-            }
-        }
+        <span class="string">&quot;&quot;</span> =&gt; <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_main_chain_spec</span>()),
+        <span class="string">&quot;ipci&quot;</span> =&gt; <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_ipci_chain_spec</span>()),
+        <span class="string">&quot;alpha-local&quot;</span> =&gt; <span class="ident">Box::new</span>(<span class="ident">chain_spec::get_alpha_chain_spec</span>(<span class="ident">para_id</span>)),
         <span class="comment">// Load Alpha chain spec by default</span>
         <span class="ident">path</span> =&gt; <span class="ident">Box::new</span>(<span class="ident">chain_spec::AlphaChainSpec::from_json_file</span>(<span class="ident">path</span>.<span class="ident">into</span>())<span class="question-mark">?</span>),
     })
