@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-primitives"
-version = "1.1.0"
+version = "1.9.9"
 authors = ["Airalab <research@aira.life>"]
 edition = "2018"
 license = "Apache-2.0"
