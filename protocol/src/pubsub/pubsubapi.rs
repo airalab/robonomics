@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Publisher/Subscriber protocol.
 
-use crate::pubsub::{Gossipsub, Message, PubSub};
+use crate::pubsub::{Gossipsub, PubSub};
 use futures::{executor, StreamExt};
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
@@ -116,10 +116,13 @@ impl PubSubT for PubSubApi {
             .insert(subscription_id, sink.clone());
 
         thread::spawn(move || {
-            let _ = inbox.map(|m: Message| {
-                println!("------------------message: {}", m);
-                let _ = sink.notify(Ok(m.to_string()));
+            println!("------------------start");
+            let _ = inbox.for_each(|m| {
+                println!("------------------message: {:?}", m);
+                // let _ = sink.notify(Ok(m.to_string()));
+                futures::future::ready(())
             });
+            println!("------------------end");
         });
     }
 
@@ -128,7 +131,6 @@ impl PubSubT for PubSubApi {
         _: Option<Self::Metadata>,
         subscription_id: SubscriptionId,
     ) -> Result<bool> {
-        println!("------------------unsubscribe!!!");
         // if let Some(topic_name) = self.subscriptions.lock().unwrap().get(&subscription_id) {
         //     self.pubsub.unsubscribe(&topic_name);
         //     self.subscriptions.lock().unwrap().remove(&subscription_id);
