@@ -18,7 +18,8 @@
 //! Robonomics Publisher/Subscriber protocol.
 
 use crate::pubsub::{Gossipsub, PubSub};
-use futures::{executor, StreamExt};
+// use futures::{executor, StreamExt};
+use futures::executor;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{
@@ -28,7 +29,7 @@ use jsonrpc_pubsub::{
 use libp2p::Multiaddr;
 use rand::Rng;
 use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, thread};
+use std::{collections::HashMap, str, thread};
 
 #[derive(Clone)]
 pub struct PubSubApi {
@@ -106,7 +107,7 @@ impl PubSubT for PubSubApi {
     }
 
     fn subscribe(&self, _: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
-        let inbox = self.pubsub.subscribe(&topic_name);
+        let mut inbox = self.pubsub.subscribe(&topic_name);
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
         let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
@@ -115,14 +116,21 @@ impl PubSubT for PubSubApi {
             .unwrap()
             .insert(subscription_id, sink.clone());
 
-        thread::spawn(move || {
-            println!("------------------start");
-            let _ = inbox.for_each(|m| {
-                println!("------------------message: {:?}", m);
-                // let _ = sink.notify(Ok(m.to_string()));
-                futures::future::ready(())
-            });
-            println!("------------------end");
+        thread::spawn(move || loop {
+            match inbox.try_next() {
+                // Message is fetched.
+                Ok(Some(message)) => {
+                    if let Ok(message) = str::from_utf8(&message.data) {
+                        let _ = sink.notify(Ok(message.to_string()));
+                    } else {
+                        continue;
+                    }
+                }
+                // Channel is closed and no messages left in the queue.
+                Ok(None) => break,
+                // There are no messages available, but channel is not yet closed.
+                Err(_) => {}
+            }
         });
     }
 
@@ -131,18 +139,9 @@ impl PubSubT for PubSubApi {
         _: Option<Self::Metadata>,
         subscription_id: SubscriptionId,
     ) -> Result<bool> {
-        // if let Some(topic_name) = self.subscriptions.lock().unwrap().get(&subscription_id) {
-        //     self.pubsub.unsubscribe(&topic_name);
-        //     self.subscriptions.lock().unwrap().remove(&subscription_id);
-        //     Ok(true)
-        // } else {
-        //     Ok(false)
-        // }
-
-        let r = self.subscriptions.lock().unwrap().remove(&subscription_id);
-        if r.is_some() {
+        if let Some(topic_name) = self.subscriptions.lock().unwrap().remove(&subscription_id) {
+            // TODO: ???
             // self.pubsub.unsubscribe(&topic_name);
-            // self.subscriptions.lock().unwrap().remove(&subscription_id);
             Ok(true)
         } else {
             Ok(false)

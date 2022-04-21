@@ -137,18 +137,10 @@ impl PubSubWorker {
         topic_name: String,
         inbox: mpsc::UnboundedSender<super::Message>,
     ) -> bool {
-        println!(
-            "------------------subs inbox1: {:?}",
-            inbox.clone().is_closed()
-        );
         let topic = Topic::new(topic_name.clone());
         let subscribed = self.swarm.behaviour_mut().subscribe(&topic);
         if subscribed.is_ok() {
             log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
-            println!(
-                "------------------subs inbox2: {:?}",
-                inbox.clone().is_closed()
-            );
             self.inbox.insert(topic.hash(), inbox);
         } else {
             log::warn!(target: "robonomics-pubsub",
@@ -174,7 +166,9 @@ impl PubSubWorker {
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         let topic = Topic::new(topic_name);
-        let _ = self.swarm.behaviour_mut().publish(topic, message);
+        if let Err(e) = self.swarm.behaviour_mut().publish(topic, message) {
+            log::warn!(target: "robonomics-pubsub", "Publish error {:?}", e);
+        }
     }
 }
 
@@ -184,52 +178,37 @@ impl Future for PubSubWorker {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         loop {
             match self.swarm.poll_next_unpin(cx) {
-                Poll::Ready(Some(swarm_event)) => {
-                    println!("------------------swarm event: {:?}", swarm_event);
-                    match swarm_event {
-                        SwarmEvent::Behaviour(event) => {
-                            println!("------------------behaviour event: {:?}", event);
-                            match event {
-                                GossipsubEvent::Message {
-                                    propagation_source: peer_id,
-                                    message_id: id,
-                                    message,
-                                } => {
-                                    println!(
-                                        "------------------gossip event: message >>>> {:?}",
-                                        message.clone()
-                                    );
-                                    log::debug!(
-                                        target: "robonomics-pubsub",
-                                        "Received message with id: {} from peer: {}", id, peer_id.to_base58()
-                                    );
+                Poll::Ready(Some(swarm_event)) => match swarm_event {
+                    SwarmEvent::Behaviour(event) => match event {
+                        GossipsubEvent::Message {
+                            propagation_source: peer_id,
+                            message_id: id,
+                            message,
+                        } => {
+                            log::debug!(
+                                target: "robonomics-pubsub",
+                                "Received message with id: {} from peer: {}", id, peer_id.to_base58()
+                            );
 
-                                    // Dispatch handlers by topic name hash
-                                    if let Some(inbox) = self.inbox.get_mut(&message.topic) {
-                                        if let Some(sender) = &message.source {
-                                            println!(
-                                                "------------------closed>>>> {:?}",
-                                                inbox.is_closed()
-                                            );
-                                            let a = inbox.unbounded_send(super::Message {
-                                                from: sender.clone(),
-                                                data: message.data.clone(),
-                                            });
-                                            println!("------------------a>>>> {:?}", a);
-                                        }
-                                    } else {
-                                        log::warn!(
-                                            target: "robonomics-pubsub",
-                                            "Topic {} have no associated inbox!", message.topic
-                                        );
-                                    }
+                            // Dispatch handlers by topic name hash
+                            if let Some(inbox) = self.inbox.get_mut(&message.topic) {
+                                if let Some(sender) = &message.source {
+                                    let _ = inbox.unbounded_send(super::Message {
+                                        from: sender.clone(),
+                                        data: message.data.clone(),
+                                    });
                                 }
-                                _ => {}
+                            } else {
+                                log::warn!(
+                                    target: "robonomics-pubsub",
+                                    "Topic {} have no associated inbox!", message.topic
+                                );
                             }
                         }
                         _ => {}
-                    }
-                }
+                    },
+                    _ => {}
+                },
                 Poll::Ready(None) | Poll::Pending => {
                     break;
                 }
@@ -249,14 +228,7 @@ impl Future for PubSubWorker {
                         let _ = result.send(self.listeners());
                     }
                     ToWorkerMsg::Subscribe(topic_name, inbox) => {
-                        println!(
-                            "------------------subs worker1: {:?}",
-                            inbox.clone().is_closed()
-                        );
-                        // false
-                        let _ = self.subscribe(topic_name, inbox.clone());
-                        println!("------------------subs worker2: {:?}", inbox.is_closed());
-                        // true
+                        let _ = self.subscribe(topic_name, inbox);
                     }
                     ToWorkerMsg::Unsubscribe(topic_name, result) => {
                         let _ = result.send(self.unsubscribe(topic_name));
@@ -319,7 +291,9 @@ impl super::PubSub for PubSub {
         let _ = self
             .to_worker
             .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
-        receiver.boxed()
+
+        // receiver.boxed()
+        receiver
     }
 
     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {

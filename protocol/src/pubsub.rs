@@ -18,9 +18,10 @@
 //! Robonomics Network broadcasting layer.
 
 use crate::error::FutureResult;
-use futures::Stream;
+// use futures::Stream;
 use std::fmt;
-use std::pin::Pin;
+// use std::pin::Pin;
+use futures::channel::mpsc;
 
 pub use libp2p::{Multiaddr, PeerId};
 
@@ -44,7 +45,8 @@ impl fmt::Display for Message {
 }
 
 /// Stream of incoming messages.
-pub type Inbox = Pin<Box<dyn Stream<Item = Message> + Send>>;
+// pub type Inbox = Pin<Box<dyn Stream<Item = Message> + Send>>;
+pub type Inbox = mpsc::UnboundedReceiver<Message>;
 
 /// Robonomics Publisher/Subscriber.
 pub trait PubSub {
