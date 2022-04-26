@@ -52,7 +52,7 @@ enum ToWorkerMsg {
     Listeners(oneshot::Sender<Vec<Multiaddr>>),
     Subscribe(String, mpsc::UnboundedSender<super::Message>),
     Unsubscribe(String, oneshot::Sender<bool>),
-    Publish(String, Vec<u8>),
+    Publish(String, Vec<u8>, oneshot::Sender<bool>),
 }
 
 struct PubSubWorker {
@@ -113,62 +113,91 @@ impl PubSubWorker {
             target: "robonomics-pubsub",
             "Listener for address {} created: {:?}", address, listener
         );
+
         Ok(listener)
     }
 
     fn listeners(&self) -> Vec<Multiaddr> {
         let listeners = Swarm::listeners(&self.swarm).cloned().collect();
         log::debug!(target: "robonomics-pubsub", "Listeners: {:?}", listeners);
+
         listeners
     }
 
-    fn connect(&mut self, address: Multiaddr) -> bool {
-        let connected = Swarm::dial_addr(&mut self.swarm, address.clone());
-        if connected.is_ok() {
-            log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
-        } else {
-            log::warn!(target: "robonomics-pubsub", "Connection error {:?}", connected);
-        }
-        connected.is_ok()
+    // fn connect(&mut self, address: Multiaddr) -> bool {
+    fn connect(&mut self, address: Multiaddr) -> Result<()> {
+        // let connected = Swarm::dial_addr(&mut self.swarm, address.clone());
+        // if connected.is_ok() {
+        //     log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
+        // } else {
+        //     log::warn!(target: "robonomics-pubsub", "Connection error {:?}", connected);
+        // }
+        // connected.is_ok()
+
+        Swarm::dial_addr(&mut self.swarm, address.clone())?;
+        log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
+
+        Ok(())
     }
 
     fn subscribe(
         &mut self,
         topic_name: String,
         inbox: mpsc::UnboundedSender<super::Message>,
-    ) -> bool {
+    ) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
-        let subscribed = self.swarm.behaviour_mut().subscribe(&topic);
-        if subscribed.is_ok() {
-            log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
-            self.inbox.insert(topic.hash(), inbox);
-        } else {
-            log::warn!(target: "robonomics-pubsub",
-                       "Subscription error {:?}", subscribed);
-        }
-        subscribed.is_ok()
+        // let subscribed = self.swarm.behaviour_mut().subscribe(&topic);
+        // if subscribed.is_ok() {
+        //     log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
+        //     self.inbox.insert(topic.hash(), inbox);
+        // } else {
+        //     log::warn!(target: "robonomics-pubsub",
+        //                "Subscription error {:?}", subscribed);
+        // }
+        // subscribed.is_ok()
+
+        self.swarm.behaviour_mut().subscribe(&topic)?;
+        self.inbox.insert(topic.hash(), inbox);
+        log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
+
+        Ok(true)
     }
 
-    fn unsubscribe(&mut self, topic_name: String) -> bool {
+    // fn unsubscribe(&mut self, topic_name: String) -> bool {
+    fn unsubscribe(&mut self, topic_name: String) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
-        let unsubscribed = self.swarm.behaviour_mut().unsubscribe(&topic);
-        if unsubscribed.is_ok() {
-            log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
-            self.inbox.remove(&topic.hash());
-        } else {
-            log::warn!(target: "robonomics-pubsub",
-                       "Unsubscribe error {:?}", unsubscribed);
-        }
-        unsubscribed.is_ok()
+        // let unsubscribed = self.swarm.behaviour_mut().unsubscribe(&topic);
+        // if unsubscribed.is_ok() {
+        //     log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+        //     self.inbox.remove(&topic.hash());
+        // } else {
+        //     log::warn!(target: "robonomics-pubsub",
+        //                "Unsubscribe error {:?}", unsubscribed);
+        // }
+        // unsubscribed.is_ok()
+
+        self.swarm.behaviour_mut().unsubscribe(&topic)?;
+        self.inbox.remove(&topic.hash());
+        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+
+        Ok(true)
     }
 
-    fn publish(&mut self, topic_name: String, message: Vec<u8>) {
-        log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
+    fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
+        let topic = Topic::new(topic_name.clone());
+        // let publish = self.swarm.behaviour_mut().publish(topic, message);
+        // if publish.is_ok() {
+        //     log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
+        // } else {
+        //     log::warn!(target: "robonomics-pubsub", "Publish error {:?}", publish);
+        // }
+        // publish.is_ok()
 
-        let topic = Topic::new(topic_name);
-        if let Err(e) = self.swarm.behaviour_mut().publish(topic, message) {
-            log::warn!(target: "robonomics-pubsub", "Publish error {:?}", e);
-        }
+        self.swarm.behaviour_mut().publish(topic.clone(), message)?;
+        self.inbox.remove(&topic.hash());
+        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+
+        Ok(true)
     }
 }
 
@@ -221,20 +250,20 @@ impl Future for PubSubWorker {
                     ToWorkerMsg::Listen(addr, result) => {
                         let _ = result.send(self.listen(addr).is_ok());
                     }
-                    ToWorkerMsg::Connect(addr, result) => {
-                        let _ = result.send(self.connect(addr));
-                    }
                     ToWorkerMsg::Listeners(result) => {
                         let _ = result.send(self.listeners());
+                    }
+                    ToWorkerMsg::Connect(addr, result) => {
+                        let _ = result.send(self.connect(addr).is_ok());
                     }
                     ToWorkerMsg::Subscribe(topic_name, inbox) => {
                         let _ = self.subscribe(topic_name, inbox);
                     }
                     ToWorkerMsg::Unsubscribe(topic_name, result) => {
-                        let _ = result.send(self.unsubscribe(topic_name));
+                        let _ = result.send(self.unsubscribe(topic_name).is_ok());
                     }
-                    ToWorkerMsg::Publish(topic_name, message) => {
-                        self.publish(topic_name, message);
+                    ToWorkerMsg::Publish(topic_name, message, result) => {
+                        let _ = result.send(self.publish(topic_name, message).is_ok());
                     }
                 },
                 Poll::Ready(None) | Poll::Pending => break,
@@ -292,7 +321,6 @@ impl super::PubSub for PubSub {
             .to_worker
             .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
 
-        // receiver.boxed()
         receiver
     }
 
@@ -304,9 +332,17 @@ impl super::PubSub for PubSub {
         receiver.boxed()
     }
 
-    fn publish<T: ToString, M: Into<Vec<u8>>>(&self, topic_name: &T, message: M) {
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Publish(topic_name.to_string(), message.into()));
+    fn publish<T: ToString, M: Into<Vec<u8>>>(
+        &self,
+        topic_name: &T,
+        message: M,
+    ) -> FutureResult<bool> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Publish(
+            topic_name.to_string(),
+            message.into(),
+            sender,
+        ));
+        receiver.boxed()
     }
 }

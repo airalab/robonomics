@@ -18,7 +18,6 @@
 //! Robonomics Publisher/Subscriber protocol.
 
 use crate::pubsub::{Gossipsub, PubSub};
-// use futures::{executor, StreamExt};
 use futures::executor;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
@@ -35,6 +34,7 @@ use std::{collections::HashMap, str, thread};
 pub struct PubSubApi {
     pubsub: Arc<Gossipsub>,
     subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
+    topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
 }
 
 impl PubSubApi {
@@ -42,6 +42,7 @@ impl PubSubApi {
         PubSubApi {
             pubsub,
             subscriptions: Arc::new(Mutex::new(HashMap::new())),
+            topics: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -107,14 +108,18 @@ impl PubSubT for PubSubApi {
     }
 
     fn subscribe(&self, _: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
-        let mut inbox = self.pubsub.subscribe(&topic_name);
+        let mut inbox = self.pubsub.subscribe(&topic_name.clone());
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
         let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
         self.subscriptions
             .lock()
             .unwrap()
-            .insert(subscription_id, sink.clone());
+            .insert(subscription_id.clone(), sink.clone());
+        self.topics
+            .lock()
+            .unwrap()
+            .insert(subscription_id, topic_name);
 
         thread::spawn(move || loop {
             match inbox.try_next() {
@@ -139,21 +144,21 @@ impl PubSubT for PubSubApi {
         _: Option<Self::Metadata>,
         subscription_id: SubscriptionId,
     ) -> Result<bool> {
-        if let Some(topic_name) = self.subscriptions.lock().unwrap().remove(&subscription_id) {
-            // TODO: ???
-            // self.pubsub.unsubscribe(&topic_name);
-            Ok(true)
-        } else {
-            Ok(false)
+        if let Some(topic_name) = self.topics.lock().unwrap().remove(&subscription_id) {
+            // ???????
+            let _ = self.pubsub.unsubscribe(&topic_name);
+            let _ = self.subscriptions.lock().unwrap().remove(&subscription_id);
         }
+
+        Ok(true)
     }
 
     fn publish(&self, topic_name: String, message: String) -> Result<bool> {
         executor::block_on(async {
             self.pubsub
                 .publish(&topic_name, message.as_bytes().to_vec())
-        });
-
-        Ok(true)
+                .await
+        })
+        .or(Ok(false))
     }
 }
