@@ -145,10 +145,9 @@ impl PubSubT for PubSubApi {
         subscription_id: SubscriptionId,
     ) -> Result<bool> {
         if let Some(topic_name) = self.topics.lock().unwrap().remove(&subscription_id) {
-            // ???????
-            let _ = self.pubsub.unsubscribe(&topic_name);
             let _ = self.subscriptions.lock().unwrap().remove(&subscription_id);
-        }
+            let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
+        };
 
         Ok(true)
     }

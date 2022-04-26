@@ -21,7 +21,7 @@ use futures::channel::oneshot;
 use futures::Future;
 use libp2p::core::connection::ConnectionLimit;
 use libp2p::core::transport::TransportError;
-use libp2p::gossipsub;
+use libp2p::{gossipsub, swarm};
 use std::pin::Pin;
 
 /// Protocol Result typedef.
@@ -72,8 +72,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<libp2p::swarm::DialError> for Error {
-    fn from(_: libp2p::swarm::DialError) -> Self {
+impl From<swarm::DialError> for Error {
+    fn from(_: swarm::DialError) -> Self {
         Error::DialError
     }
 }
