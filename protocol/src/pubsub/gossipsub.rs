@@ -157,7 +157,7 @@ impl PubSubWorker {
         let topic = Topic::new(topic_name.clone());
         self.swarm.behaviour_mut().publish(topic.clone(), message)?;
         self.inbox.remove(&topic.hash());
-        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+        log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         Ok(true)
     }
