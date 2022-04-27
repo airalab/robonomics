@@ -18,8 +18,6 @@
 //! Robonomics Network broadcasting layer.
 
 use crate::error::FutureResult;
-// use futures::Stream;
-// use std::pin::Pin;
 use futures::channel::mpsc;
 use std::fmt;
 
