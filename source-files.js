@@ -2,7 +2,7 @@ var N = null;var sourcesIndex = {};
 sourcesIndex["alpha_runtime"] = {"name":"","files":["constants.rs","lib.rs","xcm_config.rs"]};
 sourcesIndex["ipci_runtime"] = {"name":"","files":["constants.rs","lib.rs","voter_bags.rs"]};
 sourcesIndex["local_runtime"] = {"name":"","files":["constants.rs","lib.rs"]};
-sourcesIndex["main_runtime"] = {"name":"","files":["constants.rs","lib.rs"]};
+sourcesIndex["main_runtime"] = {"name":"","files":["constants.rs","lib.rs","xcm_config.rs"]};
 sourcesIndex["pallet_robonomics_datalog"] = {"name":"","files":["lib.rs","weights.rs"]};
 sourcesIndex["pallet_robonomics_digital_twin"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["pallet_robonomics_launch"] = {"name":"","files":["lib.rs"]};
