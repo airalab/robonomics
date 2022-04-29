@@ -387,7 +387,7 @@ pub mod pallet {
             );
 
             // claim rewards before unbond
-            Self::claim(&controller, &mut ledger)
+            Self::claim(&controller, &mut ledger)?;
 
             let mut value = value.min(ledger.active);
 

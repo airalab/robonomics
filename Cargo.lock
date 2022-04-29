@@ -4699,7 +4699,10 @@ dependencies = [
 name = "main-runtime"
 version = "1.9.9"
 dependencies = [
+ "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-utility",
  "frame-executive",
@@ -4707,6 +4710,7 @@ dependencies = [
  "frame-system",
  "frame-system-rpc-runtime-api",
  "lazy_static",
+ "pallet-assets",
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy",
@@ -4728,8 +4732,11 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
+ "pallet-xcm",
  "parachain-info",
  "parity-scale-codec",
+ "polkadot-parachain",
+ "polkadot-primitives",
  "robonomics-primitives",
  "scale-info",
  "serde",
@@ -4747,6 +4754,9 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -5904,7 +5914,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-liability"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5958,7 +5968,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-staking"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "frame-support",
  "frame-system",

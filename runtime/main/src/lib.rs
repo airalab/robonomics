@@ -49,7 +49,9 @@ use frame_support::{
 use frame_system::limits::{BlockLength, BlockWeights};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
-use robonomics_primitives::{AccountId, Balance, BlockNumber, Hash, Index, Moment, Signature};
+use robonomics_primitives::{
+    AccountId, AssetId, Balance, BlockNumber, Hash, Index, Moment, Signature,
+};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
@@ -65,13 +67,15 @@ use sp_version::RuntimeVersion;
 
 use constants::{currency::*, time::*};
 
+mod xcm_config;
+
 /// Standalone runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 17,
+    spec_version: 18,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -280,6 +284,32 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
+    pub const AssetDeposit: Balance = 10 * XRT; // 10 XRT deposit to create asset
+    pub const AssetsStringLimit: u32 = 50;
+    /// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+    // https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+    pub const MetadataDepositBase: Balance = deposit(1, 68);
+    pub const MetadataDepositPerByte: Balance = deposit(0, 1);
+}
+
+impl pallet_assets::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type AssetId = AssetId;
+    type Currency = Balances;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type AssetDeposit = AssetDeposit;
+    type AssetAccountDeposit = frame_support::traits::ConstU128<XRT>;
+    type MetadataDepositBase = MetadataDepositBase;
+    type MetadataDepositPerByte = MetadataDepositPerByte;
+    type ApprovalDeposit = ExistentialDeposit;
+    type StringLimit = AssetsStringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type WeightInfo = ();
+}
+
+parameter_types! {
     pub const BasicDeposit: Balance = 10 * XRT;       // 258 bytes on-chain
     pub const FieldDeposit: Balance = 250 * COASE;    // 66 bytes on-chain
     pub const SubAccountDeposit: Balance = 2 * XRT;   // 53 bytes on-chain
@@ -484,19 +514,19 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-    // We do anything the parent chain tells us in this runtime.
-    pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 2;
+    pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
+    pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type Event = Event;
     type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
-    type OutboundXcmpMessageSource = ();
-    type DmpMessageHandler = ();
+    type OutboundXcmpMessageSource = XcmpQueue;
+    type DmpMessageHandler = DmpQueue;
     type ReservedDmpWeight = ReservedDmpWeight;
-    type XcmpMessageHandler = ();
-    type ReservedXcmpWeight = ();
+    type XcmpMessageHandler = XcmpQueue;
+    type ReservedXcmpWeight = ReservedXcmpWeight;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -608,6 +638,7 @@ construct_runtime! {
         Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>} = 31,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 32,
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 33,
+        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 34,
 
         // Governance staff.
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 40,
@@ -626,6 +657,12 @@ construct_runtime! {
         Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>} = 56,
 
         Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>} = 60,
+
+        // XCM helpers.
+        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 70,
+        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 71,
+        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 72,
+        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 73,
     }
 }
 

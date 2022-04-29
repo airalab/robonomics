@@ -29,6 +29,7 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch 
 sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
 
 # standard dependencies
+pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
@@ -59,9 +60,20 @@ pallet-robonomics-staking = { path = "../../frame/staking", default-features = f
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
+cumulus-pallet-dmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
+cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.18", default-features = false }
+
+# polkadot dependencies
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+polkadot-primitives = { git = 'https://github.com/paritytech/polkadot', default-features = false , branch = "release-v0.9.18" }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18" }
@@ -86,6 +98,7 @@ std = [
     "sp-staking/std",
     "sp-transaction-pool/std",
     "sp-version/std",
+    "pallet-assets/std",
     "pallet-balances/std",
     "pallet-collective/std",
     "pallet-democracy/std",
@@ -114,6 +127,15 @@ std = [
     "cumulus-pallet-parachain-system/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
+    "cumulus-pallet-dmp-queue/std",
+    "cumulus-pallet-xcmp-queue/std",
+    "cumulus-pallet-xcm/std",
+    "xcm/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+    "pallet-xcm/std",
+    "polkadot-parachain/std",
+    "polkadot-primitives/std",
     "parachain-info/std",
     "scale-info/std",
 ]

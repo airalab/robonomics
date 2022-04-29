@@ -424,7 +424,6 @@ impl pallet_elections_phragmen::Config for Runtime {
 impl parachain_info::Config for Runtime {}
 
 parameter_types! {
-    // We do anything the parent chain tells us in this runtime.
     pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
 }
