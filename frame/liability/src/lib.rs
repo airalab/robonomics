@@ -86,8 +86,14 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn latest_index)]
-    /// Latest liability index.
+    /// [DEPRECATED] Latest liability index.
+    /// TODO: remove after mainnet upgrade
     pub(super) type LatestIndex<T: Config> = StorageValue<_, T::Index>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn next_index)]
+    /// Next liability index.
+    pub(super) type NextIndex<T: Config> = StorageValue<_, T::Index>;
 
     #[pallet::storage]
     #[pallet::getter(fn agreement_of)]
@@ -100,7 +106,17 @@ pub mod pallet {
     pub(super) type ReportOf<T: Config> = StorageMap<_, Twox64Concat, T::Index, ReportFor<T>>;
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        // TODO: remove after mainnet upgrade
+        fn on_runtime_upgrade() -> Weight {
+            if <NextIndex<T>>::get().is_none() {
+                if let Some(index) = <LatestIndex<T>>::take() {
+                    <NextIndex<T>>::put(index)
+                }
+            }
+            1
+        }
+    }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -120,13 +136,13 @@ pub mod pallet {
             agreement.on_start()?;
 
             // Store agreement on storage
-            let latest_index = <LatestIndex<T>>::get().unwrap_or(Default::default());
-            <AgreementOf<T>>::insert(latest_index, agreement.clone());
-            <LatestIndex<T>>::put(latest_index + 1u32.into());
+            let next_index = <NextIndex<T>>::get().unwrap_or(Default::default());
+            <AgreementOf<T>>::insert(next_index, agreement.clone());
+            <NextIndex<T>>::put(next_index + 1u32.into());
 
             // Emit event
             Self::deposit_event(Event::NewLiability(
-                latest_index,
+                next_index,
                 agreement.technical(),
                 agreement.economical(),
                 agreement.promisee(),
@@ -309,7 +325,7 @@ mod tests {
     #[test]
     fn test_initial_setup() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::latest_index(), None);
+            assert_eq!(Liability::next_index(), None);
         });
     }
 
@@ -369,7 +385,7 @@ mod tests {
     #[test]
     fn test_liability_lifecycle() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::latest_index(), None);
+            assert_eq!(Liability::next_index(), None);
 
             let technics = IPFS {
                 hash: IPFS_HASH.into(),
@@ -398,7 +414,7 @@ mod tests {
                 ),
                 Error::<Runtime>::BadAgreementProof,
             );
-            assert_eq!(Liability::latest_index(), None);
+            assert_eq!(Liability::next_index(), None);
             assert_eq!(System::account(&alice).data.free, 100 * XRT);
             assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
@@ -410,7 +426,7 @@ mod tests {
                 Origin::signed(agreement.promisor.clone()),
                 agreement.clone()
             ),);
-            assert_eq!(Liability::latest_index(), Some(1));
+            assert_eq!(Liability::next_index(), Some(1));
             assert_eq!(Liability::report_of(0), None);
             assert_eq!(Liability::agreement_of(0), Some(agreement));
             assert_eq!(System::account(&alice).data.free, 90 * XRT);
