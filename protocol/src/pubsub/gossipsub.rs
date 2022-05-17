@@ -156,7 +156,6 @@ impl PubSubWorker {
     fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
         self.swarm.behaviour_mut().publish(topic.clone(), message)?;
-        self.inbox.remove(&topic.hash());
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         Ok(true)

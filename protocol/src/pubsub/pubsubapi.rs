@@ -81,7 +81,7 @@ pub trait PubSubT {
         unsubscribe,
         name = "pubsub_unsubscribe"
     )]
-    fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+    fn unsubscribe(&self, _: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool>;
 
     /// Publish message into the topic by name.
     #[rpc(name = "pubsub_publish")]
@@ -133,21 +133,19 @@ impl PubSubT for PubSubApi {
                 }
                 // Channel is closed and no messages left in the queue.
                 Ok(None) => break,
+
                 // There are no messages available, but channel is not yet closed.
                 Err(_) => {}
             }
         });
     }
 
-    fn unsubscribe(
-        &self,
-        _: Option<Self::Metadata>,
-        subscription_id: SubscriptionId,
-    ) -> Result<bool> {
-        if let Some(topic_name) = self.topics.lock().unwrap().remove(&subscription_id) {
-            let _ = self.subscriptions.lock().unwrap().remove(&subscription_id);
-            let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
-        };
+    fn unsubscribe(&self, _: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
+        println!("------------------ subscription_id: {:?}", sid);
+        // if let Some(topic_name) = self.topics.lock().unwrap().remove(&subscription_id) {
+        //     let _ = self.subscriptions.lock().unwrap().remove(&subscription_id);
+        //     let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
+        // };
 
         Ok(true)
     }
