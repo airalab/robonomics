@@ -47,7 +47,7 @@ impl PubSubApi {
     }
 }
 
-#[rpc(server)]
+#[rpc]
 pub trait PubSubT {
     type Metadata;
 
@@ -81,7 +81,7 @@ pub trait PubSubT {
         unsubscribe,
         name = "pubsub_unsubscribe"
     )]
-    fn unsubscribe(&self, _: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool>;
+    fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
 
     /// Publish message into the topic by name.
     #[rpc(name = "pubsub_publish")]
@@ -107,7 +107,7 @@ impl PubSubT for PubSubApi {
         executor::block_on(async { self.pubsub.connect(address).await }).or(Ok(false))
     }
 
-    fn subscribe(&self, _: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
+    fn subscribe(&self, _meta: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
         let mut inbox = self.pubsub.subscribe(&topic_name.clone());
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
@@ -140,12 +140,11 @@ impl PubSubT for PubSubApi {
         });
     }
 
-    fn unsubscribe(&self, _: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
-        println!("------------------ subscription_id: {:?}", sid);
-        // if let Some(topic_name) = self.topics.lock().unwrap().remove(&subscription_id) {
-        //     let _ = self.subscriptions.lock().unwrap().remove(&subscription_id);
-        //     let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
-        // };
+    fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
+        if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
+            let _ = self.subscriptions.lock().unwrap().remove(&sid);
+            let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
+        };
 
         Ok(true)
     }
