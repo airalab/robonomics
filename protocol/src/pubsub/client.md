@@ -9,7 +9,6 @@ def subscription_handler(obj, update_nr, subscription_id):
     print(obj['params']['result'])
     if update_nr >= 2:
         return 0
-        # print("unsubscribe:", pubsub.unsubscribe(subscription_id))
 
 interface = RI.RobonomicsInterface(remote_ws="ws://127.0.0.1:9944")
 pubsub = PubSub(interface)
