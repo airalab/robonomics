@@ -1,5 +1,4 @@
-#Python:
-###Pubsub subscribe:
+Pubsub subscribe:
 ```
 import time
 import robonomicsinterface as RI
@@ -19,7 +18,7 @@ print(pubsub.connect("/ip4/127.0.0.1/tcp/44441"))
 print(pubsub.subscribe("42", result_handler=subscription_handler))
 ```
 
-###Pubsub publish:
+Pubsub publish:
 ```
 import time
 import robonomicsinterface as RI
@@ -37,6 +36,8 @@ for i in range(10):
     print("publish:", pubsub.publish("42", "message_" + str(time.time())))
 ```
 
-###Nodes:
+Nodes:
+```
 target/debug/robonomics --dev --tmp -l rpc=trace
 target/debug/robonomics --dev --tmp --ws-port 9991 -l rpc=trace
+```
