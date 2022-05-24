@@ -6,9 +6,10 @@ use frame_support::{
     match_type, parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
     weights::{IdentityFee, Weight},
+    pallet_prelude::Get,
 };
 use sp_runtime::traits::Bounded;
-use sp_std::borrow::Borrow;
+use sp_std::{marker::PhantomData, borrow::Borrow};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
@@ -69,18 +70,20 @@ pub type CurrencyTransactor = CurrencyAdapter<
 pub struct AssetIdConvertion<AssetId>(PhantomData<AssetId>);
 impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AssetIdConvertion<AssetId>
 where
-    AssetId: Clone + Bounded,
+    AssetId: Clone + Eq + Bounded,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
-        match id {
-            MultiLocation::parent() => Ok(AssetId::max_value())
-            _ => Err(())
+        if id.borrow().eq(&MultiLocation::parent()) {
+            Ok(AssetId::max_value())
+        } else {
+            Err(())
         }
     }
     fn reverse_ref(what: impl Borrow<AssetId>) -> Result<MultiLocation, ()> {
-        match what {
-            AssetId::max_value() => Ok(MultiLocation::parent())
-            _ => Err(())
+        if what.borrow().eq(&AssetId::max_value()) {
+            Ok(MultiLocation::parent())
+        } else {
+            Err(())
         }
     }
 }
@@ -162,7 +165,7 @@ pub type XcmBarrier = (
 pub struct AssetsFrom<T>(PhantomData<T>);
 impl<T: Get<MultiLocation>> FilterAssetLocation for AssetsFrom<T> {
     fn filter_asset_location(_asset: &MultiAsset, origin: &MultiLocation) -> bool {
-        origin.eq(T::get())
+        origin.eq(&T::get())
     }
 }
 
