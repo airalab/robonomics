@@ -28,6 +28,7 @@ use xcm_executor::{
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
+    pub const StatemineLocation: MultiLocation = Parachain(1000).into_exterior(1);
     pub RelayNetwork: NetworkId = NetworkId::Kusama;
     pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
     pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -65,27 +66,21 @@ pub type CurrencyTransactor = CurrencyAdapter<
     (),
 >;
 
-pub struct AsAssetWithRelay<AssetId, GeneralAssetConverter>(
-    sp_std::marker::PhantomData<(AssetId, GeneralAssetConverter)>,
-);
-impl<AssetId, GeneralAssetConverter> xcm_executor::traits::Convert<MultiLocation, AssetId>
-    for AsAssetWithRelay<AssetId, GeneralAssetConverter>
+pub struct AssetIdConvertion<AssetId>(PhantomData<AssetId>);
+impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AssetIdConvertion<AssetId>
 where
-    AssetId: Clone + Eq + Bounded,
-    GeneralAssetConverter: xcm_executor::traits::Convert<MultiLocation, AssetId>,
+    AssetId: Clone + Bounded,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
-        if id.borrow().eq(&MultiLocation::parent()) {
-            Ok(AssetId::max_value())
-        } else {
-            GeneralAssetConverter::convert_ref(id)
+        match id {
+            MultiLocation::parent() => Ok(AssetId::max_value())
+            _ => Err(())
         }
     }
     fn reverse_ref(what: impl Borrow<AssetId>) -> Result<MultiLocation, ()> {
-        if what.borrow().eq(&AssetId::max_value().into()) {
-            Ok(MultiLocation::parent())
-        } else {
-            GeneralAssetConverter::reverse_ref(what)
+        match what {
+            AssetId::max_value() => Ok(MultiLocation::parent())
+            _ => Err(())
         }
     }
 }
@@ -98,7 +93,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
     ConvertedConcreteAssetId<
         AssetId,
         Balance,
-        AsAssetWithRelay<AssetId, AsPrefixedGeneralIndex<AssetsPalletLocation, AssetId, JustTry>>,
+        AssetIdConvertion<AssetId>,
         JustTry,
     >,
     // Convert an XCM MultiLocation into a local account id:
@@ -163,27 +158,13 @@ pub type XcmBarrier = (
     AllowSubscriptionsFrom<Everything>,
 );
 
-/// Accepts any asset for dev purposes.
-/// TODO: replace to AssetFrom
-pub struct AnyAsset;
-impl FilterAssetLocation for AnyAsset {
-    fn filter_asset_location(_asset: &MultiAsset, _origin: &MultiLocation) -> bool {
-        true
-    }
-}
-
-/*
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
 impl<T: Get<MultiLocation>> FilterAssetLocation for AssetsFrom<T> {
-    fn filter_asset_location(asset: &MultiAsset, origin: &MultiLocation) -> bool {
-        let loc = T::get();
-        &loc == origin
-            && matches!(asset, MultiAsset { id: AssetId::Concrete(asset_loc), fun: Fungible(_a) }
-                if asset_loc.match_and_split(&loc).is_some())
+    fn filter_asset_location(_asset: &MultiAsset, origin: &MultiLocation) -> bool {
+        origin.eq(T::get())
     }
 }
-*/
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -191,7 +172,7 @@ impl Config for XcmConfig {
     type XcmSender = XcmRouter;
     type AssetTransactor = AssetTransactors;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = AnyAsset;
+    type IsReserve = (AssetsFrom<RelayLocation>, AssetsFrom<StatemineLocation>);
     type IsTeleporter = ();
     type LocationInverter = LocationInverter<Ancestry>;
     type Barrier = XcmBarrier;
