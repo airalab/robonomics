@@ -8236,7 +8236,6 @@ dependencies = [
  "jsonrpc-derive",
  "jsonrpc-pubsub",
  "libp2p",
- "libp2p-swarm",
  "log",
  "parity-scale-codec",
  "rand 0.8.5",

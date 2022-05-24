@@ -18,17 +18,15 @@
 //! Robonomics Network broadcasting layer.
 
 use crate::error::FutureResult;
-use futures::Stream;
+use futures::channel::mpsc;
 use std::fmt;
-use std::pin::Pin;
 
+pub use gossipsub::PubSub as Gossipsub;
 pub use libp2p::{Multiaddr, PeerId};
 
 pub mod discovery;
 pub mod gossipsub;
 pub mod pubsubapi;
-
-pub use gossipsub::PubSub as Gossipsub;
 
 /// Robonomics PubSub message.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -44,7 +42,7 @@ impl fmt::Display for Message {
 }
 
 /// Stream of incoming messages.
-pub type Inbox = Pin<Box<dyn Stream<Item = Message> + Send>>;
+pub type Inbox = mpsc::UnboundedReceiver<Message>;
 
 /// Robonomics Publisher/Subscriber.
 pub trait PubSub {
@@ -75,5 +73,9 @@ pub trait PubSub {
     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool>;
 
     /// Publish message into the topic by name.
-    fn publish<T: ToString, M: Into<Vec<u8>>>(&self, topic_name: &T, message: M);
+    fn publish<T: ToString, M: Into<Vec<u8>>>(
+        &self,
+        topic_name: &T,
+        message: M,
+    ) -> FutureResult<bool>;
 }
