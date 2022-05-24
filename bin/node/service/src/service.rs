@@ -26,7 +26,6 @@ use sc_finality_grandpa as grandpa;
 use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_api::ConstructRuntimeApi;
-use sp_consensus::SlotData;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::{sync::Arc, time::Duration};
@@ -149,9 +148,9 @@ where
         telemetry.as_ref().map(|x| x.handle()),
     )?;
 
-    let slot_duration = sc_consensus_aura::slot_duration(&*client)?.slot_duration();
-    let import_queue =
-        sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(ImportQueueParams {
+    let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
+    let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(
+        ImportQueueParams {
             block_import: grandpa_block_import.clone(),
             justification_import: Some(Box::new(grandpa_block_import.clone())),
             client: client.clone(),
@@ -159,7 +158,7 @@ where
                 let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
                 let slot =
-                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
                         *timestamp,
                         slot_duration,
                     );
@@ -173,7 +172,8 @@ where
             registry: config.prometheus_registry(),
             check_for_equivocation: Default::default(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
-        })?;
+        },
+    )?;
 
     let (pubsub, pubsub_worker) =
         PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
@@ -319,7 +319,6 @@ where
             sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
 
         let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
-        let raw_slot_duration = slot_duration.slot_duration();
 
         let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
             StartAuraParams {
@@ -332,9 +331,9 @@ where
                     let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
                     let slot =
-                        sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                        sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
                             *timestamp,
-                            raw_slot_duration,
+                            slot_duration,
                         );
 
                     Ok((timestamp, slot))

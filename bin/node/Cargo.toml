@@ -1,6 +1,6 @@
 [package]
 name = "robonomics-node"
-version = "1.8.4"
+version = "1.9.9"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node implementation in Rust & Substrate."
 edition = "2018"
@@ -22,7 +22,7 @@ name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
-parity-util-mem = { version = "0.10.2", default-features = false, features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.11", default-features = false, features = ["jemalloc-global"] }
 robonomics-service = { path = "service", default-features = false }
 
 [features]

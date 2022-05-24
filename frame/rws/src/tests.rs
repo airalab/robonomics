@@ -288,7 +288,7 @@ fn test_simple_subscription() {
 
         Timestamp::set_timestamp(1600438165000);
         assert_ok!(RWS::call(Origin::signed(BOB), ALICE, Box::new(call)));
-        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 461188000);
+        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 110188000);
     });
 }
 

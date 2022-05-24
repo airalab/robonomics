@@ -30,18 +30,7 @@ pub struct Cli {
     #[allow(missing_docs)]
     #[clap(flatten)]
     #[cfg(feature = "full")]
-    pub run: RunCmd,
-
-    /// Polkadot relaychain arguments.
-    #[clap(raw = true)]
-    #[cfg(feature = "parachain")]
-    pub relaychain_args: Vec<String>,
-}
-
-#[derive(Debug, Parser)]
-pub struct RunCmd {
-    #[clap(flatten)]
-    pub base: sc_cli::RunCmd,
+    pub run: cumulus_client_cli::RunCmd,
 
     /// Id of the parachain this collator collates for.
     #[clap(long)]
@@ -57,14 +46,11 @@ pub struct RunCmd {
     /// PubSub heartbeat interval
     #[clap(long)]
     pub heartbeat_interval: Option<u64>,
-}
 
-impl std::ops::Deref for RunCmd {
-    type Target = sc_cli::RunCmd;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
+    /// Polkadot relaychain arguments.
+    #[clap(raw = true, conflicts_with = "relay-chain-rpc-url")]
+    #[cfg(feature = "parachain")]
+    pub relaychain_args: Vec<String>,
 }
 
 /// Possible subcommands of the main binary.

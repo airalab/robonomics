@@ -18,6 +18,7 @@
 //! Polkadot collator service implementation.
 
 use codec::Encode;
+use cumulus_client_cli::CollatorOptions;
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
 use cumulus_client_consensus_common::ParachainConsensus;
 use cumulus_client_consensus_relay_chain::{
@@ -28,17 +29,18 @@ use cumulus_client_service::{
     prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use cumulus_relay_chain_interface::RelayChainInterface;
-use cumulus_relay_chain_local::build_relay_chain_interface;
+use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
+use cumulus_relay_chain_interface::{RelayChainError, RelayChainInterface, RelayChainResult};
+use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
 use hex_literal::hex;
+use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::ExecutorProvider;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkService;
-use sc_service::{Role, TFullBackend, TFullClient, TaskManager};
-use sc_telemetry::TelemetryHandle;
-use sp_consensus::SlotData;
+use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
+use sc_telemetry::{TelemetryHandle, TelemetryWorkerHandle};
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
@@ -47,8 +49,32 @@ use std::sync::Arc;
 use std::time::Duration;
 use substrate_prometheus_endpoint::Registry;
 
+async fn build_relay_chain_interface(
+    polkadot_config: Configuration,
+    parachain_config: &Configuration,
+    telemetry_worker_handle: Option<TelemetryWorkerHandle>,
+    task_manager: &mut TaskManager,
+    collator_options: CollatorOptions,
+) -> RelayChainResult<(
+    Arc<(dyn RelayChainInterface + 'static)>,
+    Option<CollatorPair>,
+)> {
+    match collator_options.relay_chain_rpc_url {
+        Some(relay_chain_url) => Ok((
+            Arc::new(RelayChainRPCInterface::new(relay_chain_url).await?) as Arc<_>,
+            None,
+        )),
+        None => build_inprocess_relay_chain(
+            polkadot_config,
+            parachain_config,
+            telemetry_worker_handle,
+            task_manager,
+        ),
+    }
+}
+
 fn new_partial<RuntimeApi, Executor, BIQ>(
-    config: &sc_service::Configuration,
+    config: &Configuration,
     build_import_queue: BIQ,
 ) -> Result<
     sc_service::PartialComponents<
@@ -86,7 +112,7 @@ where
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
         Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
-        &sc_service::Configuration,
+        &Configuration,
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
@@ -165,8 +191,9 @@ where
 /// This is the actual implementation that is abstract over the executor and the runtime api.
 #[sc_tracing::logging::prefix_logs_with("Parachain")]
 pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
-    parachain_config: sc_service::Configuration,
-    polkadot_config: sc_service::Configuration,
+    parachain_config: Configuration,
+    polkadot_config: Configuration,
+    collator_options: CollatorOptions,
     id: polkadot_primitives::v0::Id,
     lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
@@ -195,7 +222,7 @@ where
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     BIQ: FnOnce(
         Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
-        &sc_service::Configuration,
+        &Configuration,
         Option<TelemetryHandle>,
         &TaskManager,
     ) -> Result<
@@ -237,12 +264,18 @@ where
     let backend = params.backend.clone();
     let mut task_manager = params.task_manager;
 
-    let (relay_chain_interface, collator_key) =
-        build_relay_chain_interface(polkadot_config, telemetry_worker_handle, &mut task_manager)
-            .map_err(|e| match e {
-                polkadot_service::Error::Sub(x) => x,
-                s => format!("{}", s).into(),
-            })?;
+    let (relay_chain_interface, collator_key) = build_relay_chain_interface(
+        polkadot_config,
+        &parachain_config,
+        telemetry_worker_handle,
+        &mut task_manager,
+        collator_options.clone(),
+    )
+    .await
+    .map_err(|e| match e {
+        RelayChainError::ServiceError(polkadot_service::Error::Sub(x)) => x,
+        s => s.to_string().into(),
+    })?;
     let block_announce_validator = BlockAnnounceValidator::new(relay_chain_interface.clone(), id);
 
     let prometheus_registry = parachain_config.prometheus_registry().cloned();
@@ -326,7 +359,7 @@ where
             relay_chain_interface,
             spawner,
             parachain_consensus,
-            collator_key,
+            collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
             relay_chain_slot_duration,
         };
 
@@ -334,6 +367,7 @@ where
     } else {
         let params = StartFullNodeParams {
             client: client.clone(),
+            collator_options,
             announce_block,
             task_manager: &mut task_manager,
             para_id: id,
@@ -353,7 +387,7 @@ where
 /// Build the import queue for the PoS parachain runtime.
 pub fn build_pos_import_queue<RuntimeApi, Executor>(
     client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
-    config: &sc_service::Configuration,
+    config: &Configuration,
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
@@ -400,9 +434,9 @@ where
             let time = sp_timestamp::InherentDataProvider::from_system_time();
 
             let slot =
-                sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
                     *time,
-                    slot_duration.slot_duration(),
+                    slot_duration,
                 );
 
             Ok((time, slot))
@@ -418,7 +452,7 @@ where
 /// Build the import queue for the open consensus parachain runtime.
 pub fn build_open_import_queue<RuntimeApi, Executor>(
     client: Arc<TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>>,
-    config: &sc_service::Configuration,
+    config: &Configuration,
     _telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
 ) -> Result<
@@ -593,48 +627,54 @@ where
         telemetry.clone(),
     );
 
-    let consensus =
-        AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(
-            BuildAuraConsensusParams {
-                proposer_factory,
-                create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-                    let relay_chain_for_aura = relay_chain_interface.clone();
-                    async move {
-                        let parachain_inherent =
+    let consensus = AuraConsensus::build::<
+        sp_consensus_aura::sr25519::AuthorityPair,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+    >(BuildAuraConsensusParams {
+        proposer_factory,
+        create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
+            let relay_chain_for_aura = relay_chain_interface.clone();
+            async move {
+                let parachain_inherent =
                     cumulus_primitives_parachain_inherent::ParachainInherentData::create_at(
                         relay_parent,
                         &relay_chain_for_aura,
                         &validation_data,
                         para_id,
-                    ).await;
-                        let time = sp_timestamp::InherentDataProvider::from_system_time();
-                        let slot =
-                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_duration(
+                    )
+                    .await;
+                let time = sp_timestamp::InherentDataProvider::from_system_time();
+                let slot =
+                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
                         *time,
-                        slot_duration.slot_duration(),
+                        slot_duration,
                     );
 
-                        let parachain_inherent = parachain_inherent.ok_or_else(|| {
-                            Box::<dyn std::error::Error + Send + Sync>::from(
-                                "Failed to create parachain inherent",
-                            )
-                        })?;
-                        Ok((time, slot, parachain_inherent))
-                    }
-                },
-                block_import: client.clone(),
-                para_client: client.clone(),
-                backoff_authoring_blocks: Option::<()>::None,
-                sync_oracle,
-                keystore,
-                force_authoring,
-                slot_duration,
-                // We got around 500ms for proposing
-                block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-                max_block_proposal_slot_portion: None,
-                telemetry,
-            },
-        );
+                let parachain_inherent = parachain_inherent.ok_or_else(|| {
+                    Box::<dyn std::error::Error + Send + Sync>::from(
+                        "Failed to create parachain inherent",
+                    )
+                })?;
+                Ok((time, slot, parachain_inherent))
+            }
+        },
+        block_import: client.clone(),
+        para_client: client.clone(),
+        backoff_authoring_blocks: Option::<()>::None,
+        sync_oracle,
+        keystore,
+        force_authoring,
+        slot_duration,
+        // We got around 500ms for proposing
+        block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
+        max_block_proposal_slot_portion: None,
+        telemetry,
+    });
 
     Ok(consensus)
 }
