@@ -3,7 +3,7 @@ name = "pallet-robonomics-lighthouse"
 description = "Inject the block author via an inherent"
 version = "0.4.0"
 authors = ["Airalab <research@aira.life>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }

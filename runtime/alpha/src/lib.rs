@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 2,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -154,9 +154,26 @@ parameter_types! {
     pub SS58Prefix: u8 = 32;
 }
 
+pub struct BaseFilter;
+impl Contains<Call> for BaseFilter {
+    fn contains(call: &Call) -> bool {
+        match call {
+            // Filter permissionless assets creation
+            Call::Assets(method) => match method {
+                pallet_assets::Call::create { .. } => false,
+                pallet_assets::Call::destroy { .. } => false,
+                _ => true,
+            },
+            // These modules are not allowed to be called by transactions:
+            // Other modules should works:
+            _ => true,
+        }
+    }
+}
+
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = Everything;
+    type BaseCallFilter = BaseFilter;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;

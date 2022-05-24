@@ -1,10 +1,10 @@
 [package]
 name = "robonomics-service"
-version = "1.9.9"
+version = "2.0.0"
 authors = ["Airalab <research@aira.life>"]
 description = "Robonomics node console line interface."
 build = "build.rs"
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 homepage = "https://robonomics.network"
 repository = "https://github.com/airalab/robonomics"

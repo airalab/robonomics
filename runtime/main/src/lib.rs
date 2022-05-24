@@ -75,7 +75,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 18,
+    spec_version: 20,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -100,6 +100,12 @@ pub struct BaseFilter;
 impl frame_support::traits::Contains<Call> for BaseFilter {
     fn contains(call: &Call) -> bool {
         match call {
+            // Filter permissionless assets creation
+            Call::Assets(method) => match method {
+                pallet_assets::Call::create { .. } => false,
+                pallet_assets::Call::destroy { .. } => false,
+                _ => true,
+            },
             // These modules are not allowed to be called by transactions:
             // Other modules should works:
             _ => true,
