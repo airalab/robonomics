@@ -45,8 +45,8 @@ use frame_support::{
     traits::{ConstU32, Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-        WeightToFeePolynomial, ConstantMultiplier,
+        ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+        WeightToFeePolynomial,
     },
     PalletId,
 };

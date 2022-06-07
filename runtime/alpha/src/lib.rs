@@ -44,7 +44,7 @@ use frame_support::{
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, IdentityFee, Weight, ConstantMultiplier,
+        ConstantMultiplier, DispatchClass, IdentityFee, Weight,
     },
     PalletId,
 };
@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 2,
+    spec_version: 3,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -160,8 +160,8 @@ impl Contains<Call> for BaseFilter {
         match call {
             // Filter permissionless assets creation
             Call::Assets(method) => match method {
-                pallet_assets::Call::create { .. } => false,
-                pallet_assets::Call::destroy { .. } => false,
+                pallet_assets::Call::create { id, .. } => *id < AssetId::max_value() / 2,
+                pallet_assets::Call::destroy { id, .. } => *id < AssetId::max_value() / 2,
                 _ => true,
             },
             // These modules are not allowed to be called by transactions:

@@ -3,24 +3,24 @@ use super::{
     ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 use frame_support::{
-    match_type, parameter_types,
+    match_type,
+    pallet_prelude::Get,
+    parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
     weights::{IdentityFee, Weight},
-    pallet_prelude::Get,
 };
 use sp_runtime::traits::Bounded;
-use sp_std::{marker::PhantomData, borrow::Borrow};
+use sp_std::{borrow::Borrow, marker::PhantomData};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, 
-    ConvertedConcreteAssetId, CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible,
-    FixedWeightBounds, FungiblesAdapter, IsConcrete, LocationInverter, ParentAsSuperuser,
-    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-    UsingComponents,
+    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, ConvertedConcreteAssetId,
+    CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter,
+    IsConcrete, LocationInverter, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
 };
 use xcm_executor::{
     traits::{FilterAssetLocation, JustTry},
@@ -29,7 +29,6 @@ use xcm_executor::{
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
-    pub const StatemineLocation: MultiLocation = Parachain(1000).into_exterior(1);
     pub RelayNetwork: NetworkId = NetworkId::Kusama;
     pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
     pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -93,12 +92,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
     // Use this fungibles implementation:
     Assets,
     // Use this currency when it is a fungible asset matching the given location or name:
-    ConvertedConcreteAssetId<
-        AssetId,
-        Balance,
-        AssetIdConvertion<AssetId>,
-        JustTry,
-    >,
+    ConvertedConcreteAssetId<AssetId, Balance, AssetIdConvertion<AssetId>, JustTry>,
     // Convert an XCM MultiLocation into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -175,7 +169,7 @@ impl Config for XcmConfig {
     type XcmSender = XcmRouter;
     type AssetTransactor = AssetTransactors;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = (AssetsFrom<RelayLocation>, AssetsFrom<StatemineLocation>);
+    type IsReserve = AssetsFrom<RelayLocation>;
     type IsTeleporter = ();
     type LocationInverter = LocationInverter<Ancestry>;
     type Barrier = XcmBarrier;

@@ -41,8 +41,8 @@ use frame_support::{
     traits::{Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-        WeightToFeePolynomial, ConstantMultiplier,
+        ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+        WeightToFeePolynomial,
     },
     PalletId,
 };
@@ -102,8 +102,8 @@ impl frame_support::traits::Contains<Call> for BaseFilter {
         match call {
             // Filter permissionless assets creation
             Call::Assets(method) => match method {
-                pallet_assets::Call::create { .. } => false,
-                pallet_assets::Call::destroy { .. } => false,
+                pallet_assets::Call::create { id, .. } => *id < AssetId::max_value() / 2,
+                pallet_assets::Call::destroy { id, .. } => *id < AssetId::max_value() / 2,
                 _ => true,
             },
             // These modules are not allowed to be called by transactions:

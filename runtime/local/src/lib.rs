@@ -41,7 +41,7 @@ use frame_support::{
     traits::{EnsureOneOf, EqualPrivilegeOnly, KeyOwnerProofSystem},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, IdentityFee, Weight, ConstantMultiplier
+        ConstantMultiplier, DispatchClass, IdentityFee, Weight,
     },
     PalletId,
 };
