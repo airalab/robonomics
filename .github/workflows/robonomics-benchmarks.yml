@@ -17,12 +17,12 @@ jobs:
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-2021-11-02
+        toolchain: nightly-2022-04-05
         components: rustfmt, clippy
         default: true
 
     - name: Install WASM target (for runtime building)
-      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2021-11-02
+      run: rustup target add wasm32-unknown-unknown --toolchain nightly-2022-04-05
 
     - name: Build optimized binary
       uses: actions-rs/cargo@v1
