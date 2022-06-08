@@ -16,21 +16,77 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Publisher/Subscriber protocol.
+//!
+//! A basic pubsub client demonstrating libp2p and the gossipsub protocol.
+//!
+//! Using two terminal windows, start two instances.
+//! ```sh
+//! target/debug/robonomics --dev --tmp -l rpc=trace
+//! target/debug/robonomics --dev --tmp --ws-port 9991 -l rpc=trace
+//! ```
+//!
+//! Then using two terminal windows, start two clients.
+//! One of them will send messages, the other one will catch them and print.
+//! You can of course open more terminal windows and add more participants.
+//!
+//! Pubsub subscribe:
+//!
+//! ```{python}
+//! import time
+//! import robonomicsinterface as RI
+//! from robonomicsinterface import PubSub
+//!
+//! def subscription_handler(obj, update_nr, subscription_id):
+//!     print(obj['params']['result'])
+//!     if update_nr >= 2:
+//!         return 0
+//!
+//! interface = RI.RobonomicsInterface(remote_ws="ws://127.0.0.1:9944")
+//! pubsub = PubSub(interface)
+//!
+//! print(pubsub.listen("/ip4/127.0.0.1/tcp/44440"))
+//! time.sleep(2)
+//! print(pubsub.connect("/ip4/127.0.0.1/tcp/44441"))
+//! print(pubsub.subscribe("topic_name", result_handler=subscription_handler))
+//! ```
+//!
+//! Pubsub publish:
+//!
+//! ```{python}
+//! import time
+//! import robonomicsinterface as RI
+//! from robonomicsinterface import PubSub
+//!
+//! interface = RI.RobonomicsInterface(remote_ws="ws://127.0.0.1:9991")
+//! pubsub = PubSub(interface)
+//!
+//! print(pubsub.listen("/ip4/127.0.0.1/tcp/44441"))
+//! time.sleep(2)
+//! print(pubsub.connect("/ip4/127.0.0.1/tcp/44440"))
+//!
+//! for i in range(10):
+//!     time.sleep(2)
+//!     print("publish:", pubsub.publish("topic_name", "message_" + str(time.time())))
+//! ```
 
-use crate::pubsub::{Gossipsub, Message, PubSub};
-use futures::{executor, StreamExt};
+use crate::pubsub::{Gossipsub, PubSub};
+use futures::executor;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
+use jsonrpc_pubsub::{
+    typed::{Sink, Subscriber},
+    SubscriptionId,
+};
 use libp2p::Multiaddr;
 use rand::Rng;
 use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, thread};
+use std::{collections::HashMap, str, thread};
 
 #[derive(Clone)]
 pub struct PubSubApi {
     pubsub: Arc<Gossipsub>,
-    subscriptions: Arc<Mutex<HashMap<SubscriptionId, String>>>,
+    subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
+    topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
 }
 
 impl PubSubApi {
@@ -38,11 +94,12 @@ impl PubSubApi {
         PubSubApi {
             pubsub,
             subscriptions: Arc::new(Mutex::new(HashMap::new())),
+            topics: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
-#[rpc(server)]
+#[rpc]
 pub trait PubSubT {
     type Metadata;
 
@@ -102,43 +159,54 @@ impl PubSubT for PubSubApi {
         executor::block_on(async { self.pubsub.connect(address).await }).or(Ok(false))
     }
 
-    fn subscribe(&self, _: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
-        let inbox = self.pubsub.subscribe(&topic_name);
+    fn subscribe(&self, _meta: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
+        let mut inbox = self.pubsub.subscribe(&topic_name.clone());
         let mut rng = rand::thread_rng();
         let subscription_id = SubscriptionId::Number(rng.gen());
+        let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
         self.subscriptions
             .lock()
             .unwrap()
-            .insert(subscription_id.clone(), topic_name);
+            .insert(subscription_id.clone(), sink.clone());
+        self.topics
+            .lock()
+            .unwrap()
+            .insert(subscription_id, topic_name);
 
-        thread::spawn(move || {
-            let sink = subscriber.assign_id(subscription_id).unwrap();
-            let _ = inbox.map(|m: Message| {
-                let _ = sink.notify(Ok(m.to_string()));
-            });
+        thread::spawn(move || loop {
+            match inbox.try_next() {
+                // Message is fetched.
+                Ok(Some(message)) => {
+                    if let Ok(message) = str::from_utf8(&message.data) {
+                        let _ = sink.notify(Ok(message.to_string()));
+                    } else {
+                        continue;
+                    }
+                }
+                // Channel is closed and no messages left in the queue.
+                Ok(None) => break,
+
+                // There are no messages available, but channel is not yet closed.
+                Err(_) => {}
+            }
         });
     }
 
-    fn unsubscribe(
-        &self,
-        _: Option<Self::Metadata>,
-        subscription_id: SubscriptionId,
-    ) -> Result<bool> {
-        if let Some(topic_name) = self.subscriptions.lock().unwrap().get(&subscription_id) {
-            self.pubsub.unsubscribe(&topic_name);
-            self.subscriptions.lock().unwrap().remove(&subscription_id);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+    fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
+        if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
+            let _ = self.subscriptions.lock().unwrap().remove(&sid);
+            let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
+        };
+
+        Ok(true)
     }
 
     fn publish(&self, topic_name: String, message: String) -> Result<bool> {
         executor::block_on(async {
             self.pubsub
                 .publish(&topic_name, message.as_bytes().to_vec())
-        });
-
-        Ok(true)
+                .await
+        })
+        .or(Ok(false))
     }
 }

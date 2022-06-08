@@ -21,8 +21,8 @@ use futures::channel::oneshot;
 use futures::Future;
 use libp2p::core::connection::ConnectionLimit;
 use libp2p::core::transport::TransportError;
+use libp2p::{gossipsub, swarm};
 use std::pin::Pin;
-// use substrate_subxt::MetadataError;
 
 /// Protocol Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -42,14 +42,16 @@ pub enum Error {
     Transport(TransportError<std::io::Error>),
     /// Libp2p connection limit error.
     ConnectionLimit(ConnectionLimit),
-    // /// Transaction sending error.
-    // SubmitFailure(substrate_subxt::Error),
     /// Codec error.
     Codec(bincode::Error),
     /// Unable to decode address.
     Ss58CodecError,
-    /// Unable to get metadata.
-    MetadataError,
+    /// Libp2p swarm dial error.
+    DialError,
+    /// Libp2p gossipsub subscribe error.
+    SubscriptionError,
+    /// Libp2p gossipsub publish error.
+    PublishError,
     /// Other error.
     Other(String),
 }
@@ -60,12 +62,6 @@ impl<'a> From<&'a str> for Error {
     }
 }
 
-// impl From<MetadataError> for Error {
-//     fn from(_: MetadataError) -> Self {
-//         Error::MetadataError
-//     }
-// }
-
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -73,5 +69,23 @@ impl std::error::Error for Error {
             Error::Transport(ref err) => Some(err),
             _ => None,
         }
+    }
+}
+
+impl From<swarm::DialError> for Error {
+    fn from(_: swarm::DialError) -> Self {
+        Error::DialError
+    }
+}
+
+impl From<gossipsub::error::SubscriptionError> for Error {
+    fn from(_: gossipsub::error::SubscriptionError) -> Self {
+        Error::SubscriptionError
+    }
+}
+
+impl From<gossipsub::error::PublishError> for Error {
+    fn from(_: gossipsub::error::PublishError) -> Self {
+        Error::PublishError
     }
 }
