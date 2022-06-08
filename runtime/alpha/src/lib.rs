@@ -39,7 +39,7 @@ pub mod constants;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, LockIdentifier,
+        Contains, Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, LockIdentifier,
         OnUnbalanced, U128CurrencyToVote,
     },
     weights::{

@@ -11,7 +11,7 @@ jobs:
       SUBWASM_VERSION: 0.15.0
     strategy:
       matrix:
-        chain: ["ipci","alpha","main"]
+        chain: ["alpha","main"]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -234,7 +234,7 @@ jobs:
       run: |
         mkdir -p release/tmp/
         cd release/tmp/
-        mkdir  robonomics robonomics-alpha ipci x86_64 aarch64
+        mkdir  robonomics robonomics-alpha x86_64 aarch64
 
     - name: get x86_64 binary
       uses: actions/download-artifact@v2
@@ -258,24 +258,17 @@ jobs:
         name: alpha-runtime
         path: release/tmp/robonomics-alpha
 
-    - uses: actions/download-artifact@v2
-      with:
-        name: ipci-runtime
-        path: release/tmp/ipci
-
     - id: compress_artefacts
       shell: bash
       run: |
         cd release/
         echo "::set-output name=main::$(jq -r '.core_version' tmp/robonomics/main-info.json | awk '{print $1}')"
         echo "::set-output name=alpha::$(jq -r '.core_version' tmp/robonomics-alpha/alpha-info.json | awk '{print $1}')"
-        echo "::set-output name=ipci::$(jq -r '.core_version' tmp/ipci/ipci-info.json | awk '{print $1}')"
         chmod +x tmp/x86_64/robonomics tmp/aarch64/robonomics
         tar -czvf robonomics-"${{ steps.get_version.outputs.version-without-v }}"-x86_64-unknown-linux-gnu.tar.gz -C tmp/x86_64/ robonomics
         tar -czvf robonomics-"${{ steps.get_version.outputs.version-without-v }}"-aarch64-unknown-linux-gnu.tar.gz -C tmp/aarch64/ robonomics
         cd tmp/robonomics;tar -czvf ../../runtime-"$(jq -r '.core_version' main-info.json | awk '{print $1}')".tar.gz *;cd ../../
         cd tmp/robonomics-alpha;tar -czvf ../../runtime-"$(jq -r '.core_version' alpha-info.json | awk '{print $1}')".tar.gz *;cd ../../
-        cd tmp/ipci;tar -czvf ../../runtime-"$(jq -r '.core_version' ipci-info.json | awk '{print $1}')".tar.gz *;cd ../../
         echo "${{ steps.get_version.outputs.version-without-v }}" > version
         sha256sum *.tar.gz > sha256sum
         rm -rf tmp/
@@ -306,7 +299,7 @@ jobs:
       id: gen_release_body
       shell: bash
       run: |
-        r="> Native runtimes: \`${{ steps.compress_artefacts.outputs.main }}\`, \`${{ steps.compress_artefacts.outputs.alpha }}\`, \`${{ steps.compress_artefacts.outputs.ipci }}\`"$'\n'
+        r="> Native runtimes: \`${{ steps.compress_artefacts.outputs.main }}\`, \`${{ steps.compress_artefacts.outputs.alpha }}\`"$'\n'
         r=$r$'\n'
         r=$r$'\n'"Changelog"
         r=$r$'\n'"--------------"

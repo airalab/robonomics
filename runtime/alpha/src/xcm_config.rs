@@ -3,7 +3,7 @@ use super::{
     ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 use frame_support::{
-    match_type, parameter_types,
+    match_types, parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
     weights::{IdentityFee, Weight},
 };
@@ -145,7 +145,7 @@ parameter_types! {
     pub KsmPerSecond: (xcm::v1::AssetId, u128) = (MultiLocation::parent().into(), 1_000_000_000);
 }
 
-match_type! {
+match_types! {
     pub type ParentOrParentsPlurality: impl Contains<MultiLocation> = {
         MultiLocation { parents: 1, interior: Here } |
         MultiLocation { parents: 1, interior: X1(Plurality { .. }) }

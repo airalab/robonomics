@@ -84,7 +84,7 @@ pub trait PubSubT {
 }
 
 impl PubSubT for PubSubApi {
-    type Metadata = sc_rpc_api::Metadata;
+    type Metadata = sp_api::Metadata;
 
     fn peer_id(&self) -> Result<String> {
         Ok(self.pubsub.peer_id().to_string())

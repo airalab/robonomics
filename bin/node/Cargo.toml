@@ -27,7 +27,6 @@ robonomics-service = { path = "service", default-features = false }
 
 [features]
 default = [
-  "robonomics-service/ipci",
   "robonomics-service/kusama",
   "robonomics-service/wasmtime",
 ]

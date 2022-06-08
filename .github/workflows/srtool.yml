@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        chain: ["ipci","alpha","main"]
+        chain: ["alpha","main"]
     steps:
       - uses: actions/checkout@v2
         with:

@@ -1312,7 +1312,7 @@ pub mod pallet {
 
         pub fn check_account() -> T::AccountId {
             const ID: PalletId = PalletId(*b"py/xcmch");
-            AccountIdConversion::<T::AccountId>::into_account(&ID)
+            AccountIdConversion::<T::AccountId>::into_account_truncating(&ID)
         }
 
         fn do_new_query(
