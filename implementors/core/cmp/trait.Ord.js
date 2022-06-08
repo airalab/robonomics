@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["ipci_runtime"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/cmp/trait.Ord.html\" title=\"trait core::cmp::Ord\">Ord</a> for <a class=\"struct\" href=\"ipci_runtime/struct.NposSolution16.html\" title=\"struct ipci_runtime::NposSolution16\">NposSolution16</a>","synthetic":false,"types":["ipci_runtime::NposSolution16"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

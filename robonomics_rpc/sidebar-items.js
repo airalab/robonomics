@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["DenyUnsafe","Signifies whether a potentially unsafe RPC should be denied."]],"fn":[["create_full","Instantiate all Full RPC extensions."]],"struct":[["FullDeps","Full client dependencies."]],"type":[["IoHandler","A IO handler that uses all Full RPC extensions."]]});
+initSidebarItems({"enum":[["DenyUnsafe","Signifies whether a potentially unsafe RPC should be denied."]],"fn":[["create_full","Instantiate all Full RPC extensions."]],"struct":[["FullDeps","Full client dependencies."]]});

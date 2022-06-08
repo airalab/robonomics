@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["MITO",""],["U_MITO",""]],"fn":[["deposit",""]],"struct":[["STAKE_HOLDERS",""]]});

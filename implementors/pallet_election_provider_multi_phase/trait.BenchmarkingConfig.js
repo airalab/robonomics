@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["ipci_runtime"] = [{"text":"impl BenchmarkingConfig for <a class=\"struct\" href=\"ipci_runtime/struct.ElectionProviderBenchmarkConfig.html\" title=\"struct ipci_runtime::ElectionProviderBenchmarkConfig\">ElectionProviderBenchmarkConfig</a>","synthetic":false,"types":["ipci_runtime::ElectionProviderBenchmarkConfig"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
