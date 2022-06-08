@@ -3,7 +3,7 @@ name = "pallet-robonomics-lighthouse"
 description = "Inject the block author via an inherent"
 version = "0.4.0"
 authors = ["Airalab <research@aira.life>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 scale-info = { version = "2.0", default-features = false, features = ["derive"] }
@@ -11,11 +11,11 @@ serde = { version = "1.0.130", optional = true }
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.30", optional = true }
 async-trait = { version = "0.1.30", optional = true }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23", default-features = false }
 
 [features]
 default = ["std"]

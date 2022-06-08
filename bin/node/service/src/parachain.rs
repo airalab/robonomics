@@ -29,7 +29,6 @@ pub fn load_spec(
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     Ok(match id {
         "" => Box::new(chain_spec::get_main_chain_spec()),
-        "ipci" => Box::new(chain_spec::get_ipci_chain_spec()),
         "alpha-local" => Box::new(chain_spec::get_alpha_chain_spec(para_id)),
         // Load Alpha chain spec by default
         path => Box::new(chain_spec::AlphaChainSpec::from_json_file(path.into())?),
@@ -124,48 +123,6 @@ pub mod main {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
-            heartbeat_interval,
-        )
-        .await
-    }
-}
-
-/// IPCI Network parachain.
-#[cfg(feature = "ipci")]
-pub mod ipci {
-    pub use ipci_runtime::RuntimeApi;
-    use robonomics_primitives::AccountId;
-
-    pub struct IPCIExecutor;
-    impl sc_executor::NativeExecutionDispatch for IPCIExecutor {
-        type ExtendHostFunctions = ();
-
-        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-            ipci_runtime::api::dispatch(method, data)
-        }
-
-        fn native_version() -> sc_executor::NativeVersion {
-            ipci_runtime::native_version()
-        }
-    }
-
-    /// Start a normal parachain node.
-    pub async fn start_node(
-        parachain_config: sc_service::Configuration,
-        polkadot_config: sc_service::Configuration,
-        collator_options: cumulus_client_cli::CollatorOptions,
-        para_id: cumulus_primitives_core::ParaId,
-        lighthouse_account: Option<AccountId>,
-        heartbeat_interval: u64,
-    ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, IPCIExecutor, _, _>(
-            parachain_config,
-            polkadot_config,
-            collator_options,
-            para_id,
-            lighthouse_account,
-            super::service::build_pos_import_queue,
-            super::service::build_pos_consensus,
             heartbeat_interval,
         )
         .await

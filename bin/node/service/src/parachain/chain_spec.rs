@@ -90,15 +90,6 @@ pub fn get_main_chain_spec() -> MainChainSpec {
     kusama_parachain_config()
 }
 
-/// Specialized `IpciChainSpec`.
-#[cfg(feature = "ipci")]
-pub type IpciChainSpec = sc_service::GenericChainSpec<ipci_runtime::GenesisConfig, Extensions>;
-
-#[cfg(feature = "ipci")]
-pub fn get_ipci_chain_spec() -> IpciChainSpec {
-    ipci_parachain_config()
-}
-
 fn test_chain_spec(id: ParaId) -> AlphaChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -214,61 +205,6 @@ fn mk_genesis_main(
     }
 }
 
-fn ipci_session_keys(
-    aura: ipci_runtime::AuraId,
-    im_online: ipci_runtime::ImOnlineId,
-) -> ipci_runtime::SessionKeys {
-    ipci_runtime::SessionKeys { aura, im_online }
-}
-
-/// Helper function to create GenesisConfig for ipci parachain
-fn mk_genesis_ipci(
-    balances: Vec<(AccountId, Balance)>,
-    sudo_key: AccountId,
-    parachain_id: ParaId,
-) -> ipci_runtime::GenesisConfig {
-    use crate::chain_spec::get_from_seed;
-
-    ipci_runtime::GenesisConfig {
-        system: ipci_runtime::SystemConfig {
-            code: ipci_runtime::wasm_binary_unwrap().to_vec(),
-        },
-        balances: ipci_runtime::BalancesConfig { balances },
-        parachain_info: ipci_runtime::ParachainInfoConfig { parachain_id },
-        session: ipci_runtime::SessionConfig {
-            keys: vec![(
-                sudo_key.clone(),
-                sudo_key.clone(),
-                ipci_session_keys(
-                    get_from_seed::<ipci_runtime::AuraId>("Alice"),
-                    get_from_seed::<ipci_runtime::ImOnlineId>("Alice"),
-                ),
-            )],
-        },
-        aura: Default::default(),
-        aura_ext: Default::default(),
-        im_online: Default::default(),
-        staking: ipci_runtime::StakingConfig {
-            validator_count: 10,
-            minimum_validator_count: 1,
-            stakers: vec![(
-                sudo_key.clone(),
-                sudo_key.clone(),
-                100 * ipci_runtime::constants::currency::MITO,
-                ipci_runtime::StakerStatus::Validator,
-            )],
-            invulnerables: vec![],
-            force_era: pallet_staking::Forcing::ForceNone,
-            slash_reward_fraction: sp_runtime::Perbill::from_percent(10),
-            ..Default::default()
-        },
-        technical_committee: Default::default(),
-        technical_membership: Default::default(),
-        treasury: Default::default(),
-        sudo: ipci_runtime::SudoConfig { key: sudo_key },
-    }
-}
-
 /// Mars parachain genesis.
 fn mars_parachain_genesis() -> alpha_runtime::GenesisConfig {
     use alpha_runtime::constants::currency;
@@ -336,45 +272,6 @@ pub fn kusama_parachain_config() -> MainChainSpec {
         },
     )
 }
-
-/// Ipci parachain genesis.
-fn ipci_parachain_genesis() -> ipci_runtime::GenesisConfig {
-    use ipci_runtime::constants::currency;
-    use sp_runtime::traits::AccountIdConversion;
-    use hex_literal::hex;
-
-    // akru
-    let sudo_key: AccountId =
-        hex!["16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"].into();
-
-    let mut balances = currency::STAKE_HOLDERS.clone();
-    let total: Balance = balances.iter().map(|(_, x)| *x).sum();
-    // Store in treasury align of 10M MITO
-    balances.extend(vec![(
-        frame_support::PalletId(*b"py/trsry").into_account(),
-        10_000_000 * currency::MITO - total
-    )]);
-    mk_genesis_ipci(balances.to_vec(), sudo_key, IPCI_ID.into())
-}
-
-/// Kusama parachain config.
-pub fn ipci_parachain_config() -> IpciChainSpec {
-    let boot_nodes = vec![];
-    IpciChainSpec::from_genesis(
-        "IPCI",
-        "ipci",
-        ChainType::Live,
-        ipci_parachain_genesis,
-        boot_nodes,
-        None,
-        Some(IPCI_PROTOCOL_ID),
-        None,
-        Extensions {
-            relay_chain: "rococo_local_testnet".into(),
-            para_id: IPCI_ID.into(),
-        },
-    )
-}
 */
 
 /// Mercury parachain confing.
@@ -396,10 +293,4 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
 #[cfg(feature = "kusama")]
 pub fn kusama_parachain_config() -> MainChainSpec {
     MainChainSpec::from_json_bytes(&include_bytes!("../../res/robonomics.raw.json")[..]).unwrap()
-}
-
-/// IPCI parachain confing.
-#[cfg(feature = "ipci")]
-pub fn ipci_parachain_config() -> IpciChainSpec {
-    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.raw.json")[..]).unwrap()
 }

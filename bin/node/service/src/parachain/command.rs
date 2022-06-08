@@ -19,7 +19,6 @@
 use codec::Encode;
 use cumulus_primitives_core::ParaId;
 use log::info;
-use polkadot_parachain::primitives::AccountIdConversion;
 use robonomics_primitives::AccountId;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
@@ -29,6 +28,7 @@ use sc_service::config::{BasePath, Configuration, PrometheusConfig};
 use sp_api::BlockT;
 use sp_core::crypto::Ss58Codec;
 use sp_core::hexdisplay::HexDisplay;
+use sp_runtime::traits::AccountIdConversion;
 use std::net::SocketAddr;
 
 /// Parse collator arguments and returns full node configuration.
@@ -60,7 +60,9 @@ pub fn parse_args(
             .map_err(|e| format!("{:?}", e))?;
     let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =
-        AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&parachain_id);
+        AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account_truncating(
+            &parachain_id,
+        );
 
     info!("[Parachain] ID: {}", parachain_id);
     info!("[Parachain] Account: {}", parachain_account);

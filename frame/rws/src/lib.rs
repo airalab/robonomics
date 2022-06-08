@@ -477,11 +477,11 @@ pub mod pallet {
                 Subscription::Lifetime { tps } => tps,
                 Subscription::Daily { days } => {
                     let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
-                    // If subscription active then 1 TPS else 0 TPS
-                    if now > subscription.issue_time.clone() + duration_ms {
-                        0u32
+                    // If subscription active then 0.01 TPS else 0 TPS
+                    if now < subscription.issue_time.clone() + duration_ms {
+                        10_000 // uTPS
                     } else {
-                        1_000_000u32 // uTPS
+                        0u32
                     }
                 }
             };

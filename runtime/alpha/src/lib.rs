@@ -39,12 +39,12 @@ pub mod constants;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, LockIdentifier,
+        Contains, Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, LockIdentifier,
         OnUnbalanced, U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        DispatchClass, IdentityFee, Weight,
+        ConstantMultiplier, DispatchClass, IdentityFee, Weight,
     },
     PalletId,
 };
@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 1,
+    spec_version: 3,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -154,9 +154,26 @@ parameter_types! {
     pub SS58Prefix: u8 = 32;
 }
 
+pub struct BaseFilter;
+impl Contains<Call> for BaseFilter {
+    fn contains(call: &Call) -> bool {
+        match call {
+            // Filter permissionless assets creation
+            Call::Assets(method) => match method {
+                pallet_assets::Call::create { id, .. } => *id < AssetId::max_value() / 2,
+                pallet_assets::Call::destroy { id, .. } => *id < AssetId::max_value() / 2,
+                _ => true,
+            },
+            // These modules are not allowed to be called by transactions:
+            // Other modules should works:
+            _ => true,
+        }
+    }
+}
+
 impl frame_system::Config for Runtime {
     type Call = Call;
-    type BaseCallFilter = Everything;
+    type BaseCallFilter = BaseFilter;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
@@ -229,7 +246,7 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees>;
-    type TransactionByteFee = TransactionByteFee;
+    type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
@@ -424,7 +441,6 @@ impl pallet_elections_phragmen::Config for Runtime {
 impl parachain_info::Config for Runtime {}
 
 parameter_types! {
-    // We do anything the parent chain tells us in this runtime.
     pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
 }

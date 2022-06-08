@@ -33,19 +33,20 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+/*
 use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
 use robonomics_protocol::pubsub::Gossipsub;
 use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
+*/
+
+use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-
-/// A IO handler that uses all Full RPC extensions.
-pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc_api::Metadata>;
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -55,14 +56,14 @@ pub struct FullDeps<C, P> {
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
-    /// PubSub worker.
-    pub pubsub: Arc<Gossipsub>,
+    // PubSub worker.
+    //pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.
 pub fn create_full<C, P>(
     deps: FullDeps<C, P>,
-) -> Result<IoHandler, Box<dyn std::error::Error + Send + Sync>>
+) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
         + HeaderBackend<Block>
@@ -76,32 +77,27 @@ where
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
 {
-    use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-    use substrate_frame_rpc_system::{FullSystem, SystemApi};
+    use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+    use substrate_frame_rpc_system::{System, SystemApiServer};
 
-    let mut io = jsonrpc_core::IoHandler::default();
+    let mut io = RpcModule::new(());
     let FullDeps {
         client,
         pool,
         deny_unsafe,
-        pubsub,
+        //pubsub,
     } = deps;
 
-    io.extend_with(SystemApi::to_delegate(FullSystem::new(
-        client.clone(),
-        pool,
-        deny_unsafe,
-    )));
+    io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
+    io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
-    io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
-        client.clone(),
-    )));
-
+    /*
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
 
     io.extend_with(ReqRespApi::to_delegate(ReqRespApi {}));
 
     io.extend_with(ExtrinsicApi::to_delegate(ExtrinsicApi::new(client.clone())));
+    */
 
     Ok(io)
 }

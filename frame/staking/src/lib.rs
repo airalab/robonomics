@@ -386,6 +386,9 @@ pub mod pallet {
                 Error::<T>::NoMoreChunks,
             );
 
+            // claim rewards before unbond
+            Self::claim(&controller, &mut ledger)?;
+
             let mut value = value.min(ledger.active);
 
             if !value.is_zero() {

@@ -43,9 +43,6 @@ pub enum RobonomicsFamily {
     /// Robonomics Main Network
     #[cfg(feature = "kusama")]
     Main,
-    /// IPCI Network
-    #[cfg(feature = "ipci")]
-    Ipci,
 }
 
 /// Robonomics family chains idetify.
@@ -65,11 +62,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     fn family(&self) -> RobonomicsFamily {
         if self.id() == "dev" {
             return RobonomicsFamily::Development;
-        }
-
-        #[cfg(feature = "ipci")]
-        if self.id() == "ipci" {
-            return RobonomicsFamily::Ipci;
         }
 
         #[cfg(feature = "kusama")]
