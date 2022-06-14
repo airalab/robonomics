@@ -33,20 +33,20 @@
 //!
 //! ```{python}
 //! import time
-//! import robonomicsinterface as RI
-//! from robonomicsinterface import PubSub
+//! from robonomicsinterface import PubSub, Account
 //!
 //! def subscription_handler(obj, update_nr, subscription_id):
 //!     print(obj['params']['result'])
 //!     if update_nr >= 2:
 //!         return 0
 //!
-//! interface = RI.RobonomicsInterface(remote_ws="ws://127.0.0.1:9944")
-//! pubsub = PubSub(interface)
+//! account = Account(remote_ws="ws://127.0.0.1:9944")
+//! pubsub = PubSub(account)
 //!
 //! print(pubsub.listen("/ip4/127.0.0.1/tcp/44440"))
 //! time.sleep(2)
 //! print(pubsub.connect("/ip4/127.0.0.1/tcp/44441"))
+//! time.sleep(2)
 //! print(pubsub.subscribe("topic_name", result_handler=subscription_handler))
 //! ```
 //!
@@ -54,33 +54,34 @@
 //!
 //! ```{python}
 //! import time
-//! import robonomicsinterface as RI
 //! from robonomicsinterface import PubSub
 //!
-//! interface = RI.RobonomicsInterface(remote_ws="ws://127.0.0.1:9991")
-//! pubsub = PubSub(interface)
+//! account = Account(remote_ws="ws://127.0.0.1:9991")
+//! pubsub = PubSub(account)
 //!
 //! print(pubsub.listen("/ip4/127.0.0.1/tcp/44441"))
 //! time.sleep(2)
 //! print(pubsub.connect("/ip4/127.0.0.1/tcp/44440"))
+//! time.sleep(2)
+//!
 //! for i in range(10):
 //!     time.sleep(2)
 //!     print("publish:", pubsub.publish("topic_name", "message_" + str(time.time())))
 //! ```
 
-use crate::pubsub::{Gossipsub, Message, PubSub};
+use crate::pubsub::{Gossipsub, PubSub};
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
     PendingSubscription,
 };
+
 use libp2p::Multiaddr;
 use rand::Rng;
 use std::{
     collections::HashMap,
     str,
     sync::{Arc, Mutex},
-    thread,
 };
 
 pub struct PubSubRpc {
@@ -118,7 +119,7 @@ pub trait PubSubRpc {
     async fn connect(&self, address: Multiaddr) -> RpcResult<bool>;
 
     /// Subscribe for a topic with given name.
-    #[subscription(name = "pubsub_subscribe", unsubscribe = "pubsub_unsubscribe", item = Message)]
+    #[subscription(name = "pubsub_subscribe", unsubscribe = "pubsub_unsubscribe", item = crate::pubsub::Message)]
     fn subscribe(&self, topic_name: String);
 
     /// Publish message into the topic by name.
@@ -146,25 +147,35 @@ impl PubSubRpcServer for PubSubRpc {
 
     fn subscribe(&self, pending: PendingSubscription, topic_name: String) {
         let mut sink = pending.accept().unwrap();
-        let mut inbox = self.pubsub.subscribe(&topic_name.clone());
+        let inbox = self.pubsub.subscribe(&topic_name.clone());
+        // let mut rng = rand::thread_rng();
+        // let subscription_id = SubscriptionId::Number(rng.gen());
+        // let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
+        // self.subscriptions
+        //     .lock()
+        //     .unwrap()
+        //     .insert(subscription_id.clone(), sink.clone());
+        // self.topics
+        //     .lock()
+        //     .unwrap()
+        //     .insert(subscription_id, topic_name);
 
         tokio::spawn(async move {
             sink.pipe_from_stream(inbox).await;
-            //     match inbox.try_next() {
-            //         // Message is fetched.
-            //         Ok(Some(message)) => {
-            //             if let Ok(message) = str::from_utf8(&message.data) {
-            //                 let _ = sink.notify(Ok(message.to_string()));
-            //             } else {
-            //                 continue;
-            //             }
-            //         }
-            //         // Channel is closed and no messages left in the queue.
-            //         Ok(None) => break,
-            //
-            //         // There are no messages available, but channel is not yet closed.
-            //         Err(_) => {}
+            // -----------------------------------------------------
+            // jsonrpsee doesn't send an error notification unless `close` is explicitly called.
+            // If we pipe messages to the sink, we can inspect why it ended:
+            // match sink.pipe_from_try_stream(inbox).await {
+            //     SubscriptionClosed::Success => {
+            //         let err_obj: ErrorObjectOwned = SubscriptionClosed::Success.into();
+            //         sink.close(err_obj);
             //     }
+            //     // we don't want to send close reason when the client is unsubscribed or disconnected.
+            //     SubscriptionClosed::RemotePeerAborted => (),
+            //     SubscriptionClosed::Failed(e) => {
+            //         sink.close(e);
+            //     }
+            // }
         });
 
         // -----------------------------------------------------
