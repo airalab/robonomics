@@ -77,26 +77,15 @@ use jsonrpsee::{
 };
 
 use libp2p::Multiaddr;
-use rand::Rng;
-use std::{
-    collections::HashMap,
-    str,
-    sync::{Arc, Mutex},
-};
+use std::{str, sync::Arc};
 
 pub struct PubSubRpc {
     pubsub: Arc<Gossipsub>,
-    // subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
-    // topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
 }
 
 impl PubSubRpc {
     pub fn new(pubsub: Arc<Gossipsub>) -> Self {
-        Self {
-            pubsub,
-            // subscriptions: Arc::new(Mutex::new(HashMap::new())),
-            // topics: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { pubsub }
     }
 }
 
@@ -148,77 +137,10 @@ impl PubSubRpcServer for PubSubRpc {
     fn subscribe(&self, pending: PendingSubscription, topic_name: String) {
         let mut sink = pending.accept().unwrap();
         let inbox = self.pubsub.subscribe(&topic_name.clone());
-        // let mut rng = rand::thread_rng();
-        // let subscription_id = SubscriptionId::Number(rng.gen());
-        // let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
-        // self.subscriptions
-        //     .lock()
-        //     .unwrap()
-        //     .insert(subscription_id.clone(), sink.clone());
-        // self.topics
-        //     .lock()
-        //     .unwrap()
-        //     .insert(subscription_id, topic_name);
-
         tokio::spawn(async move {
             sink.pipe_from_stream(inbox).await;
-            // -----------------------------------------------------
-            // jsonrpsee doesn't send an error notification unless `close` is explicitly called.
-            // If we pipe messages to the sink, we can inspect why it ended:
-            // match sink.pipe_from_try_stream(inbox).await {
-            //     SubscriptionClosed::Success => {
-            //         let err_obj: ErrorObjectOwned = SubscriptionClosed::Success.into();
-            //         sink.close(err_obj);
-            //     }
-            //     // we don't want to send close reason when the client is unsubscribed or disconnected.
-            //     SubscriptionClosed::RemotePeerAborted => (),
-            //     SubscriptionClosed::Failed(e) => {
-            //         sink.close(e);
-            //     }
-            // }
         });
-
-        // -----------------------------------------------------
-        // let mut inbox = self.pubsub.subscribe(&topic_name.clone());
-        // let mut rng = rand::thread_rng();
-        // let subscription_id = SubscriptionId::Number(rng.gen());
-        // let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
-        // self.subscriptions
-        //     .lock()
-        //     .unwrap()
-        //     .insert(subscription_id.clone(), sink.clone());
-        // self.topics
-        //     .lock()
-        //     .unwrap()
-        //     .insert(subscription_id, topic_name);
-        //
-        // thread::spawn(move || loop {
-        //     match inbox.try_next() {
-        //         // Message is fetched.
-        //         Ok(Some(message)) => {
-        //             if let Ok(message) = str::from_utf8(&message.data) {
-        //                 let _ = sink.notify(Ok(message.to_string()));
-        //             } else {
-        //                 continue;
-        //             }
-        //         }
-        //         // Channel is closed and no messages left in the queue.
-        //         Ok(None) => break,
-        //
-        //         // There are no messages available, but channel is not yet closed.
-        //         Err(_) => {}
-        //     }
-        // });
     }
-
-    // fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
-    //     if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
-    //         let _ = self.subscriptions.lock().unwrap().remove(&sid);
-    //         let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
-    //     };
-    //
-    //     Ok(true)
-    // }
 
     async fn publish(&self, topic_name: String, message: String) -> RpcResult<bool> {
         self.pubsub
