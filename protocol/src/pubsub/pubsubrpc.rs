@@ -68,10 +68,11 @@
 //!     print("publish:", pubsub.publish("topic_name", "message_" + str(time.time())))
 //! ```
 
-use crate::pubsub::{Gossipsub, PubSub};
+use crate::pubsub::{Gossipsub, Message, PubSub};
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
+    PendingSubscription,
 };
 use libp2p::Multiaddr;
 use rand::Rng;
@@ -116,21 +117,9 @@ pub trait PubSubRpc {
     #[method(name = "pubsub_connect")]
     async fn connect(&self, address: Multiaddr) -> RpcResult<bool>;
 
-    // /// Subscribe for a topic with given name.
-    // #[pubsub(
-    //     subscription = "robonomics_subscription",
-    //     subscribe,
-    //     name = "pubsub_subscribe"
-    // )]
-    // fn subscribe(&self, _: Self::Metadata, _: Subscriber<String>, topic_name: String);
-    //
-    // /// Unsubscribe for incoming messages from topic.
-    // #[pubsub(
-    //     subscription = "robonomics_subscription",
-    //     unsubscribe,
-    //     name = "pubsub_unsubscribe"
-    // )]
-    // fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+    /// Subscribe for a topic with given name.
+    #[subscription(name = "pubsub_subscribe", unsubscribe = "pubsub_unsubscribe", item = Message)]
+    fn subscribe(&self, topic_name: String);
 
     /// Publish message into the topic by name.
     #[method(name = "pubsub_publish")]
@@ -155,38 +144,61 @@ impl PubSubRpcServer for PubSubRpc {
         self.pubsub.connect(address).await.or(Ok(false))
     }
 
-    // fn subscribe(&self, _meta: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
-    //     let mut inbox = self.pubsub.subscribe(&topic_name.clone());
-    //     let mut rng = rand::thread_rng();
-    //     let subscription_id = SubscriptionId::Number(rng.gen());
-    //     let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
-    //     self.subscriptions
-    //         .lock()
-    //         .unwrap()
-    //         .insert(subscription_id.clone(), sink.clone());
-    //     self.topics
-    //         .lock()
-    //         .unwrap()
-    //         .insert(subscription_id, topic_name);
-    //
-    //     thread::spawn(move || loop {
-    //         match inbox.try_next() {
-    //             // Message is fetched.
-    //             Ok(Some(message)) => {
-    //                 if let Ok(message) = str::from_utf8(&message.data) {
-    //                     let _ = sink.notify(Ok(message.to_string()));
-    //                 } else {
-    //                     continue;
-    //                 }
-    //             }
-    //             // Channel is closed and no messages left in the queue.
-    //             Ok(None) => break,
-    //
-    //             // There are no messages available, but channel is not yet closed.
-    //             Err(_) => {}
-    //         }
-    //     });
-    // }
+    fn subscribe(&self, pending: PendingSubscription, topic_name: String) {
+        let mut sink = pending.accept().unwrap();
+        let mut inbox = self.pubsub.subscribe(&topic_name.clone());
+
+        tokio::spawn(async move {
+            sink.pipe_from_stream(inbox).await;
+            //     match inbox.try_next() {
+            //         // Message is fetched.
+            //         Ok(Some(message)) => {
+            //             if let Ok(message) = str::from_utf8(&message.data) {
+            //                 let _ = sink.notify(Ok(message.to_string()));
+            //             } else {
+            //                 continue;
+            //             }
+            //         }
+            //         // Channel is closed and no messages left in the queue.
+            //         Ok(None) => break,
+            //
+            //         // There are no messages available, but channel is not yet closed.
+            //         Err(_) => {}
+            //     }
+        });
+
+        // -----------------------------------------------------
+        // let mut inbox = self.pubsub.subscribe(&topic_name.clone());
+        // let mut rng = rand::thread_rng();
+        // let subscription_id = SubscriptionId::Number(rng.gen());
+        // let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
+        // self.subscriptions
+        //     .lock()
+        //     .unwrap()
+        //     .insert(subscription_id.clone(), sink.clone());
+        // self.topics
+        //     .lock()
+        //     .unwrap()
+        //     .insert(subscription_id, topic_name);
+        //
+        // thread::spawn(move || loop {
+        //     match inbox.try_next() {
+        //         // Message is fetched.
+        //         Ok(Some(message)) => {
+        //             if let Ok(message) = str::from_utf8(&message.data) {
+        //                 let _ = sink.notify(Ok(message.to_string()));
+        //             } else {
+        //                 continue;
+        //             }
+        //         }
+        //         // Channel is closed and no messages left in the queue.
+        //         Ok(None) => break,
+        //
+        //         // There are no messages available, but channel is not yet closed.
+        //         Err(_) => {}
+        //     }
+        // });
+    }
 
     // fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
     //     if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {

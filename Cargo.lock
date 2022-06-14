@@ -8592,6 +8592,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "substrate-frame-rpc-system",
+ "tokio",
 ]
 
 [[package]]
