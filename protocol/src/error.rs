@@ -52,6 +52,8 @@ pub enum Error {
     SubscriptionError,
     /// Libp2p gossipsub publish error.
     PublishError,
+    /// Rpc error.
+    RpcError,
     /// Other error.
     Other(String),
 }

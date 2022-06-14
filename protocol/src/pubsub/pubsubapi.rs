@@ -63,32 +63,25 @@
 //! print(pubsub.listen("/ip4/127.0.0.1/tcp/44441"))
 //! time.sleep(2)
 //! print(pubsub.connect("/ip4/127.0.0.1/tcp/44440"))
-//!
 //! for i in range(10):
 //!     time.sleep(2)
 //!     print("publish:", pubsub.publish("topic_name", "message_" + str(time.time())))
 //! ```
 
 use crate::pubsub::{Gossipsub, PubSub};
-use futures::executor;
-// use jsonrpc_core::Result;
-// use jsonrpc_derive::rpc;
-// use jsonrpc_pubsub::{
-//     typed::{Sink, Subscriber},
-//     SubscriptionId,
-// };
 use jsonrpsee::{
     core::{async_trait, Error as JsonRpseeError, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorCode, ErrorObject},
 };
-
-use futures::Sink;
 use libp2p::Multiaddr;
-use libp2p::PeerId;
 use rand::Rng;
-use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, str, thread};
+use std::{
+    collections::HashMap,
+    str,
+    sync::{Arc, Mutex},
+    thread,
+};
 
 #[derive(Clone)]
 pub struct PubSubRpc<C> {
@@ -114,14 +107,58 @@ impl<C> PubSubRpc<C> {
 #[rpc(client, server)]
 pub trait Rpc {
     /// Returns local peer ID.
-    #[method(name = "peer_id")]
+    #[method(name = "pubsub_peer")]
     fn peer_id(&self) -> RpcResult<String>;
+
+    /// Listen address for incoming connections.
+    #[method(name = "pubsub_listen")]
+    async fn listen(&self, address: Multiaddr) -> RpcResult<bool>;
+
+    /// Returns a list of node addresses.
+    #[method(name = "pubsub_listeners")]
+    async fn listeners(&self) -> RpcResult<Vec<Multiaddr>>;
+
+    /// Connect to peer and add it into swarm.
+    #[method(name = "pubsub_connect")]
+    async fn connect(&self, address: Multiaddr) -> RpcResult<bool>;
+
+    // /// Subscribe for a topic with given name.
+    // #[pubsub(
+    //     subscription = "robonomics_subscription",
+    //     subscribe,
+    //     name = "pubsub_subscribe"
+    // )]
+    // fn subscribe(&self, _: Self::Metadata, _: Subscriber<String>, topic_name: String);
+    //
+    // /// Unsubscribe for incoming messages from topic.
+    // #[pubsub(
+    //     subscription = "robonomics_subscription",
+    //     unsubscribe,
+    //     name = "pubsub_unsubscribe"
+    // )]
+    // fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+    //
+    // /// Publish message into the topic by name.
+    // #[rpc(name = "pubsub_publish")]
+    // fn publish(&self, topic_name: String, message: String) -> Result<bool>;
 }
 
 #[async_trait]
-impl<C: std::marker::Sync + std::marker::Send + 'static> RpcServer for PubSubRpc<C> {
+impl<C: std::marker::Sync + Send + 'static> RpcServer for PubSubRpc<C> {
     fn peer_id(&self) -> RpcResult<String> {
         Ok(self.pubsub.peer_id().to_string())
+    }
+
+    async fn listen(&self, address: Multiaddr) -> RpcResult<bool> {
+        self.pubsub.listen(address).await.or(Ok(false))
+    }
+
+    async fn listeners(&self) -> RpcResult<Vec<Multiaddr>> {
+        self.pubsub.listeners().await.or(Ok(vec![]))
+    }
+
+    async fn connect(&self, address: Multiaddr) -> RpcResult<bool> {
+        self.pubsub.connect(address).await.or(Ok(false))
     }
 }
 
