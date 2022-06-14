@@ -70,10 +70,8 @@
 
 use crate::pubsub::{Gossipsub, PubSub};
 use jsonrpsee::{
-    // core::{async_trait, Error as JsonRpseeError, RpcResult},
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    // types::error::{CallError, ErrorCode, ErrorObject},
 };
 use libp2p::Multiaddr;
 use rand::Rng;
@@ -133,10 +131,10 @@ pub trait PubSubRpc {
     //     name = "pubsub_unsubscribe"
     // )]
     // fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
-    //
-    // /// Publish message into the topic by name.
-    // #[rpc(name = "pubsub_publish")]
-    // fn publish(&self, topic_name: String, message: String) -> Result<bool>;
+
+    /// Publish message into the topic by name.
+    #[method(name = "pubsub_publish")]
+    async fn publish(&self, topic_name: String, message: String) -> RpcResult<bool>;
 }
 
 #[async_trait]
@@ -189,7 +187,7 @@ impl PubSubRpcServer for PubSubRpc {
     //         }
     //     });
     // }
-    //
+
     // fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
     //     if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
     //         let _ = self.subscriptions.lock().unwrap().remove(&sid);
@@ -198,13 +196,11 @@ impl PubSubRpcServer for PubSubRpc {
     //
     //     Ok(true)
     // }
-    //
-    // fn publish(&self, topic_name: String, message: String) -> Result<bool> {
-    //     executor::block_on(async {
-    //         self.pubsub
-    //             .publish(&topic_name, message.as_bytes().to_vec())
-    //             .await
-    //     })
-    //     .or(Ok(false))
-    // }
+
+    async fn publish(&self, topic_name: String, message: String) -> RpcResult<bool> {
+        self.pubsub
+            .publish(&topic_name, message.as_bytes().to_vec())
+            .await
+            .or(Ok(false))
+    }
 }
