@@ -22,7 +22,7 @@ parking_lot = "0.11.1"
 
 # primitives
 robonomics-primitives = { path = "../../../primitives", default-features = false }
-#robonomics-protocol = { path = "../../../protocol", default-features = false }
+robonomics-protocol = { path = "../../../protocol", default-features = false }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }

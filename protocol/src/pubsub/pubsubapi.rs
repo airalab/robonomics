@@ -71,142 +71,168 @@
 
 use crate::pubsub::{Gossipsub, PubSub};
 use futures::executor;
-use jsonrpc_core::Result;
-use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{
-    typed::{Sink, Subscriber},
-    SubscriptionId,
+// use jsonrpc_core::Result;
+// use jsonrpc_derive::rpc;
+// use jsonrpc_pubsub::{
+//     typed::{Sink, Subscriber},
+//     SubscriptionId,
+// };
+use jsonrpsee::{
+    core::{async_trait, Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+    types::error::{CallError, ErrorCode, ErrorObject},
 };
+
+use futures::Sink;
 use libp2p::Multiaddr;
+use libp2p::PeerId;
 use rand::Rng;
 use std::sync::{Arc, Mutex};
 use std::{collections::HashMap, str, thread};
 
 #[derive(Clone)]
-pub struct PubSubApi {
+pub struct PubSubRpc<C> {
     pubsub: Arc<Gossipsub>,
-    subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
-    topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
+    // subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
+    // topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
+    client: Arc<C>,
+    // _marker: std::marker::PhantomData<P>,
 }
 
-impl PubSubApi {
-    pub fn new(pubsub: Arc<Gossipsub>) -> Self {
-        PubSubApi {
+impl<C> PubSubRpc<C> {
+    pub fn new(client: Arc<C>, pubsub: Arc<Gossipsub>) -> Self {
+        Self {
             pubsub,
-            subscriptions: Arc::new(Mutex::new(HashMap::new())),
-            topics: Arc::new(Mutex::new(HashMap::new())),
+            client,
+            // subscriptions: Arc::new(Mutex::new(HashMap::new())),
+            // topics: Arc::new(Mutex::new(HashMap::new())),
+            // _marker: Default::default(),
         }
     }
 }
 
-#[rpc]
-pub trait PubSubT {
-    type Metadata;
-
+#[rpc(client, server)]
+pub trait Rpc {
     /// Returns local peer ID.
-    #[rpc(name = "pubsub_peer")]
-    fn peer_id(&self) -> Result<String>;
-
-    /// Listen address for incoming connections.
-    #[rpc(name = "pubsub_listen")]
-    fn listen(&self, address: Multiaddr) -> Result<bool>;
-
-    /// Returns a list of node addresses.
-    #[rpc(name = "pubsub_listeners")]
-    fn listeners(&self) -> Result<Vec<Multiaddr>>;
-
-    /// Connect to peer and add it into swarm.
-    #[rpc(name = "pubsub_connect")]
-    fn connect(&self, address: Multiaddr) -> Result<bool>;
-
-    /// Subscribe for a topic with given name.
-    #[pubsub(
-        subscription = "robonomics_subscription",
-        subscribe,
-        name = "pubsub_subscribe"
-    )]
-    fn subscribe(&self, _: Self::Metadata, _: Subscriber<String>, topic_name: String);
-
-    /// Unsubscribe for incoming messages from topic.
-    #[pubsub(
-        subscription = "robonomics_subscription",
-        unsubscribe,
-        name = "pubsub_unsubscribe"
-    )]
-    fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
-
-    /// Publish message into the topic by name.
-    #[rpc(name = "pubsub_publish")]
-    fn publish(&self, topic_name: String, message: String) -> Result<bool>;
+    #[method(name = "peer_id")]
+    fn peer_id(&self) -> RpcResult<String>;
 }
 
-impl PubSubT for PubSubApi {
-    type Metadata = sp_api::Metadata;
-
-    fn peer_id(&self) -> Result<String> {
+#[async_trait]
+impl<C: std::marker::Sync + std::marker::Send + 'static> RpcServer for PubSubRpc<C> {
+    fn peer_id(&self) -> RpcResult<String> {
         Ok(self.pubsub.peer_id().to_string())
     }
-
-    fn listen(&self, address: Multiaddr) -> Result<bool> {
-        executor::block_on(async { self.pubsub.listen(address).await }).or(Ok(false))
-    }
-
-    fn listeners(&self) -> Result<Vec<Multiaddr>> {
-        executor::block_on(async { self.pubsub.listeners().await }).or(Ok(vec![]))
-    }
-
-    fn connect(&self, address: Multiaddr) -> Result<bool> {
-        executor::block_on(async { self.pubsub.connect(address).await }).or(Ok(false))
-    }
-
-    fn subscribe(&self, _meta: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
-        let mut inbox = self.pubsub.subscribe(&topic_name.clone());
-        let mut rng = rand::thread_rng();
-        let subscription_id = SubscriptionId::Number(rng.gen());
-        let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
-        self.subscriptions
-            .lock()
-            .unwrap()
-            .insert(subscription_id.clone(), sink.clone());
-        self.topics
-            .lock()
-            .unwrap()
-            .insert(subscription_id, topic_name);
-
-        thread::spawn(move || loop {
-            match inbox.try_next() {
-                // Message is fetched.
-                Ok(Some(message)) => {
-                    if let Ok(message) = str::from_utf8(&message.data) {
-                        let _ = sink.notify(Ok(message.to_string()));
-                    } else {
-                        continue;
-                    }
-                }
-                // Channel is closed and no messages left in the queue.
-                Ok(None) => break,
-
-                // There are no messages available, but channel is not yet closed.
-                Err(_) => {}
-            }
-        });
-    }
-
-    fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
-        if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
-            let _ = self.subscriptions.lock().unwrap().remove(&sid);
-            let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
-        };
-
-        Ok(true)
-    }
-
-    fn publish(&self, topic_name: String, message: String) -> Result<bool> {
-        executor::block_on(async {
-            self.pubsub
-                .publish(&topic_name, message.as_bytes().to_vec())
-                .await
-        })
-        .or(Ok(false))
-    }
 }
+
+// #[rpc]
+// pub trait PubSubT {
+//     type Metadata;
+//
+//     /// Returns local peer ID.
+//     #[rpc(name = "pubsub_peer")]
+//     fn peer_id(&self) -> Result<String>;
+//
+//     /// Listen address for incoming connections.
+//     #[rpc(name = "pubsub_listen")]
+//     fn listen(&self, address: Multiaddr) -> Result<bool>;
+//
+//     /// Returns a list of node addresses.
+//     #[rpc(name = "pubsub_listeners")]
+//     fn listeners(&self) -> Result<Vec<Multiaddr>>;
+//
+//     /// Connect to peer and add it into swarm.
+//     #[rpc(name = "pubsub_connect")]
+//     fn connect(&self, address: Multiaddr) -> Result<bool>;
+//
+//     /// Subscribe for a topic with given name.
+//     #[pubsub(
+//         subscription = "robonomics_subscription",
+//         subscribe,
+//         name = "pubsub_subscribe"
+//     )]
+//     fn subscribe(&self, _: Self::Metadata, _: Subscriber<String>, topic_name: String);
+//
+//     /// Unsubscribe for incoming messages from topic.
+//     #[pubsub(
+//         subscription = "robonomics_subscription",
+//         unsubscribe,
+//         name = "pubsub_unsubscribe"
+//     )]
+//     fn unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+//
+//     /// Publish message into the topic by name.
+//     #[rpc(name = "pubsub_publish")]
+//     fn publish(&self, topic_name: String, message: String) -> Result<bool>;
+// }
+//
+// impl PubSubT for PubSubApi {
+//     type Metadata = sp_api::Metadata;
+//
+//     fn peer_id(&self) -> Result<String> {
+//         Ok(self.pubsub.peer_id().to_string())
+//     }
+//
+//     fn listen(&self, address: Multiaddr) -> Result<bool> {
+//         executor::block_on(async { self.pubsub.listen(address).await }).or(Ok(false))
+//     }
+//
+//     fn listeners(&self) -> Result<Vec<Multiaddr>> {
+//         executor::block_on(async { self.pubsub.listeners().await }).or(Ok(vec![]))
+//     }
+//
+//     fn connect(&self, address: Multiaddr) -> Result<bool> {
+//         executor::block_on(async { self.pubsub.connect(address).await }).or(Ok(false))
+//     }
+//
+//     fn subscribe(&self, _meta: Self::Metadata, subscriber: Subscriber<String>, topic_name: String) {
+//         let mut inbox = self.pubsub.subscribe(&topic_name.clone());
+//         let mut rng = rand::thread_rng();
+//         let subscription_id = SubscriptionId::Number(rng.gen());
+//         let sink = subscriber.assign_id(subscription_id.clone()).unwrap();
+//         self.subscriptions
+//             .lock()
+//             .unwrap()
+//             .insert(subscription_id.clone(), sink.clone());
+//         self.topics
+//             .lock()
+//             .unwrap()
+//             .insert(subscription_id, topic_name);
+//
+//         thread::spawn(move || loop {
+//             match inbox.try_next() {
+//                 // Message is fetched.
+//                 Ok(Some(message)) => {
+//                     if let Ok(message) = str::from_utf8(&message.data) {
+//                         let _ = sink.notify(Ok(message.to_string()));
+//                     } else {
+//                         continue;
+//                     }
+//                 }
+//                 // Channel is closed and no messages left in the queue.
+//                 Ok(None) => break,
+//
+//                 // There are no messages available, but channel is not yet closed.
+//                 Err(_) => {}
+//             }
+//         });
+//     }
+//
+//     fn unsubscribe(&self, _meta: Option<Self::Metadata>, sid: SubscriptionId) -> Result<bool> {
+//         if let Some(topic_name) = self.topics.lock().unwrap().remove(&sid) {
+//             let _ = self.subscriptions.lock().unwrap().remove(&sid);
+//             let _ = executor::block_on(async { self.pubsub.unsubscribe(&topic_name).await });
+//         };
+//
+//         Ok(true)
+//     }
+//
+//     fn publish(&self, topic_name: String, message: String) -> Result<bool> {
+//         executor::block_on(async {
+//             self.pubsub
+//                 .publish(&topic_name, message.as_bytes().to_vec())
+//                 .await
+//         })
+//         .or(Ok(false))
+//     }
+// }

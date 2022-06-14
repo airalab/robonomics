@@ -33,6 +33,9 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::pubsub::pubsubapi::RpcServer;
+use robonomics_protocol::pubsub::{pubsubapi::PubSubRpc, Gossipsub, PubSub};
+
 /*
 use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
 use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
@@ -57,7 +60,7 @@ pub struct FullDeps<C, P> {
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
     // PubSub worker.
-    //pub pubsub: Arc<Gossipsub>,
+    pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -85,11 +88,12 @@ where
         client,
         pool,
         deny_unsafe,
-        //pubsub,
+        pubsub,
     } = deps;
 
     io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+    io.merge(PubSubRpc::new(client.clone(), pubsub).into_rpc())?;
 
     /*
     io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
