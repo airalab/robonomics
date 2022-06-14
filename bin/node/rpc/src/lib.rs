@@ -31,16 +31,14 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicRpc, ExtrinsicRpcServer};
-use robonomics_protocol::pubsub::{
-    pubsubapi::{PubSubRpc, RpcServer},
-    Gossipsub,
+use robonomics_protocol::{
+    extrinsic::extrinsicrpc::{ExtrinsicRpc, ExtrinsicRpcServer},
+    pubsub::{
+        pubsubrpc::{PubSubRpc, PubSubRpcServer},
+        Gossipsub,
+    },
+    reqres::reqresrpc::{ReqRespRpc, ReqRespRpcServer},
 };
-
-/*
-use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
-use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
-*/
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -92,14 +90,9 @@ where
 
     io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    io.merge(PubSubRpc::new(client.clone(), pubsub).into_rpc())?;
+    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
-
-    /*
-    io.extend_with(ReqRespApi::to_delegate(ReqRespApi {}));
-
-    io.extend_with(ExtrinsicApi::to_delegate(ExtrinsicApi::new(client.clone())));
-    */
+    io.merge(ReqRespRpc::new().into_rpc())?;
 
     Ok(io)
 }

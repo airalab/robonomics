@@ -83,20 +83,21 @@ use std::{
     thread,
 };
 
-#[derive(Clone)]
-pub struct PubSubRpc<C> {
+// pub struct PubSubRpc<C> {
+pub struct PubSubRpc {
     pubsub: Arc<Gossipsub>,
     // subscriptions: Arc<Mutex<HashMap<SubscriptionId, Sink<String>>>>,
     // topics: Arc<Mutex<HashMap<SubscriptionId, String>>>,
-    client: Arc<C>,
+    // client: Arc<C>,
     // _marker: std::marker::PhantomData<P>,
 }
 
-impl<C> PubSubRpc<C> {
-    pub fn new(client: Arc<C>, pubsub: Arc<Gossipsub>) -> Self {
+// impl<C> PubSubRpc<C> {
+impl PubSubRpc {
+    pub fn new(pubsub: Arc<Gossipsub>) -> Self {
         Self {
             pubsub,
-            client,
+            // client,
             // subscriptions: Arc::new(Mutex::new(HashMap::new())),
             // topics: Arc::new(Mutex::new(HashMap::new())),
             // _marker: Default::default(),
@@ -105,7 +106,7 @@ impl<C> PubSubRpc<C> {
 }
 
 #[rpc(client, server)]
-pub trait Rpc {
+pub trait PubSubRpc {
     /// Returns local peer ID.
     #[method(name = "pubsub_peer")]
     fn peer_id(&self) -> RpcResult<String>;
@@ -144,13 +145,17 @@ pub trait Rpc {
 }
 
 #[async_trait]
-impl<C: std::marker::Sync + Send + 'static> RpcServer for PubSubRpc<C> {
+impl PubSubRpcServer for PubSubRpc {
     fn peer_id(&self) -> RpcResult<String> {
         Ok(self.pubsub.peer_id().to_string())
     }
 
     async fn listen(&self, address: Multiaddr) -> RpcResult<bool> {
         self.pubsub.listen(address).await.or(Ok(false))
+        // self.pubsub
+        //     .listen(address)
+        //     .await
+        //     .map_err(|_| JsonRpseeError::Custom("Internal error!".to_string()))
     }
 
     async fn listeners(&self) -> RpcResult<Vec<Multiaddr>> {

@@ -26,7 +26,7 @@ pub use libp2p::{Multiaddr, PeerId};
 
 pub mod discovery;
 pub mod gossipsub;
-pub mod pubsubapi;
+pub mod pubsubrpc;
 
 /// Robonomics PubSub message.
 #[derive(PartialEq, Eq, Clone, Debug)]
