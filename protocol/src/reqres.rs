@@ -41,7 +41,7 @@ use std::io;
 
 use futures::StreamExt;
 
-pub mod reqresapi;
+pub mod reqresrpc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {

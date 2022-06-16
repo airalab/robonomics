@@ -29,4 +29,4 @@ substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.24" }
 local-runtime = { path = "../../../runtime/local" }
 robonomics-primitives = { path = "../../../primitives" }
-#robonomics-protocol = { path = "../../../protocol" }
+robonomics-protocol = { path = "../../../protocol" }
