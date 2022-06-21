@@ -196,13 +196,7 @@ impl Config for XcmConfig {
     type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
     type Trader = (
         FixedRateOfFungible<KsmPerSecond, ()>,
-        UsingComponents<
-            IdentityFee<Balance>,
-            Local,
-            AccountId,
-            Balances,
-            DealWithFees,
-        >,
+        UsingComponents<IdentityFee<Balance>, Local, AccountId, Balances, DealWithFees>,
     );
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
