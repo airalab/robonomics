@@ -825,7 +825,6 @@
 <span id="820">820</span>
 <span id="821">821</span>
 <span id="822">822</span>
-<span id="823">823</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -903,7 +902,7 @@
     <span class="ident">spec_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics&quot;</span>),
     <span class="ident">impl_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-airalab&quot;</span>),
     <span class="ident">authoring_version</span>: <span class="number">1</span>,
-    <span class="ident">spec_version</span>: <span class="number">20</span>,
+    <span class="ident">spec_version</span>: <span class="number">21</span>,
     <span class="ident">impl_version</span>: <span class="number">0</span>,
     <span class="ident">apis</span>: <span class="ident">RUNTIME_API_VERSIONS</span>,
     <span class="ident">transaction_version</span>: <span class="number">1</span>,
@@ -930,8 +929,7 @@
         <span class="kw">match</span> <span class="ident">call</span> {
             <span class="comment">// Filter permissionless assets creation</span>
             <span class="ident">Call::Assets</span>(<span class="ident">method</span>) =&gt; <span class="kw">match</span> <span class="ident">method</span> {
-                <span class="ident">pallet_assets::Call::create</span> { <span class="ident">id</span>, .. } =&gt; <span class="kw-2">*</span><span class="ident">id</span> <span class="op">&lt;</span> <span class="ident">AssetId::max_value</span>() <span class="op">/</span> <span class="number">2</span>,
-                <span class="ident">pallet_assets::Call::destroy</span> { <span class="ident">id</span>, .. } =&gt; <span class="kw-2">*</span><span class="ident">id</span> <span class="op">&lt;</span> <span class="ident">AssetId::max_value</span>() <span class="op">/</span> <span class="number">2</span>,
+                <span class="ident">pallet_assets::Call::destroy</span> { .. } =&gt; <span class="bool-val">false</span>,
                 <span class="kw">_</span> =&gt; <span class="bool-val">true</span>,
             },
             <span class="comment">// These modules are not allowed to be called by transactions:</span>

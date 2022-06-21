@@ -101,11 +101,6 @@
 <span id="96">96</span>
 <span id="97">97</span>
 <span id="98">98</span>
-<span id="99">99</span>
-<span id="100">100</span>
-<span id="101">101</span>
-<span id="102">102</span>
-<span id="103">103</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -136,17 +131,17 @@
 <span class="doccomment">//! are part of it. Therefore all node-runtime-specific RPCs can</span>
 <span class="doccomment">//! be placed here or imported from corresponding FRAME RPC definitions.</span>
 
-<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
-
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">robonomics_primitives</span>::{<span class="ident">AccountId</span>, <span class="ident">Balance</span>, <span class="ident">Block</span>, <span class="ident">Index</span>};
-<span class="comment">/*
-use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
-use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
-use robonomics_protocol::pubsub::Gossipsub;
-use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
-*/</span>
+<span class="kw">use</span> <span class="ident">robonomics_protocol</span>::{
+    <span class="ident">extrinsic::extrinsicrpc</span>::{<span class="ident">ExtrinsicRpc</span>, <span class="ident">ExtrinsicRpcServer</span>},
+    <span class="ident">pubsub</span>::{
+        <span class="ident">pubsubrpc</span>::{<span class="ident">PubSubRpc</span>, <span class="ident">PubSubRpcServer</span>},
+        <span class="ident">Gossipsub</span>,
+    },
+    <span class="ident">reqres::reqresrpc</span>::{<span class="ident">ReqRespRpc</span>, <span class="ident">ReqRespRpcServer</span>},
+};
 
 <span class="kw">use</span> <span class="ident">jsonrpsee::RpcModule</span>;
 <span class="kw">use</span> <span class="ident">sc_client_api::AuxStore</span>;
@@ -165,7 +160,7 @@ use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
     <span class="doccomment">/// Whether to deny unsafe calls.</span>
     <span class="kw">pub</span> <span class="ident">deny_unsafe</span>: <span class="ident">DenyUnsafe</span>,
     <span class="comment">// PubSub worker.</span>
-    <span class="comment">//pub pubsub: Arc&lt;Gossipsub&gt;,</span>
+    <span class="kw">pub</span> <span class="ident">pubsub</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Gossipsub</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Instantiate all Full RPC extensions.</span>
@@ -193,19 +188,14 @@ use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
         <span class="ident">client</span>,
         <span class="ident">pool</span>,
         <span class="ident">deny_unsafe</span>,
-        <span class="comment">//pubsub,</span>
+        <span class="ident">pubsub</span>,
     } <span class="op">=</span> <span class="ident">deps</span>;
 
     <span class="ident">io</span>.<span class="ident">merge</span>(<span class="ident">System::new</span>(<span class="ident">client</span>.<span class="ident">clone</span>(), <span class="ident">pool</span>, <span class="ident">deny_unsafe</span>).<span class="ident">into_rpc</span>())<span class="question-mark">?</span>;
     <span class="ident">io</span>.<span class="ident">merge</span>(<span class="ident">TransactionPayment::new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()).<span class="ident">into_rpc</span>())<span class="question-mark">?</span>;
-
-    <span class="comment">/*
-    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
-
-    io.extend_with(ReqRespApi::to_delegate(ReqRespApi {}));
-
-    io.extend_with(ExtrinsicApi::to_delegate(ExtrinsicApi::new(client.clone())));
-    */</span>
+    <span class="ident">io</span>.<span class="ident">merge</span>(<span class="ident">PubSubRpc::new</span>(<span class="ident">pubsub</span>).<span class="ident">into_rpc</span>())<span class="question-mark">?</span>;
+    <span class="ident">io</span>.<span class="ident">merge</span>(<span class="ident">ExtrinsicRpc::new</span>(<span class="ident">client</span>.<span class="ident">clone</span>()).<span class="ident">into_rpc</span>())<span class="question-mark">?</span>;
+    <span class="ident">io</span>.<span class="ident">merge</span>(<span class="ident">ReqRespRpc::new</span>().<span class="ident">into_rpc</span>())<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="ident">io</span>)
 }
