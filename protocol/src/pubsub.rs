@@ -19,6 +19,7 @@
 
 use crate::error::FutureResult;
 use futures::channel::mpsc;
+use serde::Serialize;
 use std::fmt;
 
 pub use gossipsub::PubSub as Gossipsub;
@@ -26,12 +27,12 @@ pub use libp2p::{Multiaddr, PeerId};
 
 pub mod discovery;
 pub mod gossipsub;
-pub mod pubsubapi;
+pub mod pubsubrpc;
 
 /// Robonomics PubSub message.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize)]
 pub struct Message {
-    pub from: PeerId,
+    pub from: Vec<u8>,
     pub data: Vec<u8>,
 }
 
