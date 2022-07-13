@@ -13,6 +13,7 @@ members = [
     "frame/digital-twin",
     "frame/staking",
 #    "io",
+     "pair",
     "primitives",
 #    "protocol",
 #    "protocol/examples/reqres",

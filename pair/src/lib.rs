@@ -15,12 +15,8 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Robonomics Framework I/O operations.
 
 pub mod error;
-pub mod ethereum;
-pub mod extrinsic;
-pub mod id;
-//pub mod pubsub;
-pub mod reqres;
-pub mod subxt;
+pub mod sink;
+//pub mod source;

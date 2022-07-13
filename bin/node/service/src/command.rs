@@ -176,6 +176,21 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
         }
+
+        Some(Subcommand::Pair(cmd)) => {
+            match &cmd.subcommand {
+                Some(robonomics_pair::sink::virt::PairSubCmds::Connect(cmd)) => {
+                    robonomics_pair::sink::virt::ConnectCmd::run(cmd).map_err(|e| e.to_string().into()) 
+                },
+                Some(robonomics_pair::sink::virt::PairSubCmds::Listen(cmd)) => {
+                    robonomics_pair::sink::virt::ListenCmd::run(cmd).map_err(|e| e.to_string().into()) 
+                },
+                _ => { println!("pair args {:?}", cmd);
+                    Ok(())// todo!(),
+                },
+            }     
+        }        
+        
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(cmd)) => {
             let runner = cli.create_runner(&*cli.run)?;

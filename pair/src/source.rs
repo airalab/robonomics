@@ -15,12 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network protocol.
+//! Collection of I/O devices designed to provide some data.
 
-pub mod error;
-pub mod ethereum;
-pub mod extrinsic;
-pub mod id;
-//pub mod pubsub;
-pub mod reqres;
-pub mod subxt;
+//pub mod serial;
+pub mod virt;

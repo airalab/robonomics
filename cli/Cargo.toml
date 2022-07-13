@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 robonomics-protocol = { path = "../protocol" }
 robonomics-io = { path = "../io" }
+robonomics-piar = { path = "../pair" }
 derive_more = "0.99.11"
 structopt = "0.3.8"
 futures = "0.3.8"

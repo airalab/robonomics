@@ -16,6 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+use robonomics_pair;
 use clap::Parser;
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 
@@ -76,6 +77,11 @@ pub enum Subcommand {
     /// Remove the whole chain.
     #[cfg(feature = "full")]
     PurgeChain(sc_cli::PurgeChainCmd),
+
+    /// pair by peerId.
+    /// robonomics pair listen --key ...
+    /// robonomics pair connect --addr ...
+    Pair(robonomics_pair::sink::virt::PairCmd), 
 
     /// Robonomics Framework I/O operations.
     #[cfg(feature = "robonomics-cli")]
