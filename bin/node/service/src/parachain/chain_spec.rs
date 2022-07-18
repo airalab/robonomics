@@ -67,7 +67,7 @@ pub type IpciChainSpec = sc_service::GenericChainSpec<ipci_runtime::GenesisConfi
 #[cfg(feature = "kusama")]
 pub type MainChainSpec = sc_service::GenericChainSpec<main_runtime::GenesisConfig, Extensions>;
 
-fn alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
+pub fn alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -103,7 +103,7 @@ fn alpha_chain_spec(id: ParaId) -> AlphaChainSpec {
     )
 }
 
-fn ipci_chain_spec(id: ParaId) -> IpciChainSpec {
+pub fn ipci_chain_spec(id: ParaId) -> IpciChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -140,7 +140,7 @@ fn ipci_chain_spec(id: ParaId) -> IpciChainSpec {
 }
 
 #[cfg(feature = "kusama")]
-fn main_chain_spec(id: ParaId) -> MainChainSpec {
+pub fn main_chain_spec(id: ParaId) -> MainChainSpec {
     let balances = vec![
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -154,13 +154,12 @@ fn main_chain_spec(id: ParaId) -> MainChainSpec {
         "main_testnet",
         ChainType::Local,
         move || {
-            mk_genesis_ipci(
+            mk_genesis_main(
                 balances
                     .iter()
                     .cloned()
                     .map(|a| (a, 1_000_000_000_000u128))
                     .collect(),
-                get_account_id_from_seed::<sr25519::Public>("Alice"),
                 id,
             )
         },
@@ -209,17 +208,16 @@ fn mk_genesis_ipci(
     sudo_key: AccountId,
     parachain_id: ParaId,
 ) -> ipci_runtime::GenesisConfig {
-    let bonus = balances.clone();
     ipci_runtime::GenesisConfig {
-        system: alpha_runtime::SystemConfig {
-            code: alpha_runtime::wasm_binary_unwrap().to_vec(),
+        system: ipci_runtime::SystemConfig {
+            code: ipci_runtime::wasm_binary_unwrap().to_vec(),
         },
         assets: Default::default(),
-        balances: alpha_runtime::BalancesConfig { balances },
-        sudo: alpha_runtime::SudoConfig {
+        balances: ipci_runtime::BalancesConfig { balances },
+        sudo: ipci_runtime::SudoConfig {
             key: Some(sudo_key),
         },
-        parachain_info: alpha_runtime::ParachainInfoConfig { parachain_id },
+        parachain_info: ipci_runtime::ParachainInfoConfig { parachain_id },
         parachain_system: Default::default(),
         transaction_payment: Default::default(),
     }
@@ -229,22 +227,24 @@ fn mk_genesis_ipci(
 #[cfg(feature = "kusama")]
 fn mk_genesis_main(
     balances: Vec<(AccountId, Balance)>,
-    sudo_key: AccountId,
     parachain_id: ParaId,
 ) -> main_runtime::GenesisConfig {
     main_runtime::GenesisConfig {
         system: main_runtime::SystemConfig {
             code: main_runtime::wasm_binary_unwrap().to_vec(),
         },
+        parachain_system: Default::default(),
         balances: main_runtime::BalancesConfig { balances },
+        assets: Default::default(),
         vesting: Default::default(),
         staking: main_runtime::StakingConfig { bonus: vec![] },
-        sudo: main_runtime::SudoConfig { key: sudo_key },
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
         democracy: main_runtime::DemocracyConfig::default(),
         treasury: Default::default(),
         technical_committee: Default::default(),
         technical_membership: Default::default(),
+        polkadot_xcm: Default::default(),
+        transaction_payment: Default::default(),
     }
 }
 

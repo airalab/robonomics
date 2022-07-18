@@ -28,7 +28,7 @@ pub fn load_spec(
     Ok(match id {
         // Return Kusama parachain by default
         #[cfg(feature = "kusama")]
-        "" => Box::new(chain_spec::robonomics_chain_spec()),
+        "" => Box::new(chain_spec::robonomics_parachain_config()),
         // Generate genesis each time for dev networks
         "alpha-dev" => Box::new(chain_spec::alpha_chain_spec(para_id)),
         "ipci-dev" => Box::new(chain_spec::ipci_chain_spec(para_id)),
@@ -148,7 +148,7 @@ pub mod ipci {
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
-        super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
+        super::service::start_node_impl::<RuntimeApi, IpciExecutor, _, _>(
             parachain_config,
             polkadot_config,
             collator_options,
