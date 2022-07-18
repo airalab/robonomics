@@ -39,7 +39,7 @@ pub mod constants;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Contains, Currency, EnsureOneOf, EqualPrivilegeOnly, Imbalance, LockIdentifier,
+        Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, LockIdentifier,
         OnUnbalanced, U128CurrencyToVote,
     },
     weights::{
@@ -251,6 +251,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
+    type Event = Event;
 }
 
 parameter_types! {
@@ -366,11 +367,11 @@ parameter_types! {
 impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type Currency = Balances;
-    type ApproveOrigin = EnsureOneOf<
+    type ApproveOrigin = EitherOfDiverse<
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
     >;
-    type RejectOrigin = EnsureOneOf<
+    type RejectOrigin = EitherOfDiverse<
         EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
     >;
@@ -385,6 +386,7 @@ impl pallet_treasury::Config for Runtime {
     type SpendFunds = ();
     type WeightInfo = ();
     type MaxApprovals = MaxApprovals;
+    type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
 }
 
 parameter_types! {
@@ -454,6 +456,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type ReservedDmpWeight = ReservedDmpWeight;
     type XcmpMessageHandler = XcmpQueue;
     type ReservedXcmpWeight = ReservedXcmpWeight;
+    type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 }
 
 parameter_types! {
@@ -549,44 +552,42 @@ construct_runtime! {
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Utility: pallet_utility::{Pallet, Call, Storage, Event},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
-        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
+        System: frame_system,
+        Utility: pallet_utility,
+        Timestamp: pallet_timestamp,
+        Identity: pallet_identity,
+        Sudo: pallet_sudo,
 
         // Parachain systems.
-        ParachainSystem: cumulus_pallet_parachain_system::{
-            Pallet, Call, Config, Storage, Inherent, Event<T>, ValidateUnsigned,
-        },
-        ParachainInfo: parachain_info::{Pallet, Storage, Config},
+        ParachainSystem: cumulus_pallet_parachain_system,
+        ParachainInfo: parachain_info,
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
+        Balances: pallet_balances,
+        Assets: pallet_assets,
+        TransactionPayment: pallet_transaction_payment,
 
         // Robonomics Network pallets.
-        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
-        Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Lighthouse: pallet_robonomics_lighthouse::{Pallet, Call, Storage, Inherent, Event<T>},
+        Datalog: pallet_robonomics_datalog,
+        Launch: pallet_robonomics_launch,
+        RWS: pallet_robonomics_rws,
+        DigitalTwin: pallet_robonomics_digital_twin,
+        Liability: pallet_robonomics_liability,
+        Staking: pallet_robonomics_staking,
+        Lighthouse: pallet_robonomics_lighthouse,
 
         // DAO modules
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
+        Council: pallet_collective::<Instance1>,
+        Elections: pallet_elections_phragmen,
+        Scheduler: pallet_scheduler,
+        Treasury: pallet_treasury,
+        Preimage: pallet_preimage,
 
         // XCM helpers.
-        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>},
-        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
-        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin},
-        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>},
+        XcmpQueue: cumulus_pallet_xcmp_queue,
+        PolkadotXcm: pallet_xcm,
+        CumulusXcm: cumulus_pallet_xcm,
+        DmpQueue: cumulus_pallet_dmp_queue,
     }
 }
 

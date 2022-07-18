@@ -38,7 +38,7 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{EnsureOneOf, EqualPrivilegeOnly, KeyOwnerProofSystem},
+    traits::{EitherOfDiverse, EqualPrivilegeOnly, KeyOwnerProofSystem},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         ConstantMultiplier, DispatchClass, IdentityFee, Weight,
@@ -244,6 +244,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type FeeMultiplierUpdate =
         TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
+    type Event = Event;
 }
 
 impl_opaque_keys! {
@@ -366,6 +367,7 @@ impl pallet_treasury::Config for Runtime {
     type SpendFunds = ();
     type WeightInfo = ();
     type MaxApprovals = MaxApprovals;
+    type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
 }
 
 parameter_types! {
@@ -416,7 +418,7 @@ impl pallet_democracy::Config for Runtime {
     type CancellationOrigin = MoreThanHalfTechnicals;
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
-    type CancelProposalOrigin = EnsureOneOf<
+    type CancelProposalOrigin = EitherOfDiverse<
         frame_system::EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
     >;
@@ -447,7 +449,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type WeightInfo = ();
 }
 
-type MoreThanHalfTechnicals = EnsureOneOf<
+type MoreThanHalfTechnicals = EitherOfDiverse<
     frame_system::EnsureRoot<AccountId>,
     pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 1, 2>,
 >;
@@ -553,37 +555,37 @@ construct_runtime!(
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basic stuff.
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
-        Aura: pallet_aura::{Pallet, Config<T>},
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
-        Utility: pallet_utility::{Pallet, Call, Storage, Event},
-        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
+        System: frame_system,
+        Timestamp: pallet_timestamp,
+        Aura: pallet_aura,
+        Grandpa: pallet_grandpa,
+        Utility: pallet_utility,
+        Identity: pallet_identity,
+        Multisig: pallet_multisig,
 
         // Native currency and accounts.
-        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Balances: pallet_balances,
+        TransactionPayment: pallet_transaction_payment,
+        Vesting: pallet_vesting,
 
         // Governance staff.
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>},
-        Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
+        Treasury: pallet_treasury,
+        Scheduler: pallet_scheduler,
+        TechnicalCommittee: pallet_collective::<Instance2>,
+        TechnicalMembership: pallet_membership::<Instance1>,
+        Democracy: pallet_democracy,
+        Preimage: pallet_preimage,
 
         // Robonomics Network modules.
-        Datalog: pallet_robonomics_datalog::{Pallet, Call, Storage, Event<T>},
-        Launch: pallet_robonomics_launch::{Pallet, Call, Event<T>},
-        RWS: pallet_robonomics_rws::{Pallet, Call, Storage, Event<T>},
-        DigitalTwin: pallet_robonomics_digital_twin::{Pallet, Call, Storage, Event<T>},
-        Liability: pallet_robonomics_liability::{Pallet, Call, Storage, Event<T>},
-        Staking: pallet_robonomics_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Datalog: pallet_robonomics_datalog,
+        Launch: pallet_robonomics_launch,
+        RWS: pallet_robonomics_rws,
+        DigitalTwin: pallet_robonomics_digital_twin,
+        Liability: pallet_robonomics_liability,
+        Staking: pallet_robonomics_staking,
 
         // Sudo. Usable initially.
-        Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Sudo: pallet_sudo,
     }
 );
 

@@ -125,11 +125,11 @@ construct_runtime!(
         NodeBlock = Block,
         UncheckedExtrinsic = UncheckedExtrinsic,
     {
-        System: frame_system::{Pallet, Call, Storage, Config, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        ParasOrigin: origin::{Pallet, Origin},
-        XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config},
-        TestNotifier: pallet_test_notifier::{Pallet, Call, Event<T>},
+        System: frame_system,
+        Balances: pallet_balances,
+        ParasOrigin: origin,
+        XcmPallet: pallet_xcm,
+        TestNotifier: pallet_test_notifier,
     }
 );
 

@@ -17,9 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Node as a parachain collator.
 
-pub use cumulus_client_service::genesis::generate_genesis_block;
 pub mod chain_spec;
-pub mod cli;
 pub mod command;
 pub mod service;
 
@@ -28,22 +26,16 @@ pub fn load_spec(
     para_id: cumulus_primitives_core::ParaId,
 ) -> Result<Box<dyn sc_service::ChainSpec>, String> {
     Ok(match id {
-        "" => Box::new(chain_spec::get_main_chain_spec()),
-        "alpha-local" => Box::new(chain_spec::get_alpha_chain_spec(para_id)),
+        // Return Kusama parachain by default
+        #[cfg(feature = "kusama")]
+        "" => Box::new(chain_spec::robonomics_chain_spec()),
+        // Generate genesis each time for dev networks
+        "alpha-dev" => Box::new(chain_spec::alpha_chain_spec(para_id)),
+        "ipci-dev" => Box::new(chain_spec::ipci_chain_spec(para_id)),
+        "main-dev" => Box::new(chain_spec::main_chain_spec(para_id)),
         // Load Alpha chain spec by default
         path => Box::new(chain_spec::AlphaChainSpec::from_json_file(path.into())?),
     })
-}
-
-pub fn extract_genesis_wasm(
-    chain_spec: &Box<dyn sc_service::ChainSpec>,
-) -> sc_cli::Result<Vec<u8>> {
-    let mut storage = chain_spec.build_storage()?;
-
-    storage
-        .top
-        .remove(sp_core::storage::well_known_keys::CODE)
-        .ok_or_else(|| "Could not find wasm file in genesis state!".into())
 }
 
 /// Robonomics AlphaNet on Airalab relaychain.
@@ -116,6 +108,47 @@ pub mod main {
         heartbeat_interval: u64,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, MainExecutor, _, _>(
+            parachain_config,
+            polkadot_config,
+            collator_options,
+            para_id,
+            lighthouse_account,
+            super::service::build_open_import_queue,
+            super::service::build_open_consensus,
+            heartbeat_interval,
+        )
+        .await
+    }
+}
+
+/// IPCI parachain on Airalab relaychain.
+pub mod ipci {
+    pub use ipci_runtime::RuntimeApi;
+    use robonomics_primitives::AccountId;
+
+    pub struct IpciExecutor;
+    impl sc_executor::NativeExecutionDispatch for IpciExecutor {
+        type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+        fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+            ipci_runtime::api::dispatch(method, data)
+        }
+
+        fn native_version() -> sc_executor::NativeVersion {
+            ipci_runtime::native_version()
+        }
+    }
+
+    /// Start a normal parachain node.
+    pub async fn start_node(
+        parachain_config: sc_service::Configuration,
+        polkadot_config: sc_service::Configuration,
+        collator_options: cumulus_client_cli::CollatorOptions,
+        para_id: cumulus_primitives_core::ParaId,
+        lighthouse_account: Option<AccountId>,
+        heartbeat_interval: u64,
+    ) -> sc_service::error::Result<sc_service::TaskManager> {
+        super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
             parachain_config,
             polkadot_config,
             collator_options,

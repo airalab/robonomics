@@ -192,65 +192,21 @@ pub fn run() -> sc_cli::Result<()> {
             }
         }
         #[cfg(feature = "parachain")]
-        Some(Subcommand::ExportGenesisState(params)) => {
-            use codec::Encode;
-            use sp_api::BlockT;
-            use sp_core::hexdisplay::HexDisplay;
-            use std::io::Write;
-
-            let mut builder = sc_cli::LoggerBuilder::new("");
-            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
-            let _ = builder.init();
-
-            let spec = parachain::load_spec(
-                &params.chain.clone().unwrap_or_default(),
-                params.parachain_id.into(),
-            )?;
-            let state_version = Cli::native_runtime_version(&spec).state_version();
-
-            let block: robonomics_primitives::Block =
-                parachain::generate_genesis_block(&spec, state_version)?;
-            let raw_header = block.header().encode();
-            let output_buf = if params.raw {
-                raw_header
-            } else {
-                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
-            };
-
-            if let Some(output) = &params.output {
-                std::fs::write(output, output_buf)?;
-            } else {
-                std::io::stdout().write_all(&output_buf)?;
-            }
-
-            Ok(())
+        Some(Subcommand::ExportGenesisState(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|_| {
+                let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+                let state_version = Cli::native_runtime_version(&spec).state_version();
+                cmd.run::<robonomics_primitives::Block>(&*spec, state_version)
+            })
         }
         #[cfg(feature = "parachain")]
-        Some(Subcommand::ExportGenesisWasm(params)) => {
-            use sp_core::hexdisplay::HexDisplay;
-            use std::io::Write;
-
-            let mut builder = sc_cli::LoggerBuilder::new("");
-            builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
-            let _ = builder.init();
-
-            let raw_wasm_blob = parachain::extract_genesis_wasm(
-                &cli.load_spec(&params.chain.clone().unwrap_or_default())?,
-            )?;
-
-            let output_buf = if params.raw {
-                raw_wasm_blob
-            } else {
-                format!("0x{:?}", HexDisplay::from(&raw_wasm_blob)).into_bytes()
-            };
-
-            if let Some(output) = &params.output {
-                std::fs::write(output, output_buf)?;
-            } else {
-                std::io::stdout().write_all(&output_buf)?;
-            }
-
-            Ok(())
+        Some(Subcommand::ExportGenesisWasm(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|_| {
+                let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+                cmd.run(&*spec)
+            })
         }
     }
 }
