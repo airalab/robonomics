@@ -184,7 +184,7 @@ impl Future for PubSubWorker {
                             if let Some(inbox) = self.inbox.get_mut(&message.topic) {
                                 if let Some(sender) = &message.source {
                                     let _ = inbox.unbounded_send(super::Message {
-                                        from: sender.clone(),
+                                        from: sender.clone().to_bytes(),
                                         data: message.data.clone(),
                                     });
                                 }

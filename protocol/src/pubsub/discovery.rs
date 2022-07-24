@@ -25,7 +25,7 @@
 
 use super::PubSub;
 use futures::{future, Future, FutureExt, StreamExt};
-use libp2p::Multiaddr;
+use libp2p::{Multiaddr, PeerId};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -84,24 +84,31 @@ async fn discovery<T: PubSub>(pubsub: Arc<T>) {
 }
 
 async fn connect<T: PubSub>(pubsub: Arc<T>, msg: super::Message) {
-    // Handle only external messages
-    if msg.from == pubsub.peer_id() {
-        return;
-    }
+    if let Ok(peer_id) = PeerId::from_bytes(&msg.from) {
+        // Handle only external messages
+        if peer_id == pubsub.peer_id() {
+            return;
+        }
 
-    let decoded: bincode::Result<DiscoveryMessage> = bincode::deserialize(&msg.data[..]);
-    match decoded {
-        Ok(message) => {
-            for addr in message.listeners {
-                let _ = pubsub.connect(addr.clone()).await;
+        let decoded: bincode::Result<DiscoveryMessage> = bincode::deserialize(&msg.data[..]);
+        match decoded {
+            Ok(message) => {
+                for addr in message.listeners {
+                    let _ = pubsub.connect(addr.clone()).await;
+                }
+            }
+            Err(e) => {
+                log::error!(
+                    target: "robonomics-pubsub",
+                    "Unable to decode discovery message from {}: {}",
+                    peer_id.to_base58(), e
+                );
             }
         }
-        Err(e) => {
-            log::error!(
-                target: "robonomics-pubsub",
-                "Unable to decode discovery message from {}: {}",
-                msg.from.to_base58(), e
-            );
-        }
+    } else {
+        log::error!(
+            target: "robonomics-pubsub",
+            "Unable to decode discovery message"
+        );
     }
 }

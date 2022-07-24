@@ -1,8 +1,10 @@
 extern crate chrono;
 use crate::reqres::*;
 use chrono::prelude::*;
-use jsonrpc_core::Result;
-use jsonrpc_derive::rpc;
+use jsonrpsee::{
+    core::{async_trait, RpcResult},
+    proc_macros::rpc,
+};
 use std::fmt;
 
 fn epochu() -> i64 {
@@ -22,26 +24,33 @@ fn get_addr(address: String) -> (String, String) {
     (multi_addr, peer_id)
 }
 
-#[rpc]
-pub trait ReqRespT {
-    /// Returns for p2p rpc get responce   
-    #[rpc(name = "p2p_get")]
-    fn p2p_get(&self, address: String, message: String) -> Result<String>;
+#[rpc(server)]
+pub trait ReqRespRpc {
+    /// Returns for p2p rpc get responce
+    #[method(name = "p2p_get")]
+    fn p2p_get(&self, address: String, message: String) -> RpcResult<String>;
 
     /// Returns for reqresp p2p rpc ping responce
-    #[rpc(name = "p2p_ping")]
-    fn p2p_ping(&self, address: String) -> Result<String>;
+    #[method(name = "p2p_ping")]
+    fn p2p_ping(&self, address: String) -> RpcResult<String>;
 }
 
-pub struct ReqRespApi;
+pub struct ReqRespRpc;
 
-impl ReqRespT for ReqRespApi {
-    fn p2p_get(&self, address: String, message: String) -> Result<String> {
+impl ReqRespRpc {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl ReqRespRpcServer for ReqRespRpc {
+    fn p2p_get(&self, address: String, message: String) -> RpcResult<String> {
         let (multiaddr, peerid) = get_addr(address.clone());
         let value = Some(message.clone().to_string());
         let method = "get".to_string();
 
-        let res = reqresapi::reqres(
+        let res = reqresrpc::reqres(
             multiaddr.clone(),
             peerid.clone(),
             method.clone(),
@@ -66,12 +75,12 @@ impl ReqRespT for ReqRespApi {
         Ok(line)
     }
 
-    fn p2p_ping(&self, address: String) -> Result<String> {
+    fn p2p_ping(&self, address: String) -> RpcResult<String> {
         let (multiaddr, peerid) = get_addr(address.clone());
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqresapi::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
+        let res = reqresrpc::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
         let fres = futures::executor::block_on(res);
         let dt = epochu() - t0;
 

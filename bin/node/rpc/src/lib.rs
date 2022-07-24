@@ -28,17 +28,17 @@
 //! are part of it. Therefore all node-runtime-specific RPCs can
 //! be placed here or imported from corresponding FRAME RPC definitions.
 
-#![warn(missing_docs)]
-
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-/*
-use robonomics_protocol::extrinsic::extrinsicapi::{ExtrinsicApi, ExtrinsicT};
-use robonomics_protocol::pubsub::pubsubapi::{PubSubApi, PubSubT};
-use robonomics_protocol::pubsub::Gossipsub;
-use robonomics_protocol::reqres::reqresapi::{ReqRespApi, ReqRespT};
-*/
+use robonomics_protocol::{
+    extrinsic::extrinsicrpc::{ExtrinsicRpc, ExtrinsicRpcServer},
+    pubsub::{
+        pubsubrpc::{PubSubRpc, PubSubRpcServer},
+        Gossipsub,
+    },
+    reqres::reqresrpc::{ReqRespRpc, ReqRespRpcServer},
+};
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -57,7 +57,7 @@ pub struct FullDeps<C, P> {
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
     // PubSub worker.
-    //pub pubsub: Arc<Gossipsub>,
+    pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -85,19 +85,14 @@ where
         client,
         pool,
         deny_unsafe,
-        //pubsub,
+        pubsub,
     } = deps;
 
     io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-
-    /*
-    io.extend_with(PubSubApi::to_delegate(PubSubApi::new(pubsub)));
-
-    io.extend_with(ReqRespApi::to_delegate(ReqRespApi {}));
-
-    io.extend_with(ExtrinsicApi::to_delegate(ExtrinsicApi::new(client.clone())));
-    */
+    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
+    io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
+    io.merge(ReqRespRpc::new().into_rpc())?;
 
     Ok(io)
 }

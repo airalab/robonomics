@@ -18,8 +18,10 @@
 //! Robonomics Network extrinsic API.
 
 use codec::{Decode, Encode, HasCompact};
-use jsonrpc_core::{Error, Result};
-use jsonrpc_derive::rpc;
+use jsonrpsee::{
+    core::{async_trait, Error as JsonRpseeError, RpcResult},
+    proc_macros::rpc,
+};
 use robonomics_primitives::{AccountId, Block, Index};
 use sp_api::{BlockId, Core, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -29,49 +31,51 @@ use substrate_frame_rpc_system::AccountNonceApi;
 #[derive(Debug, PartialEq, Encode, Decode)]
 struct AsCompact<T: HasCompact>(#[codec(compact)] pub T);
 
-#[rpc]
-pub trait ExtrinsicT {
-    #[rpc(name = "get_payload")]
-    fn get_payload(&self, address: String) -> Result<Vec<String>>;
-}
-
-pub struct ExtrinsicApi<C> {
+#[derive(Clone)]
+pub struct ExtrinsicRpc<C> {
     client: Arc<C>,
 }
 
-impl<C> ExtrinsicApi<C> {
-    pub fn new(client: Arc<C>) -> ExtrinsicApi<C>
+impl<C> ExtrinsicRpc<C> {
+    pub fn new(client: Arc<C>) -> Self
     where
         C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
         C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     {
-        ExtrinsicApi { client }
+        Self { client }
     }
 }
 
-impl<C> ExtrinsicT for ExtrinsicApi<C>
+#[rpc(server)]
+pub trait ExtrinsicRpc {
+    #[method(name = "get_payload")]
+    fn get_payload(&self, address: String) -> RpcResult<Vec<String>>;
+}
+
+#[async_trait]
+impl<C> ExtrinsicRpcServer for ExtrinsicRpc<C>
 where
     C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + Sync + Send + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 {
-    fn get_payload(&self, address: String) -> Result<Vec<String>> {
+    fn get_payload(&self, address: String) -> RpcResult<Vec<String>> {
         // Address: The address of the sending account.
-        let address =
-            AccountId::from_str(&address).map_err(|_| Error::invalid_params("Invalid account"))?;
+        let address = AccountId::from_str(&address)
+            .map_err(|_| JsonRpseeError::Custom("Unknown address!".to_string()))?;
 
         // Nonce: The nonce for this transaction.
         let nonce = self
             .client
             .runtime_api()
             .account_nonce(&BlockId::Hash(self.client.info().best_hash), address)
-            .map_err(|_| Error::internal_error())?;
+            .map_err(|_| JsonRpseeError::Custom("Internal error!".to_string()))?;
 
         // Spec Version: The current spec version for the runtime.
         let version = self
             .client
             .runtime_api()
             .version(&BlockId::Hash(self.client.info().best_hash))
-            .map_err(|_| Error::internal_error())?;
+            .map_err(|_| JsonRpseeError::Custom("Internal error!".to_string()))?;
         let spec_version = version.spec_version;
 
         // Tip: Optional, the tip to increase transaction priority.
@@ -85,11 +89,11 @@ where
         let tx_version = 1 as u64;
 
         Ok(vec![
-            format!("0x{}",hex::encode(AsCompact(nonce as u64).encode())),//"0x".to_string() + &hex::encode(AsCompact(nonce as u64).encode()),
-            format!("0x{}",hex::encode(spec_version.encode())),           //"0x".to_string() + &hex::encode(spec_version.encode()),
-            format!("0x{}",hex::encode(AsCompact(tip).encode())),         //"0x".to_string() + &hex::encode(AsCompact(tip).encode()),
-            format!("0x{}",hex::encode(era.encode())),                    //"0x".to_string() + &hex::encode(era.encode()),
-            format!("0x{}",hex::encode(tx_version.encode()))              // "0x".to_string() + &hex::encode(tx_version.encode()),
+            format!("0x{}", &hex::encode(AsCompact(nonce as u64).encode())),
+            format!("0x{}", &hex::encode(spec_version.encode())),
+            format!("0x{}", &hex::encode(AsCompact(tip).encode())),
+            format!("0x{}", &hex::encode(era.encode())),
+            format!("0x{}", &hex::encode(tx_version.encode())),
         ])
     }
 }
