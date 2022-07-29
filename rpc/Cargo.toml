@@ -13,6 +13,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0" }
 jsonrpsee = { version = "0.14.0", features = ["server"] }
+hex = "0.4"
+log = "0.4.17"
+libp2p = "0.46.1"
 sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
@@ -29,4 +32,5 @@ substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 local-runtime = { path = "../runtime/local" }
 robonomics-primitives = { path = "../primitives" }
-#robonomics-protocol = { path = "../../../protocol" }
+robonomics-protocol = { path = "../protocol" }
+tokio = "1.17.0"

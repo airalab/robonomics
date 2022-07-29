@@ -77,8 +77,15 @@ use jsonrpsee::{
     PendingSubscription,
 };
 use libp2p::Multiaddr;
+use std::sync::Arc;
 
-pub struct PubSubRpc<T: PubSub>(T);
+pub struct PubSubRpc<T>(Arc<T>);
+
+impl<T: PubSub> PubSubRpc<T> {
+    pub fn new(pubsub: Arc<T>) -> Self {
+        Self(pubsub)
+    }
+}
 
 #[rpc(server)]
 pub trait PubSubRpc {
@@ -108,7 +115,7 @@ pub trait PubSubRpc {
 }
 
 #[async_trait]
-impl<T: PubSub> PubSubRpcServer for PubSubRpc<T> {
+impl<T: PubSub + Sync + Send + 'static> PubSubRpcServer for PubSubRpc<T> {
     fn peer_id(&self) -> RpcResult<String> {
         Ok(self.0.peer_id().to_string())
     }

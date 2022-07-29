@@ -157,7 +157,7 @@ impl SubstrateCli for RelayChainCli {
         if id == "rococo_local_testnet" {
             Ok(Box::new(
                 polkadot_service::RococoChainSpec::from_json_bytes(
-                    &include_bytes!("../../res/rococo_local_testnet.json")[..],
+                    &include_bytes!("../../../chains/rococo_local_testnet.json")[..],
                 )
                 .unwrap(),
             ))

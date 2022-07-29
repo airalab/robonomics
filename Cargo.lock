@@ -8054,11 +8054,15 @@ dependencies = [
 name = "robonomics-rpc"
 version = "2.2.0"
 dependencies = [
+ "hex",
  "jsonrpsee",
+ "libp2p",
  "local-runtime",
+ "log",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "robonomics-primitives",
+ "robonomics-protocol",
  "sc-chain-spec",
  "sc-client-api",
  "sc-keystore",
@@ -8072,6 +8076,7 @@ dependencies = [
  "sp-runtime 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.26)",
  "sp-transaction-pool",
  "substrate-frame-rpc-system",
+ "tokio",
 ]
 
 [[package]]
@@ -8113,6 +8118,7 @@ dependencies = [
  "polkadot-primitives",
  "polkadot-service",
  "robonomics-primitives",
+ "robonomics-protocol",
  "robonomics-rpc",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -11427,9 +11433,9 @@ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
 
 [[package]]
 name = "tracing"
-version = "0.1.35"
+version = "0.1.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a400e31aa60b9d44a52a8ee0343b5b18566b03a8321e0d321f695cf56e940160"
+checksum = "5d0ecdcb44a79f0fe9844f0c4f33a342cbcbb5117de8001e6ba0dc2351327d09"
 dependencies = [
  "cfg-if 1.0.0",
  "pin-project-lite 0.2.9",
@@ -11450,11 +11456,11 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.28"
+version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7358be39f2f274f322d2aaed611acc57f382e8eb1e5b48cb9ae30933495ce7"
+checksum = "f54c8ca710e81886d498c2fd3331b56c93aa248d49de2222ad2742247c60072f"
 dependencies = [
- "once_cell",
+ "lazy_static",
  "valuable",
 ]
 
@@ -11645,7 +11651,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.3",
  "rand 0.8.5",
  "static_assertions",

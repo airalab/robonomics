@@ -367,7 +367,6 @@ parameter_types! {
     pub const CarbonStringLimit: u32 = 140;
 }
 
-pub use pallet_carbon_assets;
 impl pallet_carbon_assets::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
@@ -392,28 +391,28 @@ construct_runtime! {
         UncheckedExtrinsic = UncheckedExtrinsic
     {
         // Basics
-        System: frame_system = 1,
-        ParachainSystem: cumulus_pallet_parachain_system = 2,
-        ParachainInfo: parachain_info = 3,
-        Timestamp: pallet_timestamp = 4,
-        Utility: pallet_utility = 5,
-        Identity: pallet_identity = 6,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip = 7,
+        System: frame_system,
+        ParachainSystem: cumulus_pallet_parachain_system,
+        ParachainInfo: parachain_info,
+        Timestamp: pallet_timestamp,
+        Utility: pallet_utility,
+        Identity: pallet_identity,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 
         // Native currency and accounts
-        Balances: pallet_balances = 10,
-        Assets: pallet_assets = 11,
-        TransactionPayment: pallet_transaction_payment = 12,
+        Balances: pallet_balances,
+        Assets: pallet_assets,
+        TransactionPayment: pallet_transaction_payment,
 
-        // Robonomics pallets.
-        Lighthouse: pallet_robonomics_lighthouse = 20,
-        Datalog: pallet_robonomics_datalog = 21,
+        // Robonomics pallets
+        Lighthouse: pallet_robonomics_lighthouse,
+        Datalog: pallet_robonomics_datalog,
 
-        // Evercity pallets.
-        CarbonAssets: pallet_carbon_assets = 30,
+        // Evercity pallets
+        CarbonAssets: pallet_carbon_assets,
 
         // Management
-        Sudo: pallet_sudo = 99,
+        Sudo: pallet_sudo,
     }
 }
 

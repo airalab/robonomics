@@ -34,7 +34,7 @@ use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
 use hex_literal::hex;
 use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
-//use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::pubsub::gossipsub::PubSub;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkService;
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
@@ -297,13 +297,11 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    /*
     let (pubsub, pubsub_worker) =
         PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
     task_manager
         .spawn_handle()
         .spawn("pubsub_parachain", None, pubsub_worker);
-    */
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder: Box::new(move |deny_unsafe, _| {
@@ -311,7 +309,7 @@ where
                 client: rpc_client.clone(),
                 pool: rpc_pool.clone(),
                 deny_unsafe,
-                //                pubsub: pubsub.clone(),
+                pubsub: pubsub.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

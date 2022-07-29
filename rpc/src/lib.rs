@@ -20,6 +20,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+use robonomics_protocol::pubsub::PubSub;
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -31,11 +32,11 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 pub mod extrinsic;
 pub mod pubsub;
-pub mod reqres;
+//pub mod reqres;
 
 use extrinsic::{ExtrinsicRpc, ExtrinsicRpcServer};
 use pubsub::{PubSubRpc, PubSubRpcServer};
-use reqres::{ReqRespRpc, ReqRespRpcServer};
+//use reqres::{ReqRespRpc, ReqRespRpcServer};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, T> {
@@ -65,7 +66,7 @@ where
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
-    T: PubSub,
+    T: PubSub + Sync + Send + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -82,7 +83,7 @@ where
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
     io.merge(PubSubRpc::new(pubsub).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
-    io.merge(ReqRespRpc::new().into_rpc())?;
+    //io.merge(ReqRespRpc::new().into_rpc())?;
 
     Ok(io)
 }

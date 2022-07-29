@@ -14,14 +14,14 @@ repository = "https://github.com/airalab/robonomics"
 clap = { version = "3.0", features = ["derive"], optional = true }
 serde = { version = "1.0.130", features = ["derive"]}
 serde_json = "1.0"
-jsonrpsee = { version = "0.14.0", features = ["server"], optional = true }
+jsonrpsee = { version = "0.14.0", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 hex-literal = "0.3.1"
 log = "0.4.17"
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
-#robonomics-protocol = { path = "../../../protocol", default-features = false }
+robonomics-protocol = { path = "../protocol" }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
@@ -169,7 +169,6 @@ parachain = [
     "ipci-runtime",
     "pallet-robonomics-lighthouse",
     "substrate-frame-rpc-system",
-    "jsonrpsee",
     "cumulus-primitives-core",
     "cumulus-primitives-parachain-inherent",
     "cumulus-client-consensus-aura",

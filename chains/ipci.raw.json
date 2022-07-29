@@ -7,7 +7,7 @@
   "telemetryEndpoints": null,
   "protocolId": null,
   "properties": null,
-  "relayChain": "westend-dev",
+  "relayChain": "rococo_local_testnet",
   "paraId": 2000,
   "codeSubstitutes": {},
   "genesis": {
