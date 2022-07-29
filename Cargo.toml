@@ -2,8 +2,7 @@
 default-members = [ "bin/node" ]
 members = [
     "bin/node",
-    "bin/node/rpc",
-    "bin/node/service",
+    "bin/node",
 #    "cli",
     "frame/rws",
     "frame/launch",
@@ -14,20 +13,17 @@ members = [
     "frame/staking",
 #    "io",
     "primitives",
-#    "protocol",
-#    "protocol/examples/reqres",
+    "protocol",
+    "rpc",
     "runtime/local",
     "runtime/alpha",
     "runtime/main",
     "runtime/ipci",
+    "service",
 ]
 
 exclude = [
-    "io",
-    "cli",
-    "protocol",
     "vendor",
-    "bin/bench",
 ]
 
 # Enhanced features resolver

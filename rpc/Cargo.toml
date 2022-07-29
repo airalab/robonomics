@@ -1,0 +1,32 @@
+[package]
+name = "robonomics-rpc"
+version = "2.2.0"
+authors = ["Airalab <research@aira.life>"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://robonomics.network"
+repository = "https://github.com/airalab/robonomics"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.0" }
+jsonrpsee = { version = "0.14.0", features = ["server"] }
+sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sc-transaction-pool-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+local-runtime = { path = "../runtime/local" }
+robonomics-primitives = { path = "../primitives" }
+#robonomics-protocol = { path = "../../../protocol" }
