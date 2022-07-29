@@ -73,7 +73,7 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
         }
 
         if self.id() == "ipci" {
-            return RobonomicsFamily::Main;
+            return RobonomicsFamily::Ipci;
         }
 
         RobonomicsFamily::Alpha

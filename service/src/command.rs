@@ -78,7 +78,7 @@ impl SubstrateCli for Cli {
             #[cfg(feature = "parachain")]
             RobonomicsFamily::Alpha => &alpha_runtime::VERSION,
             #[cfg(feature = "parachain")]
-            RobonomicsFamily::Ipci => &alpha_runtime::VERSION,
+            RobonomicsFamily::Ipci => &ipci_runtime::VERSION,
             #[cfg(feature = "kusama")]
             RobonomicsFamily::Main => &main_runtime::VERSION,
         }
