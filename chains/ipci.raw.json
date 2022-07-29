@@ -3,6 +3,8 @@
   "id": "ipci",
   "chainType": "Live",
   "bootNodes": [
+    "/dns/1.ipci.robonomics.network/tcp/30333/ws/p2p/12D3KooWEKSr42J7W7VrCioEDRxFgmArZNg4wmhFZWLsSrFAKdVM",
+    "/dns/2.ipci.robonomics.network/tcp/30333/ws/p2p/12D3KooWN7YFhcrNzKZimqTAv9xvH6HT8ZUMvdzEc79MgJVako2h"
   ],
   "telemetryEndpoints": null,
   "protocolId": null,
