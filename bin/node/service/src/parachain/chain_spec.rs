@@ -300,7 +300,7 @@ pub fn uranus_parachain_config() -> AlphaChainSpec {
 
 /// Uranus parachain confing.
 pub fn ipci_parachain_config() -> IpciChainSpec {
-    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.json")[..]).unwrap()
+    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.raw.json")[..]).unwrap()
 }
 
 /// Robonomics parachain confing.
