@@ -18,7 +18,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::pubsub::gossipsub::PubSub;
+//use robonomics_protocol::pubsub::gossipsub::PubSub;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
@@ -176,11 +176,13 @@ where
         },
     )?;
 
+    /*
     let (pubsub, pubsub_worker) =
         PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
     task_manager
         .spawn_handle()
         .spawn("pubsub_service", None, pubsub_worker);
+    */
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -191,7 +193,7 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                pubsub: pubsub.clone(),
+                //pubsub: pubsub.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

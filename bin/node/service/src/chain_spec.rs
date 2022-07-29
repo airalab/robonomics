@@ -184,6 +184,7 @@ fn mk_genesis(
         treasury: Default::default(),
         technical_committee: Default::default(),
         technical_membership: Default::default(),
+        transaction_payment: Default::default(),
     }
 }
 

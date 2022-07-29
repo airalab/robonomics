@@ -19,6 +19,7 @@ members = [
     "runtime/local",
     "runtime/alpha",
     "runtime/main",
+    "runtime/ipci",
 ]
 
 exclude = [

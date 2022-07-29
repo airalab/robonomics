@@ -56,7 +56,7 @@ pub fn parse_args(
 
     let state_version = crate::Cli::native_runtime_version(&config.chain_spec).state_version();
     let block: robonomics_primitives::Block =
-        super::generate_genesis_block(&config.chain_spec, state_version)
+        cumulus_client_cli::generate_genesis_block(&*config.chain_spec, state_version)
             .map_err(|e| format!("{:?}", e))?;
     let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
     let parachain_account =

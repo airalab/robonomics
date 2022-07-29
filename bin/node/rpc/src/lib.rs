@@ -16,21 +16,11 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! A collection of node-specific RPC methods.
-//!
-//! Since `substrate` core functionality makes no assumptions
-//! about the modules used inside the runtime, so do
-//! RPC methods defined in `sc-rpc` crate.
-//! It means that `client/rpc` can't have any methods that
-//! need some strong assumptions about the particular runtime.
-//!
-//! The RPCs available in this crate however can make some assumptions
-//! about how the runtime is constructed and what FRAME pallets
-//! are part of it. Therefore all node-runtime-specific RPCs can
-//! be placed here or imported from corresponding FRAME RPC definitions.
 
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
+/*
 use robonomics_protocol::{
     extrinsic::extrinsicrpc::{ExtrinsicRpc, ExtrinsicRpcServer},
     pubsub::{
@@ -39,6 +29,7 @@ use robonomics_protocol::{
     },
     reqres::reqresrpc::{ReqRespRpc, ReqRespRpcServer},
 };
+*/
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -57,7 +48,7 @@ pub struct FullDeps<C, P> {
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
     // PubSub worker.
-    pub pubsub: Arc<Gossipsub>,
+    //    pub pubsub: Arc<Gossipsub>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -85,14 +76,14 @@ where
         client,
         pool,
         deny_unsafe,
-        pubsub,
+        //        pubsub,
     } = deps;
 
     io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
-    io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
-    io.merge(ReqRespRpc::new().into_rpc())?;
+    //    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
+    //    io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
+    //    io.merge(ReqRespRpc::new().into_rpc())?;
 
     Ok(io)
 }
