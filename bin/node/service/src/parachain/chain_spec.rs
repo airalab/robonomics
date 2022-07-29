@@ -213,6 +213,7 @@ fn mk_genesis_ipci(
             code: ipci_runtime::wasm_binary_unwrap().to_vec(),
         },
         assets: Default::default(),
+        carbon_assets: Default::default(),
         balances: ipci_runtime::BalancesConfig { balances },
         sudo: ipci_runtime::SudoConfig {
             key: Some(sudo_key),
@@ -295,6 +296,11 @@ pub fn mars_parachain_config() -> AlphaChainSpec {
 /// Uranus parachain confing.
 pub fn uranus_parachain_config() -> AlphaChainSpec {
     AlphaChainSpec::from_json_bytes(&include_bytes!("../../res/uranus.json")[..]).unwrap()
+}
+
+/// Uranus parachain confing.
+pub fn ipci_parachain_config() -> IpciChainSpec {
+    IpciChainSpec::from_json_bytes(&include_bytes!("../../res/ipci.json")[..]).unwrap()
 }
 
 /// Robonomics parachain confing.

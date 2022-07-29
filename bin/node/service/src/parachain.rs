@@ -29,6 +29,7 @@ pub fn load_spec(
         // Return Kusama parachain by default
         #[cfg(feature = "kusama")]
         "" => Box::new(chain_spec::robonomics_parachain_config()),
+        "ipci" => Box::new(chain_spec::ipci_parachain_config()),
         // Generate genesis each time for dev networks
         "alpha-dev" => Box::new(chain_spec::alpha_chain_spec(para_id)),
         "ipci-dev" => Box::new(chain_spec::ipci_chain_spec(para_id)),
