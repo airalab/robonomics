@@ -113,8 +113,7 @@ impl Contains<Call> for BaseFilter {
         match call {
             // Filter permissionless assets creation
             Call::Assets(method) => match method {
-                pallet_assets::Call::create { id, .. } => *id < AssetId::max_value() / 2,
-                pallet_assets::Call::destroy { id, .. } => *id < AssetId::max_value() / 2,
+                pallet_assets::Call::create { .. } => false,
                 _ => true,
             },
             // These modules are not allowed to be called by transactions:
@@ -237,7 +236,7 @@ parameter_types! {
 impl pallet_assets::Config for Runtime {
     type Event = Event;
     type Balance = Balance;
-    type AssetId = u32;
+    type AssetId = AssetId;
     type Currency = Balances;
     type ForceOrigin = frame_system::EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
@@ -308,6 +307,8 @@ impl pallet_identity::Config for Runtime {
     type WeightInfo = ();
 }
 
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 impl pallet_sudo::Config for Runtime {
     type Event = Event;
     type Call = Call;
@@ -357,6 +358,33 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
     type BlockReward = BlockReward;
 }
 
+parameter_types! {
+    pub const CarbonAssetDeposit: Balance = 1_000 * MITO; // 1000 MITO deposit to create asset
+    pub const CarbonAssetAccountDeposit: Balance = 1 * MITO;
+    pub const CarbonMetadataDepositBase: Balance = deposit(1, 68);
+    pub const CarbonMetadataDepositPerByte: Balance = deposit(0, 1);
+    pub const CarbonApprovalDeposit: Balance = 1 * U_MITO;
+    pub const CarbonStringLimit: u32 = 140;
+}
+
+pub use pallet_carbon_assets;
+impl pallet_carbon_assets::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type Currency = Balances;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type AssetDeposit = CarbonAssetDeposit;
+    type AssetAccountDeposit = CarbonAssetAccountDeposit;
+    type MetadataDepositBase = CarbonMetadataDepositBase;
+    type MetadataDepositPerByte = CarbonMetadataDepositPerByte;
+    type ApprovalDeposit = CarbonApprovalDeposit;
+    type StringLimit = CarbonStringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type WeightInfo = pallet_carbon_assets::weights::SubstrateWeight<Runtime>;
+    type Randomness = RandomnessCollectiveFlip;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -370,6 +398,7 @@ construct_runtime! {
         Timestamp: pallet_timestamp = 4,
         Utility: pallet_utility = 5,
         Identity: pallet_identity = 6,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip = 7,
 
         // Native currency and accounts
         Balances: pallet_balances = 10,
@@ -379,6 +408,9 @@ construct_runtime! {
         // Robonomics pallets.
         Lighthouse: pallet_robonomics_lighthouse = 20,
         Datalog: pallet_robonomics_datalog = 21,
+
+        // Evercity pallets.
+        CarbonAssets: pallet_carbon_assets = 30,
 
         // Management
         Sudo: pallet_sudo = 99,

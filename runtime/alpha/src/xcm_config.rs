@@ -8,7 +8,7 @@ use frame_support::{
     weights::{IdentityFee, Weight},
 };
 use sp_runtime::traits::Bounded;
-use sp_std::borrow::Borrow;
+use sp_std::{borrow::Borrow, prelude::*};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
@@ -25,6 +25,9 @@ use xcm_executor::{
     traits::{FilterAssetLocation, JustTry},
     Config, XcmExecutor,
 };
+
+const ASSET_TO_LOCATION: [(AssetId, MultiLocation); 1] =
+    [(AssetId::max_value(), MultiLocation::parent())];
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -69,19 +72,22 @@ pub struct AsAssetWithRelay<AssetId, GeneralAssetConverter>(
 impl<AssetId, GeneralAssetConverter> xcm_executor::traits::Convert<MultiLocation, AssetId>
     for AsAssetWithRelay<AssetId, GeneralAssetConverter>
 where
-    AssetId: Clone + Eq + Bounded,
+    AssetId: Clone + Eq + Bounded + From<u32>,
     GeneralAssetConverter: xcm_executor::traits::Convert<MultiLocation, AssetId>,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
-        if id.borrow().eq(&MultiLocation::parent()) {
-            Ok(AssetId::max_value())
+        if let Some((asset_id, _)) = ASSET_TO_LOCATION.iter().find(|&(_, v)| id.borrow().eq(v)) {
+            Ok((*asset_id).into())
         } else {
             GeneralAssetConverter::convert_ref(id)
         }
     }
     fn reverse_ref(what: impl Borrow<AssetId>) -> Result<MultiLocation, ()> {
-        if what.borrow().eq(&AssetId::max_value().into()) {
-            Ok(MultiLocation::parent())
+        if let Some((_, location)) = ASSET_TO_LOCATION
+            .iter()
+            .find(|&(k, _)| what.borrow().eq(&AssetId::from(*k)))
+        {
+            Ok(location.clone())
         } else {
             GeneralAssetConverter::reverse_ref(what)
         }

@@ -41,14 +41,14 @@ pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "po
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
+pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
 
 # robonomics dependencies
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
 
 # evercity dependencies
-#pallet-evercity = { path = "../../vendor/evercity", default-features = false }
-#pallet-evercity-transfer = { path = "../../vendor/evercity/transfer", default-features = false }
+pallet-carbon-assets = { git = "https://github.com/EvercityEcosystem/carbon-assets", default-features = false }
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.26", default-features = false }
@@ -91,10 +91,10 @@ std = [
     "pallet-timestamp/std",
     "pallet-transaction-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
+    "pallet-randomness-collective-flip/std",
     "pallet-robonomics-datalog/std",
     "pallet-robonomics-lighthouse/std",
-#    "pallet-evercity/std",
-#    "pallet-evercity-transfer/std",
+    "pallet-carbon-assets/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-primitives-core/std",
     "cumulus-primitives-utility/std",
