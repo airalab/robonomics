@@ -77,6 +77,8 @@ impl SubstrateCli for Cli {
             RobonomicsFamily::Development => &local_runtime::VERSION,
             #[cfg(feature = "parachain")]
             RobonomicsFamily::Alpha => &alpha_runtime::VERSION,
+            #[cfg(feature = "parachain")]
+            RobonomicsFamily::Ipci => &alpha_runtime::VERSION,
             #[cfg(feature = "kusama")]
             RobonomicsFamily::Main => &main_runtime::VERSION,
         }
@@ -126,6 +128,30 @@ pub fn run() -> sc_cli::Result<()> {
                     )?;
 
                     parachain::alpha::start_node(
+                        params.0,
+                        params.1,
+                        collator_options,
+                        params.2,
+                        params.3,
+                        heartbeat_interval,
+                    )
+                    .await
+                }),
+
+                #[cfg(feature = "parachain")]
+                RobonomicsFamily::Ipci => runner.run_node_until_exit(|config| async move {
+                    if matches!(config.role, sc_cli::Role::Light) {
+                        return Err("Light client not supported!".into());
+                    }
+
+                    let params = parachain::command::parse_args(
+                        config,
+                        &cli.relaychain_args,
+                        cli.parachain_id,
+                        cli.lighthouse_account,
+                    )?;
+
+                    parachain::ipci::start_node(
                         params.0,
                         params.1,
                         collator_options,

@@ -40,6 +40,9 @@ pub enum RobonomicsFamily {
     /// Robonomics Alpha Network (https://telemetry.parachain.robonomics.network).
     #[cfg(feature = "parachain")]
     Alpha,
+    /// Ipci Network (https://ipci.io).
+    #[cfg(feature = "parachain")]
+    Ipci,
     /// Robonomics Main Network
     #[cfg(feature = "kusama")]
     Main,
@@ -66,6 +69,10 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
 
         #[cfg(feature = "kusama")]
         if self.id() == "robonomics" {
+            return RobonomicsFamily::Main;
+        }
+
+        if self.id() == "ipci" {
             return RobonomicsFamily::Main;
         }
 
