@@ -27,7 +27,7 @@ use futures::{
     prelude::*,
     Future,
 };
-use libp2p::core::connection::ListenerId;
+use libp2p::core::transport::ListenerId;
 use libp2p::gossipsub::{
     Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
     MessageId, Sha256Topic as Topic, TopicHash,
@@ -125,7 +125,7 @@ impl PubSubWorker {
     }
 
     fn connect(&mut self, address: Multiaddr) -> Result<()> {
-        Swarm::dial_addr(&mut self.swarm, address.clone())?;
+        Swarm::dial(&mut self.swarm, address.clone())?;
         log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
 
         Ok(())

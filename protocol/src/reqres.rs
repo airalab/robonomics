@@ -16,6 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! Simple Req-Resp Protocol
+
 use bincode;
 use libp2p::core::Multiaddr;
 use libp2p::request_response::*;
@@ -35,13 +36,11 @@ use libp2p::core::{
 };
 use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
 use libp2p::request_response::RequestResponseCodec;
-use libp2p::tcp::TcpConfig;
+use libp2p::tcp::{TcpTransport, GenTcpConfig};
 use libp2p::yamux::YamuxConfig;
 use std::io;
 
 use futures::StreamExt;
-
-pub mod reqresrpc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
@@ -168,13 +167,13 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
         Err(_e) => log::debug!("try to use peer ID from random keypair"),
     };
 
+    let transport = TcpTransport::new(GenTcpConfig::default().nodelay(true));
     let noise_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&id_keys)
         .unwrap();
     (
         peer_id,
-        TcpConfig::new()
-            .nodelay(true)
+        transport
             .upgrade(upgrade::Version::V1)
             .authenticate(NoiseConfig::xx(noise_keys).into_authenticated())
             .multiplex(YamuxConfig::default())

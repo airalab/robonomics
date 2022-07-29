@@ -19,7 +19,6 @@
 
 use futures::channel::oneshot;
 use futures::Future;
-use libp2p::core::connection::ConnectionLimit;
 use libp2p::core::transport::TransportError;
 use libp2p::{gossipsub, swarm};
 use std::pin::Pin;
@@ -41,7 +40,7 @@ pub enum Error {
     /// Libp2p transport error.
     Transport(TransportError<std::io::Error>),
     /// Libp2p connection limit error.
-    ConnectionLimit(ConnectionLimit),
+    //ConnectionLimit(ConnectionLimit),
     /// Codec error.
     Codec(bincode::Error),
     /// Unable to decode address.
