@@ -7,8 +7,12 @@
     "/dns/2.ipci.robonomics.network/tcp/30333/ws/p2p/12D3KooWN7YFhcrNzKZimqTAv9xvH6HT8ZUMvdzEc79MgJVako2h"
   ],
   "telemetryEndpoints": null,
-  "protocolId": null,
-  "properties": null,
+  "protocolId": "ipci",
+  "properties": {
+    "ss58Format": 32,
+    "tokenDecimals": 12,
+    "tokenSymbol": "MITO"
+  },
   "relayChain": "rococo_local_testnet",
   "paraId": 3000,
   "codeSubstitutes": {},
