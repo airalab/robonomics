@@ -65,6 +65,9 @@ pub mod alpha {
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
             parachain_config,
@@ -75,6 +78,9 @@ pub mod alpha {
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }
@@ -107,6 +113,9 @@ pub mod main {
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, MainExecutor, _, _>(
             parachain_config,
@@ -117,6 +126,9 @@ pub mod main {
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }
@@ -148,6 +160,9 @@ pub mod ipci {
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, IpciExecutor, _, _>(
             parachain_config,
@@ -158,6 +173,9 @@ pub mod ipci {
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }

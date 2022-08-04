@@ -44,7 +44,6 @@ pub fn stdin() -> impl Stream<Item = Result<String>> {
 /// Subscribe for data from PubSub topic.
 pub fn pubsub(
     listen: Multiaddr,
-    bootnodes: Vec<Multiaddr>,
     topic_name: String,
     heartbeat: Duration,
 ) -> Result<impl Stream<Item = Result<pubsub::Message>>> {
@@ -52,11 +51,6 @@ pub fn pubsub(
 
     // Listen address
     let _ = pubsub.listen(listen);
-
-    // Connect to bootnodes
-    for addr in bootnodes {
-        let _ = pubsub.connect(addr);
-    }
 
     // Spawn peer discovery
     task::spawn(pubsub::discovery::start(pubsub.clone()));

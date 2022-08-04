@@ -197,6 +197,9 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     build_import_queue: BIQ,
     build_consensus: BIC,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -297,8 +300,13 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    let (pubsub, pubsub_worker) =
-        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    let (pubsub, pubsub_worker) = PubSub::new(
+        Duration::from_millis(heartbeat_interval),
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New PubSub");
     task_manager
         .spawn_handle()
         .spawn("pubsub_parachain", None, pubsub_worker);

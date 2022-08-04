@@ -38,9 +38,6 @@ pub enum SinkCmd {
         /// Listen address for incoming connections.
         #[structopt(long, value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
         listen: Multiaddr,
-        /// Indicates PubSub nodes for first connections.
-        #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
-        bootnodes: Vec<Multiaddr>,
         /// How often node should check another nodes availability, in secs.
         #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
         hearbeat_secs: u64,
@@ -108,11 +105,10 @@ impl SinkCmd {
             SinkCmd::PubSub {
                 topic_name,
                 listen,
-                bootnodes,
                 hearbeat_secs,
             } => {
                 let hearbeat = Duration::from_secs(hearbeat_secs);
-                let pubsub = virt::pubsub(listen, bootnodes, topic_name, hearbeat)?;
+                let pubsub = virt::pubsub(listen, topic_name, hearbeat)?;
                 task::block_on(stdin().forward(pubsub))?;
             }
             SinkCmd::Datalog { remote, suri, rws } => {

@@ -111,7 +111,13 @@ pub fn run() -> sc_cli::Result<()> {
                         return Err("Light client not supported!".into());
                     }
 
-                    robonomics::new(config, heartbeat_interval)
+                    robonomics::new(
+                        config,
+                        heartbeat_interval,
+                        cli.robonomics_bootnodes,
+                        cli.disable_mdns,
+                        cli.disable_kad,
+                    )
                 }),
 
                 #[cfg(feature = "parachain")]
@@ -134,6 +140,9 @@ pub fn run() -> sc_cli::Result<()> {
                         params.2,
                         params.3,
                         heartbeat_interval,
+                        cli.robonomics_bootnodes,
+                        cli.disable_mdns,
+                        cli.disable_kad,
                     )
                     .await
                 }),
@@ -158,6 +167,9 @@ pub fn run() -> sc_cli::Result<()> {
                         params.2,
                         params.3,
                         heartbeat_interval,
+                        cli.robonomics_bootnodes,
+                        cli.disable_mdns,
+                        cli.disable_kad,
                     )
                     .await
                 }),
@@ -182,6 +194,9 @@ pub fn run() -> sc_cli::Result<()> {
                         params.2,
                         params.3,
                         heartbeat_interval,
+                        cli.robonomics_bootnodes,
+                        cli.disable_mdns,
+                        cli.disable_kad,
                     )
                     .await
                 }),

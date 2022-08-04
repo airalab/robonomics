@@ -54,7 +54,6 @@ pub fn stdout() -> impl Sink<String, Error = Error> {
 /// Publish data into PubSub topic.
 pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
     listen: Multiaddr,
-    bootnodes: Vec<Multiaddr>,
     topic_name: String,
     heartbeat: Duration,
 ) -> Result<impl Sink<T, Error = Error>> {
@@ -62,11 +61,6 @@ pub fn pubsub<T: Into<Vec<u8>> + Send + 'static>(
 
     // Listen address
     let _ = pubsub.listen(listen);
-
-    // Connect to bootnodes
-    for addr in bootnodes {
-        let _ = pubsub.connect(addr);
-    }
 
     // Spawn peer discovery
     task::spawn(pubsub::discovery::start(pubsub.clone()));

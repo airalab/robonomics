@@ -74,6 +74,9 @@ where
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> Result<
     sc_service::PartialComponents<
         FullClient<Runtime, Executor>,
@@ -176,8 +179,13 @@ where
         },
     )?;
 
-    let (pubsub, pubsub_worker) =
-        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+    let (pubsub, pubsub_worker) = PubSub::new(
+        Duration::from_millis(heartbeat_interval),
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New PubSub");
     task_manager
         .spawn_handle()
         .spawn("pubsub_service", None, pubsub_worker);
@@ -219,6 +227,9 @@ where
 pub fn full_base<Runtime, Executor>(
     mut config: Configuration,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> Result<
     (
         TaskManager,
@@ -243,7 +254,13 @@ where
         select_chain,
         transaction_pool,
         other: (rpc_builder, block_import, grandpa_link, mut telemetry),
-    } = new_partial(&config, heartbeat_interval)?;
+    } = new_partial(
+        &config,
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )?;
 
     let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
@@ -432,8 +449,20 @@ pub mod robonomics {
     }
 
     /// Create a new Robonomics service.
-    pub fn new(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {
-        super::full_base::<RuntimeApi, LocalExecutor>(config, heartbeat_interval)
-            .map(|(task_manager, _, _, _)| task_manager)
+    pub fn new(
+        config: Configuration,
+        heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
+    ) -> Result<TaskManager> {
+        super::full_base::<RuntimeApi, LocalExecutor>(
+            config,
+            heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
+        )
+        .map(|(task_manager, _, _, _)| task_manager)
     }
 }

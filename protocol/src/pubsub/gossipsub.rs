@@ -27,14 +27,17 @@ use futures::{
     prelude::*,
     Future,
 };
-use libp2p::core::transport::ListenerId;
-use libp2p::gossipsub::{
-    Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-    MessageId, Sha256Topic as Topic, TopicHash,
+use libp2p::{
+    core::transport::ListenerId,
+    gossipsub::{
+        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
+        MessageId, Sha256Topic as Topic, TopicHash,
+    },
+    kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
+    mdns::{Mdns, MdnsConfig, MdnsEvent},
+    swarm::{behaviour::toggle::Toggle, SwarmEvent},
+    Multiaddr, NetworkBehaviour, PeerId, Swarm,
 };
-use libp2p::swarm::SwarmEvent;
-use libp2p::{Multiaddr, PeerId, Swarm};
-
 use std::{
     collections::hash_map::{DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -44,7 +47,7 @@ use std::{
     time::Duration,
 };
 
-use crate::error::{FutureResult, Result};
+use crate::error::{Error, FutureResult, Result};
 
 enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
@@ -56,18 +59,57 @@ enum ToWorkerMsg {
 }
 
 struct PubSubWorker {
-    swarm: Swarm<Gossipsub>,
+    swarm: Swarm<RobonomicsNetworkBehaviour>,
     inbox: HashMap<TopicHash, mpsc::UnboundedSender<super::Message>>,
     from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
     service: Arc<PubSub>,
 }
 
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "OutEvent")]
+struct RobonomicsNetworkBehaviour {
+    pubsub: Gossipsub,
+    mdns: Toggle<Mdns>,
+    kademlia: Toggle<Kademlia<MemoryStore>>,
+}
+
+#[derive(Debug)]
+enum OutEvent {
+    Pubsub(GossipsubEvent),
+    Mdns(MdnsEvent),
+    Kademlia(KademliaEvent),
+}
+
+impl From<GossipsubEvent> for OutEvent {
+    fn from(v: GossipsubEvent) -> Self {
+        Self::Pubsub(v)
+    }
+}
+
+impl From<MdnsEvent> for OutEvent {
+    fn from(v: MdnsEvent) -> Self {
+        Self::Mdns(v)
+    }
+}
+
+impl From<KademliaEvent> for OutEvent {
+    fn from(v: KademliaEvent) -> Self {
+        Self::Kademlia(v)
+    }
+}
+
 impl PubSubWorker {
     /// Create new PubSub Worker instance
-    pub fn new(heartbeat_interval: Duration) -> Result<Self> {
+    pub fn new(
+        heartbeat_interval: Duration,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
+    ) -> Result<Self> {
         // XXX: temporary random local id.
         let local_key = crate::id::random();
         let peer_id = PeerId::from(local_key.public());
+        println!("PeerId: {:?}", peer_id);
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
         let transport = block_on(libp2p::development_transport(local_key.clone()))?;
@@ -86,11 +128,58 @@ impl PubSubWorker {
             .expect("Valid gossipsub config");
 
         // Build a gossipsub network behaviour
-        let gossipsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
+        let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
             .expect("Correct configuration");
 
+        // Build mDNS network behaviour
+        let mdns = if !disable_mdns {
+            log::info!("Using mDNS discovery service.");
+            let mdns = block_on(Mdns::new(MdnsConfig::default()))?;
+            Toggle::from(Some(mdns))
+        } else {
+            Toggle::from(None)
+        };
+
+        // Build kademlia network behaviour
+        let kademlia = if !disable_kad {
+            log::info!("Using DHT discovery service.");
+            let store = MemoryStore::new(peer_id);
+            let kademlia = Kademlia::new(peer_id.clone(), store);
+            Toggle::from(Some(kademlia))
+        } else {
+            Toggle::from(None)
+        };
+
+        // Combined network behaviour
+        let behaviour = RobonomicsNetworkBehaviour {
+            pubsub,
+            mdns,
+            kademlia,
+        };
+
         // Create a Swarm to manage peers and events
-        let swarm = Swarm::new(transport, gossipsub, peer_id.clone());
+        let mut swarm = Swarm::new(transport, behaviour, peer_id.clone());
+
+        // Reach out to another node if specified
+        for node in bootnodes {
+            let addr: Multiaddr = node.parse()?;
+            let peer: PeerId = PeerId::try_from_multiaddr(&addr).ok_or(Error::PeerParsingError)?;
+            swarm.dial(addr.clone())?;
+            log::info!("Dialed: {:?}", node);
+
+            // Add node to PubSub
+            swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+
+            // Add node to DHT
+            if !disable_kad {
+                swarm
+                    .behaviour_mut()
+                    .kademlia
+                    .as_mut()
+                    .ok_or(Error::KademliaError)?
+                    .add_address(&peer, addr);
+            }
+        }
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded();
@@ -137,7 +226,7 @@ impl PubSubWorker {
         inbox: mpsc::UnboundedSender<super::Message>,
     ) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().subscribe(&topic)?;
+        self.swarm.behaviour_mut().pubsub.subscribe(&topic)?;
         self.inbox.insert(topic.hash(), inbox);
         log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
 
@@ -146,7 +235,7 @@ impl PubSubWorker {
 
     fn unsubscribe(&mut self, topic_name: String) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().unsubscribe(&topic)?;
+        self.swarm.behaviour_mut().pubsub.unsubscribe(&topic)?;
         self.inbox.remove(&topic.hash());
         log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
 
@@ -155,7 +244,10 @@ impl PubSubWorker {
 
     fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().publish(topic.clone(), message)?;
+        self.swarm
+            .behaviour_mut()
+            .pubsub
+            .publish(topic.clone(), message)?;
         log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
 
         Ok(true)
@@ -169,34 +261,42 @@ impl Future for PubSubWorker {
         loop {
             match self.swarm.poll_next_unpin(cx) {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
-                    SwarmEvent::Behaviour(event) => match event {
-                        GossipsubEvent::Message {
-                            propagation_source: peer_id,
-                            message_id: id,
-                            message,
-                        } => {
-                            log::debug!(
-                                target: "robonomics-pubsub",
-                                "Received message with id: {} from peer: {}", id, peer_id.to_base58()
-                            );
+                    SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {
+                        propagation_source: peer_id,
+                        message_id: id,
+                        message,
+                    })) => {
+                        log::debug!(
+                            target: "robonomics-pubsub",
+                            "Received message with id: {} from peer: {}", id, peer_id.to_base58()
+                        );
 
-                            // Dispatch handlers by topic name hash
-                            if let Some(inbox) = self.inbox.get_mut(&message.topic) {
-                                if let Some(sender) = &message.source {
-                                    let _ = inbox.unbounded_send(super::Message {
-                                        from: sender.clone().to_bytes(),
-                                        data: message.data.clone(),
-                                    });
-                                }
-                            } else {
-                                log::warn!(
-                                    target: "robonomics-pubsub",
-                                    "Topic {} have no associated inbox!", message.topic
-                                );
+                        // Dispatch handlers by topic name hash
+                        if let Some(inbox) = self.inbox.get_mut(&message.topic) {
+                            if let Some(sender) = &message.source {
+                                let _ = inbox.unbounded_send(super::Message {
+                                    from: sender.clone().to_bytes(),
+                                    data: message.data.clone(),
+                                });
                             }
+                        } else {
+                            log::warn!(
+                                target: "robonomics-pubsub",
+                                "Topic {} have no associated inbox!", message.topic
+                            );
                         }
-                        _ => {}
-                    },
+                    }
+                    SwarmEvent::Behaviour(OutEvent::Kademlia(KademliaEvent::RoutingUpdated {
+                        peer,
+                        ..
+                    })) => {
+                        log::info!("Received kademlia peer: {:?}", peer);
+                        if let Some(kademlia) = self.swarm.behaviour_mut().kademlia.as_mut() {
+                            if let Err(e) = kademlia.bootstrap() {
+                                log::debug!("Bootstrap error: {:?}", e);
+                            };
+                        }
+                    }
                     _ => {}
                 },
                 Poll::Ready(None) | Poll::Pending => {
@@ -242,8 +342,14 @@ pub struct PubSub {
 
 impl PubSub {
     /// Create Gossipsub based PubSub service and worker.
-    pub fn new(heartbeat_interval: Duration) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
-        PubSubWorker::new(heartbeat_interval).map(|worker| (worker.service.clone(), worker))
+    pub fn new(
+        heartbeat_interval: Duration,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
+    ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
+        PubSubWorker::new(heartbeat_interval, bootnodes, disable_mdns, disable_kad)
+            .map(|worker| (worker.service.clone(), worker))
     }
 }
 

@@ -43,9 +43,21 @@ pub struct Cli {
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
 
-    /// PubSub heartbeat interval
+    /// PubSub heartbeat interval.
     #[clap(long)]
     pub heartbeat_interval: Option<u64>,
+
+    /// Nodes for connect.
+    #[clap(long)]
+    pub robonomics_bootnodes: Vec<String>,
+
+    /// Disable mDNS.
+    #[clap(long)]
+    pub disable_mdns: bool,
+
+    /// Disable Kademlia.
+    #[clap(long)]
+    pub disable_kad: bool,
 
     /// Polkadot relaychain arguments.
     #[clap(raw = true, conflicts_with = "relay-chain-rpc-url")]
