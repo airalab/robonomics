@@ -16,10 +16,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 //! PubSub implementation using libp2p Gossipsub.
-//!
-//! This code is fully asynchronous and threadsafe.
-//! It implemented using libp2p Gossipsub for effective message delivery.
-//!
 
 use futures::{
     channel::{mpsc, oneshot},
@@ -33,10 +29,9 @@ use libp2p::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
         MessageId, Sha256Topic as Topic, TopicHash,
     },
-    kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
-    mdns::{Mdns, MdnsConfig, MdnsEvent},
-    swarm::{behaviour::toggle::Toggle, SwarmEvent},
-    Multiaddr, NetworkBehaviour, PeerId, Swarm,
+    kad::KademliaEvent,
+    swarm::SwarmEvent,
+    Multiaddr, PeerId, Swarm,
 };
 use std::{
     collections::hash_map::{DefaultHasher, HashMap},
@@ -47,7 +42,11 @@ use std::{
     time::Duration,
 };
 
-use crate::error::{Error, FutureResult, Result};
+use crate::{
+    error::{FutureResult, Result},
+    network::{OutEvent, RobonomicsNetworkBehaviour},
+    pubsub::discovery,
+};
 
 enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
@@ -65,39 +64,6 @@ struct PubSubWorker {
     service: Arc<PubSub>,
 }
 
-#[derive(NetworkBehaviour)]
-#[behaviour(out_event = "OutEvent")]
-struct RobonomicsNetworkBehaviour {
-    pubsub: Gossipsub,
-    mdns: Toggle<Mdns>,
-    kademlia: Toggle<Kademlia<MemoryStore>>,
-}
-
-#[derive(Debug)]
-enum OutEvent {
-    Pubsub(GossipsubEvent),
-    Mdns(MdnsEvent),
-    Kademlia(KademliaEvent),
-}
-
-impl From<GossipsubEvent> for OutEvent {
-    fn from(v: GossipsubEvent) -> Self {
-        Self::Pubsub(v)
-    }
-}
-
-impl From<MdnsEvent> for OutEvent {
-    fn from(v: MdnsEvent) -> Self {
-        Self::Mdns(v)
-    }
-}
-
-impl From<KademliaEvent> for OutEvent {
-    fn from(v: KademliaEvent) -> Self {
-        Self::Kademlia(v)
-    }
-}
-
 impl PubSubWorker {
     /// Create new PubSub Worker instance
     pub fn new(
@@ -109,7 +75,7 @@ impl PubSubWorker {
         // XXX: temporary random local id.
         let local_key = crate::id::random();
         let peer_id = PeerId::from(local_key.public());
-        println!("PeerId: {:?}", peer_id);
+        log::info!("Robonomics peer id: {:?}", peer_id);
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
         let transport = block_on(libp2p::development_transport(local_key.clone()))?;
@@ -131,55 +97,15 @@ impl PubSubWorker {
         let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
             .expect("Correct configuration");
 
-        // Build mDNS network behaviour
-        let mdns = if !disable_mdns {
-            log::info!("Using mDNS discovery service.");
-            let mdns = block_on(Mdns::new(MdnsConfig::default()))?;
-            Toggle::from(Some(mdns))
-        } else {
-            Toggle::from(None)
-        };
-
-        // Build kademlia network behaviour
-        let kademlia = if !disable_kad {
-            log::info!("Using DHT discovery service.");
-            let store = MemoryStore::new(peer_id);
-            let kademlia = Kademlia::new(peer_id.clone(), store);
-            Toggle::from(Some(kademlia))
-        } else {
-            Toggle::from(None)
-        };
-
-        // Combined network behaviour
-        let behaviour = RobonomicsNetworkBehaviour {
-            pubsub,
-            mdns,
-            kademlia,
-        };
+        // Build a combined network behaviour
+        let behaviour =
+            RobonomicsNetworkBehaviour::new(pubsub, disable_mdns, disable_kad, peer_id)?;
 
         // Create a Swarm to manage peers and events
         let mut swarm = Swarm::new(transport, behaviour, peer_id.clone());
 
-        // Reach out to another node if specified
-        for node in bootnodes {
-            let addr: Multiaddr = node.parse()?;
-            let peer: PeerId = PeerId::try_from_multiaddr(&addr).ok_or(Error::PeerParsingError)?;
-            swarm.dial(addr.clone())?;
-            log::info!("Dialed: {:?}", node);
-
-            // Add node to PubSub
-            swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
-
-            // Add node to DHT
-            if !disable_kad {
-                swarm
-                    .behaviour_mut()
-                    .kademlia
-                    .as_mut()
-                    .ok_or(Error::KademliaError)?
-                    .add_address(&peer, addr);
-            }
-        }
+        // Reach out to another nodes if specified
+        discovery::add_explicit_peers(&mut swarm, bootnodes, disable_kad);
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded();

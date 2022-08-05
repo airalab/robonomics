@@ -53,12 +53,6 @@ pub enum Error {
     PublishError,
     /// Rpc error.
     RpcError,
-    /// Multiaddr parse error.
-    MultiaddrParsingError,
-    /// Peer parse error.
-    PeerParsingError,
-    /// Kademlia error.
-    KademliaError,
     /// Other error.
     Other(String),
 }
@@ -94,11 +88,5 @@ impl From<gossipsub::error::SubscriptionError> for Error {
 impl From<gossipsub::error::PublishError> for Error {
     fn from(_: gossipsub::error::PublishError) -> Self {
         Error::PublishError
-    }
-}
-
-impl From<libp2p::multiaddr::Error> for Error {
-    fn from(_: libp2p::multiaddr::Error) -> Self {
-        Error::MultiaddrParsingError
     }
 }
