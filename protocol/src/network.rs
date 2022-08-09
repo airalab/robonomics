@@ -22,9 +22,14 @@ use libp2p::{
     gossipsub::{Gossipsub, GossipsubEvent},
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     mdns::{Mdns, MdnsConfig, MdnsEvent},
+    request_response::{
+        ProtocolSupport, RequestResponse, RequestResponseConfig, RequestResponseEvent,
+    },
     swarm::behaviour::toggle::Toggle,
     NetworkBehaviour, PeerId,
 };
+
+use crate::reqres::{Request, Response, RobonomicsCodec, RobonomicsProtocol};
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
@@ -32,6 +37,7 @@ pub struct RobonomicsNetworkBehaviour {
     pub pubsub: Gossipsub,
     pub mdns: Toggle<Mdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
+    pub request_response: RequestResponse<RobonomicsCodec>,
 }
 
 impl RobonomicsNetworkBehaviour {
@@ -60,11 +66,18 @@ impl RobonomicsNetworkBehaviour {
             Toggle::from(None)
         };
 
+        // Build request-response network behaviour
+        let protocols = std::iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
+        let config = RequestResponseConfig::default();
+        let request_response =
+            RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, config);
+
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {
             pubsub,
             mdns,
             kademlia,
+            request_response,
         })
     }
 }
@@ -74,6 +87,7 @@ pub enum OutEvent {
     Pubsub(GossipsubEvent),
     Mdns(MdnsEvent),
     Kademlia(KademliaEvent),
+    RequestResponse(RequestResponseEvent<Request, Response>),
 }
 
 impl From<GossipsubEvent> for OutEvent {
@@ -91,5 +105,11 @@ impl From<MdnsEvent> for OutEvent {
 impl From<KademliaEvent> for OutEvent {
     fn from(v: KademliaEvent) -> Self {
         Self::Kademlia(v)
+    }
+}
+
+impl From<RequestResponseEvent<Request, Response>> for OutEvent {
+    fn from(v: RequestResponseEvent<Request, Response>) -> Self {
+        Self::RequestResponse(v)
     }
 }

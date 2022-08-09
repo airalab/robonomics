@@ -34,6 +34,12 @@ pub fn add_explicit_peers(
                 // Add node to PubSub
                 swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
 
+                // Add node to RequestResponse
+                swarm
+                    .behaviour_mut()
+                    .request_response
+                    .add_address(&peer, addr.clone());
+
                 // Add node to DHT
                 if !disable_kad {
                     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {

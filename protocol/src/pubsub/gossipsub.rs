@@ -30,6 +30,7 @@ use libp2p::{
         MessageId, Sha256Topic as Topic, TopicHash,
     },
     kad::KademliaEvent,
+    request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };
@@ -46,6 +47,7 @@ use crate::{
     error::{FutureResult, Result},
     network::{OutEvent, RobonomicsNetworkBehaviour},
     pubsub::discovery,
+    reqres::Response,
 };
 
 enum ToWorkerMsg {
@@ -223,6 +225,36 @@ impl Future for PubSubWorker {
                             };
                         }
                     }
+                    SwarmEvent::Behaviour(OutEvent::RequestResponse(
+                        RequestResponseEvent::Message {
+                            peer,
+                            message:
+                                RequestResponseMessage::Response {
+                                    request_id,
+                                    response,
+                                },
+                        },
+                    )) => match response {
+                        Response::Pong => {
+                            log::debug!(
+                                " peer2 Resp{} {:?} from {:?}",
+                                request_id,
+                                &response,
+                                peer
+                            );
+                            break;
+                        }
+                        Response::Data(data) => {
+                            let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
+                            log::debug!(
+                                " peer2 Resp: Data '{}' from {:?}",
+                                String::from_utf8_lossy(&decoded[..]),
+                                peer // ???
+                            );
+                            log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
+                            break;
+                        }
+                    },
                     _ => {}
                 },
                 Poll::Ready(None) | Poll::Pending => {
