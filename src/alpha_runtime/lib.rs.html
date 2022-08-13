@@ -743,6 +743,34 @@
 <span id="738">738</span>
 <span id="739">739</span>
 <span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -784,12 +812,13 @@
 <span class="kw">use</span> <span class="ident">frame_support</span>::{
     <span class="ident">construct_runtime</span>, <span class="ident">parameter_types</span>,
     <span class="ident">traits</span>::{
-        <span class="ident">Contains</span>, <span class="ident">Currency</span>, <span class="ident">EnsureOneOf</span>, <span class="ident">EqualPrivilegeOnly</span>, <span class="ident">Imbalance</span>, <span class="ident">LockIdentifier</span>,
+        <span class="ident">Contains</span>, <span class="ident">Currency</span>, <span class="ident">EitherOfDiverse</span>, <span class="ident">EqualPrivilegeOnly</span>, <span class="ident">Imbalance</span>, <span class="ident">LockIdentifier</span>,
         <span class="ident">OnUnbalanced</span>, <span class="ident">U128CurrencyToVote</span>,
     },
     <span class="ident">weights</span>::{
         <span class="ident">constants</span>::{<span class="ident">BlockExecutionWeight</span>, <span class="ident">ExtrinsicBaseWeight</span>, <span class="ident">RocksDbWeight</span>, <span class="ident">WEIGHT_PER_SECOND</span>},
-        <span class="ident">ConstantMultiplier</span>, <span class="ident">DispatchClass</span>, <span class="ident">IdentityFee</span>, <span class="ident">Weight</span>,
+        <span class="ident">ConstantMultiplier</span>, <span class="ident">DispatchClass</span>, <span class="ident">Weight</span>, <span class="ident">WeightToFeeCoefficient</span>, <span class="ident">WeightToFeeCoefficients</span>,
+        <span class="ident">WeightToFeePolynomial</span>,
     },
     <span class="ident">PalletId</span>,
 };
@@ -825,7 +854,7 @@
     <span class="ident">spec_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-alpha&quot;</span>),
     <span class="ident">impl_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-airalab&quot;</span>),
     <span class="ident">authoring_version</span>: <span class="number">1</span>,
-    <span class="ident">spec_version</span>: <span class="number">4</span>,
+    <span class="ident">spec_version</span>: <span class="number">6</span>,
     <span class="ident">impl_version</span>: <span class="number">0</span>,
     <span class="ident">apis</span>: <span class="ident">RUNTIME_API_VERSIONS</span>,
     <span class="ident">transaction_version</span>: <span class="number">1</span>,
@@ -989,13 +1018,40 @@
     <span class="kw">pub</span> <span class="ident">OperationalFeeMultiplier</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">5</span>;
 }
 
+<span class="doccomment">/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the</span>
+<span class="doccomment">/// node&#39;s balance type.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This should typically create a mapping between the following ranges:</span>
+<span class="doccomment">///   - [0, MAXIMUM_BLOCK_WEIGHT]</span>
+<span class="doccomment">///   - [Balance::min, Balance::max]</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:</span>
+<span class="doccomment">///   - Setting it to `0` will essentially disable the weight fee.</span>
+<span class="doccomment">///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WeightToFee</span>;
+<span class="kw">impl</span> <span class="ident">WeightToFeePolynomial</span> <span class="kw">for</span> <span class="ident">WeightToFee</span> {
+    <span class="kw">type</span> <span class="ident">Balance</span> <span class="op">=</span> <span class="ident">Balance</span>;
+    <span class="kw">fn</span> <span class="ident">polynomial</span>() -&gt; <span class="ident">WeightToFeeCoefficients</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Balance</span><span class="op">&gt;</span> {
+        <span class="comment">// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 COASE:</span>
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">COASE</span>;
+        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="number">10</span> <span class="op">*</span> <span class="ident">Balance::from</span>(<span class="ident">ExtrinsicBaseWeight::get</span>());
+        <span class="macro">smallvec::smallvec!</span>[<span class="ident">WeightToFeeCoefficient</span> {
+            <span class="ident">degree</span>: <span class="number">1</span>,
+            <span class="ident">negative</span>: <span class="bool-val">false</span>,
+            <span class="ident">coeff_frac</span>: <span class="ident">Perbill::from_rational</span>(<span class="ident">p</span> <span class="op">%</span> <span class="ident">q</span>, <span class="ident">q</span>),
+            <span class="ident">coeff_integer</span>: <span class="ident">p</span> <span class="op">/</span> <span class="ident">q</span>,
+        }]
+    }
+}
+
 <span class="kw">impl</span> <span class="ident">pallet_transaction_payment::Config</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
     <span class="kw">type</span> <span class="ident">OnChargeTransaction</span> <span class="op">=</span> <span class="ident">pallet_transaction_payment::CurrencyAdapter</span><span class="op">&lt;</span><span class="ident">Balances</span>, <span class="ident">DealWithFees</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">LengthToFee</span> <span class="op">=</span> <span class="ident">ConstantMultiplier</span><span class="op">&lt;</span><span class="ident">Balance</span>, <span class="ident">TransactionByteFee</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">WeightToFee</span> <span class="op">=</span> <span class="ident">IdentityFee</span><span class="op">&lt;</span><span class="ident">Balance</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">WeightToFee</span> <span class="op">=</span> <span class="ident">WeightToFee</span>;
     <span class="kw">type</span> <span class="ident">FeeMultiplierUpdate</span> <span class="op">=</span>
         <span class="ident">TargetedFeeAdjustment</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">TargetBlockFullness</span>, <span class="ident">AdjustmentVariable</span>, <span class="ident">MinimumMultiplier</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">OperationalFeeMultiplier</span> <span class="op">=</span> <span class="ident">OperationalFeeMultiplier</span>;
+    <span class="kw">type</span> <span class="ident">Event</span> <span class="op">=</span> <span class="ident">Event</span>;
 }
 
 <span class="macro">parameter_types!</span> {
@@ -1111,11 +1167,11 @@
 <span class="kw">impl</span> <span class="ident">pallet_treasury::Config</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
     <span class="kw">type</span> <span class="ident">PalletId</span> <span class="op">=</span> <span class="ident">TreasuryPalletId</span>;
     <span class="kw">type</span> <span class="ident">Currency</span> <span class="op">=</span> <span class="ident">Balances</span>;
-    <span class="kw">type</span> <span class="ident">ApproveOrigin</span> <span class="op">=</span> <span class="ident">EnsureOneOf</span><span class="op">&lt;</span>
+    <span class="kw">type</span> <span class="ident">ApproveOrigin</span> <span class="op">=</span> <span class="ident">EitherOfDiverse</span><span class="op">&lt;</span>
         <span class="ident">EnsureRoot</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
         <span class="ident">pallet_collective::EnsureProportionAtLeast</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">CouncilCollective</span>, <span class="number">3</span>, <span class="number">5</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">RejectOrigin</span> <span class="op">=</span> <span class="ident">EnsureOneOf</span><span class="op">&lt;</span>
+    <span class="kw">type</span> <span class="ident">RejectOrigin</span> <span class="op">=</span> <span class="ident">EitherOfDiverse</span><span class="op">&lt;</span>
         <span class="ident">EnsureRoot</span><span class="op">&lt;</span><span class="ident">AccountId</span><span class="op">&gt;</span>,
         <span class="ident">pallet_collective::EnsureProportionMoreThan</span><span class="op">&lt;</span><span class="ident">AccountId</span>, <span class="ident">CouncilCollective</span>, <span class="number">1</span>, <span class="number">2</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span>;
@@ -1130,6 +1186,7 @@
     <span class="kw">type</span> <span class="ident">SpendFunds</span> <span class="op">=</span> ();
     <span class="kw">type</span> <span class="ident">WeightInfo</span> <span class="op">=</span> ();
     <span class="kw">type</span> <span class="ident">MaxApprovals</span> <span class="op">=</span> <span class="ident">MaxApprovals</span>;
+    <span class="kw">type</span> <span class="ident">SpendOrigin</span> <span class="op">=</span> <span class="ident">frame_support::traits::NeverEnsureOrigin</span><span class="op">&lt;</span><span class="ident">u128</span><span class="op">&gt;</span>;
 }
 
 <span class="macro">parameter_types!</span> {
@@ -1199,6 +1256,7 @@
     <span class="kw">type</span> <span class="ident">ReservedDmpWeight</span> <span class="op">=</span> <span class="ident">ReservedDmpWeight</span>;
     <span class="kw">type</span> <span class="ident">XcmpMessageHandler</span> <span class="op">=</span> <span class="ident">XcmpQueue</span>;
     <span class="kw">type</span> <span class="ident">ReservedXcmpWeight</span> <span class="op">=</span> <span class="ident">ReservedXcmpWeight</span>;
+    <span class="kw">type</span> <span class="ident">CheckAssociatedRelayNumber</span> <span class="op">=</span> <span class="ident">cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases</span>;
 }
 
 <span class="macro">parameter_types!</span> {
@@ -1294,44 +1352,42 @@
         <span class="ident">UncheckedExtrinsic</span> <span class="op">=</span> <span class="ident">UncheckedExtrinsic</span>
     {
         <span class="comment">// Basic stuff.</span>
-        <span class="ident">System</span>: <span class="ident">frame_system</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Config</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Utility</span>: <span class="ident">pallet_utility</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span>},
-        <span class="ident">Timestamp</span>: <span class="ident">pallet_timestamp</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Inherent</span>},
-        <span class="ident">Identity</span>: <span class="ident">pallet_identity</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Sudo</span>: <span class="ident">pallet_sudo</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Config</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
+        <span class="ident">System</span>: <span class="ident">frame_system</span>,
+        <span class="ident">Utility</span>: <span class="ident">pallet_utility</span>,
+        <span class="ident">Timestamp</span>: <span class="ident">pallet_timestamp</span>,
+        <span class="ident">Identity</span>: <span class="ident">pallet_identity</span>,
+        <span class="ident">Sudo</span>: <span class="ident">pallet_sudo</span>,
 
         <span class="comment">// Parachain systems.</span>
-        <span class="ident">ParachainSystem</span>: <span class="ident">cumulus_pallet_parachain_system</span>::{
-            <span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Config</span>, <span class="ident">Storage</span>, <span class="ident">Inherent</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">ValidateUnsigned</span>,
-        },
-        <span class="ident">ParachainInfo</span>: <span class="ident">parachain_info</span>::{<span class="ident">Pallet</span>, <span class="ident">Storage</span>, <span class="ident">Config</span>},
+        <span class="ident">ParachainSystem</span>: <span class="ident">cumulus_pallet_parachain_system</span>,
+        <span class="ident">ParachainInfo</span>: <span class="ident">parachain_info</span>,
 
         <span class="comment">// Native currency and accounts.</span>
-        <span class="ident">Balances</span>: <span class="ident">pallet_balances</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Config</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Assets</span>: <span class="ident">pallet_assets</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">TransactionPayment</span>: <span class="ident">pallet_transaction_payment</span>::{<span class="ident">Pallet</span>, <span class="ident">Storage</span>},
+        <span class="ident">Balances</span>: <span class="ident">pallet_balances</span>,
+        <span class="ident">Assets</span>: <span class="ident">pallet_assets</span>,
+        <span class="ident">TransactionPayment</span>: <span class="ident">pallet_transaction_payment</span>,
 
         <span class="comment">// Robonomics Network pallets.</span>
-        <span class="ident">Datalog</span>: <span class="ident">pallet_robonomics_datalog</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Launch</span>: <span class="ident">pallet_robonomics_launch</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">RWS</span>: <span class="ident">pallet_robonomics_rws</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">DigitalTwin</span>: <span class="ident">pallet_robonomics_digital_twin</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Liability</span>: <span class="ident">pallet_robonomics_liability</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Staking</span>: <span class="ident">pallet_robonomics_staking</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Config</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Lighthouse</span>: <span class="ident">pallet_robonomics_lighthouse</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Inherent</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
+        <span class="ident">Datalog</span>: <span class="ident">pallet_robonomics_datalog</span>,
+        <span class="ident">Launch</span>: <span class="ident">pallet_robonomics_launch</span>,
+        <span class="ident">RWS</span>: <span class="ident">pallet_robonomics_rws</span>,
+        <span class="ident">DigitalTwin</span>: <span class="ident">pallet_robonomics_digital_twin</span>,
+        <span class="ident">Liability</span>: <span class="ident">pallet_robonomics_liability</span>,
+        <span class="ident">Staking</span>: <span class="ident">pallet_robonomics_staking</span>,
+        <span class="ident">Lighthouse</span>: <span class="ident">pallet_robonomics_lighthouse</span>,
 
         <span class="comment">// DAO modules</span>
-        <span class="ident">Council</span>: <span class="ident">pallet_collective</span>::<span class="op">&lt;</span><span class="ident">Instance1</span><span class="op">&gt;</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Origin</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Config</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Elections</span>: <span class="ident">pallet_elections_phragmen</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Config</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Scheduler</span>: <span class="ident">pallet_scheduler</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Treasury</span>: <span class="ident">pallet_treasury</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Config</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">Preimage</span>: <span class="ident">pallet_preimage</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
+        <span class="ident">Council</span>: <span class="ident">pallet_collective</span>::<span class="op">&lt;</span><span class="ident">Instance1</span><span class="op">&gt;</span>,
+        <span class="ident">Elections</span>: <span class="ident">pallet_elections_phragmen</span>,
+        <span class="ident">Scheduler</span>: <span class="ident">pallet_scheduler</span>,
+        <span class="ident">Treasury</span>: <span class="ident">pallet_treasury</span>,
+        <span class="ident">Preimage</span>: <span class="ident">pallet_preimage</span>,
 
         <span class="comment">// XCM helpers.</span>
-        <span class="ident">XcmpQueue</span>: <span class="ident">cumulus_pallet_xcmp_queue</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
-        <span class="ident">PolkadotXcm</span>: <span class="ident">pallet_xcm</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Origin</span>},
-        <span class="ident">CumulusXcm</span>: <span class="ident">cumulus_pallet_xcm</span>::{<span class="ident">Pallet</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">Origin</span>},
-        <span class="ident">DmpQueue</span>: <span class="ident">cumulus_pallet_dmp_queue</span>::{<span class="ident">Pallet</span>, <span class="ident">Call</span>, <span class="ident">Storage</span>, <span class="ident">Event</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>},
+        <span class="ident">XcmpQueue</span>: <span class="ident">cumulus_pallet_xcmp_queue</span>,
+        <span class="ident">PolkadotXcm</span>: <span class="ident">pallet_xcm</span>,
+        <span class="ident">CumulusXcm</span>: <span class="ident">cumulus_pallet_xcm</span>,
+        <span class="ident">DmpQueue</span>: <span class="ident">cumulus_pallet_dmp_queue</span>,
     }
 }
 

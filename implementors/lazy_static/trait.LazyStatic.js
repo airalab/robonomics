@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["ipci_runtime"] = [{"text":"impl <a class=\"trait\" href=\"https://docs.rs/lazy_static/1.4.0/lazy_static/trait.LazyStatic.html\" title=\"trait lazy_static::LazyStatic\">LazyStatic</a> for <a class=\"struct\" href=\"ipci_runtime/constants/currency/struct.STAKE_HOLDERS.html\" title=\"struct ipci_runtime::constants::currency::STAKE_HOLDERS\">STAKE_HOLDERS</a>","synthetic":false,"types":["ipci_runtime::constants::currency::STAKE_HOLDERS"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

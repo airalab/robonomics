@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Request",""],["Response",""]],"fn":[["mk_transport",""],["reqres","Request Response client API Sends get or ping requests"]],"struct":[["RobonomicsCodec",""],["RobonomicsProtocol",""]]});

@@ -1,5 +1,6 @@
 var N = null;var sourcesIndex = {};
 sourcesIndex["alpha_runtime"] = {"name":"","files":["constants.rs","lib.rs","xcm_config.rs"]};
+sourcesIndex["ipci_runtime"] = {"name":"","files":["constants.rs","lib.rs"]};
 sourcesIndex["local_runtime"] = {"name":"","files":["constants.rs","lib.rs"]};
 sourcesIndex["main_runtime"] = {"name":"","files":["constants.rs","lib.rs","xcm_config.rs"]};
 sourcesIndex["pallet_robonomics_datalog"] = {"name":"","files":["lib.rs","weights.rs"]};
@@ -11,6 +12,7 @@ sourcesIndex["pallet_robonomics_rws"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["pallet_robonomics_staking"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["robonomics"] = {"name":"","files":["main.rs"]};
 sourcesIndex["robonomics_primitives"] = {"name":"","files":["lib.rs"]};
-sourcesIndex["robonomics_rpc"] = {"name":"","files":["lib.rs"]};
-sourcesIndex["robonomics_service"] = {"name":"","dirs":[{"name":"parachain","files":["chain_spec.rs","cli.rs","command.rs","service.rs"]}],"files":["chain_spec.rs","cli.rs","command.rs","lib.rs","parachain.rs","service.rs"]};
+sourcesIndex["robonomics_protocol"] = {"name":"","dirs":[{"name":"pubsub","files":["discovery.rs","gossipsub.rs"]}],"files":["error.rs","ethereum.rs","id.rs","lib.rs","pubsub.rs","reqres.rs","subxt.rs"]};
+sourcesIndex["robonomics_rpc"] = {"name":"","files":["extrinsic.rs","lib.rs","pubsub.rs"]};
+sourcesIndex["robonomics_service"] = {"name":"","dirs":[{"name":"parachain","files":["chain_spec.rs","command.rs","service.rs"]}],"files":["chain_spec.rs","cli.rs","command.rs","lib.rs","parachain.rs","service.rs"]};
 createSourceSidebar();

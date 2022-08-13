@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `bin/node/service/src/parachain/chain_spec.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>chain_spec.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><script defer src="../../../main.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `service/src/parachain/chain_spec.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>chain_spec.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><script defer src="../../../main.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../robonomics_service/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -294,11 +294,6 @@
 <span id="289">289</span>
 <span id="290">290</span>
 <span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -327,22 +322,6 @@
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_spec::get_account_id_from_seed</span>;
 
-<span class="doccomment">/// Kusama parachain ID</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">KUSAMA_ID</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">2048</span>;
-<span class="doccomment">/// Mars parachain ID</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MARS_ID</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">2000</span>;
-<span class="doccomment">/// Ipci parachain ID</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">IPCI_ID</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">3000</span>;
-<span class="doccomment">/// Uranus parachain ID</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">URANUS_ID</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">4000</span>;
-<span class="doccomment">/// Mercury parachain ID</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MERCURY_ID</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">5000</span>;
-
-<span class="comment">/*
-const ROBONOMICS_PROTOCOL_ID: &amp;str = &quot;xrt&quot;;
-const IPCI_PROTOCOL_ID: &amp;str = &quot;mito&quot;;
-*/</span>
-
 <span class="doccomment">/// Node `ChainSpec` extensions.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Additional parameters for some Substrate core modules,</span>
@@ -366,32 +345,14 @@ const IPCI_PROTOCOL_ID: &amp;str = &quot;mito&quot;;
 <span class="doccomment">/// Specialized `AlphaChainSpec`.</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AlphaChainSpec</span> <span class="op">=</span> <span class="ident">sc_service::GenericChainSpec</span><span class="op">&lt;</span><span class="ident">alpha_runtime::GenesisConfig</span>, <span class="ident">Extensions</span><span class="op">&gt;</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_alpha_chain_spec</span>(<span class="ident">id</span>: <span class="ident">ParaId</span>) -&gt; <span class="ident">AlphaChainSpec</span> {
-    <span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">ParaId::from</span>(<span class="ident">MARS_ID</span>) {
-        <span class="kw">return</span> <span class="ident">mars_parachain_config</span>();
-    }
-
-    <span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">ParaId::from</span>(<span class="ident">URANUS_ID</span>) {
-        <span class="kw">return</span> <span class="ident">uranus_parachain_config</span>();
-    }
-
-    <span class="kw">if</span> <span class="ident">id</span> <span class="op">==</span> <span class="ident">ParaId::from</span>(<span class="ident">MERCURY_ID</span>) {
-        <span class="kw">return</span> <span class="ident">mercury_parachain_config</span>();
-    }
-
-    <span class="ident">test_chain_spec</span>(<span class="ident">id</span>)
-}
+<span class="doccomment">/// Specialized `IpciChainSpec`.</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">IpciChainSpec</span> <span class="op">=</span> <span class="ident">sc_service::GenericChainSpec</span><span class="op">&lt;</span><span class="ident">ipci_runtime::GenesisConfig</span>, <span class="ident">Extensions</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Specialized `MainChainSpec`.</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kusama&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MainChainSpec</span> <span class="op">=</span> <span class="ident">sc_service::GenericChainSpec</span><span class="op">&lt;</span><span class="ident">main_runtime::GenesisConfig</span>, <span class="ident">Extensions</span><span class="op">&gt;</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kusama&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_main_chain_spec</span>() -&gt; <span class="ident">MainChainSpec</span> {
-    <span class="ident">kusama_parachain_config</span>()
-}
-
-<span class="kw">fn</span> <span class="ident">test_chain_spec</span>(<span class="ident">id</span>: <span class="ident">ParaId</span>) -&gt; <span class="ident">AlphaChainSpec</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">alpha_chain_spec</span>(<span class="ident">id</span>: <span class="ident">ParaId</span>) -&gt; <span class="ident">AlphaChainSpec</span> {
     <span class="kw">let</span> <span class="ident">balances</span> <span class="op">=</span> <span class="macro">vec!</span>[
         <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Alice&quot;</span>),
         <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Bob&quot;</span>),
@@ -427,6 +388,78 @@ const IPCI_PROTOCOL_ID: &amp;str = &quot;mito&quot;;
     )
 }
 
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ipci_chain_spec</span>(<span class="ident">id</span>: <span class="ident">ParaId</span>) -&gt; <span class="ident">IpciChainSpec</span> {
+    <span class="kw">let</span> <span class="ident">balances</span> <span class="op">=</span> <span class="macro">vec!</span>[
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Alice&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Bob&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Charlie&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Dave&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Eve&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Ferdie&quot;</span>),
+    ];
+    <span class="ident">IpciChainSpec::from_genesis</span>(
+        <span class="string">&quot;Ipci Testnet&quot;</span>,
+        <span class="string">&quot;ipci_testnet&quot;</span>,
+        <span class="ident">ChainType::Local</span>,
+        <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+            <span class="ident">mk_genesis_ipci</span>(
+                <span class="ident">balances</span>
+                    .<span class="ident">iter</span>()
+                    .<span class="ident">cloned</span>()
+                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> (<span class="ident">a</span>, <span class="number">1_000_000_000_000u128</span>))
+                    .<span class="ident">collect</span>(),
+                <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Alice&quot;</span>),
+                <span class="ident">id</span>,
+            )
+        },
+        <span class="macro">vec!</span>[],
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="ident">Extensions</span> {
+            <span class="ident">relay_chain</span>: <span class="string">&quot;westend-dev&quot;</span>.<span class="ident">into</span>(),
+            <span class="ident">para_id</span>: <span class="ident">id</span>.<span class="ident">into</span>(),
+        },
+    )
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kusama&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">main_chain_spec</span>(<span class="ident">id</span>: <span class="ident">ParaId</span>) -&gt; <span class="ident">MainChainSpec</span> {
+    <span class="kw">let</span> <span class="ident">balances</span> <span class="op">=</span> <span class="macro">vec!</span>[
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Alice&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Bob&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Charlie&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Dave&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Eve&quot;</span>),
+        <span class="ident">get_account_id_from_seed</span>::<span class="op">&lt;</span><span class="ident">sr25519::Public</span><span class="op">&gt;</span>(<span class="string">&quot;Ferdie&quot;</span>),
+    ];
+    <span class="ident">MainChainSpec::from_genesis</span>(
+        <span class="string">&quot;Main Testnet&quot;</span>,
+        <span class="string">&quot;main_testnet&quot;</span>,
+        <span class="ident">ChainType::Local</span>,
+        <span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+            <span class="ident">mk_genesis_main</span>(
+                <span class="ident">balances</span>
+                    .<span class="ident">iter</span>()
+                    .<span class="ident">cloned</span>()
+                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> (<span class="ident">a</span>, <span class="number">1_000_000_000_000u128</span>))
+                    .<span class="ident">collect</span>(),
+                <span class="ident">id</span>,
+            )
+        },
+        <span class="macro">vec!</span>[],
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="prelude-val">None</span>,
+        <span class="ident">Extensions</span> {
+            <span class="ident">relay_chain</span>: <span class="string">&quot;westend-dev&quot;</span>.<span class="ident">into</span>(),
+            <span class="ident">para_id</span>: <span class="ident">id</span>.<span class="ident">into</span>(),
+        },
+    )
+}
+
 <span class="doccomment">/// Helper function to create GenesisConfig for alpha parachain</span>
 <span class="kw">fn</span> <span class="ident">mk_genesis_alpha</span>(
     <span class="ident">balances</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AccountId</span>, <span class="ident">Balance</span>)<span class="op">&gt;</span>,
@@ -438,6 +471,7 @@ const IPCI_PROTOCOL_ID: &amp;str = &quot;mito&quot;;
         <span class="ident">system</span>: <span class="ident">alpha_runtime::SystemConfig</span> {
             <span class="ident">code</span>: <span class="ident">alpha_runtime::wasm_binary_unwrap</span>().<span class="ident">to_vec</span>(),
         },
+        <span class="ident">assets</span>: <span class="ident">Default::default</span>(),
         <span class="ident">balances</span>: <span class="ident">alpha_runtime::BalancesConfig</span> { <span class="ident">balances</span> },
         <span class="ident">elections</span>: <span class="ident">Default::default</span>(),
         <span class="ident">council</span>: <span class="ident">Default::default</span>(),
@@ -448,102 +482,61 @@ const IPCI_PROTOCOL_ID: &amp;str = &quot;mito&quot;;
         },
         <span class="ident">parachain_info</span>: <span class="ident">alpha_runtime::ParachainInfoConfig</span> { <span class="ident">parachain_id</span> },
         <span class="ident">parachain_system</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">transaction_payment</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">polkadot_xcm</span>: <span class="ident">Default::default</span>(),
+    }
+}
+
+<span class="doccomment">/// Helper function to create GenesisConfig for ipci parachain</span>
+<span class="kw">fn</span> <span class="ident">mk_genesis_ipci</span>(
+    <span class="ident">balances</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AccountId</span>, <span class="ident">Balance</span>)<span class="op">&gt;</span>,
+    <span class="ident">sudo_key</span>: <span class="ident">AccountId</span>,
+    <span class="ident">parachain_id</span>: <span class="ident">ParaId</span>,
+) -&gt; <span class="ident">ipci_runtime::GenesisConfig</span> {
+    <span class="ident">ipci_runtime::GenesisConfig</span> {
+        <span class="ident">system</span>: <span class="ident">ipci_runtime::SystemConfig</span> {
+            <span class="ident">code</span>: <span class="ident">ipci_runtime::wasm_binary_unwrap</span>().<span class="ident">to_vec</span>(),
+        },
+        <span class="ident">assets</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">carbon_assets</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">balances</span>: <span class="ident">ipci_runtime::BalancesConfig</span> { <span class="ident">balances</span> },
+        <span class="ident">sudo</span>: <span class="ident">ipci_runtime::SudoConfig</span> {
+            <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">sudo_key</span>),
+        },
+        <span class="ident">parachain_info</span>: <span class="ident">ipci_runtime::ParachainInfoConfig</span> { <span class="ident">parachain_id</span> },
+        <span class="ident">parachain_system</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">transaction_payment</span>: <span class="ident">Default::default</span>(),
+    }
+}
+
+<span class="doccomment">/// Helper function to create GenesisConfig for main parachain</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kusama&quot;</span>)]</span>
+<span class="kw">fn</span> <span class="ident">mk_genesis_main</span>(
+    <span class="ident">balances</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">AccountId</span>, <span class="ident">Balance</span>)<span class="op">&gt;</span>,
+    <span class="ident">parachain_id</span>: <span class="ident">ParaId</span>,
+) -&gt; <span class="ident">main_runtime::GenesisConfig</span> {
+    <span class="ident">main_runtime::GenesisConfig</span> {
+        <span class="ident">system</span>: <span class="ident">main_runtime::SystemConfig</span> {
+            <span class="ident">code</span>: <span class="ident">main_runtime::wasm_binary_unwrap</span>().<span class="ident">to_vec</span>(),
+        },
+        <span class="ident">parachain_system</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">balances</span>: <span class="ident">main_runtime::BalancesConfig</span> { <span class="ident">balances</span> },
+        <span class="ident">assets</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">vesting</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">staking</span>: <span class="ident">main_runtime::StakingConfig</span> { <span class="ident">bonus</span>: <span class="macro">vec!</span>[] },
+        <span class="ident">parachain_info</span>: <span class="ident">main_runtime::ParachainInfoConfig</span> { <span class="ident">parachain_id</span> },
+        <span class="ident">democracy</span>: <span class="ident">main_runtime::DemocracyConfig::default</span>(),
+        <span class="ident">treasury</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">technical_committee</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">technical_membership</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">polkadot_xcm</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">transaction_payment</span>: <span class="ident">Default::default</span>(),
     }
 }
 
 <span class="comment">/*
-/// Mercury parachain genesis.
-fn mercury_parachain_genesis() -&gt; alpha_runtime::GenesisConfig {
-    use alpha_runtime::constants::currency;
-    use hex_literal::hex;
-
-    // akru
-    let sudo_key: AccountId =
-        hex![&quot;16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58&quot;].into();
-
-    let balances = currency::STAKE_HOLDERS.clone();
-    mk_genesis_alpha(balances.to_vec(), sudo_key, MERCURY_ID.into())
-}
-
-/// Mercury parachain config.
-pub fn mercury_parachain_config() -&gt; AlphaChainSpec {
-    let boot_nodes = vec![];
-    AlphaChainSpec::from_genesis(
-        &quot;Mercury&quot;,
-        &quot;mercury&quot;,
-        ChainType::Live,
-        mercury_parachain_genesis,
-        boot_nodes,
-        None,
-        Some(ROBONOMICS_PROTOCOL_ID),
-        None,
-        Extensions {
-            relay_chain: &quot;rococo_local_testnet&quot;.into(),
-            para_id: MERCURY_ID.into(),
-        },
-    )
-}
-
-/// Helper function to create GenesisConfig for main parachain
-fn mk_genesis_main(
-    balances: Vec&lt;(AccountId, Balance)&gt;,
-    sudo_key: AccountId,
-    parachain_id: ParaId,
-) -&gt; main_runtime::GenesisConfig {
-    main_runtime::GenesisConfig {
-        system: main_runtime::SystemConfig {
-            code: main_runtime::wasm_binary_unwrap().to_vec(),
-        },
-        balances: main_runtime::BalancesConfig { balances },
-        vesting: Default::default(),
-        staking: main_runtime::StakingConfig { bonus: vec![] },
-        sudo: main_runtime::SudoConfig { key: sudo_key },
-        parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
-        democracy: main_runtime::DemocracyConfig::default(),
-        treasury: Default::default(),
-        technical_committee: Default::default(),
-        technical_membership: Default::default(),
-    }
-}
-
-/// Mars parachain genesis.
-fn mars_parachain_genesis() -&gt; alpha_runtime::GenesisConfig {
-    use alpha_runtime::constants::currency;
-    use hex_literal::hex;
-
-    // akru
-    let sudo_key: AccountId =
-        hex![&quot;16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58&quot;].into();
-
-    let balances = currency::STAKE_HOLDERS.clone();
-    mk_genesis_alpha(
-        balances.to_vec(),
-        sudo_key,
-        MARS_ID.into(),
-    )
-}
-
-/// Mars parachain config.
-pub fn mars_parachain_config() -&gt; AlphaChainSpec {
-    let boot_nodes = vec![];
-    AlphaChainSpec::from_genesis(
-        &quot;Mars&quot;,
-        &quot;mars&quot;,
-        ChainType::Live,
-        mars_parachain_genesis,
-        boot_nodes,
-        None,
-        Some(ROBONOMICS_PROTOCOL_ID),
-        None,
-        Extensions {
-            relay_chain: &quot;rococo_local_testnet&quot;.into(),
-            para_id: MARS_ID.into(),
-        },
-    )
-}
-
 /// Kusama parachain genesis.
-fn kusama_parachain_genesis() -&gt; main_runtime::GenesisConfig {
+fn robonomics_parachain_genesis() -&gt; main_runtime::GenesisConfig {
     use hex_literal::hex;
     use main_runtime::constants::currency;
 
@@ -556,7 +549,7 @@ fn kusama_parachain_genesis() -&gt; main_runtime::GenesisConfig {
 }
 
 /// Kusama parachain config.
-pub fn kusama_parachain_config() -&gt; MainChainSpec {
+pub fn robonomics_parachain_config() -&gt; MainChainSpec {
     let boot_nodes = vec![];
     MainChainSpec::from_genesis(
         &quot;Robonomics&quot;,
@@ -577,23 +570,20 @@ pub fn kusama_parachain_config() -&gt; MainChainSpec {
 
 <span class="doccomment">/// Mercury parachain confing.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mercury_parachain_config</span>() -&gt; <span class="ident">AlphaChainSpec</span> {
-    <span class="ident">AlphaChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../res/mercury.raw.json&quot;</span>)[..]).<span class="ident">unwrap</span>()
-}
-
-<span class="doccomment">/// Mars parachain confing.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mars_parachain_config</span>() -&gt; <span class="ident">AlphaChainSpec</span> {
-    <span class="ident">AlphaChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../res/mars.json&quot;</span>)[..]).<span class="ident">unwrap</span>()
+    <span class="ident">AlphaChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../../chains/mercury.raw.json&quot;</span>)[..])
+        .<span class="ident">unwrap</span>()
 }
 
 <span class="doccomment">/// Uranus parachain confing.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">uranus_parachain_config</span>() -&gt; <span class="ident">AlphaChainSpec</span> {
-    <span class="ident">AlphaChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../res/uranus.json&quot;</span>)[..]).<span class="ident">unwrap</span>()
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ipci_parachain_config</span>() -&gt; <span class="ident">IpciChainSpec</span> {
+    <span class="ident">IpciChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../../chains/ipci.raw.json&quot;</span>)[..]).<span class="ident">unwrap</span>()
 }
 
-<span class="doccomment">/// Kusama parachain confing.</span>
+<span class="doccomment">/// Robonomics parachain confing.</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;kusama&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">kusama_parachain_config</span>() -&gt; <span class="ident">MainChainSpec</span> {
-    <span class="ident">MainChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../res/robonomics.raw.json&quot;</span>)[..]).<span class="ident">unwrap</span>()
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">robonomics_parachain_config</span>() -&gt; <span class="ident">MainChainSpec</span> {
+    <span class="ident">MainChainSpec::from_json_bytes</span>(<span class="kw-2">&amp;</span><span class="macro">include_bytes!</span>(<span class="string">&quot;../../../chains/robonomics.raw.json&quot;</span>)[..])
+        .<span class="ident">unwrap</span>()
 }
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="robonomics_service" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (60e50fc1c 2022-04-04)" ></div>

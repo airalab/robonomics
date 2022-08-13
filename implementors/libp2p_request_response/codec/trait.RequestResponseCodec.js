@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["robonomics_protocol"] = [{"text":"impl RequestResponseCodec for <a class=\"struct\" href=\"robonomics_protocol/reqres/struct.RobonomicsCodec.html\" title=\"struct robonomics_protocol::reqres::RobonomicsCodec\">RobonomicsCodec</a>","synthetic":false,"types":["robonomics_protocol::reqres::RobonomicsCodec"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
