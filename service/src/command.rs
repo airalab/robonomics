@@ -19,6 +19,7 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+use robonomics_protocol::id;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -102,6 +103,14 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(&cli.run.normalize())?;
             let collator_options = cli.run.collator_options();
 
+            // Get local key
+            // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
+            let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
+                std::fs::read(local_key_file).map_or(id::random(), |mut bytes| {
+                    sc_network::Keypair::rsa_from_pkcs8(&mut bytes).map_or(id::random(), |key| key)
+                })
+            });
+
             // Default interval 1 sec
             let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
 
@@ -113,6 +122,7 @@ pub fn run() -> sc_cli::Result<()> {
 
                     robonomics::new(
                         config,
+                        local_key,
                         heartbeat_interval,
                         cli.robonomics_bootnodes,
                         cli.disable_mdns,
@@ -139,6 +149,7 @@ pub fn run() -> sc_cli::Result<()> {
                         collator_options,
                         params.2,
                         params.3,
+                        local_key,
                         heartbeat_interval,
                         cli.robonomics_bootnodes,
                         cli.disable_mdns,
@@ -166,6 +177,7 @@ pub fn run() -> sc_cli::Result<()> {
                         collator_options,
                         params.2,
                         params.3,
+                        local_key,
                         heartbeat_interval,
                         cli.robonomics_bootnodes,
                         cli.disable_mdns,
@@ -193,6 +205,7 @@ pub fn run() -> sc_cli::Result<()> {
                         collator_options,
                         params.2,
                         params.3,
+                        local_key,
                         heartbeat_interval,
                         cli.robonomics_bootnodes,
                         cli.disable_mdns,

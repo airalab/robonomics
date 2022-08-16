@@ -27,9 +27,6 @@ pub fn add_explicit_peers(
 ) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
-            if let Ok(_) = swarm.dial(addr.clone()) {
-                log::info!("Dialed: {:?}", node);
-            }
             if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
                 // Add node to PubSub
                 swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);

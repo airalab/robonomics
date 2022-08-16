@@ -26,6 +26,7 @@ use futures::{
 use libp2p::{
     core::transport::ListenerId,
     gossipsub::{GossipsubEvent, Sha256Topic as Topic, TopicHash},
+    identity::Keypair,
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::SwarmEvent,
@@ -65,12 +66,11 @@ pub enum ToWorkerMsg {
 impl NetworkWorker {
     /// Create new network worker instance
     pub fn new(
+        local_key: Keypair,
         heartbeat_interval: Duration,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
-        // XXX: temporary random local id.
-        let local_key = crate::id::random();
         let peer_id = PeerId::from(local_key.public());
         log::info!("Robonomics peer id: {:?}", peer_id);
 

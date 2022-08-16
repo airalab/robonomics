@@ -36,7 +36,7 @@ use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::network::RobonomicsNetwork;
 pub use sc_executor::NativeElseWasmExecutor;
-use sc_network::NetworkService;
+use sc_network::{Keypair, NetworkService};
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{TelemetryHandle, TelemetryWorkerHandle};
 use sp_keystore::SyncCryptoStorePtr;
@@ -196,6 +196,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
     build_consensus: BIC,
+    local_key: Keypair,
     heartbeat_interval: u64,
     bootnodes: Vec<String>,
     disable_mdns: bool,
@@ -300,9 +301,14 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    let (robonomics_network, network_worker) =
-        RobonomicsNetwork::new(heartbeat_interval, bootnodes, disable_mdns, disable_kad)
-            .expect("New robonomics network layer");
+    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+        local_key,
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New robonomics network layer");
 
     task_manager
         .spawn_handle()

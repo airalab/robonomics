@@ -23,7 +23,7 @@ use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa as grandpa;
-use sc_network::NetworkService;
+use sc_network::{Keypair, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
@@ -72,6 +72,7 @@ where
 
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
+    local_key: Keypair,
     heartbeat_interval: u64,
     bootnodes: Vec<String>,
     disable_mdns: bool,
@@ -178,9 +179,14 @@ where
         },
     )?;
 
-    let (robonomics_network, network_worker) =
-        RobonomicsNetwork::new(heartbeat_interval, bootnodes, disable_mdns, disable_kad)
-            .expect("New robonomics network layer");
+    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+        local_key,
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New robonomics network layer");
 
     task_manager
         .spawn_handle()
@@ -222,6 +228,7 @@ where
 /// Creates a full service from the configuration.
 pub fn full_base<Runtime, Executor>(
     mut config: Configuration,
+    local_key: Keypair,
     heartbeat_interval: u64,
     bootnodes: Vec<String>,
     disable_mdns: bool,
@@ -252,6 +259,7 @@ where
         other: (rpc_builder, block_import, grandpa_link, mut telemetry),
     } = new_partial(
         &config,
+        local_key,
         heartbeat_interval,
         bootnodes,
         disable_mdns,
@@ -447,6 +455,7 @@ pub mod robonomics {
     /// Create a new Robonomics service.
     pub fn new(
         config: Configuration,
+        local_key: sc_network::Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
@@ -454,6 +463,7 @@ pub mod robonomics {
     ) -> Result<TaskManager> {
         super::full_base::<RuntimeApi, LocalExecutor>(
             config,
+            local_key,
             heartbeat_interval,
             bootnodes,
             disable_mdns,

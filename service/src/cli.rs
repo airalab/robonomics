@@ -43,6 +43,10 @@ pub struct Cli {
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
 
+    /// Local key.
+    #[clap(long)]
+    pub local_key: Option<String>,
+
     /// PubSub heartbeat interval.
     #[clap(long)]
     pub heartbeat_interval: Option<u64>,

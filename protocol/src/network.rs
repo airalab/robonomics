@@ -18,6 +18,7 @@
 //! Robonomics network layer.
 
 use futures::Future;
+use libp2p::identity::Keypair;
 use std::{sync::Arc, time::Duration};
 
 use crate::{error::Result, network::worker::NetworkWorker, pubsub::Pubsub};
@@ -32,12 +33,14 @@ pub struct RobonomicsNetwork {
 
 impl RobonomicsNetwork {
     pub fn new(
+        local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
         let mut network_worker = NetworkWorker::new(
+            local_key,
             Duration::from_millis(heartbeat_interval),
             disable_mdns,
             disable_kad,
