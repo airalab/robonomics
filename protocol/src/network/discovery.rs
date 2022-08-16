@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics protocol node discovery.
 
-use crate::network::RobonomicsNetworkBehaviour;
+use super::behaviour::RobonomicsNetworkBehaviour;
 use libp2p::{Multiaddr, PeerId, Swarm};
 
 pub fn add_explicit_peers(

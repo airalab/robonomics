@@ -18,7 +18,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::network::RobonomicsNetwork;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
@@ -29,7 +29,6 @@ use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
-use std::time::Duration;
 
 type FullClient<Runtime, Executor> =
     sc_service::TFullClient<Block, Runtime, NativeElseWasmExecutor<Executor>>;
@@ -179,16 +178,13 @@ where
         },
     )?;
 
-    let (pubsub, pubsub_worker) = PubSub::new(
-        Duration::from_millis(heartbeat_interval),
-        bootnodes,
-        disable_mdns,
-        disable_kad,
-    )
-    .expect("New PubSub");
+    let (robonomics_network, network_worker) =
+        RobonomicsNetwork::new(heartbeat_interval, bootnodes, disable_mdns, disable_kad)
+            .expect("New robonomics network layer");
+
     task_manager
         .spawn_handle()
-        .spawn("pubsub_service", None, pubsub_worker);
+        .spawn("network_service", None, network_worker);
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -199,7 +195,7 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                pubsub: pubsub.clone(),
+                pubsub: robonomics_network.pubsub.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

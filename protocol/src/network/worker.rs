@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2022 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! PubSub implementation using libp2p Gossipsub.
+//! Robonomics network worker.
 
 use futures::{
     channel::{mpsc, oneshot},
@@ -25,18 +25,14 @@ use futures::{
 };
 use libp2p::{
     core::transport::ListenerId,
-    gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-        MessageId, Sha256Topic as Topic, TopicHash,
-    },
+    gossipsub::{GossipsubEvent, Sha256Topic as Topic, TopicHash},
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::SwarmEvent,
     Multiaddr, PeerId, Swarm,
 };
 use std::{
-    collections::hash_map::{DefaultHasher, HashMap},
-    hash::{Hash, Hasher},
+    collections::hash_map::HashMap,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -44,33 +40,32 @@ use std::{
 };
 
 use crate::{
-    error::{FutureResult, Result},
-    network::{OutEvent, RobonomicsNetworkBehaviour},
-    pubsub::discovery,
+    error::Result,
+    network::behaviour::{OutEvent, RobonomicsNetworkBehaviour},
+    pubsub::{Message, Pubsub},
     reqres::Response,
 };
 
-enum ToWorkerMsg {
+pub struct NetworkWorker {
+    pub swarm: Swarm<RobonomicsNetworkBehaviour>,
+    pub inbox: HashMap<TopicHash, mpsc::UnboundedSender<Message>>,
+    pub from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
+    pub service: Arc<Pubsub>,
+}
+
+pub enum ToWorkerMsg {
     Listen(Multiaddr, oneshot::Sender<bool>),
     Connect(Multiaddr, oneshot::Sender<bool>),
     Listeners(oneshot::Sender<Vec<Multiaddr>>),
-    Subscribe(String, mpsc::UnboundedSender<super::Message>),
+    Subscribe(String, mpsc::UnboundedSender<Message>),
     Unsubscribe(String, oneshot::Sender<bool>),
     Publish(String, Vec<u8>, oneshot::Sender<bool>),
 }
 
-struct PubSubWorker {
-    swarm: Swarm<RobonomicsNetworkBehaviour>,
-    inbox: HashMap<TopicHash, mpsc::UnboundedSender<super::Message>>,
-    from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
-    service: Arc<PubSub>,
-}
-
-impl PubSubWorker {
-    /// Create new PubSub Worker instance
+impl NetworkWorker {
+    /// Create new network worker instance
     pub fn new(
         heartbeat_interval: Duration,
-        bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
@@ -82,41 +77,26 @@ impl PubSubWorker {
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
         let transport = block_on(libp2p::development_transport(local_key.clone()))?;
 
-        // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(heartbeat_interval)
-            .message_id_fn(|message: &GossipsubMessage| {
-                // To content-address message,
-                // we can take the hash of message and use it as an ID.
-                let mut s = DefaultHasher::new();
-                message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
-            })
-            .build()
-            .expect("Valid gossipsub config");
-
-        // Build a gossipsub network behaviour
-        let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
-            .expect("Correct configuration");
-
         // Build a combined network behaviour
-        let behaviour =
-            RobonomicsNetworkBehaviour::new(pubsub, disable_mdns, disable_kad, peer_id)?;
+        let behaviour = RobonomicsNetworkBehaviour::new(
+            local_key,
+            peer_id,
+            heartbeat_interval,
+            disable_mdns,
+            disable_kad,
+        )?;
 
         // Create a Swarm to manage peers and events
-        let mut swarm = Swarm::new(transport, behaviour, peer_id.clone());
-
-        // Reach out to another nodes if specified
-        discovery::add_explicit_peers(&mut swarm, bootnodes, disable_kad);
+        let swarm = Swarm::new(transport, behaviour, peer_id.clone());
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded();
 
         // Create PubSub service
-        let service = Arc::new(PubSub { to_worker, peer_id });
+        let service = Arc::new(Pubsub { to_worker, peer_id });
 
         // Create worker instance with empty subscribers
-        Ok(PubSubWorker {
+        Ok(Self {
             swarm,
             inbox: HashMap::new(),
             from_service,
@@ -151,7 +131,7 @@ impl PubSubWorker {
     fn subscribe(
         &mut self,
         topic_name: String,
-        inbox: mpsc::UnboundedSender<super::Message>,
+        inbox: mpsc::UnboundedSender<Message>,
     ) -> Result<bool> {
         let topic = Topic::new(topic_name.clone());
         self.swarm.behaviour_mut().pubsub.subscribe(&topic)?;
@@ -182,7 +162,7 @@ impl PubSubWorker {
     }
 }
 
-impl Future for PubSubWorker {
+impl Future for NetworkWorker {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
@@ -202,7 +182,7 @@ impl Future for PubSubWorker {
                         // Dispatch handlers by topic name hash
                         if let Some(inbox) = self.inbox.get_mut(&message.topic) {
                             if let Some(sender) = &message.source {
-                                let _ = inbox.unbounded_send(super::Message {
+                                let _ = inbox.unbounded_send(Message {
                                     from: sender.clone().to_bytes(),
                                     data: message.data.clone(),
                                 });
@@ -289,85 +269,5 @@ impl Future for PubSubWorker {
             }
         }
         Poll::Pending
-    }
-}
-
-/// LibP2P Gossipsub based publisher/subscriber service.
-pub struct PubSub {
-    peer_id: PeerId,
-    to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
-}
-
-impl PubSub {
-    /// Create Gossipsub based PubSub service and worker.
-    pub fn new(
-        heartbeat_interval: Duration,
-        bootnodes: Vec<String>,
-        disable_mdns: bool,
-        disable_kad: bool,
-    ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
-        PubSubWorker::new(heartbeat_interval, bootnodes, disable_mdns, disable_kad)
-            .map(|worker| (worker.service.clone(), worker))
-    }
-}
-
-impl super::PubSub for PubSub {
-    fn peer_id(&self) -> PeerId {
-        self.peer_id.clone()
-    }
-
-    fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
-        let (sender, receiver) = oneshot::channel();
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Listen(address, sender));
-        receiver.boxed()
-    }
-
-    fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
-        let (sender, receiver) = oneshot::channel();
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Listeners(sender));
-        receiver.boxed()
-    }
-
-    fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
-        let (sender, receiver) = oneshot::channel();
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Connect(address, sender));
-        receiver.boxed()
-    }
-
-    fn subscribe<T: ToString>(&self, topic_name: &T) -> super::Inbox {
-        let (sender, receiver) = mpsc::unbounded();
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
-
-        receiver
-    }
-
-    fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
-        let (sender, receiver) = oneshot::channel();
-        let _ = self
-            .to_worker
-            .unbounded_send(ToWorkerMsg::Unsubscribe(topic_name.to_string(), sender));
-        receiver.boxed()
-    }
-
-    fn publish<T: ToString, M: Into<Vec<u8>>>(
-        &self,
-        topic_name: &T,
-        message: M,
-    ) -> FutureResult<bool> {
-        let (sender, receiver) = oneshot::channel();
-        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Publish(
-            topic_name.to_string(),
-            message.into(),
-            sender,
-        ));
-        receiver.boxed()
     }
 }

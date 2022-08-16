@@ -15,101 +15,42 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics network behaviour.
+//! Robonomics network layer.
 
-use futures::executor::block_on;
-use libp2p::{
-    gossipsub::{Gossipsub, GossipsubEvent},
-    kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
-    mdns::{Mdns, MdnsConfig, MdnsEvent},
-    request_response::{
-        ProtocolSupport, RequestResponse, RequestResponseConfig, RequestResponseEvent,
-    },
-    swarm::behaviour::toggle::Toggle,
-    NetworkBehaviour, PeerId,
-};
+use futures::Future;
+use std::{sync::Arc, time::Duration};
 
-use crate::reqres::{Request, Response, RobonomicsCodec, RobonomicsProtocol};
+use crate::{error::Result, network::worker::NetworkWorker, pubsub::Pubsub};
 
-#[derive(NetworkBehaviour)]
-#[behaviour(out_event = "OutEvent")]
-pub struct RobonomicsNetworkBehaviour {
-    pub pubsub: Gossipsub,
-    pub mdns: Toggle<Mdns>,
-    pub kademlia: Toggle<Kademlia<MemoryStore>>,
-    pub request_response: RequestResponse<RobonomicsCodec>,
+pub mod behaviour;
+pub mod discovery;
+pub mod worker;
+
+pub struct RobonomicsNetwork {
+    pub pubsub: Arc<Pubsub>,
 }
 
-impl RobonomicsNetworkBehaviour {
+impl RobonomicsNetwork {
     pub fn new(
-        pubsub: Gossipsub,
+        heartbeat_interval: u64,
+        bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,
-        peer_id: PeerId,
-    ) -> Result<Self, crate::error::Error> {
-        // Build mDNS network behaviour
-        let mdns = if !disable_mdns {
-            log::info!("Using mDNS discovery service.");
-            let mdns = block_on(Mdns::new(MdnsConfig::default()))?;
-            Toggle::from(Some(mdns))
-        } else {
-            Toggle::from(None)
-        };
+    ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
+        let mut network_worker = NetworkWorker::new(
+            Duration::from_millis(heartbeat_interval),
+            disable_mdns,
+            disable_kad,
+        )?;
 
-        // Build kademlia network behaviour
-        let kademlia = if !disable_kad {
-            log::info!("Using DHT discovery service.");
-            let store = MemoryStore::new(peer_id);
-            let kademlia = Kademlia::new(peer_id.clone(), store);
-            Toggle::from(Some(kademlia))
-        } else {
-            Toggle::from(None)
-        };
+        // Reach out to another nodes if specified
+        discovery::add_explicit_peers(&mut network_worker.swarm, bootnodes, disable_kad);
 
-        // Build request-response network behaviour
-        let protocols = std::iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let config = RequestResponseConfig::default();
-        let request_response =
-            RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, config);
-
-        // Combined network behaviour
-        Ok(RobonomicsNetworkBehaviour {
-            pubsub,
-            mdns,
-            kademlia,
-            request_response,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub enum OutEvent {
-    Pubsub(GossipsubEvent),
-    Mdns(MdnsEvent),
-    Kademlia(KademliaEvent),
-    RequestResponse(RequestResponseEvent<Request, Response>),
-}
-
-impl From<GossipsubEvent> for OutEvent {
-    fn from(v: GossipsubEvent) -> Self {
-        Self::Pubsub(v)
-    }
-}
-
-impl From<MdnsEvent> for OutEvent {
-    fn from(v: MdnsEvent) -> Self {
-        Self::Mdns(v)
-    }
-}
-
-impl From<KademliaEvent> for OutEvent {
-    fn from(v: KademliaEvent) -> Self {
-        Self::Kademlia(v)
-    }
-}
-
-impl From<RequestResponseEvent<Request, Response>> for OutEvent {
-    fn from(v: RequestResponseEvent<Request, Response>) -> Self {
-        Self::RequestResponse(v)
+        Ok((
+            Arc::new(Self {
+                pubsub: network_worker.service.clone(),
+            }),
+            network_worker,
+        ))
     }
 }

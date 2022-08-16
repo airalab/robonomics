@@ -53,6 +53,8 @@ pub enum Error {
     PublishError,
     /// Rpc error.
     RpcError,
+    /// Network error.
+    NetworkError,
     /// Other error.
     Other(String),
 }

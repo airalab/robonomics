@@ -17,16 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network broadcasting layer.
 
-use crate::error::FutureResult;
-use futures::channel::mpsc;
+use futures::{
+    channel::{mpsc, oneshot},
+    prelude::*,
+};
+use libp2p::{Multiaddr, PeerId};
 use serde::Serialize;
 use std::fmt;
 
-pub use gossipsub::PubSub as Gossipsub;
-pub use libp2p::{Multiaddr, PeerId};
-
-pub mod discovery;
-pub mod gossipsub;
+use crate::{error::FutureResult, network::worker::ToWorkerMsg};
 
 /// Robonomics PubSub message.
 #[derive(PartialEq, Eq, Clone, Debug, Serialize)]
@@ -78,4 +77,71 @@ pub trait PubSub {
         topic_name: &T,
         message: M,
     ) -> FutureResult<bool>;
+}
+
+/// LibP2P Gossipsub based publisher/subscriber service.
+pub struct Pubsub {
+    pub peer_id: PeerId,
+    pub to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
+}
+
+impl PubSub for Pubsub {
+    fn peer_id(&self) -> PeerId {
+        self.peer_id.clone()
+    }
+
+    fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Listen(address, sender));
+        receiver.boxed()
+    }
+
+    fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Listeners(sender));
+        receiver.boxed()
+    }
+
+    fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Connect(address, sender));
+        receiver.boxed()
+    }
+
+    fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox {
+        let (sender, receiver) = mpsc::unbounded();
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Subscribe(topic_name.to_string(), sender));
+
+        receiver
+    }
+
+    fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self
+            .to_worker
+            .unbounded_send(ToWorkerMsg::Unsubscribe(topic_name.to_string(), sender));
+        receiver.boxed()
+    }
+
+    fn publish<T: ToString, M: Into<Vec<u8>>>(
+        &self,
+        topic_name: &T,
+        message: M,
+    ) -> FutureResult<bool> {
+        let (sender, receiver) = oneshot::channel();
+        let _ = self.to_worker.unbounded_send(ToWorkerMsg::Publish(
+            topic_name.to_string(),
+            message.into(),
+            sender,
+        ));
+        receiver.boxed()
+    }
 }
