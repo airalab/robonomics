@@ -36,7 +36,7 @@ use libp2p::core::{
 };
 use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
 use libp2p::request_response::RequestResponseCodec;
-use libp2p::tcp::{TcpTransport, GenTcpConfig};
+use libp2p::tcp::{GenTcpConfig, TcpTransport};
 use libp2p::yamux::YamuxConfig;
 use std::io;
 

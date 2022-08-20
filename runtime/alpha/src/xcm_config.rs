@@ -1,13 +1,17 @@
 use super::{
     AccountId, AssetId, Assets, Balance, Balances, Call, DealWithFees, Event, Origin,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, WeightToFee, XcmpQueue,
+    MAXIMUM_BLOCK_WEIGHT,
 };
 use frame_support::{
     match_types, parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
-    weights::{IdentityFee, Weight},
+    weights::Weight,
 };
-use sp_runtime::traits::Bounded;
+use sp_runtime::{
+    traits::{Bounded, ConstU32},
+    WeakBoundedVec,
+};
 use sp_std::{borrow::Borrow, prelude::*};
 
 // Polkadot imports
@@ -26,8 +30,25 @@ use xcm_executor::{
     Config, XcmExecutor,
 };
 
-const ASSET_TO_LOCATION: [(AssetId, MultiLocation); 1] =
-    [(AssetId::max_value(), MultiLocation::parent())];
+lazy_static::lazy_static! {
+    static ref AUSD_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x81], None);
+    static ref LKSM_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x83], None);
+    static ref KAR_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x80], None);
+
+    static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 4] =
+      // KSM
+    [ (AssetId::max_value(), MultiLocation::parent())
+      // aUSD
+    , (AssetId::max_value() - 1, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(AUSD_KEY.clone()))))
+      // LKSM
+    , (AssetId::max_value() - 2, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(LKSM_KEY.clone()))))
+      // KAR
+    , (AssetId::max_value() - 3, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(KAR_KEY.clone()))))
+    ];
+}
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -202,7 +223,7 @@ impl Config for XcmConfig {
     type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
     type Trader = (
         FixedRateOfFungible<KsmPerSecond, ()>,
-        UsingComponents<IdentityFee<Balance>, Local, AccountId, Balances, DealWithFees>,
+        UsingComponents<WeightToFee, Local, AccountId, Balances, DealWithFees>,
     );
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
