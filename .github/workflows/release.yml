@@ -273,6 +273,10 @@ jobs:
         sha256sum *.tar.gz > sha256sum
         rm -rf tmp/
 
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
     - name: Pining artefacts to IPFS
       uses: aquiladev/ipfs-action@v0.2.0
       id: ipfs
