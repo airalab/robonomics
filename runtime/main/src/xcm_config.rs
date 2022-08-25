@@ -8,9 +8,10 @@ use frame_support::{
     parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
     weights::{IdentityFee, Weight},
+    WeakBoundedVec,
 };
-use sp_runtime::traits::Bounded;
-use sp_std::{borrow::Borrow, marker::PhantomData};
+use sp_runtime::traits::{Bounded, ConstU32};
+use sp_std::{borrow::Borrow, marker::PhantomData, prelude::*};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
@@ -84,14 +85,14 @@ lazy_static::lazy_static! {
       // KAR
     , (AssetId::max_value() - 3, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(KAR_KEY.clone()))))
       // CSM
-    , (AssetId::max_value() - 4, MultiLocation::new(1, X2(Parachain(2012))))
+    , (AssetId::max_value() - 4, MultiLocation::new(1, X1(Parachain(2012))))
     ];
 }
 
 pub struct AssetIdConvertion<AssetId>(PhantomData<AssetId>);
 impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AssetIdConvertion<AssetId>
 where
-    AssetId: Clone + Eq + Bounded,
+    AssetId: Clone + Eq + Bounded + From<u32>,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
         if let Some((asset_id, _)) = ASSET_TO_LOCATION.iter().find(|&(_, v)| id.borrow().eq(v)) {

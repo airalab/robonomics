@@ -12,18 +12,17 @@ use sp_runtime::{
     traits::{Bounded, ConstU32},
     WeakBoundedVec,
 };
-use sp_std::{borrow::Borrow, prelude::*};
+use sp_std::{borrow::Borrow, marker::PhantomData, prelude::*};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
-    ConvertedConcreteAssetId, CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible,
-    FixedWeightBounds, FungiblesAdapter, IsConcrete, LocationInverter, ParentAsSuperuser,
-    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-    UsingComponents,
+    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, ConvertedConcreteAssetId,
+    CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter,
+    IsConcrete, LocationInverter, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
 };
 use xcm_executor::{
     traits::{FilterAssetLocation, JustTry},
@@ -87,7 +86,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
     (),
 >;
 
-pub struct AsAssetWithRelay<AssetId>(sp_std::marker::PhantomData<AssetId>);
+pub struct AsAssetWithRelay<AssetId>(PhantomData<AssetId>);
 impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AsAssetWithRelay<AssetId>
 where
     AssetId: Clone + Eq + Bounded + From<u32>,
