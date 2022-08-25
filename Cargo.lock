@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "alpha-runtime"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -3276,7 +3276,7 @@ checksum = "aa2f047c0a98b2f299aa5d6d7088443570faae494e9ae1305e48be000c9e0eb1"
 
 [[package]]
 name = "ipci-runtime"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -4353,7 +4353,7 @@ checksum = "d4d2456c373231a208ad294c33dc5bff30051eafd954cd4caae83a712b12854d"
 
 [[package]]
 name = "local-runtime"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4481,7 +4481,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -4493,6 +4493,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-rpc-runtime-api",
+ "lazy_static",
  "pallet-assets",
  "pallet-balances",
  "pallet-collective",
@@ -8011,7 +8012,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "parity-util-mem",
  "robonomics-service",
@@ -8055,7 +8056,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "hex",
  "jsonrpsee",
@@ -8084,7 +8085,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "alpha-runtime",
  "clap",

@@ -75,7 +75,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 22,
+    spec_version: 23,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -412,13 +412,13 @@ parameter_types! {
 }
 
 parameter_types! {
-    pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-    pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
+    pub const LaunchPeriod: BlockNumber = 7 * 24 * 60 * MINUTES;
+    pub const VotingPeriod: BlockNumber = 7 * 24 * 60 * MINUTES;
     pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
     pub const InstantAllowed: bool = true;
     pub const MinimumDeposit: Balance = 50 * XRT;
-    pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTES;
-    pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
+    pub const EnactmentPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
+    pub const CooloffPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
 }

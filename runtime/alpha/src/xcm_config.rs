@@ -87,20 +87,16 @@ pub type CurrencyTransactor = CurrencyAdapter<
     (),
 >;
 
-pub struct AsAssetWithRelay<AssetId, GeneralAssetConverter>(
-    sp_std::marker::PhantomData<(AssetId, GeneralAssetConverter)>,
-);
-impl<AssetId, GeneralAssetConverter> xcm_executor::traits::Convert<MultiLocation, AssetId>
-    for AsAssetWithRelay<AssetId, GeneralAssetConverter>
+pub struct AsAssetWithRelay<AssetId>(sp_std::marker::PhantomData<AssetId>);
+impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AsAssetWithRelay<AssetId>
 where
     AssetId: Clone + Eq + Bounded + From<u32>,
-    GeneralAssetConverter: xcm_executor::traits::Convert<MultiLocation, AssetId>,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
         if let Some((asset_id, _)) = ASSET_TO_LOCATION.iter().find(|&(_, v)| id.borrow().eq(v)) {
             Ok((*asset_id).into())
         } else {
-            GeneralAssetConverter::convert_ref(id)
+            Err(())
         }
     }
     fn reverse_ref(what: impl Borrow<AssetId>) -> Result<MultiLocation, ()> {
@@ -110,7 +106,7 @@ where
         {
             Ok(location.clone())
         } else {
-            GeneralAssetConverter::reverse_ref(what)
+            Err(())
         }
     }
 }
@@ -120,12 +116,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
     // Use this fungibles implementation:
     Assets,
     // Use this currency when it is a fungible asset matching the given location or name:
-    ConvertedConcreteAssetId<
-        AssetId,
-        Balance,
-        AsAssetWithRelay<AssetId, AsPrefixedGeneralIndex<AssetsPalletLocation, AssetId, JustTry>>,
-        JustTry,
-    >,
+    ConvertedConcreteAssetId<AssetId, Balance, AsAssetWithRelay<AssetId>, JustTry>,
     // Convert an XCM MultiLocation into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
