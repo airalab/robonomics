@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["parse_args","Parse collator arguments and returns full node configuration."]],"struct":[["RelayChainCli",""]]});
+window.SIDEBAR_ITEMS = {"fn":[["parse_args","Parse collator arguments and returns full node configuration."]],"struct":[["RelayChainCli",""]]};

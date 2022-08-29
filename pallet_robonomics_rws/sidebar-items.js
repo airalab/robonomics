@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Subscription",""]],"mod":[["pallet","The module that hosts all the FRAME types needed to add this pallet to a runtime."]],"struct":[["AuctionLedger",""],["SubscriptionLedger",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["Subscription",""]],"mod":[["pallet","The module that hosts all the FRAME types needed to add this pallet to a runtime."]],"struct":[["AuctionLedger",""],["SubscriptionLedger",""]]};

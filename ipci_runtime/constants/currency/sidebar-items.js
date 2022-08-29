@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["MITO",""],["U_MITO",""]],"fn":[["deposit",""]],"struct":[["STAKE_HOLDERS",""]]});
+window.SIDEBAR_ITEMS = {"constant":[["MITO",""],["U_MITO",""]],"fn":[["deposit",""]],"struct":[["STAKE_HOLDERS",""]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["new","Create a new Robonomics service."]],"struct":[["LocalExecutor",""]]});
+window.SIDEBAR_ITEMS = {"fn":[["new","Create a new Robonomics service."]],"struct":[["LocalExecutor",""]]};

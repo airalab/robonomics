@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["PubSub","LibP2P Gossipsub based publisher/subscriber service."]]});
+window.SIDEBAR_ITEMS = {"struct":[["PubSub","LibP2P Gossipsub based publisher/subscriber service."]]};

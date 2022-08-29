@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["PubSubRpc",""]],"trait":[["PubSubRpcServer","Server trait implementation for the `PubSubRpc` RPC API."]]});
+window.SIDEBAR_ITEMS = {"struct":[["PubSubRpc",""]],"trait":[["PubSubRpcServer","Server trait implementation for the `PubSubRpc` RPC API."]]};

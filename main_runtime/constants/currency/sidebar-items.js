@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["COASE",""],["GLUSHKOV",""],["XRT",""]],"fn":[["deposit",""]]});
+window.SIDEBAR_ITEMS = {"constant":[["COASE",""],["GLUSHKOV",""],["XRT",""]],"fn":[["deposit",""]]};
