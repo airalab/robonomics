@@ -234,7 +234,7 @@ jobs:
       run: |
         mkdir -p release/tmp/
         cd release/tmp/
-        mkdir  robonomics robonomics-alpha x86_64 aarch64
+        mkdir robonomics robonomics-alpha robonomics-ipci x86_64 aarch64
 
     - name: get x86_64 binary
       uses: actions/download-artifact@v2
@@ -258,6 +258,11 @@ jobs:
         name: alpha-runtime
         path: release/tmp/robonomics-alpha
 
+    - uses: actions/download-artifact@v2
+      with:
+        name: ipci-runtime
+        path: release/tmp/robonomics-ipci
+
     - id: compress_artefacts
       shell: bash
       run: |
@@ -269,6 +274,7 @@ jobs:
         tar -czvf robonomics-"${{ steps.get_version.outputs.version-without-v }}"-aarch64-unknown-linux-gnu.tar.gz -C tmp/aarch64/ robonomics
         cd tmp/robonomics;tar -czvf ../../runtime-"$(jq -r '.core_version' main-info.json | awk '{print $1}')".tar.gz *;cd ../../
         cd tmp/robonomics-alpha;tar -czvf ../../runtime-"$(jq -r '.core_version' alpha-info.json | awk '{print $1}')".tar.gz *;cd ../../
+        cd tmp/robonomics-ipci;tar -czvf ../../runtime-"$(jq -r '.core_version' ipci-info.json | awk '{print $1}')".tar.gz *;cd ../../
         echo "${{ steps.get_version.outputs.version-without-v }}" > version
         sha256sum *.tar.gz > sha256sum
         rm -rf tmp/
