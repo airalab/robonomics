@@ -30,7 +30,7 @@ then
     # contine if file exists
     echo "If first docker build, copying file robonomics to working directory"
     mkdir "${ARCH}"
-    cp ../../target/release/robonomics ./$(uname -m)/
+    cp ../../target/release/robonomics ./${ARCH}/
 else
     echo "If not first build, proceed to docker-compose build and run"
 fi
