@@ -32,10 +32,10 @@ pub fn add_explicit_peers(
                 swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
 
                 // Add node to RequestResponse
-                swarm
-                    .behaviour_mut()
-                    .request_response
-                    .add_address(&peer, addr.clone());
+                // swarm
+                //     .behaviour_mut()
+                //     .request_response
+                //     .add_address(&peer, addr.clone());
 
                 // Add node to DHT
                 if !disable_kad {

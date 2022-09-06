@@ -26,9 +26,7 @@ use libp2p::{
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     mdns::{Mdns, MdnsConfig, MdnsEvent},
-    request_response::{
-        ProtocolSupport, RequestResponse, RequestResponseConfig, RequestResponseEvent,
-    },
+    request_response::RequestResponseEvent,
     swarm::behaviour::toggle::Toggle,
     NetworkBehaviour, PeerId,
 };
@@ -40,7 +38,7 @@ use std::{
 
 use crate::{
     error::Result,
-    reqres::{Request, Response, RobonomicsCodec, RobonomicsProtocol},
+    reqres::{Request, Response},
 };
 
 #[derive(NetworkBehaviour)]
@@ -49,20 +47,19 @@ pub struct RobonomicsNetworkBehaviour {
     pub pubsub: Gossipsub,
     pub mdns: Toggle<Mdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
-    pub request_response: RequestResponse<RobonomicsCodec>,
 }
 
 impl RobonomicsNetworkBehaviour {
     pub fn new(
         local_key: Keypair,
         peer_id: PeerId,
-        heartbeat_interval: Duration,
+        heartbeat_interval: u64,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(heartbeat_interval)
+            .heartbeat_interval(Duration::from_millis(heartbeat_interval))
             .message_id_fn(|message: &GossipsubMessage| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.
@@ -94,18 +91,11 @@ impl RobonomicsNetworkBehaviour {
             Toggle::from(None)
         };
 
-        // Build request-response network behaviour
-        let protocols = std::iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let config = RequestResponseConfig::default();
-        let request_response =
-            RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, config);
-
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {
             pubsub,
             mdns,
             kademlia,
-            request_response,
         })
     }
 }

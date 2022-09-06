@@ -34,3 +34,5 @@ local-runtime = { path = "../runtime/local" }
 robonomics-primitives = { path = "../primitives" }
 robonomics-protocol = { path = "../protocol" }
 tokio = "1.17.0"
+chrono = "0.4.22"
+futures = "0.3.15"
