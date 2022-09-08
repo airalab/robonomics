@@ -17,13 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics network layer.
 
-// use futures::Future;
 use futures::{
     channel::{mpsc, oneshot},
     prelude::*,
 };
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     error::{FutureResult, Result},
@@ -37,6 +36,7 @@ pub mod worker;
 
 pub struct RobonomicsNetwork {
     pub pubsub: Arc<Pubsub>,
+    pub peers: HashMap<PeerId, Multiaddr>,
 }
 
 impl RobonomicsNetwork {
@@ -48,6 +48,7 @@ impl RobonomicsNetwork {
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
+        let mut peers = HashMap::new();
         let mut network_worker = NetworkWorker::new(
             local_key,
             heartbeat_interval,
@@ -57,9 +58,18 @@ impl RobonomicsNetwork {
         )?;
 
         // Reach out to another nodes if specified
-        discovery::add_explicit_peers(&mut network_worker.swarm, bootnodes, disable_kad);
+        discovery::add_explicit_peers(
+            &mut network_worker.swarm,
+            &mut peers,
+            bootnodes,
+            disable_kad,
+        );
 
-        Ok((Arc::new(Self { pubsub }), network_worker))
+        Ok((Arc::new(Self { pubsub, peers }), network_worker))
+    }
+
+    pub fn get_address(&self, peer_id: PeerId) -> Option<&Multiaddr> {
+        self.peers.get(&peer_id)
     }
 }
 

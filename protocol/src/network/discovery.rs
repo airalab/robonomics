@@ -19,23 +19,21 @@
 
 use super::behaviour::RobonomicsNetworkBehaviour;
 use libp2p::{Multiaddr, PeerId, Swarm};
+use std::collections::HashMap;
 
 pub fn add_explicit_peers(
     swarm: &mut Swarm<RobonomicsNetworkBehaviour>,
+    peers: &mut HashMap<PeerId, Multiaddr>,
     bootnodes: Vec<String>,
     disable_kad: bool,
 ) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
             if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+                peers.insert(peer, addr.clone());
+
                 // Add node to PubSub
                 swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
-
-                // Add node to RequestResponse
-                // swarm
-                //     .behaviour_mut()
-                //     .request_response
-                //     .add_address(&peer, addr.clone());
 
                 // Add node to DHT
                 if !disable_kad {

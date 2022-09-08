@@ -20,10 +20,9 @@ use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
 };
-use robonomics_protocol::network::RobonomicsNetwork;
-use robonomics_protocol::reqres;
-use std::fmt;
-use std::sync::Arc;
+use libp2p::{Multiaddr, PeerId};
+use robonomics_protocol::{network::RobonomicsNetwork, reqres};
+use std::{fmt, str::FromStr, sync::Arc};
 
 fn epochu() -> i64 {
     let now = Utc::now();
@@ -69,6 +68,12 @@ impl ReqRespRpcServer for ReqRespRpc {
         let (multiaddr, peerid) = get_addr(address.clone());
         let value = Some(message.clone().to_string());
         let method = "get".to_string();
+
+        // TODO: ???
+        let m = Multiaddr::from_str(&address).unwrap();
+        let p = PeerId::try_from_multiaddr(&m).unwrap();
+        let addr = self.network.get_address(p);
+        println!("peer address: {:?}", addr);
 
         let res = reqres::reqres(
             multiaddr.clone(),
