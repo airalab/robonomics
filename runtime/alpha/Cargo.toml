@@ -1,6 +1,6 @@
 [package]
 name = "alpha-runtime"
-version = "2.3.0"
+version = "2.3.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2021"
 build = "build.rs"
