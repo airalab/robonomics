@@ -21,7 +21,6 @@ log = "0.4.17"
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
-robonomics-protocol = { path = "../protocol" }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
@@ -109,6 +108,9 @@ frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", bran
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", optional = true }
 
+# Robonomics-discovery dependencies
+robonomics-protocol = { path = "../protocol", optional = true }
+
 # Robonomics-specific dependencies
 #robonomics-cli = { path = "../../../cli", optional = true }
 
@@ -155,6 +157,14 @@ zero = [
     "clap_complete",
     "cumulus-client-cli",
 #    "robonomics-cli",
+]
+
+# Discovery service
+discovery = [
+    "sc-cli",
+    "clap",
+    "clap_complete",
+    "robonomics-protocol",
 ]
 
 ## Enable Kusama parachain.

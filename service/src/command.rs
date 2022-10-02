@@ -19,7 +19,6 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
-use robonomics_protocol::id;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -97,7 +96,12 @@ pub fn run() -> sc_cli::Result<()> {
 
     match &cli.subcommand {
         #[cfg(not(feature = "full"))]
-        None => Ok(()),
+        None => {
+            #[cfg(feature = "discovery")]
+            println!("discovery");
+
+            Ok(())
+        }
         #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&cli.run.normalize())?;
