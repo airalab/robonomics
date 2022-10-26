@@ -233,7 +233,7 @@ pub async fn reqres(
         println!("unsuported command {} ", method);
     }
 
-    loop {
+    let received = loop {
         match swarm2.select_next_some().await {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 log::debug!("Peer2 connected: {:?}", peer_id);
@@ -253,8 +253,9 @@ pub async fn reqres(
                         },
                 } => match response {
                     Response::Pong => {
-                        log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                        break;
+                        let pong_msg = format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);           
+                        log::debug!("{}",pong_msg.clone());
+                        break pong_msg.to_string();
                     }
                     Response::Data(data) => {
                         let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
@@ -263,19 +264,21 @@ pub async fn reqres(
                             String::from_utf8_lossy(&decoded[..]),
                             remote_peer
                         );
-                        log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
-                        break;
+                        let data_msg = format!("{}", String::from_utf8_lossy(&decoded[..]));
+                        log::debug!("{}",data_msg.clone());
+                        break data_msg.to_string();
                     }
                 },
 
                 e => {
-                    println!("Peer2 err: {:?}", e);
-                    break;
+                    let err_msg = format!("Peer2 err: {:?}", e);
+                    println!("{}",err_msg.clone());
+                    break err_msg.to_string();
                 }
             },
 
             _ => {}
         };
-    }
-    Ok("decoded".to_string())
+    };
+    Ok(received)
 }
