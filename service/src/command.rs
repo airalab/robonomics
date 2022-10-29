@@ -19,6 +19,12 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+use robonomics_protocol::id;
+#[cfg(feature = "discovery")]
+use robonomics_protocol::{
+    network::{behaviour::RobonomicsNetworkBehaviour, RobonomicsNetwork},
+    pubsub::Pubsub,
+};
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
 #[cfg(feature = "parachain")]
@@ -98,7 +104,74 @@ pub fn run() -> sc_cli::Result<()> {
         #[cfg(not(feature = "full"))]
         None => {
             #[cfg(feature = "discovery")]
-            println!("discovery");
+            {
+                // Get local key
+                // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
+                let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
+                    std::fs::read(local_key_file).map_or(id::random(), |mut bytes| {
+                        sc_network::Keypair::rsa_from_pkcs8(&mut bytes)
+                            .map_or(id::random(), |key| key)
+                    })
+                });
+
+                let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+
+                // let (pubsub, pubsub_worker) = Pubsub::new(local_key.clone(), heartbeat_interval)
+                //     .expect("New robonomics pubsub");
+                //
+                // let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+                //     local_key,
+                //     pubsub.clone(),
+                //     heartbeat_interval,
+                //     cli.robonomics_bootnodes,
+                //     cli.disable_mdns,
+                //     cli.disable_kad,
+                // )
+                // .expect("New robonomics network layer");
+
+                // task_manager
+                //     .spawn_handle()
+                //     .spawn("network_service", None, network_worker);
+                // ----------------------------------------------------
+
+                use libp2p::{
+                    futures::{executor, StreamExt},
+                    swarm::Swarm,
+                    PeerId,
+                };
+
+                let peer_id = PeerId::from(local_key.public());
+                println!("Robonomics peer id: {:?}", peer_id);
+
+                let transport =
+                    executor::block_on(libp2p::development_transport(local_key.clone()))
+                        .expect("Correct transport");
+
+                let behaviour = RobonomicsNetworkBehaviour::new(
+                    local_key,
+                    peer_id,
+                    heartbeat_interval,
+                    cli.disable_mdns,
+                    cli.disable_kad,
+                )
+                .expect("Correct behaviour");
+
+                let mut swarm = Swarm::new(transport, behaviour, peer_id.clone());
+
+                swarm
+                    .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+                    .unwrap();
+
+                std::thread::spawn(move || loop {
+                    match executor::block_on(swarm.select_next_some()) {
+                        e => {
+                            println!("Event: {:?}", e);
+                        }
+                    }
+                })
+                .join()
+                .unwrap();
+            }
 
             Ok(())
         }

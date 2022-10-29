@@ -18,6 +18,7 @@ jsonrpsee = { version = "0.14.0", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 hex-literal = "0.3.1"
 log = "0.4.17"
+libp2p = { version = "0.46.1", optional = true }
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
@@ -126,6 +127,8 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 vergen = { version = "3.1.0", optional = true }
 clap = { version = "3.0", features = ["derive"], optional = true }
 clap_complete = { version = "3.0", optional = true }
+robonomics-protocol = { path = "../protocol", optional = true }
+libp2p = { version = "0.46.1", optional = true }
 
 [features]
 ## Build fully functional node by default.
@@ -142,6 +145,7 @@ full = [
     "local-runtime",
     "sc-service/rocksdb",
     "robonomics-rpc",
+    "robonomics-protocol",
     "frame-benchmarking",
     "cumulus-client-cli",
 #    "robonomics-cli",
@@ -165,6 +169,7 @@ discovery = [
     "clap",
     "clap_complete",
     "robonomics-protocol",
+    "libp2p",
 ]
 
 ## Enable Kusama parachain.
