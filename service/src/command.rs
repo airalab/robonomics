@@ -19,13 +19,15 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+use libp2p::futures::{executor, StreamExt};
 use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
 use robonomics_protocol::{
-    network::{behaviour::RobonomicsNetworkBehaviour, RobonomicsNetwork},
+    network::{discovery, worker::NetworkWorker},
     pubsub::Pubsub,
 };
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use std::{collections::HashMap, fs, thread};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -108,7 +110,7 @@ pub fn run() -> sc_cli::Result<()> {
                 // Get local key
                 // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
                 let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
-                    std::fs::read(local_key_file).map_or(id::random(), |mut bytes| {
+                    fs::read(local_key_file).map_or(id::random(), |mut bytes| {
                         sc_network::Keypair::rsa_from_pkcs8(&mut bytes)
                             .map_or(id::random(), |key| key)
                     })
@@ -116,10 +118,11 @@ pub fn run() -> sc_cli::Result<()> {
 
                 let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
 
-                // let (pubsub, pubsub_worker) = Pubsub::new(local_key.clone(), heartbeat_interval)
-                //     .expect("New robonomics pubsub");
-                //
-                // let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+                let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
+                    .expect("New robonomics pubsub");
+
+                // use robonomics_protocol::network::RobonomicsNetwork;
+                // let (robonomics_network, mut network_worker) = RobonomicsNetwork::new(
                 //     local_key,
                 //     pubsub.clone(),
                 //     heartbeat_interval,
@@ -127,43 +130,32 @@ pub fn run() -> sc_cli::Result<()> {
                 //     cli.disable_mdns,
                 //     cli.disable_kad,
                 // )
-                // .expect("New robonomics network layer");
+                // .expect("New robonomics network");
 
-                // task_manager
-                //     .spawn_handle()
-                //     .spawn("network_service", None, network_worker);
-                // ----------------------------------------------------
-
-                use libp2p::{
-                    futures::{executor, StreamExt},
-                    swarm::Swarm,
-                    PeerId,
-                };
-
-                let peer_id = PeerId::from(local_key.public());
-                println!("Robonomics peer id: {:?}", peer_id);
-
-                let transport =
-                    executor::block_on(libp2p::development_transport(local_key.clone()))
-                        .expect("Correct transport");
-
-                let behaviour = RobonomicsNetworkBehaviour::new(
+                let mut network_worker = NetworkWorker::new(
                     local_key,
-                    peer_id,
                     heartbeat_interval,
+                    pubsub.clone(),
                     cli.disable_mdns,
                     cli.disable_kad,
                 )
-                .expect("Correct behaviour");
+                .expect("Correct network worker");
 
-                let mut swarm = Swarm::new(transport, behaviour, peer_id.clone());
+                let mut peers = HashMap::new();
+                discovery::add_explicit_peers(
+                    &mut network_worker.swarm,
+                    &mut peers,
+                    cli.robonomics_bootnodes,
+                    cli.disable_kad,
+                );
 
-                swarm
+                network_worker
+                    .swarm
                     .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-                    .unwrap();
+                    .expect("Swarm starts to listen");
 
-                std::thread::spawn(move || loop {
-                    match executor::block_on(swarm.select_next_some()) {
+                thread::spawn(move || loop {
+                    match executor::block_on(network_worker.swarm.select_next_some()) {
                         e => {
                             println!("Event: {:?}", e);
                         }
