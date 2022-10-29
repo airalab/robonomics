@@ -9,7 +9,11 @@
   ],
   "telemetryEndpoints": null,
   "protocolId": null,
-  "properties": null,
+  "properties": {
+    "ss58Format": 32,
+    "tokenDecimals": 12,
+    "tokenSymbol": "MITO"
+  },
   "relayChain": "kusama",
   "paraId": 2222,
   "codeSubstitutes": {},
