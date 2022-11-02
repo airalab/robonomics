@@ -274,7 +274,8 @@ pub fn robonomics_parachain_config() -> MainChainSpec {
 
 /// Mercury parachain confing.
 pub fn mercury_parachain_config() -> AlphaChainSpec {
-    AlphaChainSpec::from_json_bytes(&include_bytes!("../../../chains/mercury.raw.json")[..]).unwrap()
+    AlphaChainSpec::from_json_bytes(&include_bytes!("../../../chains/mercury.raw.json")[..])
+        .unwrap()
 }
 
 /// Uranus parachain confing.
@@ -285,5 +286,6 @@ pub fn ipci_parachain_config() -> IpciChainSpec {
 /// Robonomics parachain confing.
 #[cfg(feature = "kusama")]
 pub fn robonomics_parachain_config() -> MainChainSpec {
-    MainChainSpec::from_json_bytes(&include_bytes!("../../../chains/robonomics.raw.json")[..]).unwrap()
+    MainChainSpec::from_json_bytes(&include_bytes!("../../../chains/robonomics.raw.json")[..])
+        .unwrap()
 }

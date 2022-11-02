@@ -1,33 +1,53 @@
 use super::{
     AccountId, AssetId, Assets, Balance, Balances, Call, DealWithFees, Event, Origin,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, WeightToFee, XcmpQueue,
+    MAXIMUM_BLOCK_WEIGHT,
 };
 use frame_support::{
     match_types, parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
-    weights::{IdentityFee, Weight},
+    weights::Weight,
 };
-use sp_runtime::traits::Bounded;
-use sp_std::{borrow::Borrow, prelude::*};
+use sp_runtime::{
+    traits::{Bounded, ConstU32},
+    WeakBoundedVec,
+};
+use sp_std::{borrow::Borrow, marker::PhantomData, prelude::*};
 
 // Polkadot imports
 use xcm::latest::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, AsPrefixedGeneralIndex,
-    ConvertedConcreteAssetId, CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible,
-    FixedWeightBounds, FungiblesAdapter, IsConcrete, LocationInverter, ParentAsSuperuser,
-    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-    UsingComponents,
+    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, ConvertedConcreteAssetId,
+    CurrencyAdapter, EnsureXcmOrigin, FixedRateOfFungible, FixedWeightBounds, FungiblesAdapter,
+    IsConcrete, LocationInverter, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
 };
 use xcm_executor::{
     traits::{FilterAssetLocation, JustTry},
     Config, XcmExecutor,
 };
 
-const ASSET_TO_LOCATION: [(AssetId, MultiLocation); 1] =
-    [(AssetId::max_value(), MultiLocation::parent())];
+lazy_static::lazy_static! {
+    static ref AUSD_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x81], None);
+    static ref LKSM_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x83], None);
+    static ref KAR_KEY: WeakBoundedVec<u8, ConstU32<32>> =
+        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x80], None);
+
+    static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 4] =
+      // KSM
+    [ (AssetId::max_value(), MultiLocation::parent())
+      // aUSD
+    , (AssetId::max_value() - 1, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(AUSD_KEY.clone()))))
+      // LKSM
+    , (AssetId::max_value() - 2, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(LKSM_KEY.clone()))))
+      // KAR
+    , (AssetId::max_value() - 3, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(KAR_KEY.clone()))))
+    ];
+}
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -66,20 +86,16 @@ pub type CurrencyTransactor = CurrencyAdapter<
     (),
 >;
 
-pub struct AsAssetWithRelay<AssetId, GeneralAssetConverter>(
-    sp_std::marker::PhantomData<(AssetId, GeneralAssetConverter)>,
-);
-impl<AssetId, GeneralAssetConverter> xcm_executor::traits::Convert<MultiLocation, AssetId>
-    for AsAssetWithRelay<AssetId, GeneralAssetConverter>
+pub struct AsAssetWithRelay<AssetId>(PhantomData<AssetId>);
+impl<AssetId> xcm_executor::traits::Convert<MultiLocation, AssetId> for AsAssetWithRelay<AssetId>
 where
     AssetId: Clone + Eq + Bounded + From<u32>,
-    GeneralAssetConverter: xcm_executor::traits::Convert<MultiLocation, AssetId>,
 {
     fn convert_ref(id: impl Borrow<MultiLocation>) -> Result<AssetId, ()> {
         if let Some((asset_id, _)) = ASSET_TO_LOCATION.iter().find(|&(_, v)| id.borrow().eq(v)) {
             Ok((*asset_id).into())
         } else {
-            GeneralAssetConverter::convert_ref(id)
+            Err(())
         }
     }
     fn reverse_ref(what: impl Borrow<AssetId>) -> Result<MultiLocation, ()> {
@@ -89,7 +105,7 @@ where
         {
             Ok(location.clone())
         } else {
-            GeneralAssetConverter::reverse_ref(what)
+            Err(())
         }
     }
 }
@@ -99,12 +115,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
     // Use this fungibles implementation:
     Assets,
     // Use this currency when it is a fungible asset matching the given location or name:
-    ConvertedConcreteAssetId<
-        AssetId,
-        Balance,
-        AsAssetWithRelay<AssetId, AsPrefixedGeneralIndex<AssetsPalletLocation, AssetId, JustTry>>,
-        JustTry,
-    >,
+    ConvertedConcreteAssetId<AssetId, Balance, AsAssetWithRelay<AssetId>, JustTry>,
     // Convert an XCM MultiLocation into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -202,7 +213,7 @@ impl Config for XcmConfig {
     type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
     type Trader = (
         FixedRateOfFungible<KsmPerSecond, ()>,
-        UsingComponents<IdentityFee<Balance>, Local, AccountId, Balances, DealWithFees>,
+        UsingComponents<WeightToFee, Local, AccountId, Balances, DealWithFees>,
     );
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;

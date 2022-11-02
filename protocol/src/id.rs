@@ -20,8 +20,11 @@
 use libp2p::identity::ed25519;
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
-use std::{fs, io::{Read, Write}};
 use std::path::Path;
+use std::{
+    fs,
+    io::{Read, Write},
+};
 
 /// Generate random ED25519 keypair for node identity.
 pub fn random() -> Keypair {

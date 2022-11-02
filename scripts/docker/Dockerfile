@@ -16,13 +16,21 @@ LABEL io.parity.image.authors="research@robonomics.network" \
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-# add user
-RUN useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics && \
+RUN apt-get update && apt-get install jq curl bash -y && \
+	curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+	apt-get install -y nodejs && \
+	npm install --global yarn && \
+	yarn global add @polkadot/api-cli && \
+	useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics && \
 	mkdir -p /robonomics/.local/share && \
-   	mkdir /data && \
-    	chown -R robonomics:robonomics /data && \
-    	ln -s /data /robonomics/.local/share/robonomics && \
-    	rm -rf /usr/bin /usr/sbin
+	mkdir /data && \
+	chown -R robonomics:robonomics /data && \
+	ln -s /data /robonomics/.local/share/robonomics && \
+	rm -rf /usr/bin /usr/sbin
+
+COPY ./healthcheck.sh /usr/bin/
+HEALTHCHECK --interval=300s --timeout=75s --start-period=30s --retries=3 \
+    CMD ["/usr/bin/healthcheck.sh"]
 
 LABEL description="This is the 2nd stage: a very small image where we copy the robonomics binary"
 
@@ -37,7 +45,7 @@ USER robonomics
 # check if executable works in this container
 RUN ["robonomics", "--version"]
 
-EXPOSE 30333 9933 9944
+EXPOSE 30333 30334 9933 9934 9944 9945 9615 9616
 VOLUME ["/data"]
 
 CMD ["/usr/local/bin/robonomics"]
