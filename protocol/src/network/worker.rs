@@ -53,7 +53,6 @@ impl NetworkWorker {
         disable_kad: bool,
     ) -> Result<Self> {
         let peer_id = PeerId::from(local_key.public());
-        log::info!("Robonomics peer id: {:?}", peer_id);
 
         // Set up an encrypted WebSocket compatible Transport
         let transport = block_on(libp2p::development_transport(local_key.clone()))?;

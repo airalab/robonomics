@@ -149,6 +149,7 @@ full = [
     "frame-benchmarking",
     "cumulus-client-cli",
 #    "robonomics-cli",
+    "libp2p",
 ]
 
 ## Ultra lightweight Robonomics Network node.

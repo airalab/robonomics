@@ -19,14 +19,21 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
-use libp2p::futures::{executor, StreamExt};
+#[cfg(feature = "discovery")]
+use libp2p::{
+    futures::{executor, StreamExt},
+    kad::KademliaEvent,
+    swarm::SwarmEvent,
+};
 use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
 use robonomics_protocol::{
+    network::behaviour::OutEvent,
     network::{discovery, worker::NetworkWorker},
-    pubsub::Pubsub,
+    pubsub::{PubSub, Pubsub},
 };
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+#[cfg(feature = "discovery")]
 use std::{collections::HashMap, fs, thread};
 
 #[cfg(feature = "parachain")]
@@ -115,22 +122,10 @@ pub fn run() -> sc_cli::Result<()> {
                             .map_or(id::random(), |key| key)
                     })
                 });
-
                 let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
 
                 let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
                     .expect("New robonomics pubsub");
-
-                // use robonomics_protocol::network::RobonomicsNetwork;
-                // let (robonomics_network, mut network_worker) = RobonomicsNetwork::new(
-                //     local_key,
-                //     pubsub.clone(),
-                //     heartbeat_interval,
-                //     cli.robonomics_bootnodes,
-                //     cli.disable_mdns,
-                //     cli.disable_kad,
-                // )
-                // .expect("New robonomics network");
 
                 let mut network_worker = NetworkWorker::new(
                     local_key,
@@ -156,8 +151,18 @@ pub fn run() -> sc_cli::Result<()> {
 
                 thread::spawn(move || loop {
                     match executor::block_on(network_worker.swarm.select_next_some()) {
-                        e => {
-                            println!("Event: {:?}", e);
+                        SwarmEvent::Behaviour(OutEvent::Kademlia(
+                            KademliaEvent::RoutingUpdated {
+                                peer, addresses, ..
+                            },
+                        )) => {
+                            for addr in addresses.iter() {
+                                println!("Kad discovered peer: {}", peer);
+                                let _ = pubsub.connect(addr.clone());
+                            }
+                        }
+                        other_event => {
+                            println!("Event: {:?}", other_event);
                         }
                     }
                 })
