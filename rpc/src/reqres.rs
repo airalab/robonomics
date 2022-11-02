@@ -15,12 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-use robonomics_protocol::reqres::*;
+use chrono::prelude::*;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
 };
-use std::fmt;
+use libp2p::{Multiaddr, PeerId};
+use robonomics_protocol::{network::RobonomicsNetwork, reqres};
+use std::{fmt, str::FromStr, sync::Arc};
 
 fn epochu() -> i64 {
     let now = Utc::now();
@@ -50,11 +52,13 @@ pub trait ReqRespRpc {
     fn p2p_ping(&self, address: String) -> RpcResult<String>;
 }
 
-pub struct ReqRespRpc;
+pub struct ReqRespRpc {
+    network: Arc<RobonomicsNetwork>,
+}
 
 impl ReqRespRpc {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(network: Arc<RobonomicsNetwork>) -> Self {
+        Self { network }
     }
 }
 
@@ -65,7 +69,13 @@ impl ReqRespRpcServer for ReqRespRpc {
         let value = Some(message.clone().to_string());
         let method = "get".to_string();
 
-        let res = reqresrpc::reqres(
+        // TODO: ???
+        let m = Multiaddr::from_str(&address).unwrap();
+        let p = PeerId::try_from_multiaddr(&m).unwrap();
+        let addr = self.network.get_address(p);
+        println!("peer address: {:?}", addr);
+
+        let res = reqres::reqres(
             multiaddr.clone(),
             peerid.clone(),
             method.clone(),
@@ -95,7 +105,7 @@ impl ReqRespRpcServer for ReqRespRpc {
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqresrpc::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
+        let res = reqres::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
         let fres = futures::executor::block_on(res);
         let dt = epochu() - t0;
 

@@ -18,31 +18,31 @@ jsonrpsee = { version = "0.14.0", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 hex-literal = "0.3.1"
 log = "0.4.17"
+libp2p = { version = "0.46.1", optional = true }
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
-robonomics-protocol = { path = "../protocol" }
-sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-tasks = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+sp-tasks = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 
 # client dependencies
 sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
@@ -109,6 +109,9 @@ frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", bran
 substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
 
+# Robonomics-discovery dependencies
+robonomics-protocol = { path = "../protocol", optional = true }
+
 # Robonomics-specific dependencies
 #robonomics-cli = { path = "../../../cli", optional = true }
 
@@ -124,6 +127,8 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 vergen = { version = "3.1.0", optional = true }
 clap = { version = "3.0", features = ["derive"], optional = true }
 clap_complete = { version = "3.0", optional = true }
+robonomics-protocol = { path = "../protocol", optional = true }
+libp2p = { version = "0.46.1", optional = true }
 
 [features]
 ## Build fully functional node by default.
@@ -140,9 +145,11 @@ full = [
     "local-runtime",
     "sc-service/rocksdb",
     "robonomics-rpc",
+    "robonomics-protocol",
     "frame-benchmarking",
     "cumulus-client-cli",
 #    "robonomics-cli",
+    "libp2p",
 ]
 
 ## Ultra lightweight Robonomics Network node.
@@ -155,6 +162,15 @@ zero = [
     "clap_complete",
     "cumulus-client-cli",
 #    "robonomics-cli",
+]
+
+# Discovery service
+discovery = [
+    "sc-cli",
+    "clap",
+    "clap_complete",
+    "robonomics-protocol",
+    "libp2p",
 ]
 
 ## Enable Kusama parachain.

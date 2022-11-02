@@ -34,9 +34,9 @@ use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
 use hex_literal::hex;
 use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
-use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::{network::RobonomicsNetwork, pubsub::Pubsub};
 pub use sc_executor::NativeElseWasmExecutor;
-use sc_network::NetworkService;
+use sc_network::{Keypair, NetworkService};
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{TelemetryHandle, TelemetryWorkerHandle};
 use sp_keystore::SyncCryptoStorePtr;
@@ -196,7 +196,11 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     lighthouse_account: Option<AccountId>,
     build_import_queue: BIQ,
     build_consensus: BIC,
+    local_key: Keypair,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -298,10 +302,25 @@ where
     let rpc_pool = transaction_pool.clone();
 
     let (pubsub, pubsub_worker) =
-        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+
     task_manager
         .spawn_handle()
-        .spawn("pubsub_parachain", None, pubsub_worker);
+        .spawn("pubsub_service", None, pubsub_worker);
+
+    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+        local_key,
+        pubsub.clone(),
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New robonomics network layer");
+
+    task_manager
+        .spawn_handle()
+        .spawn("network_parachain", None, network_worker);
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder: Box::new(move |deny_unsafe, _| {
@@ -309,7 +328,7 @@ where
                 client: rpc_client.clone(),
                 pool: rpc_pool.clone(),
                 deny_unsafe,
-                pubsub: pubsub.clone(),
+                network: robonomics_network.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

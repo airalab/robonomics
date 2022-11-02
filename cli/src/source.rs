@@ -57,9 +57,6 @@ pub enum SourceCmd {
         /// Listen address for incoming connections.
         #[structopt(long, value_name = "MULTIADDR", default_value = "/ip4/0.0.0.0/tcp/0")]
         listen: Multiaddr,
-        /// Indicates PubSub nodes for first connections.
-        #[structopt(long, value_name = "MULTIADDR", use_delimiter = true)]
-        bootnodes: Vec<Multiaddr>,
         /// How often node should check another nodes availability, in secs.
         #[structopt(long, value_name = "HEARTBEAT_SECS", default_value = "5")]
         hearbeat: u64,
@@ -173,11 +170,9 @@ impl SourceCmd {
             SourceCmd::PubSub {
                 topic_name,
                 listen,
-                bootnodes,
                 hearbeat,
             } => {
-                let pubsub =
-                    virt::pubsub(listen, bootnodes, topic_name, Duration::from_secs(hearbeat))?;
+                let pubsub = virt::pubsub(listen, topic_name, Duration::from_secs(hearbeat))?;
 
                 task::block_on(
                     pubsub
