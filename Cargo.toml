@@ -20,6 +20,7 @@ members = [
     "runtime/main",
     "runtime/ipci",
     "service",
+    "protocol/examples/reqres",
 ]
 
 exclude = [
