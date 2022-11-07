@@ -107,15 +107,11 @@ type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-        if let Some(fees) = fees_then_tips.next() {
-            // for fees, 50% to treasury, 50% to lighthouse
-            let mut split = fees.ration(50, 50);
+        if let Some(mut fees) = fees_then_tips.next() {
             if let Some(tips) = fees_then_tips.next() {
-                // for tips, if any, 50% to treasury, 50% to lighthouse
-                tips.ration_merge_into(50, 50, &mut split);
+                tips.merge_into(&mut fees);
             }
-            Treasury::on_unbalanced(split.0);
-            Lighthouse::on_unbalanced(split.1);
+            Lighthouse::on_unbalanced(fees)
         }
     }
 }
