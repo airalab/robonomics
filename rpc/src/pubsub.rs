@@ -88,7 +88,7 @@ impl<T: PubSub> PubSubRpc<T> {
 }
 
 #[rpc(server)]
-pub trait PubSubRpc {
+pub trait PubSubRpcServer {
     /// Returns local peer ID.
     #[method(name = "pubsub_peer")]
     fn peer_id(&self) -> RpcResult<String>;

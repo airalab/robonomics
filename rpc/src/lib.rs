@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::pubsub::PubSub;
+//use robonomics_protocol::pubsub::PubSub;
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -30,12 +30,13 @@ use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
-pub mod extrinsic;
-pub mod pubsub;
+// TODO: fix rpc servers
+//pub mod extrinsic;
+//pub mod pubsub;
 //pub mod reqres;
 
-use extrinsic::{ExtrinsicRpc, ExtrinsicRpcServer};
-use pubsub::{PubSubRpc, PubSubRpcServer};
+//use extrinsic::{ExtrinsicRpc, ExtrinsicRpcServer};
+//use pubsub::{PubSubRpc, PubSubRpcServer};
 //use reqres::{ReqRespRpc, ReqRespRpcServer};
 
 /// Full client dependencies.
@@ -62,11 +63,10 @@ where
         + Sync
         + Send
         + 'static,
-    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-    C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-    C::Api: BlockBuilder<Block>,
-    P: TransactionPool + 'static,
-    T: PubSub + Sync + Send + 'static,
+    C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>
+        + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
+        + BlockBuilder<Block>,
+    P: TransactionPool + Sync + Send + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -79,10 +79,10 @@ where
         pubsub,
     } = deps;
 
-    io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
-    io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
-    io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
+    //io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
+    //io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+    //io.merge(PubSubRpc::new(pubsub).into_rpc())?;
+    //io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
     //io.merge(ReqRespRpc::new().into_rpc())?;
 
     Ok(io)
