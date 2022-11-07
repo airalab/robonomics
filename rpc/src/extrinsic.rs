@@ -47,7 +47,7 @@ impl<C> ExtrinsicRpc<C> {
 }
 
 #[rpc(server)]
-pub trait ExtrinsicRpcServer {
+pub trait ExtrinsicRpc {
     #[method(name = "get_payload")]
     fn get_payload(&self, address: String) -> RpcResult<Vec<String>>;
 }

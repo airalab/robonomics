@@ -74,8 +74,9 @@ use robonomics_protocol::pubsub::PubSub;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
-    PendingSubscription,
+    SubscriptionSink,
 };
+use jsonrpsee_types::error::SubscriptionEmptyError;
 use libp2p::Multiaddr;
 use std::sync::Arc;
 
@@ -88,7 +89,7 @@ impl<T: PubSub> PubSubRpc<T> {
 }
 
 #[rpc(server)]
-pub trait PubSubRpcServer {
+pub trait PubSubRpc {
     /// Returns local peer ID.
     #[method(name = "pubsub_peer")]
     fn peer_id(&self) -> RpcResult<String>;
@@ -132,12 +133,17 @@ impl<T: PubSub + Sync + Send + 'static> PubSubRpcServer for PubSubRpc<T> {
         self.0.connect(address).await.or(Ok(false))
     }
 
-    fn subscribe(&self, pending: PendingSubscription, topic_name: String) {
-        let mut sink = pending.accept().unwrap();
+    fn subscribe(
+        &self,
+        mut sink: SubscriptionSink,
+        topic_name: String,
+    ) -> Result<(), SubscriptionEmptyError> {
+        sink.accept()?;
         let inbox = self.0.subscribe(&topic_name.clone());
         tokio::spawn(async move {
             sink.pipe_from_stream(inbox).await;
         });
+        Ok(())
     }
 
     async fn publish(&self, topic_name: String, message: String) -> RpcResult<bool> {

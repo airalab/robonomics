@@ -8228,7 +8228,8 @@ name = "robonomics-rpc"
 version = "2.3.1"
 dependencies = [
  "hex",
- "jsonrpsee 0.14.0",
+ "jsonrpsee 0.15.1",
+ "jsonrpsee-types 0.15.1",
  "libp2p",
  "local-runtime",
  "log",
@@ -8277,7 +8278,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal 0.3.4",
  "ipci-runtime",
- "jsonrpsee 0.14.0",
+ "jsonrpsee 0.15.1",
  "local-runtime",
  "log",
  "main-runtime",
