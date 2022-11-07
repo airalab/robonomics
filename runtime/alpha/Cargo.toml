@@ -9,8 +9,12 @@ build = "build.rs"
 # third-party dependencies
 serde = { version = "1.0", optional = true }
 serde_derive = { version = "1.0", optional = true }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = [
+  "derive",
+] }
+scale-info = { version = "2.0", default-features = false, features = [
+  "derive",
+] }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 smallvec = "1.8.0"
 
@@ -66,61 +70,61 @@ xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
 pallet-xcm = { path = "../../vendor/pallet-xcm", default-features = false }
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
-polkadot-primitives = { git = 'https://github.com/paritytech/polkadot', default-features = false , branch = "release-v0.9.28" }
+polkadot-primitives = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.28" }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 
 [features]
 default = ["std"]
-with-tracing = [ "frame-executive/with-tracing" ]
+with-tracing = ["frame-executive/with-tracing"]
 std = [
-    "serde",
-    "serde_derive",
-    "codec/std",
-    "robonomics-primitives/std",
-    "sp-api/std",
-    "sp-block-builder/std",
-    "sp-core/std",
-    "sp-inherents/std",
-    "sp-offchain/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "sp-session/std",
-    "sp-staking/std",
-    "sp-transaction-pool/std",
-    "sp-version/std",
-    "pallet-assets/std",
-    "pallet-balances/std",
-    "frame-executive/std",
-    "pallet-identity/std",
-    "pallet-sudo/std",
-    "frame-support/std",
-    "frame-system/std",
-    "frame-system-rpc-runtime-api/std",
-    "pallet-utility/std",
-    "pallet-timestamp/std",
-    "pallet-transaction-payment/std",
-    "pallet-transaction-payment-rpc-runtime-api/std",
-    "pallet-robonomics-rws/std",
-    "pallet-robonomics-launch/std",
-    "pallet-robonomics-datalog/std",
-    "pallet-robonomics-digital-twin/std",
-    "pallet-robonomics-liability/std",
-    "pallet-robonomics-lighthouse/std",
-    "pallet-robonomics-staking/std",
-    "cumulus-pallet-parachain-system/std",
-    "cumulus-primitives-core/std",
-    "cumulus-primitives-utility/std",
-    "cumulus-pallet-dmp-queue/std",
-    "cumulus-pallet-xcmp-queue/std",
-    "cumulus-pallet-xcm/std",
-    "parachain-info/std",
-    "xcm/std",
-    "xcm-builder/std",
-    "xcm-executor/std",
-    "pallet-xcm/std",
-    "polkadot-parachain/std",
-    "polkadot-primitives/std",
-    "scale-info/std",
+  "serde",
+  "serde_derive",
+  "codec/std",
+  "robonomics-primitives/std",
+  "sp-api/std",
+  "sp-block-builder/std",
+  "sp-core/std",
+  "sp-inherents/std",
+  "sp-offchain/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "sp-session/std",
+  "sp-staking/std",
+  "sp-transaction-pool/std",
+  "sp-version/std",
+  "pallet-assets/std",
+  "pallet-balances/std",
+  "frame-executive/std",
+  "pallet-identity/std",
+  "pallet-sudo/std",
+  "frame-support/std",
+  "frame-system/std",
+  "frame-system-rpc-runtime-api/std",
+  "pallet-utility/std",
+  "pallet-timestamp/std",
+  "pallet-transaction-payment/std",
+  "pallet-transaction-payment-rpc-runtime-api/std",
+  "pallet-robonomics-rws/std",
+  "pallet-robonomics-launch/std",
+  "pallet-robonomics-datalog/std",
+  "pallet-robonomics-digital-twin/std",
+  "pallet-robonomics-liability/std",
+  "pallet-robonomics-lighthouse/std",
+  "pallet-robonomics-staking/std",
+  "cumulus-pallet-parachain-system/std",
+  "cumulus-primitives-core/std",
+  "cumulus-primitives-utility/std",
+  "cumulus-pallet-dmp-queue/std",
+  "cumulus-pallet-xcmp-queue/std",
+  "cumulus-pallet-xcm/std",
+  "parachain-info/std",
+  "xcm/std",
+  "xcm-builder/std",
+  "xcm-executor/std",
+  "pallet-xcm/std",
+  "polkadot-parachain/std",
+  "polkadot-primitives/std",
+  "scale-info/std",
 ]

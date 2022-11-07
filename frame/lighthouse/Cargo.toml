@@ -6,9 +6,13 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2021"
 
 [dependencies]
-scale-info = { version = "2.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.0", default-features = false, features = [
+  "derive",
+] }
 serde = { version = "1.0.130", optional = true }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = [
+  "derive",
+] }
 thiserror = { version = "1.0.30", optional = true }
 async-trait = { version = "0.1.30", optional = true }
 sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -20,14 +24,14 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 [features]
 default = ["std"]
 std = [
-    "serde",
-	"codec/std",
-    "thiserror",
-    "async-trait",
-	"frame-support/std",
-	"frame-system/std",
-	"sp-inherents/std",
-	"sp-runtime/std",
-	"sp-std/std",
-    "scale-info/std",
+  "serde",
+  "codec/std",
+  "thiserror",
+  "async-trait",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-inherents/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "scale-info/std",
 ]

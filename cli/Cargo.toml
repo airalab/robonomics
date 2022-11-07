@@ -21,6 +21,4 @@ csv = "1.1.5"
 
 [features]
 default = []
-ros = [
-    "robonomics-io/ros",
-]
+ros = ["robonomics-io/ros"]

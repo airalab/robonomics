@@ -22,17 +22,16 @@ name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
-parity-util-mem = { version = "0.11", default-features = false, features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.11", default-features = false, features = [
+  "jemalloc-global",
+] }
 robonomics-service = { path = "../../service", default-features = false }
 
 [features]
-default = [
-  "robonomics-service/kusama",
-  "robonomics-service/wasmtime",
-]
+default = ["robonomics-service/kusama", "robonomics-service/wasmtime"]
 
 # Lightweight node build
-zero = [ "robonomics-service/zero" ]
+zero = ["robonomics-service/zero"]
 
 # Build node for benchmarking
 benchmarks = [

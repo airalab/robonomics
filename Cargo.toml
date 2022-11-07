@@ -1,30 +1,28 @@
 [workspace]
-default-members = [ "bin/node" ]
+default-members = ["bin/node"]
 members = [
-    "bin/node",
-    "bin/node",
-#    "cli",
-    "frame/rws",
-    "frame/launch",
-    "frame/datalog",
-    "frame/liability",
-    "frame/lighthouse",
-    "frame/digital-twin",
-    "frame/staking",
-#    "io",
-    "primitives",
-    "protocol",
-    "rpc",
-    "runtime/local",
-    "runtime/alpha",
-    "runtime/main",
-    "runtime/ipci",
-    "service",
+  "bin/node",
+  "bin/node",
+  #    "cli",
+  "frame/rws",
+  "frame/launch",
+  "frame/datalog",
+  "frame/liability",
+  "frame/lighthouse",
+  "frame/digital-twin",
+  "frame/staking",
+  #    "io",
+  "primitives",
+  "protocol",
+  "rpc",
+  "runtime/local",
+  "runtime/alpha",
+  "runtime/main",
+  "runtime/ipci",
+  "service",
 ]
 
-exclude = [
-    "vendor",
-]
+exclude = ["vendor"]
 
 # Enhanced features resolver
 # https://github.com/rust-lang/cargo/issues/1197

@@ -12,7 +12,7 @@ repository = "https://github.com/airalab/robonomics"
 [dependencies]
 # third-party dependencies
 clap = { version = "3.0", features = ["derive"], optional = true }
-serde = { version = "1.0.130", features = ["derive"]}
+serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0"
 jsonrpsee = { version = "0.14.0", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
@@ -132,66 +132,60 @@ default = ["full"]
 ## Fully functional Robonomics Network node.
 # Full node required for collating / validating the parachain or develop Robonomics pallets.
 full = [
-    "sc-cli",
-    "sp-core",
-    "vergen",
-    "clap",
-    "clap_complete",
-    "local-runtime",
-    "sc-service/rocksdb",
-    "robonomics-rpc",
-    "frame-benchmarking",
-    "cumulus-client-cli",
-#    "robonomics-cli",
+  "sc-cli",
+  "sp-core",
+  "vergen",
+  "clap",
+  "clap_complete",
+  "local-runtime",
+  "sc-service/rocksdb",
+  "robonomics-rpc",
+  "frame-benchmarking",
+  "cumulus-client-cli",
+  #    "robonomics-cli",
 ]
 
 ## Ultra lightweight Robonomics Network node.
 # Stateless node consumes a minimum of resources and suits for small embedded devices.
 zero = [
-    "sc-cli",
-    "sp-core",
-    "vergen",
-    "clap",
-    "clap_complete",
-    "cumulus-client-cli",
-#    "robonomics-cli",
+  "sc-cli",
+  "sp-core",
+  "vergen",
+  "clap",
+  "clap_complete",
+  "cumulus-client-cli",
+  #    "robonomics-cli",
 ]
 
 ## Enable Kusama parachain.
-kusama = [
-    "main-runtime",
-    "parachain",
-]
+kusama = ["main-runtime", "parachain"]
 
 ## Enable parachain collator.
 parachain = [
-    "alpha-runtime",
-    "ipci-runtime",
-    "pallet-robonomics-lighthouse",
-    "substrate-frame-rpc-system",
-    "cumulus-primitives-core",
-    "cumulus-primitives-parachain-inherent",
-    "cumulus-client-consensus-aura",
-    "cumulus-client-consensus-common",
-    "cumulus-client-consensus-relay-chain",
-    "cumulus-relay-chain-interface",
-    "cumulus-relay-chain-rpc-interface",
-    "cumulus-relay-chain-inprocess-interface",
-    "cumulus-client-collator",
-    "cumulus-client-network",
-    "cumulus-client-service",
-    "polkadot-primitives",
-    "polkadot-parachain",
-    "polkadot-service",
-    "polkadot-cli",
-    "full",
+  "alpha-runtime",
+  "ipci-runtime",
+  "pallet-robonomics-lighthouse",
+  "substrate-frame-rpc-system",
+  "cumulus-primitives-core",
+  "cumulus-primitives-parachain-inherent",
+  "cumulus-client-consensus-aura",
+  "cumulus-client-consensus-common",
+  "cumulus-client-consensus-relay-chain",
+  "cumulus-relay-chain-interface",
+  "cumulus-relay-chain-rpc-interface",
+  "cumulus-relay-chain-inprocess-interface",
+  "cumulus-client-collator",
+  "cumulus-client-network",
+  "cumulus-client-service",
+  "polkadot-primitives",
+  "polkadot-parachain",
+  "polkadot-service",
+  "polkadot-cli",
+  "full",
 ]
 
 ## Enable Wasmtime for runtime execution.
-wasmtime = [
-    "sc-service/wasmtime",
-    "sc-cli/wasmtime",
-]
+wasmtime = ["sc-service/wasmtime", "sc-cli/wasmtime"]
 
 ## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
 # To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
@@ -200,9 +194,9 @@ ros = []
 
 ## Enable runtime benchmarking.
 runtime-benchmarks = [
-    "local-runtime/runtime-benchmarks",
-    "cumulus-client-cli",
-    "frame-benchmarking-cli",
-    "frame-benchmarking",
-    "pallet-robonomics-datalog/runtime-benchmarks",
+  "local-runtime/runtime-benchmarks",
+  "cumulus-client-cli",
+  "frame-benchmarking-cli",
+  "frame-benchmarking",
+  "pallet-robonomics-datalog/runtime-benchmarks",
 ]

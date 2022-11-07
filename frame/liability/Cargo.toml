@@ -7,8 +7,12 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.130", optional = true }
-scale-info = { version = "2.0", default-features = false, features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.0", default-features = false, features = [
+  "derive",
+] }
+codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = [
+  "derive",
+] }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -25,13 +29,13 @@ sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkad
 [features]
 default = ["std"]
 std = [
-    "serde",
-    "codec/std",
-    "sp-std/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-arithmetic/std",
-    "frame-system/std",
-    "frame-support/std",
-    "scale-info/std",
+  "serde",
+  "codec/std",
+  "sp-std/std",
+  "sp-core/std",
+  "sp-runtime/std",
+  "sp-arithmetic/std",
+  "frame-system/std",
+  "frame-support/std",
+  "scale-info/std",
 ]
