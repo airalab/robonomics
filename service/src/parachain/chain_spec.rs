@@ -177,9 +177,6 @@ fn mk_genesis_alpha(
         },
         assets: Default::default(),
         balances: alpha_runtime::BalancesConfig { balances },
-        elections: Default::default(),
-        council: Default::default(),
-        treasury: Default::default(),
         staking: alpha_runtime::StakingConfig { bonus },
         sudo: alpha_runtime::SudoConfig {
             key: Some(sudo_key),
@@ -209,6 +206,11 @@ fn mk_genesis_ipci(
         },
         parachain_info: ipci_runtime::ParachainInfoConfig { parachain_id },
         parachain_system: Default::default(),
+        democracy: ipci_runtime::DemocracyConfig::default(),
+        treasury: Default::default(),
+        technical_committee: Default::default(),
+        technical_membership: Default::default(),
+        polkadot_xcm: Default::default(),
         transaction_payment: Default::default(),
     }
 }

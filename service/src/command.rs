@@ -107,19 +107,11 @@ pub fn run() -> sc_cli::Result<()> {
 
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
-                    if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supported!".into());
-                    }
-
                     robonomics::new(config, heartbeat_interval)
                 }),
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Alpha => runner.run_node_until_exit(|config| async move {
-                    if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supported!".into());
-                    }
-
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
@@ -140,10 +132,6 @@ pub fn run() -> sc_cli::Result<()> {
 
                 #[cfg(feature = "parachain")]
                 RobonomicsFamily::Ipci => runner.run_node_until_exit(|config| async move {
-                    if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supported!".into());
-                    }
-
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
@@ -164,10 +152,6 @@ pub fn run() -> sc_cli::Result<()> {
 
                 #[cfg(feature = "kusama")]
                 RobonomicsFamily::Main => runner.run_node_until_exit(|config| async move {
-                    if matches!(config.role, sc_cli::Role::Light) {
-                        return Err("Light client not supported!".into());
-                    }
-
                     let params = parachain::command::parse_args(
                         config,
                         &cli.relaychain_args,
