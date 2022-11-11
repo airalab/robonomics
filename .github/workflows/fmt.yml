@@ -1,14 +1,12 @@
-name: Formatting & linting 
+name: Code style
 on: [push]
 
 jobs:
-  check:
+  code_format:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -18,13 +16,27 @@ jobs:
           components: rustfmt
           default: true
 
-      - name: Check code formatting
+      - name: Check format
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: -- --check
 
-      - name: Check code linting
+  code_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: clippy 
+          default: true
+
+      - name: Check lint suggestions
         uses: actions-rs/cargo@v1
         with:
           command: clippy
