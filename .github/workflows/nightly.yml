@@ -49,9 +49,6 @@ jobs:
         mkdir .cargo
         printf '[target.armv7-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > .cargo/config
         
-    - name: Install mold 
-      uses: rui314/setup-mold@v1
-
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:

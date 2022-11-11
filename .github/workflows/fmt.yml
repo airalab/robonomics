@@ -1,4 +1,4 @@
-name: Formatting 
+name: Formatting & linting 
 on: [push]
 
 jobs:
@@ -23,3 +23,9 @@ jobs:
         with:
           command: fmt
           args: -- --check
+
+      - name: Check code linting
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warning
