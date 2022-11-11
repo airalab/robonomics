@@ -289,6 +289,8 @@
 <span id="289">289</span>
 <span id="290">290</span>
 <span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -468,9 +470,6 @@
         },
         <span class="ident">assets</span>: <span class="ident">Default::default</span>(),
         <span class="ident">balances</span>: <span class="ident">alpha_runtime::BalancesConfig</span> { <span class="ident">balances</span> },
-        <span class="ident">elections</span>: <span class="ident">Default::default</span>(),
-        <span class="ident">council</span>: <span class="ident">Default::default</span>(),
-        <span class="ident">treasury</span>: <span class="ident">Default::default</span>(),
         <span class="ident">staking</span>: <span class="ident">alpha_runtime::StakingConfig</span> { <span class="ident">bonus</span> },
         <span class="ident">sudo</span>: <span class="ident">alpha_runtime::SudoConfig</span> {
             <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">sudo_key</span>),
@@ -500,6 +499,11 @@
         },
         <span class="ident">parachain_info</span>: <span class="ident">ipci_runtime::ParachainInfoConfig</span> { <span class="ident">parachain_id</span> },
         <span class="ident">parachain_system</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">democracy</span>: <span class="ident">ipci_runtime::DemocracyConfig::default</span>(),
+        <span class="ident">treasury</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">technical_committee</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">technical_membership</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">polkadot_xcm</span>: <span class="ident">Default::default</span>(),
         <span class="ident">transaction_payment</span>: <span class="ident">Default::default</span>(),
     }
 }

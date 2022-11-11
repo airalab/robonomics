@@ -220,6 +220,7 @@
 <span id="220">220</span>
 <span id="221">221</span>
 <span id="222">222</span>
+<span id="223">223</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -398,6 +399,7 @@
         <span class="ident">aura</span>: <span class="ident">AuraConfig</span> {
             <span class="ident">authorities</span>: <span class="ident">initial_authorities</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">0</span>.<span class="ident">clone</span>()).<span class="ident">collect</span>(),
         },
+        <span class="ident">assets</span>: <span class="ident">Default::default</span>(),
         <span class="ident">grandpa</span>: <span class="ident">GrandpaConfig</span> {
             <span class="ident">authorities</span>: <span class="ident">initial_authorities</span>
                 .<span class="ident">iter</span>()

@@ -1,8 +1,9 @@
 var sourcesIndex = JSON.parse('{\
 "alpha_runtime":["",[],["constants.rs","lib.rs","xcm_config.rs"]],\
-"ipci_runtime":["",[],["constants.rs","lib.rs"]],\
+"ipci_runtime":["",[],["constants.rs","lib.rs","xcm_config.rs"]],\
 "local_runtime":["",[],["constants.rs","lib.rs"]],\
 "main_runtime":["",[],["constants.rs","lib.rs","xcm_config.rs"]],\
+"pallet_robonomics_crowdloan":["",[],["lib.rs"]],\
 "pallet_robonomics_datalog":["",[],["lib.rs","weights.rs"]],\
 "pallet_robonomics_digital_twin":["",[],["lib.rs"]],\
 "pallet_robonomics_launch":["",[],["lib.rs"]],\
