@@ -196,6 +196,32 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+    pub const AssetDeposit: Balance = 10 * XRT; // 10 XRT deposit to create asset
+    pub const AssetsStringLimit: u32 = 50;
+    /// Key = 32 bytes, Value = 36 bytes (32+1+1+1+1)
+    // https://github.com/paritytech/substrate/blob/069917b/frame/assets/src/lib.rs#L257L271
+    pub const MetadataDepositBase: Balance = deposit(1, 68);
+    pub const MetadataDepositPerByte: Balance = deposit(0, 1);
+}
+
+impl pallet_assets::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type AssetId = AssetId;
+    type Currency = Balances;
+    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type AssetDeposit = AssetDeposit;
+    type AssetAccountDeposit = frame_support::traits::ConstU128<XRT>;
+    type MetadataDepositBase = MetadataDepositBase;
+    type MetadataDepositPerByte = MetadataDepositPerByte;
+    type ApprovalDeposit = ExistentialDeposit;
+    type StringLimit = AssetsStringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type WeightInfo = ();
+}
+
+parameter_types! {
     pub const MinVestedTransfer: Balance = 1 * XRT;
 }
 
@@ -567,6 +593,7 @@ construct_runtime!(
         Balances: pallet_balances,
         TransactionPayment: pallet_transaction_payment,
         Vesting: pallet_vesting,
+        Assets: pallet_assets,
 
         // Governance staff.
         Treasury: pallet_treasury,
