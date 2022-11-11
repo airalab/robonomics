@@ -5553,8 +5553,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-carbon-assets"
-version = "0.2.0"
-source = "git+https://github.com/akru/carbon-assets?branch=main#a4378fb7f038bd8c5f606605b44a313d1f6a3bed"
+version = "0.2.1"
+source = "git+https://github.com/EvercityEcosystem/carbon-assets?tag=polkadot-v0.9.28#3b4a3583b3cf9f755234446a92dba6edd79dfe00"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
