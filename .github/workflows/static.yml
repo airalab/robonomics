@@ -1,8 +1,8 @@
-name: Code style
+name: Static Analysis 
 on: [push]
 
 jobs:
-  code_format:
+  fmt:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the source code
@@ -22,7 +22,7 @@ jobs:
           command: fmt
           args: -- --check
 
-  code_lint:
+  clippy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the source code

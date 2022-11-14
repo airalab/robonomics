@@ -90,8 +90,6 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: Install ARM64 multilib
       if: contains(matrix.target, 'aarch64')
@@ -135,8 +133,6 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -181,7 +177,7 @@ jobs:
         chmod +x scripts/docker/arm64/robonomics
 
     - name: Push docker image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         context: scripts/docker
         platforms: linux/amd64,linux/arm64
@@ -195,8 +191,6 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - uses: cachix/install-nix-action@v12
       with:

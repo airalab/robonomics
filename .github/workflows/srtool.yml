@@ -1,4 +1,4 @@
-name: Srtool builds
+name: Runtimes
 
 env:
   SUBWASM_VERSION: 0.15.0
