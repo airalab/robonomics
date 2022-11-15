@@ -8379,6 +8379,7 @@ dependencies = [
  "hex-literal 0.3.4",
  "ipci-runtime",
  "jsonrpsee 0.15.1",
+ "libp2p",
  "local-runtime",
  "log",
  "main-runtime",

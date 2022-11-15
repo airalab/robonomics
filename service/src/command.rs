@@ -19,8 +19,22 @@
 use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+#[cfg(feature = "discovery")]
+use libp2p::{
+    futures::{executor, StreamExt},
+    kad::KademliaEvent,
+    swarm::SwarmEvent,
+};
 use robonomics_protocol::id;
+#[cfg(feature = "discovery")]
+use robonomics_protocol::{
+    network::behaviour::OutEvent,
+    network::{discovery, worker::NetworkWorker},
+    pubsub::{PubSub, Pubsub},
+};
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+#[cfg(feature = "discovery")]
+use std::{collections::HashMap, fs, thread};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -97,7 +111,67 @@ pub fn run() -> sc_cli::Result<()> {
 
     match &cli.subcommand {
         #[cfg(not(feature = "full"))]
-        None => Ok(()),
+        None => {
+            #[cfg(feature = "discovery")]
+            {
+                // Get local key
+                // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
+                let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
+                    fs::read(local_key_file).map_or(id::random(), |mut bytes| {
+                        sc_network::Keypair::rsa_from_pkcs8(&mut bytes)
+                            .map_or(id::random(), |key| key)
+                    })
+                });
+                let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+
+                let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
+                    .expect("New robonomics pubsub");
+
+                let mut network_worker = NetworkWorker::new(
+                    local_key,
+                    heartbeat_interval,
+                    pubsub.clone(),
+                    cli.disable_mdns,
+                    cli.disable_kad,
+                )
+                .expect("Correct network worker");
+
+                let mut peers = HashMap::new();
+                discovery::add_explicit_peers(
+                    &mut network_worker.swarm,
+                    &mut peers,
+                    cli.robonomics_bootnodes,
+                    cli.disable_kad,
+                );
+
+                network_worker
+                    .swarm
+                    .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+                    .expect("Swarm starts to listen");
+
+                thread::spawn(move || loop {
+                    match executor::block_on(network_worker.swarm.select_next_some()) {
+                        SwarmEvent::Behaviour(OutEvent::Kademlia(
+                            KademliaEvent::RoutingUpdated {
+                                peer, addresses, ..
+                            },
+                        )) => {
+                            for addr in addresses.iter() {
+                                println!("Kad discovered peer: {}", peer);
+                                let _ = pubsub.connect(addr.clone());
+                            }
+                        }
+                        other_event => {
+                            println!("Event: {:?}", other_event);
+                        }
+                    }
+                })
+                .join()
+                .unwrap();
+            }
+
+            Ok(())
+        }
         #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&cli.run.normalize())?;
