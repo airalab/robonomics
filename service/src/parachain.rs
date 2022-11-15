@@ -64,7 +64,11 @@ pub mod alpha {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        local_key: sc_network::Keypair,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, AlphaExecutor, _, _>(
             parachain_config,
@@ -74,7 +78,11 @@ pub mod alpha {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
+            local_key,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }
@@ -106,7 +114,11 @@ pub mod main {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        local_key: sc_network::Keypair,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, MainExecutor, _, _>(
             parachain_config,
@@ -116,7 +128,11 @@ pub mod main {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
+            local_key,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }
@@ -147,7 +163,11 @@ pub mod ipci {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
+        local_key: sc_network::Keypair,
         heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
     ) -> sc_service::error::Result<sc_service::TaskManager> {
         super::service::start_node_impl::<RuntimeApi, IpciExecutor, _, _>(
             parachain_config,
@@ -157,7 +177,11 @@ pub mod ipci {
             lighthouse_account,
             super::service::build_open_import_queue,
             super::service::build_open_consensus,
+            local_key,
             heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
         )
         .await
     }

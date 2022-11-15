@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::pubsub::PubSub;
+use robonomics_protocol::network::RobonomicsNetwork;
 
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
@@ -40,20 +40,20 @@ use pubsub::{PubSubRpc, PubSubRpcServer};
 //use reqres::{ReqRespRpc, ReqRespRpcServer};
 
 /// Full client dependencies.
-pub struct FullDeps<C, P, T> {
+pub struct FullDeps<C, P> {
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
-    // PubSub worker.
-    pub pubsub: Arc<T>,
+    /// Robonomics Network.
+    pub network: Arc<RobonomicsNetwork>,
 }
 
 /// Instantiate all Full RPC extensions.
-pub fn create_full<C, P, T>(
-    deps: FullDeps<C, P, T>,
+pub fn create_full<C, P>(
+    deps: FullDeps<C, P>,
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
@@ -67,7 +67,6 @@ where
         + pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
         + BlockBuilder<Block>,
     P: TransactionPool + Sync + Send + 'static,
-    T: PubSub + Sync + Send + 'static,
 {
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use substrate_frame_rpc_system::{System, SystemApiServer};
@@ -77,14 +76,14 @@ where
         client,
         pool,
         deny_unsafe,
-        pubsub,
+        network,
     } = deps;
 
     io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    io.merge(PubSubRpc::new(pubsub).into_rpc())?;
+    io.merge(PubSubRpc::new(network.clone()).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
-    //io.merge(ReqRespRpc::new().into_rpc())?;
+    // io.merge(ReqRespRpc::new(network).into_rpc())?;
 
     Ok(io)
 }
