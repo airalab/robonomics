@@ -108,8 +108,8 @@ pub trait PubSub {
 
 /// LibP2P Gossipsub based publisher/subscriber service.
 pub struct Pubsub {
-    pub peer_id: PeerId,
-    pub to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
+    peer_id: PeerId,
+    to_worker: mpsc::UnboundedSender<ToWorkerMsg>,
 }
 
 impl Pubsub {
