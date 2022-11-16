@@ -33,8 +33,9 @@ use robonomics_protocol::{
     pubsub::{PubSub, Pubsub},
 };
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use std::path::Path;
 #[cfg(feature = "discovery")]
-use std::{collections::HashMap, fs, thread};
+use std::{collections::HashMap, thread};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -115,13 +116,11 @@ pub fn run() -> sc_cli::Result<()> {
             #[cfg(feature = "discovery")]
             {
                 // Get local key
-                // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
-                let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
-                    fs::read(local_key_file).map_or(id::random(), |mut bytes| {
-                        sc_network::Keypair::rsa_from_pkcs8(&mut bytes)
-                            .map_or(id::random(), |key| key)
-                    })
+                let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
+                    id::load(Path::new(&file_name)).expect("Correct file path")
                 });
+
+                // Default interval 1 sec
                 let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
 
                 let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
@@ -178,11 +177,8 @@ pub fn run() -> sc_cli::Result<()> {
             let collator_options = cli.run.collator_options();
 
             // Get local key
-            // https://docs.rs/libp2p/latest/libp2p/identity/enum.Keypair.html#example-generating-rsa-keys-with-openssl
-            let local_key = cli.local_key.map_or(id::random(), |local_key_file| {
-                std::fs::read(local_key_file).map_or(id::random(), |mut bytes| {
-                    sc_network::Keypair::rsa_from_pkcs8(&mut bytes).map_or(id::random(), |key| key)
-                })
+            let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
+                id::load(Path::new(&file_name)).expect("Correct file path")
             });
 
             // Default interval 1 sec

@@ -45,7 +45,7 @@ pub struct Cli {
 
     /// Local key.
     #[clap(long)]
-    pub local_key: Option<String>,
+    pub local_key_file: Option<String>,
 
     /// PubSub heartbeat interval.
     #[clap(long)]
