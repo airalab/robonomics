@@ -1,13 +1,14 @@
 use super::{
     AccountId, AssetId, Assets, Balance, Balances, Call, DealWithFees, Event, Origin,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, WeightToFee, XcmpQueue,
+    MAXIMUM_BLOCK_WEIGHT,
 };
 use frame_support::{
     match_types,
     pallet_prelude::Get,
     parameter_types,
     traits::{Everything, Nothing, PalletInfoAccess},
-    weights::{IdentityFee, Weight},
+    weights::Weight,
     WeakBoundedVec,
 };
 use sp_runtime::traits::{Bounded, ConstU32};
@@ -36,8 +37,6 @@ parameter_types! {
     pub const Local: MultiLocation = Here.into();
     pub AssetsPalletLocation: MultiLocation =
         PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
-    pub AnchoringSelfReserve: MultiLocation =
-        PalletInstance(<Balances as PalletInfoAccess>::index() as u8).into();
     pub CheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
@@ -58,7 +57,7 @@ pub type CurrencyTransactor = CurrencyAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
-    IsConcrete<AnchoringSelfReserve>,
+    IsConcrete<Local>,
     // Convert an XCM MultiLocation into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -130,7 +129,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (FungiblesTransactor, CurrencyTransactor);
+pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -202,13 +201,7 @@ impl Config for XcmConfig {
     type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
     type Trader = (
         FixedRateOfFungible<KsmPerSecond, ()>,
-        UsingComponents<
-            IdentityFee<Balance>,
-            AnchoringSelfReserve,
-            AccountId,
-            Balances,
-            DealWithFees,
-        >,
+        UsingComponents<WeightToFee, Local, AccountId, Balances, DealWithFees>,
     );
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
