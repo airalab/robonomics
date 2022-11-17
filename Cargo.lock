@@ -119,6 +119,7 @@ dependencies = [
  "polkadot-parachain",
  "polkadot-primitives",
  "robonomics-primitives",
+ "rococo-runtime",
  "scale-info",
  "serde",
  "serde_derive",
@@ -4747,6 +4748,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-rpc-runtime-api",
+ "kusama-runtime",
  "lazy_static",
  "pallet-assets",
  "pallet-balances",
@@ -5924,11 +5926,9 @@ version = "0.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
- "kusama-runtime",
  "parity-scale-codec",
  "polkadot-primitives",
  "polkadot-runtime-common",
- "rococo-runtime",
  "scale-info",
  "serde",
  "sp-core 6.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28)",
@@ -12145,7 +12145,7 @@ checksum = "e7141e445af09c8919f1d5f8a20dae0b20c3b57a45dee0d5823c6ed5d237f15a"
 dependencies = [
  "bitflags",
  "chrono",
- "rustc_version 0.4.0",
+ "rustc_version 0.2.3",
 ]
 
 [[package]]

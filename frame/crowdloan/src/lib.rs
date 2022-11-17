@@ -52,18 +52,16 @@ fn transact_xcm(call: xcm::DoubleEncoded<()>, para_id: u32) -> Xcm<()> {
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::pallet_prelude::*;
+    use frame_support::{pallet_prelude::*, traits::Currency};
     use frame_system::pallet_prelude::*;
     use polkadot_primitives::v2::{HeadData, Id as ParaId, ValidationCode};
-    use polkadot_runtime_common::{crowdloan, paras_registrar as registrar};
-
-    #[cfg(feature = "rococo")]
-    use rococo_runtime::Call as RelayCall;
-
-    #[cfg(feature = "kusama")]
-    use kusama_runtime::Call as RelayCall;
+    use polkadot_runtime_common::{crowdloan, paras_registrar as registrar, traits::Auctioneer};
 
     use super::*;
+
+    type BalanceOf<T> = <<<T as crowdloan::Config>::Auctioneer as Auctioneer<
+        <T as frame_system::Config>::BlockNumber,
+    >>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[pallet::config]
     pub trait Config: frame_system::Config + TypeInfo {
@@ -71,6 +69,12 @@ pub mod pallet {
         type ParachainId: Get<ParaId>;
         /// The type used to actually dispatch an XCM to its destination.
         type XcmRouter: SendXcm;
+        /// The relay chain configuration type.
+        type RelayRuntime: registrar::Config + crowdloan::Config;
+        /// The relay chain call type, used for making correct XCM transaction.
+        type RelayCall: From<registrar::Call<Self::RelayRuntime>>
+            + From<crowdloan::Call<Self::RelayRuntime>>
+            + Encode;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
     }
@@ -107,7 +111,7 @@ pub mod pallet {
 
             // create valid runtime call
             // this call should register para_id and create parathread
-            let call: RelayCall = registrar::Call::reserve {}.into();
+            let call: T::RelayCall = registrar::Call::reserve {}.into();
 
             // create XVM call for the parachain
             let xcm = transact_xcm(call.encode().into(), my_id.into());
@@ -135,7 +139,7 @@ pub mod pallet {
 
             // create valid runtime call
             // this call should register para_id and create parathread
-            let call: RelayCall = registrar::Call::register {
+            let call: T::RelayCall = registrar::Call::register {
                 id,
                 genesis_head,
                 validation_code,
@@ -158,10 +162,10 @@ pub mod pallet {
         pub fn start(
             origin: OriginFor<T>,
             #[pallet::compact] index: ParaId,
-            #[pallet::compact] cap: u128,
-            #[pallet::compact] first_period: u32,
-            #[pallet::compact] last_period: u32,
-            #[pallet::compact] end: u32,
+            #[pallet::compact] cap: BalanceOf<T::RelayRuntime>,
+            #[pallet::compact] first_period: BlockNumberFor<T::RelayRuntime>,
+            #[pallet::compact] last_period: BlockNumberFor<T::RelayRuntime>,
+            #[pallet::compact] end: BlockNumberFor<T::RelayRuntime>,
         ) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 
@@ -170,7 +174,7 @@ pub mod pallet {
 
             // create valid runtime call
             // this call should start new crowdloan for owned parachain id
-            let call: RelayCall = crowdloan::Call::create {
+            let call: T::RelayCall = crowdloan::Call::create {
                 index,
                 cap,
                 first_period,
@@ -204,7 +208,7 @@ pub mod pallet {
 
             // create valid runtime call
             // this call should swap para_id and other, both should be owned
-            let call: RelayCall = registrar::Call::swap {
+            let call: T::RelayCall = registrar::Call::swap {
                 id: my_id.clone(),
                 other: target,
             }

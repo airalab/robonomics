@@ -542,6 +542,8 @@ impl parachain_info::Config for Runtime {}
 impl pallet_robonomics_crowdloan::Config for Runtime {
     type ParachainId = ParachainInfo;
     type XcmRouter = xcm_config::XcmRouter;
+    type RelayRuntime = kusama_runtime::Runtime;
+    type RelayCall = kusama_runtime::Call;
     type Event = Event;
 }
 
