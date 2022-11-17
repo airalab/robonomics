@@ -38,16 +38,12 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{
-        Contains, Currency, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, LockIdentifier,
-        OnUnbalanced, U128CurrencyToVote,
-    },
+    traits::{Contains, Currency, Imbalance, OnUnbalanced},
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
         ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
-    PalletId,
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
@@ -64,7 +60,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, Perbill, Permill, Perquintill,
+    FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -359,6 +355,12 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 }
 
+impl pallet_robonomics_crowdloan::Config for Runtime {
+    type ParachainId = ParachainInfo;
+    type XcmRouter = xcm_config::XcmRouter;
+    type Event = Event;
+}
+
 parameter_types! {
     pub const WindowSize: u64 = 128;
     pub const MaximumMessageSize: usize = 512;
@@ -468,6 +470,7 @@ construct_runtime! {
         TransactionPayment: pallet_transaction_payment,
 
         // Robonomics Network pallets.
+        Crowdloan: pallet_robonomics_crowdloan,
         Datalog: pallet_robonomics_datalog,
         Launch: pallet_robonomics_launch,
         RWS: pallet_robonomics_rws,

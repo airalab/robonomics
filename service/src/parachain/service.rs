@@ -37,7 +37,7 @@ use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
 use robonomics_protocol::pubsub::gossipsub::PubSub;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::{NetworkBlock, NetworkService};
-use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
+use sc_service::{Configuration, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{TelemetryHandle, TelemetryWorkerHandle};
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;

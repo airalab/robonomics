@@ -4,6 +4,7 @@ members = [
   "bin/node",
   "bin/node",
   #    "cli",
+  "frame/crowdloan",
   "frame/rws",
   "frame/launch",
   "frame/datalog",
