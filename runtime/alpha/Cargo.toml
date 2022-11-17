@@ -47,7 +47,9 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 
 # robonomics dependencies
-pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false, features = ["rococo"] }
+pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false, features = [
+  "rococo",
+] }
 pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
 pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }

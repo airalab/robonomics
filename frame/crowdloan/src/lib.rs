@@ -139,7 +139,8 @@ pub mod pallet {
                 id,
                 genesis_head,
                 validation_code,
-            }.into();
+            }
+            .into();
 
             // create XVM call for the parachain
             let xcm = transact_xcm(call.encode().into(), my_id.into());
