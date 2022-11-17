@@ -823,6 +823,15 @@
 <span id="823">823</span>
 <span id="824">824</span>
 <span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -900,7 +909,7 @@
     <span class="ident">spec_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics&quot;</span>),
     <span class="ident">impl_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-airalab&quot;</span>),
     <span class="ident">authoring_version</span>: <span class="number">1</span>,
-    <span class="ident">spec_version</span>: <span class="number">25</span>,
+    <span class="ident">spec_version</span>: <span class="number">26</span>,
     <span class="ident">impl_version</span>: <span class="number">0</span>,
     <span class="ident">apis</span>: <span class="ident">RUNTIME_API_VERSIONS</span>,
     <span class="ident">transaction_version</span>: <span class="number">1</span>,
@@ -1364,6 +1373,14 @@
 
 <span class="kw">impl</span> <span class="ident">parachain_info::Config</span> <span class="kw">for</span> <span class="ident">Runtime</span> {}
 
+<span class="kw">impl</span> <span class="ident">pallet_robonomics_crowdloan::Config</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
+    <span class="kw">type</span> <span class="ident">ParachainId</span> <span class="op">=</span> <span class="ident">ParachainInfo</span>;
+    <span class="kw">type</span> <span class="ident">XcmRouter</span> <span class="op">=</span> <span class="ident">xcm_config::XcmRouter</span>;
+    <span class="kw">type</span> <span class="ident">RelayRuntime</span> <span class="op">=</span> <span class="ident">kusama_runtime::Runtime</span>;
+    <span class="kw">type</span> <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">kusama_runtime::Call</span>;
+    <span class="kw">type</span> <span class="ident">Event</span> <span class="op">=</span> <span class="ident">Event</span>;
+}
+
 <span class="macro">parameter_types!</span> {
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">WindowSize</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">128</span>;
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MaximumMessageSize</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">512</span>;
@@ -1488,6 +1505,7 @@
         <span class="ident">DigitalTwin</span>: <span class="ident">pallet_robonomics_digital_twin</span> <span class="op">=</span> <span class="number">54</span>,
         <span class="ident">RWS</span>: <span class="ident">pallet_robonomics_rws</span> <span class="op">=</span> <span class="number">55</span>,
         <span class="ident">Liability</span>: <span class="ident">pallet_robonomics_liability</span> <span class="op">=</span> <span class="number">56</span>,
+        <span class="ident">Crowdloan</span>: <span class="ident">pallet_robonomics_crowdloan</span> <span class="op">=</span> <span class="number">57</span>,
 
         <span class="ident">Lighthouse</span>: <span class="ident">pallet_robonomics_lighthouse</span> <span class="op">=</span> <span class="number">60</span>,
 

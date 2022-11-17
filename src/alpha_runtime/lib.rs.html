@@ -632,6 +632,11 @@
 <span id="632">632</span>
 <span id="633">633</span>
 <span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -672,16 +677,12 @@
 
 <span class="kw">use</span> <span class="ident">frame_support</span>::{
     <span class="ident">construct_runtime</span>, <span class="ident">parameter_types</span>,
-    <span class="ident">traits</span>::{
-        <span class="ident">Contains</span>, <span class="ident">Currency</span>, <span class="ident">EitherOfDiverse</span>, <span class="ident">EqualPrivilegeOnly</span>, <span class="ident">Imbalance</span>, <span class="ident">LockIdentifier</span>,
-        <span class="ident">OnUnbalanced</span>, <span class="ident">U128CurrencyToVote</span>,
-    },
+    <span class="ident">traits</span>::{<span class="ident">Contains</span>, <span class="ident">Currency</span>, <span class="ident">Imbalance</span>, <span class="ident">OnUnbalanced</span>},
     <span class="ident">weights</span>::{
         <span class="ident">constants</span>::{<span class="ident">BlockExecutionWeight</span>, <span class="ident">ExtrinsicBaseWeight</span>, <span class="ident">RocksDbWeight</span>, <span class="ident">WEIGHT_PER_SECOND</span>},
         <span class="ident">ConstantMultiplier</span>, <span class="ident">DispatchClass</span>, <span class="ident">Weight</span>, <span class="ident">WeightToFeeCoefficient</span>, <span class="ident">WeightToFeeCoefficients</span>,
         <span class="ident">WeightToFeePolynomial</span>,
     },
-    <span class="ident">PalletId</span>,
 };
 <span class="kw">use</span> <span class="ident">frame_system</span>::{
     <span class="ident">limits</span>::{<span class="ident">BlockLength</span>, <span class="ident">BlockWeights</span>},
@@ -698,7 +699,7 @@
     <span class="ident">create_runtime_str</span>, <span class="ident">generic</span>, <span class="ident">impl_opaque_keys</span>,
     <span class="ident">traits</span>::{<span class="ident">AccountIdLookup</span>, <span class="ident">BlakeTwo256</span>, <span class="ident">Block</span> <span class="kw">as</span> <span class="ident">BlockT</span>},
     <span class="ident">transaction_validity</span>::{<span class="ident">TransactionSource</span>, <span class="ident">TransactionValidity</span>},
-    <span class="ident">FixedPointNumber</span>, <span class="ident">Perbill</span>, <span class="ident">Permill</span>, <span class="ident">Perquintill</span>,
+    <span class="ident">FixedPointNumber</span>, <span class="ident">Perbill</span>, <span class="ident">Perquintill</span>,
 };
 <span class="kw">use</span> <span class="ident">sp_std::prelude</span>::<span class="kw-2">*</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;std&quot;</span>)]</span>
@@ -715,7 +716,7 @@
     <span class="ident">spec_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-alpha&quot;</span>),
     <span class="ident">impl_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-airalab&quot;</span>),
     <span class="ident">authoring_version</span>: <span class="number">1</span>,
-    <span class="ident">spec_version</span>: <span class="number">8</span>,
+    <span class="ident">spec_version</span>: <span class="number">9</span>,
     <span class="ident">impl_version</span>: <span class="number">0</span>,
     <span class="ident">apis</span>: <span class="ident">RUNTIME_API_VERSIONS</span>,
     <span class="ident">transaction_version</span>: <span class="number">1</span>,
@@ -993,6 +994,14 @@
     <span class="kw">type</span> <span class="ident">CheckAssociatedRelayNumber</span> <span class="op">=</span> <span class="ident">cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases</span>;
 }
 
+<span class="kw">impl</span> <span class="ident">pallet_robonomics_crowdloan::Config</span> <span class="kw">for</span> <span class="ident">Runtime</span> {
+    <span class="kw">type</span> <span class="ident">ParachainId</span> <span class="op">=</span> <span class="ident">ParachainInfo</span>;
+    <span class="kw">type</span> <span class="ident">XcmRouter</span> <span class="op">=</span> <span class="ident">xcm_config::XcmRouter</span>;
+    <span class="kw">type</span> <span class="ident">RelayRuntime</span> <span class="op">=</span> <span class="ident">rococo_runtime::Runtime</span>;
+    <span class="kw">type</span> <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">rococo_runtime::Call</span>;
+    <span class="kw">type</span> <span class="ident">Event</span> <span class="op">=</span> <span class="ident">Event</span>;
+}
+
 <span class="macro">parameter_types!</span> {
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">WindowSize</span>: <span class="ident">u64</span> <span class="op">=</span> <span class="number">128</span>;
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MaximumMessageSize</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">512</span>;
@@ -1102,6 +1111,7 @@
         <span class="ident">TransactionPayment</span>: <span class="ident">pallet_transaction_payment</span>,
 
         <span class="comment">// Robonomics Network pallets.</span>
+        <span class="ident">Crowdloan</span>: <span class="ident">pallet_robonomics_crowdloan</span>,
         <span class="ident">Datalog</span>: <span class="ident">pallet_robonomics_datalog</span>,
         <span class="ident">Launch</span>: <span class="ident">pallet_robonomics_launch</span>,
         <span class="ident">RWS</span>: <span class="ident">pallet_robonomics_rws</span>,
