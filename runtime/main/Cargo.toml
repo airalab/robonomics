@@ -127,6 +127,7 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-lighthouse/std",
+  "pallet-robonomics-crowdloan/std",
   "pallet-robonomics-rws/std",
   "pallet-robonomics-staking/std",
   "cumulus-pallet-parachain-system/std",
