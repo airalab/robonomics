@@ -8339,7 +8339,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc"
-version = "2.3.1"
+version = "2.5.0"
 dependencies = [
  "hex",
  "jsonrpsee 0.15.1",
@@ -12145,7 +12145,7 @@ checksum = "e7141e445af09c8919f1d5f8a20dae0b20c3b57a45dee0d5823c6ed5d237f15a"
 dependencies = [
  "bitflags",
  "chrono",
- "rustc_version 0.2.3",
+ "rustc_version 0.4.0",
 ]
 
 [[package]]
