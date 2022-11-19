@@ -253,8 +253,9 @@ pub async fn reqres(
                         },
                 } => match response {
                     Response::Pong => {
-                        let pong_msg = format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);           
-                        log::debug!("{}",pong_msg.clone());
+                        let pong_msg =
+                            format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                        log::debug!("{}", pong_msg.clone());
                         break pong_msg.to_string();
                     }
                     Response::Data(data) => {
@@ -265,14 +266,14 @@ pub async fn reqres(
                             remote_peer
                         );
                         let data_msg = format!("{}", String::from_utf8_lossy(&decoded[..]));
-                        log::debug!("{}",data_msg.clone());
+                        log::debug!("{}", data_msg.clone());
                         break data_msg.to_string();
                     }
                 },
 
                 e => {
                     let err_msg = format!("Peer2 err: {:?}", e);
-                    println!("{}",err_msg.clone());
+                    println!("{}", err_msg.clone());
                     break err_msg.to_string();
                 }
             },
