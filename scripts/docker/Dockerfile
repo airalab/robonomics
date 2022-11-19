@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as builder
+FROM ubuntu:22.04 as builder
 
 # metadata
 ARG VCS_REF
@@ -16,11 +16,14 @@ LABEL io.parity.image.authors="research@robonomics.network" \
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-RUN apt-get update && apt-get install jq curl bash -y && \
-	curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+RUN apt-get update && \
+        echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
+        apt-get install dialog apt-utils -y && \
+        apt-get install jq curl bash gcc g++ make -y && \
+	curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
 	apt-get install -y nodejs && \
-	npm install --global yarn && \
-	yarn global add @polkadot/api-cli && \
+        npm install -g npm@latest && \
+        npm install -g @polkadot/api-cli && \
 	useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics && \
 	mkdir -p /robonomics/.local/share && \
 	mkdir /data && \
