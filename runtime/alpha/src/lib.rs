@@ -77,7 +77,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-alpha"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 9,
+    spec_version: 11,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -355,14 +355,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 }
 
-impl pallet_robonomics_crowdloan::Config for Runtime {
-    type ParachainId = ParachainInfo;
-    type XcmRouter = xcm_config::XcmRouter;
-    type RelayRuntime = rococo_runtime::Runtime;
-    type RelayCall = rococo_runtime::Call;
-    type Event = Event;
-}
-
 parameter_types! {
     pub const WindowSize: u64 = 128;
     pub const MaximumMessageSize: usize = 512;
@@ -472,7 +464,6 @@ construct_runtime! {
         TransactionPayment: pallet_transaction_payment,
 
         // Robonomics Network pallets.
-        Crowdloan: pallet_robonomics_crowdloan,
         Datalog: pallet_robonomics_datalog,
         Launch: pallet_robonomics_launch,
         RWS: pallet_robonomics_rws,
