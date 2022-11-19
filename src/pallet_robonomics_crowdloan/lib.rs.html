@@ -217,6 +217,15 @@
 <span id="217">217</span>
 <span id="218">218</span>
 <span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -271,13 +280,16 @@
 
 <span class="attribute">#[<span class="ident">frame_support::pallet</span>]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">pallet</span> {
-    <span class="kw">use</span> <span class="ident">frame_support::pallet_prelude</span>::<span class="kw-2">*</span>;
+    <span class="kw">use</span> <span class="ident">frame_support</span>::{<span class="ident">pallet_prelude</span>::<span class="kw-2">*</span>, <span class="ident">traits::Currency</span>};
     <span class="kw">use</span> <span class="ident">frame_system::pallet_prelude</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">kusama_runtime::Call</span> <span class="kw">as</span> <span class="ident">RelayCall</span>;
     <span class="kw">use</span> <span class="ident">polkadot_primitives::v2</span>::{<span class="ident">HeadData</span>, <span class="ident">Id</span> <span class="kw">as</span> <span class="ident">ParaId</span>, <span class="ident">ValidationCode</span>};
-    <span class="kw">use</span> <span class="ident">polkadot_runtime_common</span>::{<span class="ident">crowdloan</span>, <span class="ident">paras_registrar</span> <span class="kw">as</span> <span class="ident">registrar</span>};
+    <span class="kw">use</span> <span class="ident">polkadot_runtime_common</span>::{<span class="ident">crowdloan</span>, <span class="ident">paras_registrar</span> <span class="kw">as</span> <span class="ident">registrar</span>, <span class="ident">traits::Auctioneer</span>};
 
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+
+    <span class="kw">type</span> <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">crowdloan::Config</span><span class="op">&gt;</span><span class="ident">::Auctioneer</span> <span class="kw">as</span> <span class="ident">Auctioneer</span><span class="op">&lt;</span>
+        <span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">frame_system::Config</span><span class="op">&gt;</span><span class="ident">::BlockNumber</span>,
+    <span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Currency</span> <span class="kw">as</span> <span class="ident">Currency</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">T</span> <span class="kw">as</span> <span class="ident">frame_system::Config</span><span class="op">&gt;</span><span class="ident">::AccountId</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Balance</span>;
 
     <span class="attribute">#[<span class="ident">pallet::config</span>]</span>
     <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Config</span>: <span class="ident">frame_system::Config</span> <span class="op">+</span> <span class="ident">TypeInfo</span> {
@@ -285,6 +297,12 @@
         <span class="kw">type</span> <span class="ident">ParachainId</span>: <span class="ident">Get</span><span class="op">&lt;</span><span class="ident">ParaId</span><span class="op">&gt;</span>;
         <span class="doccomment">/// The type used to actually dispatch an XCM to its destination.</span>
         <span class="kw">type</span> <span class="ident">XcmRouter</span>: <span class="ident">SendXcm</span>;
+        <span class="doccomment">/// The relay chain configuration type.</span>
+        <span class="kw">type</span> <span class="ident">RelayRuntime</span>: <span class="ident">registrar::Config</span> <span class="op">+</span> <span class="ident">crowdloan::Config</span>;
+        <span class="doccomment">/// The relay chain call type, used for making correct XCM transaction.</span>
+        <span class="kw">type</span> <span class="ident">RelayCall</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">registrar::Call</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::RelayRuntime</span><span class="op">&gt;</span><span class="op">&gt;</span>
+            <span class="op">+</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">crowdloan::Call</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::RelayRuntime</span><span class="op">&gt;</span><span class="op">&gt;</span>
+            <span class="op">+</span> <span class="ident">Encode</span>;
         <span class="doccomment">/// The overarching event type.</span>
         <span class="kw">type</span> <span class="ident">Event</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">IsType</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">frame_system::Config</span><span class="op">&gt;</span><span class="ident">::Event</span><span class="op">&gt;</span>;
     }
@@ -321,7 +339,7 @@
 
             <span class="comment">// create valid runtime call</span>
             <span class="comment">// this call should register para_id and create parathread</span>
-            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::reserve</span> {}.<span class="ident">into</span>();
+            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">T::RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::reserve</span> {}.<span class="ident">into</span>();
 
             <span class="comment">// create XVM call for the parachain</span>
             <span class="kw">let</span> <span class="ident">xcm</span> <span class="op">=</span> <span class="ident">transact_xcm</span>(<span class="ident">call</span>.<span class="ident">encode</span>().<span class="ident">into</span>(), <span class="ident">my_id</span>.<span class="ident">into</span>());
@@ -349,7 +367,7 @@
 
             <span class="comment">// create valid runtime call</span>
             <span class="comment">// this call should register para_id and create parathread</span>
-            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::register</span> {
+            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">T::RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::register</span> {
                 <span class="ident">id</span>,
                 <span class="ident">genesis_head</span>,
                 <span class="ident">validation_code</span>,
@@ -372,10 +390,10 @@
         <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start</span>(
             <span class="ident">origin</span>: <span class="ident">OriginFor</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
             <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">index</span>: <span class="ident">ParaId</span>,
-            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">cap</span>: <span class="ident">u128</span>,
-            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">first_period</span>: <span class="ident">u32</span>,
-            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">last_period</span>: <span class="ident">u32</span>,
-            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">end</span>: <span class="ident">u32</span>,
+            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">cap</span>: <span class="ident">BalanceOf</span><span class="op">&lt;</span><span class="ident">T::RelayRuntime</span><span class="op">&gt;</span>,
+            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">first_period</span>: <span class="ident">BlockNumberFor</span><span class="op">&lt;</span><span class="ident">T::RelayRuntime</span><span class="op">&gt;</span>,
+            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">last_period</span>: <span class="ident">BlockNumberFor</span><span class="op">&lt;</span><span class="ident">T::RelayRuntime</span><span class="op">&gt;</span>,
+            <span class="attribute">#[<span class="ident">pallet::compact</span>]</span> <span class="ident">end</span>: <span class="ident">BlockNumberFor</span><span class="op">&lt;</span><span class="ident">T::RelayRuntime</span><span class="op">&gt;</span>,
         ) -&gt; <span class="ident">DispatchResultWithPostInfo</span> {
             <span class="ident">ensure_root</span>(<span class="ident">origin</span>)<span class="question-mark">?</span>;
 
@@ -384,7 +402,7 @@
 
             <span class="comment">// create valid runtime call</span>
             <span class="comment">// this call should start new crowdloan for owned parachain id</span>
-            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">crowdloan::Call::create</span> {
+            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">T::RelayCall</span> <span class="op">=</span> <span class="ident">crowdloan::Call::create</span> {
                 <span class="ident">index</span>,
                 <span class="ident">cap</span>,
                 <span class="ident">first_period</span>,
@@ -418,7 +436,7 @@
 
             <span class="comment">// create valid runtime call</span>
             <span class="comment">// this call should swap para_id and other, both should be owned</span>
-            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::swap</span> {
+            <span class="kw">let</span> <span class="ident">call</span>: <span class="ident">T::RelayCall</span> <span class="op">=</span> <span class="ident">registrar::Call::swap</span> {
                 <span class="ident">id</span>: <span class="ident">my_id</span>.<span class="ident">clone</span>(),
                 <span class="ident">other</span>: <span class="ident">target</span>,
             }
