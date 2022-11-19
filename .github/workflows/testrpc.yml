@@ -31,7 +31,7 @@ jobs:
 
     - name: Install toolchain, build and run rpc reqres test 
       run: |
-           wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+           wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
            apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
            apt update
            apt-get install cmake coreutils libclang-dev -y
