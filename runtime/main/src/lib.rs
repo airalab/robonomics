@@ -75,7 +75,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 27,
+    spec_version: 28,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -539,12 +539,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 
 impl parachain_info::Config for Runtime {}
 
-impl pallet_robonomics_crowdloan::Config for Runtime {
-    type ParachainId = ParachainInfo;
-    type XcmRouter = xcm_config::XcmRouter;
-    type Event = Event;
-}
-
 parameter_types! {
     pub const WindowSize: u64 = 128;
     pub const MaximumMessageSize: usize = 512;
@@ -669,7 +663,6 @@ construct_runtime! {
         DigitalTwin: pallet_robonomics_digital_twin = 54,
         RWS: pallet_robonomics_rws = 55,
         Liability: pallet_robonomics_liability = 56,
-        Crowdloan: pallet_robonomics_crowdloan = 57,
 
         Lighthouse: pallet_robonomics_lighthouse = 60,
 
