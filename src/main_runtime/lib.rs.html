@@ -823,6 +823,16 @@
 <span id="823">823</span>
 <span id="824">824</span>
 <span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -900,7 +910,7 @@
     <span class="ident">spec_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics&quot;</span>),
     <span class="ident">impl_name</span>: <span class="macro">create_runtime_str!</span>(<span class="string">&quot;robonomics-airalab&quot;</span>),
     <span class="ident">authoring_version</span>: <span class="number">1</span>,
-    <span class="ident">spec_version</span>: <span class="number">28</span>,
+    <span class="ident">spec_version</span>: <span class="number">29</span>,
     <span class="ident">impl_version</span>: <span class="number">0</span>,
     <span class="ident">apis</span>: <span class="ident">RUNTIME_API_VERSIONS</span>,
     <span class="ident">transaction_version</span>: <span class="number">1</span>,
@@ -1636,10 +1646,20 @@
 
 <span class="kw">impl</span> <span class="ident">cumulus_pallet_parachain_system::CheckInherents</span><span class="op">&lt;</span><span class="ident">Block</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">CheckInherents</span> {
     <span class="kw">fn</span> <span class="ident">check_inherents</span>(
-        <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">Block</span>,
-        <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">cumulus_pallet_parachain_system::RelayChainStateProof</span>,
+        <span class="ident">block</span>: <span class="kw-2">&amp;</span><span class="ident">Block</span>,
+        <span class="ident">relay_state_proof</span>: <span class="kw-2">&amp;</span><span class="ident">cumulus_pallet_parachain_system::RelayChainStateProof</span>,
     ) -&gt; <span class="ident">sp_inherents::CheckInherentsResult</span> {
-        <span class="ident">sp_inherents::CheckInherentsResult::new</span>()
+        <span class="kw">let</span> <span class="ident">relay_chain_slot</span> <span class="op">=</span> <span class="ident">relay_state_proof</span>
+            .<span class="ident">read_slot</span>()
+            .<span class="ident">expect</span>(<span class="string">&quot;Could not read the relay chain slot from the proof&quot;</span>);
+        <span class="kw">let</span> <span class="ident">inherent_data</span> <span class="op">=</span>
+            <span class="ident">cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration</span>(
+                <span class="ident">relay_chain_slot</span>,
+                <span class="ident">sp_std::time::Duration::from_secs</span>(<span class="number">6</span>),
+            )
+            .<span class="ident">create_inherent_data</span>()
+            .<span class="ident">expect</span>(<span class="string">&quot;Could not create the timestamp inherent data&quot;</span>);
+        <span class="ident">inherent_data</span>.<span class="ident">check_extrinsics</span>(<span class="ident">block</span>)
     }
 }
 
