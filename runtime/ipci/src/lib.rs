@@ -75,7 +75,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("ipci"),
     impl_name: create_runtime_str!("ipci-airalab"),
     authoring_version: 1,
-    spec_version: 4,
+    spec_version: 5,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -751,10 +751,20 @@ struct CheckInherents;
 
 impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
     fn check_inherents(
-        _: &Block,
-        _: &cumulus_pallet_parachain_system::RelayChainStateProof,
+        block: &Block,
+        relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
     ) -> sp_inherents::CheckInherentsResult {
-        sp_inherents::CheckInherentsResult::new()
+        let relay_chain_slot = relay_state_proof
+            .read_slot()
+            .expect("Could not read the relay chain slot from the proof");
+        let inherent_data =
+            cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
+                relay_chain_slot,
+                sp_std::time::Duration::from_secs(6),
+            )
+            .create_inherent_data()
+            .expect("Could not create the timestamp inherent data");
+        inherent_data.check_extrinsics(block)
     }
 }
 
