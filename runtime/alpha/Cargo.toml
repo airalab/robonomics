@@ -1,6 +1,6 @@
 [package]
 name = "alpha-runtime"
-version = "2.6.0"
+version = "2.6.1"
 authors = ["Airalab <research@aira.life>"]
 edition = "2021"
 build = "build.rs"
@@ -62,6 +62,7 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", bra
 cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
 cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
+cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
 
 # polkadot dependencies
@@ -116,6 +117,7 @@ std = [
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-utility/std",
+  "cumulus-primitives-timestamp/std",
   "cumulus-pallet-dmp-queue/std",
   "cumulus-pallet-xcmp-queue/std",
   "cumulus-pallet-xcm/std",
