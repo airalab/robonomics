@@ -36,7 +36,7 @@ use libp2p::core::{
 };
 use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
 use libp2p::request_response::RequestResponseCodec;
-use libp2p::tcp::{GenTcpConfig, TcpTransport};
+use libp2p::tcp::{GenTcpConfig, TokioTcpTransport};
 use libp2p::yamux::YamuxConfig;
 use std::io;
 
@@ -167,7 +167,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
         Err(_e) => log::debug!("try to use peer ID from random keypair"),
     };
 
-    let transport = TcpTransport::new(GenTcpConfig::default().nodelay(true));
+    let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
     let noise_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&id_keys)
         .unwrap();
