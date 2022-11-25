@@ -17,8 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
+use libp2p::core::identity::Keypair;
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::pubsub::gossipsub::PubSub;
+use robonomics_protocol::{network::RobonomicsNetwork, pubsub::Pubsub};
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
@@ -29,7 +30,6 @@ use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
-use std::time::Duration;
 
 type FullClient<Runtime, Executor> =
     sc_service::TFullClient<Block, Runtime, NativeElseWasmExecutor<Executor>>;
@@ -73,7 +73,11 @@ where
 
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
+    local_key: Keypair,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> Result<
     sc_service::PartialComponents<
         FullClient<Runtime, Executor>,
@@ -177,10 +181,25 @@ where
     )?;
 
     let (pubsub, pubsub_worker) =
-        PubSub::new(Duration::from_millis(heartbeat_interval)).expect("New PubSub");
+        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+
     task_manager
         .spawn_handle()
         .spawn("pubsub_service", None, pubsub_worker);
+
+    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+        local_key,
+        pubsub.clone(),
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New robonomics network layer");
+
+    task_manager
+        .spawn_handle()
+        .spawn("network_service", None, network_worker);
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -191,7 +210,7 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                pubsub: pubsub.clone(),
+                network: robonomics_network.clone(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)
@@ -218,7 +237,11 @@ where
 /// Creates a full service from the configuration.
 pub fn full_base<Runtime, Executor>(
     mut config: Configuration,
+    local_key: Keypair,
     heartbeat_interval: u64,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> Result<
     (
         TaskManager,
@@ -243,7 +266,14 @@ where
         select_chain,
         transaction_pool,
         other: (rpc_builder, block_import, grandpa_link, mut telemetry),
-    } = new_partial(&config, heartbeat_interval)?;
+    } = new_partial(
+        &config,
+        local_key,
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )?;
 
     let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
@@ -410,6 +440,7 @@ where
 
 /// Robonomics chain services.
 pub mod robonomics {
+    use libp2p::core::identity::Keypair;
     use local_runtime::RuntimeApi;
     use sc_service::{config::Configuration, error::Result, TaskManager};
 
@@ -432,8 +463,22 @@ pub mod robonomics {
     }
 
     /// Create a new Robonomics service.
-    pub fn new(config: Configuration, heartbeat_interval: u64) -> Result<TaskManager> {
-        super::full_base::<RuntimeApi, LocalExecutor>(config, heartbeat_interval)
-            .map(|(task_manager, _, _, _)| task_manager)
+    pub fn new(
+        config: Configuration,
+        local_key: Keypair,
+        heartbeat_interval: u64,
+        bootnodes: Vec<String>,
+        disable_mdns: bool,
+        disable_kad: bool,
+    ) -> Result<TaskManager> {
+        super::full_base::<RuntimeApi, LocalExecutor>(
+            config,
+            local_key,
+            heartbeat_interval,
+            bootnodes,
+            disable_mdns,
+            disable_kad,
+        )
+        .map(|(task_manager, _, _, _)| task_manager)
     }
 }
