@@ -18,7 +18,7 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 hex-literal = "0.3.1"
 log = "0.4.17"
-libp2p = { version = "0.46.1", optional = true }
+libp2p = { version = "0.49", optional = true }
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
@@ -144,6 +144,7 @@ full = [
   "robonomics-protocol",
   "frame-benchmarking",
   "cumulus-client-cli",
+  "libp2p",
   #    "robonomics-cli",
 ]
 

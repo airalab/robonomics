@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics network worker.
 
-use futures::{executor::block_on, prelude::*, Future};
+use futures::{prelude::*, Future};
 use libp2p::{
     identity::Keypair,
     kad::KademliaEvent,
@@ -55,7 +55,7 @@ impl NetworkWorker {
         let peer_id = PeerId::from(local_key.public());
 
         // Set up an encrypted WebSocket compatible Transport
-        let transport = block_on(libp2p::development_transport(local_key.clone()))?;
+        let transport = libp2p::tokio_development_transport(local_key.clone())?;
 
         // Build a combined network behaviour
         let behaviour = RobonomicsNetworkBehaviour::new(

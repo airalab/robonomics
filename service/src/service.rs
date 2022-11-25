@@ -17,13 +17,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Service and ServiceFactory implementation. Specialized wrapper over Substrate service.
 
+use libp2p::core::identity::Keypair;
 use robonomics_primitives::{AccountId, Balance, Block, Index};
 use robonomics_protocol::{network::RobonomicsNetwork, pubsub::Pubsub};
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa as grandpa;
-use sc_network::{Keypair, NetworkService};
+use sc_network::NetworkService;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
@@ -439,6 +440,7 @@ where
 
 /// Robonomics chain services.
 pub mod robonomics {
+    use libp2p::core::identity::Keypair;
     use local_runtime::RuntimeApi;
     use sc_service::{config::Configuration, error::Result, TaskManager};
 
@@ -463,7 +465,7 @@ pub mod robonomics {
     /// Create a new Robonomics service.
     pub fn new(
         config: Configuration,
-        local_key: sc_network::Keypair,
+        local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,

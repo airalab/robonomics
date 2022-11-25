@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics network behaviour.
 
-use futures::executor::block_on;
 use libp2p::{
     gossipsub::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
@@ -25,7 +24,7 @@ use libp2p::{
     },
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
-    mdns::{Mdns, MdnsConfig, MdnsEvent},
+    mdns::{MdnsConfig, MdnsEvent, TokioMdns},
     request_response::RequestResponseEvent,
     swarm::behaviour::toggle::Toggle,
     NetworkBehaviour, PeerId,
@@ -45,7 +44,7 @@ use crate::{
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
     pub pubsub: Gossipsub,
-    pub mdns: Toggle<Mdns>,
+    pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
 }
 
@@ -75,7 +74,7 @@ impl RobonomicsNetworkBehaviour {
         // Build mDNS network behaviour
         let mdns = if !disable_mdns {
             log::info!("Using mDNS discovery service.");
-            let mdns = block_on(Mdns::new(MdnsConfig::default()))?;
+            let mdns = TokioMdns::new(MdnsConfig::default())?;
             Toggle::from(Some(mdns))
         } else {
             Toggle::from(None)

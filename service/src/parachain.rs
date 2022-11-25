@@ -42,6 +42,7 @@ pub fn load_spec(
 /// Robonomics AlphaNet on Airalab relaychain.
 pub mod alpha {
     pub use alpha_runtime::RuntimeApi;
+    use libp2p::core::identity::Keypair;
     use robonomics_primitives::AccountId;
 
     pub struct AlphaExecutor;
@@ -64,7 +65,7 @@ pub mod alpha {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
-        local_key: sc_network::Keypair,
+        local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
@@ -91,6 +92,7 @@ pub mod alpha {
 /// Robonomics MainNet on Kusama.
 #[cfg(feature = "kusama")]
 pub mod main {
+    use libp2p::core::identity::Keypair;
     pub use main_runtime::RuntimeApi;
     use robonomics_primitives::AccountId;
 
@@ -114,7 +116,7 @@ pub mod main {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
-        local_key: sc_network::Keypair,
+        local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
@@ -141,6 +143,7 @@ pub mod main {
 /// IPCI parachain on Airalab relaychain.
 pub mod ipci {
     pub use ipci_runtime::RuntimeApi;
+    use libp2p::core::identity::Keypair;
     use robonomics_primitives::AccountId;
 
     pub struct IpciExecutor;
@@ -163,7 +166,7 @@ pub mod ipci {
         collator_options: cumulus_client_cli::CollatorOptions,
         para_id: cumulus_primitives_core::ParaId,
         lighthouse_account: Option<AccountId>,
-        local_key: sc_network::Keypair,
+        local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
