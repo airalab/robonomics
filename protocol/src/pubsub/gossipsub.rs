@@ -23,7 +23,6 @@
 
 use futures::{
     channel::{mpsc, oneshot},
-    executor::block_on,
     prelude::*,
     Future,
 };
@@ -70,7 +69,7 @@ impl PubSubWorker {
         let peer_id = PeerId::from(local_key.public());
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-        let transport = block_on(libp2p::development_transport(local_key.clone()))?;
+        let transport = libp2p::tokio_development_transport(local_key.clone())?;
 
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::default()
