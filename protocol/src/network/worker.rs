@@ -22,7 +22,7 @@ use libp2p::{
     identity::Keypair,
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
-    swarm::{SwarmBuilder, SwarmEvent},
+    swarm::SwarmEvent,
     PeerId, Swarm,
 };
 use std::{

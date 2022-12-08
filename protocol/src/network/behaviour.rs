@@ -29,12 +29,6 @@ use libp2p::{
     swarm::behaviour::toggle::Toggle,
     NetworkBehaviour, PeerId,
 };
-use libp2p::{
-    identity, ping,
-    ping::Event as RosEvent,
-    swarm::{SwarmBuilder, SwarmEvent},
-    Multiaddr,
-};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -44,7 +38,7 @@ use std::{
 use crate::{
     error::Result,
     reqres::{Request, Response},
-    // ros::{Ros, RosConfig, RosEvent},
+    ros::{Behaviour as Ros, Config as RosConfig, RosEvent},
 };
 
 #[derive(NetworkBehaviour)]
@@ -53,8 +47,7 @@ pub struct RobonomicsNetworkBehaviour {
     pub pubsub: Gossipsub,
     pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
-    // pub ros: Ros,
-    pub ros: libp2p::ping::Behaviour,
+    pub ros: Ros,
 }
 
 impl RobonomicsNetworkBehaviour {
@@ -99,12 +92,7 @@ impl RobonomicsNetworkBehaviour {
             Toggle::from(None)
         };
 
-        // let ros = Ros::new(RosConfig::new());
-        let ros = libp2p::ping::Behaviour::new(
-            libp2p::ping::Config::new()
-                .with_keep_alive(true)
-                .with_interval(Duration::from_millis(1000)),
-        );
+        let ros = Ros::new(RosConfig::new());
 
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {

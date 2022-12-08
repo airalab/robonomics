@@ -20,22 +20,17 @@ use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
 #[cfg(feature = "discovery")]
-use libp2p::{
-    futures::{executor, StreamExt},
-    kad::KademliaEvent,
-    swarm::SwarmEvent,
-};
+use libp2p::{futures::StreamExt, swarm::SwarmEvent};
 use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
 use robonomics_protocol::{
-    network::behaviour::OutEvent,
     network::{discovery, worker::NetworkWorker},
-    pubsub::{PubSub, Pubsub},
+    pubsub::Pubsub,
 };
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use std::path::Path;
 #[cfg(feature = "discovery")]
-use std::{collections::HashMap, thread};
+use std::collections::HashMap;
+use std::path::Path;
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -146,9 +141,6 @@ pub async fn run() -> sc_cli::Result<()> {
 
     loop {
         match network_worker.swarm.select_next_some().await {
-            SwarmEvent::NewListenAddr { address, .. } => {
-                println!("Listening on {:?}", address)
-            }
             // SwarmEvent::Behaviour(OutEvent::Kademlia(KademliaEvent::RoutingUpdated {
             //     peer,
             //     addresses,
@@ -159,9 +151,11 @@ pub async fn run() -> sc_cli::Result<()> {
             //         let _ = pubsub.connect(addr.clone());
             //     }
             // }
-            other_event => {
-                println!("Event: {:?}", other_event);
+            SwarmEvent::NewListenAddr { address, .. } => {
+                println!("Listening on {:?}", address)
             }
+            SwarmEvent::Behaviour(event) => println!("{:?}", event),
+            _ => {}
         }
     }
 }
