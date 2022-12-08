@@ -26,6 +26,7 @@ parity-util-mem = { version = "0.11", default-features = false, features = [
   "jemalloc-global",
 ] }
 robonomics-service = { path = "../../service", default-features = false }
+tokio = { version = "1.23.0", features = ["full"] }
 
 [features]
 default = ["robonomics-service/kusama", "robonomics-service/wasmtime"]

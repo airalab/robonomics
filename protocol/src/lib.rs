@@ -23,4 +23,5 @@ pub mod id;
 pub mod network;
 pub mod pubsub;
 pub mod reqres;
+pub mod ros;
 pub mod subxt;

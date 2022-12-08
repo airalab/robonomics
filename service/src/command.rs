@@ -106,71 +106,74 @@ impl SubstrateCli for Cli {
     }
 }
 
+#[cfg(feature = "discovery")]
+pub async fn run() -> sc_cli::Result<()> {
+    env_logger::init();
+    let cli = Cli::from_args();
+
+    // Get local key
+    let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
+        id::load(Path::new(&file_name)).expect("Correct file path")
+    });
+
+    // Default interval 1 sec
+    let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+
+    let (pubsub, _) =
+        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+
+    let mut network_worker = NetworkWorker::new(
+        local_key,
+        heartbeat_interval,
+        pubsub.clone(),
+        cli.disable_mdns,
+        cli.disable_kad,
+    )
+    .expect("Correct network worker");
+
+    let mut peers = HashMap::new();
+    discovery::add_explicit_peers(
+        &mut network_worker.swarm,
+        &mut peers,
+        cli.robonomics_bootnodes,
+        cli.disable_kad,
+    );
+
+    network_worker
+        .swarm
+        .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
+        .expect("Swarm starts to listen");
+
+    loop {
+        match network_worker.swarm.select_next_some().await {
+            SwarmEvent::NewListenAddr { address, .. } => {
+                println!("Listening on {:?}", address)
+            }
+            // SwarmEvent::Behaviour(OutEvent::Kademlia(KademliaEvent::RoutingUpdated {
+            //     peer,
+            //     addresses,
+            //     ..
+            // })) => {
+            //     for addr in addresses.iter() {
+            //         println!("Kad discovered peer: {}", peer);
+            //         let _ = pubsub.connect(addr.clone());
+            //     }
+            // }
+            other_event => {
+                println!("Event: {:?}", other_event);
+            }
+        }
+    }
+}
+
 /// Parse command line arguments into service configuration.
+#[cfg(not(feature = "discovery"))]
 pub fn run() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
 
     match &cli.subcommand {
         #[cfg(not(feature = "full"))]
-        None => {
-            #[cfg(feature = "discovery")]
-            {
-                // Get local key
-                let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
-                    id::load(Path::new(&file_name)).expect("Correct file path")
-                });
-
-                // Default interval 1 sec
-                let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
-
-                let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
-                    .expect("New robonomics pubsub");
-
-                let mut network_worker = NetworkWorker::new(
-                    local_key,
-                    heartbeat_interval,
-                    pubsub.clone(),
-                    cli.disable_mdns,
-                    cli.disable_kad,
-                )
-                .expect("Correct network worker");
-
-                let mut peers = HashMap::new();
-                discovery::add_explicit_peers(
-                    &mut network_worker.swarm,
-                    &mut peers,
-                    cli.robonomics_bootnodes,
-                    cli.disable_kad,
-                );
-
-                network_worker
-                    .swarm
-                    .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-                    .expect("Swarm starts to listen");
-
-                thread::spawn(move || loop {
-                    match executor::block_on(network_worker.swarm.select_next_some()) {
-                        SwarmEvent::Behaviour(OutEvent::Kademlia(
-                            KademliaEvent::RoutingUpdated {
-                                peer, addresses, ..
-                            },
-                        )) => {
-                            for addr in addresses.iter() {
-                                println!("Kad discovered peer: {}", peer);
-                                let _ = pubsub.connect(addr.clone());
-                            }
-                        }
-                        other_event => {
-                            println!("Event: {:?}", other_event);
-                        }
-                    }
-                })
-                .join()
-                .unwrap();
-            }
-
-            Ok(())
-        }
+        None => Ok(()),
         #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&cli.run.normalize())?;

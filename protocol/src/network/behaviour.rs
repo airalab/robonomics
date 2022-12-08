@@ -29,6 +29,12 @@ use libp2p::{
     swarm::behaviour::toggle::Toggle,
     NetworkBehaviour, PeerId,
 };
+use libp2p::{
+    identity, ping,
+    ping::Event as RosEvent,
+    swarm::{SwarmBuilder, SwarmEvent},
+    Multiaddr,
+};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -38,6 +44,7 @@ use std::{
 use crate::{
     error::Result,
     reqres::{Request, Response},
+    // ros::{Ros, RosConfig, RosEvent},
 };
 
 #[derive(NetworkBehaviour)]
@@ -46,6 +53,8 @@ pub struct RobonomicsNetworkBehaviour {
     pub pubsub: Gossipsub,
     pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
+    // pub ros: Ros,
+    pub ros: libp2p::ping::Behaviour,
 }
 
 impl RobonomicsNetworkBehaviour {
@@ -90,11 +99,19 @@ impl RobonomicsNetworkBehaviour {
             Toggle::from(None)
         };
 
+        // let ros = Ros::new(RosConfig::new());
+        let ros = libp2p::ping::Behaviour::new(
+            libp2p::ping::Config::new()
+                .with_keep_alive(true)
+                .with_interval(Duration::from_millis(1000)),
+        );
+
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {
             pubsub,
             mdns,
             kademlia,
+            ros,
         })
     }
 }
@@ -105,6 +122,7 @@ pub enum OutEvent {
     Mdns(MdnsEvent),
     Kademlia(KademliaEvent),
     RequestResponse(RequestResponseEvent<Request, Response>),
+    Ros(RosEvent),
 }
 
 impl From<GossipsubEvent> for OutEvent {
@@ -128,5 +146,11 @@ impl From<KademliaEvent> for OutEvent {
 impl From<RequestResponseEvent<Request, Response>> for OutEvent {
     fn from(v: RequestResponseEvent<Request, Response>) -> Self {
         Self::RequestResponse(v)
+    }
+}
+
+impl From<RosEvent> for OutEvent {
+    fn from(v: RosEvent) -> Self {
+        Self::Ros(v)
     }
 }
