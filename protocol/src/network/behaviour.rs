@@ -38,7 +38,7 @@ use std::{
 use crate::{
     error::Result,
     reqres::{Request, Response},
-    ros::{Behaviour as Ros, Config as RosConfig, RosEvent},
+    ros::{Ros, RosConfig, RosEvent},
 };
 
 #[derive(NetworkBehaviour)]

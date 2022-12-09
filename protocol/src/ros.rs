@@ -26,7 +26,7 @@ use std::{
 };
 use void::Void;
 
-// pub const PROTOCOL_NAME: &[u8] = b"/robonomics/ros/1.0.0";
+// pub const PROTOCOL_NAME: &[u8] = b"/robonomics/ping/1.0.0";
 pub const PROTOCOL_NAME: &[u8] = b"/ipfs/ping/1.0.0";
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -74,9 +74,9 @@ pub type Result = std::result::Result<Success, Failure>;
 /// periodically sends outbound pings on every established connection.
 ///
 /// See the crate root documentation for more information.
-pub struct Behaviour {
+pub struct Ros {
     /// Configuration for outbound pings.
-    config: Config,
+    config: RosConfig,
     /// Queue of events to yield to the swarm.
     events: VecDeque<RosEvent>,
 }
@@ -90,9 +90,9 @@ pub struct RosEvent {
     pub result: Result,
 }
 
-impl Behaviour {
+impl Ros {
     /// Creates a new `Ping` network behaviour with the given configuration.
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: RosConfig) -> Self {
         Self {
             config,
             events: VecDeque::new(),
@@ -100,13 +100,13 @@ impl Behaviour {
     }
 }
 
-impl Default for Behaviour {
+impl Default for Ros {
     fn default() -> Self {
-        Self::new(Config::new())
+        Self::new(RosConfig::new())
     }
 }
 
-impl NetworkBehaviour for Behaviour {
+impl NetworkBehaviour for Ros {
     type ConnectionHandler = Handler;
     type OutEvent = RosEvent;
 
@@ -153,7 +153,7 @@ impl NetworkBehaviour for Behaviour {
 
 /// The configuration for outbound pings.
 #[derive(Debug, Clone)]
-pub struct Config {
+pub struct RosConfig {
     /// The timeout of an outbound ping.
     timeout: Duration,
     /// The duration between the last successful outbound or inbound ping
@@ -168,7 +168,7 @@ pub struct Config {
     keep_alive: bool,
 }
 
-impl Config {
+impl RosConfig {
     /// Creates a new [`Config`] with the following default settings:
     ///
     ///   * [`Config::with_interval`] 15s
@@ -234,7 +234,7 @@ impl Config {
     }
 }
 
-impl Default for Config {
+impl Default for RosConfig {
     fn default() -> Self {
         Self::new()
     }
@@ -291,7 +291,7 @@ impl Error for Failure {
 /// If the remote doesn't respond, produces an error that closes the connection.
 pub struct Handler {
     /// Configuration options.
-    config: Config,
+    config: RosConfig,
     /// The timer used for the delay to the next ping as well as
     /// the ping timeout.
     timer: Delay,
@@ -326,7 +326,7 @@ enum State {
 
 impl Handler {
     /// Builds a new [`Handler`] with the given configuration.
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: RosConfig) -> Self {
         Handler {
             config,
             timer: Delay::new(Duration::new(0, 0)),
