@@ -37,7 +37,7 @@ fi
 time docker build -f ./Dockerfile --build-arg RUSTC_WRAPPER= --build-arg PROFILE=release --build-arg TARGETARCH=$ARCH -t robonomics/robonomics:latest .
 
 # cleanup binary file
-rm robonomics
+rm -r ${ARCH}
 
 # Show the list of available images for this repo
 echo "Image is ready"
