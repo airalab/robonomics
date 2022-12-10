@@ -34,7 +34,7 @@ then
 else
     echo "If not first build, proceed to docker-compose build and run"
 fi
-time docker build -f ./Dockerfile --build-arg RUSTC_WRAPPER= --build-arg PROFILE=release -t robonomics/robonomics:latest .
+time docker build -f ./Dockerfile --build-arg RUSTC_WRAPPER= --build-arg PROFILE=release --build-arg TARGETARCH=$ARCH -t robonomics/robonomics:latest .
 
 # cleanup binary file
 rm robonomics
