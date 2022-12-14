@@ -34,4 +34,4 @@ pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrat
 local-runtime = { path = "../runtime/local" }
 robonomics-primitives = { path = "../primitives" }
 robonomics-protocol = { path = "../protocol" }
-tokio = "1.17.0"
+tokio = { version = "1", features = ["full"] }

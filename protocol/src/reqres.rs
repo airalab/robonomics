@@ -20,7 +20,7 @@
 use bincode;
 use libp2p::core::Multiaddr;
 use libp2p::request_response::*;
-use libp2p::swarm::{Swarm, SwarmEvent};
+use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use rust_base58::FromBase58;
 use std::iter;
 
@@ -200,7 +200,11 @@ pub async fn reqres(
 
     let (peer2_id, trans) = mk_transport();
     let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-    let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+    let mut swarm2 = SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
+        .executor(Box::new(|fut| {
+            tokio::spawn(fut);
+        }))
+        .build();
     log::debug!("Local peer 2 id: {:?}", peer2_id);
 
     let addr_remote = address;
