@@ -31,7 +31,7 @@ use libp2p::gossipsub::{
     Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
     MessageId, Sha256Topic as Topic, TopicHash,
 };
-use libp2p::swarm::SwarmEvent;
+use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use libp2p::{Multiaddr, PeerId, Swarm};
 
 use std::{
@@ -89,7 +89,11 @@ impl PubSubWorker {
             .expect("Correct configuration");
 
         // Create a Swarm to manage peers and events
-        let swarm = Swarm::new(transport, gossipsub, peer_id.clone());
+        let swarm = SwarmBuilder::new(transport, gossipsub, peer_id.clone())
+            .executor(Box::new(|fut| {
+                tokio::spawn(fut);
+            }))
+            .build();
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded();
