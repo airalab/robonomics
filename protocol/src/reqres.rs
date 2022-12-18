@@ -212,6 +212,7 @@ pub async fn reqres(
                 .build()
     };
    
+
     log::debug!("Local peer 2 id: {:?}", peer2_id);
 
 //    let addr_local = "/ip4/127.0.0.1/tcp/61241";
