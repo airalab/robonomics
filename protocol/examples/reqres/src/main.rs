@@ -3,7 +3,7 @@ use bincode;
 use futures::StreamExt;
 use libp2p::core::{Multiaddr, PeerId};
 use libp2p::request_response::*;
-use libp2p::swarm::{SwarmBuilder, SwarmEvent,Swarm};
+use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::env;
@@ -13,7 +13,7 @@ use std::{thread, time};
 
 #[tokio::main]
 async fn main() {
-//fn main () {
+    //fn main () {
 
     let args: Vec<String> = env::args().collect();
     let ms = time::Duration::from_millis(100);
@@ -29,7 +29,7 @@ async fn main() {
             protocols.clone(),
             cfg.clone(),
         );
-//      let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+        //      let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
         let mut swarm1 = {
             SwarmBuilder::new(trans, ping_proto1, peer1_id)
                 .executor(Box::new(|fut| {
@@ -123,7 +123,7 @@ async fn main() {
         let (peer2_id, trans) = mk_transport();
         let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
 
-//      let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+        //      let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
         let mut swarm2 = {
             SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
                 .executor(Box::new(|fut| {

@@ -20,7 +20,7 @@
 use bincode;
 use libp2p::core::Multiaddr;
 use libp2p::request_response::*;
-use libp2p::swarm::{SwarmBuilder, Swarm, SwarmEvent};
+use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use rust_base58::FromBase58;
 use std::iter;
 
@@ -36,7 +36,7 @@ use libp2p::core::{
 };
 use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
 use libp2p::request_response::RequestResponseCodec;
-use libp2p::tcp::{GenTcpConfig, TokioTcpTransport, GenTcpTransport};
+use libp2p::tcp::{GenTcpConfig, TokioTcpTransport};
 use libp2p::yamux::YamuxConfig;
 use std::io;
 
@@ -170,7 +170,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
     let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
     //let transport = libp2p::development_transport();
     // nok: let transport = TcpTransport::new(GenTcpConfig::default().nodelay(true));
-    
+
     let noise_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&id_keys)
         .unwrap();
@@ -203,20 +203,19 @@ pub async fn reqres(
 
     let (peer2_id, trans) = mk_transport();
     let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-//  let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+    //  let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
     let mut swarm2 = {
-            SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
-                .executor(Box::new(|fut| {
-                    tokio::spawn(fut);
-                }))
-                .build()
+        SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
+            .executor(Box::new(|fut| {
+                tokio::spawn(fut);
+            }))
+            .build()
     };
-   
 
     log::debug!("Local peer 2 id: {:?}", peer2_id);
 
-//    let addr_local = "/ip4/127.0.0.1/tcp/61241";
-//    let addr_r: Multiaddr = addr_local.parse().unwrap();
+    //    let addr_local = "/ip4/127.0.0.1/tcp/61241";
+    //    let addr_r: Multiaddr = addr_local.parse().unwrap();
 
     let addr_remote = address;
     let addr_r: Multiaddr = addr_remote.parse().unwrap();
@@ -271,8 +270,9 @@ pub async fn reqres(
                     Response::Pong => {
                         //log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
                         //break;
-                        let pong_msg = format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);           
-                        log::debug!("{}",pong_msg.clone());
+                        let pong_msg =
+                            format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                        log::debug!("{}", pong_msg.clone());
                         break pong_msg.to_string();
                     }
                     Response::Data(data) => {
@@ -285,14 +285,14 @@ pub async fn reqres(
                         //log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
                         //break;
                         let data_msg = format!("{}", String::from_utf8_lossy(&decoded[..]));
-                        log::debug!("{}",data_msg.clone());
+                        log::debug!("{}", data_msg.clone());
                         break data_msg.to_string();
                     }
                 },
 
                 e => {
                     let err_msg = format!("Peer2 err: {:?}", e);
-                    println!("{}",err_msg.clone());
+                    println!("{}", err_msg.clone());
                     break err_msg.to_string();
                     //println!("Peer2 err: {:?}", e);
                     //break;
@@ -301,8 +301,8 @@ pub async fn reqres(
 
             _ => {}
         };
-    //}
-    //Ok("decoded".to_string())
+        //}
+        //Ok("decoded".to_string())
     };
     Ok(received)
 }

@@ -30,7 +30,6 @@ use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
-// TODO: fix rpc servers
 pub mod extrinsic;
 pub mod pubsub;
 pub mod reqresrpc;
