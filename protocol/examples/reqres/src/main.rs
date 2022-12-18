@@ -3,7 +3,7 @@ use bincode;
 use futures::StreamExt;
 use libp2p::core::{Multiaddr, PeerId};
 use libp2p::request_response::*;
-use libp2p::swarm::{Swarm, SwarmEvent};
+use libp2p::swarm::{SwarmBuilder, SwarmEvent,Swarm};
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::env;
@@ -11,7 +11,10 @@ use std::iter;
 use std::process;
 use std::{thread, time};
 
-fn main() {
+#[tokio::main]
+async fn main() {
+//fn main () {
+
     let args: Vec<String> = env::args().collect();
     let ms = time::Duration::from_millis(100);
 
@@ -26,7 +29,14 @@ fn main() {
             protocols.clone(),
             cfg.clone(),
         );
-        let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+//      let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+        let mut swarm1 = {
+            SwarmBuilder::new(trans, ping_proto1, peer1_id)
+                .executor(Box::new(|fut| {
+                    tokio::spawn(fut);
+                }))
+                .build()
+        };
 
         let addr_local = std::env::args().nth(1).unwrap(); // local i.e. "/ip4/192.168.1.10/tcp/61241"
         let addr: Multiaddr = addr_local.parse().unwrap();
@@ -112,11 +122,21 @@ fn main() {
 
         let (peer2_id, trans) = mk_transport();
         let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-        let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+
+//      let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+        let mut swarm2 = {
+            SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
+                .executor(Box::new(|fut| {
+                    tokio::spawn(fut);
+                }))
+                .build()
+        };
+
         println!("Local peer 2 id: {:?}", peer2_id);
 
         let addr_remote = std::env::args().nth(1).unwrap(); // remote  i.e. "/ip4/192.168.1.6/tcp/61241"
         let addr_r: Multiaddr = addr_remote.parse().unwrap();
+        println!("Remote peer address  {:?}", addr_r.clone());
         swarm2
             .behaviour_mut()
             .add_address(&remote_peer, addr_r.clone());

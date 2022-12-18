@@ -8786,12 +8786,28 @@ dependencies = [
  "sp-core 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-runtime 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "subxt",
+ "tokio",
+]
+
+[[package]]
+name = "robonomics-request-response-example"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "futures",
+ "libp2p 0.49.0",
+ "robonomics-protocol",
+ "rust-base58",
+ "tokio",
 ]
 
 [[package]]
 name = "robonomics-rpc"
 version = "2.6.1"
 dependencies = [
+ "bincode",
+ "chrono",
+ "futures",
  "hex",
  "jsonrpsee 0.15.1",
  "jsonrpsee-types 0.15.1",
