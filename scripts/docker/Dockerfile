@@ -28,14 +28,13 @@ RUN apt-get update && \
 	mkdir -p /robonomics/.local/share && \
 	mkdir /data && \
 	chown -R robonomics:robonomics /data && \
-	ln -s /data /robonomics/.local/share/robonomics && \
-	rm -rf /usr/bin /usr/sbin
+	ln -s /data /robonomics/.local/share/robonomics
 
 COPY ./healthcheck.sh /usr/bin/
 HEALTHCHECK --interval=300s --timeout=75s --start-period=30s --retries=3 \
     CMD ["/usr/bin/healthcheck.sh"]
 
-LABEL description="This is the 2nd stage: a very small image where we copy the robonomics binary"
+LABEL description="This is the 2nd stage: an image where we copy the robonomics binary"
 
 ARG PROFILE=release
 # add binary to docker image

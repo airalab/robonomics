@@ -3,8 +3,9 @@
 set -e
 
 head () {
-    polkadot-js-api --ws ws://172.28.1.1:9944 query.parachains.heads 100 |\
-        jq -r .heads
+    polkadot-js-api --ws ws://127.0.0.1:9944 query.system.number 2>/dev/null |\
+        tail -3 |\
+        jq -r .number
 }
 
 start=$(head)
