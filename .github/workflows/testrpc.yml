@@ -1,0 +1,50 @@
+name: Testing RPC
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  testrpc:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cargo Cache
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo
+        key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ hashFiles('Cargo.toml') }}
+          ${{ runner.os }}-cargo
+    - name: Cargo Target Cache
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-target-${{ hashFiles('Cargo.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-target-${{ hashFiles('Cargo.toml') }}
+          ${{ runner.os }}-cargo-target
+    - name: Install toolchain, build and run rpc reqres test 
+      run: |
+           wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+           apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
+           apt update
+           apt-get install cmake coreutils libclang-dev -y
+           curl https://sh.rustup.rs -sSf | sh -s -- -y
+           source "$HOME/.cargo/env"
+           rustup toolchain install nightly-2022-08-05
+           rustup target add wasm32-unknown-unknown --toolchain nightly-2022-08-05
+           git clone --recursive https://github.com/airalab/robonomics-3.git && cd robonomics-3
+           base64 --decode  protocol/examples/reqres/QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL > private.pk8
+           cd protocol/examples/reqres
+           cargo build --release
+           cd ../../..
+           target/release/robonomics-request-response-example /ip4/127.0.0.1/tcp/61241 &
+           cargo build --release
+           cd target/release/
+           ./robonomics --dev &
+           sleep 20
+           curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d '{ "jsonrpc":"2.0", "id":1, "method":"p2p_ping", "params": ["/ip4/127.0.0.1/tcp/61241/QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL"] }' | grep -q Pong
+           curl http://127.0.0.1:9933 -H "Content-Type:application/json;charset=utf-8" -d '{ "jsonrpc":"2.0", "id":1, "method":"p2p_get", "params": ["/ip4/127.0.0.1/tcp/61241/QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL","Meaning42"] }' | grep -q Meaning42
