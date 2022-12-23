@@ -307,6 +307,9 @@
 <span id="307">307</span>
 <span id="308">308</span>
 <span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
 </pre><pre class="rust"><code><span class="comment">///////////////////////////////////////////////////////////////////////////////</span>
 <span class="comment">//</span>
 <span class="comment">//  Copyright 2018-2021 Robonomics Network &lt;research@robonomics.network&gt;</span>
@@ -332,7 +335,6 @@
 
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">channel</span>::{<span class="ident">mpsc</span>, <span class="ident">oneshot</span>},
-    <span class="ident">executor::block_on</span>,
     <span class="ident">prelude</span>::<span class="kw-2">*</span>,
     <span class="ident">Future</span>,
 };
@@ -341,7 +343,7 @@
     <span class="ident">Gossipsub</span>, <span class="ident">GossipsubConfigBuilder</span>, <span class="ident">GossipsubEvent</span>, <span class="ident">GossipsubMessage</span>, <span class="ident">MessageAuthenticity</span>,
     <span class="ident">MessageId</span>, <span class="ident">Sha256Topic</span> <span class="kw">as</span> <span class="ident">Topic</span>, <span class="ident">TopicHash</span>,
 };
-<span class="kw">use</span> <span class="ident">libp2p::swarm::SwarmEvent</span>;
+<span class="kw">use</span> <span class="ident">libp2p::swarm</span>::{<span class="ident">SwarmBuilder</span>, <span class="ident">SwarmEvent</span>};
 <span class="kw">use</span> <span class="ident">libp2p</span>::{<span class="ident">Multiaddr</span>, <span class="ident">PeerId</span>, <span class="ident">Swarm</span>};
 
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -379,7 +381,7 @@
         <span class="kw">let</span> <span class="ident">peer_id</span> <span class="op">=</span> <span class="ident">PeerId::from</span>(<span class="ident">local_key</span>.<span class="ident">public</span>());
 
         <span class="comment">// Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols</span>
-        <span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">block_on</span>(<span class="ident">libp2p::development_transport</span>(<span class="ident">local_key</span>.<span class="ident">clone</span>()))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">transport</span> <span class="op">=</span> <span class="ident">libp2p::tokio_development_transport</span>(<span class="ident">local_key</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
         <span class="comment">// Set custom gossipsub</span>
         <span class="kw">let</span> <span class="ident">gossipsub_config</span> <span class="op">=</span> <span class="ident">GossipsubConfigBuilder::default</span>()
@@ -399,7 +401,11 @@
             .<span class="ident">expect</span>(<span class="string">&quot;Correct configuration&quot;</span>);
 
         <span class="comment">// Create a Swarm to manage peers and events</span>
-        <span class="kw">let</span> <span class="ident">swarm</span> <span class="op">=</span> <span class="ident">Swarm::new</span>(<span class="ident">transport</span>, <span class="ident">gossipsub</span>, <span class="ident">peer_id</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="ident">swarm</span> <span class="op">=</span> <span class="ident">SwarmBuilder::new</span>(<span class="ident">transport</span>, <span class="ident">gossipsub</span>, <span class="ident">peer_id</span>.<span class="ident">clone</span>())
+            .<span class="ident">executor</span>(<span class="ident">Box::new</span>(<span class="op">|</span><span class="ident">fut</span><span class="op">|</span> {
+                <span class="ident">tokio::spawn</span>(<span class="ident">fut</span>);
+            }))
+            .<span class="ident">build</span>();
 
         <span class="comment">// Create worker communication channel</span>
         <span class="kw">let</span> (<span class="ident">to_worker</span>, <span class="ident">from_service</span>) <span class="op">=</span> <span class="ident">mpsc::unbounded</span>();
