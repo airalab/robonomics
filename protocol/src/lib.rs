@@ -20,6 +20,7 @@
 pub mod error;
 pub mod ethereum;
 pub mod id;
+pub mod network;
 pub mod pubsub;
 pub mod reqres;
 pub mod subxt;
