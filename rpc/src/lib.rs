@@ -96,7 +96,7 @@ mod tests {
     use futures::StreamExt;
     use libp2p::core::Multiaddr;
     use libp2p::request_response::*;
-    use libp2p::swarm::{Swarm, SwarmEvent};
+    use libp2p::swarm::{SwarmBuilder, SwarmEvent};
     use robonomics_protocol::reqres::*;
     use std::{iter, thread};
 
