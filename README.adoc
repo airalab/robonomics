@@ -24,7 +24,7 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 . https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
 . Run the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
 
-== The Robonomics Crates 
+== The Robonomics Crates
 
 Structure of **Robonomics** followed:
 
@@ -57,7 +57,7 @@ You will also need to install the following packages:
 
  . Linux:
 [source, shell]
-sudo apt install cmake git clang libclang-dev
+sudo apt install cmake git clang libclang-dev protobuf-compiler
 
  . Mac:
 [source, shell]
@@ -113,7 +113,7 @@ or it could be <<building-from-source,build from source>>.
 * Release: image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
 * Telemetry: https://telemetry.parachain.robonomics.network/#list/RobonomicsEarth
 
-Launch command: 
+Launch command:
 [source, shell]
 ----
 robonomics --validator --parachain-id 1000 --collator-eth-account <your_eth_address>
@@ -151,7 +151,7 @@ Following sentence reads JSON values from a sensor and publishes it into `my-sen
 $ robonomics io read sds011 | robonomics io write pubsub my-sensor-data
 ```
 
-Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki]. 
+Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki].
 
 == Robotics integration
 
