@@ -101,8 +101,8 @@ mod tests {
     use std::{iter, thread};
 
     #[test]
+    // test spilt multiaddress on transport address and peerID
     fn test_get_addr() {
-        // test spilt multiaddress on transport address and peerID
         assert_eq!(
             reqresrpc::get_addr(
                 "/ip4/192.168.0.103/tcp/61241/QmZDuvm3dEjSgD9nq6a7d1b1kccfFjBdcHSMzCB9ULAcoH"
@@ -121,7 +121,7 @@ mod tests {
     // - create peerID,
     // - run node with it,
     // - test Ping to this peerID on OK condition,
-    // - test Ping to other perrID on NOK condition,
+    // - test Ping to other peerID on NOK condition,
     // - test Get with check of echo message.
 
     fn test_p2p_ping_and_get() {
@@ -136,7 +136,7 @@ mod tests {
                 protocols.clone(),
                 cfg.clone(),
             );
-            //let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+
             let mut swarm1 = {
                 SwarmBuilder::new(trans, ping_proto1, peer1_id)
                     .executor(Box::new(|fut| {
