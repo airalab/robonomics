@@ -47,6 +47,9 @@ jobs:
           sudo dpkg -i subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
           subwasm --version
 
+      - name: Install deps
+        run: sudo apt-get -y install protobuf-compiler
+
       - name: Show Runtime information
         shell: bash
         run: |
@@ -90,6 +93,9 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v2
+
+    - name: Install deps
+      run: sudo apt-get -y install protobuf-compiler
 
     - name: Install ARM64 multilib
       if: contains(matrix.target, 'aarch64')
