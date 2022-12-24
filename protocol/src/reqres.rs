@@ -282,7 +282,7 @@ pub async fn reqres(
 
                 e => {
                     let err_msg = format!("Peer2 err: {e:?}");
-                    println!("{}", err_msg);
+                    println!("{err_msg}");
                     break err_msg;
                 }
             },
