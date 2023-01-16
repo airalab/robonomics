@@ -18,10 +18,11 @@ jsonrpsee = { version = "0.15.1", features = ["server"] }
 codec = { package = "parity-scale-codec", version = "3.0.0" }
 hex-literal = "0.3.1"
 log = "0.4.17"
+libp2p = { version = "0.49", optional = true }
 
 # primitives
 robonomics-primitives = { path = "../primitives", default-features = false }
-robonomics-protocol = { path = "../protocol" }
+robonomics-protocol = { path = "../protocol", optional = true }
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
@@ -140,9 +141,11 @@ full = [
   "local-runtime",
   "sc-service/rocksdb",
   "robonomics-rpc",
+  "robonomics-protocol",
   "frame-benchmarking",
   "cumulus-client-cli",
   #    "robonomics-cli",
+  "libp2p",
 ]
 
 ## Ultra lightweight Robonomics Network node.
@@ -155,6 +158,15 @@ zero = [
   "clap_complete",
   "cumulus-client-cli",
   #    "robonomics-cli",
+]
+
+# Discovery service
+discovery = [
+    "sc-cli",
+    "clap",
+    "clap_complete",
+    "robonomics-protocol",
+    "libp2p",
 ]
 
 ## Enable Kusama parachain.
