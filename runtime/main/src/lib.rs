@@ -624,17 +624,9 @@ impl pallet_robonomics_liability::Config for Runtime {
     type Event = Event;
 }
 
-parameter_types! {
-    pub const VestingLockPeriod: Balance = 2_160_000;
-    pub const VestingStartBlock: BlockNumber = 2_381_000;
-}
-
 impl pallet_robonomics_crowdloan::Config for Runtime {
     type Currency = Balances;
-    type Vesting = Vesting;
     type Event = Event;
-    type VestingLockPeriod = VestingLockPeriod;
-    type VestingStartBlock = VestingStartBlock;
 }
 
 construct_runtime! {

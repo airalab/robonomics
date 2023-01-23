@@ -575,17 +575,9 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BonusReward = BonusReward;
 }
 
-parameter_types! {
-    pub const VestingLockPeriod: Balance = 2_160_000;
-    pub const VestingStartBlock: BlockNumber = 50;
-}
-
 impl pallet_robonomics_crowdloan::Config for Runtime {
     type Currency = Balances;
-    type Vesting = Vesting;
     type Event = Event;
-    type VestingLockPeriod = VestingLockPeriod;
-    type VestingStartBlock = VestingStartBlock;
 }
 
 construct_runtime!(

@@ -22,10 +22,7 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{
-        pallet_prelude::*,
-        traits::{Currency, VestingSchedule},
-    };
+    use frame_support::{pallet_prelude::*, traits::Currency};
     use frame_system::pallet_prelude::*;
     use sp_runtime::traits::Zero;
 
@@ -38,20 +35,8 @@ pub mod pallet {
     pub trait Config: frame_system::Config + TypeInfo {
         /// Crowdloan reward currentcy.
         type Currency: Currency<Self::AccountId>;
-        /// Vesting implementation for reward transfers.
-        type Vesting: VestingSchedule<
-            Self::AccountId,
-            Currency = Self::Currency,
-            Moment = Self::BlockNumber,
-        >;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        /// Crowdloan vesting release schedule: lock duration.
-        #[pallet::constant]
-        type VestingLockPeriod: Get<BalanceOf<Self>>;
-        /// Crowdloan vesting release schedule: start block.
-        #[pallet::constant]
-        type VestingStartBlock: Get<Self::BlockNumber>;
     }
 
     #[pallet::error]
@@ -62,8 +47,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Crowdloan reward paid
         RewardPaid(T::AccountId, BalanceOf<T>),
-        /// Reward is too small for vesting, sent general transfer
-        SmallReward(T::AccountId),
     }
 
     #[pallet::hooks]
@@ -86,22 +69,9 @@ pub mod pallet {
 
             // Mint reward balance
             let _ = T::Currency::deposit_into_existing(&recipient, reward_value)?;
-            Self::deposit_event(Event::RewardPaid(recipient.clone(), reward_value));
+            Self::deposit_event(Event::RewardPaid(recipient, reward_value));
 
-            // Add vesting schedule
-            let per_block = reward_value / T::VestingLockPeriod::get();
-            if per_block.is_zero() {
-                // Reward is too small, do not add vesting schedule
-                Self::deposit_event(Event::SmallReward(recipient.clone()));
-                Ok(())
-            } else {
-                T::Vesting::add_vesting_schedule(
-                    &recipient,
-                    reward_value,
-                    per_block,
-                    T::VestingStartBlock::get(),
-                )
-            }
+            Ok(())
         }
     }
 }
