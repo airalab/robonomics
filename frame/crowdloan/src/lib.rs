@@ -24,7 +24,6 @@ pub use pallet::*;
 pub mod pallet {
     use frame_support::{pallet_prelude::*, traits::Currency};
     use frame_system::pallet_prelude::*;
-    use sp_runtime::traits::Zero;
 
     use super::*;
 
@@ -68,7 +67,7 @@ pub mod pallet {
             let _ = ensure_root(origin)?;
 
             // Mint reward balance
-            let _ = T::Currency::deposit_into_existing(&recipient, reward_value)?;
+            let _ = T::Currency::deposit_creating(&recipient, reward_value);
             Self::deposit_event(Event::RewardPaid(recipient, reward_value));
 
             Ok(())
