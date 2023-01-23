@@ -584,7 +584,7 @@ impl pallet_robonomics_crowdloan::Config for Runtime {
     type Currency = Balances;
     type Vesting = Vesting;
     type Event = Event;
-    type VestingLockPeriod= VestingLockPeriod;
+    type VestingLockPeriod = VestingLockPeriod;
     type VestingStartBlock = VestingStartBlock;
 }
 

@@ -25,10 +25,7 @@ use frame_support::traits::{
     Currency, Imbalance, LockIdentifier, LockableCurrency, WithdrawReasons,
 };
 use scale_info::TypeInfo;
-use sp_runtime::{
-    traits::Zero,
-    Perbill, RuntimeDebug,
-};
+use sp_runtime::{traits::Zero, Perbill, RuntimeDebug};
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -158,7 +155,6 @@ pub mod pallet {
     /// Map from all locked "stash" accounts to the bonus token amount.
     /// Note: Bonus tokens has increased staking rate.
     pub(super) type Bonus<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, BalanceOf<T>>;
-
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}

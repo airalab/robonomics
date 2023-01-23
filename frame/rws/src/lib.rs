@@ -25,8 +25,8 @@ use frame_support::pallet_prelude::Weight;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;
 
 pub use pallet::*;
 

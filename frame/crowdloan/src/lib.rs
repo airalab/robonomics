@@ -22,7 +22,10 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{pallet_prelude::*, traits::{Currency, VestingSchedule}};
+    use frame_support::{
+        pallet_prelude::*,
+        traits::{Currency, VestingSchedule},
+    };
     use frame_system::pallet_prelude::*;
     use sp_runtime::traits::Zero;
 
@@ -36,7 +39,11 @@ pub mod pallet {
         /// Crowdloan reward currentcy.
         type Currency: Currency<Self::AccountId>;
         /// Vesting implementation for reward transfers.
-        type Vesting: VestingSchedule<Self::AccountId, Currency = Self::Currency, Moment = Self::BlockNumber>;
+        type Vesting: VestingSchedule<
+            Self::AccountId,
+            Currency = Self::Currency,
+            Moment = Self::BlockNumber,
+        >;
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         /// Crowdloan vesting release schedule: lock duration.
@@ -48,8 +55,7 @@ pub mod pallet {
     }
 
     #[pallet::error]
-    pub enum Error<T> {
-    }
+    pub enum Error<T> {}
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
