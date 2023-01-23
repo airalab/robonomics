@@ -438,7 +438,6 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;
     type BonusReward = BonusReward;
-    type OnBond = RWS;
 }
 
 construct_runtime! {

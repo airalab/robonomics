@@ -75,7 +75,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 29,
+    spec_version: 30,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -580,7 +580,6 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;
     type BonusReward = BonusReward;
-    type OnBond = RWS;
 }
 
 parameter_types! {
@@ -625,6 +624,19 @@ impl pallet_robonomics_liability::Config for Runtime {
     type Event = Event;
 }
 
+parameter_types! {
+    pub const VestingLockPeriod: Balance = 2_160_000;
+    pub const VestingStartBlock: BlockNumber = 2_381_000;
+}
+
+impl pallet_robonomics_crowdloan::Config for Runtime {
+    type Currency = Balances;
+    type Vesting = Vesting;
+    type Event = Event;
+    type VestingLockPeriod= VestingLockPeriod;
+    type VestingStartBlock = VestingStartBlock;
+}
+
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -663,6 +675,7 @@ construct_runtime! {
         DigitalTwin: pallet_robonomics_digital_twin = 54,
         RWS: pallet_robonomics_rws = 55,
         Liability: pallet_robonomics_liability = 56,
+        Crowdloan: pallet_robonomics_crowdloan = 57,
 
         Lighthouse: pallet_robonomics_lighthouse = 60,
 

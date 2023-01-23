@@ -1,6 +1,6 @@
 [package]
 name = "main-runtime"
-version = "2.6.0"
+version = "3.0.0"
 authors = ["Airalab <research@aira.life>"]
 edition = "2021"
 build = "build.rs"
@@ -61,6 +61,7 @@ pallet-robonomics-liability = { path = "../../frame/liability", default-features
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
 pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
 pallet-robonomics-staking = { path = "../../frame/staking", default-features = false }
+pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false }
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
@@ -128,6 +129,7 @@ std = [
   "pallet-robonomics-lighthouse/std",
   "pallet-robonomics-rws/std",
   "pallet-robonomics-staking/std",
+  "pallet-robonomics-crowdloan/std",
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-utility/std",

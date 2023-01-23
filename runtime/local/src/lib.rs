@@ -573,7 +573,19 @@ impl pallet_robonomics_staking::Config for Runtime {
     type BondingDuration = BondingDuration;
     type StakeReward = StakeReward;
     type BonusReward = BonusReward;
-    type OnBond = RWS;
+}
+
+parameter_types! {
+    pub const VestingLockPeriod: Balance = 2_160_000;
+    pub const VestingStartBlock: BlockNumber = 50;
+}
+
+impl pallet_robonomics_crowdloan::Config for Runtime {
+    type Currency = Balances;
+    type Vesting = Vesting;
+    type Event = Event;
+    type VestingLockPeriod= VestingLockPeriod;
+    type VestingStartBlock = VestingStartBlock;
 }
 
 construct_runtime!(
@@ -612,6 +624,7 @@ construct_runtime!(
         DigitalTwin: pallet_robonomics_digital_twin,
         Liability: pallet_robonomics_liability,
         Staking: pallet_robonomics_staking,
+        Crowdloan: pallet_robonomics_crowdloan,
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo,
