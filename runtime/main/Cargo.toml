@@ -60,7 +60,6 @@ pallet-robonomics-launch = { path = "../../frame/launch", default-features = fal
 pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
 pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
-pallet-robonomics-staking = { path = "../../frame/staking", default-features = false }
 pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false }
 
 # cumulus dependencies
@@ -128,7 +127,6 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-lighthouse/std",
   "pallet-robonomics-rws/std",
-  "pallet-robonomics-staking/std",
   "pallet-robonomics-crowdloan/std",
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-core/std",

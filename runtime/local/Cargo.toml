@@ -60,7 +60,6 @@ pallet-robonomics-launch = { path = "../../frame/launch", default-features = fal
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../frame/digital-twin", default-features = false }
-pallet-robonomics-staking = { path = "../../frame/staking", default-features = false }
 pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false }
 
 [build-dependencies]
@@ -110,7 +109,6 @@ std = [
   "pallet-robonomics-datalog/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-digital-twin/std",
-  "pallet-robonomics-staking/std",
   "pallet-robonomics-crowdloan/std",
 ]
 

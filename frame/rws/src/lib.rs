@@ -116,7 +116,6 @@ pub mod pallet {
         weights::GetDispatchInfo,
     };
     use frame_system::pallet_prelude::*;
-    use pallet_robonomics_staking::OnBondHandler;
     use sp_runtime::{
         traits::{AtLeast32Bit, StaticLookup},
         DispatchResult,
@@ -500,21 +499,6 @@ pub mod pallet {
                 subscription.free_weight -= call_weight;
                 <Ledger<T>>::insert(subscription_id, subscription.clone());
                 Ok(())
-            }
-        }
-    }
-
-    impl<T: Config> OnBondHandler<BalanceOf<T>> for Pallet<T> {
-        fn on_bond(value: BalanceOf<T>) {
-            let cost = T::AuctionCost::get();
-            let bond_value = value + Self::unspend_bond_value();
-            <UnspendBondValue<T>>::put(bond_value % cost);
-
-            let mut auction_num = bond_value / cost;
-            while auction_num > 0u32.into() {
-                // XXX: start monthly auctions by default
-                Self::new_auction(Subscription::Daily { days: 30 });
-                auction_num -= 1u32.into();
             }
         }
     }
