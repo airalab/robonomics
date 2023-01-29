@@ -286,22 +286,18 @@ pub fn run() -> sc_cli::Result<()> {
         }
 
         #[cfg(feature = "full")]
-        Some(Subcommand::Pair(cmd)) => {
-            match &cmd.subcommand {
-                Some(robonomics_pair::sink::virt::PairSubCmds::Connect(cmd)) => {
-                    robonomics_pair::sink::virt::ConnectCmd::run(cmd)
-                        .map_err(|e| e.to_string().into())
-                }
-                Some(robonomics_pair::sink::virt::PairSubCmds::Listen(cmd)) => {
-                    robonomics_pair::sink::virt::ListenCmd::run(cmd)
-                        .map_err(|e| e.to_string().into())
-                }
-                _ => {
-                    println!("pair args {:?}", cmd);
-                    Ok(()) // todo!(),
-                }
+        Some(Subcommand::Pair(cmd)) => match &cmd.subcommand {
+            Some(robonomics_pair::pair::PairSubCmds::Connect(cmd)) => {
+                robonomics_pair::pair::ConnectCmd::run(cmd).map_err(|e| e.to_string().into())
             }
-        }
+            Some(robonomics_pair::pair::PairSubCmds::Listen(cmd)) => {
+                robonomics_pair::pair::ListenCmd::run(cmd).map_err(|e| e.to_string().into())
+            }
+            _ => {
+                println!("pair args {:?}", cmd);
+                Ok(())
+            }
+        },
 
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(cmd)) => {

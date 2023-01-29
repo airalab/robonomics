@@ -18,19 +18,19 @@
 //! Virtual sinkable devices.
 extern crate structopt;
 
-use async_std::io;
-use futures::prelude::*;
-use libp2p::Multiaddr;
-use libp2p::PeerId;
-
-use clap;
-use clap::Parser;
-
 use bincode;
 use chrono::prelude::*;
+use clap;
+use clap::Parser;
+use futures::prelude::*;
+use libp2p::core::{
+    muxing::StreamMuxerBox,
+    transport::{self},
+};
 use libp2p::request_response::*;
-//use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
+use libp2p::Multiaddr;
+use libp2p::PeerId;
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
 use std::fmt;
@@ -39,26 +39,8 @@ use std::io::Write;
 use std::iter;
 use std::process;
 use std::{thread, time};
-//use tokio::task;
-use libp2p::core::{
-    muxing::StreamMuxerBox,
-    transport::{self},
-};
 
-use crate::error::{Error, Result};
-
-/// Print on standard console output.
-pub fn stdout() -> impl Sink<String, Error = Error> {
-    io::BufWriter::new(io::stdout())
-        .into_sink()
-        .with(|s| {
-            let line: Result<String> = Ok(format!("{}\n", s));
-            futures::future::ready(line)
-        })
-        .sink_err_into()
-}
-
-// clap::Subcommand - only for emuns
+use crate::error::Result;
 
 #[derive(Debug, Parser)]
 pub struct PairCmd {
@@ -82,7 +64,7 @@ pub enum PairSubCmds {
 #[derive(Debug, Parser)]
 pub struct ListenCmd {
     #[clap(long, value_parser)]
-    pub key: Option<String>,
+    pub peer: Option<String>,
 
     #[clap(long, value_parser)]
     pub addr: Option<String>,
@@ -90,15 +72,16 @@ pub struct ListenCmd {
 
 impl ListenCmd {
     pub fn run(&self) -> Result<()> {
-        let peer: String;
+        let peer_id: String;
 
-        match &self.key {
-            Some(key) => {
-                peer = key.to_string();
+        match &self.peer {
+            Some(peer) => {
+                peer_id = peer.to_string();
             }
             _ => todo!(),
         }
 
+        // TODO maybe parse input whether it is Multiadress or peerId
         let address: String;
 
         if let Some(x) = &self.addr {
@@ -107,21 +90,20 @@ impl ListenCmd {
             address = "/ip4/127.0.0.1/tcp/61241".to_string();
         }
 
-        let (peer1_id, trans) = mk_transport();
-        println!("Local peer id: {peer1_id:?}");
-        println!("Local address: {address}");
+        let (own_peer_id, trans) = mk_transport();
+        println!("Own peer id: {own_peer_id:?}");
+        println!("Address: {address}");
+        println!("Peer to listen = {peer_id}");
 
-        println!("try to run reqres server at address = {address}, from peer = {peer}");
-        let _ = reqres_server(address.to_string(), peer, peer1_id, trans);
+        let _ = reqres_server(address.to_string(), peer_id, own_peer_id, trans);
 
-        //loop {};
         Ok(())
     }
 }
 #[derive(Debug, Parser)]
 pub struct ConnectCmd {
     #[clap(long, value_parser)]
-    pub key: Option<String>,
+    pub peer: Option<String>,
 
     #[clap(long, value_parser)]
     pub addr: Option<String>,
@@ -129,15 +111,16 @@ pub struct ConnectCmd {
 
 impl ConnectCmd {
     pub fn run(&self) -> Result<()> {
-        let peer: String;
+        let peer_id: String;
 
-        match &self.key {
-            Some(key) => {
-                peer = key.to_string();
+        match &self.peer {
+            Some(peer) => {
+                peer_id = peer.to_string();
             }
             _ => todo!(),
         }
 
+        // TODO maybe parse input whether it is Multiadress or peerId
         let address: String;
 
         if let Some(x) = &self.addr {
@@ -146,12 +129,12 @@ impl ConnectCmd {
             address = "/ip4/127.0.0.1/tcp/61241".to_string();
         }
 
-        let (peer1_id, trans) = mk_transport();
-        println!("Local peer id: {peer1_id:?}");
-        println!("Local address: {address}");
+        let (own_peer_id, trans) = mk_transport();
+        println!("Own peer id: {own_peer_id:?}");
+        println!("Address: {address}");
+        println!("Peer to connect = {peer_id}");
 
-        println!("Try to run reqres client at address = {address}, to peer = {peer}");
-        let _ = reqres_client(address, peer, peer1_id, trans);
+        let _ = reqres_client(address, peer_id, own_peer_id, trans);
 
         Ok(())
     }
@@ -194,12 +177,12 @@ pub async fn reqres_server(
     swarm1.listen_on(addr.clone()).unwrap();
     let mut peer_id = String::new();
     fmt::write(&mut peer_id, format_args!("{:?}", peer1_id)).unwrap();
-    log::debug!("Local peer 1 id: {}", peer_id.clone());
+
     let mut file = File::create("peerid.txt").unwrap();
 
     let peer_adr = peer_id.clone();
     let split_adr: Vec<&str> = peer_adr.split(|c| c == '"').collect();
-    println!("address: {} {}", address, split_adr[1].clone());
+    log::debug!("address: {} {}", address, split_adr[1].clone());
 
     file.write_all(split_adr[1].clone().as_bytes())
         .expect("Unable to write data");
@@ -220,15 +203,15 @@ pub async fn reqres_server(
                         endpoint.get_remote_address()
                     );
                     if node != peer_id.to_string() {
-                        println!(
+                        log::debug!(
                             "save node to pair {} {} ",
                             peer_id,
                             endpoint.get_remote_address()
                         );
-                        // TODO store somewhere paired peerID
+                        // maybe TODO store somewhere paired peerID
                         swarm1.disconnect_peer_id(peer_id).unwrap();
                     } else {
-                        println!("continue with expected node {}", peer_id.clone());
+                        log::debug!("continue with expected node {}", peer_id.clone());
                     }
                 }
 
@@ -245,7 +228,7 @@ pub async fn reqres_server(
                             //decode received request
                             let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
                             log::debug!(
-                                " peer1 Get '{}' from  {:?}",
+                                "Get '{}' from  {:?}",
                                 String::from_utf8_lossy(&decoded[..]),
                                 peer
                             );
@@ -255,7 +238,7 @@ pub async fn reqres_server(
                                 format_args!("{}", String::from_utf8_lossy(&decoded[..])),
                             )
                             .unwrap();
-                            // let _ = sender.unbounded_send(msg);
+
                             // send encoded response
                             let resp_encoded: Vec<u8> =
                                 bincode::serialize(&format!("{}", epoch()).into_bytes()).unwrap();
@@ -265,9 +248,9 @@ pub async fn reqres_server(
                                 .unwrap();
                         }
                         Request::Ping => {
-                            log::debug!(" peer1 {:?} from {:?}", request, peer);
+                            log::debug!("Ping {:?} from {:?}", request, peer);
                             let resp: Response = Response::Pong;
-                            log::debug!(" peer1 {:?} to   {:?}", resp, peer);
+                            log::debug!("Pong {:?} to   {:?}", resp, peer);
                             swarm1
                                 .behaviour_mut()
                                 .send_response(channel, resp.clone())
@@ -280,18 +263,16 @@ pub async fn reqres_server(
                     log::debug!("Response sent to {:?}", peer);
                 }
 
-                SwarmEvent::Behaviour(e) => println!("Peer1: Unexpected event: {:?}", e),
-                _ => {}
+                SwarmEvent::Behaviour(e) => log::debug!("Peer1: Unexpected event: {:?}", e),
+
+                e => {
+                    log::debug!("Reqres server error: {:?}", e);
+                }
             } // match
         } // loop
     };
 
     let _ = futures::executor::block_on(peer1);
-
-    //let join = task::spawn_blocking( || async  {
-    //tokio::spawn(async {
-    //    peer1.await;
-    //}).await.expect("Something went wrong with reqres server");
 
     Ok("ok".to_string())
 }
@@ -306,12 +287,10 @@ pub async fn reqres_client(
 ) -> Result<String> {
     env_logger::init();
 
-    //log::debug!("reqres: connecting to peer {node}");
-    println!("reqres: connecting to peer {node}");
+    log::debug!("reqres: connecting to peer {node}");
 
     let ms = time::Duration::from_millis(100);
 
-    // task::spawn(
     let peer2 = async move {
         let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
         let cfg = RequestResponseConfig::default();
@@ -320,7 +299,6 @@ pub async fn reqres_client(
         let remote_bytes = peer_id.from_base58().unwrap();
         let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
 
-        //let (peer2_id, trans) = mk_transport();
         let ping_proto2 = RequestResponse::new(
             RobonomicsCodec { is_ping: false },
             protocols.clone(),
@@ -335,10 +313,7 @@ pub async fn reqres_client(
                 .build()
         };
 
-        println!("Local peer 2 id: {:?}", peer2_id);
-
-        // TODO discovery, now  server addres is fixed
-        //let addr_remote = "/ip4/127.0.0.1/tcp/61241";
+        // maybe TODO discovery, now assumed server addres is fixed
         let addr_remote = address;
 
         let addr_r: Multiaddr = addr_remote.parse().unwrap();
@@ -351,9 +326,11 @@ pub async fn reqres_client(
         let mut req_id = swarm2
             .behaviour_mut()
             .send_request(&remote_peer, rq.clone());
-        println!(
+        log::debug!(
             " peer2 Req{}: Ping  -> {:?} : {:?}",
-            req_id, remote_peer, rq
+            req_id,
+            remote_peer,
+            rq
         );
 
         loop {
@@ -369,17 +346,19 @@ pub async fn reqres_client(
                     } => {
                         match response {
                             Response::Pong => {
-                                println!(
-                                    " peer2 Resp{} {:?} from {:?}",
-                                    request_id, &response, peer
+                                log::debug!(
+                                    "Pong Resp{} {:?} from {:?}",
+                                    request_id,
+                                    &response,
+                                    peer
                                 );
                             }
                             Response::Data(data) => {
                                 // decode response
                                 let decoded: Vec<u8> =
                                     bincode::deserialize(&data.to_vec()).unwrap();
-                                println!(
-                                    " peer2 Resp{}: Data '{}' from {:?}",
+                                log::debug!(
+                                    "Data Resp{}: '{}' from {:?}",
                                     req_id,
                                     String::from_utf8_lossy(&decoded[..]),
                                     remote_peer
@@ -389,7 +368,7 @@ pub async fn reqres_client(
                         rq = Request::Get(count.to_string().into_bytes());
                         // send encoded request
                         if let Request::Get(y) = rq {
-                            println!(
+                            log::debug!(
                                 " peer2  Req{}: Get -> {:?} : '{}'",
                                 req_id,
                                 remote_peer,
@@ -408,31 +387,27 @@ pub async fn reqres_client(
                 },
 
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                    println!("Peer2 connected with: {:?}", peer_id);
+                    log::debug!("Connected with: {:?}", peer_id);
                 }
 
                 SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                    println!("Peer2 disconnected from: {:?}", peer_id);
+                    log::debug!("Disconnected from: {:?}", peer_id);
                     process::exit(0x0100)
                 }
 
                 SwarmEvent::Dialing(peer_id) => {
-                    println!("Peer2 dial to: {:?}", peer_id);
+                    log::debug!("Dial to: {:?}", peer_id);
                 }
 
                 e => {
-                    println!("Peer2 error: {:?}", e);
-                    //process::exit(0x0100)
+                    log::debug!("Reqres client error: {:?}", e);
+                    process::exit(0x0101)
                 }
             }
         }
     };
 
     let _ = futures::executor::block_on(peer2);
-
-    //tokio::spawn(async {
-    //    peer2.await;
-    //}).await.expect("Something went wrong with reqres client");
 
     Ok("done".to_string())
 }

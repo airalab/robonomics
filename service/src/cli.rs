@@ -99,9 +99,9 @@ pub enum Subcommand {
     Io(robonomics_cli::IoCmd),
 
     /// Pair by peerId operatins
-    /// robonomics pair listen --key ...
-    /// robonomics pair connect --addr ...
-    Pair(robonomics_pair::sink::virt::PairCmd),
+    /// robonomics pair listen --peer peerID_to_listen
+    /// robonomics pair connect --peer peerID_to_listen
+    Pair(robonomics_pair::pair::PairCmd),
 
     /// Benchmarking runtime pallets.
     #[cfg(feature = "frame-benchmarking-cli")]
