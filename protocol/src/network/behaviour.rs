@@ -32,13 +32,14 @@ use libp2p::{
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    sync::Arc,
     time::Duration,
 };
 
 use crate::{
     error::Result,
     reqres::{Request, Response},
-    ros::{Ros, RosConfig, RosEvent},
+    ros::{Ros, RosEvent},
 };
 
 #[derive(NetworkBehaviour)]
@@ -92,7 +93,8 @@ impl RobonomicsNetworkBehaviour {
             Toggle::from(None)
         };
 
-        let ros = Ros::new(RosConfig::new());
+        // Build ROS network behaviour
+        let ros = Ros::new();
 
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {

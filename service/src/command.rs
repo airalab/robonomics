@@ -20,16 +20,15 @@ use crate::cli::{Cli, Subcommand};
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
 #[cfg(feature = "discovery")]
-use libp2p::{futures::StreamExt, swarm::SwarmEvent};
+use libp2p::{
+    futures::StreamExt,
+    swarm::{SwarmBuilder, SwarmEvent},
+    PeerId,
+};
 use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
-use robonomics_protocol::{
-    network::{discovery, worker::NetworkWorker},
-    pubsub::Pubsub,
-};
+use robonomics_protocol::network::behaviour::RobonomicsNetworkBehaviour;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-#[cfg(feature = "discovery")]
-use std::collections::HashMap;
 use std::path::Path;
 
 #[cfg(feature = "parachain")]
@@ -103,59 +102,36 @@ impl SubstrateCli for Cli {
 
 #[cfg(feature = "discovery")]
 pub async fn run() -> sc_cli::Result<()> {
-    env_logger::init();
     let cli = Cli::from_args();
 
     // Get local key
     let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
         id::load(Path::new(&file_name)).expect("Correct file path")
     });
+    let local_peer_id = PeerId::from(local_key.public());
+    // println!("Local peer id: {:?}", local_peer_id);
 
-    // Default interval 1 sec
-    let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+    let transport =
+        libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
+    let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
+        .expect("Correct behaviour");
+    let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
+        .executor(Box::new(|fut| {
+            tokio::spawn(fut);
+        }))
+        .build();
 
-    let (pubsub, _) =
-        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
-
-    let mut network_worker = NetworkWorker::new(
-        local_key,
-        heartbeat_interval,
-        pubsub.clone(),
-        cli.disable_mdns,
-        cli.disable_kad,
-    )
-    .expect("Correct network worker");
-
-    let mut peers = HashMap::new();
-    discovery::add_explicit_peers(
-        &mut network_worker.swarm,
-        &mut peers,
-        cli.robonomics_bootnodes,
-        cli.disable_kad,
-    );
-
-    network_worker
-        .swarm
+    swarm
         .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-        .expect("Swarm starts to listen");
+        .expect("Swarm listen");
 
     loop {
-        match network_worker.swarm.select_next_some().await {
-            // SwarmEvent::Behaviour(OutEvent::Kademlia(KademliaEvent::RoutingUpdated {
-            //     peer,
-            //     addresses,
-            //     ..
-            // })) => {
-            //     for addr in addresses.iter() {
-            //         println!("Kad discovered peer: {}", peer);
-            //         let _ = pubsub.connect(addr.clone());
-            //     }
-            // }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                println!("Listening on {:?}", address)
+        tokio::select! {
+            event = swarm.select_next_some() => match event {
+                SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
+                SwarmEvent::Behaviour(event) => println!("Event: {:?}", event),
+                _ => {}
             }
-            SwarmEvent::Behaviour(event) => println!("{:?}", event),
-            _ => {}
         }
     }
 }

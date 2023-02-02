@@ -21,7 +21,6 @@ members = [
   "runtime/main",
   "runtime/ipci",
   "service",
-  "protocol/examples/ros",
 ]
 
 exclude = ["vendor"]
