@@ -290,16 +290,33 @@ impl ConnectionHandler for RosHandler {
             });
         }
 
+        // process inbound stream
         loop {
             match std::mem::replace(
                 &mut self.inbound_substream,
                 Some(InboundSubstreamState::Poisoned),
             ) {
                 Some(InboundSubstreamState::WaitingInput(mut substream)) => {
-                    //---------------------------
+                    println!("we have inbound_substream!");
                 }
                 _ => {
                     self.inbound_substream = None;
+                    break;
+                }
+            }
+        }
+
+        // process outbound stream
+        loop {
+            match std::mem::replace(
+                &mut self.outbound_substream,
+                Some(OutboundSubstreamState::Poisoned),
+            ) {
+                Some(OutboundSubstreamState::WaitingOutput(mut substream)) => {
+                    println!("we have inbound_substream!");
+                }
+                _ => {
+                    self.outbound_substream = None;
                     break;
                 }
             }
