@@ -43,15 +43,6 @@ impl Ros {
     }
 }
 
-// impl UpgradeInfo for Ros {
-//     type Info = &'static [u8];
-//     type InfoIter = iter::Once<Self::Info>;
-//
-//     fn protocol_info(&self) -> Self::InfoIter {
-//         iter::once(PROTOCOL_NAME)
-//     }
-// }
-
 /// Event that can be emitted by the ROS behaviour.
 #[derive(Debug)]
 pub enum RosEvent {
@@ -67,7 +58,7 @@ impl NetworkBehaviour for Ros {
     }
 
     fn inject_event(&mut self, peer_id: PeerId, _: ConnectionId, handler_event: RosHandlerEvent) {
-        println!("Event!1-------------- {:?}", handler_event);
+        println!("Behaviour event! {:?}", handler_event);
         self.events.push_front(RosEvent::Publish { peer_id })
     }
 
@@ -80,7 +71,7 @@ impl NetworkBehaviour for Ros {
         other_established: usize,
     ) {
         println!(
-            "1Connection established {:?} {:?} {:?}",
+            "Connection established {:?} {:?} {:?}",
             peer_id, connection_id, endpoint
         );
     }
@@ -94,7 +85,7 @@ impl NetworkBehaviour for Ros {
         remaining_established: usize,
     ) {
         println!(
-            "1Connection closed {:?} {:?} {:?}",
+            "Connection closed {:?} {:?} {:?}",
             peer_id, connection_id, endpoint
         );
     }
@@ -113,20 +104,9 @@ impl NetworkBehaviour for Ros {
     }
 }
 
-enum InboundSubstreamState {
-    WaitingInput(libp2p::swarm::NegotiatedSubstream),
-    Ready,
+enum SubstreamState {
+    Ready(NegotiatedSubstream),
     NotReady,
-    /// An error occurred during processing.
-    Poisoned,
-}
-
-enum OutboundSubstreamState {
-    WaitingOutput(libp2p::swarm::NegotiatedSubstream),
-    Ready,
-    NotReady,
-    /// An error occurred during processing.
-    Poisoned,
 }
 
 /// Protocol Handler that manages a single long-lived substream with a peer.
@@ -140,13 +120,12 @@ pub struct RosHandler {
 
     inbound_substreams_created: usize,
 
-    events: VecDeque<RosHandlerEvent>,
-
+    // events: VecDeque<RosHandlerEvent>,
     /// The single long-lived outbound substream.
-    outbound_substream: Option<OutboundSubstreamState>,
+    outbound_substream: Option<SubstreamState>,
 
     /// The single long-lived inbound substream.
-    inbound_substream: Option<InboundSubstreamState>,
+    inbound_substream: Option<SubstreamState>,
 }
 
 impl RosHandler {
@@ -155,7 +134,7 @@ impl RosHandler {
             outbound_substream_establishing: false,
             outbound_substreams_created: 0,
             inbound_substreams_created: 0,
-            events: VecDeque::new(),
+            // events: VecDeque::new(),
             outbound_substream: None,
             inbound_substream: None,
         }
@@ -199,7 +178,7 @@ impl ConnectionHandler for RosHandler {
 
         // new inbound substream. Replace the current one, if it exists.
         println!("New inbound substream request");
-        self.inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
+        self.inbound_substream = Some(SubstreamState::Ready(substream));
     }
 
     fn inject_fully_negotiated_outbound(
@@ -219,17 +198,13 @@ impl ConnectionHandler for RosHandler {
             // Add the message back to the send queue
             // self.send_queue.push(message);
         } else {
-            self.outbound_substream = Some(OutboundSubstreamState::WaitingOutput(substream));
+            self.outbound_substream = Some(SubstreamState::Ready(substream));
         }
     }
 
     fn inject_event(&mut self, a: RosHandlerIn) {
         println!("Event4! {:?}", a);
-        self.events.push_front(RosHandlerEvent::Publish);
-        // self.events
-        //     .push(ConnectionHandlerEvent::OutboundSubstreamRequest {
-        //         protocol: SubstreamProtocol::new(ReadyUpgrade::new(PROTOCOL_NAME), ()),
-        //     });
+        // self.outbound.push_back(request);
     }
 
     fn inject_listen_upgrade_error(
@@ -290,14 +265,23 @@ impl ConnectionHandler for RosHandler {
             });
         }
 
-        // process inbound stream
+        // !!! this works !!!
+        // return Poll::Ready(ConnectionHandlerEvent::Custom(RosHandlerEvent::Publish));
+
+        // process inbound substream
         loop {
-            match std::mem::replace(
-                &mut self.inbound_substream,
-                Some(InboundSubstreamState::Poisoned),
-            ) {
-                Some(InboundSubstreamState::WaitingInput(mut substream)) => {
-                    println!("we have inbound_substream!");
+            match self.inbound_substream.take() {
+                Some(SubstreamState::Ready(mut stream)) => {
+                    println!("Ready inbound");
+                    return Poll::Ready(ConnectionHandlerEvent::Custom(RosHandlerEvent::Publish));
+                    // match stream.poll_next_unpin(cx) {
+                    //     Poll::Pending => {
+                    //         self.inbound_substream =
+                    //             Some(InboundSubstreamState::WaitingInput(substream));
+                    //         break;
+                    //     }
+                    //     _ => {}
+                    // }
                 }
                 _ => {
                     self.inbound_substream = None;
@@ -306,29 +290,19 @@ impl ConnectionHandler for RosHandler {
             }
         }
 
-        // process outbound stream
+        // process outbound substream
         loop {
-            match std::mem::replace(
-                &mut self.outbound_substream,
-                Some(OutboundSubstreamState::Poisoned),
-            ) {
-                Some(OutboundSubstreamState::WaitingOutput(mut substream)) => {
-                    println!("we have inbound_substream!");
+            match self.outbound_substream.take() {
+                Some(SubstreamState::Ready(stream)) => {
+                    println!("Ready outbound");
                 }
                 _ => {
-                    self.outbound_substream = None;
+                    self.inbound_substream = None;
                     break;
                 }
             }
         }
 
         Poll::Pending
-
-        // if let Some(e) = self.events.pop_back() {
-        //     println!("+++++++++++++ {:?}", e);
-        //     Poll::Ready(ConnectionHandlerEvent::Custom(e))
-        // } else {
-        //     Poll::Pending
-        // }
     }
 }

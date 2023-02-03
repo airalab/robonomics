@@ -129,7 +129,15 @@ pub async fn run() -> sc_cli::Result<()> {
         tokio::select! {
             event = swarm.select_next_some() => match event {
                 SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
-                SwarmEvent::Behaviour(event) => println!("Event: {:?}", event),
+                // SwarmEvent::Behaviour(event) => println!("Event: {:?}", event),
+                SwarmEvent::Behaviour(event) => {
+                    println!("Event: {:?}", event);
+
+                    // TODO:: redirect ROS events to Pubsub
+                    // use libp2p::gossipsub::IdentTopic as Topic;
+                    // swarm.behaviour_mut().pubsub.publish(Topic::new("ros"), "message");
+
+                },
                 _ => {}
             }
         }
