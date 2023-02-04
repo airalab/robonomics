@@ -32,7 +32,6 @@ use libp2p::{
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    sync::Arc,
     time::Duration,
 };
 
