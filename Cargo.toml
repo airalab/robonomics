@@ -15,6 +15,7 @@ members = [
   "pair",
   "primitives",
   "protocol",
+  "protocol/examples/reqres",
   "rpc",
   "runtime/local",
   "runtime/alpha",
