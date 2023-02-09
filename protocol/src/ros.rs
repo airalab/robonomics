@@ -15,6 +15,7 @@ use libp2p::{
 };
 use std::{
     collections::VecDeque,
+    sync::Arc,
     task::{Context, Poll},
 };
 use void::Void;
@@ -36,12 +37,17 @@ impl Ros {
         self.events
             .push_front(RosEvent::Publish { peer_id, message });
     }
+    pub fn subscribe(&mut self, peer_id: PeerId, topic: String) {
+        self.events
+            .push_front(RosEvent::Subscribe { peer_id, topic });
+    }
 }
 
 /// Event that can be emitted by the ROS behaviour.
 #[derive(Debug)]
 pub enum RosEvent {
     Publish { peer_id: PeerId, message: String },
+    Subscribe { peer_id: PeerId, topic: String },
 }
 
 impl NetworkBehaviour for Ros {
@@ -53,7 +59,7 @@ impl NetworkBehaviour for Ros {
     }
 
     fn inject_event(&mut self, _: PeerId, _: ConnectionId, event: RosHandlerEvent) {
-        println!("Behaviour event! {:?}", event);
+        println!("RosHandlerEvent from behaviour! {:?}", event);
     }
 
     fn inject_connection_established(
@@ -91,6 +97,7 @@ impl NetworkBehaviour for Ros {
     ) -> Poll<NetworkBehaviourAction<Self::OutEvent, Self::ConnectionHandler>> {
         if let Some(event) = self.events.pop_back() {
             Poll::Ready(NetworkBehaviourAction::GenerateEvent(event))
+
             // Poll::Ready(NetworkBehaviourAction::NotifyHandler {
             //     peer_id: *peer_id,
             //     handler: libp2p::swarm::behaviour::NotifyHandler::One(RosHandler),
@@ -153,7 +160,6 @@ pub enum RosHandlerEvent {
 
 impl ConnectionHandler for RosHandler {
     type InEvent = RosEvent;
-    // type InEvent = Void;
     type OutEvent = RosHandlerEvent;
     type Error = crate::error::Error;
     type InboundProtocol = ReadyUpgrade<&'static [u8]>;
