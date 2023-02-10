@@ -1,7 +1,8 @@
+use futures::prelude::*;
 use libp2p::{
     core::{
         connection::ConnectionId,
-        upgrade::{OutboundUpgrade, ReadyUpgrade},
+        upgrade::{InboundUpgrade, OutboundUpgrade, ReadyUpgrade},
         ConnectedPoint,
     },
     swarm::{
@@ -13,6 +14,7 @@ use libp2p::{
     },
     PeerId,
 };
+use std::io;
 use std::{
     collections::VecDeque,
     sync::Arc,
@@ -109,7 +111,10 @@ impl NetworkBehaviour for Ros {
     }
 }
 
+// use asynchronous_codec::Framed;
+// use libp2p::gossipsub::protocol::GossipsubCodec;
 enum SubstreamState {
+    // Ready(Framed<NegotiatedSubstream, GossipsubCodec>),
     Ready(NegotiatedSubstream),
     NotReady,
 }
@@ -127,6 +132,11 @@ pub struct RosHandler {
     /// The single long-lived inbound substream.
     inbound_substream: Option<SubstreamState>,
 }
+
+// use futures::future::BoxFuture;
+// use futures::Stream;
+// type PingFuture = BoxFuture<'static, Result<(NegotiatedSubstream, Duration), io::Error>>;
+// type RosFuture = BoxFuture<'static, Result<NegotiatedSubstream, io::Error>>;
 
 impl RosHandler {
     pub fn new() -> Self {
@@ -174,15 +184,19 @@ impl ConnectionHandler for RosHandler {
     fn inject_fully_negotiated_inbound(
         &mut self,
         substream: NegotiatedSubstream,
+        // substream: <Self::InboundProtocol as InboundUpgrade<NegotiatedSubstream>>::Output,
         _: Self::InboundOpenInfo,
     ) {
         self.inbound_substreams_created += 1;
         self.inbound_substream = Some(SubstreamState::Ready(substream));
+
+        // self.inbound_substream = Some(recv_cmd(substream).boxed());
     }
 
     fn inject_fully_negotiated_outbound(
         &mut self,
         substream: NegotiatedSubstream,
+        // substream: <Self::InboundProtocol as InboundUpgrade<NegotiatedSubstream>>::Output,
         _: Self::OutboundOpenInfo,
     ) {
         self.outbound_substream_establishing = false;
@@ -258,16 +272,27 @@ impl ConnectionHandler for RosHandler {
 
         loop {
             match self.inbound_substream.take() {
-                Some(SubstreamState::Ready(substream)) => {
-                    println!("Ready inbound");
-                    // match substream.poll_next_unpin(cx) {
+                Some(a) => {
+                    println!("We have inbound");
+                    // match a.poll_next_unpin(cx) {
                     //     Poll::Pending => {
-                    //         self.inbound_substream = Some(SubstreamState::Ready(substream));
+                    //         println!("We have something");
                     //         break;
                     //     }
                     //     _ => {}
                     // }
                 }
+
+                // Some(SubstreamState::Ready(substream)) => {
+                //     println!("Ready inbound");
+                //     // match substream.poll_next_unpin(cx) {
+                //     //     Poll::Pending => {
+                //     //         self.inbound_substream = Some(SubstreamState::Ready(substream));
+                //     //         break;
+                //     //     }
+                //     //     _ => {}
+                //     // }
+                // }
                 _ => {
                     self.inbound_substream = None;
                     break;
@@ -290,3 +315,35 @@ impl ConnectionHandler for RosHandler {
         Poll::Pending
     }
 }
+
+// pub async fn recv_cmd<S>(mut stream: S) -> io::Result<S>
+// where
+//     S: AsyncRead + AsyncWrite + Unpin,
+// {
+//     let mut payload = [0u8; 32];
+//     stream.read_exact(&mut payload).await?;
+//     stream.write_all(&payload).await?;
+//     stream.flush().await?;
+//     Ok(stream)
+// }
+
+// use futures::prelude::*;
+// use std::pin::Pin;
+// use unsigned_varint::codec;
+// impl<TSocket> InboundUpgrade<TSocket> for ReadyUpgrade<&'static [u8]>
+// where
+//     TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+// {
+//     type Output = Framed<TSocket, GossipsubCodec>;
+//     type Error = crate::error::Error;
+//     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
+//
+//     fn upgrade_inbound(self, socket: TSocket, protocol_id: Self::Info) -> Self::Future {
+//         let mut length_codec = codec::UviBytes::default();
+//         length_codec.set_max_len(self.max_transmit_size);
+//         Box::pin(future::ok(Framed::new(
+//             socket,
+//             GossipsubCodec::new(length_codec, self.validation_mode),
+//         )))
+//     }
+// }
