@@ -204,7 +204,7 @@ pub async fn reqres_server(
                     );
                     if node != peer_id.to_string() {
                         log::debug!(
-                            "incomming peer {} from {} is not as expexted {}",
+                            "incomming peer {} from {} is not as expected {}",
                             peer_id,
                             endpoint.get_remote_address(),
                             node
