@@ -8970,6 +8970,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "robonomics-request-response-example"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "futures",
+ "libp2p 0.49.0",
+ "robonomics-protocol",
+ "rust-base58",
+ "tokio",
+]
+
+[[package]]
 name = "robonomics-rpc"
 version = "2.7.0"
 dependencies = [
