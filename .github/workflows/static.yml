@@ -28,6 +28,9 @@ jobs:
       - name: Checkout the source code
         uses: actions/checkout@v2
 
+      - name: Install deps
+        run: sudo apt-get -y install protobuf-compiler
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -40,4 +43,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warning
+          args: -- -D warnings

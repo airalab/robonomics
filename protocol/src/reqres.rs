@@ -141,7 +141,7 @@ impl RequestResponseCodec for RobonomicsCodec {
             }
             // send Pong if somebody try in app logic to obfuscate Ping by sending Data instead of Pong
             Response::Data(data) => {
-                if self.is_ping == false {
+                if !self.is_ping {
                     write_length_prefixed(io, data).await
                 } else {
                     write_length_prefixed(io, "".as_bytes()).await
@@ -158,7 +158,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
     let mut peer_id = id_keys.public().to_peer_id();
 
     let f = std::fs::read("private.pk8");
-    let _ = match f {
+    match f {
         Ok(mut bytes) => {
             id_keys = identity::Keypair::rsa_from_pkcs8(&mut bytes).unwrap();
             peer_id = id_keys.public().to_peer_id();
@@ -168,6 +168,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
     };
 
     let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
+
     let noise_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&id_keys)
         .unwrap();
@@ -200,11 +201,15 @@ pub async fn reqres(
 
     let (peer2_id, trans) = mk_transport();
     let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-    let mut swarm2 = SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
-        .executor(Box::new(|fut| {
-            tokio::spawn(fut);
-        }))
-        .build();
+    //  let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+    let mut swarm2 = {
+        SwarmBuilder::new(trans, ping_proto2, peer2_id)
+            .executor(Box::new(|fut| {
+                tokio::spawn(fut);
+            }))
+            .build()
+    };
+
     log::debug!("Local peer 2 id: {:?}", peer2_id);
 
     let addr_remote = address;
@@ -229,15 +234,15 @@ pub async fn reqres(
                 String::from_utf8_lossy(&y)
             );
         }
-        let req_encoded: Vec<u8> = bincode::serialize(&format!("{}", value).into_bytes()).unwrap();
+        let req_encoded: Vec<u8> = bincode::serialize(&value.into_bytes()).unwrap();
         swarm2
             .behaviour_mut()
             .send_request(&remote_peer, Request::Get(req_encoded));
     } else {
-        println!("unsuported command {} ", method);
+        println!("unsuported command {method} ");
     }
 
-    loop {
+    let received = loop {
         match swarm2.select_next_some().await {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 log::debug!("Peer2 connected: {:?}", peer_id);
@@ -257,8 +262,10 @@ pub async fn reqres(
                         },
                 } => match response {
                     Response::Pong => {
-                        log::debug!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
-                        break;
+                        let pong_msg =
+                            format!(" peer2 Resp{} {:?} from {:?}", request_id, &response, peer);
+                        log::debug!("{}", pong_msg);
+                        break pong_msg;
                     }
                     Response::Data(data) => {
                         let decoded: Vec<u8> = bincode::deserialize(&data.to_vec()).unwrap();
@@ -267,19 +274,21 @@ pub async fn reqres(
                             String::from_utf8_lossy(&decoded[..]),
                             remote_peer
                         );
-                        log::debug!("{}", String::from_utf8_lossy(&decoded[..]));
-                        break;
+                        let data_msg = format!("{}", String::from_utf8_lossy(&decoded[..]));
+                        log::debug!("{}", data_msg);
+                        break data_msg;
                     }
                 },
 
                 e => {
-                    println!("Peer2 err: {:?}", e);
-                    break;
+                    let err_msg = format!("Peer2 err: {e:?}");
+                    println!("{err_msg}");
+                    break err_msg;
                 }
             },
 
             _ => {}
         };
-    }
-    Ok("decoded".to_string())
+    };
+    Ok(received)
 }

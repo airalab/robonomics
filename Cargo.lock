@@ -8985,6 +8985,9 @@ dependencies = [
 name = "robonomics-rpc"
 version = "2.7.0"
 dependencies = [
+ "bincode",
+ "chrono",
+ "futures",
  "hex",
  "jsonrpsee 0.15.1",
  "jsonrpsee-types 0.15.1",
