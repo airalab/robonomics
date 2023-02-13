@@ -2,7 +2,6 @@
 default-members = ["bin/node"]
 members = [
   "bin/node",
-  "bin/node",
   #    "cli",
   "frame/crowdloan",
   "frame/rws",
@@ -12,8 +11,10 @@ members = [
   "frame/lighthouse",
   "frame/digital-twin",
   #    "io",
+  "pair",
   "primitives",
   "protocol",
+  "protocol/examples/reqres",
   "rpc",
   "runtime/local",
   "runtime/alpha",

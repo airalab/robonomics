@@ -15,11 +15,12 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-use robonomics_protocol::reqres::*;
+use chrono::prelude::*;
 use jsonrpsee::{
     core::{async_trait, RpcResult},
     proc_macros::rpc,
 };
+use robonomics_protocol::reqres::*;
 use std::fmt;
 
 fn epochu() -> i64 {
@@ -29,7 +30,7 @@ fn epochu() -> i64 {
     (seconds * 1000 * 1000) + (nanoseconds / 1000)
 }
 
-fn get_addr(address: String) -> (String, String) {
+pub fn get_addr(address: String) -> (String, String) {
     let ma = address.clone();
     let v: Vec<&str> = address.split('/').collect();
     let peer_id = v.last().unwrap().to_string();
@@ -65,7 +66,7 @@ impl ReqRespRpcServer for ReqRespRpc {
         let value = Some(message.clone().to_string());
         let method = "get".to_string();
 
-        let res = reqresrpc::reqres(
+        let res = reqres(
             multiaddr.clone(),
             peerid.clone(),
             method.clone(),
@@ -95,7 +96,7 @@ impl ReqRespRpcServer for ReqRespRpc {
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqresrpc::reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
+        let res = reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
         let fres = futures::executor::block_on(res);
         let dt = epochu() - t0;
 

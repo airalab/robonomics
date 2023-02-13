@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use clap::Parser;
+use robonomics_pair;
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 
 /// An overarching CLI command definition.
@@ -96,6 +97,11 @@ pub enum Subcommand {
     /// Robonomics Framework I/O operations.
     #[cfg(feature = "robonomics-cli")]
     Io(robonomics_cli::IoCmd),
+
+    /// Pair by peerId operatins
+    /// robonomics pair listen --peer peerID_to_listen
+    /// robonomics pair connect --peer peerID_to_listen
+    Pair(robonomics_pair::pair::PairCmd),
 
     /// Benchmarking runtime pallets.
     #[cfg(feature = "frame-benchmarking-cli")]

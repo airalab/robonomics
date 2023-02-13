@@ -284,6 +284,21 @@ pub fn run() -> sc_cli::Result<()> {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
         }
+
+        #[cfg(feature = "full")]
+        Some(Subcommand::Pair(cmd)) => match &cmd.subcommand {
+            Some(robonomics_pair::pair::PairSubCmds::Connect(cmd)) => {
+                robonomics_pair::pair::ConnectCmd::run(cmd).map_err(|e| e.to_string().into())
+            }
+            Some(robonomics_pair::pair::PairSubCmds::Listen(cmd)) => {
+                robonomics_pair::pair::ListenCmd::run(cmd).map_err(|e| e.to_string().into())
+            }
+            _ => {
+                println!("pair args {:?}", cmd);
+                Ok(())
+            }
+        },
+
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(cmd)) => {
             let runner = cli.create_runner(&*cli.run)?;

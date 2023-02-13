@@ -112,6 +112,7 @@ substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", 
 
 # Robonomics-specific dependencies
 #robonomics-cli = { path = "../../../cli", optional = true }
+robonomics-pair  = { path = "../pair", optional = true }
 
 [build-dependencies]
 local-runtime = { path = "../runtime/local", optional = true }
@@ -122,6 +123,7 @@ frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", bran
 cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 #robonomics-cli = { path = "../../../cli", optional = true }
+robonomics-pair  = { path = "../pair", optional = true }
 vergen = { version = "3.1.0", optional = true }
 clap = { version = "3.0", features = ["derive"], optional = true }
 clap_complete = { version = "3.0", optional = true }
@@ -144,6 +146,7 @@ full = [
   "robonomics-protocol",
   "frame-benchmarking",
   "cumulus-client-cli",
+  "robonomics-pair",
   #    "robonomics-cli",
   "libp2p",
 ]
@@ -157,6 +160,7 @@ zero = [
   "clap",
   "clap_complete",
   "cumulus-client-cli",
+  "robonomics-pair",
   #    "robonomics-cli",
 ]
 
