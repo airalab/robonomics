@@ -11,14 +11,24 @@ where place different keys:
 $ ./robonomics pair listen --peer Qma7vLWTmTnwcXfLF4iKEuJqvfCZGRrseYTuxk2GdVE9fZ
 
 - other one instance of robonomics as reqres client from other directory with client private.pk8 key:
-$ ../robonomics pair connect --peer QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL
+$ ./robonomics pair connect --peer QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL
 
 In case if reqres server mathes address from command line and peer trying to connect it continue communication.
 In other case it reject connection (with message about saving unexpected peer Id).
 
 
 Notes:
-Adrees is hardcoded to connect with /ip4/127.0.0.1/tcp/61241, while no discovery at present time
+Default address is hardcoded to connect with /ip4/127.0.0.1/tcp/61241, while no discovery at present time
+
+To set address to listen server or to connect need to use --addr paremeter, i.e.
+
+- to bind and listen on given address:
+./robonomics pair listen --peer QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL --addr /ip4/127.0.0.1/tcp/61243
+
+- to connect to peer ID on specified address:
+./robonomics pair connect --peer QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL --addr /ip4/127.0.0.1/tcp/61243
+
+
 
 Robomomics and reqres example to pair:
 

@@ -204,14 +204,18 @@ pub async fn reqres_server(
                     );
                     if node != peer_id.to_string() {
                         log::debug!(
-                            "save node to pair {} {} ",
+                            "incomming peer {} from {} is not as expected {}",
+                            peer_id,
+                            endpoint.get_remote_address(),
+                            node
+                        );
+                        swarm1.disconnect_peer_id(peer_id).unwrap();
+                    } else {
+                        log::debug!(
+                            "continue with expected node {} from {}",
                             peer_id,
                             endpoint.get_remote_address()
                         );
-                        // maybe TODO store somewhere paired peerID
-                        swarm1.disconnect_peer_id(peer_id).unwrap();
-                    } else {
-                        log::debug!("continue with expected node {}", peer_id.clone());
                     }
                 }
 
@@ -266,7 +270,7 @@ pub async fn reqres_server(
                 SwarmEvent::Behaviour(e) => log::debug!("Peer1: Unexpected event: {:?}", e),
 
                 e => {
-                    log::debug!("Reqres server error: {:?}", e);
+                    log::debug!("Reqres server event: {:?}", e);
                 }
             } // match
         } // loop
