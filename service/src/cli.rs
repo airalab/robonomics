@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use clap::Parser;
+use robonomics_pair;
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 
 /// An overarching CLI command definition.
@@ -43,9 +44,25 @@ pub struct Cli {
     #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
 
-    /// PubSub heartbeat interval
+    /// Local key.
+    #[clap(long)]
+    pub local_key_file: Option<String>,
+
+    /// PubSub heartbeat interval.
     #[clap(long)]
     pub heartbeat_interval: Option<u64>,
+
+    /// Nodes for connect.
+    #[clap(long)]
+    pub robonomics_bootnodes: Vec<String>,
+
+    /// Disable mDNS.
+    #[clap(long)]
+    pub disable_mdns: bool,
+
+    /// Disable Kademlia.
+    #[clap(long)]
+    pub disable_kad: bool,
 
     /// Polkadot relaychain arguments.
     #[clap(raw = true, conflicts_with = "relay-chain-rpc-url")]
@@ -80,6 +97,11 @@ pub enum Subcommand {
     /// Robonomics Framework I/O operations.
     #[cfg(feature = "robonomics-cli")]
     Io(robonomics_cli::IoCmd),
+
+    /// Pair by peerId operatins
+    /// robonomics pair listen --peer peerID_to_listen
+    /// robonomics pair connect --peer peerID_to_listen
+    Pair(robonomics_pair::pair::PairCmd),
 
     /// Benchmarking runtime pallets.
     #[cfg(feature = "frame-benchmarking-cli")]
