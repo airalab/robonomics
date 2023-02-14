@@ -99,22 +99,13 @@ impl NetworkBehaviour for Ros {
     ) -> Poll<NetworkBehaviourAction<Self::OutEvent, Self::ConnectionHandler>> {
         if let Some(event) = self.events.pop_back() {
             Poll::Ready(NetworkBehaviourAction::GenerateEvent(event))
-
-            // Poll::Ready(NetworkBehaviourAction::NotifyHandler {
-            //     peer_id: *peer_id,
-            //     handler: libp2p::swarm::behaviour::NotifyHandler::One(RosHandler),
-            //     event: RosEvent::Publish { peer_id: *peer_id },
-            // })
         } else {
             Poll::Pending
         }
     }
 }
 
-// use asynchronous_codec::Framed;
-// use libp2p::gossipsub::protocol::GossipsubCodec;
 enum SubstreamState {
-    // Ready(Framed<NegotiatedSubstream, GossipsubCodec>),
     Ready(NegotiatedSubstream),
     NotReady,
 }
@@ -135,7 +126,6 @@ pub struct RosHandler {
 
 // use futures::future::BoxFuture;
 // use futures::Stream;
-// type PingFuture = BoxFuture<'static, Result<(NegotiatedSubstream, Duration), io::Error>>;
 // type RosFuture = BoxFuture<'static, Result<NegotiatedSubstream, io::Error>>;
 
 impl RosHandler {
@@ -267,32 +257,20 @@ impl ConnectionHandler for RosHandler {
             });
         }
 
-        // !!!
         // return Poll::Ready(ConnectionHandlerEvent::Custom(RosHandlerEvent::Publish));
 
         loop {
             match self.inbound_substream.take() {
-                Some(a) => {
-                    println!("We have inbound");
-                    // match a.poll_next_unpin(cx) {
+                Some(SubstreamState::Ready(substream)) => {
+                    println!("Ready inbound");
+                    // match substream.poll_next_unpin(cx) {
                     //     Poll::Pending => {
-                    //         println!("We have something");
+                    //         self.inbound_substream = Some(SubstreamState::Ready(substream));
                     //         break;
                     //     }
                     //     _ => {}
                     // }
                 }
-
-                // Some(SubstreamState::Ready(substream)) => {
-                //     println!("Ready inbound");
-                //     // match substream.poll_next_unpin(cx) {
-                //     //     Poll::Pending => {
-                //     //         self.inbound_substream = Some(SubstreamState::Ready(substream));
-                //     //         break;
-                //     //     }
-                //     //     _ => {}
-                //     // }
-                // }
                 _ => {
                     self.inbound_substream = None;
                     break;
@@ -325,25 +303,4 @@ impl ConnectionHandler for RosHandler {
 //     stream.write_all(&payload).await?;
 //     stream.flush().await?;
 //     Ok(stream)
-// }
-
-// use futures::prelude::*;
-// use std::pin::Pin;
-// use unsigned_varint::codec;
-// impl<TSocket> InboundUpgrade<TSocket> for ReadyUpgrade<&'static [u8]>
-// where
-//     TSocket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
-// {
-//     type Output = Framed<TSocket, GossipsubCodec>;
-//     type Error = crate::error::Error;
-//     type Future = Pin<Box<dyn Future<Output = Result<Self::Output, Self::Error>> + Send>>;
-//
-//     fn upgrade_inbound(self, socket: TSocket, protocol_id: Self::Info) -> Self::Future {
-//         let mut length_codec = codec::UviBytes::default();
-//         length_codec.set_max_len(self.max_transmit_size);
-//         Box::pin(future::ok(Framed::new(
-//             socket,
-//             GossipsubCodec::new(length_codec, self.validation_mode),
-//         )))
-//     }
 // }
