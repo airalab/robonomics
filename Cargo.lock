@@ -4140,7 +4140,7 @@ dependencies = [
  "libp2p-metrics 0.7.0",
  "libp2p-mplex 0.34.0",
  "libp2p-noise 0.37.0",
- "libp2p-ping",
+ "libp2p-ping 0.37.0",
  "libp2p-plaintext",
  "libp2p-pnet",
  "libp2p-relay",
@@ -4180,6 +4180,7 @@ dependencies = [
  "libp2p-metrics 0.10.0",
  "libp2p-mplex 0.37.0",
  "libp2p-noise 0.40.0",
+ "libp2p-ping 0.40.1",
  "libp2p-request-response 0.22.1",
  "libp2p-swarm 0.40.1",
  "libp2p-swarm-derive 0.30.1",
@@ -4522,7 +4523,7 @@ dependencies = [
  "libp2p-gossipsub 0.39.0",
  "libp2p-identify",
  "libp2p-kad 0.38.0",
- "libp2p-ping",
+ "libp2p-ping 0.37.0",
  "libp2p-relay",
  "libp2p-swarm 0.37.0",
  "prometheus-client 0.16.0",
@@ -4537,6 +4538,7 @@ dependencies = [
  "libp2p-core 0.37.0",
  "libp2p-gossipsub 0.42.1",
  "libp2p-kad 0.41.0",
+ "libp2p-ping 0.40.1",
  "libp2p-swarm 0.40.1",
  "prometheus-client 0.18.1",
 ]
@@ -4634,6 +4636,22 @@ dependencies = [
  "libp2p-swarm 0.37.0",
  "log",
  "rand 0.7.3",
+ "void",
+]
+
+[[package]]
+name = "libp2p-ping"
+version = "0.40.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7228b9318d34689521349a86eb39a3c3a802c9efc99a0568062ffb80913e3f91"
+dependencies = [
+ "futures",
+ "futures-timer",
+ "instant",
+ "libp2p-core 0.37.0",
+ "libp2p-swarm 0.40.1",
+ "log",
+ "rand 0.8.5",
  "void",
 ]
 
@@ -8979,6 +8997,33 @@ dependencies = [
  "robonomics-protocol",
  "rust-base58",
  "tokio",
+]
+
+[[package]]
+name = "robonomics-ros-example"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "chrono",
+ "derive_more",
+ "futures",
+ "futures-timer",
+ "instant",
+ "jsonrpsee 0.14.0",
+ "libp2p 0.49.0",
+ "log",
+ "parity-scale-codec",
+ "rand 0.8.5",
+ "robonomics-protocol",
+ "rust-base58",
+ "serde",
+ "serde_json",
+ "sp-core 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "subxt",
+ "tokio",
+ "void",
 ]
 
 [[package]]

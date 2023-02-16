@@ -19,8 +19,8 @@
 
 use libp2p::{
     gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-        MessageId,
+        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, IdentTopic as Topic,
+        MessageAuthenticity, MessageId,
     },
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
@@ -36,7 +36,10 @@ use std::{
 };
 
 use crate::{
-    error::Result,
+    error::{
+        Error::{PublishError, SubscriptionError},
+        Result,
+    },
     reqres::{Request, Response},
 };
 
@@ -96,6 +99,14 @@ impl RobonomicsNetworkBehaviour {
             mdns,
             kademlia,
         })
+    }
+    pub fn ros_subscribe(&mut self, topic: &Topic) -> Result<bool> {
+        self.pubsub.subscribe(topic).map_err(|_| SubscriptionError)
+    }
+    pub fn ros_publish(&mut self, topic: &Topic, message: String) -> Result<MessageId> {
+        self.pubsub
+            .publish(topic.to_owned(), message.clone())
+            .map_err(|_| PublishError)
     }
 }
 
