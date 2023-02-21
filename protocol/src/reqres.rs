@@ -186,6 +186,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
 /// Sends get or ping requests
 ///
 /// Returns response from server on get method
+#[tokio::main]
 pub async fn reqres(
     address: String,
     peerid: String,
@@ -201,7 +202,7 @@ pub async fn reqres(
 
     let (peer2_id, trans) = mk_transport();
     let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
-    //  let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
+
     let mut swarm2 = {
         SwarmBuilder::new(trans, ping_proto2, peer2_id)
             .executor(Box::new(|fut| {

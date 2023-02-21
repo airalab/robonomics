@@ -13,8 +13,6 @@ use std::{thread, time};
 
 #[tokio::main]
 async fn main() {
-    //fn main () {
-
     let args: Vec<String> = env::args().collect();
     let ms = time::Duration::from_millis(100);
 
@@ -29,7 +27,7 @@ async fn main() {
             protocols.clone(),
             cfg.clone(),
         );
-        //      let mut swarm1 = Swarm::new(trans, ping_proto1, peer1_id);
+
         let mut swarm1 = {
             SwarmBuilder::new(trans, ping_proto1, peer1_id)
                 .executor(Box::new(|fut| {
