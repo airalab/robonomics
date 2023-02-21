@@ -83,7 +83,6 @@ where
     io.merge(PubSubRpc::new(network.clone()).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
     io.merge(ReqRespRpc::new().into_rpc())?;
-    // io.merge(ReqRespRpc::new(network).into_rpc())?;
     Ok(io)
 }
 
