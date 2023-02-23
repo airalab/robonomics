@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use clap::Parser;
-use robonomics_pair;
+// use robonomics_pair;
 use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
 
 /// An overarching CLI command definition.
@@ -53,7 +53,7 @@ pub struct Cli {
     pub heartbeat_interval: Option<u64>,
 
     /// Nodes for connect.
-    #[clap(long)]
+    #[clap(long, value_delimiter = ',')]
     pub robonomics_bootnodes: Vec<String>,
 
     /// Disable mDNS.
@@ -101,7 +101,7 @@ pub enum Subcommand {
     /// Pair by peerId operatins
     /// robonomics pair listen --peer peerID_to_listen
     /// robonomics pair connect --peer peerID_to_listen
-    Pair(robonomics_pair::pair::PairCmd),
+    // Pair(robonomics_pair::pair::PairCmd),
 
     /// Benchmarking runtime pallets.
     #[cfg(feature = "frame-benchmarking-cli")]

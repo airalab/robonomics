@@ -38,6 +38,4 @@ libp2p = { version = "0.49", features = [
     "tokio",
     "rsa",
 ] }
-
-tokio = { version = "1", features = ["full"] }
-
+tokio = { version = "1.23.0", features = ["full"] }

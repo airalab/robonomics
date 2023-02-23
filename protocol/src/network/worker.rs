@@ -22,7 +22,7 @@ use libp2p::{
     identity::Keypair,
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
-    swarm::SwarmEvent,
+    swarm::{SwarmBuilder, SwarmEvent},
     PeerId, Swarm,
 };
 use std::{
@@ -67,7 +67,12 @@ impl NetworkWorker {
         )?;
 
         // Create a Swarm to manage peers and events
-        let swarm = Swarm::new(transport, behaviour, peer_id.clone());
+        // let swarm = Swarm::new(transport, behaviour, peer_id.clone());
+        let swarm = SwarmBuilder::new(transport, behaviour, peer_id.clone())
+            .executor(Box::new(|fut| {
+                tokio::spawn(fut);
+            }))
+            .build();
 
         Ok(Self { swarm, pubsub })
     }
