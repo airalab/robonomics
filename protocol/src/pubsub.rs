@@ -23,13 +23,15 @@ use futures::{
 };
 use libp2p::{
     core::transport::ListenerId,
+    core::upgrade,
     gossipsub::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
         MessageId, Sha256Topic as Topic, TopicHash,
     },
     identity::Keypair,
+    mplex, noise,
     swarm::{SwarmBuilder, SwarmEvent},
-    Multiaddr, PeerId, Swarm,
+    tcp, Multiaddr, PeerId, Swarm, Transport,
 };
 use serde::Serialize;
 use std::{
@@ -197,6 +199,14 @@ impl PubSubWorker {
 
         // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
+        // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
+        //     .upgrade(upgrade::Version::V1)
+        //     .authenticate(
+        //         noise::NoiseAuthenticated::xx(&local_key)
+        //             .expect("Signing libp2p-noise static DH keypair failed."),
+        //     )
+        //     .multiplex(mplex::MplexConfig::new())
+        //     .boxed();
 
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::default()

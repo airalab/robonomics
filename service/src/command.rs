@@ -21,15 +21,16 @@ use crate::cli::{Cli, Subcommand};
 use crate::{chain_spec::*, service::robonomics};
 #[cfg(feature = "discovery")]
 use libp2p::{
+    core::upgrade,
     futures::StreamExt,
+    mplex, noise,
     swarm::{SwarmBuilder, SwarmEvent},
-    PeerId,
+    tcp, Multiaddr, PeerId, Transport,
 };
 use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
-use robonomics_protocol::network::{behaviour::RobonomicsNetworkBehaviour, discovery};
+use robonomics_protocol::network::behaviour::RobonomicsNetworkBehaviour;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-#[cfg(feature = "discovery")]
 use std::path::Path;
 
 #[cfg(feature = "parachain")]
@@ -104,8 +105,6 @@ impl SubstrateCli for Cli {
 #[cfg(feature = "discovery")]
 pub async fn run() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
-
-    // Get local key
     let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
         id::load(Path::new(&file_name)).expect("Correct file path")
     });
@@ -114,6 +113,14 @@ pub async fn run() -> sc_cli::Result<()> {
 
     let transport =
         libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
+    // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
+    //     .upgrade(upgrade::Version::V1)
+    //     .authenticate(
+    //         noise::NoiseAuthenticated::xx(&local_key)
+    //             .expect("Signing libp2p-noise static DH keypair failed."),
+    //     )
+    //     .multiplex(mplex::MplexConfig::new())
+    //     .boxed();
     let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
         .expect("Correct behaviour");
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
@@ -122,16 +129,17 @@ pub async fn run() -> sc_cli::Result<()> {
         }))
         .build();
 
-    discovery::add_explicit_peers(&mut swarm, cli.robonomics_bootnodes, cli.disable_kad);
+    for node in cli.robonomics_bootnodes {
+        if let Ok(address) = node.parse::<Multiaddr>() {
+            if let Err(error) = swarm.dial(address) {
+                println!("Dial error: {:?}", error);
+            }
+        }
+    }
 
     swarm
         .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
         .expect("Swarm listen");
-
-    let peers = swarm.connected_peers();
-    for p in peers {
-        println!("connected peer: {:?}", p);
-    }
 
     loop {
         tokio::select! {
@@ -140,8 +148,7 @@ pub async fn run() -> sc_cli::Result<()> {
                 SwarmEvent::Behaviour(event) => println!("Event: {:?}", event),
                 event => {
                     println!("Other event: {:?}", event);
-                    let ps = swarm.connected_peers();
-                    for p in ps {
+                    for p in swarm.connected_peers() {
                         println!("connected peer: {:?}", p);
                     }
                 }

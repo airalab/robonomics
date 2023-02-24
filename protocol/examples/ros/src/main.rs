@@ -1,8 +1,10 @@
 use futures::StreamExt;
 use libp2p::{
-    core::{identity::Keypair, Multiaddr, PeerId},
+    core::{identity::Keypair, upgrade, Multiaddr, PeerId},
     gossipsub::IdentTopic as Topic,
+    mplex, noise,
     swarm::{SwarmBuilder, SwarmEvent},
+    tcp, Transport,
 };
 use robonomics_protocol::network::behaviour::RobonomicsNetworkBehaviour;
 use std::{env::args, error::Error};
@@ -15,6 +17,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Local peer id: {:?}", local_peer_id);
 
     let transport = libp2p::tokio_development_transport(local_key.clone())?;
+    // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
+    //     .upgrade(upgrade::Version::V1)
+    //     .authenticate(
+    //         noise::NoiseAuthenticated::xx(&local_key)
+    //             .expect("Signing libp2p-noise static DH keypair failed."),
+    //     )
+    //     .multiplex(mplex::MplexConfig::new())
+    //     .boxed();
+
     let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)?;
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {
@@ -30,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
     let topic = Topic::new("ros");
-    let _ = swarm.behaviour_mut().ros_subscribe(&topic)?;
+    let _ = swarm.behaviour_mut().pubsub.subscribe(&topic)?;
 
     println!("Enter messages");
     let mut stdin = BufReader::new(io::stdin()).lines();
@@ -38,12 +49,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         tokio::select! {
             line = stdin.next_line() => {
-                let message = line?.expect("stdin closed");
-                let _message_id = swarm.behaviour_mut().ros_publish(&topic, message)?;
+                // let message = line?.expect("stdin closed");
+                // let message = "test".to_string().as_bytes();
+                let _message_id = swarm.behaviour_mut().pubsub.publish(topic.clone(),"test".to_string().as_bytes())?;
             },
             event = swarm.select_next_some() => match event {
-                SwarmEvent::Behaviour(event) => println!("event: {:?}", event),
-                _ => {}
+                SwarmEvent::Behaviour(event) => println!("swarm event: {:?}", event),
+                event => println!("event: {:?}", event),
             }
         }
     }

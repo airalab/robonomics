@@ -18,7 +18,8 @@
 //! Robonomics protocol node discovery.
 
 use super::behaviour::RobonomicsNetworkBehaviour;
-use libp2p::{Multiaddr, PeerId, Swarm};
+// use libp2p::{Multiaddr, PeerId, Swarm};
+use libp2p::{Multiaddr, Swarm};
 
 pub fn add_explicit_peers(
     swarm: &mut Swarm<RobonomicsNetworkBehaviour>,
@@ -27,21 +28,25 @@ pub fn add_explicit_peers(
 ) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
-            if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
-                if let Err(e) = swarm.dial(peer) {
-                    println!("Dial error: {:?}", e);
-                }
-
-                // Add node to PubSub
-                // swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
-
-                // Add node to DHT
-                // if !disable_kad {
-                //     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
-                //         kademlia.add_address(&peer, addr);
-                //     };
-                // }
+            if let Err(e) = swarm.dial(addr) {
+                println!("Dial error: {:?}", e);
             }
+
+            // if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+            //     if let Err(e) = swarm.dial(peer) {
+            //         println!("Dial error: {:?}", e);
+            //     }
+            //
+            //     // Add node to PubSub
+            //     // swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+            //
+            //     // Add node to DHT
+            //     // if !disable_kad {
+            //     //     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
+            //     //         kademlia.add_address(&peer, addr);
+            //     //     };
+            //     // }
+            // }
         }
     }
 }
