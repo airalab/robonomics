@@ -26,13 +26,15 @@ use std::path::Path;
 
 #[cfg(feature = "discovery")]
 use libp2p::{
-    core::upgrade,
     futures::StreamExt,
-    gossipsub, mdns, mplex, noise,
+    gossipsub::GossipsubEvent,
     swarm::{SwarmBuilder, SwarmEvent},
-    tcp, Multiaddr, PeerId, Transport,
+    PeerId,
 };
-use robonomics_protocol::network::{behaviour::RobonomicsNetworkBehaviour, discovery};
+use robonomics_protocol::network::{
+    behaviour::{OutEvent, RobonomicsNetworkBehaviour},
+    discovery,
+};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -110,13 +112,12 @@ pub async fn run() -> sc_cli::Result<()> {
         id::load(Path::new(&file_name)).expect("Correct file path")
     });
     let local_peer_id = PeerId::from(local_key.public());
-    println!("Local peer id: {:?}", local_peer_id);
+    println!("Local peer id: {local_peer_id:?}");
 
     let transport =
         libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
     let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
         .expect("Correct behaviour");
-    // ???
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {
             tokio::spawn(fut);
@@ -144,14 +145,15 @@ pub async fn run() -> sc_cli::Result<()> {
         tokio::select! {
             event = swarm.select_next_some() => match event {
                 SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
-                SwarmEvent::Behaviour(event) =>
-                {
-                    println!("Event: {:?}", event);
-                    for p in swarm.connected_peers() {
-                        println!("Connected peer: {p}");
-                    }
-                }
-                _ => {}
+                SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {
+                    propagation_source: peer_id,
+                    message_id: id,
+                    message,
+                })) => println!(
+                        "Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    ),
+                event => println!("event: {event:?}"),
             }
         }
     }

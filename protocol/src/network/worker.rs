@@ -19,13 +19,11 @@
 
 use futures::{prelude::*, Future};
 use libp2p::{
-    core::upgrade,
     identity::Keypair,
     kad::KademliaEvent,
-    mplex, noise,
     request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::{SwarmBuilder, SwarmEvent},
-    tcp, PeerId, Swarm, Transport,
+    PeerId, Swarm,
 };
 use std::{
     pin::Pin,
@@ -58,14 +56,6 @@ impl NetworkWorker {
 
         // Set up an encrypted WebSocket compatible Transport
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
-        // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
-        //     .upgrade(upgrade::Version::V1)
-        //     .authenticate(
-        //         noise::NoiseAuthenticated::xx(&local_key)
-        //             .expect("Signing libp2p-noise static DH keypair failed."),
-        //     )
-        //     .multiplex(mplex::MplexConfig::new())
-        //     .boxed();
 
         // Build a combined network behaviour
         let behaviour = RobonomicsNetworkBehaviour::new(
@@ -77,7 +67,6 @@ impl NetworkWorker {
         )?;
 
         // Create a Swarm to manage peers and events
-        // let swarm = Swarm::new(transport, behaviour, peer_id.clone());
         let swarm = SwarmBuilder::new(transport, behaviour, peer_id.clone())
             .executor(Box::new(|fut| {
                 tokio::spawn(fut);
