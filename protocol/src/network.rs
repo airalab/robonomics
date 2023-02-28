@@ -53,7 +53,7 @@ impl RobonomicsNetwork {
         )?;
 
         // Reach out to another nodes if specified
-        discovery::add_explicit_peers(&mut network_worker.swarm, bootnodes, disable_kad);
+        discovery::add_peers(&mut network_worker.swarm, bootnodes);
 
         Ok((Arc::new(Self { pubsub }), network_worker))
     }

@@ -1,61 +1,81 @@
 use futures::StreamExt;
 use libp2p::{
-    core::{identity::Keypair, upgrade, Multiaddr, PeerId},
-    gossipsub::IdentTopic as Topic,
-    mplex, noise,
+    gossipsub::{GossipsubEvent, IdentTopic as Topic},
+    identity,
     swarm::{SwarmBuilder, SwarmEvent},
-    tcp, Transport,
+    Multiaddr, PeerId,
 };
-use robonomics_protocol::network::behaviour::RobonomicsNetworkBehaviour;
-use std::{env::args, error::Error};
-use tokio::io::{self, AsyncBufReadExt, BufReader};
+use std::{env, error::Error};
+use tokio::io::{self, AsyncBufReadExt};
+
+use robonomics_protocol::network::behaviour::{OutEvent, RobonomicsNetworkBehaviour};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let local_key = Keypair::generate_ed25519();
+    // Create a random PeerId
+    let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
-    println!("Local peer id: {:?}", local_peer_id);
+    println!("Local peer id: {local_peer_id}");
 
+    // Set up an encrypted DNS-enabled TCP Transport over the Mplex protocol
     let transport = libp2p::tokio_development_transport(local_key.clone())?;
-    // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
-    //     .upgrade(upgrade::Version::V1)
-    //     .authenticate(
-    //         noise::NoiseAuthenticated::xx(&local_key)
-    //             .expect("Signing libp2p-noise static DH keypair failed."),
-    //     )
-    //     .multiplex(mplex::MplexConfig::new())
-    //     .boxed();
 
-    let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)?;
+    // Create robonomics network behaviour
+    let mut behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
+        .expect("Correct behaviour");
+
+    // Create topic
+    let topic = Topic::new("ROS");
+
+    // Subscribe to topic
+    behaviour.pubsub.subscribe(&topic)?;
+
+    // Create swarm
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {
             tokio::spawn(fut);
         }))
         .build();
 
-    if let Some(addr) = args().nth(1) {
-        let remote: Multiaddr = addr.parse()?;
-        swarm.dial(remote)?;
+    // Add nodes
+    if let Some(to_dial) = env::args().nth(1) {
+        let addr: Multiaddr = to_dial.parse()?;
+        swarm.dial(addr.clone())?;
+        println!("Dialed {to_dial:?}");
+
+        if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+            swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+        }
     }
 
+    // Read full lines from stdin
+    let mut stdin = io::BufReader::new(io::stdin()).lines();
+
+    // Listen on all interfaces and whatever port the OS assigns
     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
-    let topic = Topic::new("ros");
-    let _ = swarm.behaviour_mut().pubsub.subscribe(&topic)?;
-
-    println!("Enter messages");
-    let mut stdin = BufReader::new(io::stdin()).lines();
+    println!("Enter messages via STDIN and they will be sent to connected peers using Pubsub");
 
     loop {
         tokio::select! {
             line = stdin.next_line() => {
-                // let message = line?.expect("stdin closed");
-                // let message = "test".to_string().as_bytes();
-                let _message_id = swarm.behaviour_mut().pubsub.publish(topic.clone(),"test".to_string().as_bytes())?;
+                if let Err(e) = swarm
+                    .behaviour_mut()
+                    .pubsub
+                    .publish(topic.clone(), line.expect("Stdin not to close").expect("").as_bytes()) {
+                    println!("Publish error: {e:?}");
+                }
             },
             event = swarm.select_next_some() => match event {
-                SwarmEvent::Behaviour(event) => println!("swarm event: {:?}", event),
-                event => println!("event: {:?}", event),
+                SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {
+                    propagation_source: peer_id,
+                    message_id: id,
+                    message,
+                })) => println!(
+                        "Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    ),
+                event => println!("event: {event:?}"),
             }
         }
     }

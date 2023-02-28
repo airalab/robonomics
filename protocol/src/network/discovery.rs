@@ -18,35 +18,28 @@
 //! Robonomics protocol node discovery.
 
 use super::behaviour::RobonomicsNetworkBehaviour;
-// use libp2p::{Multiaddr, PeerId, Swarm};
-use libp2p::{Multiaddr, Swarm};
+use libp2p::{Multiaddr, PeerId, Swarm};
 
-pub fn add_explicit_peers(
-    swarm: &mut Swarm<RobonomicsNetworkBehaviour>,
-    bootnodes: Vec<String>,
-    _disable_kad: bool,
-) {
+pub fn add_peers(swarm: &mut Swarm<RobonomicsNetworkBehaviour>, bootnodes: Vec<String>) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
-            if let Err(e) = swarm.dial(addr) {
-                println!("Dial error: {:?}", e);
-            }
+            println!("Addr: {addr}");
+            if let Err(e) = swarm.dial(addr.clone()) {
+                println!("Dial error: {e}");
+            } else {
+                // Add node to pubsub swarm
+                if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+                    println!("Adding peer to swarm: {peer}");
+                    swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+                }
 
-            // if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
-            //     if let Err(e) = swarm.dial(peer) {
-            //         println!("Dial error: {:?}", e);
-            //     }
-            //
-            //     // Add node to PubSub
-            //     // swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
-            //
-            //     // Add node to DHT
-            //     // if !disable_kad {
-            //     //     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
-            //     //         kademlia.add_address(&peer, addr);
-            //     //     };
-            //     // }
-            // }
+                // Add node to DHT
+                // if !disable_kad {
+                //     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
+                //         kademlia.add_address(&peer, addr);
+                //     };
+                // }
+            }
         }
     }
 }

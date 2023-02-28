@@ -17,21 +17,22 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use crate::cli::{Cli, Subcommand};
+
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+use robonomics_protocol::id;
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use std::path::Path;
+
 #[cfg(feature = "discovery")]
 use libp2p::{
     core::upgrade,
     futures::StreamExt,
-    mplex, noise,
+    gossipsub, mdns, mplex, noise,
     swarm::{SwarmBuilder, SwarmEvent},
     tcp, Multiaddr, PeerId, Transport,
 };
-use robonomics_protocol::id;
-#[cfg(feature = "discovery")]
-use robonomics_protocol::network::behaviour::RobonomicsNetworkBehaviour;
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use std::path::Path;
+use robonomics_protocol::network::{behaviour::RobonomicsNetworkBehaviour, discovery};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -113,29 +114,27 @@ pub async fn run() -> sc_cli::Result<()> {
 
     let transport =
         libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
-    // let transport = tcp::TokioTcpTransport::new(tcp::GenTcpConfig::default().nodelay(true))
-    //     .upgrade(upgrade::Version::V1)
-    //     .authenticate(
-    //         noise::NoiseAuthenticated::xx(&local_key)
-    //             .expect("Signing libp2p-noise static DH keypair failed."),
-    //     )
-    //     .multiplex(mplex::MplexConfig::new())
-    //     .boxed();
     let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
         .expect("Correct behaviour");
+    // ???
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {
             tokio::spawn(fut);
         }))
         .build();
 
-    for node in cli.robonomics_bootnodes {
-        if let Ok(address) = node.parse::<Multiaddr>() {
-            if let Err(error) = swarm.dial(address) {
-                println!("Dial error: {:?}", error);
-            }
-        }
-    }
+    // discovery::add_peers(&mut swarm, cli.robonomics_bootnodes);
+
+    // use libp2p::Multiaddr;
+    // if let Some(to_dial) = std::env::args().nth(1) {
+    //     let addr: Multiaddr = to_dial.parse()?;
+    //     swarm.dial(addr.clone())?;
+    //     println!("Dialed {to_dial:?}");
+    //
+    //     if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+    //         swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+    //     }
+    // }
 
     swarm
         .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
@@ -145,13 +144,14 @@ pub async fn run() -> sc_cli::Result<()> {
         tokio::select! {
             event = swarm.select_next_some() => match event {
                 SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
-                SwarmEvent::Behaviour(event) => println!("Event: {:?}", event),
-                event => {
-                    println!("Other event: {:?}", event);
+                SwarmEvent::Behaviour(event) =>
+                {
+                    println!("Event: {:?}", event);
                     for p in swarm.connected_peers() {
-                        println!("connected peer: {:?}", p);
+                        println!("Connected peer: {p}");
                     }
                 }
+                _ => {}
             }
         }
     }
