@@ -23,7 +23,7 @@ use libp2p::{
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
     swarm::{SwarmBuilder, SwarmEvent},
-    PeerId, Swarm,
+    Multiaddr, PeerId, Swarm,
 };
 use std::{
     pin::Pin,
@@ -58,7 +58,7 @@ impl NetworkWorker {
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
 
         // Build a combined network behaviour
-        let behaviour = RobonomicsNetworkBehaviour::new(
+        let mut behaviour = RobonomicsNetworkBehaviour::new(
             local_key,
             peer_id,
             heartbeat_interval,
@@ -66,12 +66,20 @@ impl NetworkWorker {
             disable_kad,
         )?;
 
+        // ???
+        use libp2p::gossipsub::IdentTopic;
+        behaviour.pubsub.subscribe(&IdentTopic::new("ROS"))?;
+
         // Create a Swarm to manage peers and events
-        let swarm = SwarmBuilder::new(transport, behaviour, peer_id.clone())
+        let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id.clone())
             .executor(Box::new(|fut| {
                 tokio::spawn(fut);
             }))
             .build();
+
+        // Listen RNB pubsub port
+        let listen_address: Multiaddr = "/ip4/127.0.0.1/tcp/30400".parse().unwrap();
+        Swarm::listen_on(&mut swarm, listen_address)?;
 
         Ok(Self { swarm, pubsub })
     }

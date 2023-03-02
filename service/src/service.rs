@@ -180,6 +180,7 @@ where
         },
     )?;
 
+    // TODO: single pubsub ???
     let (pubsub, pubsub_worker) =
         Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 

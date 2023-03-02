@@ -299,9 +299,6 @@ impl Future for PubSubWorker {
         loop {
             match self.swarm.poll_next_unpin(cx) {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
-                    SwarmEvent::NewListenAddr { address, .. } => {
-                        println!("23Listening on {:?}", address)
-                    }
                     SwarmEvent::Behaviour(event) => match event {
                         GossipsubEvent::Message {
                             propagation_source: peer_id,
