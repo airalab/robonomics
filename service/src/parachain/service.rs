@@ -202,9 +202,9 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     build_consensus: BIC,
     local_key: Keypair,
     heartbeat_interval: u64,
-    bootnodes: Vec<String>,
-    disable_mdns: bool,
-    disable_kad: bool,
+    _bootnodes: Vec<String>,
+    _disable_mdns: bool,
+    _disable_kad: bool,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -301,26 +301,26 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    let (pubsub, pubsub_worker) =
+    let (pubsub, _pubsub_worker) =
         Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 
-    task_manager
-        .spawn_handle()
-        .spawn("pubsub_service", None, pubsub_worker);
-
-    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
-        local_key,
-        pubsub.clone(),
-        heartbeat_interval,
-        bootnodes,
-        disable_mdns,
-        disable_kad,
-    )
-    .expect("New robonomics network layer");
-
-    task_manager
-        .spawn_handle()
-        .spawn("network_service", None, network_worker);
+    // task_manager
+    //     .spawn_handle()
+    //     .spawn("pubsub_service", None, pubsub_worker);
+    //
+    // let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+    //     local_key,
+    //     pubsub.clone(),
+    //     heartbeat_interval,
+    //     bootnodes,
+    //     disable_mdns,
+    //     disable_kad,
+    // )
+    // .expect("New robonomics network layer");
+    //
+    // task_manager
+    //     .spawn_handle()
+    //     .spawn("network_service", None, network_worker);
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder: Box::new(move |deny_unsafe, _| {
@@ -328,7 +328,10 @@ where
                 client: rpc_client.clone(),
                 pool: rpc_pool.clone(),
                 deny_unsafe,
-                network: robonomics_network.clone(),
+                // network: robonomics_network.clone(),
+                network: Arc::new(RobonomicsNetwork {
+                    pubsub: pubsub.clone(),
+                }),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

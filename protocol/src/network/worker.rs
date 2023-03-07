@@ -27,14 +27,14 @@ use libp2p::{
 };
 use std::{
     pin::Pin,
-    sync::Arc,
+    // sync::Arc,
     task::{Context, Poll},
 };
 
 use crate::{
     error::Result,
     network::behaviour::{OutEvent, RobonomicsNetworkBehaviour},
-    pubsub::{PubSub, Pubsub},
+    // pubsub::{PubSub, Pubsub},
     reqres::Response,
 };
 
@@ -56,7 +56,7 @@ impl NetworkWorker {
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
 
         // Build a combined network behaviour
-        let mut behaviour = RobonomicsNetworkBehaviour::new(
+        let behaviour = RobonomicsNetworkBehaviour::new(
             local_key,
             peer_id,
             heartbeat_interval,
@@ -92,7 +92,7 @@ impl Future for NetworkWorker {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
                     SwarmEvent::Behaviour(OutEvent::Kademlia(KademliaEvent::RoutingUpdated {
                         peer,
-                        addresses,
+                        // addresses,
                         ..
                     })) => {
                         log::info!("Received kademlia peer: {:?}", peer);
