@@ -44,16 +44,11 @@ impl RobonomicsNetwork {
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
-        let mut network_worker = NetworkWorker::new(
-            local_key,
-            heartbeat_interval,
-            pubsub.clone(),
-            disable_mdns,
-            disable_kad,
-        )?;
+        let mut network_worker =
+            NetworkWorker::new(local_key, heartbeat_interval, disable_mdns, disable_kad)?;
 
         // Reach out to another nodes if specified
-        discovery::add_peers(&mut network_worker.swarm, bootnodes);
+        // discovery::add_peers(&mut network_worker.swarm, bootnodes);
 
         Ok((Arc::new(Self { pubsub }), network_worker))
     }

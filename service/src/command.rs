@@ -142,11 +142,6 @@ pub async fn run() -> sc_cli::Result<()> {
         tokio::select! {
             event = swarm.select_next_some() => match event {
                 SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
-                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                    // ???
-                    println!("Adding peer to swarm: {peer_id}");
-                    swarm.behaviour_mut().pubsub.add_explicit_peer(&peer_id);
-                },
                 SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {
                     propagation_source: peer_id,
                     message_id: id,

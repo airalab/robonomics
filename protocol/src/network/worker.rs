@@ -40,7 +40,6 @@ use crate::{
 
 pub struct NetworkWorker {
     pub swarm: Swarm<RobonomicsNetworkBehaviour>,
-    pub pubsub: Arc<Pubsub>,
 }
 
 impl NetworkWorker {
@@ -48,7 +47,6 @@ impl NetworkWorker {
     pub fn new(
         local_key: Keypair,
         heartbeat_interval: u64,
-        pubsub: Arc<Pubsub>,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
@@ -67,8 +65,8 @@ impl NetworkWorker {
         )?;
 
         // ???
-        use libp2p::gossipsub::IdentTopic;
-        behaviour.pubsub.subscribe(&IdentTopic::new("ROS"))?;
+        // use libp2p::gossipsub::IdentTopic;
+        // behaviour.pubsub.subscribe(&IdentTopic::new("ROS"))?;
 
         // Create a Swarm to manage peers and events
         let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id.clone())
@@ -81,7 +79,7 @@ impl NetworkWorker {
         let listen_address: Multiaddr = "/ip4/127.0.0.1/tcp/30400".parse().unwrap();
         Swarm::listen_on(&mut swarm, listen_address)?;
 
-        Ok(Self { swarm, pubsub })
+        Ok(Self { swarm })
     }
 }
 
@@ -103,9 +101,9 @@ impl Future for NetworkWorker {
                                 log::debug!("Bootstrap error: {:?}", e);
                             };
                         }
-                        for address in addresses.iter() {
-                            let _ = self.pubsub.connect(address.clone());
-                        }
+                        // for address in addresses.iter() {
+                        //     let _ = self.pubsub.connect(address.clone());
+                        // }
                     }
                     SwarmEvent::Behaviour(OutEvent::RequestResponse(
                         RequestResponseEvent::Message {

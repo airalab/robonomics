@@ -180,13 +180,14 @@ where
         },
     )?;
 
-    // TODO: single pubsub ???
+    //------------------------------------------------
+
     let (pubsub, pubsub_worker) =
         Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 
-    task_manager
-        .spawn_handle()
-        .spawn("pubsub_service", None, pubsub_worker);
+    // task_manager
+    //     .spawn_handle()
+    //     .spawn("pubsub_service", None, pubsub_worker);
 
     let (robonomics_network, network_worker) = RobonomicsNetwork::new(
         local_key,
@@ -198,9 +199,11 @@ where
     )
     .expect("New robonomics network layer");
 
-    task_manager
-        .spawn_handle()
-        .spawn("network_service", None, network_worker);
+    // task_manager
+    //     .spawn_handle()
+    //     .spawn("network_service", None, network_worker);
+
+    //------------------------------------------------
 
     let rpc_extensions_builder = {
         let client = client.clone();
@@ -211,7 +214,7 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
-                network: robonomics_network.clone(),
+                network: robonomics_network.to_owned(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)
