@@ -121,10 +121,10 @@ pub async fn run() -> sc_cli::Result<()> {
     let mut behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
         .expect("Correct behaviour");
 
-    // behaviour
-    //     .pubsub
-    //     .subscribe(&libp2p::gossipsub::IdentTopic::new("ROS"))
-    //     .expect("ROS topic");
+    behaviour
+        .pubsub
+        .subscribe(&libp2p::gossipsub::IdentTopic::new("ROS"))
+        .expect("ROS topic");
 
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {

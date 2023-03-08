@@ -45,27 +45,32 @@ pub mod behaviour;
 pub mod discovery;
 pub mod worker;
 
-pub struct Network {
+pub struct RNetwork {
     swarm: Swarm<RobonomicsNetworkBehaviour>,
 }
 
-impl Network {
+impl RNetwork {
     pub fn new(
         local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,
-    ) -> Result<Self> {
+    ) -> Result<impl Future<Output = ()>> {
+        // ) -> Result<(Self, impl Future<Output = ()>)> {
         let peer_id = PeerId::from(local_key.public());
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
-        let behaviour = RobonomicsNetworkBehaviour::new(
+        let mut behaviour = RobonomicsNetworkBehaviour::new(
             local_key,
             peer_id,
             heartbeat_interval,
             disable_mdns,
             disable_kad,
         )?;
+
+        let topic = libp2p::gossipsub::IdentTopic::new("ROS");
+        behaviour.pubsub.subscribe(&topic)?;
+
         let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|fut| {
                 tokio::spawn(fut);
@@ -79,7 +84,7 @@ impl Network {
     }
 }
 
-impl Future for Network {
+impl Future for RNetwork {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {

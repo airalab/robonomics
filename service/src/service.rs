@@ -19,7 +19,7 @@
 
 use libp2p::core::identity::Keypair;
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-use robonomics_protocol::{network::Network, network::RobonomicsNetwork, pubsub::Pubsub};
+use robonomics_protocol::{network::RNetwork, network::RobonomicsNetwork, pubsub::Pubsub};
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
@@ -203,18 +203,18 @@ where
     //     .spawn_handle()
     //     .spawn("network_service", None, network_worker);
 
-    let _network = Network::new(
+    let network_worker = RNetwork::new(
         local_key,
         heartbeat_interval,
         bootnodes,
         disable_mdns,
         disable_kad,
-    );
+    )
+    .expect("New robonomics network");
 
-    // ????
-    // task_manager
-    //     .spawn_handle()
-    //     .spawn("network_service", None, network);
+    task_manager
+        .spawn_handle()
+        .spawn("network_service", None, network_worker);
 
     //------------------------------------------------
 
