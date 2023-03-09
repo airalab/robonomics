@@ -182,7 +182,7 @@ where
 
     //------------------------------------------------
 
-    let (pubsub, _pubsub_worker) =
+    let (pubsub, pubsub_worker) =
         Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 
     // task_manager
@@ -203,7 +203,7 @@ where
     //     .spawn_handle()
     //     .spawn("network_service", None, network_worker);
 
-    let network_worker = RNetwork::new(
+    let robonomics_network = RNetwork::new(
         local_key,
         heartbeat_interval,
         bootnodes,
@@ -212,9 +212,19 @@ where
     )
     .expect("New robonomics network");
 
+    let aaa = robonomics_network.service.clone();
+
     task_manager
         .spawn_handle()
-        .spawn("network_service", None, network_worker);
+        .spawn("network_service", None, robonomics_network);
+
+    // task_manager
+    //     .spawn_handle()
+    //     .spawn("network_service", None, network_worker);
+
+    // use robonomics_protocol::pubsub::PubSub;
+    // let a = aaa.peer_id();
+    // let b = pubsub.peer_id();
 
     //------------------------------------------------
 
@@ -227,9 +237,11 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
+                // network: robonomics_network.service,
                 // network: robonomics_network.to_owned(),
                 network: Arc::new(RobonomicsNetwork {
-                    pubsub: pubsub.clone(),
+                    // pubsub: pubsub.clone(),
+                    pubsub: aaa.to_owned(),
                 }),
             };
 
