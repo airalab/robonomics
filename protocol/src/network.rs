@@ -17,10 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics network layer.
 
-use futures::{
-    channel::{mpsc, oneshot},
-    prelude::*,
-};
+use futures::{channel::mpsc, prelude::*};
 use libp2p::{
     core::transport::ListenerId,
     gossipsub::{GossipsubEvent, IdentTopic as Topic, TopicHash},
@@ -86,8 +83,8 @@ impl RNetwork {
             }))
             .build();
 
-        Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
-        // Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30401".parse().unwrap())?;
+        // Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
+        Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30401".parse().unwrap())?;
         discovery::add_peers(&mut swarm, bootnodes);
 
         // Create worker communication channel

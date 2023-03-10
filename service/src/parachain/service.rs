@@ -35,7 +35,7 @@ use hex_literal::hex;
 use libp2p::core::identity::Keypair;
 use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
-use robonomics_protocol::{network::RobonomicsNetwork, pubsub::Pubsub};
+use robonomics_protocol::{network::RNetwork, network::RobonomicsNetwork, pubsub::Pubsub};
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::{NetworkBlock, NetworkService};
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
@@ -202,9 +202,9 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     build_consensus: BIC,
     local_key: Keypair,
     heartbeat_interval: u64,
-    _bootnodes: Vec<String>,
-    _disable_mdns: bool,
-    _disable_kad: bool,
+    bootnodes: Vec<String>,
+    disable_mdns: bool,
+    disable_kad: bool,
 ) -> sc_service::error::Result<TaskManager>
 where
     Executor: sc_executor::NativeExecutionDispatch + 'static,
@@ -301,8 +301,8 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    let (pubsub, _pubsub_worker) =
-        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+    // let (pubsub, _pubsub_worker) =
+    //     Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 
     // task_manager
     //     .spawn_handle()
@@ -322,6 +322,21 @@ where
     //     .spawn_handle()
     //     .spawn("network_service", None, network_worker);
 
+    let robonomics_network = RNetwork::new(
+        local_key,
+        heartbeat_interval,
+        bootnodes,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("New robonomics network");
+
+    let pubsub = robonomics_network.service.clone();
+
+    task_manager
+        .spawn_handle()
+        .spawn("network_service", None, robonomics_network);
+
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder: Box::new(move |deny_unsafe, _| {
             let deps = robonomics_rpc::FullDeps {
@@ -329,9 +344,10 @@ where
                 pool: rpc_pool.clone(),
                 deny_unsafe,
                 // network: robonomics_network.clone(),
-                network: Arc::new(RobonomicsNetwork {
-                    pubsub: pubsub.clone(),
-                }),
+                // network: Arc::new(RobonomicsNetwork {
+                //     pubsub: pubsub.clone(),
+                // }),
+                pubsub: pubsub.to_owned(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

@@ -182,8 +182,8 @@ where
 
     //------------------------------------------------
 
-    let (pubsub, pubsub_worker) =
-        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+    // let (pubsub, pubsub_worker) =
+    //     Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
 
     // task_manager
     //     .spawn_handle()
@@ -212,7 +212,7 @@ where
     )
     .expect("New robonomics network");
 
-    let aaa = robonomics_network.service.clone();
+    let pubsub = robonomics_network.service.clone();
 
     task_manager
         .spawn_handle()
@@ -239,10 +239,11 @@ where
                 deny_unsafe,
                 // network: robonomics_network.service,
                 // network: robonomics_network.to_owned(),
-                network: Arc::new(RobonomicsNetwork {
-                    // pubsub: pubsub.clone(),
-                    pubsub: aaa.to_owned(),
-                }),
+                // network: Arc::new(RobonomicsNetwork {
+                //     // pubsub: pubsub.clone(),
+                //     pubsub: aaa.to_owned(),
+                // }),
+                pubsub: pubsub.to_owned(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)
