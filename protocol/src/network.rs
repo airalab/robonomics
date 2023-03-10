@@ -248,26 +248,31 @@ impl Future for RNetwork {
             }
         }
 
-        // эти методы берутся из реализации PubSub, а нужно из воркера
         loop {
             match self.from_service.poll_next_unpin(cx) {
                 Poll::Ready(Some(request)) => match request {
                     ToWorkerMsg::Listen(addr, result) => {
+                        println!("---------------------------- listen");
                         let _ = result.send(self.listen(addr).is_ok());
                     }
                     ToWorkerMsg::Listeners(result) => {
+                        println!("---------------------------- listeners");
                         let _ = result.send(self.listeners());
                     }
                     ToWorkerMsg::Connect(addr, result) => {
+                        println!("---------------------------- connect");
                         let _ = result.send(self.connect(addr).is_ok());
                     }
                     ToWorkerMsg::Subscribe(topic_name, inbox) => {
+                        println!("---------------------------- subscribe");
                         let _ = self.subscribe(topic_name, inbox);
                     }
                     ToWorkerMsg::Unsubscribe(topic_name, result) => {
+                        println!("---------------------------- unsubscribe");
                         let _ = result.send(self.unsubscribe(topic_name).is_ok());
                     }
                     ToWorkerMsg::Publish(topic_name, message, result) => {
+                        println!("---------------------------- publish");
                         let _ = result.send(self.publish(topic_name, message).is_ok());
                     }
                 },
