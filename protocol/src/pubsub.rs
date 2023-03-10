@@ -121,6 +121,7 @@ impl Pubsub {
             .map(|worker| (worker.service.clone(), worker))
     }
 
+    // !!!
     pub fn create(to_worker: mpsc::UnboundedSender<ToWorkerMsg>, peer_id: PeerId) -> Self {
         Self { to_worker, peer_id }
     }

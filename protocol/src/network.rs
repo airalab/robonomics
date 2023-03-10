@@ -22,7 +22,8 @@ use futures::{
     prelude::*,
 };
 use libp2p::{
-    gossipsub::{GossipsubEvent, TopicHash},
+    core::transport::ListenerId,
+    gossipsub::{GossipsubEvent, IdentTopic as Topic, TopicHash},
     identity::Keypair,
     kad::KademliaEvent,
     request_response::{RequestResponseEvent, RequestResponseMessage},
@@ -102,6 +103,63 @@ impl RNetwork {
             from_service,
             service,
         })
+    }
+
+    fn listen(&mut self, address: Multiaddr) -> Result<ListenerId> {
+        let listener = Swarm::listen_on(&mut self.swarm, address.clone())?;
+        log::debug!(
+            target: "robonomics-pubsub",
+            "Listener for address {} created: {:?}", address, listener
+        );
+
+        Ok(listener)
+    }
+
+    fn listeners(&self) -> Vec<Multiaddr> {
+        let listeners = Swarm::listeners(&self.swarm).cloned().collect();
+        log::debug!(target: "robonomics-pubsub", "Listeners: {:?}", listeners);
+
+        listeners
+    }
+
+    fn connect(&mut self, address: Multiaddr) -> Result<()> {
+        Swarm::dial(&mut self.swarm, address.clone())?;
+        log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
+
+        Ok(())
+    }
+
+    fn subscribe(
+        &mut self,
+        topic_name: String,
+        inbox: mpsc::UnboundedSender<Message>,
+    ) -> Result<bool> {
+        let topic = Topic::new(topic_name.clone());
+        self.swarm.behaviour_mut().pubsub.subscribe(&topic)?;
+        self.inbox.insert(topic.hash(), inbox);
+        log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
+
+        Ok(true)
+    }
+
+    fn unsubscribe(&mut self, topic_name: String) -> Result<bool> {
+        let topic = Topic::new(topic_name.clone());
+        self.swarm.behaviour_mut().pubsub.unsubscribe(&topic)?;
+        self.inbox.remove(&topic.hash());
+        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+
+        Ok(true)
+    }
+
+    fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
+        let topic = Topic::new(topic_name.clone());
+        self.swarm
+            .behaviour_mut()
+            .pubsub
+            .publish(topic.clone(), message)?;
+        log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
+
+        Ok(true)
     }
 }
 
@@ -190,6 +248,7 @@ impl Future for RNetwork {
             }
         }
 
+        // эти методы берутся из реализации PubSub, а нужно из воркера
         loop {
             match self.from_service.poll_next_unpin(cx) {
                 Poll::Ready(Some(request)) => match request {
@@ -220,56 +279,40 @@ impl Future for RNetwork {
     }
 }
 
-impl PubSub for RNetwork {
-    fn peer_id(&self) -> PeerId {
-        // self.swarm.behaviour_mut().pubsub.peer_id()
-        self.service.peer_id()
-    }
-
-    fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
-        // self.swarm.behaviour_mut().pubsub.listen(address)
-        self.service.listen(address)
-    }
-
-    fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
-        // self.swarm.behaviour_mut().pubsub.listeners()
-        self.service.listeners()
-    }
-
-    fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
-        // self.swarm.behaviour_mut().pubsub.connect(address)
-        self.service.connect(address)
-    }
-
-    fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox {
-        // self.swarm
-        //     .behaviour_mut()
-        //     .pubsub
-        //     .subscribe(&topic_name.to_string())
-        self.service.subscribe(&topic_name.to_string())
-    }
-
-    fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
-        // self.swarm
-        //     .behaviour_mut()
-        //     .pubsub
-        //     .unsubscribe(&topic_name.to_string())
-        self.service.unsubscribe(&topic_name.to_string())
-    }
-
-    fn publish<T: ToString, M: Into<Vec<u8>>>(
-        &self,
-        topic_name: &T,
-        message: M,
-    ) -> FutureResult<bool> {
-        // self.swarm
-        //     .behaviour_mut()
-        //     .pubsub
-        //     .publish(&topic_name.to_string(), message.into())
-        self.service
-            .publish(&topic_name.to_string(), message.into())
-    }
-}
+// impl PubSub for RNetwork {
+//     fn peer_id(&self) -> PeerId {
+//         self.service.peer_id()
+//     }
+//
+//     fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
+//         self.service.listen(address)
+//     }
+//
+//     fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
+//         self.service.listeners()
+//     }
+//
+//     fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
+//         self.service.connect(address)
+//     }
+//
+//     fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox {
+//         self.service.subscribe(&topic_name.to_string())
+//     }
+//
+//     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
+//         self.service.unsubscribe(&topic_name.to_string())
+//     }
+//
+//     fn publish<T: ToString, M: Into<Vec<u8>>>(
+//         &self,
+//         topic_name: &T,
+//         message: M,
+//     ) -> FutureResult<bool> {
+//         self.service
+//             .publish(&topic_name.to_string(), message.into())
+//     }
+// }
 
 //------------------------------------------------
 
