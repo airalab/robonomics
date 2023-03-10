@@ -74,7 +74,6 @@ impl RobonomicsNetwork {
             .build();
 
         Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
-        // Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30401".parse().unwrap())?;
         discovery::add_peers(&mut swarm, bootnodes);
 
         // Create worker communication channel
