@@ -64,16 +64,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .pubsub
                     .publish(topic.clone(), line.expect("Stdin not to close").expect("").as_bytes()) {
                 Ok(mid) =>
-                    println!("Message : {mid:?}"),
+                    println!("Message id: {mid:?}"),
                 Err(e) =>
                     println!("Publish error: {e:?}"),
                 }
-                // if let Err(e) = swarm
-                //     .behaviour_mut()
-                //     .pubsub
-                //     .publish(topic.clone(), line.expect("Stdin not to close").expect("").as_bytes()) {
-                //     println!("Publish error: {e:?}");
-                // }
             },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {

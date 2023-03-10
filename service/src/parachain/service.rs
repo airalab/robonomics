@@ -35,7 +35,7 @@ use hex_literal::hex;
 use libp2p::core::identity::Keypair;
 use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
-use robonomics_protocol::{network::RNetwork, network::RobonomicsNetwork, pubsub::Pubsub};
+use robonomics_protocol::network::RobonomicsNetwork;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::{NetworkBlock, NetworkService};
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
@@ -301,28 +301,7 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    // let (pubsub, _pubsub_worker) =
-    //     Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
-
-    // task_manager
-    //     .spawn_handle()
-    //     .spawn("pubsub_service", None, pubsub_worker);
-    //
-    // let (robonomics_network, network_worker) = RobonomicsNetwork::new(
-    //     local_key,
-    //     pubsub.clone(),
-    //     heartbeat_interval,
-    //     bootnodes,
-    //     disable_mdns,
-    //     disable_kad,
-    // )
-    // .expect("New robonomics network layer");
-    //
-    // task_manager
-    //     .spawn_handle()
-    //     .spawn("network_service", None, network_worker);
-
-    let robonomics_network = RNetwork::new(
+    let (robonomics_network, pubsub) = RobonomicsNetwork::new(
         local_key,
         heartbeat_interval,
         bootnodes,
@@ -330,8 +309,6 @@ where
         disable_kad,
     )
     .expect("New robonomics network");
-
-    let pubsub = robonomics_network.service.clone();
 
     task_manager
         .spawn_handle()
@@ -343,10 +320,6 @@ where
                 client: rpc_client.clone(),
                 pool: rpc_pool.clone(),
                 deny_unsafe,
-                // network: robonomics_network.clone(),
-                // network: Arc::new(RobonomicsNetwork {
-                //     pubsub: pubsub.clone(),
-                // }),
                 pubsub: pubsub.to_owned(),
             };
 

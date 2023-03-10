@@ -20,7 +20,6 @@
 use std::sync::Arc;
 
 use robonomics_primitives::{AccountId, Balance, Block, Index};
-// use robonomics_protocol::network::RobonomicsNetwork;
 use robonomics_protocol::pubsub::Pubsub;
 
 use jsonrpsee::RpcModule;
@@ -49,7 +48,6 @@ pub struct FullDeps<C, P> {
     pub deny_unsafe: DenyUnsafe,
     /// Robonomics Network.
     pub pubsub: Arc<Pubsub>,
-    // pub network: Arc<RobonomicsNetwork>,
 }
 
 /// Instantiate all Full RPC extensions.
@@ -77,17 +75,14 @@ where
         client,
         pool,
         deny_unsafe,
-        // network,
         pubsub,
     } = deps;
 
     io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    // io.merge(PubSubRpc::new(network.clone()).into_rpc())?;
-    io.merge(PubSubRpc::new(pubsub.clone()).into_rpc())?;
+    io.merge(PubSubRpc::new(pubsub.to_owned()).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
     io.merge(ReqRespRpc::new().into_rpc())?;
-    // io.merge(ReqRespRpc::new(network).into_rpc())?;
     Ok(io)
 }
 

@@ -35,71 +35,62 @@ use std::{
 };
 
 use crate::{
-    error::{FutureResult, Result},
-    network::{
-        behaviour::{OutEvent, RobonomicsNetworkBehaviour},
-        worker::NetworkWorker,
-    },
-    pubsub::{Inbox, Message, PubSub, Pubsub, ToWorkerMsg},
+    error::Result,
+    network::behaviour::{OutEvent, RobonomicsNetworkBehaviour},
+    pubsub::{Message, Pubsub, ToWorkerMsg},
     reqres::Response,
 };
 
 pub mod behaviour;
 pub mod discovery;
-pub mod worker;
 
-pub struct RNetwork {
+pub struct RobonomicsNetwork {
     swarm: Swarm<RobonomicsNetworkBehaviour>,
     inbox: HashMap<TopicHash, mpsc::UnboundedSender<Message>>,
     from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
-    pub service: Arc<Pubsub>,
 }
 
-impl RNetwork {
+impl RobonomicsNetwork {
     pub fn new(
         local_key: Keypair,
         heartbeat_interval: u64,
         bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,
-    ) -> Result<Self> {
+    ) -> Result<(Self, Arc<Pubsub>)> {
         let peer_id = PeerId::from(local_key.public());
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
-        let mut behaviour = RobonomicsNetworkBehaviour::new(
+        let behaviour = RobonomicsNetworkBehaviour::new(
             local_key,
             peer_id,
             heartbeat_interval,
             disable_mdns,
             disable_kad,
         )?;
-
-        // XXX
-        let topic = libp2p::gossipsub::IdentTopic::new("ROS");
-        behaviour.pubsub.subscribe(&topic)?;
-
         let mut swarm = SwarmBuilder::new(transport, behaviour, peer_id)
             .executor(Box::new(|fut| {
                 tokio::spawn(fut);
             }))
             .build();
 
-        // Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
-        Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30401".parse().unwrap())?;
+        Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
+        // Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30401".parse().unwrap())?;
         discovery::add_peers(&mut swarm, bootnodes);
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded::<ToWorkerMsg>();
 
         // Create PubSub service
-        let service = Arc::new(Pubsub::create(to_worker, peer_id));
-        // let service = Arc::new(Pubsub { to_worker, peer_id });
+        let service = Arc::new(Pubsub::new(peer_id, to_worker));
 
-        Ok(Self {
-            swarm,
-            inbox: HashMap::new(),
-            from_service,
+        Ok((
+            Self {
+                swarm,
+                inbox: HashMap::new(),
+                from_service,
+            },
             service,
-        })
+        ))
     }
 
     fn listen(&mut self, address: Multiaddr) -> Result<ListenerId> {
@@ -160,7 +151,7 @@ impl RNetwork {
     }
 }
 
-impl Future for RNetwork {
+impl Future for RobonomicsNetwork {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
@@ -249,27 +240,21 @@ impl Future for RNetwork {
             match self.from_service.poll_next_unpin(cx) {
                 Poll::Ready(Some(request)) => match request {
                     ToWorkerMsg::Listen(addr, result) => {
-                        println!("---------------------------- listen");
                         let _ = result.send(self.listen(addr).is_ok());
                     }
                     ToWorkerMsg::Listeners(result) => {
-                        println!("---------------------------- listeners");
                         let _ = result.send(self.listeners());
                     }
                     ToWorkerMsg::Connect(addr, result) => {
-                        println!("---------------------------- connect");
                         let _ = result.send(self.connect(addr).is_ok());
                     }
                     ToWorkerMsg::Subscribe(topic_name, inbox) => {
-                        println!("---------------------------- subscribe");
                         let _ = self.subscribe(topic_name, inbox);
                     }
                     ToWorkerMsg::Unsubscribe(topic_name, result) => {
-                        println!("---------------------------- unsubscribe");
                         let _ = result.send(self.unsubscribe(topic_name).is_ok());
                     }
                     ToWorkerMsg::Publish(topic_name, message, result) => {
-                        println!("---------------------------- publish");
                         let _ = result.send(self.publish(topic_name, message).is_ok());
                     }
                 },
@@ -278,99 +263,5 @@ impl Future for RNetwork {
         }
 
         Poll::Pending
-    }
-}
-
-// impl PubSub for RNetwork {
-//     fn peer_id(&self) -> PeerId {
-//         self.service.peer_id()
-//     }
-//
-//     fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
-//         self.service.listen(address)
-//     }
-//
-//     fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
-//         self.service.listeners()
-//     }
-//
-//     fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
-//         self.service.connect(address)
-//     }
-//
-//     fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox {
-//         self.service.subscribe(&topic_name.to_string())
-//     }
-//
-//     fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
-//         self.service.unsubscribe(&topic_name.to_string())
-//     }
-//
-//     fn publish<T: ToString, M: Into<Vec<u8>>>(
-//         &self,
-//         topic_name: &T,
-//         message: M,
-//     ) -> FutureResult<bool> {
-//         self.service
-//             .publish(&topic_name.to_string(), message.into())
-//     }
-// }
-
-//------------------------------------------------
-
-pub struct RobonomicsNetwork {
-    pub pubsub: Arc<Pubsub>,
-}
-
-impl RobonomicsNetwork {
-    pub fn new(
-        local_key: Keypair,
-        pubsub: Arc<Pubsub>,
-        heartbeat_interval: u64,
-        _bootnodes: Vec<String>,
-        disable_mdns: bool,
-        disable_kad: bool,
-    ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
-        let network_worker =
-            NetworkWorker::new(local_key, heartbeat_interval, disable_mdns, disable_kad)?;
-
-        // Reach out to another nodes if specified
-        // discovery::add_peers(&mut network_worker.swarm, bootnodes);
-
-        Ok((Arc::new(Self { pubsub }), network_worker))
-    }
-}
-
-impl PubSub for RobonomicsNetwork {
-    fn peer_id(&self) -> PeerId {
-        self.pubsub.peer_id()
-    }
-
-    fn listen(&self, address: Multiaddr) -> FutureResult<bool> {
-        self.pubsub.listen(address)
-    }
-
-    fn listeners(&self) -> FutureResult<Vec<Multiaddr>> {
-        self.pubsub.listeners()
-    }
-
-    fn connect(&self, address: Multiaddr) -> FutureResult<bool> {
-        self.pubsub.connect(address)
-    }
-
-    fn subscribe<T: ToString>(&self, topic_name: &T) -> Inbox {
-        self.pubsub.subscribe(&topic_name.to_string())
-    }
-
-    fn unsubscribe<T: ToString>(&self, topic_name: &T) -> FutureResult<bool> {
-        self.pubsub.unsubscribe(&topic_name.to_string())
-    }
-
-    fn publish<T: ToString, M: Into<Vec<u8>>>(
-        &self,
-        topic_name: &T,
-        message: M,
-    ) -> FutureResult<bool> {
-        self.pubsub.publish(&topic_name.to_string(), message.into())
     }
 }

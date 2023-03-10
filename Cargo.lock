@@ -9027,7 +9027,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "2.6.1"
+version = "2.7.0"
 dependencies = [
  "alpha-runtime",
  "clap 3.2.23",

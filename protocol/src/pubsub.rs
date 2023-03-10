@@ -21,28 +21,11 @@ use futures::{
     channel::{mpsc, oneshot},
     prelude::*,
 };
-use libp2p::{
-    core::transport::ListenerId,
-    gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-        MessageId, Sha256Topic as Topic, TopicHash,
-    },
-    identity::Keypair,
-    swarm::{SwarmBuilder, SwarmEvent},
-    Multiaddr, PeerId, Swarm,
-};
+use libp2p::{Multiaddr, PeerId};
 use serde::Serialize;
-use std::{
-    collections::hash_map::{DefaultHasher, HashMap},
-    fmt,
-    hash::{Hash, Hasher},
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::fmt;
 
-use crate::error::{FutureResult, Result};
+use crate::error::FutureResult;
 
 /// Robonomics PubSub message.
 #[derive(PartialEq, Eq, Clone, Debug, Serialize)]
@@ -112,18 +95,8 @@ pub struct Pubsub {
 }
 
 impl Pubsub {
-    /// Create Gossipsub based PubSub service and worker.
-    pub fn new(
-        local_key: Keypair,
-        heartbeat_interval: u64,
-    ) -> Result<(Arc<Self>, impl Future<Output = ()>)> {
-        PubSubWorker::new(local_key, heartbeat_interval)
-            .map(|worker| (worker.service.clone(), worker))
-    }
-
-    // !!!
-    pub fn create(to_worker: mpsc::UnboundedSender<ToWorkerMsg>, peer_id: PeerId) -> Self {
-        Self { to_worker, peer_id }
+    pub fn new(peer_id: PeerId, to_worker: mpsc::UnboundedSender<ToWorkerMsg>) -> Self {
+        Self { peer_id, to_worker }
     }
 }
 
@@ -185,186 +158,5 @@ impl PubSub for Pubsub {
             sender,
         ));
         receiver.boxed()
-    }
-}
-
-struct PubSubWorker {
-    swarm: Swarm<Gossipsub>,
-    inbox: HashMap<TopicHash, mpsc::UnboundedSender<Message>>,
-    from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
-    service: Arc<Pubsub>,
-}
-
-impl PubSubWorker {
-    /// Create new PubSub Worker instance
-    pub fn new(local_key: Keypair, heartbeat_interval: u64) -> Result<Self> {
-        let peer_id = PeerId::from(local_key.public());
-
-        // Set up an encrypted WebSocket compatible Transport over the Mplex and Yamux protocols
-        let transport = libp2p::tokio_development_transport(local_key.clone())?;
-
-        // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(Duration::from_millis(heartbeat_interval))
-            .message_id_fn(|message: &GossipsubMessage| {
-                // To content-address message,
-                // we can take the hash of message and use it as an ID.
-                let mut s = DefaultHasher::new();
-                message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
-            })
-            .build()
-            .expect("Valid gossipsub config");
-
-        // Build a gossipsub network behaviour
-        let gossipsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
-            .expect("Correct configuration");
-
-        // Create a Swarm to manage peers and events
-        let swarm = SwarmBuilder::new(transport, gossipsub, peer_id.clone())
-            .executor(Box::new(|fut| {
-                tokio::spawn(fut);
-            }))
-            .build();
-
-        // Create worker communication channel
-        let (to_worker, from_service) = mpsc::unbounded();
-
-        // Create PubSub service
-        let service = Arc::new(Pubsub { to_worker, peer_id });
-
-        // Create worker instance with empty subscribers
-        Ok(PubSubWorker {
-            swarm,
-            inbox: HashMap::new(),
-            from_service,
-            service,
-        })
-    }
-
-    fn listen(&mut self, address: Multiaddr) -> Result<ListenerId> {
-        let listener = Swarm::listen_on(&mut self.swarm, address.clone())?;
-        log::debug!(
-            target: "robonomics-pubsub",
-            "Listener for address {} created: {:?}", address, listener
-        );
-
-        Ok(listener)
-    }
-
-    fn listeners(&self) -> Vec<Multiaddr> {
-        let listeners = Swarm::listeners(&self.swarm).cloned().collect();
-        log::debug!(target: "robonomics-pubsub", "Listeners: {:?}", listeners);
-
-        listeners
-    }
-
-    fn connect(&mut self, address: Multiaddr) -> Result<()> {
-        Swarm::dial(&mut self.swarm, address.clone())?;
-        log::debug!(target: "robonomics-pubsub", "Connected to {}", address);
-
-        Ok(())
-    }
-
-    fn subscribe(
-        &mut self,
-        topic_name: String,
-        inbox: mpsc::UnboundedSender<Message>,
-    ) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().subscribe(&topic)?;
-        self.inbox.insert(topic.hash(), inbox);
-        log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
-
-        Ok(true)
-    }
-
-    fn unsubscribe(&mut self, topic_name: String) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().unsubscribe(&topic)?;
-        self.inbox.remove(&topic.hash());
-        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
-
-        Ok(true)
-    }
-
-    fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().publish(topic.clone(), message)?;
-        log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
-
-        Ok(true)
-    }
-}
-
-impl Future for PubSubWorker {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        loop {
-            match self.swarm.poll_next_unpin(cx) {
-                Poll::Ready(Some(swarm_event)) => match swarm_event {
-                    SwarmEvent::Behaviour(event) => match event {
-                        GossipsubEvent::Message {
-                            propagation_source: peer_id,
-                            message_id: id,
-                            message,
-                        } => {
-                            log::debug!(
-                                target: "robonomics-pubsub",
-                                "Received message with id: {} from peer: {}", id, peer_id.to_base58()
-                            );
-
-                            // Dispatch handlers by topic name hash
-                            if let Some(inbox) = self.inbox.get_mut(&message.topic) {
-                                if let Some(sender) = &message.source {
-                                    let _ = inbox.unbounded_send(Message {
-                                        from: sender.clone().to_bytes(),
-                                        data: message.data.clone(),
-                                    });
-                                }
-                            } else {
-                                log::warn!(
-                                    target: "robonomics-pubsub",
-                                    "Topic {} have no associated inbox!", message.topic
-                                );
-                            }
-                        }
-                        _ => {}
-                    },
-                    _ => {}
-                },
-                Poll::Ready(None) | Poll::Pending => {
-                    break;
-                }
-            }
-        }
-
-        loop {
-            match self.from_service.poll_next_unpin(cx) {
-                Poll::Ready(Some(request)) => match request {
-                    ToWorkerMsg::Listen(addr, result) => {
-                        let _ = result.send(self.listen(addr).is_ok());
-                    }
-                    ToWorkerMsg::Listeners(result) => {
-                        let _ = result.send(self.listeners());
-                    }
-                    ToWorkerMsg::Connect(addr, result) => {
-                        let _ = result.send(self.connect(addr).is_ok());
-                    }
-                    ToWorkerMsg::Subscribe(topic_name, inbox) => {
-                        let _ = self.subscribe(topic_name, inbox);
-                    }
-                    ToWorkerMsg::Unsubscribe(topic_name, result) => {
-                        let _ = result.send(self.unsubscribe(topic_name).is_ok());
-                    }
-                    ToWorkerMsg::Publish(topic_name, message, result) => {
-                        let _ = result.send(self.publish(topic_name, message).is_ok());
-                    }
-                },
-                Poll::Ready(None) | Poll::Pending => break,
-            }
-        }
-        Poll::Pending
     }
 }
