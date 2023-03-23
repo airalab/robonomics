@@ -1,0 +1,62 @@
+name: Testing pair cli
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  testpaircli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v2
+
+      - name: install dependencies
+        run: |
+           sudo apt update
+           sudo apt-get install cmake coreutils libclang-dev protobuf-compiler sysvinit-utils -y
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2022-08-05
+          target: ${{ matrix.target }}
+          components: rustfmt, clippy
+          default: true
+
+      - name: Install WASM target (for runtime building)
+        shell: bash
+        run: rustup target add wasm32-unknown-unknown --toolchain nightly-2022-08-05
+
+      - name: Build and run reqres example node
+        shell: bash 
+        run: |           
+          cd protocol/examples/reqres
+          cargo build --release
+          cd ../../..
+          base64 --decode  protocol/examples/reqres/QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL > private.pk8       
+          base64 --decode  protocol/examples/reqres/Qme3o3Fr7yjECVS8yoKiM8c6F7ZotXAqTsntcGaeuCtWHz > target/release/private.pk8
+
+      - name: Build robonomics binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Run robonomics and send test pair listen then connect cli
+        shell: bash
+        run: |
+          ./target/release/robonomics pair listen --peer Qme3o3Fr7yjECVS8yoKiM8c6F7ZotXAqTsntcGaeuCtWHz &
+          cd target/release
+          ./robonomics-request-response-example /ip4/127.0.0.1/tcp/61241 QmUnozNz2tmzDeckoShMHbvGp1yWi4BKBiudkELwoKCdcL &
+          ps aux | grep "robonomics pair" | grep -v 'grep'
+          ps aux | grep "robonomics-request" | grep -v 'grep'
+          sudo kill -9 $(pidof robonomics-request-response-example)
+          sudo kill -9 $(pidof robonomics)
+          ./robonomics-request-response-example /ip4/127.0.0.1/tcp/61241 &
+          cd ../..
+          ./target/release/robonomics pair connect --peer Qme3o3Fr7yjECVS8yoKiM8c6F7ZotXAqTsntcGaeuCtWHz &
+          ps aux | grep "robonomics pair" | grep -v 'grep'
+          ps aux | grep "robonomics-request" | grep -v 'grep'
+          sudo kill -9 $(pidof robonomics)  
+          sudo kill -9 $(pidof robonomics-request-response-example)
