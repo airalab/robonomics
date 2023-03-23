@@ -83,7 +83,6 @@ where
     io.merge(PubSubRpc::new(network.clone()).into_rpc())?;
     io.merge(ExtrinsicRpc::new(client.clone()).into_rpc())?;
     io.merge(ReqRespRpc::new().into_rpc())?;
-    // io.merge(ReqRespRpc::new(network).into_rpc())?;
     Ok(io)
 }
 
@@ -97,7 +96,9 @@ mod tests {
     use libp2p::request_response::*;
     use libp2p::swarm::{SwarmBuilder, SwarmEvent};
     use robonomics_protocol::reqres::*;
-    use std::{iter, thread};
+    use std::iter;
+    use tokio;
+    use tokio::runtime::Handle;
 
     #[test]
     // test spilt multiaddress on transport address and peerID
@@ -114,6 +115,7 @@ mod tests {
         );
     }
 
+    #[tokio::main]
     #[test]
     // test p2p_ping and p2p_get
     // Steps:
@@ -123,7 +125,7 @@ mod tests {
     // - test Ping to other peerID on NOK condition,
     // - test Get with check of echo message.
 
-    fn test_p2p_ping_and_get() {
+    async fn test_p2p_ping_and_get() {
         let (peer1_id, trans) = mk_transport();
 
         let peer1 = async move {
@@ -218,42 +220,68 @@ mod tests {
             }
         };
 
-        thread::spawn(move || {
-            let _ = futures::executor::block_on(peer1);
+        let handle = Handle::current();
+        let _ = handle.enter();
+
+        std::thread::spawn(move || {
+            handle.block_on(peer1);
         });
 
         let peer_addr = format!("/ip4/127.0.0.1/tcp/61241/{:?}", peer1_id.clone());
         let peer_addr1 = peer_addr.replace("PeerId(\"", "");
         let peer_addr2 = peer_addr1.replace("\")", "");
+        let peer_addr3 = peer_addr2.clone();
 
+        // RPC Ping method test to running node
         println!(" peer to ping {} ", peer_addr2.clone());
 
-        match reqresrpc::ReqRespRpc::p2p_ping(&ReqRespRpc, peer_addr2.clone()) {
-            Ok(data) => {
-                println!("ping Ok! with responce: \n'{}'", data);
-                assert_eq!(true, data.contains("Pong from PeerId"));
-            }
-            Err(_) => println!("P2P Ping Error!"),
-        }
+        let handle1 = Handle::current();
+        let _ = handle1.enter();
 
-        match reqresrpc::ReqRespRpc::p2p_ping(
-            &ReqRespRpc,
-            "/ip4/127.7.0.1/tcp/61241/QmZDuvm3dEjSgD9nq6a7d1b1kccfFjBdcHSMzCB9ULAcoH".to_string(),
-        ) {
-            Ok(data) => {
-                println!("ping NOk! with responce: \n'{}'", data);
-                assert_eq!(true, data.contains("error: DialFailure"));
-            }
-            Err(_) => println!("P2P Ping Error!"),
-        }
+        let ping_res = tokio::task::spawn_blocking(move || {
+            handle1.block_on(ReqRespRpc::p2p_ping(&ReqRespRpc, peer_addr2.clone()))
+        })
+        .await
+        .unwrap();
 
-        let get_msg = "message 42".to_string();
-        match reqresrpc::ReqRespRpc::p2p_get(&ReqRespRpc, peer_addr2, get_msg.clone()) {
-            Ok(data) => {
-                println!("ping Ok! with responce: \n'{}'", data);
-                assert_eq!(true, data.contains(&get_msg));
-            }
-            Err(_) => println!("P2P Get Error!"),
-        }
+        let fres = ping_res.unwrap();
+        assert_eq!(true, fres.contains("Pong from PeerId"));
+
+        // RPC Ping method test with DialFailure to dummy peer ID
+        let handle2 = Handle::current();
+        let _ = handle2.enter();
+
+        let ping_res = tokio::task::spawn_blocking(move || {
+            handle2.block_on(ReqRespRpc::p2p_ping(
+                &ReqRespRpc,
+                "/ip4/127.7.0.1/tcp/61241/QmZDuvm3dEjSgD9nq6a7d1b1kccfFjBdcHSMzCB9ULAcoH"
+                    .to_string(),
+            ))
+        })
+        .await
+        .unwrap();
+
+        let fres = ping_res.unwrap();
+        assert_eq!(true, fres.contains("error: DialFailure"));
+
+        // RPC Get method test to running node
+        let handle3 = Handle::current();
+        let _ = handle3.enter();
+
+        let test_msg = "message 42".to_string();
+        let get_msg = test_msg.clone();
+
+        let ping_res = tokio::task::spawn_blocking(move || {
+            handle3.block_on(ReqRespRpc::p2p_get(
+                &ReqRespRpc,
+                peer_addr3,
+                get_msg.clone(),
+            ))
+        })
+        .await
+        .unwrap();
+
+        let fres = ping_res.unwrap();
+        assert_eq!(true, fres.contains(&test_msg));
     }
 }

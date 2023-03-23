@@ -44,11 +44,11 @@ pub fn get_addr(address: String) -> (String, String) {
 pub trait ReqRespRpc {
     /// Returns for p2p rpc get responce
     #[method(name = "p2p_get")]
-    fn p2p_get(&self, address: String, message: String) -> RpcResult<String>;
+    async fn p2p_get(&self, address: String, message: String) -> RpcResult<String>;
 
     /// Returns for reqresp p2p rpc ping responce
     #[method(name = "p2p_ping")]
-    fn p2p_ping(&self, address: String) -> RpcResult<String>;
+    async fn p2p_ping(&self, address: String) -> RpcResult<String>;
 }
 
 pub struct ReqRespRpc;
@@ -61,29 +61,31 @@ impl ReqRespRpc {
 
 #[async_trait]
 impl ReqRespRpcServer for ReqRespRpc {
-    fn p2p_get(&self, address: String, message: String) -> RpcResult<String> {
+    async fn p2p_get(&self, address: String, message: String) -> RpcResult<String> {
         let (multiaddr, peerid) = get_addr(address.clone());
         let value = Some(message.clone().to_string());
         let method = "get".to_string();
 
-        let res = reqres(
-            multiaddr.clone(),
-            peerid.clone(),
-            method.clone(),
-            value.clone(),
-        );
-        let fres = futures::executor::block_on(res);
+        let multi_address = multiaddr.clone();
+        let peer_id = peerid.clone();
+        let method_name = method.clone();
+
+        let res =
+            tokio::task::spawn_blocking(move || reqres(multi_address, peer_id, method_name, value))
+                .await;
+
+        let fres = res.unwrap();
 
         let mut line = String::new();
         fmt::write(
             &mut line,
             format_args!(
                 "{} {} {} {} {:?}",
-                multiaddr.clone(),
+                multiaddr,
                 peerid,
                 method,
                 message,
-                fres
+                fres.unwrap()
             ),
         )
         .unwrap_or(());
@@ -91,28 +93,37 @@ impl ReqRespRpcServer for ReqRespRpc {
         Ok(line)
     }
 
-    fn p2p_ping(&self, address: String) -> RpcResult<String> {
+    async fn p2p_ping(&self, address: String) -> RpcResult<String> {
         let (multiaddr, peerid) = get_addr(address.clone());
         let ping = "ping".to_string();
 
         let t0 = epochu();
-        let res = reqres(multiaddr.clone(), peerid.clone(), ping.clone(), None);
-        let fres = futures::executor::block_on(res);
+        let multi_address = multiaddr.clone();
+        let peer_id = peerid.clone();
+        let method_name = ping.clone();
+
+        let res =
+            tokio::task::spawn_blocking(move || reqres(multi_address, peer_id, method_name, None))
+                .await;
+
+        let fres = res.unwrap();
+
         let dt = epochu() - t0;
 
         let mut line = String::new();
         fmt::write(
             &mut line,
             format_args!(
-                "{} {} {} {:?} {} us",
-                multiaddr.clone(),
+                "{} {} {} {} {} us",
+                multiaddr,
                 peerid,
                 ping,
-                fres,
+                fres.unwrap(),
                 dt
             ),
         )
         .unwrap_or(());
+
         log::debug!("{}", line.clone());
         Ok(line)
     }

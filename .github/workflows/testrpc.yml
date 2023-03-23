@@ -35,7 +35,6 @@ jobs:
           cd protocol/examples/reqres
           cargo build --release
           cd ../../..
-          target/release/robonomics-request-response-example /ip4/127.0.0.1/tcp/61241 &
 
       - name: Build robonomics binary
         uses: actions-rs/cargo@v1
@@ -46,6 +45,7 @@ jobs:
       - name: Run robonomics and send test rpc reqres Ping and Get
         shell: bash
         run: |
+          target/release/robonomics-request-response-example /ip4/127.0.0.1/tcp/61241 &
           cd target/release/
           ./robonomics --dev &
           sleep 20
