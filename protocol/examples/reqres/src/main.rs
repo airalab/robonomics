@@ -1,8 +1,11 @@
 /// Example of usage simple request response protocol from reqresp crate.
 use bincode;
 use futures::StreamExt;
-use libp2p::core::{Multiaddr, PeerId};
-use libp2p::request_response::*;
+use libp2p::{
+    core::Multiaddr,
+    identity,
+};
+use libp2p::request_response;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use robonomics_protocol::reqres::*;
 use rust_base58::FromBase58;
@@ -18,21 +21,18 @@ async fn main() {
 
     //  server part
     let peer1 = async move {
-        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let cfg = RequestResponseConfig::default();
+        let protocols = iter::once((RobonomicsProtocol(), request_response::ProtocolSupport::Full));
+        let cfg = request_response::Config::default();
 
         let (peer1_id, trans) = mk_transport();
-        let ping_proto1 = RequestResponse::new(
+        let ping_proto1 = request_response::Behaviour::new(
             RobonomicsCodec { is_ping: false },
             protocols.clone(),
             cfg.clone(),
         );
 
         let mut swarm1 = {
-            SwarmBuilder::new(trans, ping_proto1, peer1_id)
-                .executor(Box::new(|fut| {
-                    tokio::spawn(fut);
-                }))
+            SwarmBuilder::with_tokio_executor(trans, ping_proto1, peer1_id)
                 .build()
         };
 
@@ -47,10 +47,10 @@ async fn main() {
                 SwarmEvent::NewListenAddr { address, .. } => {
                     println!("Peer 1 listening on {}", address.clone());
                 }
-                SwarmEvent::Behaviour(RequestResponseEvent::Message {
+                SwarmEvent::Behaviour(request_response::Event::Message {
                     peer,
                     message:
-                        RequestResponseMessage::Request {
+                    request_response::Message::Request {
                             request, channel, ..
                         },
                 }) => {
@@ -99,7 +99,7 @@ async fn main() {
                     }
                 }
 
-                SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent { peer, .. }) => {
+                SwarmEvent::Behaviour(request_response::Event::ResponseSent { peer, .. }) => {
                     println!("Response sent to {:?}", peer);
                 }
 
@@ -111,22 +111,19 @@ async fn main() {
 
     //  client part
     let peer2 = async move {
-        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let cfg = RequestResponseConfig::default();
+        let protocols = iter::once((RobonomicsProtocol(), request_response::ProtocolSupport::Full));
+        let cfg = request_response::Config::default();
 
         let peer_id = std::env::args().nth(2).unwrap();
         let remote_bytes = peer_id.from_base58().unwrap();
-        let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+        let remote_peer = identity::PeerId::from_bytes(&remote_bytes).unwrap();
 
         let (peer2_id, trans) = mk_transport();
-        let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
+        let ping_proto2 = request_response::Behaviour::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
 
         //      let mut swarm2 = Swarm::new(trans, ping_proto2, peer2_id.clone());
         let mut swarm2 = {
-            SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
-                .executor(Box::new(|fut| {
-                    tokio::spawn(fut);
-                }))
+            SwarmBuilder::with_tokio_executor(trans, ping_proto2, peer2_id.clone())
                 .build()
         };
 
@@ -152,10 +149,10 @@ async fn main() {
         loop {
             match swarm2.select_next_some().await {
                 SwarmEvent::Behaviour(event) => match event {
-                    RequestResponseEvent::Message {
+                    request_response::Event::Message {
                         peer,
                         message:
-                            RequestResponseMessage::Response {
+                            request_response::Message::Response {
                                 request_id,
                                 response,
                             },

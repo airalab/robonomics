@@ -79,14 +79,14 @@ impl From<swarm::DialError> for Error {
     }
 }
 
-impl From<gossipsub::error::SubscriptionError> for Error {
-    fn from(_: gossipsub::error::SubscriptionError) -> Self {
+impl From<gossipsub::SubscriptionError> for Error {
+    fn from(_: gossipsub::SubscriptionError) -> Self {
         Error::SubscriptionError
     }
 }
 
-impl From<gossipsub::error::PublishError> for Error {
-    fn from(_: gossipsub::error::PublishError) -> Self {
+impl From<gossipsub::PublishError> for Error {
+    fn from(_: gossipsub::PublishError) -> Self {
         Error::PublishError
     }
 }

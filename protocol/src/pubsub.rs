@@ -23,10 +23,8 @@ use futures::{
 };
 use libp2p::{
     core::transport::ListenerId,
-    gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-        MessageId, Sha256Topic as Topic, TopicHash,
-    },
+    gossipsub,
+    gossipsub::Sha256Topic as Topic,
     identity::Keypair,
     swarm::{SwarmBuilder, SwarmEvent},
     Multiaddr, PeerId, Swarm,
@@ -184,8 +182,8 @@ impl PubSub for Pubsub {
 }
 
 struct PubSubWorker {
-    swarm: Swarm<Gossipsub>,
-    inbox: HashMap<TopicHash, mpsc::UnboundedSender<Message>>,
+    swarm: Swarm<gossipsub::Behaviour>,
+    inbox: HashMap<gossipsub::TopicHash, mpsc::UnboundedSender<Message>>,
     from_service: mpsc::UnboundedReceiver<ToWorkerMsg>,
     service: Arc<Pubsub>,
 }
@@ -199,27 +197,27 @@ impl PubSubWorker {
         let transport = libp2p::tokio_development_transport(local_key.clone())?;
 
         // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
+        let gossipsub_config = gossipsub::ConfigBuilder::default()
             .heartbeat_interval(Duration::from_millis(heartbeat_interval))
-            .message_id_fn(|message: &GossipsubMessage| {
+            .message_id_fn(|message: &gossipsub::Message| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.
                 let mut s = DefaultHasher::new();
                 message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
+                gossipsub::MessageId::from(s.finish().to_string())
             })
             .build()
             .expect("Valid gossipsub config");
 
         // Build a gossipsub network behaviour
-        let gossipsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)
-            .expect("Correct configuration");
+        let gossipsub = gossipsub::Behaviour::new(
+            gossipsub::MessageAuthenticity::Signed(local_key),
+            gossipsub_config,
+        )
+        .expect("Correct configuration");
 
         // Create a Swarm to manage peers and events
-        let swarm = SwarmBuilder::new(transport, gossipsub, peer_id.clone())
-            .executor(Box::new(|fut| {
-                tokio::spawn(fut);
-            }))
+        let swarm = SwarmBuilder::with_tokio_executor(transport, gossipsub, peer_id.clone())
             .build();
 
         // Create worker communication channel
@@ -300,7 +298,7 @@ impl Future for PubSubWorker {
             match self.swarm.poll_next_unpin(cx) {
                 Poll::Ready(Some(swarm_event)) => match swarm_event {
                     SwarmEvent::Behaviour(event) => match event {
-                        GossipsubEvent::Message {
+                        gossipsub::Event::Message {
                             propagation_source: peer_id,
                             message_id: id,
                             message,

@@ -19,7 +19,6 @@
 
 use bincode;
 use libp2p::core::Multiaddr;
-use libp2p::request_response::*;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use rust_base58::FromBase58;
 use std::iter;
@@ -29,14 +28,14 @@ use futures::{AsyncRead, AsyncWrite, FutureExt};
 use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
 use libp2p::core::ProtocolName;
 use libp2p::core::{
-    identity,
     muxing::StreamMuxerBox,
     transport::{self, Transport},
-    upgrade, PeerId,
+    upgrade,
 };
+use libp2p::identity;
 use libp2p::noise::{Keypair, NoiseConfig, X25519Spec};
-use libp2p::request_response::RequestResponseCodec;
-use libp2p::tcp::{GenTcpConfig, TokioTcpTransport};
+use libp2p::request_response;
+use libp2p::tcp;
 use libp2p::yamux::YamuxConfig;
 use std::io;
 
@@ -68,7 +67,7 @@ pub struct RobonomicsCodec {
 pub struct RobonomicsProtocol();
 
 #[async_trait]
-impl RequestResponseCodec for RobonomicsCodec {
+impl request_response::Codec for RobonomicsCodec {
     type Protocol = RobonomicsProtocol;
     type Request = Request;
     type Response = Response;
@@ -151,7 +150,7 @@ impl RequestResponseCodec for RobonomicsCodec {
     }
 }
 
-pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
+pub fn mk_transport() -> (identity::PeerId, transport::Boxed<(identity::PeerId, StreamMuxerBox)>) {
     // if provided pk8 file with keys use it to have static PeerID
     // in other case PeerID  will be randomly generated
     let mut id_keys = identity::Keypair::generate_ed25519();
@@ -167,7 +166,7 @@ pub fn mk_transport() -> (PeerId, transport::Boxed<(PeerId, StreamMuxerBox)>) {
         Err(_e) => log::debug!("try to use peer ID from random keypair"),
     };
 
-    let transport = TokioTcpTransport::new(GenTcpConfig::default().nodelay(true));
+    let transport = tcp::tokio::Transport::new(tcp::Config::default().nodelay(true));
 
     let noise_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&id_keys)
@@ -193,21 +192,18 @@ pub async fn reqres(
     method: String,
     in_value: Option<String>,
 ) -> Result<String, String> {
-    let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-    let cfg = RequestResponseConfig::default();
+    let protocols = iter::once((RobonomicsProtocol(), request_response::ProtocolSupport::Full));
+    let cfg = request_response::Config::default();
 
     let peer_id = peerid;
     let remote_bytes = peer_id.from_base58().unwrap();
-    let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
+    let remote_peer = identity::PeerId::from_bytes(&remote_bytes).unwrap();
 
     let (peer2_id, trans) = mk_transport();
-    let ping_proto2 = RequestResponse::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
+    let ping_proto2 = request_response::Behaviour::new(RobonomicsCodec { is_ping: false }, protocols, cfg);
 
     let mut swarm2 = {
-        SwarmBuilder::new(trans, ping_proto2, peer2_id)
-            .executor(Box::new(|fut| {
-                tokio::spawn(fut);
-            }))
+        SwarmBuilder::with_tokio_executor(trans, ping_proto2, peer2_id)
             .build()
     };
 
@@ -254,10 +250,10 @@ pub async fn reqres(
             }
 
             SwarmEvent::Behaviour(event) => match event {
-                RequestResponseEvent::Message {
+                request_response::Event::Message {
                     peer,
                     message:
-                        RequestResponseMessage::Response {
+                        request_response::Message::Response {
                             request_id,
                             response,
                         },

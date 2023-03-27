@@ -21,7 +21,7 @@ use futures::{prelude::*, Future};
 use libp2p::{
     identity::Keypair,
     kad::KademliaEvent,
-    request_response::{RequestResponseEvent, RequestResponseMessage},
+    request_response,
     swarm::SwarmEvent,
     PeerId, Swarm,
 };
@@ -67,7 +67,7 @@ impl NetworkWorker {
         )?;
 
         // Create a Swarm to manage peers and events
-        let swarm = Swarm::new(transport, behaviour, peer_id.clone());
+        let swarm = libp2p::Swarm::with_tokio_executor(transport, behaviour, peer_id);
 
         Ok(Self { swarm, pubsub })
     }
@@ -96,10 +96,10 @@ impl Future for NetworkWorker {
                         }
                     }
                     SwarmEvent::Behaviour(OutEvent::RequestResponse(
-                        RequestResponseEvent::Message {
+                        request_response::Event::Message {
                             peer,
                             message:
-                                RequestResponseMessage::Response {
+                                request_response::Message::Response {
                                     request_id,
                                     response,
                                 },

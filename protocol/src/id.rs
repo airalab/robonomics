@@ -17,9 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Network node identity.
 
-use libp2p::identity::ed25519;
-use libp2p::identity::Keypair;
-use libp2p::PeerId;
+use libp2p::identity;
 use std::path::Path;
 use std::{
     fs,
@@ -27,39 +25,36 @@ use std::{
 };
 
 /// Generate random ED25519 keypair for node identity.
-pub fn random() -> Keypair {
-    let key = Keypair::generate_ed25519();
-    let peer_id = PeerId::from(key.public());
+pub fn random() -> identity::Keypair {
+    let key = identity::Keypair::generate_ed25519();
+    let peer_id = identity::PeerId::from(key.public());
     log::info!(target: "robonomics-identity",
                "Generated random peer id: {}", peer_id.to_base58());
     key
 }
 
 /// Load ED25519 keypair for node identity from file.
-pub fn load(key_path: &Path) -> std::io::Result<Keypair> {
+pub fn load(key_path: &Path) -> std::io::Result<identity::Keypair> {
     log::info!(target: "robonomics-identity",
                "Loading peer identity keypair from: {}", key_path.to_str().unwrap());
     let key = {
         let mut fd = fs::File::open(key_path).unwrap();
         let mut bytes = [0; 64];
         fd.read(&mut bytes)?;
-        let key_ = ed25519::Keypair::decode(&mut bytes).unwrap();
-        Keypair::Ed25519(key_)
+        let key_ = identity::ed25519::Keypair::decode(&mut bytes).unwrap();
+        identity::Keypair::from(key_)
     };
-    let peer_id = PeerId::from(key.public());
+    let peer_id = identity::PeerId::from(key.public());
     log::info!(target: "robonomics-identity",
                "Peer id: {}", peer_id.to_base58());
     Ok(key)
 }
 
 /// Save node identity ED25519 keypair at path given.
-pub fn save(key: Keypair, dest: &Path) -> std::io::Result<()> {
+pub fn save(key: identity::Keypair, dest: &Path) -> std::io::Result<()> {
     log::info!(target: "robonomics-identity",
                "Saving peer identity keypair to: {}", dest.to_str().unwrap());
-    let key_ = match key {
-        Keypair::Ed25519(k) => Some(k),
-        _ => None,
-    };
+    let key_ = key.into_ed25519();
     let bytes = key_.unwrap().encode();
     let mut buff = fs::File::create(dest).unwrap();
     buff.write(&bytes)?;
