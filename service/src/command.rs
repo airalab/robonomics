@@ -22,7 +22,7 @@ use crate::cli::{Cli, Subcommand};
 use crate::{chain_spec::*, service::robonomics};
 use robonomics_protocol::id;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 #[cfg(feature = "discovery")]
 use libp2p::{
@@ -170,7 +170,8 @@ pub fn run() -> sc_cli::Result<()> {
             });
 
             // Default interval 1 sec
-            let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+            let heartbeat_interval =
+                Duration::from_millis(cli.heartbeat_interval.unwrap_or_else(|| 1000));
 
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {

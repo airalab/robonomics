@@ -30,6 +30,7 @@ use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use std::sync::Arc;
+use std::time::Duration;
 
 type FullClient<Runtime, Executor> =
     sc_service::TFullClient<Block, Runtime, NativeElseWasmExecutor<Executor>>;
@@ -74,7 +75,7 @@ where
 pub fn new_partial<Runtime, Executor>(
     config: &Configuration,
     local_key: Keypair,
-    heartbeat_interval: u64,
+    heartbeat_interval: Duration,
     bootnodes: Vec<String>,
     disable_mdns: bool,
     disable_kad: bool,
@@ -230,7 +231,7 @@ where
 pub fn full_base<Runtime, Executor>(
     mut config: Configuration,
     local_key: Keypair,
-    heartbeat_interval: u64,
+    heartbeat_interval: Duration,
     bootnodes: Vec<String>,
     disable_mdns: bool,
     disable_kad: bool,
@@ -435,6 +436,7 @@ pub mod robonomics {
     use libp2p::core::identity::Keypair;
     use local_runtime::RuntimeApi;
     use sc_service::{config::Configuration, error::Result, TaskManager};
+    use std::time::Duration;
 
     pub struct LocalExecutor;
     impl sc_executor::NativeExecutionDispatch for LocalExecutor {
@@ -458,7 +460,7 @@ pub mod robonomics {
     pub fn new(
         config: Configuration,
         local_key: Keypair,
-        heartbeat_interval: u64,
+        heartbeat_interval: Duration,
         bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,

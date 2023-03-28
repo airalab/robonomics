@@ -56,7 +56,7 @@ impl RobonomicsNetworkBehaviour {
     pub fn new(
         local_key: Keypair,
         peer_id: PeerId,
-        heartbeat_interval: u64,
+        heartbeat_interval: Duration,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
@@ -68,7 +68,7 @@ impl RobonomicsNetworkBehaviour {
 
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(Duration::from_millis(heartbeat_interval))
+            .heartbeat_interval(heartbeat_interval)
             .message_id_fn(|message: &GossipsubMessage| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.

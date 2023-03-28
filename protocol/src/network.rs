@@ -32,6 +32,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
+    time::Duration,
 };
 
 use crate::{
@@ -53,7 +54,7 @@ pub struct RobonomicsNetwork {
 impl RobonomicsNetwork {
     pub fn new(
         local_key: Keypair,
-        heartbeat_interval: u64,
+        heartbeat_interval: Duration,
         bootnodes: Vec<String>,
         disable_mdns: bool,
         disable_kad: bool,

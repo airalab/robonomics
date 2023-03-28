@@ -201,7 +201,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     build_import_queue: BIQ,
     build_consensus: BIC,
     local_key: Keypair,
-    heartbeat_interval: u64,
+    heartbeat_interval: Duration,
     bootnodes: Vec<String>,
     disable_mdns: bool,
     disable_kad: bool,
