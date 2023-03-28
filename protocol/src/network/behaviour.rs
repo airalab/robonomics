@@ -22,6 +22,7 @@ use libp2p::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
         MessageId,
     },
+    identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     mdns::{MdnsConfig, MdnsEvent, TokioMdns},
@@ -43,6 +44,7 @@ use crate::{
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
+    pub identify: Identify,
     pub pubsub: Gossipsub,
     pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
@@ -56,6 +58,12 @@ impl RobonomicsNetworkBehaviour {
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
+        // Build identify network behaviour
+        let identify = Identify::new(IdentifyConfig::new(
+            "/ipfs/id/1.0.0".to_string(),
+            local_key.public(),
+        ));
+
         // Set custom gossipsub
         let gossipsub_config = GossipsubConfigBuilder::default()
             .heartbeat_interval(Duration::from_millis(heartbeat_interval))
@@ -69,7 +77,10 @@ impl RobonomicsNetworkBehaviour {
             .build()?;
 
         // Build a gossipsub network behaviour
-        let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)?;
+        let pubsub = Gossipsub::new(
+            MessageAuthenticity::Signed(local_key.clone()),
+            gossipsub_config,
+        )?;
 
         // Build mDNS network behaviour
         let mdns = if !disable_mdns {
@@ -92,6 +103,7 @@ impl RobonomicsNetworkBehaviour {
 
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {
+            identify,
             pubsub,
             mdns,
             kademlia,
@@ -104,6 +116,7 @@ pub enum OutEvent {
     Pubsub(GossipsubEvent),
     Mdns(MdnsEvent),
     Kademlia(KademliaEvent),
+    Identify(IdentifyEvent),
     RequestResponse(RequestResponseEvent<Request, Response>),
 }
 
@@ -122,6 +135,12 @@ impl From<MdnsEvent> for OutEvent {
 impl From<KademliaEvent> for OutEvent {
     fn from(v: KademliaEvent) -> Self {
         Self::Kademlia(v)
+    }
+}
+
+impl From<IdentifyEvent> for OutEvent {
+    fn from(v: IdentifyEvent) -> Self {
+        Self::Identify(v)
     }
 }
 

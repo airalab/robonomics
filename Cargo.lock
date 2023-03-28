@@ -4134,7 +4134,7 @@ dependencies = [
  "libp2p-dns 0.34.0",
  "libp2p-floodsub",
  "libp2p-gossipsub 0.39.0",
- "libp2p-identify",
+ "libp2p-identify 0.37.0",
  "libp2p-kad 0.38.0",
  "libp2p-mdns 0.38.0",
  "libp2p-metrics 0.7.0",
@@ -4175,6 +4175,7 @@ dependencies = [
  "libp2p-core 0.37.0",
  "libp2p-dns 0.37.0",
  "libp2p-gossipsub 0.42.1",
+ "libp2p-identify 0.40.0",
  "libp2p-kad 0.41.0",
  "libp2p-mdns 0.41.0",
  "libp2p-metrics 0.10.0",
@@ -4409,7 +4410,28 @@ dependencies = [
  "lru 0.7.8",
  "prost 0.10.4",
  "prost-build 0.10.4",
- "prost-codec",
+ "prost-codec 0.1.0",
+ "smallvec",
+ "thiserror",
+ "void",
+]
+
+[[package]]
+name = "libp2p-identify"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcf9a121f699e8719bda2e6e9e9b6ddafc6cff4602471d6481c1067930ccb29b"
+dependencies = [
+ "asynchronous-codec",
+ "futures",
+ "futures-timer",
+ "libp2p-core 0.37.0",
+ "libp2p-swarm 0.40.1",
+ "log",
+ "lru 0.8.1",
+ "prost 0.11.3",
+ "prost-build 0.11.4",
+ "prost-codec 0.2.0",
  "smallvec",
  "thiserror",
  "void",
@@ -4520,7 +4542,7 @@ checksum = "ef8aff4a1abef42328fbb30b17c853fff9be986dc39af17ee39f9c5f755c5e0c"
 dependencies = [
  "libp2p-core 0.34.0",
  "libp2p-gossipsub 0.39.0",
- "libp2p-identify",
+ "libp2p-identify 0.37.0",
  "libp2p-kad 0.38.0",
  "libp2p-ping",
  "libp2p-relay",
@@ -4536,6 +4558,7 @@ checksum = "9ee31b08e78b7b8bfd1c4204a9dd8a87b4fcdf6dafc57eb51701c1c264a81cb9"
 dependencies = [
  "libp2p-core 0.37.0",
  "libp2p-gossipsub 0.42.1",
+ "libp2p-identify 0.40.0",
  "libp2p-kad 0.41.0",
  "libp2p-swarm 0.40.1",
  "prometheus-client 0.18.1",
@@ -4686,7 +4709,7 @@ dependencies = [
  "pin-project",
  "prost 0.10.4",
  "prost-build 0.10.4",
- "prost-codec",
+ "prost-codec 0.1.0",
  "rand 0.8.5",
  "smallvec",
  "static_assertions",
@@ -8517,6 +8540,19 @@ dependencies = [
  "asynchronous-codec",
  "bytes",
  "prost 0.10.4",
+ "thiserror",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "prost-codec"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "011ae9ff8359df7915f97302d591cdd9e0e27fbd5a4ddc5bd13b71079bb20987"
+dependencies = [
+ "asynchronous-codec",
+ "bytes",
+ "prost 0.11.3",
  "thiserror",
  "unsigned-varint",
 ]
