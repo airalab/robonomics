@@ -41,6 +41,8 @@ use crate::{
     reqres::{Request, Response},
 };
 
+const PROTOCOL_NAME: &str = "robonomics/1.0.0";
+
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
@@ -60,7 +62,7 @@ impl RobonomicsNetworkBehaviour {
     ) -> Result<Self> {
         // Build identify network behaviour
         let identify = Identify::new(IdentifyConfig::new(
-            "/ipfs/id/1.0.0".to_string(),
+            PROTOCOL_NAME.to_string(),
             local_key.public(),
         ));
 
