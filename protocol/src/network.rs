@@ -55,7 +55,9 @@ impl RobonomicsNetwork {
     pub fn new(
         local_key: Keypair,
         heartbeat_interval: Duration,
+        network_listen_address: Multiaddr,
         bootnodes: Vec<String>,
+        disable_pubsub: bool,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<(Self, Arc<Pubsub>)> {
@@ -65,6 +67,7 @@ impl RobonomicsNetwork {
             local_key,
             peer_id,
             heartbeat_interval,
+            disable_pubsub,
             disable_mdns,
             disable_kad,
         )?;
@@ -74,8 +77,8 @@ impl RobonomicsNetwork {
             }))
             .build();
 
-        Swarm::listen_on(&mut swarm, "/ip4/127.0.0.1/tcp/30400".parse().unwrap())?;
-        discovery::add_peers(&mut swarm, bootnodes);
+        Swarm::listen_on(&mut swarm, network_listen_address)?;
+        discovery::add_peers(&mut swarm, bootnodes, disable_kad);
 
         // Create worker communication channel
         let (to_worker, from_service) = mpsc::unbounded::<ToWorkerMsg>();
@@ -122,32 +125,38 @@ impl RobonomicsNetwork {
         topic_name: String,
         inbox: mpsc::UnboundedSender<Message>,
     ) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().pubsub.subscribe(&topic)?;
-        self.inbox.insert(topic.hash(), inbox);
-        log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
-
-        Ok(true)
+        if let Some(pubsub) = self.swarm.behaviour_mut().pubsub.as_mut() {
+            let topic = Topic::new(topic_name.clone());
+            pubsub.subscribe(&topic)?;
+            self.inbox.insert(topic.hash(), inbox);
+            log::debug!(target: "robonomics-pubsub", "Subscribed to {}", topic_name);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn unsubscribe(&mut self, topic_name: String) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm.behaviour_mut().pubsub.unsubscribe(&topic)?;
-        self.inbox.remove(&topic.hash());
-        log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
-
-        Ok(true)
+        if let Some(pubsub) = self.swarm.behaviour_mut().pubsub.as_mut() {
+            let topic = Topic::new(topic_name.clone());
+            pubsub.unsubscribe(&topic)?;
+            self.inbox.remove(&topic.hash());
+            log::debug!(target: "robonomics-pubsub", "Unsubscribed from {}", topic_name);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn publish(&mut self, topic_name: String, message: Vec<u8>) -> Result<bool> {
-        let topic = Topic::new(topic_name.clone());
-        self.swarm
-            .behaviour_mut()
-            .pubsub
-            .publish(topic.clone(), message)?;
-        log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
-
-        Ok(true)
+        if let Some(pubsub) = self.swarm.behaviour_mut().pubsub.as_mut() {
+            let topic = Topic::new(topic_name.clone());
+            pubsub.publish(topic.clone(), message)?;
+            log::debug!(target: "robonomics-pubsub", "Publish to {}", topic_name);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 

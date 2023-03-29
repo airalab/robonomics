@@ -20,7 +20,11 @@
 use super::behaviour::RobonomicsNetworkBehaviour;
 use libp2p::{Multiaddr, PeerId, Swarm};
 
-pub fn add_peers(swarm: &mut Swarm<RobonomicsNetworkBehaviour>, bootnodes: Vec<String>) {
+pub fn add_peers(
+    swarm: &mut Swarm<RobonomicsNetworkBehaviour>,
+    bootnodes: Vec<String>,
+    _disable_kad: bool,
+) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
             println!("Addr: {addr}");
@@ -28,9 +32,11 @@ pub fn add_peers(swarm: &mut Swarm<RobonomicsNetworkBehaviour>, bootnodes: Vec<S
                 println!("Dial error: {e}");
             } else {
                 // Add node to pubsub swarm
-                if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
-                    println!("Adding peer to swarm: {peer}");
-                    swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+                if let Some(pubsub) = swarm.behaviour_mut().pubsub.as_mut() {
+                    if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+                        println!("Adding peer to swarm: {peer}");
+                        pubsub.add_explicit_peer(&peer);
+                    }
                 }
 
                 // Add node to DHT

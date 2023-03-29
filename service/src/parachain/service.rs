@@ -301,10 +301,20 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
+    // TODO: move to cli
+    let network_listen_address = "/ip4/127.0.0.1/tcp/30400"
+        .parse()
+        .expect("robonomics network listen address");
+
+    // TODO: move to cli
+    let disable_pubsub = false;
+
     let (robonomics_network, pubsub) = RobonomicsNetwork::new(
         local_key,
         heartbeat_interval,
+        network_listen_address,
         bootnodes,
+        disable_pubsub,
         disable_mdns,
         disable_kad,
     )

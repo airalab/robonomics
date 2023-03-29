@@ -181,14 +181,24 @@ where
         },
     )?;
 
+    // TODO: move to cli
+    let network_listen_address = "/ip4/127.0.0.1/tcp/30400"
+        .parse()
+        .expect("robonomics network listen address");
+
+    // TODO: move to cli
+    let disable_pubsub = false;
+
     let (robonomics_network, pubsub) = RobonomicsNetwork::new(
         local_key,
         heartbeat_interval,
+        network_listen_address,
         bootnodes,
+        disable_pubsub,
         disable_mdns,
         disable_kad,
     )
-    .expect("New robonomics network");
+    .expect("new robonomics network");
 
     task_manager
         .spawn_handle()

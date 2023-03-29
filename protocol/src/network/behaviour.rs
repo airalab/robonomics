@@ -47,7 +47,7 @@ const PROTOCOL_NAME: &str = "robonomics/1.0.0";
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
     pub identify: Identify,
-    pub pubsub: Gossipsub,
+    pub pubsub: Toggle<Gossipsub>,
     pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
 }
@@ -57,6 +57,7 @@ impl RobonomicsNetworkBehaviour {
         local_key: Keypair,
         peer_id: PeerId,
         heartbeat_interval: Duration,
+        disable_pubsub: bool,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
@@ -66,23 +67,30 @@ impl RobonomicsNetworkBehaviour {
             local_key.public(),
         ));
 
-        // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(heartbeat_interval)
-            .message_id_fn(|message: &GossipsubMessage| {
-                // To content-address message,
-                // we can take the hash of message and use it as an ID.
-                let mut s = DefaultHasher::new();
-                message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
-            })
-            .build()?;
-
         // Build a gossipsub network behaviour
-        let pubsub = Gossipsub::new(
-            MessageAuthenticity::Signed(local_key.clone()),
-            gossipsub_config,
-        )?;
+        let pubsub = if !disable_pubsub {
+            log::info!("Using Pubsub.");
+
+            // Set custom gossipsub
+            let gossipsub_config = GossipsubConfigBuilder::default()
+                .heartbeat_interval(heartbeat_interval)
+                .message_id_fn(|message: &GossipsubMessage| {
+                    // To content-address message,
+                    // we can take the hash of message and use it as an ID.
+                    let mut s = DefaultHasher::new();
+                    message.data.hash(&mut s);
+                    MessageId::from(s.finish().to_string())
+                })
+                .build()?;
+
+            let pubsub = Gossipsub::new(
+                MessageAuthenticity::Signed(local_key.clone()),
+                gossipsub_config,
+            )?;
+            Toggle::from(Some(pubsub))
+        } else {
+            Toggle::from(None)
+        };
 
         // Build mDNS network behaviour
         let mdns = if !disable_mdns {
