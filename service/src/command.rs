@@ -114,24 +114,36 @@ pub async fn run() -> sc_cli::Result<()> {
     });
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {local_peer_id:?}");
+    let heartbeat_interval = Duration::from_millis(1000);
+    let disable_pubsub = false;
+    let disable_mdns = true;
+    let disable_kad = true;
+    let network_listen_address = "/ip4/0.0.0.0/tcp/0"
+        .parse()
+        .expect("robonomics network listen address");
 
     let transport =
         libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
-
-    let behaviour = RobonomicsNetworkBehaviour::new(local_key, local_peer_id, 1000, true, true)
-        .expect("Correct behaviour");
-
+    let behaviour = RobonomicsNetworkBehaviour::new(
+        local_key,
+        local_peer_id,
+        heartbeat_interval,
+        disable_pubsub,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("Correct behaviour");
     let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
         .executor(Box::new(|fut| {
             tokio::spawn(fut);
         }))
         .build();
 
-    discovery::add_peers(&mut swarm, cli.robonomics_bootnodes);
+    discovery::add_peers(&mut swarm, cli.robonomics_bootnodes, disable_kad);
 
     swarm
-        .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-        .expect("Swarm listen");
+        .listen_on(network_listen_address)
+        .expect("swarm listen");
 
     loop {
         tokio::select! {
