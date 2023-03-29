@@ -18,16 +18,13 @@
 //! Robonomics network behaviour.
 
 use libp2p::{
-    gossipsub::{
-        Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
-        MessageId,
-    },
+    gossipsub,
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
-    mdns::{MdnsConfig, MdnsEvent, TokioMdns},
-    request_response::RequestResponseEvent,
+    mdns,
+    request_response,
     swarm::behaviour::toggle::Toggle,
-    NetworkBehaviour, PeerId,
+    swarm::NetworkBehaviour, PeerId,
 };
 use std::{
     collections::hash_map::DefaultHasher,
@@ -36,15 +33,15 @@ use std::{
 };
 
 use crate::{
-    error::Result,
-    reqres::{Request, Response},
+    error,
+    reqres,
 };
 
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
-    pub pubsub: Gossipsub,
-    pub mdns: Toggle<TokioMdns>,
+    pub pubsub: gossipsub::Behaviour,
+    pub mdns: Toggle<mdns::tokio::Behaviour>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
 }
 
@@ -55,26 +52,26 @@ impl RobonomicsNetworkBehaviour {
         heartbeat_interval: u64,
         disable_mdns: bool,
         disable_kad: bool,
-    ) -> Result<Self> {
+    ) -> error::Result<Self> {
         // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
+        let gossipsub_config = gossipsub::ConfigBuilder::default()
             .heartbeat_interval(Duration::from_millis(heartbeat_interval))
-            .message_id_fn(|message: &GossipsubMessage| {
+            .message_id_fn(|message: &gossipsub::Message| {
                 // To content-address message,
                 // we can take the hash of message and use it as an ID.
                 let mut s = DefaultHasher::new();
                 message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
+                gossipsub::MessageId::from(s.finish().to_string())
             })
             .build()?;
 
         // Build a gossipsub network behaviour
-        let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)?;
+        let pubsub = gossipsub::Behaviour::new(gossipsub::MessageAuthenticity::Signed(local_key), gossipsub_config)?;
 
         // Build mDNS network behaviour
         let mdns = if !disable_mdns {
             log::info!("Using mDNS discovery service.");
-            let mdns = TokioMdns::new(MdnsConfig::default())?;
+            let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), peer_id)?;
             Toggle::from(Some(mdns))
         } else {
             Toggle::from(None)
@@ -101,20 +98,20 @@ impl RobonomicsNetworkBehaviour {
 
 #[derive(Debug)]
 pub enum OutEvent {
-    Pubsub(GossipsubEvent),
-    Mdns(MdnsEvent),
+    Pubsub(gossipsub::Event),
+    Mdns(mdns::Event),
     Kademlia(KademliaEvent),
-    RequestResponse(RequestResponseEvent<Request, Response>),
+    RequestResponse(request_response::Event<reqres::Request, reqres::Response>),
 }
 
-impl From<GossipsubEvent> for OutEvent {
-    fn from(v: GossipsubEvent) -> Self {
+impl From<gossipsub::Event> for OutEvent {
+    fn from(v: gossipsub::Event) -> Self {
         Self::Pubsub(v)
     }
 }
 
-impl From<MdnsEvent> for OutEvent {
-    fn from(v: MdnsEvent) -> Self {
+impl From<mdns::Event> for OutEvent {
+    fn from(v: mdns::Event) -> Self {
         Self::Mdns(v)
     }
 }
@@ -125,8 +122,8 @@ impl From<KademliaEvent> for OutEvent {
     }
 }
 
-impl From<RequestResponseEvent<Request, Response>> for OutEvent {
-    fn from(v: RequestResponseEvent<Request, Response>) -> Self {
+impl From<request_response::Event<reqres::Request, reqres::Response>> for OutEvent {
+    fn from(v: request_response::Event<reqres::Request, reqres::Response>) -> Self {
         Self::RequestResponse(v)
     }
 }

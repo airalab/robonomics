@@ -27,7 +27,7 @@ use libp2p::core::{
     muxing::StreamMuxerBox,
     transport::{self},
 };
-use libp2p::request_response::*;
+use libp2p::request_response;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use libp2p::Multiaddr;
 use libp2p::PeerId;
@@ -154,20 +154,17 @@ pub async fn reqres_server(
 
     log::debug!(target: "robonomics-io", "reqres: bind address {}", address);
 
-    let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-    let cfg = RequestResponseConfig::default();
+    let protocols = iter::once((RobonomicsProtocol(), request_response::ProtocolSupport::Full));
+    let cfg = request_response::Config::default();
 
-    let ping_proto1 = RequestResponse::new(
+    let ping_proto1 = request_response::Behaviour::new(
         RobonomicsCodec { is_ping: false },
         protocols.clone(),
         cfg.clone(),
     );
 
     let mut swarm1 = {
-        SwarmBuilder::new(trans, ping_proto1, peer1_id.clone())
-            .executor(Box::new(|fut| {
-                tokio::spawn(fut);
-            }))
+        SwarmBuilder::with_tokio_executor(trans, ping_proto1, peer1_id.clone())
             .build()
     };
 
@@ -219,10 +216,10 @@ pub async fn reqres_server(
                     }
                 }
 
-                SwarmEvent::Behaviour(RequestResponseEvent::Message {
+                SwarmEvent::Behaviour(request_response::Event::Message {
                     peer,
                     message:
-                        RequestResponseMessage::Request {
+                        request_response::Message::Request {
                             request, channel, ..
                         },
                 }) => {
@@ -263,7 +260,7 @@ pub async fn reqres_server(
                     }
                 }
 
-                SwarmEvent::Behaviour(RequestResponseEvent::ResponseSent { peer, .. }) => {
+                SwarmEvent::Behaviour(request_response::Event::ResponseSent { peer, .. }) => {
                     log::debug!("Response sent to {:?}", peer);
                 }
 
@@ -296,24 +293,21 @@ pub async fn reqres_client(
     let ms = time::Duration::from_millis(100);
 
     let peer2 = async move {
-        let protocols = iter::once((RobonomicsProtocol(), ProtocolSupport::Full));
-        let cfg = RequestResponseConfig::default();
+        let protocols = iter::once((RobonomicsProtocol(), request_response::ProtocolSupport::Full));
+        let cfg = request_response::Config::default();
 
         let peer_id = node;
         let remote_bytes = peer_id.from_base58().unwrap();
         let remote_peer = PeerId::from_bytes(&remote_bytes).unwrap();
 
-        let ping_proto2 = RequestResponse::new(
+        let ping_proto2 = request_response::Behaviour::new(
             RobonomicsCodec { is_ping: false },
             protocols.clone(),
             cfg.clone(),
         );
 
         let mut swarm2 = {
-            SwarmBuilder::new(trans, ping_proto2, peer2_id.clone())
-                .executor(Box::new(|fut| {
-                    tokio::spawn(fut);
-                }))
+            SwarmBuilder::with_tokio_executor(trans, ping_proto2, peer2_id.clone())
                 .build()
         };
 
@@ -340,10 +334,10 @@ pub async fn reqres_client(
         loop {
             match swarm2.select_next_some().await {
                 SwarmEvent::Behaviour(event) => match event {
-                    RequestResponseEvent::Message {
+                    request_response::Event::Message {
                         peer,
                         message:
-                            RequestResponseMessage::Response {
+                            request_response::Message::Response {
                                 request_id,
                                 response,
                             },
