@@ -426,21 +426,6 @@ impl pallet_robonomics_lighthouse::Config for Runtime {
     type BlockReward = BlockReward;
 }
 
-parameter_types! {
-    pub const BondingDuration: BlockNumber = 7 * 24 * 60 * 5; // 7 days
-    pub const StakeReward: Perbill = Perbill::from_parts(40);
-    pub const BonusReward: Perbill = Perbill::from_parts(200);
-}
-
-impl pallet_robonomics_staking::Config for Runtime {
-    type Currency = Balances;
-    type Event = Event;
-    type BondingDuration = BondingDuration;
-    type StakeReward = StakeReward;
-    type BonusReward = BonusReward;
-    type OnBond = RWS;
-}
-
 construct_runtime! {
     pub enum Runtime where
         Block = Block,
@@ -469,7 +454,6 @@ construct_runtime! {
         RWS: pallet_robonomics_rws,
         DigitalTwin: pallet_robonomics_digital_twin,
         Liability: pallet_robonomics_liability,
-        Staking: pallet_robonomics_staking,
         Lighthouse: pallet_robonomics_lighthouse,
 
         // XCM helpers.

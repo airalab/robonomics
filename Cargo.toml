@@ -10,7 +10,6 @@ members = [
   "frame/liability",
   "frame/lighthouse",
   "frame/digital-twin",
-  "frame/staking",
   #    "io",
   "pair",
   "primitives",

@@ -170,14 +170,12 @@ fn mk_genesis_alpha(
     sudo_key: AccountId,
     parachain_id: ParaId,
 ) -> alpha_runtime::GenesisConfig {
-    let bonus = balances.clone();
     alpha_runtime::GenesisConfig {
         system: alpha_runtime::SystemConfig {
             code: alpha_runtime::wasm_binary_unwrap().to_vec(),
         },
         assets: Default::default(),
         balances: alpha_runtime::BalancesConfig { balances },
-        staking: alpha_runtime::StakingConfig { bonus },
         sudo: alpha_runtime::SudoConfig {
             key: Some(sudo_key),
         },
@@ -229,7 +227,6 @@ fn mk_genesis_main(
         balances: main_runtime::BalancesConfig { balances },
         assets: Default::default(),
         vesting: Default::default(),
-        staking: main_runtime::StakingConfig { bonus: vec![] },
         parachain_info: main_runtime::ParachainInfoConfig { parachain_id },
         democracy: main_runtime::DemocracyConfig::default(),
         treasury: Default::default(),
