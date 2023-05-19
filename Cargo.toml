@@ -2,6 +2,7 @@
 default-members = ["bin/node"]
 members = [
   "bin/node",
+  "bin/digitaltwin2mqtt",
   #    "cli",
   "frame/crowdloan",
   "frame/rws",
