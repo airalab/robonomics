@@ -533,7 +533,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
 }
 
 parameter_types! {
-    pub const BlockReward: Balance = 380_520;
+    pub const BlockReward: Balance = 37_347_570_995;
 }
 
 impl pallet_robonomics_lighthouse::Config for Runtime {
