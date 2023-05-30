@@ -20,7 +20,7 @@
 use hex_literal::hex;
 use local_runtime::{
     wasm_binary_unwrap, AuraConfig, BalancesConfig, DemocracyConfig, GenesisConfig, GrandpaConfig,
-    StakingConfig, SudoConfig, SystemConfig,
+    SudoConfig, SystemConfig,
 };
 use robonomics_primitives::{AccountId, Balance, Block, Signature};
 use sc_chain_spec::ChainSpecExtension;
@@ -169,7 +169,6 @@ fn mk_genesis(
     sudo_key: AccountId,
     code: Vec<u8>,
 ) -> GenesisConfig {
-    let bonus = balances.clone();
     GenesisConfig {
         system: SystemConfig { code },
         balances: BalancesConfig { balances },
@@ -187,7 +186,6 @@ fn mk_genesis(
             key: Some(sudo_key),
         },
         vesting: Default::default(),
-        staking: StakingConfig { bonus },
         democracy: DemocracyConfig::default(),
         treasury: Default::default(),
         technical_committee: Default::default(),
