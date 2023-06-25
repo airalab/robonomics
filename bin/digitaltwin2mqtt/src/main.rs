@@ -6,7 +6,6 @@ extern crate paho_mqtt as mqtt;
 
 use crate::polkadot::digital_twin::events::NewDigitalTwin;
 use crate::polkadot::digital_twin::events::TopicChanged;
-use crate::polkadot::launch::events::NewLaunch;
 
 use futures::StreamExt;
 use sp_keyring::AccountKeyring;
@@ -187,18 +186,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let pallet_name = evt.pallet_name();
                 let event_name = evt.variant_name();
-                let is_launch = evt.as_event::<NewLaunch>()?.is_some();
                 let is_new_twin = evt.as_event::<NewDigitalTwin>()?.is_some();
                 let is_twin = evt.as_event::<TopicChanged>()?.is_some();
-
-                if is_launch {
-                    let launch_event = events.find_first::<NewLaunch>()?;
-                    if let Some(evt) = launch_event {
-                        println!("Detected {pallet_name}::{event_name} values: \n sender: {} \n robot: {} \n params: {:?}", evt.0, evt.1, evt.2 );
-                    } else {
-                        println!("No launch event found in this block.");
-                    }
-                }
 
                 if is_new_twin {
                     let new_twin_event = events.find_first::<NewDigitalTwin>()?;
