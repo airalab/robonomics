@@ -7,12 +7,14 @@ def on_connect(client, userdata, flags, rc):
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    # client.subscribe("$SYS/#")
-    client.subscribe('digitaltwin')
+    client.subscribe('digitaltwin_pub')
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    print("at topic" + msg.topic + " data: " + str(msg.payload))
+    print("Get at topic " + msg.topic + " data: " + str(msg.payload))
+    topic2pub = 'digitaltwin_sub'
+    client.publish(topic2pub, str(msg.payload))
+    print("Pub to topic " + topic2pub + " data: " + str(msg.payload))
 
 client = mqtt.Client()
 client.on_connect = on_connect

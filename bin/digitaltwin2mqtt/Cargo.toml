@@ -8,11 +8,12 @@ edition = "2021"
 [dependencies]
 paho-mqtt = "0.5"
 tokio = { version = "1.27", features = ["rt-multi-thread", "macros", "time"] }
-sp-keyring = "20.0.0"
 futures = "0.3.27"
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "full", "bit-vec"] }
 hex = "0.4.3"
 tracing-subscriber = "0.3.11"
-sp-core = { version = "18.0.0", default-features = false }
-sp-runtime = "20.0.0"
-subxt = "0.28.0"
+
+sp-core = { version = "21.0.0", default-features = false }
+sp-keyring = "24.0.0"
+sp-runtime = "24.0.0"
+subxt = "0.29.0"
