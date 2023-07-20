@@ -1,34 +1,18 @@
 [package]
 name = "robonomics-primitives"
-version = "3.0.0"
-authors = ["Airalab <research@aira.life>"]
-edition = "2021"
-license = "Apache-2.0"
-homepage = "https://robonomics.network"
-repository = "https://github.com/airalab/robonomics"
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-serde = { version = "1.0.130", optional = true }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = [
-  "derive",
-] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-runtime = { workspace = true }
+sp-core = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-  "serde",
-  "codec/std",
-  "sp-std/std",
-  "sp-core/std",
   "sp-runtime/std",
-  "sp-application-crypto/std",
-  "frame-system/std",
+  "sp-core/std",
 ]

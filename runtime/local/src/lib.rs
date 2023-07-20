@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ use crate::constants::{currency::*, time::*};
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics-local"),
-    impl_name: create_runtime_str!("robonomics-airalab"),
+    impl_name: create_runtime_str!("robonomics-local-airalab"),
     authoring_version: 1,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to equal spec_version. If only runtime
@@ -788,10 +788,10 @@ impl_runtime_apis! {
             return (list, storage_info)
         }
 
-
-       fn dispatch_benchmark(
+        fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+            use hex_literal::hex;
             use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
             use frame_system_benchmarking::Pallet as SystemBench;
 
@@ -799,17 +799,17 @@ impl_runtime_apis! {
 
             let whitelist: Vec<TrackedStorageKey> = vec![
                 // Block Number
-                hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
+                hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
                 // Total Issuance
-                hex_literal::hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
+                hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
                 // Execution Phase
-                hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
+                hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
                 // Event Count
-                hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
+                hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
                 // System Events
-                hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+                hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
                 // Treasury Account
-                hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da95ecffd7b6c0f78751baa9d281e0bfa3a6d6f646c70792f74727372790000000000000000000000000000000000000000").to_vec().into(),
+                hex!("26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da95ecffd7b6c0f78751baa9d281e0bfa3a6d6f646c70792f74727372790000000000000000000000000000000000000000").to_vec().into(),
             ];
 
             let mut batches = Vec::<BenchmarkBatch>::new();

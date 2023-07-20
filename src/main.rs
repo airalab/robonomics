@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -15,10 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics node executable.
+/// Global allocator. Changing it to another allocator will require
+/// changing `memory_stats::MemoryAllocationTracker`.
+#[cfg(any(target_os = "linux", feature = "jemalloc-allocator"))]
+#[global_allocator]
+pub static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-#![warn(missing_docs)]
-
-fn main() -> robonomics_service::Result<()> {
-    robonomics_service::run()
+fn main() -> color_eyre::eyre::Result<()> {
+    color_eyre::install()?;
+    robonomics_service::run()?;
+    Ok(())
 }

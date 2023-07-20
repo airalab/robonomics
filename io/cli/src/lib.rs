@@ -15,6 +15,14 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Collections of I/O devices designed for consume data.
+//! Robonomics Framework console line interface.
 
-pub mod virt;
+pub mod error;
+
+mod io;
+mod sink;
+mod source;
+
+pub use io::IoCmd;
+pub use sink::SinkCmd;
+pub use source::SourceCmd;

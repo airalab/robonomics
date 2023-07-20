@@ -1,137 +1,115 @@
 [package]
 name = "robonomics-service"
-version = "3.0.0"
-authors = ["Airalab <research@aira.life>"]
-description = "Robonomics node console line interface."
-build = "build.rs"
-edition = "2021"
-license = "Apache-2.0"
-homepage = "https://robonomics.network"
-repository = "https://github.com/airalab/robonomics"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 # third-party dependencies
-clap = { version = "3.0", features = ["derive"], optional = true }
-serde = { version = "1.0.130", features = ["derive"] }
-serde_json = "1.0"
-jsonrpsee = { version = "0.15.1", features = ["server"] }
-codec = { package = "parity-scale-codec", version = "3.0.0" }
-hex-literal = "0.3.1"
-log = "0.4.17"
-libp2p = { version = "0.49", optional = true }
+clap = { workspace = true, optional = true }
+jsonrpsee = { workspace = true }
+hex-literal = { workspace = true }
+log = { workspace = true }
 
 # primitives
-robonomics-primitives = { path = "../primitives", default-features = false }
+robonomics-primitives = { path = "../primitives" }
 robonomics-protocol = { path = "../protocol", optional = true }
-sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-version = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-tasks = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-authorship = { workspace = true }
+sp-api = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-block-builder = { workspace = true }
+sp-consensus = { workspace = true }
+sp-consensus-aura = { workspace = true }
+sp-core = { workspace = true }
+sp-finality-grandpa = { workspace = true }
+sp-session = { workspace = true }
+sp-runtime = { workspace = true }
+sp-offchain = { workspace = true }
+sp-inherents = { workspace = true }
+sp-keystore = { workspace = true }
+sp-timestamp = { workspace = true }
+sp-trie = { workspace = true }
+sp-transaction-pool = { workspace = true }
+sp-transaction-storage-proof = { workspace = true }
+sp-version = { workspace = true }
+sp-externalities = { workspace = true }
 
 # client dependencies
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-chain-spec = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-consensus-slots = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-consensus-uncles = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-informant = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-executor-common = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sc-basic-authorship = { workspace = true }
+sc-chain-spec = { workspace = true }
+sc-cli = { optional = true }{ workspace = true }
+sc-client-db = { workspace = true }
+sc-client-api = { workspace = true }
+sc-consensus = { workspace = true }
+sc-consensus-aura = { workspace = true }
+sc-consensus-slots = { workspace = true }
+sc-finality-grandpa = { workspace = true }
+sc-informant = { workspace = true }
+sc-keystore = { workspace = true }
+sc-network = { workspace = true }
+sc-offchain = { workspace = true }
+sc-rpc = { workspace = true }
+sc-service = { workspace = true }
+sc-tracing = { workspace = true }
+sc-transaction-pool = { workspace = true }
+sc-telemetry = { workspace = true }
+sc-sync-state-rpc = { workspace = true }
+sc-executor-common = { workspace = true }
+sc-executor = { workspace = true }
 
 # frame dependencies
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+frame-support = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+frame-system-rpc-runtime-api = { workspace = true }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-robonomics-lighthouse = { path = "../frame/lighthouse", optional = true }
 pallet-robonomics-datalog = { path = "../frame/datalog", default-features = false }
+frame-benchmarking-cli = { workspace = true, optional = true }
 
 # cumulus dependencies
-cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-consensus-aura = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-consensus-common = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-relay-chain-inprocess-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-collator = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-service = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
+cumulus-primitives-core = { workspace = true, optional = true }
+cumulus-primitives-parachain-inherent = { workspace = true, optional = true }
+cumulus-client-consensus-aura = { workspace = true, optional = true }
+cumulus-client-consensus-common = { workspace = true, optional = true }
+cumulus-client-consensus-relay-chain = { workspace = true, optional = true }
+cumulus-relay-chain-interface = { workspace = true, optional = true }
+cumulus-relay-chain-rpc-interface = { workspace = true, optional = true }
+cumulus-relay-chain-inprocess-interface = { workspace = true, optional = true }
+cumulus-client-cli = { workspace = true, optional = true }
+cumulus-client-collator = { workspace = true, optional = true }
+cumulus-client-network = { workspace = true, optional = true }
+cumulus-client-service = { workspace = true, optional = true }
 
 # polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28", optional = true }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28", optional = true }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28", optional = true }
+polkadot-primitives = { workspace = true, optional = true }
+polkadot-parachain = { workspace = true, optional = true }
+polkadot-service = { workspace = true, optional = true }
+polkadot-cli = { workspace = true, optional = true }
 
 # node-specific dependencies
-robonomics-rpc = { path = "../rpc", optional = true }
+robonomics-rpc = { path = "rpc", optional = true }
+substrate-prometheus-endpoint = { workspace = true }
+substrate-frame-rpc-system = { workspace = true, optional = true }
 local-runtime = { path = "../runtime/local", optional = true }
 alpha-runtime = { path = "../runtime/alpha", optional = true }
 ipci-runtime = { path = "../runtime/ipci", optional = true }
 main-runtime = { path = "../runtime/main", optional = true }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-
-# CLI-specific dependencies
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-substrate-frame-rpc-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-
-# Robonomics-specific dependencies
-#robonomics-cli = { path = "../../../cli", optional = true }
-robonomics-pair  = { path = "../pair", optional = true }
 
 [build-dependencies]
 local-runtime = { path = "../runtime/local", optional = true }
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28", optional = true }
-frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", optional = true }
-cumulus-client-cli = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", optional = true }
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-#robonomics-cli = { path = "../../../cli", optional = true }
-robonomics-pair  = { path = "../pair", optional = true }
-vergen = { version = "3.1.0", optional = true }
-clap = { version = "3.0", features = ["derive"], optional = true }
-clap_complete = { version = "3.0", optional = true }
+sc-cli = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+polkadot-cli = { workspace = true, optional = true }
+frame-benchmarking-cli = { workspace = true, optional = true }
+cumulus-client-cli = { workspace = true, optional = true }
+substrate-build-script-utils = { workspace = true }
+vergen = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+clap_complete = { workspace = true, optional = true }
 
 [features]
-## Build fully functional node by default.
-default = ["full"]
-
 ## Fully functional Robonomics Network node.
 # Full node required for collating / validating the parachain or develop Robonomics pallets.
 full = [
@@ -147,7 +125,6 @@ full = [
   "frame-benchmarking",
   "cumulus-client-cli",
   "robonomics-pair",
-  #    "robonomics-cli",
   "libp2p",
 ]
 
@@ -161,10 +138,9 @@ zero = [
   "clap_complete",
   "cumulus-client-cli",
   "robonomics-pair",
-  #    "robonomics-cli",
 ]
 
-# Discovery service
+# Robonomics Network discovery service (experimental).
 discovery = [
     "sc-cli",
     "clap",
@@ -174,12 +150,11 @@ discovery = [
 ]
 
 ## Enable Kusama parachain.
-kusama = ["main-runtime", "parachain"]
+kusama-parachain = ["main-runtime", "ipci-runtime", "parachain"]
 
-## Enable parachain collator.
+## Enable general parachain collator.
 parachain = [
   "alpha-runtime",
-  "ipci-runtime",
   "pallet-robonomics-lighthouse",
   "substrate-frame-rpc-system",
   "cumulus-primitives-core",
@@ -199,14 +174,6 @@ parachain = [
   "polkadot-cli",
   "full",
 ]
-
-## Enable Wasmtime for runtime execution.
-wasmtime = ["sc-service/wasmtime", "sc-cli/wasmtime"]
-
-## Enable ROS integration: exports to ROS topics and services for Robonomics communication.
-# To build with it install ROS (http://wiki.ros.org/melodic/Installation) before.
-# It also require roscore service to be launched.
-ros = []
 
 ## Enable runtime benchmarking.
 runtime-benchmarks = [

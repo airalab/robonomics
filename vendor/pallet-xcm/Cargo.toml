@@ -14,21 +14,21 @@ scale-info = { version = "2.1.0", default-features = false, features = [
 ] }
 serde = { version = "1.0.136", optional = true, features = ["derive"] }
 
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28" }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28" }
-sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28" }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28" }
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.28" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.43" }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.43" }
 
 [dev-dependencies]
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28" }
-polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.28" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43" }
+polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43" }
 
 [features]
 default = ["std"]

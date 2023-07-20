@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ pub use pallet::*;
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
-    use frame_support::traits::{Currency, Imbalance, OnUnbalanced};
+    use frame_support::traits::{Currency, OnUnbalanced};
     use frame_system::pallet_prelude::*;
 
     type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
@@ -45,7 +45,7 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>;
 
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// Reward amount for block proposer.
         #[pallet::constant]
@@ -66,7 +66,6 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(PhantomData<T>);
 
     /// Current block lighthouse account.
@@ -74,27 +73,22 @@ pub mod pallet {
     #[pallet::getter(fn lighthouse)]
     pub(super) type Lighthouse<T: Config> = StorageValue<_, T::AccountId>;
 
-    /// Current block lighthouse reward.
-    #[pallet::storage]
-    #[pallet::getter(fn fees_reward)]
-    pub(super) type BlockReward<T: Config> = StorageValue<_, BalanceOf<T>>;
-
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
             <Lighthouse<T>>::kill();
-            <BlockReward<T>>::kill();
-            0
+            T::DbWeight::get().writes(1)
         }
 
-        fn on_finalize(_n: T::BlockNumber) {
-            let lighthouse = <Lighthouse<T>>::get().expect("Lighthouse must be set");
-            let block_reward = <BlockReward<T>>::get().unwrap_or(T::BlockReward::get());
+        fn on_finalize(_n: BlockNumberFor<T>) {
+            if let Some(lighthouse) = <Lighthouse<T>>::get() {
+                let block_reward = T::BlockReward::get();
 
-            let reward_imbalance = T::Currency::issue(block_reward);
-            T::Currency::resolve_creating(&lighthouse, reward_imbalance);
+                let reward_imbalance = T::Currency::issue(block_reward);
+                T::Currency::resolve_creating(&lighthouse, reward_imbalance);
 
-            Self::deposit_event(Event::BlockReward(lighthouse, block_reward))
+                Self::deposit_event(Event::BlockReward(lighthouse, block_reward))
+            }
         }
     }
 
@@ -102,6 +96,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Inherent to set the lighthouse of a block.
         #[pallet::weight((0, DispatchClass::Mandatory))]
+        #[pallet::call_index(0)]
         pub fn set(origin: OriginFor<T>, lighthouse: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_none(origin)?;
             ensure!(
@@ -144,9 +139,10 @@ pub mod pallet {
     }
 
     impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
-        fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T>) {
-            let current = <BlockReward<T>>::get().unwrap_or(T::BlockReward::get());
-            <BlockReward<T>>::put(current + amount.peek());
+        fn on_nonzero_unbalanced(fee_amount: NegativeImbalanceOf<T>) {
+            if let Some(lighthouse) = <Lighthouse<T>>::get() {
+                T::Currency::resolve_creating(&lighthouse, fee_amount);
+            }
         }
     }
 }
@@ -154,8 +150,8 @@ pub mod pallet {
 /// Lighthouse inherent identifier
 pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"lgthouse";
 
-#[derive(codec::Encode)]
-#[cfg_attr(feature = "std", derive(Debug, codec::Decode, thiserror::Error))]
+#[derive(parity_scale_codec::Encode)]
+#[cfg_attr(feature = "std", derive(Debug, parity_scale_codec::Decode, thiserror::Error))]
 pub enum InherentError {
     Other(sp_runtime::RuntimeString),
 }
@@ -180,7 +176,7 @@ impl InherentError {
     #[cfg(feature = "std")]
     pub fn try_from(id: &InherentIdentifier, data: &[u8]) -> Option<Self> {
         if id == &INHERENT_IDENTIFIER {
-            <InherentError as codec::Decode>::decode(&mut &data[..]).ok()
+            <InherentError as parity_scale_codec::Decode>::decode(&mut &data[..]).ok()
         } else {
             None
         }
@@ -198,7 +194,7 @@ pub struct InherentDataProvider(pub InherentType);
 #[cfg(feature = "std")]
 #[async_trait::async_trait]
 impl sp_inherents::InherentDataProvider for InherentDataProvider {
-    fn provide_inherent_data(
+    async fn provide_inherent_data(
         &self,
         inherent_data: &mut InherentData,
     ) -> Result<(), sp_inherents::Error> {

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
-        type Parameter: Parameter + Default;
+        type Parameter: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
     #[pallet::storage]
@@ -50,14 +50,13 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Launch a robot with given parameter.
         #[pallet::weight(500_000)]
+        #[pallet::call_index(0)]
         pub fn launch(
             origin: OriginFor<T>,
             robot: T::AccountId,
@@ -74,24 +73,19 @@ pub mod pallet {
 #[cfg(test)]
 mod tests {
 
-    use frame_support::{assert_ok, parameter_types};
+    use frame_support::{assert_ok, parameter_types, BoundedVec};
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup};
+    use sp_runtime::{traits::IdentityLookup, BuildStorage};
 
     use crate::{self as launch, *};
 
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
     frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            Timestamp: pallet_timestamp::{Pallet, Storage},
-            Launch: launch::{Pallet, Call, Event<T>},
+        pub enum Runtime {
+            System: frame_system,
+            Timestamp: pallet_timestamp,
+            Launch: launch,
         }
     );
 
@@ -100,16 +94,15 @@ mod tests {
     }
 
     impl frame_system::Config for Runtime {
-        type Origin = Origin;
-        type Index = u64;
-        type BlockNumber = u64;
-        type Call = Call;
+        type RuntimeOrigin = RuntimeOrigin;
+        type RuntimeCall = RuntimeCall;
         type Hash = H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
+        type Block = Block;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
+        type Nonce = u32;
         type BlockHashCount = BlockHashCount;
         type Version = ();
         type PalletInfo = PalletInfo;
@@ -136,35 +129,34 @@ mod tests {
     const WINDOW: u64 = 20;
     parameter_types! {
         pub const WindowSize: u64 = WINDOW;
-        pub const MaximumMessageSize: usize = 512;
+        pub const MaximumMessageSize: u32 = 512;
     }
 
     impl Config for Runtime {
-        //type Parameter = bool;
-        type Parameter = H256;
-        type Event = Event;
+        type Parameter = BoundedVec<u8, MaximumMessageSize>;
+        type RuntimeEvent = RuntimeEvent;
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
-            .unwrap();
+        let storage = RuntimeGenesisConfig {
+            system: Default::default(),
+        }
+        .build_storage()
+        .unwrap();
         storage.into()
     }
 
-    use bs58;
     #[test]
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            //let param = true;
-            let mut decoded = [0; 34];
-            bs58::decode("QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST")
-                .into(&mut decoded)
+            let decoded = bs58::decode("QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST")
+                .into_vec()
                 .expect("Couldn't decode from Base58");
-            let param = H256::from_slice(&decoded[2..34]);
+            let param = BoundedVec::try_from(decoded)
+                .expect("Bad bounds");
             let data = 0;
-            assert_ok!(Launch::launch(Origin::signed(sender), data, param.clone()));
+            assert_ok!(Launch::launch(RuntimeOrigin::signed(sender), data, param));
         })
     }
 }

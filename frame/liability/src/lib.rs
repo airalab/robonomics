@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -34,16 +34,19 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use sp_std::prelude::*;
 
+    /// Agreement indexing parameter.
+    pub type Index = u32;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// How to make and process agreement between two parties.
-        type Agreement: dispatch::Parameter + Processing + Agreement<Self::AccountId>;
+        type Agreement: dispatch::Parameter + Processing + Agreement<Self::AccountId> + MaxEncodedLen;
 
         /// How to report of agreement execution.
-        type Report: dispatch::Parameter + Report<Self::Index, Self::AccountId>;
+        type Report: dispatch::Parameter + Report<Index, Self::AccountId> + MaxEncodedLen;
 
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
     pub type TechnicsFor<T> =
@@ -57,7 +60,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Yay! New liability created.
         NewLiability(
-            T::Index,
+            Index,
             TechnicsFor<T>,
             EconomicsFor<T>,
             T::AccountId,
@@ -65,7 +68,7 @@ pub mod pallet {
         ),
 
         /// Liability report published.
-        NewReport(T::Index, ReportFor<T>),
+        NewReport(Index, ReportFor<T>),
     }
 
     #[pallet::error]
@@ -85,48 +88,31 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    #[pallet::getter(fn latest_index)]
-    /// [DEPRECATED] Latest liability index.
-    /// TODO: remove after mainnet upgrade
-    pub(super) type LatestIndex<T: Config> = StorageValue<_, T::Index>;
-
-    #[pallet::storage]
     #[pallet::getter(fn next_index)]
     /// Next liability index.
-    pub(super) type NextIndex<T: Config> = StorageValue<_, T::Index>;
+    pub(super) type NextIndex<T: Config> = StorageValue<_, Index, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn agreement_of)]
     /// Technical and economical parameters of liability.
-    pub(super) type AgreementOf<T: Config> = StorageMap<_, Twox64Concat, T::Index, T::Agreement>;
+    pub(super) type AgreementOf<T: Config> = StorageMap<_, Twox64Concat, Index, T::Agreement>;
 
     #[pallet::storage]
     #[pallet::getter(fn report_of)]
     /// Result of liability execution.
-    pub(super) type ReportOf<T: Config> = StorageMap<_, Twox64Concat, T::Index, ReportFor<T>>;
+    pub(super) type ReportOf<T: Config> = StorageMap<_, Twox64Concat, Index, ReportFor<T>>;
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        // TODO: remove after mainnet upgrade
-        fn on_runtime_upgrade() -> Weight {
-            if <NextIndex<T>>::get().is_none() {
-                if let Some(index) = <LatestIndex<T>>::take() {
-                    <NextIndex<T>>::put(index)
-                }
-            }
-            1
-        }
-    }
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create agreement between two parties.
         #[pallet::weight(200_000)]
+        #[pallet::call_index(0)]
         pub fn create(origin: OriginFor<T>, agreement: T::Agreement) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
 
@@ -136,9 +122,9 @@ pub mod pallet {
             agreement.on_start()?;
 
             // Store agreement on storage
-            let next_index = <NextIndex<T>>::get().unwrap_or(Default::default());
+            let next_index = <NextIndex<T>>::get();
             <AgreementOf<T>>::insert(next_index, agreement.clone());
-            <NextIndex<T>>::put(next_index + 1u32.into());
+            <NextIndex<T>>::put(next_index + 1u32);
 
             // Emit event
             Self::deposit_event(Event::NewLiability(
@@ -154,6 +140,7 @@ pub mod pallet {
 
         /// Publish technical report of complite works.
         #[pallet::weight(200_000)]
+        #[pallet::call_index(1)]
         pub fn finalize(origin: OriginFor<T>, report: ReportFor<T>) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
 
@@ -206,26 +193,20 @@ mod tests {
     use sp_core::{crypto::Pair, sr25519, H256};
     use sp_keyring::AccountKeyring;
     use sp_runtime::{
-        testing::Header,
         traits::{IdentifyAccount, IdentityLookup, Verify},
-        AccountId32, MultiSignature,
+        AccountId32, MultiSignature, BuildStorage,
     };
 
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
     type Balance = u128;
 
     const XRT: Balance = 1_000_000_000;
 
     frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-            Liability: liability::{Pallet, Call, Storage, Event<T>},
+        pub enum Runtime {
+            System: frame_system,
+            Balances: pallet_balances,
+            Liability: liability,
         }
     );
 
@@ -234,16 +215,15 @@ mod tests {
     }
 
     impl frame_system::Config for Runtime {
-        type Origin = Origin;
-        type Index = u64;
-        type BlockNumber = u64;
-        type Call = Call;
+        type RuntimeOrigin = RuntimeOrigin;
+        type RuntimeCall = RuntimeCall;
+        type Nonce = u32;
+        type Block = Block;
         type Hash = H256;
         type Hashing = ::sp_runtime::traits::BlakeTwo256;
         type AccountId = AccountId32;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
         type BlockHashCount = BlockHashCount;
         type Version = ();
         type PalletInfo = PalletInfo;
@@ -271,15 +251,19 @@ mod tests {
         type MaxReserves = MaxReserves;
         type ReserveIdentifier = [u8; 8];
         type Balance = Balance;
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
         type DustRemoval = ();
         type ExistentialDeposit = ExistentialDeposit;
         type AccountStore = System;
         type WeightInfo = ();
+        type FreezeIdentifier = ();
+        type MaxFreezes = ();
+        type RuntimeHoldReason = ();
+        type MaxHolds = ();
     }
 
     impl Config for Runtime {
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
         type Agreement = SignedAgreement<
             // Provide task in IPFS
             IPFS,
@@ -291,8 +275,8 @@ mod tests {
             MultiSignature,
         >;
         type Report = SignedReport<
-            // Indexing liabilities using system index
-            Self::Index,
+            // Indexing liabilities
+            Index,
             // Use standard accounts
             Self::AccountId,
             // Use standard signatures
@@ -307,25 +291,24 @@ mod tests {
         hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        let mut storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
-            .unwrap();
-
-        let _ = pallet_balances::GenesisConfig::<Runtime> {
-            balances: vec![
-                (AccountKeyring::Alice.into(), 100 * XRT),
-                (AccountKeyring::Bob.into(), 100 * XRT),
-            ],
+        let storage = RuntimeGenesisConfig { 
+            system: Default::default(),
+            balances: pallet_balances::GenesisConfig::<Runtime> {
+                balances: vec![
+                    (AccountKeyring::Alice.into(), 100 * XRT),
+                    (AccountKeyring::Bob.into(), 100 * XRT),
+                ],
+            },
         }
-        .assimilate_storage(&mut storage);
-
+        .build_storage()
+        .unwrap();
         storage.into()
     }
 
     #[test]
     fn test_initial_setup() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::next_index(), None);
+            assert_eq!(Liability::next_index(), 0);
         });
     }
 
@@ -343,7 +326,7 @@ mod tests {
         (sender, signature)
     }
 
-    fn get_report_proof(uri: &str, index: &u64, message: &IPFS) -> (AccountId32, MultiSignature) {
+    fn get_report_proof(uri: &str, index: &u32, message: &IPFS) -> (AccountId32, MultiSignature) {
         let pair = sr25519::Pair::from_string(uri, None).unwrap();
         let sender = <MultiSignature as Verify>::Signer::from(pair.public()).into_account();
         let signature =
@@ -385,7 +368,7 @@ mod tests {
     #[test]
     fn test_liability_lifecycle() {
         new_test_ext().execute_with(|| {
-            assert_eq!(Liability::next_index(), None);
+            assert_eq!(Liability::next_index(), 0);
 
             let technics = IPFS {
                 hash: IPFS_HASH.into(),
@@ -409,12 +392,12 @@ mod tests {
 
             assert_err!(
                 Liability::create(
-                    Origin::signed(agreement.promisor.clone()),
+                    RuntimeOrigin::signed(agreement.promisor.clone()),
                     agreement.clone()
                 ),
                 Error::<Runtime>::BadAgreementProof,
             );
-            assert_eq!(Liability::next_index(), None);
+            assert_eq!(Liability::next_index(), 0);
             assert_eq!(System::account(&alice).data.free, 100 * XRT);
             assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
@@ -423,16 +406,16 @@ mod tests {
                 ..agreement
             };
             assert_ok!(Liability::create(
-                Origin::signed(agreement.promisor.clone()),
+                RuntimeOrigin::signed(agreement.promisor.clone()),
                 agreement.clone()
             ),);
-            assert_eq!(Liability::next_index(), Some(1));
+            assert_eq!(Liability::next_index(), 1);
             assert_eq!(Liability::report_of(0), None);
             assert_eq!(Liability::agreement_of(0), Some(agreement));
             assert_eq!(System::account(&alice).data.free, 90 * XRT);
             assert_eq!(System::account(&bob).data.free, 100 * XRT);
 
-            let index = 0;
+            let index = 0u32;
             let payload = IPFS {
                 hash: IPFS_HASH.into(),
             };
@@ -446,7 +429,7 @@ mod tests {
                 signature: bad_signature,
             };
             assert_err!(
-                Liability::finalize(Origin::signed(report.sender.clone()), report.clone()),
+                Liability::finalize(RuntimeOrigin::signed(report.sender.clone()), report.clone()),
                 Error::<Runtime>::BadReportProof,
             );
             assert_eq!(Liability::report_of(0), None);
@@ -458,7 +441,7 @@ mod tests {
                 ..report.clone()
             };
             assert_ok!(Liability::finalize(
-                Origin::signed(report.sender.clone()),
+                RuntimeOrigin::signed(report.sender.clone()),
                 report.clone()
             ));
             assert_eq!(Liability::report_of(0), Some(report));
