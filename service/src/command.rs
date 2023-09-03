@@ -17,25 +17,25 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use crate::cli::{Cli, Subcommand};
+
 #[cfg(feature = "full")]
 use crate::{chain_spec::*, service::robonomics};
+use robonomics_protocol::id;
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use std::{path::Path, time::Duration};
+
 #[cfg(feature = "discovery")]
 use libp2p::{
-    futures::{executor, StreamExt},
-    kad::KademliaEvent,
-    swarm::SwarmEvent,
+    futures::StreamExt,
+    gossipsub::GossipsubEvent,
+    swarm::{SwarmBuilder, SwarmEvent},
+    PeerId,
 };
-use robonomics_protocol::id;
 #[cfg(feature = "discovery")]
-use robonomics_protocol::{
-    network::behaviour::OutEvent,
-    network::{discovery, worker::NetworkWorker},
-    pubsub::{PubSub, Pubsub},
+use robonomics_protocol::network::{
+    behaviour::{OutEvent, RobonomicsNetworkBehaviour},
+    discovery,
 };
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use std::path::Path;
-#[cfg(feature = "discovery")]
-use std::{collections::HashMap, thread};
 
 #[cfg(feature = "parachain")]
 use crate::parachain;
@@ -106,71 +106,71 @@ impl SubstrateCli for Cli {
     }
 }
 
+#[cfg(feature = "discovery")]
+pub async fn run() -> sc_cli::Result<()> {
+    let cli = Cli::from_args();
+    let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
+        id::load(Path::new(&file_name)).expect("Correct file path")
+    });
+    let local_peer_id = PeerId::from(local_key.public());
+    println!("Local peer id: {local_peer_id:?}");
+    let heartbeat_interval = Duration::from_millis(1000);
+    let disable_pubsub = false;
+    let disable_mdns = true;
+    let disable_kad = true;
+    let network_listen_address = "/ip4/0.0.0.0/tcp/0"
+        .parse()
+        .expect("robonomics network listen address");
+
+    let transport =
+        libp2p::tokio_development_transport(local_key.clone()).expect("Correct transport");
+    let behaviour = RobonomicsNetworkBehaviour::new(
+        local_key,
+        local_peer_id,
+        heartbeat_interval,
+        disable_pubsub,
+        disable_mdns,
+        disable_kad,
+    )
+    .expect("Correct behaviour");
+    let mut swarm = SwarmBuilder::new(transport, behaviour, local_peer_id)
+        .executor(Box::new(|fut| {
+            tokio::spawn(fut);
+        }))
+        .build();
+
+    discovery::add_peers(&mut swarm, cli.robonomics_bootnodes, disable_kad);
+
+    swarm
+        .listen_on(network_listen_address)
+        .expect("swarm listen");
+
+    loop {
+        tokio::select! {
+            event = swarm.select_next_some() => match event {
+                SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {:?}", address),
+                SwarmEvent::Behaviour(OutEvent::Pubsub(GossipsubEvent::Message {
+                    propagation_source: peer_id,
+                    message_id: id,
+                    message,
+                })) => println!(
+                        "Got message: '{}' with id: {id} from peer: {peer_id}",
+                        String::from_utf8_lossy(&message.data),
+                    ),
+                event => println!("event: {event:?}"),
+            }
+        }
+    }
+}
+
 /// Parse command line arguments into service configuration.
+#[cfg(not(feature = "discovery"))]
 pub fn run() -> sc_cli::Result<()> {
     let cli = Cli::from_args();
 
     match &cli.subcommand {
         #[cfg(not(feature = "full"))]
-        None => {
-            #[cfg(feature = "discovery")]
-            {
-                // Get local key
-                let local_key = cli.local_key_file.map_or(id::random(), |file_name| {
-                    id::load(Path::new(&file_name)).expect("Correct file path")
-                });
-
-                // Default interval 1 sec
-                let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
-
-                let (pubsub, _) = Pubsub::new(local_key.clone(), heartbeat_interval)
-                    .expect("New robonomics pubsub");
-
-                let mut network_worker = NetworkWorker::new(
-                    local_key,
-                    heartbeat_interval,
-                    pubsub.clone(),
-                    cli.disable_mdns,
-                    cli.disable_kad,
-                )
-                .expect("Correct network worker");
-
-                let mut peers = HashMap::new();
-                discovery::add_explicit_peers(
-                    &mut network_worker.swarm,
-                    &mut peers,
-                    cli.robonomics_bootnodes,
-                    cli.disable_kad,
-                );
-
-                network_worker
-                    .swarm
-                    .listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap())
-                    .expect("Swarm starts to listen");
-
-                thread::spawn(move || loop {
-                    match executor::block_on(network_worker.swarm.select_next_some()) {
-                        SwarmEvent::Behaviour(OutEvent::Kademlia(
-                            KademliaEvent::RoutingUpdated {
-                                peer, addresses, ..
-                            },
-                        )) => {
-                            for addr in addresses.iter() {
-                                println!("Kad discovered peer: {}", peer);
-                                let _ = pubsub.connect(addr.clone());
-                            }
-                        }
-                        other_event => {
-                            println!("Event: {:?}", other_event);
-                        }
-                    }
-                })
-                .join()
-                .unwrap();
-            }
-
-            Ok(())
-        }
+        None => Ok(()),
         #[cfg(feature = "full")]
         None => {
             let runner = cli.create_runner(&cli.run.normalize())?;
@@ -182,7 +182,8 @@ pub fn run() -> sc_cli::Result<()> {
             });
 
             // Default interval 1 sec
-            let heartbeat_interval = cli.heartbeat_interval.unwrap_or_else(|| 1000);
+            let heartbeat_interval =
+                Duration::from_millis(cli.heartbeat_interval.unwrap_or_else(|| 1000));
 
             match runner.config().chain_spec.family() {
                 RobonomicsFamily::Development => runner.run_node_until_exit(|config| async move {
@@ -285,20 +286,19 @@ pub fn run() -> sc_cli::Result<()> {
             runner.sync_run(|config| cmd.run(config.database))
         }
 
-        #[cfg(feature = "full")]
-        Some(Subcommand::Pair(cmd)) => match &cmd.subcommand {
-            Some(robonomics_pair::pair::PairSubCmds::Connect(cmd)) => {
-                robonomics_pair::pair::ConnectCmd::run(cmd).map_err(|e| e.to_string().into())
-            }
-            Some(robonomics_pair::pair::PairSubCmds::Listen(cmd)) => {
-                robonomics_pair::pair::ListenCmd::run(cmd).map_err(|e| e.to_string().into())
-            }
-            _ => {
-                println!("pair args {:?}", cmd);
-                Ok(())
-            }
-        },
-
+        // #[cfg(feature = "full")]
+        // Some(Subcommand::Pair(cmd)) => match &cmd.subcommand {
+        //     Some(robonomics_pair::pair::PairSubCmds::Connect(cmd)) => {
+        //         robonomics_pair::pair::ConnectCmd::run(cmd).map_err(|e| e.to_string().into())
+        //     }
+        //     Some(robonomics_pair::pair::PairSubCmds::Listen(cmd)) => {
+        //         robonomics_pair::pair::ListenCmd::run(cmd).map_err(|e| e.to_string().into())
+        //     }
+        //     _ => {
+        //         println!("pair args {:?}", cmd);
+        //         Ok(())
+        //     }
+        // },
         #[cfg(feature = "robonomics-cli")]
         Some(Subcommand::Io(cmd)) => {
             let runner = cli.create_runner(&*cli.run)?;

@@ -35,7 +35,7 @@ use hex_literal::hex;
 use libp2p::core::identity::Keypair;
 use polkadot_service::CollatorPair;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Index};
-use robonomics_protocol::{network::RobonomicsNetwork, pubsub::Pubsub};
+use robonomics_protocol::network::RobonomicsNetwork;
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_network::{NetworkBlock, NetworkService};
 use sc_service::{Configuration, Role, TFullBackend, TFullClient, TaskManager};
@@ -201,7 +201,7 @@ pub async fn start_node_impl<RuntimeApi, Executor, BIQ, BIC>(
     build_import_queue: BIQ,
     build_consensus: BIC,
     local_key: Keypair,
-    heartbeat_interval: u64,
+    heartbeat_interval: Duration,
     bootnodes: Vec<String>,
     disable_mdns: bool,
     disable_kad: bool,
@@ -301,26 +301,28 @@ where
     let rpc_client = client.clone();
     let rpc_pool = transaction_pool.clone();
 
-    let (pubsub, pubsub_worker) =
-        Pubsub::new(local_key.clone(), heartbeat_interval).expect("New robonomics pubsub");
+    // TODO: move to cli
+    let network_listen_address = "/ip4/127.0.0.1/tcp/30400"
+        .parse()
+        .expect("robonomics network listen address");
 
-    task_manager
-        .spawn_handle()
-        .spawn("pubsub_service", None, pubsub_worker);
+    // TODO: move to cli
+    let disable_pubsub = false;
 
-    let (robonomics_network, network_worker) = RobonomicsNetwork::new(
+    let (robonomics_network, pubsub) = RobonomicsNetwork::new(
         local_key,
-        pubsub.clone(),
         heartbeat_interval,
+        network_listen_address,
         bootnodes,
+        disable_pubsub,
         disable_mdns,
         disable_kad,
     )
-    .expect("New robonomics network layer");
+    .expect("New robonomics network");
 
     task_manager
         .spawn_handle()
-        .spawn("network_service", None, network_worker);
+        .spawn("network_service", None, robonomics_network);
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder: Box::new(move |deny_unsafe, _| {
@@ -328,7 +330,7 @@ where
                 client: rpc_client.clone(),
                 pool: rpc_pool.clone(),
                 deny_unsafe,
-                network: robonomics_network.clone(),
+                pubsub: pubsub.to_owned(),
             };
 
             robonomics_rpc::create_full(deps).map_err(Into::into)

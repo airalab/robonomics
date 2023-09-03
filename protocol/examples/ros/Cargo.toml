@@ -1,0 +1,10 @@
+[package]
+name = "robonomics-ros-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+robonomics-protocol = { path = "../.." }
+tokio = { version = "1.23", features = ["full"] }
+futures = "0.3"
+libp2p = "0.49"

@@ -19,28 +19,32 @@
 
 use super::behaviour::RobonomicsNetworkBehaviour;
 use libp2p::{Multiaddr, PeerId, Swarm};
-use std::collections::HashMap;
 
-pub fn add_explicit_peers(
+pub fn add_peers(
     swarm: &mut Swarm<RobonomicsNetworkBehaviour>,
-    peers: &mut HashMap<PeerId, Multiaddr>,
     bootnodes: Vec<String>,
-    disable_kad: bool,
+    _disable_kad: bool,
 ) {
     for node in bootnodes {
         if let Ok(addr) = node.parse::<Multiaddr>() {
-            if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
-                peers.insert(peer, addr.clone());
-
-                // Add node to PubSub
-                swarm.behaviour_mut().pubsub.add_explicit_peer(&peer);
+            println!("Addr: {addr}");
+            if let Err(e) = swarm.dial(addr.clone()) {
+                println!("Dial error: {e}");
+            } else {
+                // Add node to pubsub swarm
+                if let Some(pubsub) = swarm.behaviour_mut().pubsub.as_mut() {
+                    if let Some(peer) = PeerId::try_from_multiaddr(&addr) {
+                        println!("Adding peer to swarm: {peer}");
+                        pubsub.add_explicit_peer(&peer);
+                    }
+                }
 
                 // Add node to DHT
-                if !disable_kad {
-                    if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
-                        kademlia.add_address(&peer, addr);
-                    };
-                }
+                // if !disable_kad {
+                //     if let Some(kademlia) = swarm.behaviour_mut().kademlia.as_mut() {
+                //         kademlia.add_address(&peer, addr);
+                //     };
+                // }
             }
         }
     }

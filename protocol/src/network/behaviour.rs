@@ -22,6 +22,7 @@ use libp2p::{
         Gossipsub, GossipsubConfigBuilder, GossipsubEvent, GossipsubMessage, MessageAuthenticity,
         MessageId,
     },
+    identify::{Behaviour as Identify, Config as IdentifyConfig, Event as IdentifyEvent},
     identity::Keypair,
     kad::{record::store::MemoryStore, Kademlia, KademliaEvent},
     mdns::{MdnsConfig, MdnsEvent, TokioMdns},
@@ -40,10 +41,13 @@ use crate::{
     reqres::{Request, Response},
 };
 
+const PROTOCOL_NAME: &str = "robonomics/1.0.0";
+
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "OutEvent")]
 pub struct RobonomicsNetworkBehaviour {
-    pub pubsub: Gossipsub,
+    pub identify: Identify,
+    pub pubsub: Toggle<Gossipsub>,
     pub mdns: Toggle<TokioMdns>,
     pub kademlia: Toggle<Kademlia<MemoryStore>>,
 }
@@ -52,24 +56,41 @@ impl RobonomicsNetworkBehaviour {
     pub fn new(
         local_key: Keypair,
         peer_id: PeerId,
-        heartbeat_interval: u64,
+        heartbeat_interval: Duration,
+        disable_pubsub: bool,
         disable_mdns: bool,
         disable_kad: bool,
     ) -> Result<Self> {
-        // Set custom gossipsub
-        let gossipsub_config = GossipsubConfigBuilder::default()
-            .heartbeat_interval(Duration::from_millis(heartbeat_interval))
-            .message_id_fn(|message: &GossipsubMessage| {
-                // To content-address message,
-                // we can take the hash of message and use it as an ID.
-                let mut s = DefaultHasher::new();
-                message.data.hash(&mut s);
-                MessageId::from(s.finish().to_string())
-            })
-            .build()?;
+        // Build identify network behaviour
+        let identify = Identify::new(IdentifyConfig::new(
+            PROTOCOL_NAME.to_string(),
+            local_key.public(),
+        ));
 
         // Build a gossipsub network behaviour
-        let pubsub = Gossipsub::new(MessageAuthenticity::Signed(local_key), gossipsub_config)?;
+        let pubsub = if !disable_pubsub {
+            log::info!("Using Pubsub.");
+
+            // Set custom gossipsub
+            let gossipsub_config = GossipsubConfigBuilder::default()
+                .heartbeat_interval(heartbeat_interval)
+                .message_id_fn(|message: &GossipsubMessage| {
+                    // To content-address message,
+                    // we can take the hash of message and use it as an ID.
+                    let mut s = DefaultHasher::new();
+                    message.data.hash(&mut s);
+                    MessageId::from(s.finish().to_string())
+                })
+                .build()?;
+
+            let pubsub = Gossipsub::new(
+                MessageAuthenticity::Signed(local_key.clone()),
+                gossipsub_config,
+            )?;
+            Toggle::from(Some(pubsub))
+        } else {
+            Toggle::from(None)
+        };
 
         // Build mDNS network behaviour
         let mdns = if !disable_mdns {
@@ -92,6 +113,7 @@ impl RobonomicsNetworkBehaviour {
 
         // Combined network behaviour
         Ok(RobonomicsNetworkBehaviour {
+            identify,
             pubsub,
             mdns,
             kademlia,
@@ -104,6 +126,7 @@ pub enum OutEvent {
     Pubsub(GossipsubEvent),
     Mdns(MdnsEvent),
     Kademlia(KademliaEvent),
+    Identify(IdentifyEvent),
     RequestResponse(RequestResponseEvent<Request, Response>),
 }
 
@@ -122,6 +145,12 @@ impl From<MdnsEvent> for OutEvent {
 impl From<KademliaEvent> for OutEvent {
     fn from(v: KademliaEvent) -> Self {
         Self::Kademlia(v)
+    }
+}
+
+impl From<IdentifyEvent> for OutEvent {
+    fn from(v: IdentifyEvent) -> Self {
+        Self::Identify(v)
     }
 }
 

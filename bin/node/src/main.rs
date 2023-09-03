@@ -19,6 +19,12 @@
 
 #![warn(missing_docs)]
 
+#[cfg(not(feature = "discovery"))]
 fn main() -> robonomics_service::Result<()> {
     robonomics_service::run()
+}
+#[cfg(feature = "discovery")]
+#[tokio::main]
+async fn main() -> robonomics_service::Result<()> {
+    robonomics_service::run().await
 }
