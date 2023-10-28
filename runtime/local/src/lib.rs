@@ -38,31 +38,35 @@ pub mod constants;
 
 use frame_support::{
     construct_runtime, parameter_types,
-    traits::{EitherOfDiverse, EqualPrivilegeOnly, KeyOwnerProofSystem},
+    dispatch::DispatchClass,
+    traits::{EitherOfDiverse, EqualPrivilegeOnly, AsEnsureOriginWithArg, WithdrawReasons},
     weights::{
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-        ConstantMultiplier, DispatchClass, IdentityFee, Weight,
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
+        ConstantMultiplier, IdentityFee, Weight,
     },
     PalletId,
 };
-use frame_system::limits::{BlockLength, BlockWeights};
+use frame_system::{EnsureSigned, EnsureRoot, limits::{BlockLength, BlockWeights}};
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{
-    AccountId, AssetId, Balance, BlockNumber, Hash, Index, Moment, Signature,
+    AccountId, AssetId, Balance, BlockNumber, Hash, Nonce, Moment, Signature,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::{OpaqueMetadata, H256};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor};
+use sp_runtime::traits::{
+    AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor,
+    Bounded, ConstBool, ConstU32, ConstU64, ConstU128,
+};
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
-    Permill, Perquintill,
+    Permill, Perquintill, BoundedVec,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -104,7 +108,7 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 1 seconds of compute with a 2 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 1 * WEIGHT_PER_SECOND;
+const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND, u64::MAX);
 
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 2400;
@@ -133,20 +137,17 @@ parameter_types! {
 }
 
 impl frame_system::Config for Runtime {
-    type Call = Call;
     type BaseCallFilter = frame_support::traits::Everything;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type Version = Version;
     type AccountId = AccountId;
     type Lookup = AccountIdLookup<AccountId, ()>;
-    type Index = Index;
-    type BlockNumber = BlockNumber;
+    type Block = Block; 
+    type Nonce = Nonce;
     type Hash = Hash;
     type Hashing = BlakeTwo256;
-    type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    type Event = Event;
-    type Origin = Origin;
+    type RuntimeEvent = RuntimeEvent;
     type DbWeight = RocksDbWeight;
     type BlockHashCount = BlockHashCount;
     type PalletInfo = PalletInfo;
@@ -156,7 +157,9 @@ impl frame_system::Config for Runtime {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
+    type MaxConsumers = ConstU32<16>;
+    type RuntimeOrigin = RuntimeOrigin;
+    type RuntimeCall = RuntimeCall;
 }
 
 parameter_types! {
@@ -171,8 +174,8 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 impl pallet_utility::Config for Runtime {
-    type Call = Call;
-    type Event = Event;
+    type RuntimeCall = RuntimeCall;
+    type RuntimeEvent = RuntimeEvent;
     type PalletsOrigin = OriginCaller;
     type WeightInfo = ();
 }
@@ -188,13 +191,17 @@ parameter_types! {
 impl pallet_balances::Config for Runtime {
     type Balance = Balance;
     type DustRemoval = ();
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = frame_system::Pallet<Runtime>;
     type MaxLocks = MaxLocks;
     type MaxReserves = MaxReserves;
     type ReserveIdentifier = [u8; 8];
     type WeightInfo = ();
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type RuntimeHoldReason = ();
+    type MaxHolds = ();
 }
 
 parameter_types! {
@@ -207,13 +214,14 @@ parameter_types! {
 }
 
 impl pallet_assets::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Balance = Balance;
     type AssetId = AssetId;
+    type AssetIdParameter = parity_scale_codec::Compact<u32>;
     type Currency = Balances;
-    type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+    type ForceOrigin = EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
-    type AssetAccountDeposit = frame_support::traits::ConstU128<XRT>;
+    type AssetAccountDeposit = ConstU128<XRT>;
     type MetadataDepositBase = MetadataDepositBase;
     type MetadataDepositPerByte = MetadataDepositPerByte;
     type ApprovalDeposit = ExistentialDeposit;
@@ -221,18 +229,24 @@ impl pallet_assets::Config for Runtime {
     type Freezer = ();
     type Extra = ();
     type WeightInfo = ();
+    type RemoveItemsLimit = ConstU32<1000>;
+    type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
+    type CallbackHandle = ();
 }
 
 parameter_types! {
     pub const MinVestedTransfer: Balance = 1 * XRT;
+    pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+        WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 impl pallet_vesting::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
     // `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
     // highest number of schedules that encodes less than 2^10.
     const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -247,8 +261,8 @@ parameter_types! {
 }
 
 impl pallet_multisig::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
     type Currency = Balances;
     type DepositBase = DepositBase;
     type DepositFactor = DepositFactor;
@@ -261,6 +275,7 @@ parameter_types! {
     pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
     pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
     pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
+    pub MaximumMultiplier: Multiplier = Bounded::max_value();
     pub OperationalFeeMultiplier: u8 = 5;
     pub const MaxAuthorities: u32 = 32;
 }
@@ -270,9 +285,15 @@ impl pallet_transaction_payment::Config for Runtime {
     type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
     type WeightToFee = IdentityFee<Balance>;
     type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+        TargetedFeeAdjustment<
+            Self,
+            TargetBlockFullness,
+            AdjustmentVariable,
+            MinimumMultiplier,
+            MaximumMultiplier,
+        >;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 }
 
 impl_opaque_keys! {
@@ -286,25 +307,18 @@ impl pallet_aura::Config for Runtime {
     type MaxAuthorities = MaxAuthorities;
     type AuthorityId = AuraId;
     type DisabledValidators = ();
+    type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 impl pallet_grandpa::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
+    type RuntimeEvent = RuntimeEvent;
 
-    type KeyOwnerProofSystem = ();
-
-    type KeyOwnerProof =
-        <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-
-    type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-        KeyTypeId,
-        GrandpaId,
-    )>>::IdentificationTuple;
-
-    type HandleEquivocation = ();
     type WeightInfo = ();
     type MaxAuthorities = MaxAuthorities;
+    type MaxSetIdSessionEntries = ConstU64<0>;
+
+    type KeyOwnerProof = sp_core::Void;
+    type EquivocationReportSystem = ();
 }
 
 parameter_types! {
@@ -317,7 +331,7 @@ parameter_types! {
 }
 
 impl pallet_identity::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type BasicDeposit = BasicDeposit;
     type FieldDeposit = FieldDeposit;
@@ -340,16 +354,15 @@ parameter_types! {
 }
 
 impl pallet_scheduler::Config for Runtime {
-    type Event = Event;
-    type Origin = Origin;
-    type Call = Call;
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeOrigin = RuntimeOrigin;
+    type RuntimeCall = RuntimeCall;
     type PalletsOrigin = OriginCaller;
     type MaximumWeight = MaximumSchedulerWeight;
     type ScheduleOrigin = MoreThanHalfTechnicals;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type OriginPrivilegeCmp = EqualPrivilegeOnly;
-    type PreimageProvider = Preimage;
-    type NoPreimagePostponement = NoPreimagePostponement;
+    type Preimages = Preimage;
     type WeightInfo = ();
 }
 
@@ -361,10 +374,9 @@ parameter_types! {
 
 impl pallet_preimage::Config for Runtime {
     type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type ManagerOrigin = frame_system::EnsureRoot<AccountId>;
-    type MaxSize = PreimageMaxSize;
+    type ManagerOrigin = EnsureRoot<AccountId>;
     type BaseDeposit = PreimageBaseDeposit;
     type ByteDeposit = PreimageByteDeposit;
 }
@@ -384,7 +396,7 @@ impl pallet_treasury::Config for Runtime {
     type Currency = Balances;
     type ApproveOrigin = MoreThanHalfTechnicals;
     type RejectOrigin = MoreThanHalfTechnicals;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ProposalBond = ProposalBond;
     type ProposalBondMinimum = ProposalBondMinimum;
     type ProposalBondMaximum = ();
@@ -414,17 +426,16 @@ parameter_types! {
     pub const CooloffPeriod: BlockNumber = 50 * MINUTES;
     pub const MaxVotes: u32 = 100;
     pub const MaxProposals: u32 = 100;
+    pub MaxCollectivesProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_democracy::Config for Runtime {
-    type Proposal = Call;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type EnactmentPeriod = EnactmentPeriod;
     type LaunchPeriod = LaunchPeriod;
     type VotingPeriod = VotingPeriod;
     type VoteLockingPeriod = EnactmentPeriod; // Same as EnactmentPeriod
-    type PreimageByteDeposit = PreimageByteDeposit;
     type MinimumDeposit = MinimumDeposit;
     /// A straight majority of the council can decide what their next motion is.
     type ExternalOrigin = MoreThanHalfTechnicals;
@@ -434,6 +445,7 @@ impl pallet_democracy::Config for Runtime {
     /// (NTB) vote.
     type ExternalDefaultOrigin =
         pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>;
+    type SubmitOrigin = EnsureSigned<AccountId>;
     /// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
     /// be tabled immediately and with a shorter voting/enactment period.
     type FastTrackOrigin =
@@ -447,43 +459,46 @@ impl pallet_democracy::Config for Runtime {
     // To cancel a proposal before it has been passed, the technical committee must be unanimous or
     // Root must agree.
     type CancelProposalOrigin = EitherOfDiverse<
-        frame_system::EnsureRoot<AccountId>,
+        EnsureRoot<AccountId>,
         pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
     >;
-    type BlacklistOrigin = frame_system::EnsureRoot<AccountId>;
+    type BlacklistOrigin = EnsureRoot<AccountId>;
     // Any single technical committee member may veto a coming council proposal, however they can
     // only do it once and it lasts only for the cool-off period.
     type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
     type CooloffPeriod = CooloffPeriod;
-    type OperationalPreimageOrigin =
-        pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
     type Slash = Treasury;
     type Scheduler = Scheduler;
+    type Preimages = Preimage;
     type PalletsOrigin = OriginCaller;
     type MaxVotes = MaxVotes;
     type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
     type MaxProposals = MaxProposals;
+    type MaxDeposits = ConstU32<100>;
+    type MaxBlacklisted = ConstU32<100>;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
 impl pallet_collective::Config<TechnicalCollective> for Runtime {
-    type Origin = Origin;
-    type Proposal = Call;
-    type Event = Event;
+    type RuntimeOrigin = RuntimeOrigin;
+    type Proposal = RuntimeCall;
+    type RuntimeEvent = RuntimeEvent;
     type MotionDuration = TechnicalMotionDuration;
     type MaxProposals = TechnicalMaxProposals;
     type MaxMembers = TechnicalMaxMembers;
+    type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+    type MaxProposalWeight = MaxCollectivesProposalWeight;
     type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = ();
 }
 
 type MoreThanHalfTechnicals = EitherOfDiverse<
-    frame_system::EnsureRoot<AccountId>,
+    EnsureRoot<AccountId>,
     pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 1, 2>,
 >;
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type AddOrigin = MoreThanHalfTechnicals;
     type RemoveOrigin = MoreThanHalfTechnicals;
     type SwapOrigin = MoreThanHalfTechnicals;
@@ -496,53 +511,51 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 }
 
 impl pallet_sudo::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type WeightInfo = ();
 }
 
 parameter_types! {
     pub const WindowSize: u64 = 128;
-    pub const MaximumMessageSize: usize = 512;
+    pub const MaximumMessageSize: u32 = 512;
 }
 
 impl pallet_robonomics_datalog::Config for Runtime {
     type Time = Timestamp;
-    type Record = Vec<u8>;
-    type Event = Event;
+    type Record = BoundedVec<u8, MaximumMessageSize>;
+    type RuntimeEvent = RuntimeEvent;
     type WindowSize = WindowSize;
-    type MaximumMessageSize = MaximumMessageSize;
     type WeightInfo = ();
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = H256;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {
-    pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
-    pub const WeightLimit: Weight = Weight::max_value() / 2;
+    pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
     pub const AuctionDuration: BlockNumber = 10;
     pub const AuctionCost: Balance = 200 * XRT;
     pub const MinimalBid: Balance = 1 * XRT;
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
-    type Call = Call;
+    type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = Moment;
     type AuctionIndex = u32;
     type AuctionCurrency = Balances;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ReferenceCallWeight = ReferenceCallWeight;
-    type WeightLimit = WeightLimit;
     type AuctionDuration = AuctionDuration;
     type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 }
 
 impl pallet_robonomics_liability::Config for Runtime {
@@ -553,25 +566,16 @@ impl pallet_robonomics_liability::Config for Runtime {
         sp_runtime::MultiSignature,
     >;
     type Report = pallet_robonomics_liability::SignedReport<
-        Self::Index,
+        Self::Nonce,
         Self::AccountId,
         sp_runtime::MultiSignature,
         pallet_robonomics_liability::technics::IPFS,
     >;
-    type Event = Event;
-}
-
-impl pallet_robonomics_crowdloan::Config for Runtime {
-    type Currency = Balances;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
 }
 
 construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = robonomics_primitives::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
+    pub enum Runtime {
         // Basic stuff.
         System: frame_system,
         Timestamp: pallet_timestamp,
@@ -601,7 +605,6 @@ construct_runtime!(
         RWS: pallet_robonomics_rws,
         DigitalTwin: pallet_robonomics_digital_twin,
         Liability: pallet_robonomics_liability,
-        Crowdloan: pallet_robonomics_crowdloan,
 
         // Sudo. Usable initially.
         Sudo: pallet_sudo,
@@ -632,10 +635,10 @@ pub type SignedExtra = (
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
@@ -666,6 +669,14 @@ impl_runtime_apis! {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
         }
+
+        fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+            Runtime::metadata_at_version(version)
+        }
+
+        fn metadata_versions() -> Vec<u32> {
+            Runtime::metadata_versions()
+        } 
     }
 
     impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -739,8 +750,8 @@ impl_runtime_apis! {
         }
     }
 
-    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-        fn account_nonce(account: AccountId) -> Index {
+    impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+        fn account_nonce(account: AccountId) -> Nonce {
             System::account_nonce(account)
         }
     }
@@ -752,9 +763,14 @@ impl_runtime_apis! {
         fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
             TransactionPayment::query_info(uxt, len)
         }
-
         fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
             TransactionPayment::query_fee_details(uxt, len)
+        }
+        fn query_weight_to_fee(weight: Weight) -> Balance {
+            TransactionPayment::weight_to_fee(weight)
+        }
+        fn query_length_to_fee(length: u32) -> Balance {
+            TransactionPayment::length_to_fee(length)
         }
     }
 
