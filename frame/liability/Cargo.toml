@@ -16,10 +16,10 @@ frame-system = { workspace = true }
 frame-support = { workspace = true }
 
 [dev-dependencies]
-hex-literal = { workspace = true } 
-pallet-balances = { workspace = true, features = ["std"] } 
-sp-io = { workspace = true } 
-sp-keyring = { workspace = true } 
+hex-literal = { workspace = true }
+pallet-balances = { workspace = true, features = ["std"] }
+sp-io = { workspace = true }
+sp-keyring = { workspace = true }
 
 [features]
 default = ["std"]

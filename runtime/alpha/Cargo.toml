@@ -8,7 +8,7 @@ build = "build.rs"
 [dependencies]
 # third-party dependencies
 parity-scale-codec = { workspace = true }
-scale-info = { workspace = true } 
+scale-info = { workspace = true }
 lazy_static = { workspace = true }
 smallvec = { workspace = true }
 

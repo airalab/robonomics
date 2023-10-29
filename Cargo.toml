@@ -47,22 +47,23 @@ tikv-jemallocator = "0.5.0"
 
 [workspace]
 members = [
-#  "tools/digitaltwin2mqtt",
+  #  "tools/digitaltwin2mqtt",
   "frame/rws",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
   "frame/lighthouse",
   "frame/digital-twin",
-#  "primitives",
-#  "protocol",
+  #  "primitives",
+  #  "protocol",
   "runtime/local",
-#  "runtime/alpha",
-#  "runtime/main",
-#  "runtime/ipci",
-#  "service",
+  #  "runtime/alpha",
+  #  "runtime/main",
+  #  "runtime/ipci",
+  #  "service",
   "service/rpc/core",
   "service/executor",
+  "service/client",
 ]
 
 [workspace.dependencies]
@@ -78,7 +79,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 # (native)
 bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
-futures = "0.3.21"
+futures = { version = "0.3.21", features = ["thread-pool"] }
 hex-literal = "0.3.4"
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 thiserror = "1.0.43"
@@ -115,6 +116,8 @@ sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polk
 sc-consensus-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-consensus-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
+sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
+sc-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }

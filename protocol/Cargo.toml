@@ -25,19 +25,18 @@ rand = "0.8.4"
 rust-base58 = "0.0.4"
 chrono = "0.4"
 libp2p = { version = "0.49", features = [
-    "gossipsub",
-    "kad",
-    "mdns",
-    "request-response",
-    "noise",
-    "tcp",
-    "yamux",
-    "websocket",
-    "mplex",
-    "dns",
-    "tokio",
-    "rsa",
+  "gossipsub",
+  "kad",
+  "mdns",
+  "request-response",
+  "noise",
+  "tcp",
+  "yamux",
+  "websocket",
+  "mplex",
+  "dns",
+  "tokio",
+  "rsa",
 ] }
 
 tokio = { version = "1", features = ["full"] }
-

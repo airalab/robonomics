@@ -144,13 +144,7 @@ zero = [
 ]
 
 # Robonomics Network discovery service (experimental).
-discovery = [
-    "sc-cli",
-    "clap",
-    "clap_complete",
-    "robonomics-protocol",
-    "libp2p",
-]
+discovery = ["sc-cli", "clap", "clap_complete", "robonomics-protocol", "libp2p"]
 
 ## Enable Kusama parachain.
 kusama-parachain = ["main-runtime", "ipci-runtime", "parachain"]

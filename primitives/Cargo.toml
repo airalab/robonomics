@@ -12,7 +12,4 @@ sp-core = { workspace = true }
 
 [features]
 default = ["std"]
-std = [
-  "sp-runtime/std",
-  "sp-core/std",
-]
+std = ["sp-runtime/std", "sp-core/std"]
