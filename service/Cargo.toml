@@ -6,6 +6,9 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
 # third-party dependencies
 clap = { workspace = true, optional = true }
@@ -39,7 +42,7 @@ sp-externalities = { workspace = true }
 # client dependencies
 sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
-sc-cli = { optional = true }{ workspace = true }
+sc-cli = { workspace = true, optional = true }
 sc-client-db = { workspace = true }
 sc-client-api = { workspace = true }
 sc-consensus = { workspace = true }

@@ -37,36 +37,42 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 pub mod constants;
 
 use frame_support::{
-    construct_runtime, parameter_types,
+    construct_runtime,
     dispatch::DispatchClass,
-    traits::{EitherOfDiverse, EqualPrivilegeOnly, AsEnsureOriginWithArg, WithdrawReasons},
+    parameter_types,
+    traits::{AsEnsureOriginWithArg, EitherOfDiverse, EqualPrivilegeOnly, WithdrawReasons},
     weights::{
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
+        constants::{
+            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+        },
         ConstantMultiplier, IdentityFee, Weight,
     },
     PalletId,
 };
-use frame_system::{EnsureSigned, EnsureRoot, limits::{BlockLength, BlockWeights}};
+use frame_system::{
+    limits::{BlockLength, BlockWeights},
+    EnsureRoot, EnsureSigned,
+};
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{
-    AccountId, AssetId, Balance, BlockNumber, Hash, Nonce, Moment, Signature,
+    AccountId, AssetId, Balance, BlockNumber, Hash, Moment, Nonce, Signature,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{OpaqueMetadata, H256};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{
-    AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor,
-    Bounded, ConstBool, ConstU32, ConstU64, ConstU128,
+    AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConstBool, ConstU128, ConstU32,
+    ConstU64, ConvertInto, NumberFor,
 };
 use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill,
-    Permill, Perquintill, BoundedVec,
+    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, BoundedVec,
+    FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -143,7 +149,7 @@ impl frame_system::Config for Runtime {
     type Version = Version;
     type AccountId = AccountId;
     type Lookup = AccountIdLookup<AccountId, ()>;
-    type Block = Block; 
+    type Block = Block;
     type Nonce = Nonce;
     type Hash = Hash;
     type Hashing = BlakeTwo256;
@@ -284,14 +290,13 @@ impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
     type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
     type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate =
-        TargetedFeeAdjustment<
-            Self,
-            TargetBlockFullness,
-            AdjustmentVariable,
-            MinimumMultiplier,
-            MaximumMultiplier,
-        >;
+    type FeeMultiplierUpdate = TargetedFeeAdjustment<
+        Self,
+        TargetBlockFullness,
+        AdjustmentVariable,
+        MinimumMultiplier,
+        MaximumMultiplier,
+    >;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
     type RuntimeEvent = RuntimeEvent;
 }
@@ -635,7 +640,8 @@ pub type SignedExtra = (
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type UncheckedExtrinsic =
+    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
@@ -676,7 +682,7 @@ impl_runtime_apis! {
 
         fn metadata_versions() -> Vec<u32> {
             Runtime::metadata_versions()
-        } 
+        }
     }
 
     impl sp_block_builder::BlockBuilder<Block> for Runtime {

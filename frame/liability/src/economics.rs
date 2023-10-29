@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set of approaches to handle economical aspects of agreement.
 
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::Currency;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 

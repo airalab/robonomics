@@ -151,7 +151,10 @@ pub mod pallet {
 pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"lgthouse";
 
 #[derive(parity_scale_codec::Encode)]
-#[cfg_attr(feature = "std", derive(Debug, parity_scale_codec::Decode, thiserror::Error))]
+#[cfg_attr(
+    feature = "std",
+    derive(Debug, parity_scale_codec::Decode, thiserror::Error)
+)]
 pub enum InherentError {
     Other(sp_runtime::RuntimeString),
 }

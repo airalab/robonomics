@@ -31,9 +31,9 @@ mod weights;
 #[frame_support::pallet]
 #[allow(clippy::module_inception)]
 pub mod pallet {
-    use parity_scale_codec::{Decode, Encode};
     use frame_support::{pallet_prelude::*, traits::Time};
     use frame_system::pallet_prelude::*;
+    use parity_scale_codec::{Decode, Encode};
     use sp_std::prelude::*;
 
     use super::*;
@@ -252,7 +252,7 @@ pub mod pallet {
 mod tests {
     use frame_support::{assert_err, assert_ok, parameter_types, BoundedVec};
     use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, DispatchError, BuildStorage};
+    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
     use crate::{self as datalog, *};
 
@@ -350,7 +350,10 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = BoundedVec::try_from(b"datalog".to_vec()).unwrap();
-            assert_ok!(Datalog::record(RuntimeOrigin::signed(sender), record.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
         })
     }
@@ -383,7 +386,10 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let record = BoundedVec::try_from(b"datalog".to_vec()).unwrap();
-            assert_ok!(Datalog::record(RuntimeOrigin::signed(sender), record.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             // old log should be empty
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
             assert_eq!(
@@ -415,8 +421,7 @@ mod tests {
         let ss58vec = bs58::decode(ss58hash)
             .into_vec()
             .expect("Couldn't decode from Base58");
-        BoundedVec::try_from(ss58vec)
-            .expect("Couldn't bound decoded Base58")
+        BoundedVec::try_from(ss58vec).expect("Couldn't bound decoded Base58")
     }
 
     #[test]
@@ -425,13 +430,19 @@ mod tests {
             let sender = 1;
             let record = hash2vec("QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4");
 
-            assert_ok!(Datalog::record(RuntimeOrigin::signed(sender), record.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record.clone())]);
 
             let record2 = hash2vec("zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta");
 
             Timestamp::set_timestamp(100);
-            assert_ok!(Datalog::record(RuntimeOrigin::signed(sender), record2.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record2.clone()
+            ));
             assert_eq!(
                 Datalog::data(&sender),
                 vec![
@@ -442,7 +453,10 @@ mod tests {
             let record3 = hash2vec("QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2");
 
             Timestamp::set_timestamp(200);
-            assert_ok!(Datalog::record(RuntimeOrigin::signed(sender), record3.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record3.clone()
+            ));
             assert_eq!(
                 Datalog::data(&sender),
                 vec![

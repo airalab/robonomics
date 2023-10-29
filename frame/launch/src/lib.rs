@@ -153,8 +153,7 @@ mod tests {
             let decoded = bs58::decode("QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST")
                 .into_vec()
                 .expect("Couldn't decode from Base58");
-            let param = BoundedVec::try_from(decoded)
-                .expect("Bad bounds");
+            let param = BoundedVec::try_from(decoded).expect("Bad bounds");
             let data = 0;
             assert_ok!(Launch::launch(RuntimeOrigin::signed(sender), data, param));
         })

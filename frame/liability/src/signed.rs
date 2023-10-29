@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
     dispatch,
     traits::{BalanceStatus, ReservableCurrency},
 };
 use frame_system::offchain::AppCrypto;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::crypto::{Pair, Public};

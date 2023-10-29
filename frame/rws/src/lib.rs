@@ -20,8 +20,8 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Decode, Encode, HasCompact};
 use frame_support::pallet_prelude::Weight;
+use parity_scale_codec::{Decode, Encode, HasCompact};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -111,9 +111,9 @@ impl<Moment: HasCompact + Clone> SubscriptionLedger<Moment> {
 pub mod pallet {
     use super::*;
     use frame_support::{
+        dispatch::GetDispatchInfo,
         pallet_prelude::*,
         traits::{Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable},
-        dispatch::GetDispatchInfo,
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{
@@ -131,7 +131,9 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Call subscription method.
-        type Call: Parameter + UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin> + GetDispatchInfo;
+        type Call: Parameter
+            + UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin>
+            + GetDispatchInfo;
         /// Current time source.
         type Time: Time<Moment = Self::Moment>;
         /// Time should be aligned to weights for TPS calculations.

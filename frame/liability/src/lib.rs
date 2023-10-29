@@ -40,7 +40,10 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// How to make and process agreement between two parties.
-        type Agreement: dispatch::Parameter + Processing + Agreement<Self::AccountId> + MaxEncodedLen;
+        type Agreement: dispatch::Parameter
+            + Processing
+            + Agreement<Self::AccountId>
+            + MaxEncodedLen;
 
         /// How to report of agreement execution.
         type Report: dispatch::Parameter + Report<Index, Self::AccountId> + MaxEncodedLen;
@@ -194,7 +197,7 @@ mod tests {
     use sp_keyring::AccountKeyring;
     use sp_runtime::{
         traits::{IdentifyAccount, IdentityLookup, Verify},
-        AccountId32, MultiSignature, BuildStorage,
+        AccountId32, BuildStorage, MultiSignature,
     };
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -291,7 +294,7 @@ mod tests {
         hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = RuntimeGenesisConfig { 
+        let storage = RuntimeGenesisConfig {
             system: Default::default(),
             balances: pallet_balances::GenesisConfig::<Runtime> {
                 balances: vec![

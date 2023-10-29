@@ -60,6 +60,9 @@ members = [
 #  "runtime/alpha",
 #  "runtime/main",
 #  "runtime/ipci",
+#  "service",
+  "service/rpc/core",
+  "service/executor",
 ]
 
 [workspace.dependencies]
