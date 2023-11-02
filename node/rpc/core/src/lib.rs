@@ -37,6 +37,8 @@ pub struct CoreDeps<C, P> {
     pub pool: Arc<P>,
     /// Whether to deny unsafe calls.
     pub deny_unsafe: DenyUnsafe,
+    /// RPC extensions
+    pub ext_rpc: RpcModule<()>,
 }
 
 /// Instantiate Core RPC extensions.
@@ -64,10 +66,12 @@ where
         client,
         pool,
         deny_unsafe,
+        ext_rpc,
     } = deps;
 
     io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+    io.merge(ext_rpc)?;
 
     Ok(io)
 }

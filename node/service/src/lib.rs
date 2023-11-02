@@ -15,6 +15,8 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Network node implementation.
+//! Robonomics node service implementation.
 
 pub mod local;
+pub mod parachain;
+

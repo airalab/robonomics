@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Local DevNet node implementation.
+//! Local DevNet service implementation.
 
 use robonomics_primitives::{AccountId, Balance, Block, Nonce};
 
@@ -181,6 +181,8 @@ where
                 client: client.clone(),
                 pool: pool.clone(),
                 deny_unsafe,
+                // TODO: enable RPC extensions for dev node
+                ext_rpc: jsonrpsee::RpcModule::new(()),
             };
 
             robonomics_rpc_core::create_core_rpc(deps).map_err(Into::into)
@@ -205,6 +207,7 @@ where
 }
 
 /// Creates new service from the configuration.
+#[sc_tracing::logging::prefix_logs_with("Local")]
 pub fn new_service<Runtime, Executor>(
     config: Configuration,
 ) -> Result<
