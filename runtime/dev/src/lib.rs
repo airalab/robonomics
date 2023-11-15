@@ -53,16 +53,13 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot, EnsureSigned,
 };
-use pallet_grandpa::{
-    fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
-};
+use pallet_grandpa::{fg_primitives, AuthorityList as GrandpaAuthorityList};
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{
     AccountId, AssetId, Balance, BlockNumber, Hash, Moment, Nonce, Signature,
 };
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{OpaqueMetadata, H256};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::traits::{
@@ -81,11 +78,15 @@ use sp_version::RuntimeVersion;
 
 use crate::constants::{currency::*, time::*};
 
+// Export some types for external usage.
+pub use pallet_grandpa::AuthorityId as GrandpaId;
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+
 /// This runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("robonomics-local"),
-    impl_name: create_runtime_str!("robonomics-local-airalab"),
+    spec_name: create_runtime_str!("robonomics-dev"),
+    impl_name: create_runtime_str!("robonomics-dev-airalab"),
     authoring_version: 1,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to equal spec_version. If only runtime
@@ -655,6 +656,20 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+    define_benchmarks!(
+        [frame_system, SystemBench::<Runtime>]
+        // Robonomics pallets
+        [robonomics_datalog, Datalog]
+        [robonomics_launch, Launch]
+    );
+}
+
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
@@ -798,12 +813,12 @@ impl_runtime_apis! {
             Vec<frame_benchmarking::BenchmarkList>,
             Vec<frame_support::traits::StorageInfo>,
         ) {
-            use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
+            use frame_benchmarking::{Benchmarking, BenchmarkList};
             use frame_support::traits::StorageInfoTrait;
+            use frame_system_benchmarking::Pallet as SystemBench;
 
             let mut list = Vec::<BenchmarkList>::new();
-            list_benchmark!(list, extra, pallet_robonomics_datalog, Datalog);
-            list_benchmark!(list, extra, pallet_robonomics_launch, Launch);
+            list_benchmarks!(list, extra);
 
             let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -814,7 +829,7 @@ impl_runtime_apis! {
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
             use hex_literal::hex;
-            use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+            use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
             use frame_system_benchmarking::Pallet as SystemBench;
 
             impl frame_system_benchmarking::Config for Runtime {}
@@ -836,18 +851,8 @@ impl_runtime_apis! {
 
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
+            add_benchmarks!(params, batches);
 
-            add_benchmark!(params, batches, pallet_balances, Balances);
-            add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-            add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-            add_benchmark!(params, batches, pallet_robonomics_datalog, Datalog);
-            add_benchmark!(params, batches, pallet_robonomics_launch, Launch);
-            /* TODO
-            add_benchmark!(params, batches, pallet_robonomics_digital_twin, DigitalTwin);
-            add_benchmark!(params, batches, pallet_robonomics_rws, RWS);
-            */
-
-            if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
         }
     }

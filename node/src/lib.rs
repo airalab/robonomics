@@ -19,25 +19,9 @@
 
 #![warn(unused_extern_crates)]
 
-#[cfg(feature = "full")]
-pub mod chain_spec;
-
-#[macro_use]
-#[cfg(feature = "full")]
-pub mod service;
-
-#[macro_use]
-#[cfg(feature = "parachain")]
-pub mod parachain;
-
-#[cfg(feature = "sc-cli")]
+mod chain_spec;
 mod cli;
-#[cfg(feature = "sc-cli")]
 mod command;
 
-#[cfg(feature = "sc-cli")]
-pub use cli::*;
-#[cfg(feature = "sc-cli")]
-pub use command::*;
-#[cfg(feature = "sc-cli")]
+pub use command::run;
 pub use sc_cli::{Error, Result};

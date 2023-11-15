@@ -16,13 +16,24 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use clap::Parser;
-use robonomics_pair;
-use sc_cli::{KeySubcommand, SignCmd, VanityCmd, VerifyCmd};
+const AFTER_HELP_ROBONOMICS: &str = color_print::cstr!(
+    r#"<bold><underline>Examples:</></>
+   <bold>robonomics --chain main --sync warp -- --chain kusama --sync warp</>
+           Launch a warp-syncing full node of the <italic>Robonomics</> parachain on the <italic>Kusama</> Relay Chain.
+   <bold>robonomics --chain main --sync warp --relay-chain-rpc-url ws://rpc.example.com -- --chain kusama</>
+           Launch a warp-syncing full node of the <italic>Robonomics</> parachain on the <italic>Kusama</> Relay Chain.
+           Uses <italic>ws://rpc.example.com</> as remote relay chain node.
+ "#
+);
 
 /// An overarching CLI command definition.
-#[derive(Debug, Parser)]
-#[clap(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
+#[derive(Debug, clap::Parser)]
+#[command(
+    propagate_version = true,
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true
+)]
+#[clap(after_help = AFTER_HELP_ROBONOMICS)]
 pub struct Cli {
     /// Possible subcommand with parameters.
     #[clap(subcommand)]
@@ -30,43 +41,29 @@ pub struct Cli {
 
     #[allow(missing_docs)]
     #[clap(flatten)]
-    #[cfg(feature = "full")]
     pub run: cumulus_client_cli::RunCmd,
 
-    /// Id of the parachain this collator collates for.
-    #[clap(long)]
-    #[cfg(feature = "parachain")]
-    pub parachain_id: Option<u32>,
+    /// Disable automatic hardware benchmarks.
+    ///
+    /// By default these benchmarks are automatically ran at startup and measure
+    /// the CPU speed, the memory bandwidth and the disk speed.
+    ///
+    /// The results are then printed out in the logs, and also sent as part of
+    /// telemetry, if telemetry is enabled.
+    #[arg(long)]
+    pub no_hardware_benchmarks: bool,
+
+    #[allow(missing_docs)]
+    #[clap(flatten)]
+    pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 
     /// An address assigned to collator. [default: off]
     /// Notice: If not set then collator rewards will go to treasury.
     #[clap(long)]
-    #[cfg(feature = "parachain")]
     pub lighthouse_account: Option<String>,
-
-    /// Local key.
-    #[clap(long)]
-    pub local_key_file: Option<String>,
-
-    /// PubSub heartbeat interval.
-    #[clap(long)]
-    pub heartbeat_interval: Option<u64>,
-
-    /// Nodes for connect.
-    #[clap(long)]
-    pub robonomics_bootnodes: Vec<String>,
-
-    /// Disable mDNS.
-    #[clap(long)]
-    pub disable_mdns: bool,
-
-    /// Disable Kademlia.
-    #[clap(long)]
-    pub disable_kad: bool,
 
     /// Polkadot relaychain arguments.
     #[clap(raw = true, conflicts_with = "relay-chain-rpc-url")]
-    #[cfg(feature = "parachain")]
     pub relaychain_args: Vec<String>,
 }
 
@@ -75,45 +72,73 @@ pub struct Cli {
 pub enum Subcommand {
     /// Key management cli utilities
     #[clap(subcommand)]
-    Key(KeySubcommand),
-
-    /// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
-    Verify(VerifyCmd),
-
-    /// Generate a seed that provides a vanity address.
-    Vanity(VanityCmd),
-
-    /// Sign a message, with a given (secret) key.
-    Sign(SignCmd),
+    Key(sc_cli::KeySubcommand),
 
     /// Build a chain specification.
-    #[cfg(feature = "full")]
     BuildSpec(sc_cli::BuildSpecCmd),
 
+    /// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
+    Verify(sc_cli::VerifyCmd),
+
+    /// Generate a seed that provides a vanity address.
+    Vanity(sc_cli::VanityCmd),
+
+    /// Sign a message, with a given (secret) key.
+    Sign(sc_cli::SignCmd),
+
+    /// Validate blocks.
+    CheckBlock(sc_cli::CheckBlockCmd),
+
+    /// Export blocks.
+    ExportBlocks(sc_cli::ExportBlocksCmd),
+
+    /// Export the state of a given block into a chain spec.
+    ExportState(sc_cli::ExportStateCmd),
+
+    /// Import blocks.
+    ImportBlocks(sc_cli::ImportBlocksCmd),
+
     /// Remove the whole chain.
-    #[cfg(feature = "full")]
-    PurgeChain(sc_cli::PurgeChainCmd),
-
-    /// Robonomics Framework I/O operations.
-    #[cfg(feature = "robonomics-cli")]
-    Io(robonomics_cli::IoCmd),
-
-    /// Pair by peerId operatins
-    /// robonomics pair listen --peer peerID_to_listen
-    /// robonomics pair connect --peer peerID_to_listen
-    Pair(robonomics_pair::pair::PairCmd),
-
-    /// Benchmarking runtime pallets.
-    #[cfg(feature = "frame-benchmarking-cli")]
-    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+    PurgeChain(cumulus_client_cli::PurgeChainCmd),
 
     /// Export the genesis state of the parachain.
     #[clap(name = "export-genesis-state")]
-    #[cfg(feature = "parachain")]
     ExportGenesisState(cumulus_client_cli::ExportGenesisStateCommand),
 
     /// Export the genesis wasm of the parachain.
     #[clap(name = "export-genesis-wasm")]
-    #[cfg(feature = "parachain")]
     ExportGenesisWasm(cumulus_client_cli::ExportGenesisWasmCommand),
+
+    /// Benchmarking runtime pallets.
+    #[command(subcommand)]
+    Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+}
+
+#[derive(Debug)]
+pub struct RelayChainCli {
+    /// The actual relay chain cli object.
+    pub base: polkadot_cli::RunCmd,
+
+    /// Optional chain id that should be passed to the relay chain.
+    pub chain_id: Option<String>,
+
+    /// The base path that should be used by the relay chain.
+    pub base_path: Option<std::path::PathBuf>,
+}
+
+impl RelayChainCli {
+    /// Parse the relay chain CLI parameters using the para chain `Configuration`.
+    pub fn new<'a>(
+        para_config: &sc_service::Configuration,
+        relay_chain_args: impl Iterator<Item = &'a String>,
+    ) -> Self {
+        let extension = crate::chain_spec::Extensions::try_get(&*para_config.chain_spec);
+        let chain_id = extension.map(|e| e.relay_chain.clone());
+        let base_path = para_config.base_path.path().join("polkadot");
+        Self {
+            base_path: Some(base_path),
+            chain_id,
+            base: clap::Parser::parse_from(relay_chain_args),
+        }
+    }
 }

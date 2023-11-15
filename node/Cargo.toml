@@ -10,172 +10,40 @@ repository.workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-# third-party dependencies
-clap = { workspace = true, optional = true }
-jsonrpsee = { workspace = true }
-hex-literal = { workspace = true }
+clap = { workspace = true }
+color-print = { workspace = true }
 log = { workspace = true }
+serde = { workspace = true }
 
-# primitives
 robonomics-primitives = { path = "../primitives" }
-robonomics-protocol = { path = "../protocol", optional = true }
-sp-authorship = { workspace = true }
-sp-api = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-block-builder = { workspace = true }
-sp-consensus = { workspace = true }
-sp-consensus-aura = { workspace = true }
-sp-core = { workspace = true }
-sp-finality-grandpa = { workspace = true }
-sp-session = { workspace = true }
-sp-runtime = { workspace = true }
-sp-offchain = { workspace = true }
-sp-inherents = { workspace = true }
-sp-keystore = { workspace = true }
-sp-timestamp = { workspace = true }
-sp-trie = { workspace = true }
-sp-transaction-pool = { workspace = true }
-sp-transaction-storage-proof = { workspace = true }
-sp-version = { workspace = true }
-sp-externalities = { workspace = true }
+robonomics-service = { path = "./service" }
+dev-runtime = { path = "../runtime/dev" }
 
-# client dependencies
-sc-basic-authorship = { workspace = true }
-sc-chain-spec = { workspace = true }
-sc-cli = { workspace = true, optional = true }
-sc-client-db = { workspace = true }
+# substrate
+sc-cli = { workspace = true }
 sc-client-api = { workspace = true }
-sc-consensus = { workspace = true }
-sc-consensus-aura = { workspace = true }
-sc-consensus-slots = { workspace = true }
-sc-finality-grandpa = { workspace = true }
-sc-informant = { workspace = true }
-sc-keystore = { workspace = true }
-sc-network = { workspace = true }
-sc-offchain = { workspace = true }
-sc-rpc = { workspace = true }
+sc-chain-spec = { workspace = true }
 sc-service = { workspace = true }
-sc-tracing = { workspace = true }
-sc-transaction-pool = { workspace = true }
+sc-storage-monitor = { workspace = true }
+sc-sysinfo = { workspace = true }
 sc-telemetry = { workspace = true }
-sc-sync-state-rpc = { workspace = true }
-sc-executor-common = { workspace = true }
-sc-executor = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+frame-benchmarking-cli = { workspace = true }
 
-# frame dependencies
-frame-support = { workspace = true }
-frame-benchmarking = { workspace = true, optional = true }
-frame-system-rpc-runtime-api = { workspace = true }
-pallet-transaction-payment-rpc-runtime-api = { workspace = true }
-pallet-robonomics-lighthouse = { path = "../frame/lighthouse", optional = true }
-pallet-robonomics-datalog = { path = "../frame/datalog", default-features = false }
-frame-benchmarking-cli = { workspace = true, optional = true }
+# polkadot 
+polkadot-cli = { workspace = true }
+xcm = { workspace = true }
 
-# cumulus dependencies
-cumulus-primitives-core = { workspace = true, optional = true }
-cumulus-primitives-parachain-inherent = { workspace = true, optional = true }
-cumulus-client-consensus-aura = { workspace = true, optional = true }
-cumulus-client-consensus-common = { workspace = true, optional = true }
-cumulus-client-consensus-relay-chain = { workspace = true, optional = true }
-cumulus-relay-chain-interface = { workspace = true, optional = true }
-cumulus-relay-chain-inprocess-interface = { workspace = true, optional = true }
-cumulus-client-cli = { workspace = true, optional = true }
-cumulus-client-collator = { workspace = true, optional = true }
-cumulus-client-network = { workspace = true, optional = true }
-cumulus-client-service = { workspace = true, optional = true }
-
-# polkadot dependencies
-polkadot-primitives = { workspace = true, optional = true }
-polkadot-parachain = { workspace = true, optional = true }
-polkadot-service = { workspace = true, optional = true }
-polkadot-cli = { workspace = true, optional = true }
-
-# node-specific dependencies
-robonomics-rpc = { path = "rpc", optional = true }
-substrate-prometheus-endpoint = { workspace = true }
-substrate-frame-rpc-system = { workspace = true, optional = true }
-local-runtime = { path = "../runtime/local", optional = true }
-alpha-runtime = { path = "../runtime/alpha", optional = true }
-ipci-runtime = { path = "../runtime/ipci", optional = true }
-main-runtime = { path = "../runtime/main", optional = true }
+# cumulus
+cumulus-client-cli = { workspace = true }
+cumulus-primitives-core = { workspace = true }
 
 [build-dependencies]
-local-runtime = { path = "../runtime/local", optional = true }
-sc-cli = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true }
-polkadot-cli = { workspace = true, optional = true }
-frame-benchmarking-cli = { workspace = true, optional = true }
-cumulus-client-cli = { workspace = true, optional = true }
 substrate-build-script-utils = { workspace = true }
-vergen = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
-clap_complete = { workspace = true, optional = true }
 
 [features]
-## Fully functional Robonomics Network node.
-# Full node required for collating / validating the parachain or develop Robonomics pallets.
-full = [
-  "sc-cli",
-  "sp-core",
-  "vergen",
-  "clap",
-  "clap_complete",
-  "local-runtime",
-  "sc-service/rocksdb",
-  "robonomics-rpc",
-  "robonomics-protocol",
-  "frame-benchmarking",
-  "cumulus-client-cli",
-  "robonomics-pair",
-  "libp2p",
-]
-
-## Ultra lightweight Robonomics Network node.
-# Stateless node consumes a minimum of resources and suits for small embedded devices.
-zero = [
-  "sc-cli",
-  "sp-core",
-  "vergen",
-  "clap",
-  "clap_complete",
-  "cumulus-client-cli",
-  "robonomics-pair",
-]
-
-# Robonomics Network discovery service (experimental).
-discovery = ["sc-cli", "clap", "clap_complete", "robonomics-protocol", "libp2p"]
-
-## Enable Kusama parachain.
-kusama-parachain = ["main-runtime", "ipci-runtime", "parachain"]
-
-## Enable general parachain collator.
-parachain = [
-  "alpha-runtime",
-  "pallet-robonomics-lighthouse",
-  "substrate-frame-rpc-system",
-  "cumulus-primitives-core",
-  "cumulus-primitives-parachain-inherent",
-  "cumulus-client-consensus-aura",
-  "cumulus-client-consensus-common",
-  "cumulus-client-consensus-relay-chain",
-  "cumulus-relay-chain-interface",
-  "cumulus-relay-chain-rpc-interface",
-  "cumulus-relay-chain-inprocess-interface",
-  "cumulus-client-collator",
-  "cumulus-client-network",
-  "cumulus-client-service",
-  "polkadot-primitives",
-  "polkadot-parachain",
-  "polkadot-service",
-  "polkadot-cli",
-  "full",
-]
-
-## Enable runtime benchmarking.
 runtime-benchmarks = [
-  "local-runtime/runtime-benchmarks",
-  "cumulus-client-cli",
-  "frame-benchmarking-cli",
-  "frame-benchmarking",
-  "pallet-robonomics-datalog/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+    "dev-runtime/runtime-benchmarks",
 ]

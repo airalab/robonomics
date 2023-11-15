@@ -23,6 +23,6 @@ pub static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
-    robonomics_service::run()?;
+    robonomics_node::run()?;
     Ok(())
 }

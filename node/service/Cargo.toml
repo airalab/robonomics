@@ -13,7 +13,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 log = { workspace = true }
 futures = { workspace = true }
 jsonrpsee = { workspace = true }
-hex-literal = { workspace = true }
 parity-scale-codec = { workspace = true }
 
 sc-basic-authorship = { workspace = true }

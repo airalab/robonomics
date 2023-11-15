@@ -20,6 +20,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use hex_literal::hex;
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -73,3 +74,21 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
+
+/// Set of community accounts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CommunityAccount {
+    /// Treasury manage community funds via open governance.
+    Treasury,
+}
+
+impl IdentifyAccount for CommunityAccount {
+    type AccountId = AccountId;
+    fn into_account(self) -> Self::AccountId {
+        match self {
+            CommunityAccount::Treasury => AccountId::from(hex![
+                "6d6f646c70792f74727372790000000000000000000000000000000000000000"
+            ]),
+        }
+    }
+}

@@ -18,14 +18,14 @@
 // Benchmarks for Datalog Pallet
 
 use super::{Pallet as Datalog, *};
-use codec::{Decode, Encode};
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::pallet_prelude::Get;
+use frame_support::pallet_prelude::{Get, MaxEncodedLen};
 use frame_system::RawOrigin;
+use parity_scale_codec::{Decode, Encode};
 use sp_std::prelude::*;
 
 fn setup_record<T: Config>() -> T::Record {
-    let s = T::MaximumMessageSize::get();
+    let s = <T::Record as MaxEncodedLen>::max_encoded_len();
     let mut v = Vec::with_capacity(s - 4);
     v.resize(s - 4, 0x1F);
 
