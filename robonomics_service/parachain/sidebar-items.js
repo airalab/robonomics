@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["load_spec",""]],"mod":[["alpha","Robonomics AlphaNet on Airalab relaychain."],["chain_spec","Chain specification and utils."],["command",""],["ipci","IPCI parachain on Airalab relaychain."],["main","Robonomics MainNet on Kusama."],["service","Polkadot collator service implementation."]]};
+window.SIDEBAR_ITEMS = {"fn":["build_open_consensus","build_open_import_queue","new_partial","new_service","start_generic_robonomics_parachain"],"trait":["RuntimeApiCollection"]};

@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["robonomics_service"] = [{"text":"impl Extension for <a class=\"struct\" href=\"robonomics_service/chain_spec/struct.Extensions.html\" title=\"struct robonomics_service::chain_spec::Extensions\">Extensions</a>","synthetic":false,"types":["robonomics_service::chain_spec::Extensions"]},{"text":"impl Extension for <a class=\"struct\" href=\"robonomics_service/parachain/chain_spec/struct.Extensions.html\" title=\"struct robonomics_service::parachain::chain_spec::Extensions\">Extensions</a>","synthetic":false,"types":["robonomics_service::parachain::chain_spec::Extensions"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["SimpleMarket","Simple market as approach: liability has a price of execution."]]};
+window.SIDEBAR_ITEMS = {"struct":["SimpleMarket"]};

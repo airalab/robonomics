@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["currency","Money matters."],["time","Time constants."]]};
+window.SIDEBAR_ITEMS = {"mod":["currency","time"]};

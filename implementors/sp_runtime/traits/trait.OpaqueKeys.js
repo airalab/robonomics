@@ -1,6 +1,4 @@
-(function() {var implementors = {};
-implementors["alpha_runtime"] = [{"text":"impl OpaqueKeys for <a class=\"struct\" href=\"alpha_runtime/struct.SessionKeys.html\" title=\"struct alpha_runtime::SessionKeys\">SessionKeys</a>","synthetic":false,"types":["alpha_runtime::SessionKeys"]}];
-implementors["ipci_runtime"] = [{"text":"impl OpaqueKeys for <a class=\"struct\" href=\"ipci_runtime/struct.SessionKeys.html\" title=\"struct ipci_runtime::SessionKeys\">SessionKeys</a>","synthetic":false,"types":["ipci_runtime::SessionKeys"]}];
-implementors["local_runtime"] = [{"text":"impl OpaqueKeys for <a class=\"struct\" href=\"local_runtime/struct.SessionKeys.html\" title=\"struct local_runtime::SessionKeys\">SessionKeys</a>","synthetic":false,"types":["local_runtime::SessionKeys"]}];
-implementors["main_runtime"] = [{"text":"impl OpaqueKeys for <a class=\"struct\" href=\"main_runtime/struct.SessionKeys.html\" title=\"struct main_runtime::SessionKeys\">SessionKeys</a>","synthetic":false,"types":["main_runtime::SessionKeys"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"dev_runtime":[["impl OpaqueKeys for <a class=\"struct\" href=\"dev_runtime/struct.SessionKeys.html\" title=\"struct dev_runtime::SessionKeys\">SessionKeys</a>"]],
+"main_runtime":[["impl OpaqueKeys for <a class=\"struct\" href=\"main_runtime/struct.SessionKeys.html\" title=\"struct main_runtime::SessionKeys\">SessionKeys</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

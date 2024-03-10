@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":[["PubSub","LibP2P Gossipsub based publisher/subscriber service."]]};

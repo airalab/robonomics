@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["Error","Error type for the CLI."],["Subcommand","Possible subcommands of the main binary."]],"fn":[["run","Parse command line arguments into service configuration."]],"mod":[["chain_spec","Chain specification and utils."],["parachain","Robonomics Node as a parachain collator."],["service","Service and ServiceFactory implementation. Specialized wrapper over Substrate service."]],"struct":[["Cli","An overarching CLI command definition."]],"type":[["Result","Result type alias for the CLI."]]};
+window.SIDEBAR_ITEMS = {"mod":["dev","parachain"]};

@@ -1,3 +1,3 @@
-(function() {var implementors = {};
-implementors["pallet_robonomics_lighthouse"] = [{"text":"impl InherentDataProvider for <a class=\"struct\" href=\"pallet_robonomics_lighthouse/struct.InherentDataProvider.html\" title=\"struct pallet_robonomics_lighthouse::InherentDataProvider\">InherentDataProvider</a>","synthetic":false,"types":["pallet_robonomics_lighthouse::InherentDataProvider"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"pallet_robonomics_lighthouse":[["impl InherentDataProvider for <a class=\"struct\" href=\"pallet_robonomics_lighthouse/struct.InherentDataProvider.html\" title=\"struct pallet_robonomics_lighthouse::InherentDataProvider\">InherentDataProvider</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

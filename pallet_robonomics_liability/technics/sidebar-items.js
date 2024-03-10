@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["IPFS","Using IPFS to handle technical aspects of agreement without confirmation."]]};
+window.SIDEBAR_ITEMS = {"struct":["IPFS"]};

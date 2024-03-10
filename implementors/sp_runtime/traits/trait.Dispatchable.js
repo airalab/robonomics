@@ -1,6 +1,4 @@
-(function() {var implementors = {};
-implementors["alpha_runtime"] = [{"text":"impl Dispatchable for <a class=\"enum\" href=\"alpha_runtime/enum.Call.html\" title=\"enum alpha_runtime::Call\">Call</a>","synthetic":false,"types":["alpha_runtime::Call"]}];
-implementors["ipci_runtime"] = [{"text":"impl Dispatchable for <a class=\"enum\" href=\"ipci_runtime/enum.Call.html\" title=\"enum ipci_runtime::Call\">Call</a>","synthetic":false,"types":["ipci_runtime::Call"]}];
-implementors["local_runtime"] = [{"text":"impl Dispatchable for <a class=\"enum\" href=\"local_runtime/enum.Call.html\" title=\"enum local_runtime::Call\">Call</a>","synthetic":false,"types":["local_runtime::Call"]}];
-implementors["main_runtime"] = [{"text":"impl Dispatchable for <a class=\"enum\" href=\"main_runtime/enum.Call.html\" title=\"enum main_runtime::Call\">Call</a>","synthetic":false,"types":["main_runtime::Call"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"dev_runtime":[["impl Dispatchable for <a class=\"enum\" href=\"dev_runtime/enum.RuntimeCall.html\" title=\"enum dev_runtime::RuntimeCall\">RuntimeCall</a>"]],
+"main_runtime":[["impl Dispatchable for <a class=\"enum\" href=\"main_runtime/enum.RuntimeCall.html\" title=\"enum main_runtime::RuntimeCall\">RuntimeCall</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

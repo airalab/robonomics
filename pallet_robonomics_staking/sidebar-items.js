@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":[["pallet","The module that hosts all the FRAME types needed to add this pallet to a runtime."]],"struct":[["StakerLedger","The ledger of a (bonded) stash."],["UnlockChunk","Just a Balance/BlockNumber tuple to encode when a chunk of funds will be unlocked."]],"trait":[["OnBondHandler","This trait called each time when new bond happens."]]};

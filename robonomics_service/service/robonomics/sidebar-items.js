@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":[["new","Create a new Robonomics service."]],"struct":[["LocalExecutor",""]]};

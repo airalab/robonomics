@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["robonomics_service"] = [{"text":"impl Parser for <a class=\"struct\" href=\"robonomics_service/struct.Cli.html\" title=\"struct robonomics_service::Cli\">Cli</a>","synthetic":false,"types":["robonomics_service::cli::Cli"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

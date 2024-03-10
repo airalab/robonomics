@@ -1,5 +1,3 @@
-(function() {var implementors = {};
-implementors["alpha_runtime"] = [{"text":"impl Config for <a class=\"struct\" href=\"alpha_runtime/struct.Runtime.html\" title=\"struct alpha_runtime::Runtime\">Runtime</a>","synthetic":false,"types":["alpha_runtime::Runtime"]}];
-implementors["ipci_runtime"] = [{"text":"impl Config for <a class=\"struct\" href=\"ipci_runtime/struct.Runtime.html\" title=\"struct ipci_runtime::Runtime\">Runtime</a>","synthetic":false,"types":["ipci_runtime::Runtime"]}];
-implementors["local_runtime"] = [{"text":"impl Config for <a class=\"struct\" href=\"local_runtime/struct.Runtime.html\" title=\"struct local_runtime::Runtime\">Runtime</a>","synthetic":false,"types":["local_runtime::Runtime"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"dev_runtime":[["impl Config for <a class=\"struct\" href=\"dev_runtime/struct.Runtime.html\" title=\"struct dev_runtime::Runtime\">Runtime</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

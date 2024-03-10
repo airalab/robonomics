@@ -1,0 +1,4 @@
+(function() {var implementors = {
+"dev_runtime":[["impl CallerTrait&lt;&lt;<a class=\"struct\" href=\"dev_runtime/struct.Runtime.html\" title=\"struct dev_runtime::Runtime\">Runtime</a> as Config&gt;::AccountId&gt; for <a class=\"enum\" href=\"dev_runtime/enum.OriginCaller.html\" title=\"enum dev_runtime::OriginCaller\">OriginCaller</a>"]],
+"main_runtime":[["impl CallerTrait&lt;&lt;<a class=\"struct\" href=\"main_runtime/struct.Runtime.html\" title=\"struct main_runtime::Runtime\">Runtime</a> as Config&gt;::AccountId&gt; for <a class=\"enum\" href=\"main_runtime/enum.OriginCaller.html\" title=\"enum main_runtime::OriginCaller\">OriginCaller</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":[["economics","Set of approaches to handle economical aspects of agreement."],["pallet","The module that hosts all the FRAME types needed to add this pallet to a runtime."],["signed","Signed liability implementation."],["technics","Set of approaches to handle technical aspects of agreement."],["traits","Robonomics liability traits definitions."]]};
+window.SIDEBAR_ITEMS = {"mod":["economics","pallet","signed","technics","traits"]};

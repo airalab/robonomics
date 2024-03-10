@@ -1,6 +1,4 @@
-(function() {var implementors = {};
-implementors["alpha_runtime"] = [{"text":"impl OriginTrait for <a class=\"struct\" href=\"alpha_runtime/struct.Origin.html\" title=\"struct alpha_runtime::Origin\">Origin</a>","synthetic":false,"types":["alpha_runtime::Origin"]}];
-implementors["ipci_runtime"] = [{"text":"impl OriginTrait for <a class=\"struct\" href=\"ipci_runtime/struct.Origin.html\" title=\"struct ipci_runtime::Origin\">Origin</a>","synthetic":false,"types":["ipci_runtime::Origin"]}];
-implementors["local_runtime"] = [{"text":"impl OriginTrait for <a class=\"struct\" href=\"local_runtime/struct.Origin.html\" title=\"struct local_runtime::Origin\">Origin</a>","synthetic":false,"types":["local_runtime::Origin"]}];
-implementors["main_runtime"] = [{"text":"impl OriginTrait for <a class=\"struct\" href=\"main_runtime/struct.Origin.html\" title=\"struct main_runtime::Origin\">Origin</a>","synthetic":false,"types":["main_runtime::Origin"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
+(function() {var implementors = {
+"dev_runtime":[["impl OriginTrait for <a class=\"struct\" href=\"dev_runtime/struct.RuntimeOrigin.html\" title=\"struct dev_runtime::RuntimeOrigin\">RuntimeOrigin</a>"]],
+"main_runtime":[["impl OriginTrait for <a class=\"struct\" href=\"main_runtime/struct.RuntimeOrigin.html\" title=\"struct main_runtime::RuntimeOrigin\">RuntimeOrigin</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

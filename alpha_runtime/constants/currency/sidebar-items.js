@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":[["COASE",""],["GLUSHKOV",""],["XRT",""]],"fn":[["deposit",""]]};

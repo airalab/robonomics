@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"pallet_xcm":[["impl&lt;RuntimeOrigin: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/convert/trait.From.html\" title=\"trait core::convert::From\">From</a>&lt;<a class=\"enum\" href=\"pallet_xcm/pallet/enum.Origin.html\" title=\"enum pallet_xcm::pallet::Origin\">Origin</a>&gt;&gt; ConvertOrigin&lt;RuntimeOrigin&gt; for <a class=\"struct\" href=\"pallet_xcm/struct.XcmPassthrough.html\" title=\"struct pallet_xcm::XcmPassthrough\">XcmPassthrough</a>&lt;RuntimeOrigin&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

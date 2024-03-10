@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":[["currency","Money matters."],["fee","Fee-related."],["time","Time."]]};

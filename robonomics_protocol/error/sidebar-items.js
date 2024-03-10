@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":[["Error","Robonomics protocol errors."]],"type":[["FutureResult","Async version of protocol Result typedef."],["Result","Protocol Result typedef."]]};

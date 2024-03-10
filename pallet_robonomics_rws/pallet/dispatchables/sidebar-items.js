@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["bid","call","set_devices","set_oracle","set_subscription","start_auction"]};

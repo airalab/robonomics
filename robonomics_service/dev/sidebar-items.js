@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["new_partial","new_service"],"trait":["RuntimeApiCollection"]};
