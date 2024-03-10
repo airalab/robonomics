@@ -509,7 +509,7 @@ where
 {
     new_service::<RuntimeApi, _, _, _>(
         parachain_config,
-        polkadot_config, 
+        polkadot_config,
         collator_options,
         para_id,
         lighthouse_account,
@@ -518,6 +518,6 @@ where
         build_open_consensus,
         hwbench,
     )
-        .await
-        .map(|r| r.0)
+    .await
+    .map(|r| r.0)
 }

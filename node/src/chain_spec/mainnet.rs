@@ -19,15 +19,15 @@
 
 use super::{get_account_id_from_seed, Extensions};
 use main_runtime::{
-    wasm_binary_unwrap, BalancesConfig, DemocracyConfig, RuntimeGenesisConfig, SystemConfig,
-    ParachainInfoConfig,
+    wasm_binary_unwrap, BalancesConfig, DemocracyConfig, ParachainInfoConfig, RuntimeGenesisConfig,
+    SystemConfig,
 };
 use robonomics_primitives::{AccountId, Balance, CommunityAccount};
 
+use cumulus_primitives_core::ParaId;
 use sc_chain_spec::ChainType;
 use sp_core::sr25519;
 use sp_runtime::traits::IdentifyAccount;
-use cumulus_primitives_core::ParaId;
 
 /// Robonomics Mainnet Chain Specification.
 pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
@@ -97,12 +97,7 @@ pub fn genesis(
 
 /// Create Mainnet Chain Specification (single validator Alice)
 pub fn config(parachain_id: ParaId) -> ChainSpec {
-    let mk_genesis = move || {
-        genesis(
-            None,
-            parachain_id,
-        )
-    };
+    let mk_genesis = move || genesis(None, parachain_id);
 
     let mut properties = sc_chain_spec::Properties::new();
     properties.insert("tokenSymbol".into(), "XRT".into());
@@ -121,7 +116,7 @@ pub fn config(parachain_id: ParaId) -> ChainSpec {
         Extensions {
             relay_chain: "kusama".into(),
             para_id: parachain_id.into(),
-        }
+        },
     )
 }
 

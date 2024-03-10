@@ -39,29 +39,34 @@ pub mod constants;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced, ConstU128, ConstU32,
-        AsEnsureOriginWithArg, WithdrawReasons,
+        AsEnsureOriginWithArg, ConstU128, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly,
+        Imbalance, OnUnbalanced, WithdrawReasons,
     },
     weights::{
-        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND},
+        constants::{
+            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
+        },
         ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
     PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, limits::{BlockLength, BlockWeights}};
+use frame_system::{
+    limits::{BlockLength, BlockWeights},
+    EnsureRoot, EnsureSigned,
+};
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{
-    AccountId, AssetId, Balance, BlockNumber, Hash, Nonce, Moment, Signature,
+    AccountId, AssetId, Balance, BlockNumber, Hash, Moment, Nonce, Signature,
 };
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Bounded},
+    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    FixedPointNumber, Perbill, Permill, Perquintill, BoundedVec,
+    BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -694,7 +699,8 @@ pub type SignedExtra = (
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
-pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+pub type UncheckedExtrinsic =
+    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
 
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
