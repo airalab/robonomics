@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Console line interface.
+//! Robonomics node CLI implementation.
 
 #![warn(unused_extern_crates)]
 

@@ -23,17 +23,19 @@ use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 pub mod dev;
+pub mod mainnet;
+//pub mod testnet;
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
-    /// Robonomics Alpha Network (https://telemetry.parachain.robonomics.network).
-    Alpha,
-    /// Ipci Network (https://ipci.io).
-    Ipci,
-    /// Robonomics Main Network
-    Main,
+    /// Ipci Network Parachain (https://ipci.io).
+    ParachainIpci,
+    /// Robonomics testnet parachain
+    ParachainAlpha,
+    /// Robonomics Kusama parachain
+    ParachainKusama,
 }
 
 /// Robonomics family chains idetify.
@@ -48,14 +50,14 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
         }
 
         if self.id() == "robonomics" {
-            return RobonomicsFamily::Main;
+            return RobonomicsFamily::ParachainKusama;
         }
 
         if self.id() == "ipci" {
-            return RobonomicsFamily::Ipci;
+            return RobonomicsFamily::ParachainIpci;
         }
 
-        RobonomicsFamily::Alpha
+        RobonomicsFamily::ParachainAlpha
     }
 }
 
@@ -64,7 +66,7 @@ pub const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Generic extensions for Parachain ChainSpecs.
 #[derive(Default, Clone, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Extensions {
     /// The relay chain of the Parachain.
     pub relay_chain: String,

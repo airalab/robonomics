@@ -15,6 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+//! Console line interface command implementation.
 
 use crate::{
     chain_spec::{self, RobonomicsChain, RobonomicsFamily},
@@ -63,6 +64,7 @@ impl SubstrateCli for Cli {
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
             "dev" => Box::new(chain_spec::dev::config()),
+            "main" => Box::new(chain_spec::mainnet::kusama_config()),
             path => Box::new(chain_spec::dev::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
@@ -204,7 +206,18 @@ pub fn run() -> sc_cli::Result<()> {
                         );
                     }
 
-                    panic!("not implemented")
+                    match config.chain_spec.family() {
+                        RobonomicsFamily::ParachainKusama =>
+                            service::parachain::start_generic_robonomics_parachain::<main_runtime::RuntimeApi>(
+                                config,
+                                polkadot_config,
+                                collator_options,
+                                id,
+                                lighthouse_account,
+                                hwbench,
+                            ).await.map_err(sc_cli::Error::Service),
+                        _ => panic!("not implemented"),
+                    }
                 })
             }
         }

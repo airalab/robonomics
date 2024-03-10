@@ -301,7 +301,7 @@ pub async fn new_service<RuntimeApi, RB, BIQ, BIC>(
     polkadot_config: Configuration,
     collator_options: CollatorOptions,
     para_id: ParaId,
-    lighthouse_account: Option<AccountId>,
+    lighthouse_account: AccountId,
     rpc_ext_builder: RB,
     build_import_queue: BIQ,
     build_consensus: BIC,
@@ -326,7 +326,7 @@ where
     >,
     BIC: FnOnce(
         ParaId,
-        Option<AccountId>,
+        AccountId,
         Arc<ParachainClient<RuntimeApi>>,
         ParachainBlockImport<RuntimeApi>,
         Option<&Registry>,
@@ -490,4 +490,34 @@ where
     start_network.start_network();
 
     Ok((task_manager, client))
+}
+
+/// Start robonomics parachain service
+pub async fn start_generic_robonomics_parachain<RuntimeApi>(
+    parachain_config: Configuration,
+    polkadot_config: Configuration,
+    collator_options: CollatorOptions,
+    para_id: ParaId,
+    lighthouse_account: AccountId,
+    hwbench: Option<sc_sysinfo::HwBench>,
+) -> sc_service::error::Result<TaskManager>
+where
+    RuntimeApi: ConstructRuntimeApi<Block, ParachainClient<RuntimeApi>> + Send + Sync + 'static,
+    RuntimeApi::RuntimeApi: RuntimeApiCollection<
+        StateBackend = sc_client_api::StateBackendFor<ParachainBackend, Block>,
+    >,
+{
+    new_service::<RuntimeApi, _, _, _>(
+        parachain_config,
+        polkadot_config, 
+        collator_options,
+        para_id,
+        lighthouse_account,
+        |_| Ok(jsonrpsee::RpcModule::new(())),
+        build_open_import_queue,
+        build_open_consensus,
+        hwbench,
+    )
+        .await
+        .map(|r| r.0)
 }

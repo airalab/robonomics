@@ -40,10 +40,7 @@ tikv-jemallocator = "0.5.0"
 robonomics-node = { path = "node" }
 
 [features]
-#default = ["robonomics-service/kusama-parachain"]
-#parachain = ["robonomics-service/parachain"]
-#zero = ["robonomics-service/zero"]
-#runtime-benchmarks = ["robonomics-service/runtime-benchmarks"]
+runtime-benchmarks = ["robonomics-node/runtime-benchmarks"]
 
 [workspace]
 members = [
@@ -57,8 +54,8 @@ members = [
   "primitives",
   #  "protocol",
   "runtime/dev",
+  "runtime/main",
   #  "runtime/alpha",
-  #  "runtime/main",
   #  "runtime/ipci",
   "node/rpc/core",
   "node/service",
@@ -68,25 +65,27 @@ members = [
 [workspace.dependencies]
 # General deps
 # (wasm)
+bounded-collections = { version = "0.1.8", default-features = false }
 parity-scale-codec = { version = "3.6.1", default-features = false, features = [
   "derive",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
+smallvec = { version = "1.11", default-features = false }
+lazy_static = { version = "1.4", default-features = false, features = ["spin_no_std"] }
+log = { version = "0.4.19", default-features = false }
 
 # (native)
 bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
-log = "0.4.19"
 futures = { version = "0.3.21", features = ["thread-pool"] }
 hex-literal = "0.3.4"
 serde = { version = "1.0.171", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
-lazy_static = { version = "1.4", features = ["spin_no_std"] }
 
 # Substrate
 # (wasm)
@@ -169,6 +168,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch =
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 frame-try-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
+sp-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0", default-features = false }
 
 # Cumulus
 # (native)
@@ -177,15 +177,33 @@ cumulus-client-consensus-common = { git = "https://github.com/paritytech/cumulus
 cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 cumulus-client-network = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 cumulus-client-service = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
-cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0" }
 
+# Cumulus
+# (wasm)
+cumulus-pallet-dmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-pallet-xcm = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v1.0.0", default-features = false }
+
 # Polkadot 
 # (native)
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0" }
+
+# Polkadot 
+# (wasm)
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
+polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v1.0.0", default-features = false }
 
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v1.0.0" }

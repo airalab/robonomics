@@ -18,6 +18,7 @@ serde = { workspace = true }
 robonomics-primitives = { path = "../primitives" }
 robonomics-service = { path = "./service" }
 dev-runtime = { path = "../runtime/dev" }
+main-runtime = { path = "../runtime/main" }
 
 # substrate
 sc-cli = { workspace = true }

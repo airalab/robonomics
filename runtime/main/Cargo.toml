@@ -10,7 +10,7 @@ build = "build.rs"
 parity-scale-codec = { workspace = true }
 smallvec = { workspace = true }
 scale-info = { workspace = true }
-lazy_static = { workspace = true }
+#lazy_static = { workspace = true }
 
 # primitives
 robonomics-primitives = { path = "../../primitives", default-features = false }
@@ -54,7 +54,6 @@ pallet-robonomics-launch = { path = "../../frame/launch", default-features = fal
 pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
 pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
-pallet-robonomics-crowdloan = { path = "../../frame/crowdloan", default-features = false }
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { workspace = true }
@@ -119,7 +118,6 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-lighthouse/std",
   "pallet-robonomics-rws/std",
-  "pallet-robonomics-crowdloan/std",
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-utility/std",

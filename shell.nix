@@ -4,13 +4,12 @@
 }:
 
 with pkgs;
-with llvmPackages_10;
+with llvmPackages;
 
 mkShell {
   buildInputs = [
     clang
     toolchain
-    pkg-config
   ] ++ lib.optionals stdenv.isDarwin [
     darwin.apple_sdk.frameworks.Security
   ];

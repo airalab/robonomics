@@ -15,6 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+//! Console line interface keys & commands.
 
 const AFTER_HELP_ROBONOMICS: &str = color_print::cstr!(
     r#"<bold><underline>Examples:</></>
@@ -63,7 +64,7 @@ pub struct Cli {
     pub lighthouse_account: Option<String>,
 
     /// Polkadot relaychain arguments.
-    #[clap(raw = true, conflicts_with = "relay-chain-rpc-url")]
+    #[clap(raw = true)]
     pub relaychain_args: Vec<String>,
 }
 
