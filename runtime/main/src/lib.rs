@@ -628,11 +628,7 @@ impl pallet_robonomics_liability::Config for Runtime {
 }
 
 construct_runtime! {
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = robonomics_primitives::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
+    pub enum Runtime {
         // Basic stuff.
         System: frame_system = 10,
         Utility: pallet_utility = 11,

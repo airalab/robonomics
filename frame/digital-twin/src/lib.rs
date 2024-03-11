@@ -114,19 +114,14 @@ mod tests {
     use crate::{self as digital_twin, *};
 
     use frame_support::{assert_err, assert_ok, parameter_types};
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
     frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            DigitalTwin: digital_twin::{Pallet, Call, Storage, Event<T>},
+        pub enum Runtime {
+            System: frame_system,
+            DigitalTwin: digital_twin,
         }
     );
 
@@ -136,14 +131,13 @@ mod tests {
 
     impl frame_system::Config for Runtime {
         type RuntimeOrigin = RuntimeOrigin;
-        type Index = u64;
-        type BlockNumber = u64;
+        type Nonce = u64;
+        type Block = Block;
         type RuntimeCall = RuntimeCall;
         type Hash = sp_core::H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
         type RuntimeEvent = RuntimeEvent;
         type BlockHashCount = BlockHashCount;
         type Version = ();
@@ -166,8 +160,8 @@ mod tests {
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
+        let storage = frame_system::GenesisConfig::<Runtime>::default()
+            .build_storage()
             .unwrap();
         storage.into()
     }
