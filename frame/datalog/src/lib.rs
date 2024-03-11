@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -29,27 +29,29 @@ mod benchmarking;
 mod weights;
 
 #[frame_support::pallet]
+#[allow(clippy::module_inception)]
 pub mod pallet {
-    use codec::{Decode, Encode};
     use frame_support::{pallet_prelude::*, traits::Time};
     use frame_system::pallet_prelude::*;
+    use parity_scale_codec::{Decode, Encode};
     use sp_std::prelude::*;
 
     use super::*;
+
+    /// The current storage version.
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::config]
     pub trait Config: frame_system::Config + TypeInfo {
         /// Current time source.
         type Time: Time;
         /// Datalog record data type.
-        type Record: Parameter + Default + From<Vec<u8>>;
+        type Record: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Data log window size
         #[pallet::constant]
         type WindowSize: Get<u64>;
-        /// Maximum record length
-        type MaximumMessageSize: Get<usize>;
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
     }
@@ -95,19 +97,15 @@ pub mod pallet {
     >;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub (super) trait Store)]
-    #[pallet::without_storage_info]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Store new data into blockchain.
         #[pallet::weight(T::WeightInfo::record())]
+        #[pallet::call_index(0)]
         pub fn record(origin: OriginFor<T>, record: T::Record) -> DispatchResultWithPostInfo {
-            ensure!(
-                record.size_hint() <= T::MaximumMessageSize::get(),
-                Error::<T>::RecordTooBig
-            );
             let sender = ensure_signed(origin)?;
 
             // remove previous version from storage
@@ -129,6 +127,7 @@ pub mod pallet {
 
         /// Clear account datalog.
         #[pallet::weight(T::WeightInfo::erase(T::WindowSize::get()))]
+        #[pallet::call_index(1)]
         pub fn erase(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -160,7 +159,7 @@ pub mod pallet {
     }
 
     #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode, TypeInfo)]
+    #[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
     pub struct RingBufferItem<T: Config>(
         #[codec(compact)] <<T as Config>::Time as Time>::Moment,
         <T as Config>::Record,
@@ -190,7 +189,7 @@ pub mod pallet {
     }
 
     #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode, Default, TypeInfo)]
+    #[derive(Encode, Decode, Default, TypeInfo, MaxEncodedLen)]
     pub struct RingBufferIndex {
         #[codec(compact)]
         pub(crate) start: u64,
@@ -251,27 +250,20 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use base58::FromBase58;
-    use frame_support::{assert_err, assert_ok, parameter_types};
+    use frame_support::{assert_err, assert_ok, parameter_types, BoundedVec};
     use sp_core::H256;
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
     use crate::{self as datalog, *};
 
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
     type Item = RingBufferItem<Runtime>;
-    type RuntimeError = Error<Runtime>;
 
     frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            Timestamp: pallet_timestamp::{Pallet, Storage},
-            Datalog: datalog::{Pallet, Call, Storage, Event<T>},
+        pub enum Runtime {
+            System: frame_system,
+            Timestamp: pallet_timestamp,
+            Datalog: datalog,
         }
     );
 
@@ -280,16 +272,15 @@ mod tests {
     }
 
     impl frame_system::Config for Runtime {
-        type Origin = Origin;
-        type Index = u64;
-        type BlockNumber = u64;
-        type Call = Call;
+        type RuntimeOrigin = RuntimeOrigin;
+        type Nonce = u32;
+        type Block = Block;
+        type RuntimeCall = RuntimeCall;
         type Hash = H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
         type BlockHashCount = BlockHashCount;
         type Version = ();
         type PalletInfo = PalletInfo;
@@ -316,23 +307,23 @@ mod tests {
     const WINDOW: u64 = 20;
     parameter_types! {
         pub const WindowSize: u64 = WINDOW;
-        pub const MaximumMessageSize: usize = 512;
+        pub const MaximumMessageSize: u32 = 512;
     }
 
     impl Config for Runtime {
         type Time = Timestamp;
-        type Record = Vec<u8>;
-        type Event = Event;
-
+        type Record = BoundedVec<u8, MaximumMessageSize>;
+        type RuntimeEvent = RuntimeEvent;
         type WindowSize = WindowSize;
-        type MaximumMessageSize = MaximumMessageSize;
         type WeightInfo = ();
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
-            .unwrap();
+        let storage = RuntimeGenesisConfig {
+            system: Default::default(),
+        }
+        .build_storage()
+        .unwrap();
         storage.into()
     }
 
@@ -358,8 +349,11 @@ mod tests {
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let record = b"datalog".to_vec();
-            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            let record = BoundedVec::try_from(b"datalog".to_vec()).unwrap();
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
         })
     }
@@ -371,13 +365,13 @@ mod tests {
 
             for i in 0..(WINDOW + 10) {
                 assert_ok!(Datalog::record(
-                    Origin::signed(sender),
-                    i.to_be_bytes().to_vec()
+                    RuntimeOrigin::signed(sender),
+                    BoundedVec::try_from(i.to_be_bytes().to_vec()).unwrap()
                 ));
             }
 
             let data: Vec<_> = (11..(WINDOW + 10))
-                .map(|i| Item::new(0, i.to_be_bytes().to_vec()))
+                .map(|i| Item::new(0, BoundedVec::try_from(i.to_be_bytes().to_vec()).unwrap()))
                 .collect();
 
             assert_eq!(Datalog::data(&sender), data);
@@ -391,8 +385,11 @@ mod tests {
     fn test_erase_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let record = b"datalog".to_vec();
-            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            let record = BoundedVec::try_from(b"datalog".to_vec()).unwrap();
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             // old log should be empty
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record)]);
             assert_eq!(
@@ -400,7 +397,7 @@ mod tests {
                 RingBufferIndex { start: 0, end: 1 }
             );
 
-            assert_ok!(Datalog::erase(Origin::signed(sender)));
+            assert_ok!(Datalog::erase(RuntimeOrigin::signed(sender)));
             assert_eq!(Datalog::data(&sender), vec![]);
 
             assert_eq!(
@@ -414,24 +411,17 @@ mod tests {
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
             assert_err!(
-                Datalog::record(Origin::none(), vec![]),
+                Datalog::record(RuntimeOrigin::none(), Default::default()),
                 DispatchError::BadOrigin
             );
         })
     }
 
-    #[test]
-    fn test_big_record() {
-        new_test_ext().execute_with(|| {
-            assert_err!(
-                Datalog::record(Origin::none(), vec![0; 600]),
-                RuntimeError::RecordTooBig
-            );
-        })
-    }
-
-    pub fn hash2vec(ss58hash: &str) -> Vec<u8> {
-        ss58hash.from_base58().unwrap()
+    pub fn hash2vec(ss58hash: &str) -> BoundedVec<u8, MaximumMessageSize> {
+        let ss58vec = bs58::decode(ss58hash)
+            .into_vec()
+            .expect("Couldn't decode from Base58");
+        BoundedVec::try_from(ss58vec).expect("Couldn't bound decoded Base58")
     }
 
     #[test]
@@ -440,13 +430,19 @@ mod tests {
             let sender = 1;
             let record = hash2vec("QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz4");
 
-            assert_ok!(Datalog::record(Origin::signed(sender), record.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record.clone()
+            ));
             assert_eq!(Datalog::data(&sender), vec![Item::new(0, record.clone())]);
 
             let record2 = hash2vec("zdj7WWYAEceQ6ncfPZeRFjozov4dC7FaxU7SuMwzW4VuYBDta");
 
             Timestamp::set_timestamp(100);
-            assert_ok!(Datalog::record(Origin::signed(sender), record2.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record2.clone()
+            ));
             assert_eq!(
                 Datalog::data(&sender),
                 vec![
@@ -457,7 +453,10 @@ mod tests {
             let record3 = hash2vec("QmWboFP8XeBtFMbNYK3Ne8Z3gKFBSR5iQzkKgeNgQz3dz2");
 
             Timestamp::set_timestamp(200);
-            assert_ok!(Datalog::record(Origin::signed(sender), record3.clone()));
+            assert_ok!(Datalog::record(
+                RuntimeOrigin::signed(sender),
+                record3.clone()
+            ));
             assert_eq!(
                 Datalog::data(&sender),
                 vec![

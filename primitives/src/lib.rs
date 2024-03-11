@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use hex_literal::hex;
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -52,7 +53,7 @@ pub type Amount = i128;
 pub type Moment = u64;
 
 /// Index of a transaction in the chain.
-pub type Index = u32;
+pub type Nonce = u32;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
@@ -73,3 +74,21 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
+
+/// Set of community accounts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CommunityAccount {
+    /// Treasury manage community funds via open governance.
+    Treasury,
+}
+
+impl IdentifyAccount for CommunityAccount {
+    type AccountId = AccountId;
+    fn into_account(self) -> Self::AccountId {
+        match self {
+            CommunityAccount::Treasury => AccountId::from(hex![
+                "6d6f646c70792f74727372790000000000000000000000000000000000000000"
+            ]),
+        }
+    }
+}

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@
 // Benchmarks for Launch Pallet
 
 use super::{Pallet as Launch, *};
-use codec::{Decode, Encode};
 use frame_benchmarking::Vec;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
 pub use pallet::*;
+use parity_scale_codec::{Decode, Encode};
 
 const SEED: u32 = 0;
 

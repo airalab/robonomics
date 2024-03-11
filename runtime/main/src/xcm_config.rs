@@ -67,22 +67,9 @@ pub type CurrencyTransactor = CurrencyAdapter<
 >;
 
 lazy_static::lazy_static! {
-    static ref AUSD_KEY: WeakBoundedVec<u8, ConstU32<32>> =
-        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x81], None);
-    static ref LKSM_KEY: WeakBoundedVec<u8, ConstU32<32>> =
-        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x83], None);
-    static ref KAR_KEY: WeakBoundedVec<u8, ConstU32<32>> =
-        WeakBoundedVec::<u8, ConstU32<32>>::force_from(vec![0x00, 0x80], None);
-
     static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 5] =
       // KSM
     [ (AssetId::max_value(), MultiLocation::parent())
-      // aUSD
-    , (AssetId::max_value() - 1, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(AUSD_KEY.clone()))))
-      // LKSM
-    , (AssetId::max_value() - 2, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(LKSM_KEY.clone()))))
-      // KAR
-    , (AssetId::max_value() - 3, MultiLocation::new(1, X2(Parachain(2000), GeneralKey(KAR_KEY.clone()))))
       // CSM
     , (AssetId::max_value() - 4, MultiLocation::new(1, X1(Parachain(2012))))
     ];

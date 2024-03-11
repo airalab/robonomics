@@ -1,35 +1,31 @@
 [package]
 name = "pallet-robonomics-datalog"
 description = "Robonomics Network data logging Substrate runtime module"
-version = "1.2.0"
-authors = ["Airalab <research@aira.life>"]
-edition = "2021"
+version = "1.3.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-scale-info = { version = "2.0", default-features = false, features = [
-  "derive",
-] }
-serde = { version = "1.0.130", optional = true }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = [
-  "derive",
-] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false, optional = true }
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
+sp-std = { workspace = true }
+sp-runtime = { workspace = true }
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-base58 = "0.1.0"
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+bs58 = { workspace = true }
+sp-io = { workspace = true }
+sp-core = { workspace = true }
+pallet-timestamp = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
 std = [
-  "serde",
-  "codec/std",
+  "parity-scale-codec/std",
   "sp-std/std",
   "sp-runtime/std",
   "frame-system/std",
