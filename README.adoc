@@ -3,7 +3,7 @@
 image:https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg["Web3 Foundation Grants — Wave Two Recipient", link="https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d"]
 
 :Author: Robonomics Network Developers
-:Revision: 0.5.0
+:Revision: 0.6.0
 :toc:
 :sectnums:
 
@@ -116,7 +116,7 @@ or it could be <<building-from-source,build from source>>.
 Launch command:
 [source, shell]
 ----
-robonomics --validator --parachain-id 1000 --collator-eth-account <your_eth_address>
+robonomics --lighthouse [YOUR_ACCOUNT_ADDRESS]
 ----
 
 == Robonomics I/O
@@ -157,24 +157,3 @@ Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki].
 
 Of course, Robonomics should integrate open-source robotics, our main target is http://www.ros.org[ROS]-enabled robots.
 The node implements a few features to make robotics integration as easy as it possible.
-
-=== Building with ROS feature
-
- . Install ROS using http://wiki.ros.org/melodic/Installation[instruction].
-
- . Import ROS environment:
-[source, shell]
-source /opt/ros/melodic/setup.bash
-
- . Build with `ros` feature:
-[source, shell]
-cd bin/node && cargo build --release --features ros
-
-=== Examples
-
-Available examples are in https://github.com/airalab/robonomics/tree/master/examples[this directory].
-
-==== Curiosity Rover under Robonomics control
-
-Simple but yet a complete sample of Robonomics `launch` and `datalog` functions.
-You can find full documentation on https://wiki.robonomics.network/docs/connect-mars-curiosity-rover-under-robonomics-parachain-control/[Robonomics Wiki].

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
     #[pallet::event]
@@ -114,19 +114,14 @@ mod tests {
     use crate::{self as digital_twin, *};
 
     use frame_support::{assert_err, assert_ok, parameter_types};
-    use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError};
+    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
-    type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
     frame_support::construct_runtime!(
-        pub enum Runtime where
-            Block = Block,
-            NodeBlock = Block,
-            UncheckedExtrinsic = UncheckedExtrinsic,
-        {
-            System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-            DigitalTwin: digital_twin::{Pallet, Call, Storage, Event<T>},
+        pub enum Runtime {
+            System: frame_system,
+            DigitalTwin: digital_twin,
         }
     );
 
@@ -135,16 +130,15 @@ mod tests {
     }
 
     impl frame_system::Config for Runtime {
-        type Origin = Origin;
-        type Index = u64;
-        type BlockNumber = u64;
-        type Call = Call;
+        type RuntimeOrigin = RuntimeOrigin;
+        type Nonce = u64;
+        type Block = Block;
+        type RuntimeCall = RuntimeCall;
         type Hash = sp_core::H256;
         type Hashing = sp_runtime::traits::BlakeTwo256;
         type AccountId = u64;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type Header = Header;
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
         type BlockHashCount = BlockHashCount;
         type Version = ();
         type PalletInfo = PalletInfo;
@@ -162,12 +156,12 @@ mod tests {
     }
 
     impl Config for Runtime {
-        type Event = Event;
+        type RuntimeEvent = RuntimeEvent;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
-        let storage = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
+        let storage = frame_system::GenesisConfig::<Runtime>::default()
+            .build_storage()
             .unwrap();
         storage.into()
     }
@@ -177,7 +171,7 @@ mod tests {
         new_test_ext().execute_with(|| {
             assert_eq!(DigitalTwin::total(), None);
             let sender = 1;
-            assert_ok!(DigitalTwin::create(Origin::signed(sender)));
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
             assert_eq!(DigitalTwin::total(), Some(1));
             assert_eq!(DigitalTwin::owner(0), Some(sender));
         })
@@ -188,10 +182,10 @@ mod tests {
         new_test_ext().execute_with(|| {
             let sender = 1;
             let bad_sender = 2;
-            assert_ok!(DigitalTwin::create(Origin::signed(sender)));
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
             assert_err!(
                 DigitalTwin::set_source(
-                    Origin::signed(bad_sender),
+                    RuntimeOrigin::signed(bad_sender),
                     0,
                     Default::default(),
                     bad_sender
@@ -199,7 +193,7 @@ mod tests {
                 DispatchError::Other("sender should be a twin owner")
             );
             assert_ok!(DigitalTwin::set_source(
-                Origin::signed(sender),
+                RuntimeOrigin::signed(sender),
                 0,
                 Default::default(),
                 bad_sender
@@ -211,7 +205,7 @@ mod tests {
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
             assert_err!(
-                DigitalTwin::create(Origin::none()),
+                DigitalTwin::create(RuntimeOrigin::none()),
                 DispatchError::BadOrigin
             );
         })

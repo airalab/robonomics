@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Signed liability implementation.
 
-use codec::{Decode, Encode};
 use frame_support::{
     dispatch,
     traits::{BalanceStatus, ReservableCurrency},
 };
 use frame_system::offchain::AppCrypto;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::crypto::{Pair, Public};
@@ -36,7 +36,7 @@ use crate::economics::SimpleMarket;
 use crate::traits::*;
 
 /// Agreement that could be proven by asymmetric cryptography.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct SignedAgreement<T, E, AccountId, Signature> {
     pub technics: T,
     pub economics: E,
@@ -119,7 +119,7 @@ where
 }
 
 /// Report that could be proven by asymmetric cryptography.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct SignedReport<Index, AccountId, Signature, Message> {
     pub index: Index,
     pub sender: AccountId,
@@ -168,8 +168,8 @@ where
     A: IdentifyAccount<AccountId = AccountId>,
     Signature: Verify<Signer = A>,
     AccountId: Clone,
-    T: codec::Encode,
-    E: codec::Encode,
+    T: Encode,
+    E: Encode,
 {
     fn proof(technics: &T, economics: &E, sender: &AccountId) -> Signature {
         (technics, economics)
@@ -185,8 +185,8 @@ where
     A: IdentifyAccount<AccountId = AccountId>,
     Signature: Verify<Signer = A>,
     AccountId: Clone,
-    Index: codec::Encode,
-    M: codec::Encode,
+    Index: Encode,
+    M: Encode,
 {
     fn proof(index: &Index, message: &M, sender: &AccountId) -> Signature {
         (index, message)
@@ -203,8 +203,8 @@ pub struct ProofSigner<T>(std::marker::PhantomData<T>);
 impl<T, E, Account, AccountId, Signature, TPair> AgreementProofBuilder<T, E, TPair, Signature>
     for ProofSigner<TPair>
 where
-    T: codec::Encode,
-    E: codec::Encode,
+    T: Encode,
+    E: Encode,
     TPair: Pair<Public = Account, Signature = Signature>,
     Account: IdentifyAccount<AccountId = AccountId> + Public + std::hash::Hash,
     Signature: Verify<Signer = Account>,
@@ -218,11 +218,11 @@ where
 impl<Index, Account, AccountId, Signature, TPair, M> ReportProofBuilder<Index, M, TPair, Signature>
     for ProofSigner<TPair>
 where
-    Index: codec::Encode,
+    Index: Encode,
     TPair: Pair<Public = Account, Signature = Signature>,
     Account: IdentifyAccount<AccountId = AccountId> + Public + std::hash::Hash,
     Signature: Verify<Signer = Account>,
-    M: codec::Encode,
+    M: Encode,
 {
     fn proof(index: &Index, message: &M, sender: &TPair) -> Signature {
         (index, message).using_encoded(|params| sender.sign(params))

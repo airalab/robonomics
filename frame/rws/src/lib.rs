@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2021 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, HasCompact};
 use frame_support::pallet_prelude::Weight;
+use parity_scale_codec::{Decode, Encode, HasCompact};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -85,7 +85,7 @@ impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance>
 pub struct SubscriptionLedger<Moment: HasCompact> {
     /// Free execution weights accumulator.
     #[codec(compact)]
-    free_weight: Weight,
+    free_weight: u64,
     /// Subscription creation timestamp.
     #[codec(compact)]
     issue_time: Moment,
@@ -111,9 +111,9 @@ impl<Moment: HasCompact + Clone> SubscriptionLedger<Moment> {
 pub mod pallet {
     use super::*;
     use frame_support::{
+        dispatch::GetDispatchInfo,
         pallet_prelude::*,
         traits::{Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable},
-        weights::GetDispatchInfo,
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{
@@ -131,26 +131,25 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Call subscription method.
-        type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
+        type Call: Parameter
+            + UnfilteredDispatchable<RuntimeOrigin = Self::RuntimeOrigin>
+            + GetDispatchInfo;
         /// Current time source.
         type Time: Time<Moment = Self::Moment>;
         /// Time should be aligned to weights for TPS calculations.
-        type Moment: Parameter + AtLeast32Bit + Into<Weight>;
+        type Moment: Parameter + AtLeast32Bit + Into<u64>;
         /// The auction index value.
         type AuctionIndex: Parameter + AtLeast32Bit + Default;
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Reference call weight, general transaction consumes this weight.
         #[pallet::constant]
-        type ReferenceCallWeight: Get<Weight>;
-        /// Subscription weight accumulator limit.
-        #[pallet::constant]
-        type WeightLimit: Get<Weight>;
+        type ReferenceCallWeight: Get<u64>;
         /// Subscription auction duration in blocks.
         #[pallet::constant]
-        type AuctionDuration: Get<Self::BlockNumber>;
+        type AuctionDuration: Get<BlockNumberFor<Self>>;
         /// How much token should be bonded to launch new auction.
         #[pallet::constant]
         type AuctionCost: Get<BalanceOf<Self>>;
@@ -239,11 +238,11 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_initialize(now: T::BlockNumber) -> Weight {
+        fn on_initialize(now: BlockNumberFor<T>) -> Weight {
             if now % T::AuctionDuration::get() == 0u32.into() {
                 Self::rotate_auctions()
             } else {
-                1 as Weight
+                Default::default()
             }
         }
     }
@@ -485,18 +484,18 @@ pub mod pallet {
                 }
             };
 
-            let delta: Weight = (now.clone() - subscription.last_update).into();
+            let delta: u64 = (now.clone() - subscription.last_update).into();
             // Reference call weight * TPS * secons passed from last update
             subscription.free_weight +=
-                T::ReferenceCallWeight::get() * (utps as Weight) * delta / 1_000_000_000;
+                T::ReferenceCallWeight::get() * (utps as u64) * delta / 1_000_000_000;
             subscription.last_update = now;
 
             // Ensure than free weight is enough for call
-            if subscription.free_weight < call_weight {
+            if subscription.free_weight < call_weight.ref_time() {
                 <Ledger<T>>::insert(subscription_id, subscription.clone());
                 Err(Error::<T>::FreeWeightIsNotEnough)
             } else {
-                subscription.free_weight -= call_weight;
+                subscription.free_weight -= call_weight.ref_time();
                 <Ledger<T>>::insert(subscription_id, subscription.clone());
                 Ok(())
             }

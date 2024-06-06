@@ -1,7 +1,7 @@
 name: Runtimes
 
 env:
-  SUBWASM_VERSION: 0.15.0
+  SUBWASM_VERSION: 0.16.1
 
 on:
   push:
@@ -13,15 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        chain: ["alpha","main","ipci"]
+        chain: ["main"]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Srtool build
         id: srtool_build
-        uses: chevdor/srtool-actions@v0.3.0
+        uses: chevdor/srtool-actions@v0.8.0
         with:
           chain: ${{ matrix.chain }}
 

@@ -1,13 +1,20 @@
-{ release ? import ./release.nix { }
+{ rust-overlay ? import (builtins.fetchTarball https://github.com/oxalica/rust-overlay/archive/master.tar.gz),
+  pkgs ? import <nixpkgs> { overlays = [ rust-overlay ]; },
+  toolchain ? pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml,
 }:
 
-with release.pkgs;
-with llvmPackages_10;
+with pkgs;
+with llvmPackages;
 
-stdenv.mkDerivation {
-  name = "robonomics-nix-shell";
-  nativeBuildInputs = [ clang zlib ];
-  buildInputs = [ release.rust-nightly ];
+mkShell {
+  buildInputs = [
+    libz
+    clang
+    toolchain
+  ] ++ lib.optionals stdenv.isDarwin [
+    darwin.apple_sdk.frameworks.Security
+  ];
+  ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   LIBCLANG_PATH = "${clang-unwrapped.lib}/lib";
   PROTOC = "${protobuf}/bin/protoc";
 }
