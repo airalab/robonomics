@@ -50,6 +50,7 @@ fn main_genesis(
             ..Default::default()
         },
         parachain_system: Default::default(),
+        polkadot_xcm: Default::default(),
         democracy: DemocracyConfig::default(),
         treasury: Default::default(),
         technical_committee: Default::default(),

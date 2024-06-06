@@ -37,7 +37,9 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 pub mod constants;
 
 use frame_support::{
-    construct_runtime, parameter_types,
+    construct_runtime,
+    dispatch::DispatchClass,
+    parameter_types,
     traits::{
         AsEnsureOriginWithArg, ConstU128, ConstU32, Currency, EitherOfDiverse, EqualPrivilegeOnly,
         Imbalance, OnUnbalanced, WithdrawReasons,
@@ -46,7 +48,7 @@ use frame_support::{
         constants::{
             BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
         },
-        ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+        ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
     PalletId,
@@ -75,7 +77,8 @@ use sp_version::RuntimeVersion;
 
 use constants::{currency::*, time::*};
 
-//mod xcm_config;
+// XCM configuration & types
+mod xcm_config;
 
 /// Standalone runtime version.
 #[sp_version::runtime_version]
@@ -664,10 +667,10 @@ construct_runtime! {
         Lighthouse: pallet_robonomics_lighthouse = 60,
 
         // XCM helpers.
-        //XcmpQueue: cumulus_pallet_xcmp_queue = 70,
-        //PolkadotXcm: pallet_xcm = 71,
-        //CumulusXcm: cumulus_pallet_xcm = 72,
-        //DmpQueue: cumulus_pallet_dmp_queue = 73,
+        XcmpQueue: cumulus_pallet_xcmp_queue = 70,
+        PolkadotXcm: pallet_xcm = 71,
+        CumulusXcm: cumulus_pallet_xcm = 72,
+        DmpQueue: cumulus_pallet_dmp_queue = 73,
     }
 }
 

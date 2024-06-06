@@ -1,4 +1,0 @@
-<launch>
-  <node name="worker" pkg="turtlesim_liability" type="worker_node" output="screen">
-  </node>
-</launch>

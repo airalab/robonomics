@@ -44,7 +44,6 @@ runtime-benchmarks = ["robonomics-node/runtime-benchmarks"]
 
 [workspace]
 members = [
-  #  "tools/digitaltwin2mqtt",
   "frame/rws",
   "frame/launch",
   "frame/datalog",
@@ -54,7 +53,6 @@ members = [
   "primitives",
   "runtime/dev",
   "runtime/main",
-  #  "runtime/ipci",
   "node/rpc/core",
   "node/service",
   "node",

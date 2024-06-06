@@ -10,7 +10,7 @@ build = "build.rs"
 parity-scale-codec = { workspace = true }
 smallvec = { workspace = true }
 scale-info = { workspace = true }
-#lazy_static = { workspace = true }
+lazy_static = { workspace = true }
 
 # primitives
 robonomics-primitives = { path = "../../primitives", default-features = false }

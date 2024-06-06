@@ -1,5 +1,0 @@
-<launch>
-  <node name="trader" pkg="turtlesim_liability" type="trader_node" output="screen">
-    <param name="model" value="QmZZcQKjQsybsoxhg7WvyZ5BaKQFNd2uu3XifstqTWBmpr" />
-  </node>
-</launch>
