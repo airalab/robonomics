@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
-  test-runtimes:
+  tests:
     runs-on: [self-hosted, Linux, X64]
     steps:
     - name: Checkout the source code
@@ -27,4 +27,4 @@ jobs:
       run: rustup target list --installed
 
     - name: All tests
-      run: cargo test --all 
+      run: cargo test --all
