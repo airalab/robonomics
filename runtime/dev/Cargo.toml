@@ -107,7 +107,6 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-digital-twin/std",
 ]
-
 runtime-benchmarks = [
   "frame-benchmarking",
   "frame-support/runtime-benchmarks",
