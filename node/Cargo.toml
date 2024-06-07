@@ -45,7 +45,7 @@ substrate-build-script-utils = { workspace = true }
 
 [features]
 runtime-benchmarks = [
-	"sc-service/runtime-benchmarks",
-    "dev-runtime/runtime-benchmarks",
-    "main-runtime/runtime-benchmarks",
+  "sc-service/runtime-benchmarks",
+  "dev-runtime/runtime-benchmarks",
+  "main-runtime/runtime-benchmarks",
 ]

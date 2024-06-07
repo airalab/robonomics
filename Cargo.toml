@@ -69,7 +69,9 @@ scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
 smallvec = { version = "1.11", default-features = false }
-lazy_static = { version = "1.4", default-features = false, features = ["spin_no_std"] }
+lazy_static = { version = "1.4", default-features = false, features = [
+  "spin_no_std",
+] }
 log = { version = "0.4.19", default-features = false }
 
 # (native)
