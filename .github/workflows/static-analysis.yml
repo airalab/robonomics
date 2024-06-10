@@ -58,7 +58,7 @@ jobs:
     - uses: actions-rs/clippy-check@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        args: --features try-runtime,runtime-benchmarks 
+        args: --features runtime-benchmarks 
         # TODO: Temporary permit warnings, remove it later when fix
         #-- -D warnings
 

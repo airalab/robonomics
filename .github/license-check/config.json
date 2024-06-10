@@ -1,0 +1,11 @@
+[
+    {
+        "include": [
+            "**/*.rs"
+        ],
+        "exclude": [
+            "vendor/**"
+        ],
+        "license": "./.github/license-check/HEADER-APACHE2"
+    }
+]
