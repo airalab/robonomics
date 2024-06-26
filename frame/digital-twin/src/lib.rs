@@ -106,6 +106,28 @@ pub mod pallet {
             });
             Ok(().into())
         }
+
+        /// Remove data source account for difital twin.
+        #[pallet::weight(50_000)]
+        pub fn remove_source(
+            origin: OriginFor<T>,
+            id: u32,
+            topic: H256,
+            source: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                <Owner<T>>::get(id) == Some(sender.clone()),
+                "sender should be a twin owner"
+            );
+            Self::deposit_event(Event::TopicChanged(sender, id, topic, source.clone()));
+            <DigitalTwin<T>>::mutate(id, |m| {
+                if let Some(map) = m {
+                    map.remove(&topic);
+                }
+            });
+            Ok(().into())
+        }
     }
 }
 
@@ -193,6 +215,30 @@ mod tests {
                 DispatchError::Other("sender should be a twin owner")
             );
             assert_ok!(DigitalTwin::set_source(
+                RuntimeOrigin::signed(sender),
+                0,
+                Default::default(),
+                bad_sender
+            ));
+        })
+    }
+
+    #[test]
+    fn test_remove_source() {
+        new_test_ext().execute_with(|| {
+            let sender = 1;
+            let bad_sender = 2;
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
+            assert_err!(
+                DigitalTwin::remove_source(
+                    RuntimeOrigin::signed(bad_sender),
+                    0,
+                    Default::default(),
+                    bad_sender
+                ),
+                DispatchError::Other("sender should be a twin owner")
+            );
+            assert_ok!(DigitalTwin::remove_source(
                 RuntimeOrigin::signed(sender),
                 0,
                 Default::default(),
