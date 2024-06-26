@@ -106,6 +106,28 @@ pub mod pallet {
             });
             Ok(().into())
         }
+
+        /// Remove data source account for difital twin.
+        #[pallet::weight(50_000)]
+        pub fn remove_source(
+            origin: OriginFor<T>,
+            id: u32,
+            topic: H256,
+            source: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                <Owner<T>>::get(id) == Some(sender.clone()),
+                "sender should be a twin owner"
+            );
+            Self::deposit_event(Event::TopicChanged(sender, id, topic, source.clone()));
+            <DigitalTwin<T>>::mutate(id, |m| {
+                if let Some(map) = m {
+                    map.remove(&topic);
+                }
+            });
+            Ok(().into())
+        }
     }
 }
 
