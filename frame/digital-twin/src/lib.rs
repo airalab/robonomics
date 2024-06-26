@@ -224,6 +224,30 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_source() {
+        new_test_ext().execute_with(|| {
+            let sender = 1;
+            let bad_sender = 2;
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
+            assert_err!(
+                DigitalTwin::remove_source(
+                    RuntimeOrigin::signed(bad_sender),
+                    0,
+                    Default::default(),
+                    bad_sender
+                ),
+                DispatchError::Other("sender should be a twin owner")
+            );
+            assert_ok!(DigitalTwin::remove_source(
+                RuntimeOrigin::signed(sender),
+                0,
+                Default::default(),
+                bad_sender
+            ));
+        })
+    }
+
+    #[test]
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
             assert_err!(
