@@ -39,6 +39,8 @@ pub mod pallet {
         NewDigitalTwin(T::AccountId, u32),
         /// Digital twin topic was changed: [sender, id, topic, source]
         TopicChanged(T::AccountId, u32, H256, T::AccountId),
+        /// Digital twin topic was removed: [sender, id, source]
+        TopicRemoved(T::AccountId, u32, T::AccountId),
     }
 
     #[pallet::hooks]
@@ -94,6 +96,23 @@ pub mod pallet {
             );
             Self::deposit_event(Event::TopicChanged(sender, id, topic, source.clone()));
             <DigitalTwin<T>>::insert(id, (source, topic));
+            Ok(().into())
+        }
+
+        /// Remove data source account for difital twin.
+        #[pallet::weight(50_000)]
+        pub fn remove_source(
+            origin: OriginFor<T>,
+            id: u32,
+            source: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                <Owner<T>>::get(id) == Some(sender.clone()),
+                "sender should be a twin owner"
+            );
+            Self::deposit_event(Event::TopicRemoved(sender, id, source.clone()));
+            <DigitalTwin<T>>::remove(id);
             Ok(().into())
         }
     }
@@ -186,6 +205,24 @@ mod tests {
                 RuntimeOrigin::signed(sender),
                 0,
                 Default::default(),
+                bad_sender
+            ));
+        })
+    }
+
+    #[test]
+    fn test_remove_source() {
+        new_test_ext().execute_with(|| {
+            let sender = 1;
+            let bad_sender = 2;
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
+            assert_err!(
+                DigitalTwin::remove_source(RuntimeOrigin::signed(bad_sender), 0, bad_sender),
+                DispatchError::Other("sender should be a twin owner")
+            );
+            assert_ok!(DigitalTwin::remove_source(
+                RuntimeOrigin::signed(sender),
+                0,
                 bad_sender
             ));
         })
