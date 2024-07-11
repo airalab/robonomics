@@ -35,12 +35,10 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New digital twin was registered: [sender, id].
-        NewDigitalTwin(T::AccountId, u32),
-        /// Digital twin topic was changed: [sender, id, topic, source]
-        TopicChanged(T::AccountId, u32, H256, T::AccountId),
-        /// Digital twin topic was removed: [sender, id, source]
-        TopicRemoved(T::AccountId, u32, T::AccountId),
+        /// New digital twin was registered: [id, sender, topic].
+        NewDigitalTwin(u32, T::AccountId, H256),
+        /// Digital twin was removed: [id]
+        DigitalTwinDestroyed(u32),
     }
 
     #[pallet::hooks]
@@ -53,13 +51,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn owner)]
-    /// Get owner of digital twin with given id.
-    pub(super) type Owner<T> =
-        StorageMap<_, Twox64Concat, u32, <T as frame_system::Config>::AccountId>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn digital_twin)]
-    /// Get internal structure of difital twin in format: source account -> topic hash.
+    /// Digital twin with given id, owner address and topic hash.
     pub(super) type DigitalTwin<T> =
         StorageMap<_, Twox64Concat, u32, (<T as frame_system::Config>::AccountId, H256)>;
 
@@ -72,48 +64,32 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Create new digital twin.
         #[pallet::weight(50_000)]
-        pub fn create(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn create(origin: OriginFor<T>, topic: H256) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let id = <Total<T>>::get().unwrap_or(0);
             <Total<T>>::put(id + 1);
-            <Owner<T>>::insert(id, sender.clone());
-            Self::deposit_event(Event::NewDigitalTwin(sender, id));
+            <DigitalTwin<T>>::insert(id, (sender.clone(), topic));
+            Self::deposit_event(Event::NewDigitalTwin(id, sender, topic));
             Ok(().into())
         }
 
-        /// Set data source account for difital twin.
+        /// Destroy digital twin.
         #[pallet::weight(50_000)]
-        pub fn set_source(
-            origin: OriginFor<T>,
-            id: u32,
-            topic: H256,
-            source: T::AccountId,
-        ) -> DispatchResultWithPostInfo {
+        pub fn destroy(origin: OriginFor<T>, id: u32) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            ensure!(
-                <Owner<T>>::get(id) == Some(sender.clone()),
-                "sender should be a twin owner"
-            );
-            Self::deposit_event(Event::TopicChanged(sender, id, topic, source.clone()));
-            <DigitalTwin<T>>::insert(id, (source, topic));
-            Ok(().into())
-        }
-
-        /// Remove data source account for difital twin.
-        #[pallet::weight(50_000)]
-        pub fn remove_source(
-            origin: OriginFor<T>,
-            id: u32,
-            source: T::AccountId,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-            ensure!(
-                <Owner<T>>::get(id) == Some(sender.clone()),
-                "sender should be a twin owner"
-            );
-            Self::deposit_event(Event::TopicRemoved(sender, id, source.clone()));
-            <DigitalTwin<T>>::remove(id);
-            Ok(().into())
+            if let Some((owner, _)) = <DigitalTwin<T>>::get(id) {
+                ensure!(
+                    Some(owner) == Some(sender.clone()),
+                    "sender should be a twin owner"
+                );
+                Self::deposit_event(Event::DigitalTwinDestroyed(id));
+                let total = <Total<T>>::get().unwrap_or(0);
+                <Total<T>>::put(total - 1);
+                <DigitalTwin<T>>::remove(id);
+                Ok(().into())
+            } else {
+                Err("digital twin doesn't exist".into())
+            }
         }
     }
 }
@@ -123,6 +99,7 @@ mod tests {
     use crate::{self as digital_twin, *};
 
     use frame_support::{assert_err, assert_ok, parameter_types};
+    use sp_core::H256;
     use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -180,59 +157,39 @@ mod tests {
         new_test_ext().execute_with(|| {
             assert_eq!(DigitalTwin::total(), None);
             let sender = 1;
-            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
+            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
+                .parse::<H256>()
+                .unwrap();
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender), topic));
             assert_eq!(DigitalTwin::total(), Some(1));
-            assert_eq!(DigitalTwin::owner(0), Some(sender));
+            assert_eq!(DigitalTwin::owner(0), Some((sender, topic)));
         })
     }
 
     #[test]
-    fn test_set_source() {
+    fn test_destroy() {
         new_test_ext().execute_with(|| {
+            assert_eq!(DigitalTwin::total(), None);
             let sender = 1;
-            let bad_sender = 2;
-            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
-            assert_err!(
-                DigitalTwin::set_source(
-                    RuntimeOrigin::signed(bad_sender),
-                    0,
-                    Default::default(),
-                    bad_sender
-                ),
-                DispatchError::Other("sender should be a twin owner")
-            );
-            assert_ok!(DigitalTwin::set_source(
-                RuntimeOrigin::signed(sender),
-                0,
-                Default::default(),
-                bad_sender
-            ));
-        })
-    }
-
-    #[test]
-    fn test_remove_source() {
-        new_test_ext().execute_with(|| {
-            let sender = 1;
-            let bad_sender = 2;
-            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
-            assert_err!(
-                DigitalTwin::remove_source(RuntimeOrigin::signed(bad_sender), 0, bad_sender),
-                DispatchError::Other("sender should be a twin owner")
-            );
-            assert_ok!(DigitalTwin::remove_source(
-                RuntimeOrigin::signed(sender),
-                0,
-                bad_sender
-            ));
+            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
+                .parse::<H256>()
+                .unwrap();
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender), topic));
+            assert_eq!(DigitalTwin::total(), Some(1));
+            assert_eq!(DigitalTwin::owner(0), Some((sender, topic)));
+            assert_ok!(DigitalTwin::destroy(RuntimeOrigin::signed(sender), 0));
+            assert_eq!(DigitalTwin::total(), Some(0));
         })
     }
 
     #[test]
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
+            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
+                .parse::<H256>()
+                .unwrap();
             assert_err!(
-                DigitalTwin::create(RuntimeOrigin::none()),
+                DigitalTwin::create(RuntimeOrigin::none(), topic),
                 DispatchError::BadOrigin
             );
         })
