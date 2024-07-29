@@ -3,9 +3,9 @@
   "id": "ipci",
   "chainType": "Live",
   "bootNodes": [
-    "/dns/1.kusama.ipci.io/tcp/30333/ws/p2p/12D3KooWLjTmmwyDQdPwNNPVdSk9PraXkcitPdo8oTpM3bj1BM5Y",
-    "/dns/2.kusama.ipci.io/tcp/30333/ws/p2p/12D3KooWQ9ckJ4VSRyTnMsBxBmNDQBoYVwQw75mi3SnLbWFz26Gv",
-    "/dns/3.kusama.ipci.io/tcp/30333/ws/p2p/12D3KooWJDog5a8wavJ83sKdnMLLcoYHG2d6Vx5MgxSkF2RcC2v5"
+    "/dns/1.ipci.kusama.robonomics.network/tcp/30333/ws/p2p/12D3KooWLjTmmwyDQdPwNNPVdSk9PraXkcitPdo8oTpM3bj1BM5Y",
+    "/dns/2.ipci.kusama.robonomics.network/tcp/30333/ws/p2p/12D3KooWQ9ckJ4VSRyTnMsBxBmNDQBoYVwQw75mi3SnLbWFz26Gv",
+    "/dns/3.ipci.kusama.robonomics.network/tcp/30333/ws/p2p/12D3KooWJDog5a8wavJ83sKdnMLLcoYHG2d6Vx5MgxSkF2RcC2v5"
   ],
   "telemetryEndpoints": null,
   "protocolId": null,
