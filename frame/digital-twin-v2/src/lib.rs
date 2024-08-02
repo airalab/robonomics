@@ -24,72 +24,141 @@ pub use pallet::*;
 pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use sp_core::H256;
+    // use sp_core::H256;
+    use sp_std::collections::btree_map::BTreeMap;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// The maximum string length for digital twin storage map.
+        #[pallet::constant]
+        type MaxLength: Get<u32>;
+
+        /// The maximum data map size for digital twin.
+        #[pallet::constant]
+        type MaxCount: Get<u32>;
     }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New digital twin was registered: [id, sender, topic].
-        NewDigitalTwin(u32, T::AccountId, H256),
-        /// Digital twin was removed: [id]
-        DigitalTwinDestroyed(u32),
+        /// New digital twin record was added: [sender, count, key, value].
+        DigitalTwinRecordInserted(
+            T::AccountId,
+            u32,
+            BoundedVec<u8, T::MaxLength>,
+            BoundedVec<u8, T::MaxLength>,
+        ),
+        /// Digital twin record was updated: [sender, count, key, value].
+        DigitalTwinRecordUpdated(
+            T::AccountId,
+            u32,
+            BoundedVec<u8, T::MaxLength>,
+            BoundedVec<u8, T::MaxLength>,
+        ),
+        /// Digital twin record was removed: [sender, count, key].
+        DigitalTwinRecordRemoved(T::AccountId, u32, BoundedVec<u8, T::MaxLength>),
     }
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    #[pallet::storage]
-    #[pallet::getter(fn total)]
-    /// Total count of registered digital twins.
-    pub(super) type Total<T> = StorageValue<_, u32>;
+    #[derive(Encode, Decode, Default, TypeInfo, MaxEncodedLen, PartialEqNoBound, RuntimeDebug)]
+    #[scale_info(skip_type_params(T))]
+    pub struct DigitalTwin<T: Config> {
+        pub data: BTreeMap<BoundedVec<u8, T::MaxLength>, BoundedVec<u8, T::MaxLength>>,
+        pub count: u32,
+    }
 
     #[pallet::storage]
-    #[pallet::getter(fn owner)]
-    /// Digital twin with given id, owner address and topic hash.
-    pub(super) type DigitalTwin<T> =
-        StorageMap<_, Twox64Concat, u32, (<T as frame_system::Config>::AccountId, H256)>;
+    /// Digital twin storage format: address -> digital twin.
+    pub(super) type DigitalTwins<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, DigitalTwin<T>>;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Create new digital twin.
+        /// Store data in digital twin.
         #[pallet::weight(50_000)]
-        pub fn create(origin: OriginFor<T>, topic: H256) -> DispatchResultWithPostInfo {
+        pub fn insert(
+            origin: OriginFor<T>,
+            key: BoundedVec<u8, T::MaxLength>,
+            value: BoundedVec<u8, T::MaxLength>,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            let id = <Total<T>>::get().unwrap_or(0);
-            <Total<T>>::put(id + 1);
-            <DigitalTwin<T>>::insert(id, (sender.clone(), topic));
-            Self::deposit_event(Event::NewDigitalTwin(id, sender, topic));
-            Ok(().into())
+            <DigitalTwins<T>>::mutate(sender.clone(), |dt| match dt {
+                None => {
+                    let mut data = BTreeMap::new();
+                    data.insert(key.clone(), value.clone());
+                    *dt = Some(DigitalTwin { data, count: 1 });
+                    Self::deposit_event(Event::DigitalTwinRecordInserted(sender, 1, key, value));
+
+                    // TODO: callback
+
+                    Ok(().into())
+                }
+                Some(digital_twin) => {
+                    if digital_twin.data.contains_key(&key.clone()) {
+                        digital_twin.data.insert(key.clone(), value.clone());
+                        Self::deposit_event(Event::DigitalTwinRecordUpdated(
+                            sender,
+                            digital_twin.count,
+                            key,
+                            value,
+                        ));
+
+                        // TODO: callback
+
+                        Ok(().into())
+                    } else {
+                        if digital_twin.count < T::MaxCount::get() {
+                            digital_twin.data.insert(key.clone(), value.clone());
+                            digital_twin.count += 1;
+                            Self::deposit_event(Event::DigitalTwinRecordInserted(
+                                sender,
+                                digital_twin.count,
+                                key,
+                                value,
+                            ));
+
+                            // TODO: callback
+
+                            Ok(().into())
+                        } else {
+                            Err("Max count!".into())
+                        }
+                    }
+                }
+            })
         }
 
-        /// Destroy digital twin.
+        /// Remove data from digital twin.
         #[pallet::weight(50_000)]
-        pub fn destroy(origin: OriginFor<T>, id: u32) -> DispatchResultWithPostInfo {
+        pub fn remove(
+            origin: OriginFor<T>,
+            key: BoundedVec<u8, T::MaxLength>,
+        ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            if let Some((owner, _)) = <DigitalTwin<T>>::get(id) {
-                ensure!(
-                    Some(owner) == Some(sender.clone()),
-                    "sender should be a twin owner"
-                );
-                Self::deposit_event(Event::DigitalTwinDestroyed(id));
-                let total = <Total<T>>::get().unwrap_or(0);
-                <Total<T>>::put(total - 1);
-                <DigitalTwin<T>>::remove(id);
-                Ok(().into())
-            } else {
-                Err("digital twin doesn't exist".into())
-            }
+            <DigitalTwins<T>>::mutate(sender.clone(), |dt| match dt {
+                Some(digital_twin) => match digital_twin.data.remove(&key) {
+                    None => Err("Unknown key!".into()),
+                    _ => {
+                        digital_twin.count -= 1;
+                        Self::deposit_event(Event::DigitalTwinRecordRemoved(
+                            sender,
+                            digital_twin.count,
+                            key,
+                        ));
+                        Ok(().into())
+                    }
+                },
+                None => Err("Digital twin doesn't exist!".into()),
+            })
         }
     }
 }
@@ -143,6 +212,7 @@ mod tests {
 
     impl Config for Runtime {
         type RuntimeEvent = RuntimeEvent;
+        type MaxLength = ConstU32<512>;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {

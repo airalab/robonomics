@@ -616,6 +616,9 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
 
 impl pallet_robonomics_digital_twin_v2::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type MaxLength = ConstU32<512>;
+    // type MaxCount = ConstU32<256>;
+    type MaxCount = ConstU32<4>;
 }
 
 impl pallet_robonomics_liability::Config for Runtime {
