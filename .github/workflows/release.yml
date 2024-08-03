@@ -11,7 +11,7 @@ env:
 
 jobs:
   checks-and-tests:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     steps:
     - name: Free disk space
       run: |
@@ -42,7 +42,7 @@ jobs:
 
   native-linux:
     needs: checks-and-tests
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         target:
@@ -147,18 +147,28 @@ jobs:
         tag-custom: shiden
         tag-sha: true # add git short SHA as Docker tag
 
-    - name: Download pre-built linux collator binary
+    - name: Download pre-built amd64 linux collator binary
       uses: actions/download-artifact@v3
       with:
         name: robonomics-ubuntu-latest-x86_64
+        path: scripts/docker/amd64/
+
+    - name: Download pre-built aarch64 linux collator binary
+      uses: actions/download-artifact@v3
+      with:
+        name: robonomics-ubuntu-latest-aarch64
+        path: scripts/docker/arm64/
 
     - name: Make binary executable and copy it to docker folder
-      run: chmod +x robonomics
+      run: |
+        chmod +x scripts/docker/amd64/robonomics
+        chmod +x scripts/docker/arm64/robonomics
 
     - name: Build & Push docker image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
-        platforms: linux/amd64
+        context: scripts/docker
+        platforms: linux/amd64,linux/arm64
         labels: ${{ steps.docker_meta.outputs.labels }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         push: true
