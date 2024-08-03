@@ -143,8 +143,7 @@ jobs:
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: staketechnologies/astar-collator
-        tag-custom: shiden
+        images: robonomics/robonomics
         tag-sha: true # add git short SHA as Docker tag
 
     - name: Download pre-built amd64 linux collator binary
