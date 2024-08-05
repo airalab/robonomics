@@ -24,7 +24,6 @@ pub use pallet::*;
 pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    // use sp_core::H256;
     use sp_std::collections::btree_map::BTreeMap;
 
     #[pallet::config]
@@ -36,7 +35,7 @@ pub mod pallet {
         #[pallet::constant]
         type MaxLength: Get<u32>;
 
-        /// The maximum data map size for digital twin.
+        /// The maximum map length for digital twin.
         #[pallet::constant]
         type MaxCount: Get<u32>;
     }
@@ -65,17 +64,15 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    #[derive(Encode, Decode, Default, TypeInfo, MaxEncodedLen, PartialEqNoBound, RuntimeDebug)]
-    #[scale_info(skip_type_params(T))]
-    pub struct DigitalTwin<T: Config> {
-        pub data: BTreeMap<BoundedVec<u8, T::MaxLength>, BoundedVec<u8, T::MaxLength>>,
-        pub count: u32,
-    }
-
     #[pallet::storage]
-    /// Digital twin storage format: address -> digital twin.
-    pub(super) type DigitalTwins<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, DigitalTwin<T>>;
+    /// Digital twin storage format:
+    /// address -> digital twin (map string -> string with limited length).
+    pub(super) type DigitalTwins<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BTreeMap<BoundedVec<u8, T::MaxLength>, BoundedVec<u8, T::MaxLength>>,
+    >;
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -91,23 +88,23 @@ pub mod pallet {
             value: BoundedVec<u8, T::MaxLength>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            <DigitalTwins<T>>::mutate(sender.clone(), |dt| match dt {
+            <DigitalTwins<T>>::mutate(sender.clone(), |m| match m {
                 None => {
-                    let mut data = BTreeMap::new();
-                    data.insert(key.clone(), value.clone());
-                    *dt = Some(DigitalTwin { data, count: 1 });
+                    let mut map = BTreeMap::new();
+                    map.insert(key.clone(), value.clone());
+                    *m = Some(map);
                     Self::deposit_event(Event::DigitalTwinRecordInserted(sender, 1, key, value));
 
                     // TODO: callback
 
                     Ok(().into())
                 }
-                Some(digital_twin) => {
-                    if digital_twin.data.contains_key(&key.clone()) {
-                        digital_twin.data.insert(key.clone(), value.clone());
+                Some(map) => {
+                    if map.contains_key(&key.clone()) {
+                        map.insert(key.clone(), value.clone());
                         Self::deposit_event(Event::DigitalTwinRecordUpdated(
                             sender,
-                            digital_twin.count,
+                            map.len() as u32,
                             key,
                             value,
                         ));
@@ -116,12 +113,11 @@ pub mod pallet {
 
                         Ok(().into())
                     } else {
-                        if digital_twin.count < T::MaxCount::get() {
-                            digital_twin.data.insert(key.clone(), value.clone());
-                            digital_twin.count += 1;
+                        if (map.len() as u32) < T::MaxCount::get() {
+                            map.insert(key.clone(), value.clone());
                             Self::deposit_event(Event::DigitalTwinRecordInserted(
                                 sender,
-                                digital_twin.count,
+                                map.len() as u32,
                                 key,
                                 value,
                             ));
@@ -130,6 +126,7 @@ pub mod pallet {
 
                             Ok(().into())
                         } else {
+                            // let deposit = <NameOf<T>>::take(&target).ok_or(Error::<T>::Unnamed)?.1;
                             Err("Max count!".into())
                         }
                     }
@@ -144,14 +141,13 @@ pub mod pallet {
             key: BoundedVec<u8, T::MaxLength>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            <DigitalTwins<T>>::mutate(sender.clone(), |dt| match dt {
-                Some(digital_twin) => match digital_twin.data.remove(&key) {
+            <DigitalTwins<T>>::mutate(sender.clone(), |m| match m {
+                Some(map) => match map.remove(&key) {
                     None => Err("Unknown key!".into()),
                     _ => {
-                        digital_twin.count -= 1;
                         Self::deposit_event(Event::DigitalTwinRecordRemoved(
                             sender,
-                            digital_twin.count,
+                            map.len() as u32,
                             key,
                         ));
                         Ok(().into())
