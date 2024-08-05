@@ -65,6 +65,7 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::storage]
+    #[pallet::getter(fn digital_twin)]
     /// Digital twin storage format:
     /// address -> digital twin (map string -> string with limited length).
     pub(super) type DigitalTwins<T: Config> = StorageMap<
@@ -90,6 +91,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
             <DigitalTwins<T>>::mutate(sender.clone(), |m| match m {
                 None => {
+                    // Create record
                     let mut map = BTreeMap::new();
                     map.insert(key.clone(), value.clone());
                     *m = Some(map);
@@ -101,6 +103,7 @@ pub mod pallet {
                 }
                 Some(map) => {
                     if map.contains_key(&key.clone()) {
+                        // Update record
                         map.insert(key.clone(), value.clone());
                         Self::deposit_event(Event::DigitalTwinRecordUpdated(
                             sender,
@@ -113,6 +116,7 @@ pub mod pallet {
 
                         Ok(().into())
                     } else {
+                        // Insert record
                         if (map.len() as u32) < T::MaxCount::get() {
                             map.insert(key.clone(), value.clone());
                             Self::deposit_event(Event::DigitalTwinRecordInserted(
@@ -126,7 +130,6 @@ pub mod pallet {
 
                             Ok(().into())
                         } else {
-                            // let deposit = <NameOf<T>>::take(&target).ok_or(Error::<T>::Unnamed)?.1;
                             Err("Max count!".into())
                         }
                     }
@@ -164,8 +167,8 @@ mod tests {
     use crate::{self as digital_twin, *};
 
     use frame_support::{assert_err, assert_ok, parameter_types};
-    use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
+    use sp_core::ConstU32;
+    use sp_runtime::{traits::IdentityLookup, BoundedVec, BuildStorage, DispatchError};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -209,6 +212,7 @@ mod tests {
     impl Config for Runtime {
         type RuntimeEvent = RuntimeEvent;
         type MaxLength = ConstU32<512>;
+        type MaxCount = ConstU32<256>;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
@@ -221,41 +225,44 @@ mod tests {
     #[test]
     fn test_create() {
         new_test_ext().execute_with(|| {
-            assert_eq!(DigitalTwin::total(), None);
             let sender = 1;
-            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
-                .parse::<H256>()
-                .unwrap();
-            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender), topic));
-            assert_eq!(DigitalTwin::total(), Some(1));
-            assert_eq!(DigitalTwin::owner(0), Some((sender, topic)));
+            assert_eq!(DigitalTwin::digital_twin(sender), None);
+            let key = BoundedVec::new();
+            let value = BoundedVec::new();
+            assert_ok!(DigitalTwin::insert(
+                RuntimeOrigin::signed(sender),
+                key,
+                value
+            ));
+            assert_eq!(DigitalTwin::digital_twin(sender).expect("").len(), 1);
         })
     }
 
     #[test]
     fn test_destroy() {
         new_test_ext().execute_with(|| {
-            assert_eq!(DigitalTwin::total(), None);
             let sender = 1;
-            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
-                .parse::<H256>()
-                .unwrap();
-            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender), topic));
-            assert_eq!(DigitalTwin::total(), Some(1));
-            assert_eq!(DigitalTwin::owner(0), Some((sender, topic)));
-            assert_ok!(DigitalTwin::destroy(RuntimeOrigin::signed(sender), 0));
-            assert_eq!(DigitalTwin::total(), Some(0));
+            assert_eq!(DigitalTwin::digital_twin(sender), None);
+            let key = BoundedVec::new();
+            let value = BoundedVec::new();
+            assert_ok!(DigitalTwin::insert(
+                RuntimeOrigin::signed(sender),
+                key.clone(),
+                value
+            ));
+            assert_eq!(DigitalTwin::digital_twin(sender).expect("").len(), 1);
+            assert_ok!(DigitalTwin::remove(RuntimeOrigin::signed(sender), key,));
+            assert_eq!(DigitalTwin::digital_twin(sender).expect("").len(), 0);
         })
     }
 
     #[test]
     fn test_bad_origin() {
         new_test_ext().execute_with(|| {
-            let topic = "0x0000000000000000000000000000000000000000000000000000000000000000"
-                .parse::<H256>()
-                .unwrap();
+            let key = BoundedVec::new();
+            let value = BoundedVec::new();
             assert_err!(
-                DigitalTwin::create(RuntimeOrigin::none(), topic),
+                DigitalTwin::insert(RuntimeOrigin::none(), key, value),
                 DispatchError::BadOrigin
             );
         })
