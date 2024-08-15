@@ -24,7 +24,7 @@ pub use pallet::*;
 pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use sp_std::collections::btree_map::BTreeMap;
+    use sp_std::collections::{btree_map::BTreeMap, vec_deque::VecDeque};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -62,12 +62,23 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_idle(_block: BlockNumberFor<T>, weight: Weight) -> Weight {
+            log::warn!("⚠️  on idle..");
+            weight
+        }
+    }
+
+    #[pallet::storage]
+    #[pallet::getter(fn callback_queue)]
+    /// ???
+    pub(super) type CallbackQueue<T: Config> =
+        StorageValue<_, VecDeque<BoundedVec<u8, T::MaxLength>>>;
 
     #[pallet::storage]
     #[pallet::getter(fn digital_twin)]
     /// Digital twin storage format:
-    /// address -> digital twin (map string -> string with limited length).
+    /// address -> digital twin (map string -> string).
     pub(super) type DigitalTwins<T: Config> = StorageMap<
         _,
         Twox64Concat,

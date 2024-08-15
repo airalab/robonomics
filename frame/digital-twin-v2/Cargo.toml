@@ -6,6 +6,7 @@ authors = ["Airalab <research@aira.life>"]
 edition = "2021"
 
 [dependencies]
+log = { workspace = true }
 scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
 sp-std = { workspace = true }
