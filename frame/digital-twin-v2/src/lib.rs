@@ -64,16 +64,19 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_idle(_block: BlockNumberFor<T>, weight: Weight) -> Weight {
-            log::warn!("⚠️  on idle..");
+            log::warn!("⚠️  idle state..");
+
+            // TODO: send xcm to crust
+
             weight
         }
     }
 
     #[pallet::storage]
     #[pallet::getter(fn callback_queue)]
-    /// ???
+    /// The queue of "custom types" for execution.
     pub(super) type CallbackQueue<T: Config> =
-        StorageValue<_, VecDeque<BoundedVec<u8, T::MaxLength>>>;
+        StorageValue<_, VecDeque<(BoundedVec<u8, T::MaxLength>, BoundedVec<u8, T::MaxLength>)>>;
 
     #[pallet::storage]
     #[pallet::getter(fn digital_twin)]
@@ -100,6 +103,26 @@ pub mod pallet {
             value: BoundedVec<u8, T::MaxLength>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+
+            let crust_prefix = &[99, 114, 117, 115, 116];
+
+            if key.len() >= 5 && &key[0..5] == crust_prefix {
+                log::warn!("⚠️  crust");
+                <CallbackQueue<T>>::mutate(|queue| match queue {
+                    None => {
+                        log::warn!("⚠️  create queue");
+                        let mut q = VecDeque::new();
+                        q.push_back((key.clone(), value.clone()));
+                        *queue = Some(q);
+                    }
+                    Some(q) => {
+                        log::warn!("⚠️  push_back to queue");
+                        q.push_back((key.clone(), value.clone()));
+                    }
+                });
+                return Ok(().into());
+            }
+
             <DigitalTwins<T>>::mutate(sender.clone(), |m| match m {
                 None => {
                     // Create record
