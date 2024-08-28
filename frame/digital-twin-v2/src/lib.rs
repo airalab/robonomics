@@ -66,6 +66,10 @@ pub mod pallet {
         fn on_idle(_block: BlockNumberFor<T>, weight: Weight) -> Weight {
             log::warn!("⚠️  idle state..");
 
+            if let Some(callbacks) = <CallbackQueue<T>>::get() {
+                log::warn!("⚠️  queue = {:?}", callbacks);
+            }
+
             // TODO: send xcm to crust
 
             weight
