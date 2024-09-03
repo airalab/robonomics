@@ -147,13 +147,13 @@ jobs:
         tag-sha: true # add git short SHA as Docker tag
 
     - name: Download pre-built amd64 linux collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: robonomics-ubuntu-latest-x86_64
         path: scripts/docker/amd64/
 
     - name: Download pre-built aarch64 linux collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: robonomics-ubuntu-latest-aarch64
         path: scripts/docker/arm64/
@@ -260,7 +260,7 @@ jobs:
         fetch-depth: 0
 
     - name: Download main runtime
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: main-runtime
         path: runtime-artifacts
@@ -313,7 +313,7 @@ jobs:
         mkdir -p ${{ matrix.os }}-${{ matrix.arch }}-bin
 
     - name: Download pre-built collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: robonomics-${{ matrix.os }}-latest-${{ matrix.arch }}
         path: ${{ matrix.os }}-${{ matrix.arch }}-bin
@@ -342,7 +342,7 @@ jobs:
         chain: ["main"]
     steps:
     - name: Download runtime
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4.1.7
       with:
         name: ${{ matrix.chain }}-runtime
 
