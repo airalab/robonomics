@@ -352,7 +352,7 @@ ${moduleLinks.map((modules) => `${capitalize(modules.name)}: ${modules.link}`).j
 | \`Ubuntu x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-${newTag}-ubuntu-x86_64.tar.gz) |
 | \`Ubuntu aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-${newTag}-ubuntu-aarch64.tar.gz) |
 
-[<img src="https://github.com/airalab/robonomics/blob/master/.github/images/docker.webp" height="200px">](https://hub.docker.com/r/airalab/robonomics/tags)
+[<img src="https://github.com/airalab/robonomics/blob/master/.github/images/docker.webp" height="200px">](https://hub.docker.com/r/robonomics/robonomics/tags)
 `
 
   console.log(template);
