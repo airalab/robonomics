@@ -41,6 +41,7 @@ robonomics-node = { path = "node" }
 
 [features]
 runtime-benchmarks = ["robonomics-node/runtime-benchmarks"]
+jemalloc-allocator = []
 
 [workspace]
 members = [

@@ -64,7 +64,8 @@ impl SubstrateCli for Cli {
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
             "dev" => Box::new(chain_spec::dev::config()),
-            "main" => Box::new(chain_spec::mainnet::kusama_config()),
+            "kusama" => Box::new(chain_spec::mainnet::kusama_config()),
+            "polkadot" => Box::new(chain_spec::mainnet::polkadot_config()),
             path => Box::new(chain_spec::dev::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),

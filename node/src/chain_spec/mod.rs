@@ -61,9 +61,6 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
     }
 }
 
-/// The default XCM version to set in genesis config.
-pub const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
-
 /// Generic extensions for Parachain ChainSpecs.
 #[derive(Default, Clone, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

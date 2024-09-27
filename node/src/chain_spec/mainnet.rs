@@ -17,7 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics mainnet chain specification.
 
-use super::{get_account_id_from_seed, Extensions};
+/// Robonomics Mainnet Chain Specification.
+pub type ChainSpec =
+    sc_service::GenericChainSpec<main_runtime::RuntimeGenesisConfig, super::Extensions>;
+
+/*
+use super::{get_account_id_from_seed};
 use main_runtime::{
     wasm_binary_unwrap, BalancesConfig, DemocracyConfig, ParachainInfoConfig, RuntimeGenesisConfig,
     SystemConfig,
@@ -28,9 +33,6 @@ use cumulus_primitives_core::ParaId;
 use sc_chain_spec::ChainType;
 use sp_core::sr25519;
 use sp_runtime::traits::IdentifyAccount;
-
-/// Robonomics Mainnet Chain Specification.
-pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 fn main_genesis(
     balances: Vec<(AccountId, Balance)>,
@@ -120,8 +122,14 @@ pub fn config(parachain_id: ParaId) -> ChainSpec {
         },
     )
 }
+*/
 
 pub fn kusama_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../../chains/kusama-parachain.raw.json")[..])
+        .unwrap()
+}
+
+pub fn polkadot_config() -> ChainSpec {
+    ChainSpec::from_json_bytes(&include_bytes!("../../../chains/polkadot-parachain.raw.json")[..])
         .unwrap()
 }

@@ -14,7 +14,7 @@
     "/dns/3.polkadot.robonomics.network/tcp/443/wss/p2p/12D3KooWRbiTKu5UxvJxwLpFJKU8kc9GLqAhQACiqwpirKTiHYiy"
   ],
   "telemetryEndpoints": null,
-  "protocolId": null,
+  "protocolId": "xrt",
   "properties": {
     "tokenDecimals": 9,
     "tokenSymbol": "XRT"
