@@ -208,8 +208,8 @@ pub fn run() -> sc_cli::Result<()> {
                     }
 
                     match config.chain_spec.family() {
-                        RobonomicsFamily::ParachainKusama =>
-                            service::parachain::start_generic_robonomics_parachain::<main_runtime::RuntimeApi>(
+                        RobonomicsFamily::Mainnet =>
+                            service::parachain::start_generic_robonomics_parachain::<generic_runtime::RuntimeApi>(
                                 config,
                                 polkadot_config,
                                 collator_options,

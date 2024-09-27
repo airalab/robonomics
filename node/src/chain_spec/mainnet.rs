@@ -19,116 +19,15 @@
 
 /// Robonomics Mainnet Chain Specification.
 pub type ChainSpec =
-    sc_service::GenericChainSpec<main_runtime::RuntimeGenesisConfig, super::Extensions>;
+    sc_service::GenericChainSpec<dev_runtime::RuntimeGenesisConfig, super::Extensions>;
 
-/*
-use super::{get_account_id_from_seed};
-use main_runtime::{
-    wasm_binary_unwrap, BalancesConfig, DemocracyConfig, ParachainInfoConfig, RuntimeGenesisConfig,
-    SystemConfig,
-};
-use robonomics_primitives::{AccountId, Balance, CommunityAccount};
-
-use cumulus_primitives_core::ParaId;
-use sc_chain_spec::ChainType;
-use sp_core::sr25519;
-use sp_runtime::traits::IdentifyAccount;
-
-fn main_genesis(
-    balances: Vec<(AccountId, Balance)>,
-    parachain_id: ParaId,
-    code: Vec<u8>,
-) -> RuntimeGenesisConfig {
-    RuntimeGenesisConfig {
-        system: SystemConfig {
-            code,
-            ..Default::default()
-        },
-        balances: BalancesConfig { balances },
-        assets: Default::default(),
-        vesting: Default::default(),
-        parachain_info: ParachainInfoConfig {
-            parachain_id,
-            ..Default::default()
-        },
-        parachain_system: Default::default(),
-        polkadot_xcm: Default::default(),
-        democracy: DemocracyConfig::default(),
-        treasury: Default::default(),
-        technical_committee: Default::default(),
-        technical_membership: Default::default(),
-        transaction_payment: Default::default(),
-    }
-}
-
-/// Create Mainnet GenesisConfig.
-pub fn genesis(
-    endowed_accounts: Option<Vec<AccountId>>,
-    parachain_id: ParaId,
-) -> RuntimeGenesisConfig {
-    const ENDOWMENT: Balance = 1_000_000_000_000_000_000;
-
-    let endowed_accounts: Vec<(AccountId, Balance)> = endowed_accounts
-        .unwrap_or_else(|| {
-            vec![
-                get_account_id_from_seed::<sr25519::Public>("Alice"),
-                get_account_id_from_seed::<sr25519::Public>("Bob"),
-                get_account_id_from_seed::<sr25519::Public>("Charlie"),
-                get_account_id_from_seed::<sr25519::Public>("Dave"),
-                get_account_id_from_seed::<sr25519::Public>("Eve"),
-                get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-                get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-                get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-                get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-                get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-                get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-                get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-                CommunityAccount::Treasury.into_account(),
-            ]
-        })
-        .iter()
-        .cloned()
-        .map(|acc| (acc, ENDOWMENT))
-        .collect();
-
-    main_genesis(
-        endowed_accounts,
-        parachain_id,
-        wasm_binary_unwrap().to_vec(),
-    )
-}
-
-/// Create Mainnet Chain Specification (single validator Alice)
-pub fn config(parachain_id: ParaId) -> ChainSpec {
-    let mk_genesis = move || genesis(None, parachain_id);
-
-    let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "XRT".into());
-    properties.insert("tokenDecimals".into(), 9.into());
-
-    ChainSpec::from_genesis(
-        "Robonomics Mainnet",
-        "robonomics",
-        ChainType::Live,
-        mk_genesis,
-        vec![],
-        None,
-        None,
-        None,
-        Some(properties),
-        Extensions {
-            relay_chain: "kusama".into(),
-            para_id: parachain_id.into(),
-        },
-    )
-}
-*/
-
+/// Robonomics parachain on Kusama.
 pub fn kusama_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../../chains/kusama-parachain.raw.json")[..])
         .unwrap()
 }
 
+/// Robonomics parachain on Polkadot.
 pub fn polkadot_config() -> ChainSpec {
     ChainSpec::from_json_bytes(&include_bytes!("../../../chains/polkadot-parachain.raw.json")[..])
         .unwrap()
