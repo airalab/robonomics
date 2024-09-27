@@ -38,7 +38,7 @@ use sp_runtime::traits::{AccountIdConversion, IdentifyAccount};
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Airalab Robonomics".into()
+        "airalab-robonomics".into()
     }
 
     fn impl_version() -> String {
