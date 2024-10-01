@@ -1921,6 +1921,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
+ "pallet-robonomics-digital-twin-v2",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-rws",
@@ -4585,6 +4586,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
+ "pallet-robonomics-digital-twin-v2",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
  "pallet-robonomics-lighthouse",
@@ -5577,6 +5579,21 @@ version = "0.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-robonomics-digital-twin-v2"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

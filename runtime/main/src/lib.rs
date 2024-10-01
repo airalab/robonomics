@@ -619,6 +619,12 @@ impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
 
+impl pallet_robonomics_digital_twin_v2::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type MaxLength = ConstU32<512>;
+    type MaxCount = ConstU32<256>;
+}
+
 impl pallet_robonomics_liability::Config for Runtime {
     type Agreement = pallet_robonomics_liability::SignedAgreement<
         pallet_robonomics_liability::technics::IPFS,
@@ -666,6 +672,7 @@ construct_runtime! {
         Datalog: pallet_robonomics_datalog = 51,
         Launch: pallet_robonomics_launch = 52,
         DigitalTwin: pallet_robonomics_digital_twin = 54,
+        DigitalTwinV2: pallet_robonomics_digital_twin_v2 = 53,
         RWS: pallet_robonomics_rws = 55,
         Liability: pallet_robonomics_liability = 56,
 
