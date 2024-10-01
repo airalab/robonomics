@@ -53,6 +53,7 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 # robonomics dependencies
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../frame/digital-twin", default-features = false }
+pallet-robonomics-digital-twin-v2 = { path = "../../frame/digital-twin-v2", default-features = false }
 pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
@@ -118,6 +119,7 @@ std = [
   "pallet-transaction-payment-rpc-runtime-api/std",
   "pallet-robonomics-datalog/std",
   "pallet-robonomics-digital-twin/std",
+  "pallet-robonomics-digital-twin-v2/std",
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-lighthouse/std",
