@@ -1,3 +1,20 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+///////////////////////////////////////////////////////////////////////////////
 use super::{
     AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
     ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
@@ -30,7 +47,7 @@ use xcm_executor::{
 
 parameter_types! {
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
-    pub RelayNetwork: NetworkId = NetworkId::Kusama;
+    pub RelayNetwork: NetworkId = NetworkId::Polkadot;
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     pub UniversalLocation: InteriorMultiLocation =
         X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
@@ -69,11 +86,9 @@ pub type CurrencyTransactor = CurrencyAdapter<
 >;
 
 lazy_static::lazy_static! {
-    static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 2] =
-      // KSM
+    static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 1] =
+      // DOT
     [ (AssetId::max_value(), MultiLocation::parent())
-      // CSM
-    , (AssetId::max_value() - 4, MultiLocation::new(1, X1(Parachain(2012))))
     ];
 }
 

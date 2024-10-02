@@ -17,8 +17,8 @@ serde = { workspace = true }
 
 robonomics-primitives = { path = "../primitives" }
 robonomics-service = { path = "./service" }
+generic-runtime = { path = "./generic-runtime" }
 dev-runtime = { path = "../runtime/dev" }
-main-runtime = { path = "../runtime/main" }
 
 # substrate
 sc-cli = { workspace = true }
@@ -34,7 +34,6 @@ frame-benchmarking-cli = { workspace = true }
 
 # polkadot 
 polkadot-cli = { workspace = true }
-xcm = { workspace = true }
 
 # cumulus
 cumulus-client-cli = { workspace = true }
@@ -47,5 +46,4 @@ substrate-build-script-utils = { workspace = true }
 runtime-benchmarks = [
   "sc-service/runtime-benchmarks",
   "dev-runtime/runtime-benchmarks",
-  "main-runtime/runtime-benchmarks",
 ]

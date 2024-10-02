@@ -82,6 +82,7 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 with-tracing = ["frame-executive/with-tracing"]
+polkadot = []
 std = [
   "parity-scale-codec/std",
   "robonomics-primitives/std",

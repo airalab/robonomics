@@ -3,7 +3,7 @@
 image:https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg["Web3 Foundation Grants — Wave Two Recipient", link="https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d"]
 
 :Author: Robonomics Network Developers
-:Revision: 0.6.0
+:Revision: 0.7.0
 :toc:
 :sectnums:
 
@@ -30,7 +30,6 @@ Structure of **Robonomics** followed:
 
 - **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
 - **Robonomics CLI** - console line primitives that make framework functions runnable.
-- **Robonomics IO** - stream-oriented library with support general set of sensors and actuators (including virtual devices like PubSub or stdin/stdout) that makes hardware interaction easy.
 - **Robonomics Protocol** - network library that helps to build P2P communication in Industry 4.0 and Smart City cases.
 - **Robonomics Frame** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
 
@@ -43,14 +42,6 @@ Ensure you have Rust and the support software installed:
 [source, shell]
 ----
 curl https://sh.rustup.rs -sSf | sh
-# on Windows download and run rustup-init.exe
-# from https://rustup.rs instead
-rustup target add wasm32-unknown-unknown --toolchain nightly
-----
-[source, shell]
-----
-In case of error: toolchain 'nightly-x86_64-unknown-linux-gnu' is not installed
-rustup toolchain install nightly
 ----
 
 You will also need to install the following packages:
@@ -75,7 +66,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source.
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v1.0.0 robonomics-node
+cargo install --force --git https://github.com/airalab/robonomics --tag v3.0.0 robonomics
 
 And then launch full node of robonomics testnet parachain.
 
@@ -116,42 +107,8 @@ or it could be <<building-from-source,build from source>>.
 Launch command:
 [source, shell]
 ----
-robonomics --lighthouse [YOUR_ACCOUNT_ADDRESS]
+robonomics --collator --lighthouse-account [YOUR_ACCOUNT_ADDRESS]
 ----
-
-== Robonomics I/O
-
-Especially to make hardware interaction easy we introduce https://crates.robonomics.network/robonomics_io/index.html[robonomics_io] crate. This crate implements two kinds of devices: `source` - device that intended to read a data and `sink` - device that intended to write data. This approach suits the pipelines paradigm well and implemented in Robonomics CLI as `io` subcommand.
-
-```
-$ robonomics io
-robonomics-io 0.25.1
-Run I/O actions using Robonomics Framework.
-
-USAGE:
-    robonomics io [FLAGS] [OPTIONS] <SUBCOMMAND>
-
-SUBCOMMANDS:
-    help     Prints this message or the help of the given subcommand(s)
-    read     Read information from device
-    write    Write information into device
-```
-
-For example, the sentence that simple read value from Nova SDS011 sensor is followed.
-
-```bash
-$ robonomics io read sds011
-{"timestamp":"1588090281","pm25":0.5,"pm10":1.5}
-```
-
-Is it also possible to combine IO actions to get something useful.
-Following sentence reads JSON values from a sensor and publishes it into `my-sensor-data` topic.
-
-```bash
-$ robonomics io read sds011 | robonomics io write pubsub my-sensor-data
-```
-
-Read https://wiki.robonomics.network/docs/rio-overview/[full guide on wiki].
 
 == Robotics integration
 

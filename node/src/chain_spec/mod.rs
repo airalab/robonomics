@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2023 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,25 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Chain specification and utils.
 
-use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
+use sc_chain_spec::ChainSpecExtension;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 pub mod dev;
 pub mod mainnet;
-//pub mod testnet;
 
 /// Robonomics runtime family chains.
 pub enum RobonomicsFamily {
     /// Development chain (used for local tests only).
     Development,
-    /// Ipci Network Parachain (https://ipci.io).
-    ParachainIpci,
-    /// Robonomics testnet parachain
-    ParachainAlpha,
-    /// Robonomics Kusama parachain
-    ParachainKusama,
+    /// Robonomics mainnet parachain
+    Mainnet,
 }
 
 /// Robonomics family chains idetify.
@@ -49,23 +44,12 @@ impl RobonomicsChain for Box<dyn sc_chain_spec::ChainSpec> {
             return RobonomicsFamily::Development;
         }
 
-        if self.id() == "robonomics" {
-            return RobonomicsFamily::ParachainKusama;
-        }
-
-        if self.id() == "ipci" {
-            return RobonomicsFamily::ParachainIpci;
-        }
-
-        RobonomicsFamily::ParachainAlpha
+        return RobonomicsFamily::Mainnet;
     }
 }
 
-/// The default XCM version to set in genesis config.
-pub const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
-
 /// Generic extensions for Parachain ChainSpecs.
-#[derive(Default, Clone, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+#[derive(Default, Clone, Serialize, Deserialize, ChainSpecExtension)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Extensions {
     /// The relay chain of the Parachain.
