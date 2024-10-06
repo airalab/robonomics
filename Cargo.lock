@@ -5573,8 +5573,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-digital-twin"
-version = "0.3.0"
+version = "3.1.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",

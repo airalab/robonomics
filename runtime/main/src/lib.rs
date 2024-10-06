@@ -729,6 +729,7 @@ mod benches {
         // Robonomics pallets
         [robonomics_datalog, Datalog]
         [robonomics_launch, Launch]
+        [robonomics_digital_twin, DigitalTwin]
     );
 }
 

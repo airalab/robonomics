@@ -149,6 +149,7 @@ runtime-benchmarks = [
   "pallet-timestamp/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
+  "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
