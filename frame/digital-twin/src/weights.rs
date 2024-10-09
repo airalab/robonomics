@@ -39,8 +39,6 @@ pub trait WeightInfo {
 }
 
 /// Weight functions for `robonomics_digital_twin`.
-// pub struct WeightInfo<T>(PhantomData<T>);
-// impl<T: frame_system::Config> pallet_robonomics_digital_twin::WeightInfo for WeightInfo<T> {
 pub struct RobonomicsWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for RobonomicsWeight<T> {
 	/// Storage: `DigitalTwin::Total` (r:1 w:1)
