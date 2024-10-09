@@ -18,15 +18,16 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
-// pub use weights::WeightInfo;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// mod weights;
+pub mod weights;
+
+pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
     use sp_core::H256;
@@ -36,6 +37,8 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::event]
@@ -75,9 +78,8 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create new digital twin.
-        // #[pallet::weight(T::WeightInfo::create())]
-        // #[pallet::call_index(0)]
-        #[pallet::weight(50_000)]
+        #[pallet::weight(T::WeightInfo::create())]
+        #[pallet::call_index(0)]
         pub fn create(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let id = <Total<T>>::get().unwrap_or(0);
@@ -88,9 +90,8 @@ pub mod pallet {
         }
 
         /// Set data source account for difital twin.
-        // #[pallet::weight(T::WeightInfo::set_source())]
-        // #[pallet::call_index(1)]
-        #[pallet::weight(50_000)]
+        #[pallet::weight(T::WeightInfo::set_source())]
+        #[pallet::call_index(1)]
         pub fn set_source(
             origin: OriginFor<T>,
             id: u32,
@@ -117,9 +118,8 @@ pub mod pallet {
         }
 
         /// Remove data source account for difital twin.
-        // #[pallet::weight(T::WeightInfo::remove_source())]
-        // #[pallet::call_index(2)]
-        #[pallet::weight(50_000)]
+        #[pallet::weight(T::WeightInfo::remove_source())]
+        #[pallet::call_index(2)]
         pub fn remove_source(
             origin: OriginFor<T>,
             id: u32,

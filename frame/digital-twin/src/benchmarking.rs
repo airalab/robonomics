@@ -29,9 +29,7 @@ benchmarks! {
 
     create {
         let caller: T::AccountId = account("caller", 1, SEED);
-        // for _ in 0..1000 {
-        //     DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
-        // }
+
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
     }: _(RawOrigin::Signed(caller))
 
@@ -42,22 +40,12 @@ benchmarks! {
         let source: T::AccountId = account("caller", 2, SEED);
 
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
-
         DigitalTwin::<T>::set_source(
             RawOrigin::Signed(caller.clone()).into(),
             id,
             topic,
             source.clone(),
         )?;
-
-        // for _ in 0..1000 {
-        //     DigitalTwin::<T>::set_source(
-        //         RawOrigin::Signed(caller.clone()).into(),
-        //         id,
-        //         topic,
-        //         source.clone(),
-        //     )?;
-        // }
     }: _(RawOrigin::Signed(caller), id, topic, source)
 
     remove_source {
@@ -67,38 +55,18 @@ benchmarks! {
         let source: T::AccountId = account("caller", 2, SEED);
 
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
-
         DigitalTwin::<T>::set_source(
             RawOrigin::Signed(caller.clone()).into(),
             id,
             topic,
             source.clone(),
         )?;
-
         DigitalTwin::<T>::remove_source(
             RawOrigin::Signed(caller.clone()).into(),
             id,
             topic,
             source.clone(),
         )?;
-
-        // for _ in 0..1000 {
-        //     DigitalTwin::<T>::set_source(
-        //         RawOrigin::Signed(caller.clone()).into(),
-        //         id,
-        //         topic,
-        //         source.clone(),
-        //     )?;
-        // }
-        //
-        // for _ in 0..1000 {
-        //     DigitalTwin::<T>::remove_source(
-        //         RawOrigin::Signed(caller.clone()).into(),
-        //         id,
-        //         topic,
-        //         source.clone(),
-        //     )?;
-        // }
     }: _(RawOrigin::Signed(caller), id, topic, source)
 
     verify {
