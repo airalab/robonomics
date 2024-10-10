@@ -10,7 +10,6 @@ build = "build.rs"
 parity-scale-codec = { workspace = true }
 smallvec = { workspace = true }
 scale-info = { workspace = true }
-lazy_static = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 
 # primitives
@@ -49,6 +48,7 @@ pallet-vesting = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-sudo = { workspace = true }
 
 # robonomics dependencies
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
@@ -73,6 +73,7 @@ xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
 pallet-xcm = { path = "../../vendor/pallet-xcm", default-features = false }
+pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
 
@@ -82,7 +83,6 @@ substrate-wasm-builder = { workspace = true }
 [features]
 default = ["std"]
 with-tracing = ["frame-executive/with-tracing"]
-polkadot = []
 std = [
   "parity-scale-codec/std",
   "robonomics-primitives/std",
@@ -122,6 +122,7 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-lighthouse/std",
   "pallet-robonomics-rws/std",
+  "pallet-sudo/std",
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-utility/std",
@@ -133,6 +134,7 @@ std = [
   "xcm-builder/std",
   "xcm-executor/std",
   "pallet-xcm/std",
+  "pallet-xcm-info/std",
   "polkadot-parachain/std",
   "polkadot-primitives/std",
   "parachain-info/std",

@@ -1900,7 +1900,7 @@ dependencies = [
 
 [[package]]
 name = "dev-runtime"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -3016,7 +3016,7 @@ dependencies = [
 
 [[package]]
 name = "generic-runtime"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -3888,9 +3888,6 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
-dependencies = [
- "spin 0.9.8",
-]
 
 [[package]]
 name = "lazycell"
@@ -4574,7 +4571,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal 0.3.4",
- "lazy_static",
  "pallet-assets",
  "pallet-balances",
  "pallet-collective",
@@ -4590,6 +4586,7 @@ dependencies = [
  "pallet-robonomics-lighthouse",
  "pallet-robonomics-rws",
  "pallet-scheduler",
+ "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -4597,6 +4594,7 @@ dependencies = [
  "pallet-utility",
  "pallet-vesting",
  "pallet-xcm",
+ "pallet-xcm-info",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
@@ -5847,7 +5845,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xcm"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "bounded-collections",
  "frame-benchmarking",
@@ -5867,6 +5865,19 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
+]
+
+[[package]]
+name = "pallet-xcm-info"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
 ]
 
 [[package]]
@@ -7867,7 +7878,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "color-eyre",
  "robonomics-node",
@@ -7876,7 +7887,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "clap",
  "color-print",
@@ -7904,7 +7915,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-primitives"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "hex-literal 0.3.4",
  "sp-core",
@@ -7913,7 +7924,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc-core"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "jsonrpsee",
  "pallet-transaction-payment-rpc",
@@ -7929,7 +7940,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "cumulus-client-cli",
  "cumulus-client-consensus-common",

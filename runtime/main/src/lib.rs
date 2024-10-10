@@ -77,13 +77,7 @@ use sp_version::RuntimeVersion;
 
 use constants::{currency::*, time::*};
 
-// Kusama XCM configuration & types
-#[cfg(not(feature = "polkadot"))]
-mod kusama_xcm;
-
-// Polkadot XCM configuration & types
-#[cfg(feature = "polkadot")]
-mod polkadot_xcm;
+mod xcm_config;
 
 /// Standalone runtime version.
 #[sp_version::runtime_version]
@@ -91,7 +85,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 33,
+    spec_version: 34,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -669,13 +663,15 @@ construct_runtime! {
         RWS: pallet_robonomics_rws = 55,
         Liability: pallet_robonomics_liability = 56,
 
+        // Block authoring gadget.
         Lighthouse: pallet_robonomics_lighthouse = 60,
 
-        // XCM helpers.
+        // XCM support.
         XcmpQueue: cumulus_pallet_xcmp_queue = 70,
         PolkadotXcm: pallet_xcm = 71,
         CumulusXcm: cumulus_pallet_xcm = 72,
         DmpQueue: cumulus_pallet_dmp_queue = 73,
+        XcmInfo: pallet_xcm_info = 74,
     }
 }
 

@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
     ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-    WeightToFee, XcmpQueue,
+    WeightToFee, XcmInfo, XcmpQueue,
 };
 use frame_support::{
     match_types,
@@ -27,7 +27,7 @@ use frame_support::{
     traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess},
     weights::Weight,
 };
-use sp_runtime::traits::{Bounded, ConstU32, MaybeEquivalence};
+use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
 
 // Polkadot imports
@@ -46,8 +46,8 @@ use xcm_executor::{
 };
 
 parameter_types! {
+    pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
-    pub RelayNetwork: NetworkId = NetworkId::Polkadot;
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     pub UniversalLocation: InteriorMultiLocation =
         X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
@@ -85,43 +85,12 @@ pub type CurrencyTransactor = CurrencyAdapter<
     (),
 >;
 
-lazy_static::lazy_static! {
-    static ref ASSET_TO_LOCATION: [(AssetId, MultiLocation); 1] =
-      // DOT
-    [ (AssetId::max_value(), MultiLocation::parent())
-    ];
-}
-
-pub struct AssetIdConvertion<AssetId>(PhantomData<AssetId>);
-impl<AssetId> MaybeEquivalence<MultiLocation, AssetId> for AssetIdConvertion<AssetId>
-where
-    AssetId: Clone + Eq + Bounded + From<u32>,
-{
-    fn convert(id: &MultiLocation) -> Option<AssetId> {
-        if let Some((asset_id, _)) = ASSET_TO_LOCATION.iter().find(|&(_, v)| id.eq(v)) {
-            Some((*asset_id).into())
-        } else {
-            None
-        }
-    }
-    fn convert_back(what: &AssetId) -> Option<MultiLocation> {
-        if let Some((_, location)) = ASSET_TO_LOCATION
-            .iter()
-            .find(|&(k, _)| what.eq(&AssetId::from(*k)))
-        {
-            Some(location.clone())
-        } else {
-            None
-        }
-    }
-}
-
 /// Means for transacting assets besides the native currency on this chain.
 pub type FungiblesTransactor = FungiblesAdapter<
     // Use this fungibles implementation:
     Assets,
     // Use this currency when it is a fungible asset matching the given location or name:
-    ConvertedConcreteId<AssetId, Balance, AssetIdConvertion<AssetId>, JustTry>,
+    ConvertedConcreteId<AssetId, Balance, XcmInfo, JustTry>,
     // Convert an XCM MultiLocation into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -335,4 +304,9 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type ExecuteOverweightOrigin = frame_system::EnsureRoot<AccountId>;
+}
+
+impl pallet_xcm_info::Config for Runtime {
+    type AssetId = AssetId;
+    type RuntimeEvent = RuntimeEvent;
 }
