@@ -18,8 +18,6 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
-
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::pallet_prelude::*;
@@ -63,7 +61,6 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, u32, BTreeMap<H256, <T as frame_system::Config>::AccountId>>;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 

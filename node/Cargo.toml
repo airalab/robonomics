@@ -29,14 +29,17 @@ sc-storage-monitor = { workspace = true }
 sc-sysinfo = { workspace = true }
 sc-telemetry = { workspace = true }
 sp-core = { workspace = true }
+sc-network = { workspace = true }
 sp-runtime = { workspace = true }
 frame-benchmarking-cli = { workspace = true }
+sp-genesis-builder = { workspace = true }
 
-# polkadot 
+# polkadot
 polkadot-cli = { workspace = true }
 
 # cumulus
 cumulus-client-cli = { workspace = true }
+cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 
 [build-dependencies]

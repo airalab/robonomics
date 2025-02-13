@@ -25,12 +25,15 @@ use sc_consensus_grandpa::{
     GrandpaBlockImport, GrandpaParams, LinkHalf, SharedVoterState, VotingRulesBuilder,
 };
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
-use sc_network::NetworkService;
+use sc_network::{service::traits::NetworkBackend, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use sp_api::ConstructRuntimeApi;
+use sp_api::{CallApiAt, ConstructRuntimeApi};
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
-use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use sp_runtime::{
+    traits::{BlakeTwo256, Block as BlockT},
+    OpaqueExtrinsic,
+};
 
 use futures::FutureExt;
 use std::sync::Arc;
@@ -58,7 +61,7 @@ pub trait RuntimeApiCollection:
     + sp_offchain::OffchainWorkerApi<Block>
     + sp_session::SessionKeys<Block>
 where
-    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
+    sc_client_api::StateBackendFor<FullBackend, Block>: sc_client_api::StateBackend<BlakeTwo256>,
 {
 }
 
@@ -74,9 +77,13 @@ where
         + sp_api::Metadata<Block>
         + sp_offchain::OffchainWorkerApi<Block>
         + sp_session::SessionKeys<Block>,
-    <Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
+    sc_client_api::StateBackendFor<FullBackend, Block>: sc_client_api::StateBackend<BlakeTwo256>,
 {
 }
+
+/// The minimum period of blocks on which justifications will be
+/// imported and generated.
+const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
 
 /// Partially initialize serivice & deps.
 pub fn new_partial<Runtime>(
@@ -86,11 +93,11 @@ pub fn new_partial<Runtime>(
         FullClient<Runtime>,
         FullBackend,
         FullSelectChain,
-        sc_consensus::DefaultImportQueue<Block, FullClient<Runtime>>,
+        sc_consensus::DefaultImportQueue<Block>,
         sc_transaction_pool::FullPool<Block, FullClient<Runtime>>,
         (
             impl Fn(
-                robonomics_rpc_core::DenyUnsafe,
+                // robonomics_rpc_core::DenyUnsafe,
                 sc_rpc::SubscriptionTaskExecutor,
             ) -> Result<jsonrpsee::RpcModule<()>, sc_service::Error>,
             FullGrandpaBlockImport<Runtime>,
@@ -102,8 +109,7 @@ pub fn new_partial<Runtime>(
 >
 where
     Runtime: ConstructRuntimeApi<Block, FullClient<Runtime>> + Send + Sync + 'static,
-    Runtime::RuntimeApi:
-        RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
+    Runtime::RuntimeApi: RuntimeApiCollection,
 {
     let telemetry = config
         .telemetry_endpoints
@@ -117,15 +123,16 @@ where
         .transpose()?;
 
     let heap_pages = config
+        .executor
         .default_heap_pages
         .map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
             extra_pages: h as _,
         });
 
     let executor = WasmExecutor::<HostFunctions>::builder()
-        .with_execution_method(config.wasm_method)
-        .with_max_runtime_instances(config.max_runtime_instances)
-        .with_runtime_cache_size(config.runtime_cache_size)
+        .with_execution_method(config.executor.wasm_method)
+        .with_max_runtime_instances(config.executor.max_runtime_instances)
+        .with_runtime_cache_size(config.executor.runtime_cache_size)
         .with_onchain_heap_alloc_strategy(heap_pages)
         .with_offchain_heap_alloc_strategy(heap_pages)
         .build();
@@ -157,6 +164,7 @@ where
 
     let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
         client.clone(),
+        GRANDPA_JUSTIFICATION_PERIOD,
         &(client.clone() as Arc<_>),
         select_chain.clone(),
         telemetry.as_ref().map(|x| x.handle()),
@@ -191,11 +199,12 @@ where
         let client = client.clone();
         let pool = transaction_pool.clone();
 
-        move |deny_unsafe, _| {
+        // move |deny_unsafe, _| {
+        move |_| {
             let deps = robonomics_rpc_core::CoreDeps {
                 client: client.clone(),
                 pool: pool.clone(),
-                deny_unsafe,
+                // deny_unsafe,
                 // TODO: enable RPC extensions for dev node
                 ext_rpc: jsonrpsee::RpcModule::new(()),
             };
@@ -228,15 +237,14 @@ pub fn new_service<Runtime>(
     (
         TaskManager,
         Arc<FullClient<Runtime>>,
-        Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+        Box<dyn sc_network::service::traits::NetworkService>,
         Arc<sc_transaction_pool::FullPool<Block, FullClient<Runtime>>>,
     ),
     ServiceError,
 >
 where
     Runtime: ConstructRuntimeApi<Block, FullClient<Runtime>> + Send + Sync + 'static,
-    Runtime::RuntimeApi:
-        RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
+    Runtime::RuntimeApi: RuntimeApiCollection,
 {
     let sc_service::PartialComponents {
         client,
@@ -249,7 +257,18 @@ where
         other: (rpc_builder, block_import, grandpa_link, mut telemetry),
     } = new_partial(&config)?;
 
-    let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+    use robonomics_primitives::Hash;
+    let mut net_config = sc_network::config::FullNetworkConfiguration::<
+        _,
+        _,
+        sc_network::NetworkWorker<Block, Hash>,
+    >::new(
+        &config.network,
+        config
+            .prometheus_config
+            .as_ref()
+            .map(|cfg| cfg.registry.clone()),
+    );
 
     let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
         &client
@@ -259,9 +278,17 @@ where
             .expect("Genesis block exists; qed"),
         &config.chain_spec,
     );
-    net_config.add_notification_protocol(sc_consensus_grandpa::grandpa_peers_set_config(
-        grandpa_protocol_name.clone(),
-    ));
+    let metrics = sc_network::NetworkWorker::<Block, Hash>::register_notification_metrics(
+        config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
+    );
+    let peer_store_handle = net_config.peer_store_handle();
+    let (grandpa_protocol_config, grandpa_notification_service) =
+        sc_consensus_grandpa::grandpa_peers_set_config::<_, sc_network::NetworkWorker<Block, Hash>>(
+            grandpa_protocol_name.clone(),
+            metrics.clone(),
+            Arc::clone(&peer_store_handle),
+        );
+    net_config.add_notification_protocol(grandpa_protocol_config);
 
     let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
         backend.clone(),
@@ -278,7 +305,9 @@ where
             spawn_handle: task_manager.spawn_handle(),
             import_queue,
             block_announce_validator_builder: None,
-            warp_sync_params: Some(sc_service::WarpSyncParams::WithProvider(warp_sync)),
+            warp_sync_config: None,
+            block_relay: None,
+            metrics,
         })?;
 
     if config.offchain_worker.enabled {
@@ -293,7 +322,7 @@ where
                 transaction_pool: Some(OffchainTransactionPoolFactory::new(
                     transaction_pool.clone(),
                 )),
-                network_provider: network.clone(),
+                network_provider: Arc::new(network.clone()),
                 enable_http_requests: true,
                 custom_extensions: |_| vec![],
             })
@@ -383,7 +412,7 @@ where
     let config = sc_consensus_grandpa::Config {
         // FIXME #1578 make this available through chainspec
         gossip_duration: std::time::Duration::from_millis(333),
-        justification_period: 512,
+        justification_generation_period: 512,
         name: Some(name),
         observer_enabled: false,
         local_role: role,
@@ -408,6 +437,7 @@ where
             prometheus_registry,
             shared_voter_state: SharedVoterState::empty(),
             telemetry: telemetry.as_ref().map(|x| x.handle()),
+            notification_service: grandpa_notification_service,
             offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
         };
 
@@ -421,5 +451,5 @@ where
     }
 
     network_starter.start_network();
-    Ok((task_manager, client, network, transaction_pool))
+    Ok((task_manager, client, Box::new(network), transaction_pool))
 }
