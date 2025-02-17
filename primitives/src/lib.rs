@@ -92,3 +92,6 @@ impl IdentifyAccount for CommunityAccount {
         }
     }
 }
+
+/// ERC20 Robonomics Token: https://etherscan.io/token/0x7de91b204c1c737bcee6f000aaa6569cf7061cb7
+pub const ERC20_XRT_ADDRESS: [u8; 20] = hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"];

@@ -45,6 +45,9 @@ use xcm_executor::{
     Config, XcmExecutor,
 };
 
+// locals
+use robonomics_primitives::ERC20_XRT_ADDRESS;
+
 parameter_types! {
     pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
     pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -52,7 +55,7 @@ parameter_types! {
     pub UniversalLocation: InteriorMultiLocation =
         X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
     pub Local: MultiLocation = Here.into_location();
-    pub EthereumCurrencyLocation: MultiLocation = MultiLocation::new(2, X2(GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20{ network: None, key: hex!("7de91b204c1c737bcee6f000aaa6569cf7061cb7") }));
+    pub EthereumCurrencyLocation: MultiLocation = MultiLocation::new(2, X2(GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20{ network: None, key: ERC20_XRT_ADDRESS }));
     pub AssetsPalletLocation: MultiLocation =
         PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
     pub DummyCheckingAccount: AccountId = PolkadotXcm::check_account();
