@@ -25,15 +25,12 @@ use sc_consensus_grandpa::{
     GrandpaBlockImport, GrandpaParams, LinkHalf, SharedVoterState, VotingRulesBuilder,
 };
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
-use sc_network::{service::traits::NetworkBackend, NetworkService};
+use sc_network::service::traits::NetworkBackend;
 use sc_service::{config::Configuration, error::Error as ServiceError, TaskManager};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use sp_api::{CallApiAt, ConstructRuntimeApi};
+use sp_api::ConstructRuntimeApi;
 use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPair};
-use sp_runtime::{
-    traits::{BlakeTwo256, Block as BlockT},
-    OpaqueExtrinsic,
-};
+use sp_runtime::traits::BlakeTwo256;
 
 use futures::FutureExt;
 use std::sync::Arc;
@@ -199,12 +196,10 @@ where
         let client = client.clone();
         let pool = transaction_pool.clone();
 
-        // move |deny_unsafe, _| {
         move |_| {
             let deps = robonomics_rpc_core::CoreDeps {
                 client: client.clone(),
                 pool: pool.clone(),
-                // deny_unsafe,
                 // TODO: enable RPC extensions for dev node
                 ext_rpc: jsonrpsee::RpcModule::new(()),
             };
@@ -290,11 +285,11 @@ where
         );
     net_config.add_notification_protocol(grandpa_protocol_config);
 
-    let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
-        backend.clone(),
-        grandpa_link.shared_authority_set().clone(),
-        Vec::default(),
-    ));
+    // let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
+    //     backend.clone(),
+    //     grandpa_link.shared_authority_set().clone(),
+    //     Vec::default(),
+    // ));
 
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_service) =
         sc_service::build_network(sc_service::BuildNetworkParams {

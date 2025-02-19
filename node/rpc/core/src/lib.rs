@@ -22,7 +22,6 @@ use std::sync::Arc;
 use robonomics_primitives::{AccountId, Balance, Block, Nonce};
 
 use sc_client_api::AuxStore;
-pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
@@ -37,8 +36,6 @@ pub struct CoreDeps<C, P> {
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
-    // /// Whether to deny unsafe calls.
-    // pub deny_unsafe: DenyUnsafe,
     /// RPC extensions
     pub ext_rpc: RpcExtension,
 }
@@ -67,7 +64,6 @@ where
     let CoreDeps {
         client,
         pool,
-        // deny_unsafe,
         ext_rpc,
     } = deps;
 

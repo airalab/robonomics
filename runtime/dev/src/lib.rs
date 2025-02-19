@@ -40,7 +40,12 @@ use frame_support::{
     construct_runtime,
     dispatch::DispatchClass,
     parameter_types,
-    traits::{AsEnsureOriginWithArg, EitherOfDiverse, EqualPrivilegeOnly, WithdrawReasons},
+    traits::{
+        fungible::HoldConsideration,
+        tokens::{pay::PayAssetFromAccount, UnityAssetBalanceConversion},
+        AsEnsureOriginWithArg, EitherOfDiverse, EqualPrivilegeOnly, LinearStoragePrice,
+        WithdrawReasons,
+    },
     weights::{
         constants::{
             BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
@@ -58,19 +63,20 @@ use pallet_identity::legacy::IdentityInfo;
 use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use robonomics_primitives::{
-    AccountId, AssetId, Balance, BlockNumber, Hash, Moment, Nonce, Signature,
+    AccountId, AssetId, Balance, BlockNumber, CommunityAccount, Hash, Moment, Nonce, Signature,
 };
 use sp_api::impl_runtime_apis;
 use sp_core::{OpaqueMetadata, H256};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::traits::{
-    AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConstBool, ConstU128, ConstU32,
-    ConstU64, ConvertInto, NumberFor, Verify,
-};
-use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, BoundedVec,
-    ExtrinsicInclusionMode, FixedPointNumber, Perbill, Permill, Perquintill,
+    create_runtime_str, generic, impl_opaque_keys,
+    traits::{
+        AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConstBool, ConstU128, ConstU32,
+        ConstU64, ConvertInto, IdentifyAccount, IdentityLookup, NumberFor, Verify,
+    },
+    transaction_validity::{TransactionSource, TransactionValidity},
+    ApplyExtrinsicResult, BoundedVec, ExtrinsicInclusionMode, FixedPointNumber, Perbill, Permill,
+    Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -327,16 +333,13 @@ impl pallet_aura::Config for Runtime {
 
 impl pallet_grandpa::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-
     type WeightInfo = ();
     type MaxAuthorities = MaxAuthorities;
     type MaxSetIdSessionEntries = ConstU64<0>;
-
     type KeyOwnerProof = sp_core::Void;
     type EquivocationReportSystem = ();
-
     // ???
-    type MaxNominators = ConstU32<0>;
+    type MaxNominators = ConstU32<1000>;
 }
 
 parameter_types! {
@@ -359,15 +362,12 @@ impl pallet_identity::Config for Runtime {
     type ForceOrigin = MoreThanHalfTechnicals;
     type RegistrarOrigin = MoreThanHalfTechnicals;
     type WeightInfo = ();
-
-    // ???
     type ByteDeposit = ByteDeposit;
     type SubAccountDeposit = SubAccountDeposit;
     type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
     type OffchainSignature = Signature;
     type SigningPublicKey = <Signature as Verify>::Signer;
     type UsernameAuthorityOrigin = EnsureRoot<Self::AccountId>;
-
     // ???
     type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
     type MaxSuffixLength = ConstU32<7>;
@@ -403,8 +403,6 @@ parameter_types! {
         RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 }
 
-// use frame_support::dynamic_params::{dynamic_pallet_params, dynamic_params};
-use frame_support::traits::{fungible::HoldConsideration, LinearStoragePrice};
 impl pallet_preimage::Config for Runtime {
     type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
     type RuntimeEvent = RuntimeEvent;
@@ -416,18 +414,9 @@ impl pallet_preimage::Config for Runtime {
     //     AccountId,
     //     Balances,
     //     PreimageHoldReason,
-    //     LinearStoragePrice<
-    //         PreimageBaseDeposit,
-    //         PreimageByteDeposit,
-    //         // dynamic_params::storage::BaseDeposit,
-    //         // dynamic_params::storage::ByteDeposit,
-    //         Balance,
-    //     >,
+    //     LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
     // >;
 }
-
-use robonomics_primitives::CommunityAccount;
-use sp_runtime::traits::IdentifyAccount;
 
 parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
@@ -442,10 +431,6 @@ parameter_types! {
     pub TreasuryAccount: AccountId = CommunityAccount::Treasury.into_account();
 }
 
-use frame_support::traits::tokens::pay::PayAssetFromAccount;
-use frame_support::traits::tokens::PayFromAccount;
-use frame_support::traits::tokens::UnityAssetBalanceConversion;
-use sp_runtime::traits::IdentityLookup;
 impl pallet_treasury::Config for Runtime {
     type PalletId = TreasuryPalletId;
     type Currency = Balances;
@@ -460,15 +445,10 @@ impl pallet_treasury::Config for Runtime {
     type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
     type AssetKind = u32;
     type Beneficiary = AccountId;
-
     // ???
     type BeneficiaryLookup = IdentityLookup<Self::AccountId>;
-
     type Paymaster = PayAssetFromAccount<Assets, TreasuryAccount>;
-    // type Paymaster = PayFromAccount<Balances, TreasuryAccount>;
-    // type BalanceConverter = AssetRate;
     type BalanceConverter = UnityAssetBalanceConversion;
-
     type PayoutPeriod = SpendPayoutPeriod;
 }
 
@@ -602,8 +582,8 @@ parameter_types! {
     pub const AuctionCost: Balance = 200 * XRT;
     pub const MinimalBid: Balance = 1 * XRT;
     // ???
-    pub const MaxDevicesLen: u64 = 100;
-    pub const MaxAucionIndexLen: u64 = 100;
+    pub const MaxDevicesAmount: u32 = 100;
+    pub const MaxAuctionIndexesAmount: u32 = 100;
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
@@ -618,13 +598,13 @@ impl pallet_robonomics_rws::Config for Runtime {
     type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
     // ???
-    type MaxDevicesLen = u64;
-    type MaxAucionIndexLen = u64;
+    type MaxDevicesAmount = MaxDevicesAmount;
+    type MaxAuctionIndexesAmount = MaxAuctionIndexesAmount;
 }
 
-//impl pallet_robonomics_digital_twin::Config for Runtime {
-//type RuntimeEvent = RuntimeEvent;
-//}
+impl pallet_robonomics_digital_twin::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+}
 
 impl pallet_robonomics_liability::Config for Runtime {
     type Agreement = pallet_robonomics_liability::SignedAgreement<
@@ -671,7 +651,7 @@ construct_runtime!(
         Datalog: pallet_robonomics_datalog,
         Launch: pallet_robonomics_launch,
         RWS: pallet_robonomics_rws,
-        //DigitalTwin: pallet_robonomics_digital_twin,
+        DigitalTwin: pallet_robonomics_digital_twin,
         Liability: pallet_robonomics_liability,
 
         // Sudo. Usable initially.

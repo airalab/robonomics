@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ use frame_support::pallet_prelude::Weight;
 use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
+
+pub use pallet::*;
 
 //#[cfg(test)]
 //mod tests;
@@ -433,7 +435,7 @@ pub mod pallet {
             <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
 
             // insert auction into queue
-            <AuctionQueue<T>>::mutate(|queue| queue.try_push(index.clone()));
+            let _ = <AuctionQueue<T>>::mutate(|queue| queue.try_push(index.clone()));
 
             // deposit descriptive event
             Self::deposit_event(Event::NewAuction(kind, index));
@@ -453,19 +455,18 @@ pub mod pallet {
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
-            //<AuctionQueue<T>>::put(next.iter().map(|(i, _)| i).collect::<Vec<_>>());
             let mut indexes_without_bids = BoundedVec::new();
-            next.iter()
+            let _ = next
+                .iter()
                 .map(|(i, _)| indexes_without_bids.try_push(i.clone()));
             <AuctionQueue<T>>::put(indexes_without_bids);
-            //------------------------------------------------
 
             for (_, auction) in finished.iter() {
                 if let Some(subscription_id) = &auction.winner {
                     // transfer reserve to reward pool
                     let (slash, _) =
                         T::AuctionCurrency::slash_reserved(&subscription_id, auction.best_price);
-                    T::AuctionCurrency::burn(slash.peek());
+                    let _ = T::AuctionCurrency::burn(slash.peek());
                     // register subscription
                     <Ledger<T>>::insert(
                         subscription_id,

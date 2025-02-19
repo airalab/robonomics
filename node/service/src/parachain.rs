@@ -24,7 +24,7 @@ use cumulus_client_consensus_common::{
 use cumulus_client_consensus_relay_chain::{
     build_relay_chain_consensus, BuildRelayChainConsensusParams,
 };
-use cumulus_client_parachain_inherent::{ParachainInherentData, ParachainInherentDataProvider};
+use cumulus_client_parachain_inherent::ParachainInherentDataProvider;
 use cumulus_client_service::{
     build_network, build_relay_chain_interface, prepare_node_config, start_collator,
     start_full_node, BuildNetworkParams, CollatorSybilResistance, StartCollatorParams,
@@ -38,7 +38,7 @@ use robonomics_primitives::{AccountId, Balance, Block, Hash, Nonce};
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::{config::FullNetworkConfiguration, NetworkBlock};
-use sc_network_sync::{service::network::Network, SyncingService};
+use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sp_api::{ApiExt, ConstructRuntimeApi, Metadata};
@@ -385,13 +385,11 @@ where
         let client = client.clone();
         let transaction_pool = transaction_pool.clone();
 
-        // Box::new(move |deny_unsafe, _| {
         Box::new(move |_| {
             let deps = robonomics_rpc_core::CoreDeps {
                 client: client.clone(),
                 pool: transaction_pool.clone(),
                 ext_rpc: rpc_ext_builder(client.clone())?,
-                // deny_unsafe,
             };
 
             robonomics_rpc_core::create_core_rpc(deps).map_err(Into::into)

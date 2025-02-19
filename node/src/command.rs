@@ -27,7 +27,7 @@ use robonomics_service as service;
 use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
-use log::{info, warn};
+use log::info;
 use sc_chain_spec::ChainSpec;
 use sc_cli::{
     CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams,
@@ -277,10 +277,9 @@ pub fn run() -> sc_cli::Result<()> {
             })
         }
         Some(Subcommand::ExportGenesisState(cmd)) => {
-            // construct_async_run!(|components, cli, cmd, config| {
-            //     Ok(async move { cmd.run(&*config.chain_spec, &*components.client) })
-            // })
-            Ok(())
+            construct_async_run!(|components, cli, cmd, config| {
+                Ok(async move { cmd.run(components.client) })
+            })
         }
         Some(Subcommand::ExportGenesisWasm(cmd)) => {
             let runner = cli.create_runner(cmd)?;
@@ -295,7 +294,6 @@ pub fn run() -> sc_cli::Result<()> {
             match cmd {
                 BenchmarkCmd::Pallet(cmd) => {
                     if cfg!(feature = "runtime-benchmarks") {
-                        // runner.sync_run(|config| cmd.run::<Block, ()>(config))
                         runner.sync_run(|config| cmd.run_with_spec::<sp_runtime::traits::HashingFor<Block>, ReclaimHostFunctions>(Some(config.chain_spec)))
                     } else {
                         Err("Benchmarking wasn't enabled when building the node. \
