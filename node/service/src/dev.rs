@@ -285,11 +285,11 @@ where
         );
     net_config.add_notification_protocol(grandpa_protocol_config);
 
-    // let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
-    //     backend.clone(),
-    //     grandpa_link.shared_authority_set().clone(),
-    //     Vec::default(),
-    // ));
+    let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
+        backend.clone(),
+        grandpa_link.shared_authority_set().clone(),
+        Vec::default(),
+    ));
 
     let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_service) =
         sc_service::build_network(sc_service::BuildNetworkParams {

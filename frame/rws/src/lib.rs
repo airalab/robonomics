@@ -196,6 +196,8 @@ pub mod pallet {
         NewSubscription(T::AccountId, Subscription),
         /// Started new RWS subscription auction.
         NewAuction(Subscription, T::AuctionIndex),
+        /// Can't start a new RWS subscription auction.
+        NewAuctionCreationError(T::AuctionIndex),
     }
 
     #[pallet::storage]
@@ -431,14 +433,15 @@ pub mod pallet {
             let index = Self::auction_next();
             <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
 
-            // insert auction ledger
-            <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
-
             // insert auction into queue
-            let _ = <AuctionQueue<T>>::mutate(|queue| queue.try_push(index.clone()));
-
-            // deposit descriptive event
-            Self::deposit_event(Event::NewAuction(kind, index));
+            if let Ok(_) = <AuctionQueue<T>>::mutate(|queue| queue.try_push(index.clone())) {
+                // insert auction ledger
+                <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
+                // deposit descriptive event
+                Self::deposit_event(Event::NewAuction(kind, index));
+            } else {
+                Self::deposit_event(Event::NewAuctionCreationError(index));
+            };
         }
 
         /// Rotate current auctions, register subscriptions and queue next.
