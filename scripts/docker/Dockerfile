@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 as builder
+FROM ubuntu:24.04
 
 # metadata
 ARG VCS_REF
@@ -14,17 +14,17 @@ LABEL io.parity.image.authors="research@robonomics.network" \
 	io.parity.image.documentation="https://github.com/airalab/robonomics/"
 
 # show backtraces
-ENV RUST_BACKTRACE 1
+ENV RUST_BACKTRACE=1
 
 RUN apt-get update && \
         echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
         apt-get install dialog apt-utils -y && \
         apt-get install jq curl bash gcc g++ make -y && \
-	curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
+	curl -sL https://deb.nodesource.com/setup_22.x | bash - && \
 	apt-get install -y nodejs && \
         npm install -g npm@latest && \
         npm install -g @polkadot/api-cli && \
-	useradd -m -u 1000 -U -s /bin/sh -d /robonomics robonomics && \
+	useradd -m -u 1001 -U -s /bin/sh -d /robonomics robonomics && \
 	mkdir -p /robonomics/.local/share && \
 	mkdir /data && \
 	chown -R robonomics:robonomics /data && \
@@ -47,7 +47,7 @@ USER robonomics
 # check if executable works in this container
 RUN ["robonomics", "--version"]
 
-EXPOSE 30333 30334 9933 9934 9944 9945 9615 9616
+EXPOSE 30333 30334 9944 9945 9615 9616
 VOLUME ["/data"]
 
 CMD ["/usr/local/bin/robonomics"]
