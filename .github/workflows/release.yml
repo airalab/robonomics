@@ -199,16 +199,6 @@ jobs:
         cp ${{ steps.srtool_build.outputs.wasm }} ${{ matrix.chain }}_runtime.compact.wasm
         cp ${{ steps.srtool_build.outputs.wasm_compressed }} ${{ matrix.chain }}_runtime.compact.compressed.wasm
 
-    # it takes a while to build the runtime, so let's save the artifact as soon as we have it
-    - name: Archive Artifacts for ${{ matrix.chain }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.chain }}-runtime
-        path: |
-          ${{ matrix.chain }}_runtime.compact.wasm
-          ${{ matrix.chain }}_runtime.compact.compressed.wasm
-          ${{ matrix.chain }}-srtool-digest.json
-
     # We now get extra information thanks to subwasm
     - name: Install subwasm
       run: |
@@ -238,11 +228,14 @@ jobs:
           echo "Subwasm call failed, check the logs. This is likely because ${{ matrix.chain }} is not known by subwasm" | \
           tee ${{ matrix.chain }}-diff.txt
 
-    - name: Archive Subwasm results
+    - name: Archive Artifacts for ${{ matrix.chain }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.chain }}-runtime
         path: |
+          ${{ matrix.chain }}_runtime.compact.wasm
+          ${{ matrix.chain }}_runtime.compact.compressed.wasm
+          ${{ matrix.chain }}-srtool-digest.json
           ${{ matrix.chain }}-info.json
           ${{ matrix.chain }}-compressed-info.json
           ${{ matrix.chain }}-metadata.json
@@ -265,10 +258,10 @@ jobs:
         name: main-runtime
         path: runtime-artifacts
 
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v2
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
       with:
-        node-version: 18.x
+        node-version: 22.x
 
     - name: Get the latest release
       id: latest-release
