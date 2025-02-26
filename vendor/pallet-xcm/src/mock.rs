@@ -30,7 +30,7 @@ use xcm::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
     AllowTopLevelPaidExecutionFrom, Case, ChildParachainAsNative, ChildParachainConvertsVia,
-    ChildSystemParachainAsSuperuser, CurrencyAdapter as XcmCurrencyAdapter, FixedRateOfFungible,
+    ChildSystemParachainAsSuperuser, FungibleAdapter as XcmCurrencyAdapter, FixedRateOfFungible,
     FixedWeightBounds, IsConcrete, SignedAccountId32AsNative, SignedToAccountId32,
     SovereignSignedViaLocation, TakeWeightCredit,
 };
