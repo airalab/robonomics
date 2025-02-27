@@ -41,10 +41,8 @@ use frame_support::{
     dispatch::DispatchClass,
     parameter_types,
     traits::{
-        fungible::HoldConsideration,
         tokens::{pay::PayAssetFromAccount, UnityAssetBalanceConversion},
-        AsEnsureOriginWithArg, EitherOfDiverse, EqualPrivilegeOnly, LinearStoragePrice,
-        WithdrawReasons,
+        AsEnsureOriginWithArg, EitherOfDiverse, EqualPrivilegeOnly, WithdrawReasons,
     },
     weights::{
         constants::{
