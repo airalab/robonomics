@@ -59,6 +59,7 @@ pallet-robonomics-launch = { path = "../../frame/launch", default-features = fal
 pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
 pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
 pallet-robonomics-digital-twin = { path = "../../frame/digital-twin", default-features = false }
+pallet-robonomics-digital-twin-v2 = { path = "../../frame/digital-twin-v2", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
@@ -106,6 +107,7 @@ std = [
   "pallet-robonomics-datalog/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-digital-twin/std",
+  "pallet-robonomics-digital-twin-v2/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
