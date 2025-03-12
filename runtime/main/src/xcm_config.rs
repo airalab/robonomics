@@ -52,6 +52,7 @@ parameter_types! {
     pub UniversalLocation: InteriorMultiLocation =
         X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
     pub Local: MultiLocation = Here.into_location();
+    pub EthereumCurrencyLocation: MultiLocation = MultiLocation::new(2, X2(GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20{ network: None, key: ERC20_XRT_ADDRESS }));
     pub AssetsPalletLocation: MultiLocation =
         PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
     pub DummyCheckingAccount: AccountId = PolkadotXcm::check_account();
