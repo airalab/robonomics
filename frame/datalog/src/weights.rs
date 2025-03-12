@@ -27,7 +27,7 @@ impl WeightInfo for () {
         Default::default()
     }
 
-    fn erase(win: u64) -> Weight {
+    fn erase(_win: u64) -> Weight {
         Default::default()
     }
 }

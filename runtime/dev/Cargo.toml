@@ -46,6 +46,7 @@ frame-system-rpc-runtime-api = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 pallet-membership = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-migrations = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-vesting = { workspace = true }
 pallet-timestamp = { workspace = true }

@@ -14,7 +14,7 @@ parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
-xcm = { workspace = true }
+staging-xcm = { workspace = true }
 
 [features]
 default = ["std"]
@@ -25,5 +25,5 @@ std = [
   "scale-info/std",
   "sp-runtime/std",
   "sp-std/std",
-  "xcm/std",
+  "staging-xcm/std",
 ]
