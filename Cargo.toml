@@ -45,12 +45,12 @@ jemalloc-allocator = []
 
 [workspace]
 members = [
-  # "frame/rws",
+  "frame/rws",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
   "frame/lighthouse",
-  # "frame/digital-twin",
+  "frame/digital-twin",
   "frame/xcm-info",
   "primitives",
   "runtime/dev",

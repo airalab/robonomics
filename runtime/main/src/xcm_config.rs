@@ -101,8 +101,26 @@ pub type FungiblesTransactor = FungiblesAdapter<
     DummyCheckingAccount,
 >;
 
+/// Means for transacting the native currency on this chain.
+pub type BridgedCurrencyTransactor = CurrencyAdapter<
+    // Use this currency:
+    Balances,
+    // Use this currency when it is a fungible asset matching the given location or name:
+    IsConcrete<EthereumCurrencyLocation>,
+    // Convert an XCM MultiLocation into a local account id:
+    LocationToAccountId,
+    // Our chain's account ID type (we can't get away without mentioning it explicitly):
+    AccountId,
+    // We don't track any teleports.
+    (),
+>;
+
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
+pub type AssetTransactors = (
+    CurrencyTransactor,
+    BridgedCurrencyTransactor,
+    FungiblesTransactor,
+);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can

@@ -85,7 +85,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("robonomics"),
     impl_name: create_runtime_str!("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 34,
+    spec_version: 36,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -613,9 +613,9 @@ impl pallet_robonomics_rws::Config for Runtime {
     type MinimalBid = MinimalBid;
 }
 
-//impl pallet_robonomics_digital_twin::Config for Runtime {
-//type RuntimeEvent = RuntimeEvent;
-//}
+impl pallet_robonomics_digital_twin::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+}
 
 impl pallet_robonomics_liability::Config for Runtime {
     type Agreement = pallet_robonomics_liability::SignedAgreement<
@@ -663,7 +663,7 @@ construct_runtime! {
         // Robonomics Network pallets.
         Datalog: pallet_robonomics_datalog = 51,
         Launch: pallet_robonomics_launch = 52,
-        //DigitalTwin: pallet_robonomics_digital_twin = 54,
+        DigitalTwin: pallet_robonomics_digital_twin = 54,
         RWS: pallet_robonomics_rws = 55,
         Liability: pallet_robonomics_liability = 56,
 

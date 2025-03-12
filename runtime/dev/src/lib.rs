@@ -336,7 +336,6 @@ impl pallet_grandpa::Config for Runtime {
     type MaxSetIdSessionEntries = ConstU64<0>;
     type KeyOwnerProof = sp_core::Void;
     type EquivocationReportSystem = ();
-    // ???
     type MaxNominators = ConstU32<1000>;
 }
 
@@ -344,7 +343,7 @@ parameter_types! {
     pub const BasicDeposit: Balance = 10 * XRT;       // 258 bytes on-chain
     pub const FieldDeposit: Balance = 250 * COASE;    // 66 bytes on-chain
     pub const SubAccountDeposit: Balance = 2 * XRT;   // 53 bytes on-chain
-    pub const ByteDeposit: Balance = deposit(0, 1);   // ???
+    pub const ByteDeposit: Balance = deposit(0, 1);
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
     pub const MaxRegistrars: u32 = 20;
@@ -366,7 +365,6 @@ impl pallet_identity::Config for Runtime {
     type OffchainSignature = Signature;
     type SigningPublicKey = <Signature as Verify>::Signer;
     type UsernameAuthorityOrigin = EnsureRoot<Self::AccountId>;
-    // ???
     type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
     type MaxSuffixLength = ConstU32<7>;
     type MaxUsernameLength = ConstU32<32>;
@@ -417,8 +415,7 @@ parameter_types! {
     pub const DataDepositPerByte: Balance = 1 * COASE;
     pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
     pub const MaxApprovals: u32 = 100;
-    // ???
-    pub const SpendPayoutPeriod: BlockNumber = 30 * DAYS;
+    pub const SpendPayoutPeriod: BlockNumber = 10 * MINUTES;
     pub TreasuryAccount: AccountId = CommunityAccount::Treasury.into_account();
 }
 
@@ -436,7 +433,6 @@ impl pallet_treasury::Config for Runtime {
     type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
     type AssetKind = u32;
     type Beneficiary = AccountId;
-    // ???
     type BeneficiaryLookup = IdentityLookup<Self::AccountId>;
     type Paymaster = PayAssetFromAccount<Assets, TreasuryAccount>;
     type BalanceConverter = UnityAssetBalanceConversion;
@@ -572,7 +568,6 @@ parameter_types! {
     pub const AuctionDuration: BlockNumber = 10;
     pub const AuctionCost: Balance = 200 * XRT;
     pub const MinimalBid: Balance = 1 * XRT;
-    // ???
     pub const MaxDevicesAmount: u32 = 100;
     pub const MaxAuctionIndexesAmount: u32 = 100;
 }
@@ -588,7 +583,6 @@ impl pallet_robonomics_rws::Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
-    // ???
     type MaxDevicesAmount = MaxDevicesAmount;
     type MaxAuctionIndexesAmount = MaxAuctionIndexesAmount;
 }
