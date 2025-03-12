@@ -72,7 +72,6 @@ staging-parachain-info = { workspace = true }
 staging-xcm = { workspace = true }
 staging-xcm-builder = { workspace = true }
 staging-xcm-executor = { workspace = true }
-# pallet-xcm = { path = "../../vendor/pallet-xcm", default-features = false }
 pallet-xcm = "18.0.0"
 pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-parachain = { workspace = true }
