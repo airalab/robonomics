@@ -45,6 +45,9 @@ use xcm_executor::{
     Config, XcmExecutor,
 };
 
+// locals
+use robonomics_primitives::ERC20_XRT_ADDRESS;
+
 parameter_types! {
     pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
     pub const RelayLocation: MultiLocation = MultiLocation::parent();

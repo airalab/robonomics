@@ -2545,7 +2545,7 @@ dependencies = [
 
 [[package]]
 name = "dev-runtime"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking 38.0.0",
  "frame-executive",
@@ -3952,7 +3952,7 @@ dependencies = [
 
 [[package]]
 name = "generic-runtime"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support 38.2.0",
@@ -6045,7 +6045,7 @@ dependencies = [
 
 [[package]]
 name = "main-runtime"
-version = "3.0.0"
+version = "3.3.0"
 dependencies = [
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -10170,7 +10170,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "color-eyre",
  "robonomics-node",
@@ -10179,7 +10179,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-node"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "clap",
  "color-print",
@@ -10211,7 +10211,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-primitives"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "hex-literal 0.3.4",
  "sp-core 34.0.0",
@@ -10220,7 +10220,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-rpc-core"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "jsonrpsee",
  "pallet-transaction-payment-rpc",
@@ -10236,7 +10236,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-service"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "cumulus-client-cli",
  "cumulus-client-consensus-common",

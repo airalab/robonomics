@@ -94,7 +94,7 @@ jobs:
       id: artifact-name
       run: echo "::set-output name=name::robonomics-ubuntu-latest-${TARGET%%-*}"
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.artifact-name.outputs.name }}
         path: target/${{ matrix.target }}/release/robonomics
@@ -118,7 +118,7 @@ jobs:
     - name: Build optimized binary
       run: cargo build --release --verbose --locked
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: robonomics-macOS-latest-x86_64
         path: target/release/robonomics
@@ -147,13 +147,13 @@ jobs:
         tag-sha: true # add git short SHA as Docker tag
 
     - name: Download pre-built amd64 linux collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: robonomics-ubuntu-latest-x86_64
         path: scripts/docker/amd64/
 
     - name: Download pre-built aarch64 linux collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: robonomics-ubuntu-latest-aarch64
         path: scripts/docker/arm64/
@@ -199,16 +199,6 @@ jobs:
         cp ${{ steps.srtool_build.outputs.wasm }} ${{ matrix.chain }}_runtime.compact.wasm
         cp ${{ steps.srtool_build.outputs.wasm_compressed }} ${{ matrix.chain }}_runtime.compact.compressed.wasm
 
-    # it takes a while to build the runtime, so let's save the artifact as soon as we have it
-    - name: Archive Artifacts for ${{ matrix.chain }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.chain }}-runtime
-        path: |
-          ${{ matrix.chain }}_runtime.compact.wasm
-          ${{ matrix.chain }}_runtime.compact.compressed.wasm
-          ${{ matrix.chain }}-srtool-digest.json
-
     # We now get extra information thanks to subwasm
     - name: Install subwasm
       run: |
@@ -238,11 +228,14 @@ jobs:
           echo "Subwasm call failed, check the logs. This is likely because ${{ matrix.chain }} is not known by subwasm" | \
           tee ${{ matrix.chain }}-diff.txt
 
-    - name: Archive Subwasm results
-      uses: actions/upload-artifact@v3
+    - name: Archive Artifacts for ${{ matrix.chain }}
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.chain }}-runtime
         path: |
+          ${{ matrix.chain }}_runtime.compact.wasm
+          ${{ matrix.chain }}_runtime.compact.compressed.wasm
+          ${{ matrix.chain }}-srtool-digest.json
           ${{ matrix.chain }}-info.json
           ${{ matrix.chain }}-compressed-info.json
           ${{ matrix.chain }}-metadata.json
@@ -260,15 +253,15 @@ jobs:
         fetch-depth: 0
 
     - name: Download main runtime
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: main-runtime
         path: runtime-artifacts
 
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v2
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
       with:
-        node-version: 18.x
+        node-version: 22.x
 
     - name: Get the latest release
       id: latest-release
@@ -313,7 +306,7 @@ jobs:
         mkdir -p ${{ matrix.os }}-${{ matrix.arch }}-bin
 
     - name: Download pre-built collator binary
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: robonomics-${{ matrix.os }}-latest-${{ matrix.arch }}
         path: ${{ matrix.os }}-${{ matrix.arch }}-bin
@@ -342,7 +335,7 @@ jobs:
         chain: ["main"]
     steps:
     - name: Download runtime
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: ${{ matrix.chain }}-runtime
 
