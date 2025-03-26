@@ -150,7 +150,7 @@ frame-system-rpc-runtime-api = { version = "34.0.0", default-features = false }
 pallet-assets = { version = "40.0.0", default-features = false }
 pallet-aura = { version = "37.0.0", default-features = false }
 pallet-collective = { version = "38.0.0", default-features = false }
-pallet-collator-selection= { version = "20.0.0", default-features = false }
+pallet-collator-selection = { version = "20.0.0", default-features = false }
 pallet-democracy = { version = "38.0.0", default-features = false }
 pallet-membership = { version = "38.0.0", default-features = false }
 pallet-message-queue = { version = "42.0.0", default-features = false }
