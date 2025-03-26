@@ -32,5 +32,8 @@ jobs:
     - name: Check targets are installed correctly
       run: rustup target list --installed
 
+    - name: Check wasm
+      run: rustup target add wasm32-unknown-unknown --toolchain 1.81.0-x86_64-unknown-linux-gnu
+
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
