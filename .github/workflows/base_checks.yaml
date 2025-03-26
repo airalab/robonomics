@@ -27,7 +27,7 @@ jobs:
         echo "SCCACHE_CACHE_SIZE=100G" >> $GITHUB_ENV
 
     - name: Install & display rust toolchain
-      run: rustup show
+      run: rustup show && rustup component add rust-src --toolchain 1.81.0-x86_64-unknown-linux-gnu
 
     - name: Check targets are installed correctly
       run: rustup target list --installed
