@@ -150,8 +150,10 @@ frame-system-rpc-runtime-api = { version = "34.0.0", default-features = false }
 pallet-assets = { version = "40.0.0", default-features = false }
 pallet-aura = { version = "37.0.0", default-features = false }
 pallet-collective = { version = "38.0.0", default-features = false }
+pallet-collator-selection= { version = "20.0.0", default-features = false }
 pallet-democracy = { version = "38.0.0", default-features = false }
 pallet-membership = { version = "38.0.0", default-features = false }
+pallet-message-queue = { version = "42.0.0", default-features = false }
 pallet-multisig = { version = "38.0.0", default-features = false }
 pallet-migrations = { version = "8.0.0", default-features = false }
 pallet-preimage = { version = "38.0.0", default-features = false }
@@ -169,6 +171,8 @@ frame-system-benchmarking = { version = "38.0.0", default-features = false }
 frame-try-runtime = { version = "0.44.0", default-features = false }
 pallet-grandpa = { version = "38.0.0", default-features = false }
 sp-staking = { version = "36.0.0", default-features = false }
+pallet-xcm = { version = "18.0.0", default-features = false }
+parachains-common = { version = "19.0.0", default-features = false }
 
 # Cumulus
 # (native)
@@ -188,6 +192,7 @@ cumulus-pallet-dmp-queue = { version = "0.17.0", default-features = false }
 cumulus-pallet-parachain-system = { version = "0.17.0", default-features = false }
 cumulus-pallet-xcm = { version = "0.17.0", default-features = false }
 cumulus-pallet-xcmp-queue = { version = "0.17.0", default-features = false }
+cumulus-pallet-session-benchmarking = { version = "20.0.0", default-features = false }
 cumulus-primitives-core = { version = "0.16.0", default-features = false }
 cumulus-primitives-timestamp = { version = "0.16.0", default-features = false }
 cumulus-primitives-utility = { version = "0.17.0", default-features = false }
@@ -202,6 +207,8 @@ polkadot-cli = { version = "19.0.0" }
 polkadot-parachain = { version = "1.0.0" }
 polkadot-runtime-parachains = { version = "17.0.0", default-features = false }
 polkadot-primitives = { version = "16.0.0", default-features = false }
+polkadot-parachain-primitives = { version = "15.0.0", default-features = false }
+polkadot-runtime-common = { version = "18.0.0", default-features = false }
 staging-xcm = { version = "14.2.0" }
 staging-xcm-builder = { version = "17.0.0" }
 staging-xcm-executor = { version = "17.0.0" }
