@@ -18,11 +18,11 @@
 // Benchmarks for Launch Pallet
 
 use super::{Pallet as Launch, *};
-use frame_benchmarking::Vec;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
 pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
+use sp_runtime::Vec;
 
 const SEED: u32 = 0;
 
