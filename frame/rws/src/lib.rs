@@ -23,7 +23,10 @@
 use frame_support::pallet_prelude::Weight;
 use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    MultiSignature, RuntimeDebug,
+};
 
 pub use pallet::*;
 
@@ -31,7 +34,7 @@ pub use pallet::*;
 //mod tests;
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
-pub enum Subscription {
+pub enum Subscription<AccountId> {
     /// Lifetime subscription.
     Lifetime {
         /// How much Transactions Per Second this subscription gives (in uTPS).
@@ -44,9 +47,18 @@ pub enum Subscription {
         #[codec(compact)]
         days: u32,
     },
+    /// Subscription for a different address.
+    ForAddress {
+        /// How long days this subscription active.
+        #[codec(compact)]
+        days: u32,
+
+        /// The account for which the subscription is being purchased.
+        address: AccountId,
+    },
 }
 
-impl Default for Subscription {
+impl<AccountId> Default for Subscription<AccountId> {
     fn default() -> Self {
         Subscription::Daily { days: 0 }
     }
@@ -60,13 +72,13 @@ pub struct AuctionLedger<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEnco
     #[codec(compact)]
     pub best_price: Balance,
     /// Kind of subscription for this auction
-    pub kind: Subscription,
+    pub kind: Subscription<AccountId>,
 }
 
 impl<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen + Default>
     AuctionLedger<AccountId, Balance>
 {
-    pub fn new(kind: Subscription) -> Self {
+    pub fn new(kind: Subscription<AccountId>) -> Self {
         Self {
             winner: None,
             best_price: Default::default(),
@@ -84,7 +96,7 @@ impl<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen + Default>
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
-pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
+pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen, AccountId> {
     /// Free execution weights accumulator.
     #[codec(compact)]
     free_weight: u64,
@@ -95,11 +107,11 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     #[codec(compact)]
     last_update: Moment,
     /// Kind of subscription (lifetime, daily, etc).
-    kind: Subscription,
+    kind: Subscription<AccountId>,
 }
 
-impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
-    pub fn new(last_update: Moment, kind: Subscription) -> Self {
+impl<Moment: HasCompact + MaxEncodedLen + Clone, AccountId> SubscriptionLedger<Moment, AccountId> {
+    pub fn new(last_update: Moment, kind: Subscription<AccountId>) -> Self {
         Self {
             free_weight: Default::default(),
             issue_time: last_update.clone(),
@@ -193,9 +205,9 @@ pub mod pallet {
         /// Registered RWS subscription devices.
         NewDevices(T::AccountId, Vec<T::AccountId>),
         /// Registered new RWS subscription.
-        NewSubscription(T::AccountId, Subscription),
+        NewSubscription(T::AccountId, Subscription<T::AccountId>),
         /// Started new RWS subscription auction.
-        NewAuction(Subscription, T::AuctionIndex),
+        NewAuction(Subscription<T::AccountId>, T::AuctionIndex),
         /// Can't start a new RWS subscription auction.
         NewAuctionCreationError(T::AuctionIndex),
     }
@@ -208,8 +220,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn ledger)]
     /// RWS subscriptions storage.
-    pub(super) type Ledger<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, SubscriptionLedger<<T::Time as Time>::Moment>>;
+    pub(super) type Ledger<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        SubscriptionLedger<<T::Time as Time>::Moment, T::AccountId>,
+    >;
 
     #[pallet::storage]
     #[pallet::getter(fn devices)]
@@ -357,6 +373,29 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Set RWS subscription devices for other address.
+        ///
+        /// # <weight>
+        /// - O(1).
+        /// - Limited storage reads.
+        /// - One DB change.
+        /// # </weight>
+        #[pallet::weight(100_000)]
+        pub fn set_devices_for_address(
+            origin: OriginFor<T>,
+            devices: BoundedVec<T::AccountId, T::MaxDevicesAmount>,
+            subscription_id: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                <Ledger<T>>::get(subscription_id.clone()).is_some(),
+                Error::<T>::NoSubscription
+            );
+            <Devices<T>>::insert(subscription_id.clone(), devices.clone());
+            Self::deposit_event(Event::NewDevices(subscription_id, devices.into()));
+            Ok(().into())
+        }
+
         /// Change account bandwidth share rate by authority.
         ///
         /// Change RWS oracle account.
@@ -391,7 +430,7 @@ pub mod pallet {
         pub fn set_subscription(
             origin: OriginFor<T>,
             target: T::AccountId,
-            subscription: Subscription,
+            subscription: Subscription<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             ensure!(
@@ -418,7 +457,7 @@ pub mod pallet {
         #[pallet::weight(100_000)]
         pub fn start_auction(
             origin: OriginFor<T>,
-            kind: Subscription,
+            kind: Subscription<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let _ = ensure_root(origin)?;
             Self::new_auction(kind);
@@ -428,7 +467,7 @@ pub mod pallet {
 
     impl<T: Config> Pallet<T> {
         /// Create new auction.
-        fn new_auction(kind: Subscription) {
+        fn new_auction(kind: Subscription<T::AccountId>) {
             // get next index and increment
             let index = Self::auction_next();
             <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
@@ -470,9 +509,17 @@ pub mod pallet {
                     let (slash, _) =
                         T::AuctionCurrency::slash_reserved(&subscription_id, auction.best_price);
                     let _ = T::AuctionCurrency::burn(slash.peek());
+
+                    // if this subscription is for different address
+                    let id = if let Subscription::ForAddress { address, .. } = &auction.kind {
+                        address
+                    } else {
+                        subscription_id
+                    };
+
                     // register subscription
                     <Ledger<T>>::insert(
-                        subscription_id,
+                        id,
                         SubscriptionLedger::new(T::Time::now(), auction.kind.clone()),
                     );
                 }
@@ -492,7 +539,7 @@ pub mod pallet {
             let now = T::Time::now();
             let utps = match subscription.kind {
                 Subscription::Lifetime { tps } => tps,
-                Subscription::Daily { days } => {
+                Subscription::Daily { days } | Subscription::ForAddress { days, .. } => {
                     let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
                     // If subscription active then 0.01 TPS else 0 TPS
                     if now < subscription.issue_time.clone() + duration_ms {
