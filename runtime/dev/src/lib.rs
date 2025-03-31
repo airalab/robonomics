@@ -101,7 +101,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
-    state_version: 1,
+    system_version: 1,
 };
 
 /// The version infromation used to identify this runtime when compiled natively.
@@ -178,6 +178,7 @@ impl frame_system::Config for Runtime {
     type PreInherents = ();
     type PostInherents = ();
     type PostTransactions = ();
+    type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -220,6 +221,7 @@ impl pallet_balances::Config for Runtime {
     type MaxFreezes = ();
     type RuntimeHoldReason = ();
     type RuntimeFreezeReason = RuntimeFreezeReason;
+    type DoneSlashHandler = ();
 }
 
 parameter_types! {
@@ -312,6 +314,7 @@ impl pallet_transaction_payment::Config for Runtime {
     >;
     type OperationalFeeMultiplier = OperationalFeeMultiplier;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
 }
 
 impl_opaque_keys! {
@@ -344,6 +347,7 @@ parameter_types! {
     pub const FieldDeposit: Balance = 250 * COASE;    // 66 bytes on-chain
     pub const SubAccountDeposit: Balance = 2 * XRT;   // 53 bytes on-chain
     pub const ByteDeposit: Balance = deposit(0, 1);
+    pub const UsernameDeposit: Balance = deposit(0, 32);
     pub const MaxSubAccounts: u32 = 100;
     pub const MaxAdditionalFields: u32 = 100;
     pub const MaxRegistrars: u32 = 20;
@@ -368,6 +372,8 @@ impl pallet_identity::Config for Runtime {
     type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
     type MaxSuffixLength = ConstU32<7>;
     type MaxUsernameLength = ConstU32<32>;
+    type UsernameDeposit = UsernameDeposit;
+    type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
 }
 
 parameter_types! {
@@ -439,6 +445,7 @@ impl pallet_treasury::Config for Runtime {
     type PayoutPeriod = SpendPayoutPeriod;
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = ();
+    type BlockNumberProvider = System;
 }
 
 parameter_types! {
@@ -521,6 +528,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
     type MaxProposalWeight = MaxCollectivesProposalWeight;
     type DefaultVote = pallet_collective::PrimeDefaultVote;
     type WeightInfo = ();
+    type DisapproveOrigin = EnsureRoot<Self::AccountId>;
+    type KillOrigin = EnsureRoot<Self::AccountId>;
+    type Consideration = ();
 }
 
 type MoreThanHalfTechnicals = EitherOfDiverse<
