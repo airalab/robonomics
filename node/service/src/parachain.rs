@@ -127,7 +127,9 @@ pub fn build_open_consensus<RuntimeApi>(
     telemetry: Option<TelemetryHandle>,
     task_manager: &TaskManager,
     relay_chain_interface: Arc<dyn RelayChainInterface>,
-    transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>>,
+    transaction_pool: Arc<
+        sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient<RuntimeApi>>,
+    >,
     _sync_service: Arc<SyncingService<Block>>,
     _keystore: KeystorePtr,
     _force_authoring: bool,
@@ -201,7 +203,7 @@ pub fn new_partial<RuntimeApi, BIQ>(
         ParachainBackend,
         (),
         sc_consensus::DefaultImportQueue<Block>,
-        sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>,
+        sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient<RuntimeApi>>,
         (
             ParachainBlockImport<RuntimeApi>,
             Option<Telemetry>,
@@ -263,12 +265,15 @@ where
         telemetry
     });
 
-    let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-        config.transaction_pool.clone(),
-        config.role.is_authority().into(),
-        config.prometheus_registry(),
-        task_manager.spawn_essential_handle(),
-        client.clone(),
+    let transaction_pool = Arc::from(
+        sc_transaction_pool::Builder::new(
+            task_manager.spawn_essential_handle(),
+            client.clone(),
+            config.role.is_authority().into(),
+        )
+        .with_options(config.transaction_pool.clone())
+        .with_prometheus(config.prometheus_registry())
+        .build(),
     );
 
     let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
@@ -326,7 +331,7 @@ where
         Option<TelemetryHandle>,
         &TaskManager,
         Arc<dyn RelayChainInterface>,
-        Arc<sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>>,
+        Arc<sc_transaction_pool::TransactionPoolHandle<Block, ParachainClient<RuntimeApi>>>,
         Arc<SyncingService<Block>>,
         KeystorePtr,
         bool,
