@@ -287,7 +287,7 @@ pub mod pallet {
             );
 
             let call_info = call.get_dispatch_info();
-            //Self::update_subscription(&subscription_id, call_info.weight)?;
+            Self::update_subscription(&subscription_id, call_info.call_weight)?;
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
