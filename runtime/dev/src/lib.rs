@@ -252,6 +252,8 @@ impl pallet_assets::Config for Runtime {
     type RemoveItemsLimit = ConstU32<1000>;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
     type CallbackHandle = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
 }
 
 parameter_types! {
