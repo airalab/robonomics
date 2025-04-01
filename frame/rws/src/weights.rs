@@ -20,6 +20,17 @@ use frame_support::weights::Weight;
 pub trait WeightInfo {
     fn bid() -> Weight;
     fn claim() -> Weight;
-    fn set_devices() -> Weight;
     fn start_auction() -> Weight;
+}
+
+impl WeightInfo for () {
+    fn bid() -> Weight {
+        Weight::from_all(100_000)
+    }
+    fn claim() -> Weight {
+        Weight::from_all(100_000)
+    }
+    fn start_auction() -> Weight {
+        Weight::from_all(100_000)
+    }
 }

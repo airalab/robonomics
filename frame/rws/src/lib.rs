@@ -20,7 +20,6 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::Weight;
 use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -51,19 +50,12 @@ pub enum SubscriptionMode {
     },
 }
 
-impl Default for SubscriptionMode {
-    fn default() -> Self {
-        SubscriptionMode::Daily { days: 0 }
-    }
-}
-
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
-pub struct AuctionLedger<AccountId, Balance, Moment, SubscriptionId>
+pub struct AuctionLedger<AccountId, Balance, Moment>
 where
     AccountId: MaxEncodedLen,
     Balance: HasCompact + MaxEncodedLen,
     Moment: HasCompact + MaxEncodedLen,
-    SubscriptionId: MaxEncodedLen,
 {
     /// Auction winner address.
     pub winner: Option<AccountId>,
@@ -75,16 +67,15 @@ where
     pub created: Moment,
     /// Subscription mode for this auction
     pub mode: SubscriptionMode,
-    /// Set when subscription issued.
-    pub subscription_id: Option<SubscriptionId>,
+    /// Subscription id when claimed.
+    pub subscription_id: Option<u32>,
 }
 
-impl<AccountId, Balance, Moment, SubId> AuctionLedger<AccountId, Balance, Moment, SubId>
+impl<AccountId, Balance, Moment> AuctionLedger<AccountId, Balance, Moment>
 where
     AccountId: MaxEncodedLen,
     Balance: HasCompact + MaxEncodedLen + Default,
     Moment: HasCompact + MaxEncodedLen,
-    SubId: MaxEncodedLen,
 {
     pub fn new(mode: SubscriptionMode, created: Moment) -> Self {
         Self {
@@ -93,24 +84,6 @@ where
             best_price: Default::default(),
             mode,
             created,
-        }
-    }
-}
-
-impl<AccountId, Balance, Moment, SubId> Default for AuctionLedger<AccountId, Balance, Moment, SubId>
-where
-    AccountId: MaxEncodedLen,
-    Balance: HasCompact + MaxEncodedLen + Default,
-    Moment: HasCompact + MaxEncodedLen + Default,
-    SubId: MaxEncodedLen,
-{
-    fn default() -> Self {
-        Self {
-            winner: None,
-            subscription_id: None,
-            best_price: Default::default(),
-            created: Default::default(),
-            mode: Default::default(),
         }
     }
 }
@@ -158,7 +131,7 @@ pub mod pallet {
     >>::Balance;
 
     const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -170,12 +143,8 @@ pub mod pallet {
         type Time: Time<Moment = Self::Moment>;
         /// Time should be aligned to weights for TPS calculations.
         type Moment: Parameter + AtLeast32Bit + Into<u64> + HasCompact + MaxEncodedLen;
-        /// The auction index value.
-        type AuctionIndex: Parameter + AtLeast32Bit + Default + MaxEncodedLen;
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
-        /// Subscription identifier type, must be enumerable and have good enough capacity, eg. u64
-        type SubscriptionId: Parameter + AtLeast32Bit + Default + MaxEncodedLen;
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Call weights.
@@ -189,22 +158,16 @@ pub mod pallet {
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
-        #[pallet::constant]
-        type MaxDevicesAmount: Get<u32>;
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Auction is not ongoing.
-        NotLiveAuction,
         /// Auction with the index doesn't exist.
         NotExistAuction,
         /// The bid is too small.
         TooSmallBid,
         /// Subscription is not registered.
         NoSubscription,
-        /// Devices isn't assigned to this subscription.
-        NotLinkedDevice,
         /// The origin account have no enough free weight to process these call: [free_weight, required_weight].
         FreeWeightIsNotEnough,
         /// Subscription time is over
@@ -219,64 +182,37 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// New subscription auction bid received.
-        NewBid(T::AuctionIndex, T::AccountId, BalanceOf<T>),
+        NewBid(u32, T::AccountId, BalanceOf<T>),
         /// Runtime method executed using RWS subscription.
-        RwsCall(T::AccountId, T::SubscriptionId, DispatchResult),
-        /// Subscription account update users(devices) list.
-        DevicesUpdated(T::AccountId, Vec<T::AccountId>),
+        RwsCall(T::AccountId, u32, DispatchResult),
         /// Subscription auction has been started.
-        AuctionStarted(T::AuctionIndex),
+        AuctionStarted(u32),
         /// Subscription auction finished.
-        AuctionFinished(T::AuctionIndex),
+        AuctionFinished(u32),
         /// RWS subscription activated for `AccountId`.
-        SubscriptionActivated(T::SubscriptionId, T::AccountId),
+        SubscriptionActivated(T::AccountId, u32),
     }
 
     #[pallet::storage]
     #[pallet::getter(fn subscription)]
-    /// Subscription ledger storage.
-    pub(super) type Subscription<T: Config> = StorageMap<
+    /// Subscriptions stored as double map: owner account and subscription id.
+    pub(super) type Subscription<T: Config> = StorageDoubleMap<
         _,
+        Blake2_128Concat,
+        T::AccountId,
         Twox64Concat,
-        T::SubscriptionId,
+        u32,
         SubscriptionLedger<<T::Time as Time>::Moment>,
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn subscription_total)]
-    /// Total subscription amount (active & inactive).
-    pub(super) type SubscriptionTotal<T: Config> = StorageValue<_, T::SubscriptionId, ValueQuery>;
-
-    /// RWS subscriptions owners.
-    #[pallet::storage]
-    #[pallet::getter(fn subscription_owner)]
-    pub(super) type SubscriptionOwner<T: Config> =
-        StorageMap<_, Twox64Concat, T::SubscriptionId, T::AccountId>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn devices)]
-    /// Subscription linked devices.
-    pub(super) type Devices<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        BoundedVec<T::AccountId, T::MaxDevicesAmount>,
-        ValueQuery,
-    >;
-
-    /// Total amount of actions happens.
-    #[pallet::storage]
-    #[pallet::getter(fn auction_total)]
-    pub(super) type AuctionTotal<T: Config> = StorageValue<_, T::AuctionIndex, ValueQuery>;
-
-    #[pallet::storage]
     #[pallet::getter(fn auction)]
-    /// Indexed auction ledger.
-    pub(super) type Auction<T: Config> = StorageMap<
+    /// List of all auctions.
+    pub(super) type Auction<T: Config> = CountedStorageMap<
         _,
         Twox64Concat,
-        T::AuctionIndex,
-        AuctionLedger<T::AccountId, BalanceOf<T>, <T::Time as Time>::Moment, T::SubscriptionId>,
+        u32,
+        AuctionLedger<T::AccountId, BalanceOf<T>, <T::Time as Time>::Moment>,
     >;
 
     #[pallet::pallet]
@@ -297,24 +233,45 @@ pub mod pallet {
         #[pallet::call_index(0)]
         pub fn call(
             origin: OriginFor<T>,
-            subscription_id: T::SubscriptionId,
+            subscription_id: u32,
             call: Box<<T as Config>::Call>,
         ) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
 
             // Ensure that subscription owner or any of subscription devices call this method
-            let owner =
-                Self::subscription_owner(&subscription_id).ok_or(Error::<T>::NoSubscription)?;
-            if sender != owner {
-                ensure!(
-                    Self::devices(&owner).iter().any(|i| *i == sender),
-                    Error::<T>::NotLinkedDevice,
-                );
-            }
+            let mut subscription = <Subscription<T>>::get(&sender, &subscription_id)
+                .ok_or(Error::<T>::NoSubscription)?;
 
-            let call_info = call.get_dispatch_info();
-            Self::update_subscription(&subscription_id, call_info.call_weight)?;
+            let now = T::Time::now();
+            let utps = match subscription.mode {
+                SubscriptionMode::Lifetime { tps } => tps,
+                SubscriptionMode::Daily { days } => {
+                    let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
+                    // If subscription active then 0.01 TPS else throw an error
+                    if now < subscription.issue_time.clone() + duration_ms {
+                        10_000 // uTPS
+                    } else {
+                        Err(Error::<T>::SubscriptionIsOver)?
+                    }
+                }
+            };
+
+            // Reference call weight * TPS * secons passed from last update
+            let delta: u64 = (now.clone() - subscription.last_update).into();
+            subscription.last_update = now;
+            subscription.free_weight +=
+                T::ReferenceCallWeight::get() * (utps as u64) * delta / 1_000_000_000;
+
+            let call_weight = call.get_dispatch_info().call_weight;
+            // Ensure than free weight is enough for call
+            if subscription.free_weight < call_weight.ref_time() {
+                <Subscription<T>>::set(&sender, &subscription_id, Some(subscription));
+                Err(Error::<T>::FreeWeightIsNotEnough)?
+            } else {
+                subscription.free_weight -= call_weight.ref_time();
+                <Subscription<T>>::set(&sender, &subscription_id, Some(subscription));
+            }
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
@@ -337,14 +294,15 @@ pub mod pallet {
         #[pallet::call_index(1)]
         pub fn bid(
             origin: OriginFor<T>,
-            index: T::AuctionIndex,
+            auction_id: u32,
             #[pallet::compact] amount: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
 
             let now = T::Time::now();
-            let mut auction = Self::auction(&index).ok_or(Error::<T>::NotExistAuction)?;
+            let mut auction = <Auction<T>>::get(&auction_id).ok_or(Error::<T>::NotExistAuction)?;
+
             if let Some(winner) = &auction.winner {
                 // Ensure best prices is less than proposed bid
                 ensure!(auction.best_price < amount, Error::<T>::TooSmallBid);
@@ -367,9 +325,9 @@ pub mod pallet {
                 auction.winner = Some(sender.clone());
                 auction.best_price = amount.clone();
             }
-            <Auction<T>>::insert(&index, auction);
+            <Auction<T>>::set(&auction_id, Some(auction));
 
-            Self::deposit_event(Event::NewBid(index, sender, amount));
+            Self::deposit_event(Event::NewBid(auction_id, sender, amount));
             Ok(().into())
         }
 
@@ -383,19 +341,25 @@ pub mod pallet {
         #[pallet::call_index(2)]
         pub fn claim(
             origin: OriginFor<T>,
-            index: T::AuctionIndex,
+            auction_id: u32,
             beneficiary: Option<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
 
             let now = T::Time::now();
-            let mut auction = Self::auction(&index).ok_or(Error::<T>::NotExistAuction)?;
+            let mut auction = <Auction<T>>::get(&auction_id).ok_or(Error::<T>::NotExistAuction)?;
+
+            // Check auction already claimed.
+            ensure!(
+                auction.subscription_id == None,
+                Error::<T>::ClaimIsNotAllowed,
+            );
 
             // Check auction have a winner and bidding is over.
             ensure!(
                 auction.winner == Some(sender.clone()),
-                Error::<T>::ClaimIsNotAllowed
+                Error::<T>::ClaimIsNotAllowed,
             );
             ensure!(
                 auction.created.clone() + T::AuctionDuration::get() >= now,
@@ -409,43 +373,21 @@ pub mod pallet {
             let (slash, _) = T::AuctionCurrency::slash_reserved(&sender, auction.best_price);
             let _ = T::AuctionCurrency::burn(slash.peek());
 
-            let subscription_id = Self::subscription_total();
+            let subscription_id = <Subscription<T>>::iter_key_prefix(&beneficiary).count() as u32;
 
             // register subscription
-            <Subscription<T>>::insert(
-                subscription_id.clone(),
-                SubscriptionLedger::new(now, auction.mode.clone()),
+            <Subscription<T>>::set(
+                &beneficiary,
+                &subscription_id,
+                Some(SubscriptionLedger::new(now, auction.mode.clone())),
             );
 
-            // Set subscription owner
-            <SubscriptionOwner<T>>::insert(subscription_id.clone(), beneficiary.clone());
-
-            // Update total subscriptions amount
-            <SubscriptionTotal<T>>::mutate(|x| *x += 1u8.into());
-
             // Update subscription id in auction ledger
-            auction.subscription_id = Some(subscription_id.clone());
-            <Auction<T>>::insert(&index, auction);
+            auction.subscription_id = Some(subscription_id);
+            <Auction<T>>::set(&auction_id, Some(auction));
 
-            Self::deposit_event(Event::SubscriptionActivated(subscription_id, beneficiary));
-            Ok(().into())
-        }
-
-        /// Set RWS subscription devices.
-        ///
-        /// # <weight>
-        /// - O(1).
-        /// - Limited storage reads.
-        /// - One DB change.
-        /// # </weight>
-        #[pallet::call_index(3)]
-        pub fn set_devices(
-            origin: OriginFor<T>,
-            devices: BoundedVec<T::AccountId, T::MaxDevicesAmount>,
-        ) -> DispatchResultWithPostInfo {
-            let sender = ensure_signed(origin)?;
-            <Devices<T>>::insert(sender.clone(), devices.clone());
-            Self::deposit_event(Event::DevicesUpdated(sender, devices.to_vec()));
+            Self::deposit_event(Event::AuctionFinished(auction_id));
+            Self::deposit_event(Event::SubscriptionActivated(beneficiary, subscription_id));
             Ok(().into())
         }
 
@@ -464,59 +406,12 @@ pub mod pallet {
             mode: SubscriptionMode,
         ) -> DispatchResultWithPostInfo {
             let _ = ensure_root(origin)?;
-            // get next index and increment
-            let index = Self::auction_total();
-            <AuctionTotal<T>>::mutate(|x| *x += 1u8.into());
 
-            // insert auction ledger
-            let auction: AuctionLedger<_, _, _, T::SubscriptionId> =
-                AuctionLedger::new(mode, T::Time::now());
-            <Auction<T>>::insert(&index, auction);
+            let id = <Auction<T>>::count();
+            <Auction<T>>::set(id, Some(AuctionLedger::new(mode, T::Time::now())));
 
-            // deposit descriptive event
-            Self::deposit_event(Event::AuctionStarted(index));
+            Self::deposit_event(Event::AuctionStarted(id));
             Ok(().into())
-        }
-    }
-
-    impl<T: Config> Pallet<T> {
-        /// Update subscription internals and return updated ledger.
-        fn update_subscription(
-            subscription_id: &T::SubscriptionId,
-            call_weight: Weight,
-        ) -> Result<(), Error<T>> {
-            let mut subscription =
-                Self::subscription(subscription_id).ok_or(Error::<T>::NoSubscription)?;
-
-            let now = T::Time::now();
-            let utps = match subscription.mode {
-                SubscriptionMode::Lifetime { tps } => tps,
-                SubscriptionMode::Daily { days } => {
-                    let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
-                    // If subscription active then 0.01 TPS else throw an error
-                    if now < subscription.issue_time.clone() + duration_ms {
-                        10_000 // uTPS
-                    } else {
-                        return Err(Error::<T>::SubscriptionIsOver);
-                    }
-                }
-            };
-
-            let delta: u64 = (now.clone() - subscription.last_update).into();
-            // Reference call weight * TPS * secons passed from last update
-            subscription.free_weight +=
-                T::ReferenceCallWeight::get() * (utps as u64) * delta / 1_000_000_000;
-            subscription.last_update = now;
-
-            // Ensure than free weight is enough for call
-            if subscription.free_weight < call_weight.ref_time() {
-                <Subscription<T>>::insert(subscription_id, subscription.clone());
-                Err(Error::<T>::FreeWeightIsNotEnough)
-            } else {
-                subscription.free_weight -= call_weight.ref_time();
-                <Subscription<T>>::insert(subscription_id, subscription.clone());
-                Ok(())
-            }
         }
     }
 }
