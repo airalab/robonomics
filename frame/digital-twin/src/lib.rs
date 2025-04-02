@@ -63,6 +63,7 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, u32, BTreeMap<H256, <T as frame_system::Config>::AccountId>>;
 
     #[pallet::pallet]
+    #[pallet::generate_store(pub(super) trait Store)]
     #[pallet::without_storage_info]
     pub struct Pallet<T>(PhantomData<T>);
 

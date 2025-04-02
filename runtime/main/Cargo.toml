@@ -68,13 +68,13 @@ cumulus-pallet-xcm = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
-staging-parachain-info = { workspace = true }
+parachain-info = { workspace = true }
 
 # polkadot dependencies
-staging-xcm = { workspace = true }
-staging-xcm-builder = { workspace = true }
-staging-xcm-executor = { workspace = true }
-pallet-xcm = "18.0.0"
+xcm = { workspace = true }
+xcm-builder = { workspace = true }
+xcm-executor = { workspace = true }
+pallet-xcm = { path = "../../vendor/pallet-xcm", default-features = false }
 pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
@@ -132,14 +132,14 @@ std = [
   "cumulus-pallet-dmp-queue/std",
   "cumulus-pallet-xcmp-queue/std",
   "cumulus-pallet-xcm/std",
-  "staging-xcm/std",
-  "staging-xcm-builder/std",
-  "staging-xcm-executor/std",
+  "xcm/std",
+  "xcm-builder/std",
+  "xcm-executor/std",
   "pallet-xcm/std",
   "pallet-xcm-info/std",
   "polkadot-parachain/std",
   "polkadot-primitives/std",
-  "staging-parachain-info/std",
+  "parachain-info/std",
   "scale-info/std",
 ]
 runtime-benchmarks = [
@@ -154,7 +154,7 @@ runtime-benchmarks = [
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
-  "staging-xcm-builder/runtime-benchmarks",
+  "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
   "hex-literal",
 ]
