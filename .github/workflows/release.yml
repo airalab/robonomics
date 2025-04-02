@@ -34,6 +34,9 @@ jobs:
     - name: Check targets are installed correctly
       run: rustup target list --installed
 
+    - name: WASM
+      run: rustup component add rust-src --toolchain 1.81.0-x86_64-unknown-linux-gnu
+
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
 
@@ -314,7 +317,7 @@ jobs:
     - name: Make binary executable and tar gzip
       run: |
         cd ${{ matrix.os }}-${{ matrix.arch }}-bin
-        chmod +x robonomics 
+        chmod +x robonomics
         tar zcvf robonomics.tar.gz robonomics
 
     - name: Upload binary artifact
