@@ -79,8 +79,8 @@ clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
 hex-literal = "0.3.4"
-serde = { version = "1.0.171", features = ["derive"] }
-serde_json = "1.0.138"
+serde = { version = "1.0.171", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
@@ -135,9 +135,9 @@ sp-blockchain = { version = "38.0.0" }
 sp-consensus = { version = "0.41.0" }
 sp-consensus-grandpa = { version = "22.0.0" }
 sp-keystore = { version = "0.41.0" }
-sp-keyring = { version = "40.0.0" }
+sp-keyring = { version = "40.0.0", default-features = false }
 sp-timestamp = { version = "35.0.0" }
-sp-genesis-builder = { version = "0.16.0" }
+sp-genesis-builder = { version = "0.16.0", default-features = false }
 try-runtime-cli = { version = "0.42.0" }
 
 # Substrate pallets

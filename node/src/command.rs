@@ -152,9 +152,15 @@ pub fn run() -> sc_cli::Result<()> {
             if cli.run.base.shared_params.is_dev() {
                 // Just create dev service in dev mode
                 runner.run_node_until_exit(|config| async move {
-                    service::dev::new_service::<dev_runtime::RuntimeApi>(config)
-                        .map_err(sc_cli::Error::Service)
-                        .map(|(task_manager, _, _, _)| task_manager)
+                    service::dev::new_service::<
+                        dev_runtime::RuntimeApi,
+                        sc_network::NetworkWorker<
+                            Block,
+                            <Block as sp_runtime::traits::Block>::Hash,
+                        >,
+                    >(config)
+                    .map_err(sc_cli::Error::Service)
+                    // .map(|(task_manager, _, _, _)| task_manager)
                 })
             } else {
                 // Else it's collator, let's run it
