@@ -115,7 +115,7 @@ macro_rules! construct_benchmark_partials {
     ($config:expr, |$partials:ident| $code:expr) => {
         match $config.chain_spec.family() {
             RobonomicsFamily::Development => {
-                let $partials = service::dev::new_partial::<dev_runtime::RuntimeApi>(&$config)?;
+                let $partials = service::dev::new_partial(&$config)?;
                 $code
             }
             _ => Err("The chain is not supported".into()),
@@ -129,9 +129,7 @@ macro_rules! construct_async_run {
         match runner.config().chain_spec.family() {
             RobonomicsFamily::Development => {
                 runner.async_run(|$config| {
-                    let $components = service::dev::new_partial::<dev_runtime::RuntimeApi>(
-                        &$config,
-                    )?;
+                    let $components = service::dev::new_partial(&$config)?;
                     let task_manager = $components.task_manager;
                     { $( $code )* }.map(|v| (v, task_manager))
                 })
@@ -152,15 +150,13 @@ pub fn run() -> sc_cli::Result<()> {
             if cli.run.base.shared_params.is_dev() {
                 // Just create dev service in dev mode
                 runner.run_node_until_exit(|config| async move {
-                    service::dev::new_service::<
-                        dev_runtime::RuntimeApi,
+                    service::dev::start_node::<
                         sc_network::NetworkWorker<
                             Block,
                             <Block as sp_runtime::traits::Block>::Hash,
                         >,
                     >(config)
                     .map_err(sc_cli::Error::Service)
-                    // .map(|(task_manager, _, _, _)| task_manager)
                 })
             } else {
                 // Else it's collator, let's run it
