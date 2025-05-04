@@ -35,10 +35,12 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 }
 
 pub mod constants;
+pub mod genesis_config_presets;
 
 use frame_support::{
     construct_runtime,
     dispatch::DispatchClass,
+    genesis_builder_helper::{build_state, get_preset},
     parameter_types,
     traits::{
         tokens::{pay::PayAssetFromAccount, UnityAssetBalanceConversion},
@@ -65,6 +67,7 @@ use robonomics_primitives::{
 };
 use sp_api::impl_runtime_apis;
 use sp_core::{OpaqueMetadata, H256};
+use sp_genesis_builder::PresetId;
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
@@ -896,6 +899,20 @@ impl_runtime_apis! {
             add_benchmarks!(params, batches);
 
             Ok(batches)
+        }
+    }
+
+    impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+        fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+            build_state::<RuntimeGenesisConfig>(config)
+        }
+
+        fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
+            get_preset::<RuntimeGenesisConfig>(id, genesis_config_presets::get_preset)
+        }
+
+        fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
+            genesis_config_presets::preset_names()
         }
     }
 }

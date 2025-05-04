@@ -50,4 +50,5 @@ substrate-build-script-utils = { workspace = true }
 runtime-benchmarks = [
   "sc-service/runtime-benchmarks",
   "dev-runtime/runtime-benchmarks",
+  "robonomics-service/runtime-benchmarks",
 ]

@@ -12,7 +12,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [workspace.package]
-version = "3.3.0"
+version = "3.4.0"
 edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
@@ -79,8 +79,8 @@ clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
 hex-literal = "0.3.4"
-serde = { version = "1.0.171", features = ["derive"] }
-serde_json = "1.0.138"
+serde = { version = "1.0.171", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
@@ -88,7 +88,7 @@ async-trait = "0.1.71"
 # Substrate
 # (wasm)
 sp-core = { version = "35.0.0", default-features = false }
-sp-io = { version = "39.0.0", default-features = false }
+sp-io = { version = "39.0.1", default-features = false }
 sp-runtime = { version = "40.1.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-api = { version = "35.0.0", default-features = false }
@@ -135,9 +135,9 @@ sp-blockchain = { version = "38.0.0" }
 sp-consensus = { version = "0.41.0" }
 sp-consensus-grandpa = { version = "22.0.0" }
 sp-keystore = { version = "0.41.0" }
-sp-keyring = { version = "40.0.0" }
+sp-keyring = { version = "40.0.0", default-features = false }
 sp-timestamp = { version = "35.0.0" }
-sp-genesis-builder = { version = "0.16.0" }
+sp-genesis-builder = { version = "0.16.0", default-features = false }
 try-runtime-cli = { version = "0.42.0" }
 
 # Substrate pallets
@@ -154,7 +154,7 @@ pallet-collator-selection = { version = "20.1.0", default-features = false }
 pallet-democracy = { version = "39.1.0", default-features = false }
 pallet-membership = { version = "39.0.0", default-features = false }
 pallet-message-queue = { version = "42.0.0", default-features = false }
-pallet-multisig = { version = "39.1.0", default-features = false }
+pallet-multisig = { version = "39.1.1", default-features = false }
 pallet-migrations = { version = "9.1.0", default-features = false }
 pallet-preimage = { version = "39.1.0", default-features = false }
 pallet-scheduler = { version = "40.1.0", default-features = false }
@@ -209,9 +209,9 @@ polkadot-runtime-parachains = { version = "18.1.0", default-features = false }
 polkadot-primitives = { version = "17.1.0", default-features = false }
 polkadot-parachain-primitives = { version = "15.0.0", default-features = false }
 polkadot-runtime-common = { version = "18.1.0", default-features = false }
-staging-xcm = { version = "15.0.2" }
-staging-xcm-builder = { version = "18.1.0" }
+staging-xcm = { version = "15.0.3" }
+staging-xcm-builder = { version = "18.2.0" }
 staging-xcm-executor = { version = "18.0.2" }
 
 # Build deps
-substrate-wasm-builder = { version = "25.0.0" }
+substrate-wasm-builder = { version = "25.0.1" }

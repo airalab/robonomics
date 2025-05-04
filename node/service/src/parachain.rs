@@ -26,21 +26,23 @@ use cumulus_client_consensus_relay_chain::{
 };
 use cumulus_client_parachain_inherent::ParachainInherentDataProvider;
 use cumulus_client_service::{
-    build_network, build_relay_chain_interface, prepare_node_config, start_collator,
-    start_full_node, BuildNetworkParams, CollatorSybilResistance, StartCollatorParams,
-    StartFullNodeParams,
+    build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks,
+    BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, ParachainHostFunctions,
+    StartRelayChainTasksParams,
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_interface::RelayChainInterface;
 use parity_scale_codec::Encode;
 use robonomics_primitives::{AccountId, Balance, Block, Hash, Nonce};
 
+use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::{config::FullNetworkConfiguration, NetworkBlock};
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_api::{ApiExt, ConstructRuntimeApi, Metadata};
 use sp_keystore::KeystorePtr;
 use sp_runtime::traits::BlakeTwo256;
@@ -250,10 +252,11 @@ where
         .build();
 
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, _>(
+        sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
             &config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
             executor,
+            true,
         )?;
     let client = Arc::new(client);
     let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
@@ -386,6 +389,30 @@ where
         })
         .await?;
 
+    if parachain_config.offchain_worker.enabled {
+        use futures::FutureExt;
+        let offchain_workers =
+            sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
+                runtime_api_provider: client.clone(),
+                keystore: Some(params.keystore_container.keystore()),
+                offchain_db: backend.offchain_storage(),
+                transaction_pool: Some(OffchainTransactionPoolFactory::new(
+                    transaction_pool.clone(),
+                )),
+                network_provider: Arc::new(network.clone()),
+                is_validator: parachain_config.role.is_authority(),
+                enable_http_requests: false,
+                custom_extensions: move |_| vec![],
+            })?;
+        task_manager.spawn_handle().spawn(
+            "offchain-workers-runner",
+            "offchain-work",
+            offchain_workers
+                .run(client.clone(), task_manager.spawn_handle())
+                .boxed(),
+        );
+    }
+
     let rpc_builder = {
         let client = client.clone();
         let transaction_pool = transaction_pool.clone();
@@ -443,55 +470,22 @@ where
         .overseer_handle()
         .map_err(|e| sc_service::Error::Application(Box::new(e)))?;
 
-    if is_authority {
-        let parachain_consensus = build_consensus(
-            para_id,
-            lighthouse_account,
-            client.clone(),
-            block_import,
-            prometheus_registry.as_ref(),
-            telemetry.as_ref().map(|t| t.handle()),
-            &task_manager,
-            relay_chain_interface.clone(),
-            transaction_pool,
-            sync_service.clone(),
-            params.keystore_container.keystore(),
-            force_authoring,
-        )?;
-
-        let spawner = task_manager.spawn_handle();
-        let params = StartCollatorParams {
-            para_id,
-            block_status: client.clone(),
-            announce_block,
-            client: client.clone(),
-            task_manager: &mut task_manager,
-            relay_chain_interface,
-            spawner,
-            parachain_consensus,
-            import_queue: import_queue_service,
-            collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
-            relay_chain_slot_duration,
-            recovery_handle: Box::new(overseer_handle),
-            sync_service,
-        };
-
-        start_collator(params).await?;
-    } else {
-        let params = StartFullNodeParams {
-            client: client.clone(),
-            announce_block,
-            task_manager: &mut task_manager,
-            para_id,
-            relay_chain_interface,
-            relay_chain_slot_duration,
-            import_queue: import_queue_service,
-            recovery_handle: Box::new(overseer_handle),
-            sync_service,
-        };
-
-        start_full_node(params)?;
-    }
+    start_relay_chain_tasks(StartRelayChainTasksParams {
+        client: client.clone(),
+        announce_block: announce_block.clone(),
+        para_id,
+        relay_chain_interface: relay_chain_interface.clone(),
+        task_manager: &mut task_manager,
+        da_recovery_profile: if validator {
+            DARecoveryProfile::Collator
+        } else {
+            DARecoveryProfile::FullNode
+        },
+        import_queue: import_queue_service,
+        relay_chain_slot_duration,
+        recovery_handle: Box::new(overseer_handle.clone()),
+        sync_service: sync_service.clone(),
+    })?;
 
     start_network.start_network();
 
