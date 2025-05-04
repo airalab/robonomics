@@ -21,16 +21,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::Weight;
-use parity_scale_codec::{Decode, Encode, HasCompact};
+use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
+
+pub use pallet::*;
 
 //#[cfg(test)]
 //mod tests;
 
-pub use pallet::*;
-
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
 pub enum Subscription {
     /// Lifetime subscription.
     Lifetime {
@@ -52,8 +52,8 @@ impl Default for Subscription {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct AuctionLedger<AccountId, Balance: HasCompact> {
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+pub struct AuctionLedger<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen> {
     /// Auction winner address.
     pub winner: Option<AccountId>,
     /// Current best price.
@@ -63,7 +63,9 @@ pub struct AuctionLedger<AccountId, Balance: HasCompact> {
     pub kind: Subscription,
 }
 
-impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance> {
+impl<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen + Default>
+    AuctionLedger<AccountId, Balance>
+{
     pub fn new(kind: Subscription) -> Self {
         Self {
             winner: None,
@@ -81,8 +83,8 @@ impl<AccountId, Balance: HasCompact + Default> AuctionLedger<AccountId, Balance>
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct SubscriptionLedger<Moment: HasCompact> {
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// Free execution weights accumulator.
     #[codec(compact)]
     free_weight: u64,
@@ -96,7 +98,7 @@ pub struct SubscriptionLedger<Moment: HasCompact> {
     kind: Subscription,
 }
 
-impl<Moment: HasCompact + Clone> SubscriptionLedger<Moment> {
+impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
     pub fn new(last_update: Moment, kind: Subscription) -> Self {
         Self {
             free_weight: Default::default(),
@@ -127,6 +129,7 @@ pub mod pallet {
     >>::Balance;
 
     const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -137,9 +140,9 @@ pub mod pallet {
         /// Current time source.
         type Time: Time<Moment = Self::Moment>;
         /// Time should be aligned to weights for TPS calculations.
-        type Moment: Parameter + AtLeast32Bit + Into<u64>;
+        type Moment: Parameter + AtLeast32Bit + Into<u64> + MaxEncodedLen;
         /// The auction index value.
-        type AuctionIndex: Parameter + AtLeast32Bit + Default;
+        type AuctionIndex: Parameter + AtLeast32Bit + Default + MaxEncodedLen;
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
@@ -156,6 +159,10 @@ pub mod pallet {
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
+        #[pallet::constant]
+        type MaxDevicesAmount: Get<u32>;
+        #[pallet::constant]
+        type MaxAuctionIndexesAmount: Get<u32>;
     }
 
     #[pallet::error]
@@ -189,6 +196,8 @@ pub mod pallet {
         NewSubscription(T::AccountId, Subscription),
         /// Started new RWS subscription auction.
         NewAuction(Subscription, T::AuctionIndex),
+        /// Can't start a new RWS subscription auction.
+        NewAuctionCreationError(T::AuctionIndex),
     }
 
     #[pallet::storage]
@@ -205,13 +214,19 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn devices)]
     /// Subscription linked devices.
-    pub(super) type Devices<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>, ValueQuery>;
+    pub(super) type Devices<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        BoundedVec<T::AccountId, T::MaxDevicesAmount>,
+        ValueQuery,
+    >;
 
     /// Ongoing subscription auctions.
     #[pallet::storage]
     #[pallet::getter(fn auction_queue)]
-    pub(super) type AuctionQueue<T: Config> = StorageValue<_, Vec<T::AuctionIndex>, ValueQuery>;
+    pub(super) type AuctionQueue<T: Config> =
+        StorageValue<_, BoundedVec<T::AuctionIndex, T::MaxAuctionIndexesAmount>, ValueQuery>;
 
     /// Next auction index.
     #[pallet::storage]
@@ -232,8 +247,7 @@ pub mod pallet {
     pub(super) type UnspendBondValue<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    #[pallet::without_storage_info]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::hooks]
@@ -273,7 +287,7 @@ pub mod pallet {
             );
 
             let call_info = call.get_dispatch_info();
-            Self::update_subscription(&subscription_id, call_info.weight)?;
+            Self::update_subscription(&subscription_id, call_info.call_weight)?;
 
             let res =
                 call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
@@ -335,11 +349,11 @@ pub mod pallet {
         #[pallet::weight(100_000)]
         pub fn set_devices(
             origin: OriginFor<T>,
-            devices: Vec<T::AccountId>,
+            devices: BoundedVec<T::AccountId, T::MaxDevicesAmount>,
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             <Devices<T>>::insert(sender.clone(), devices.clone());
-            Self::deposit_event(Event::NewDevices(sender, devices));
+            Self::deposit_event(Event::NewDevices(sender, devices.to_vec()));
             Ok(().into())
         }
 
@@ -419,14 +433,15 @@ pub mod pallet {
             let index = Self::auction_next();
             <AuctionNext<T>>::mutate(|x| *x += 1u8.into());
 
-            // insert auction ledger
-            <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
-
             // insert auction into queue
-            <AuctionQueue<T>>::mutate(|queue| queue.push(index.clone()));
-
-            // deposit descriptive event
-            Self::deposit_event(Event::NewAuction(kind, index));
+            if let Ok(_) = <AuctionQueue<T>>::mutate(|queue| queue.try_push(index.clone())) {
+                // insert auction ledger
+                <Auction<T>>::insert(&index, AuctionLedger::new(kind.clone()));
+                // deposit descriptive event
+                Self::deposit_event(Event::NewAuction(kind, index));
+            } else {
+                Self::deposit_event(Event::NewAuctionCreationError(index));
+            };
         }
 
         /// Rotate current auctions, register subscriptions and queue next.
@@ -443,14 +458,18 @@ pub mod pallet {
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
-            <AuctionQueue<T>>::put(next.iter().map(|(i, _)| i).collect::<Vec<_>>());
+            let mut indexes_without_bids = BoundedVec::new();
+            let _ = next
+                .iter()
+                .map(|(i, _)| indexes_without_bids.try_push(i.clone()));
+            <AuctionQueue<T>>::put(indexes_without_bids);
 
             for (_, auction) in finished.iter() {
                 if let Some(subscription_id) = &auction.winner {
                     // transfer reserve to reward pool
                     let (slash, _) =
                         T::AuctionCurrency::slash_reserved(&subscription_id, auction.best_price);
-                    T::AuctionCurrency::burn(slash.peek());
+                    let _ = T::AuctionCurrency::burn(slash.peek());
                     // register subscription
                     <Ledger<T>>::insert(
                         subscription_id,

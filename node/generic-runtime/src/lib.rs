@@ -26,7 +26,7 @@ use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
     traits::Block as BlockT,
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult,
+    ApplyExtrinsicResult, ExtrinsicInclusionMode,
 };
 use sp_version::RuntimeVersion;
 
@@ -42,7 +42,7 @@ impl_runtime_apis! {
             unimplemented!()
         }
 
-        fn initialize_block(_header: &<Block as BlockT>::Header) {
+        fn initialize_block(_header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
             unimplemented!()
         }
     }
