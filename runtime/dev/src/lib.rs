@@ -582,26 +582,19 @@ impl pallet_robonomics_launch::Config for Runtime {
 
 parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
-    pub const AuctionDuration: BlockNumber = 10;
-    pub const AuctionCost: Balance = 200 * XRT;
     pub const MinimalBid: Balance = 1 * XRT;
-    pub const MaxDevicesAmount: u32 = 100;
-    pub const MaxAuctionIndexesAmount: u32 = 100;
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
     type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = Moment;
-    type AuctionIndex = u32;
     type AuctionCurrency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type ReferenceCallWeight = ReferenceCallWeight;
-    type AuctionDuration = AuctionDuration;
-    type AuctionCost = AuctionCost;
+    type AuctionDuration = ConstU64<{ SLOT_DURATION * 4 }>;
     type MinimalBid = MinimalBid;
-    type MaxDevicesAmount = MaxDevicesAmount;
-    type MaxAuctionIndexesAmount = MaxAuctionIndexesAmount;
+    type WeightInfo = ();
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
