@@ -127,10 +127,8 @@ pub fn preset_names() -> Vec<PresetId> {
 
 fn development_config_genesis() -> Value {
     genesis(
-        // initial collators.
         vec![
             get_authority_keys_from_seed("Alice"),
-            get_authority_keys_from_seed("Bob"),
         ],
         None,
         Sr25519Keyring::Alice.to_account_id(),

@@ -67,7 +67,7 @@ impl SubstrateCli for Cli {
             "dev" => Box::new(chain_spec::dev::config()),
             "kusama" => Box::new(chain_spec::mainnet::kusama_config()),
             "polkadot" => Box::new(chain_spec::mainnet::polkadot_config()),
-            path => Box::new(chain_spec::dev::ChainSpec::from_json_file(
+            path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
         })

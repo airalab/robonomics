@@ -19,7 +19,7 @@
 
 use dev_runtime::RuntimeApi;
 use futures::prelude::*;
-use robonomics_primitives::{AccountId, Balance, Block, Hash, Nonce};
+use robonomics_primitives::Block;
 use sc_client_api::{Backend, BlockBackend};
 use sc_consensus_grandpa::{LinkHalf, SharedVoterState};
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
@@ -223,6 +223,8 @@ pub fn start_node<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
             metrics,
         })?;
 
+    let role = config.role.clone();
+
     if config.offchain_worker.enabled {
         let offchain_workers =
             sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
@@ -233,7 +235,7 @@ pub fn start_node<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
                     transaction_pool.clone(),
                 )),
                 network_provider: Arc::new(network.clone()),
-                is_validator: config.role.is_authority(),
+                is_validator: role.is_authority(),
                 enable_http_requests: true,
                 custom_extensions: |_| Vec::new(),
             })?;
@@ -248,11 +250,9 @@ pub fn start_node<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 
     let force_authoring = config.force_authoring;
     let backoff_authoring_blocks: Option<()> = None;
-    let role = config.role.clone();
     let name = config.network.node_name.clone();
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
-    let is_authority = config.role.is_authority();
 
     let rpc_extensions_builder = {
         let client = client.clone();
