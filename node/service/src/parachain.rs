@@ -26,8 +26,9 @@ use cumulus_client_consensus_relay_chain::{
 };
 use cumulus_client_parachain_inherent::ParachainInherentDataProvider;
 use cumulus_client_service::{
-    build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks,
-    BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, ParachainHostFunctions,
+    build_network, build_relay_chain_interface, prepare_node_config, start_collator,
+    start_full_node, start_relay_chain_tasks, BuildNetworkParams, CollatorSybilResistance,
+    DARecoveryProfile, ParachainHostFunctions, StartCollatorParams, StartFullNodeParams,
     StartRelayChainTasksParams,
 };
 use cumulus_primitives_core::ParaId;
@@ -470,6 +471,7 @@ where
         .overseer_handle()
         .map_err(|e| sc_service::Error::Application(Box::new(e)))?;
 
+    /*
     start_relay_chain_tasks(StartRelayChainTasksParams {
         client: client.clone(),
         announce_block: announce_block.clone(),
@@ -486,6 +488,54 @@ where
         recovery_handle: Box::new(overseer_handle.clone()),
         sync_service: sync_service.clone(),
     })?;
+    */
+
+    if is_authority {
+        let parachain_consensus = build_consensus(
+            para_id,
+            lighthouse_account,
+            client.clone(),
+            block_import,
+            prometheus_registry.as_ref(),
+            telemetry.as_ref().map(|t| t.handle()),
+            &task_manager,
+            relay_chain_interface.clone(),
+            transaction_pool,
+            sync_service.clone(),
+            params.keystore_container.keystore(),
+            force_authoring,
+        )?;
+        let spawner = task_manager.spawn_handle();
+        let params = StartCollatorParams {
+            para_id,
+            block_status: client.clone(),
+            announce_block,
+            client: client.clone(),
+            task_manager: &mut task_manager,
+            relay_chain_interface,
+            spawner,
+            parachain_consensus,
+            import_queue: import_queue_service,
+            collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
+            relay_chain_slot_duration,
+            recovery_handle: Box::new(overseer_handle),
+            sync_service,
+        };
+        start_collator(params).await?;
+    } else {
+        let params = StartFullNodeParams {
+            client: client.clone(),
+            announce_block,
+            task_manager: &mut task_manager,
+            para_id,
+            relay_chain_interface,
+            relay_chain_slot_duration,
+            import_queue: import_queue_service,
+            recovery_handle: Box::new(overseer_handle),
+            sync_service,
+        };
+        start_full_node(params)?;
+    }
 
     start_network.start_network();
 
