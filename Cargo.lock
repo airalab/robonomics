@@ -8073,7 +8073,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "frame-support 39.1.0",
  "frame-system",
