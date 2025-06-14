@@ -55,10 +55,17 @@ cumulus-client-consensus-common = { workspace = true }
 cumulus-client-consensus-relay-chain = { workspace = true }
 cumulus-client-network = { workspace = true }
 cumulus-client-service = { workspace = true }
+cumulus-client-parachain-inherent = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
 
 robonomics-primitives = { path = "../../primitives" }
 robonomics-rpc-core = { path = "../rpc/core" }
+dev-runtime = { path = "../../runtime/dev" }
 pallet-robonomics-lighthouse = { path = "../../frame/lighthouse" }
+
+[features]
+runtime-benchmarks = [
+  "dev-runtime/runtime-benchmarks"
+]
