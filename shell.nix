@@ -8,7 +8,6 @@ with llvmPackages;
 
 mkShell {
   buildInputs = [
-    libz
     clang
     toolchain
   ] ++ lib.optionals stdenv.isDarwin [
