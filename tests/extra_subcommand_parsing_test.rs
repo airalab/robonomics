@@ -15,17 +15,27 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Set of approaches to handle economical aspects of agreement.
 
-use frame_support::traits::Currency;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+/// Integration tests that spawn the actual binary `polkadot-omni-node`
+/// using `assert_cmd`. We verify that the help text
+/// excludes the `export-chain-spec` sub‑command exactly as intended
+use assert_cmd::Command;
 
-/// Simple market as approach: liability has a price of execution.
-#[derive(Encode, Decode, PartialEq, Clone, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen)]
-#[scale_info(skip_type_params(C))]
-pub struct SimpleMarket<AccountId, C: Currency<AccountId>> {
-    #[codec(compact)]
-    pub price: C::Balance,
+#[test]
+fn polkadot_omni_node_help_excludes_export_chain_spec() {
+	// Run `polkadot-omni-node --help` and capture stdout.
+	let output = Command::cargo_bin("polkadot-omni-node")
+		.expect("binary `polkadot-omni-node` should be built by the workspace")
+		.arg("--help")
+		.assert()
+		.success()
+		.get_output()
+		.stdout
+		.clone();
+
+	let help_text = String::from_utf8_lossy(&output);
+	assert!(
+		!help_text.contains("export-chain-spec"),
+		"`polkadot-omni-node --help` must NOT list the \"export-chain-spec\" subcommand"
+	);
 }

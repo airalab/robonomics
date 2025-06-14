@@ -1,5 +1,5 @@
 [package]
-name = "main-runtime"
+name = "robonomics-runtime"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -15,7 +15,7 @@ scale-info = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 
 # primitives
-robonomics-primitives = { path = "../../primitives", default-features = false }
+robonomics-primitives = { path = "../primitives", default-features = false }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-core = { workspace = true }
@@ -53,12 +53,12 @@ pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-sudo = { workspace = true }
 
 # robonomics dependencies
-pallet-robonomics-datalog = { path = "../../frame/datalog", default-features = false }
-pallet-robonomics-digital-twin = { path = "../../frame/digital-twin", default-features = false }
-pallet-robonomics-launch = { path = "../../frame/launch", default-features = false }
-pallet-robonomics-liability = { path = "../../frame/liability", default-features = false }
-pallet-robonomics-lighthouse = { path = "../../frame/lighthouse", default-features = false }
-pallet-robonomics-rws = { path = "../../frame/rws", default-features = false }
+pallet-robonomics-datalog = { path = "../frame/datalog", default-features = false }
+pallet-robonomics-digital-twin = { path = "../frame/digital-twin", default-features = false }
+pallet-robonomics-launch = { path = "../frame/launch", default-features = false }
+pallet-robonomics-liability = { path = "../frame/liability", default-features = false }
+pallet-robonomics-lighthouse = { path = "../frame/lighthouse", default-features = false }
+pallet-robonomics-rws = { path = "../frame/rws", default-features = false }
 
 # cumulus dependencies
 cumulus-pallet-parachain-system = { workspace = true }
@@ -75,7 +75,7 @@ staging-xcm = { workspace = true }
 staging-xcm-builder = { workspace = true }
 staging-xcm-executor = { workspace = true }
 pallet-xcm = "18.0.0"
-pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
+pallet-xcm-info = { path = "../frame/xcm-info", default-features = false }
 polkadot-parachain = { workspace = true }
 polkadot-primitives = { workspace = true }
 
