@@ -575,7 +575,7 @@ impl pallet_robonomics_datalog::Config for Runtime {
     type Record = BoundedVec<u8, MaximumMessageSize>;
     type RuntimeEvent = RuntimeEvent;
     type WindowSize = WindowSize;
-    type WeightInfo = ();
+    type WeightInfo = pallet_robonomics_datalog::weights::RobonomicsWeight<Runtime>;
 }
 
 impl pallet_robonomics_launch::Config for Runtime {

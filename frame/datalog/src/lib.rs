@@ -26,7 +26,7 @@ pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod weights;
+pub mod weights;
 
 #[frame_support::pallet]
 #[allow(clippy::module_inception)]
@@ -126,7 +126,7 @@ pub mod pallet {
         }
 
         /// Clear account datalog.
-        #[pallet::weight(T::WeightInfo::erase(T::WindowSize::get()))]
+        #[pallet::weight(T::WeightInfo::erase())]
         #[pallet::call_index(1)]
         pub fn erase(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
@@ -142,7 +142,7 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::Erased(sender));
-            Ok(Some(T::WeightInfo::erase(count)).into())
+            Ok(().into())
         }
     }
 
