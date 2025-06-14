@@ -18,8 +18,8 @@
 #![warn(unused_extern_crates)]
 
 use polkadot_omni_node_lib::{
-	chain_spec::DiskChainSpecLoader, run, runtime::DefaultRuntimeResolver, CliConfig as CliConfigT,
-	RunConfig, NODE_VERSION,
+	chain_spec::{LoadSpec, GenericChainSpec, ChainSpec}, run, runtime::DefaultRuntimeResolver,
+    CliConfig as CliConfigT, RunConfig, NODE_VERSION,
 };
 
 struct CliConfig;
@@ -43,9 +43,29 @@ impl CliConfigT for CliConfig {
 	}
 }
 
+/// OMNI chain spec loader with buildin robonomics chains.
+struct RobonomicsChainSpecLoader;
+
+impl LoadSpec for RobonomicsChainSpecLoader {
+    fn load_spec(&self, path: &str) -> Result<Box<dyn ChainSpec>, String> {
+        Ok(Box::new(match path {
+            "" | "polkadot" => GenericChainSpec::from_json_bytes(
+                &include_bytes!("../chains/polkadot-parachain.raw.json")[..]
+            )?,
+            "kusama" => GenericChainSpec::from_json_bytes(
+                &include_bytes!("../chains/kusama-parachain.raw.json")[..]
+            )?,
+            path => GenericChainSpec::from_json_file(path.into())?,
+        }))
+    }
+}
+
 fn main() -> color_eyre::eyre::Result<()> {
 	color_eyre::install()?;
 
-	let config = RunConfig::new(Box::new(DefaultRuntimeResolver), Box::new(DiskChainSpecLoader));
+	let config = RunConfig::new(
+        Box::new(DefaultRuntimeResolver),
+        Box::new(RobonomicsChainSpecLoader),
+    );
 	Ok(run::<CliConfig>(config)?)
 }
