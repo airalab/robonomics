@@ -36,13 +36,16 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 color-eyre = { version = "0.6.3", default-features = false }
-polkadot-omni-node-lib = "0.5.1"
-
-[build-dependencies]
-substrate-build-script-utils = { version = "11.0.0", default-features = true }
+polkadot-omni-node-lib = "0.5.1" 
+robonomics-runtime.path = "./runtime" 
+sp-genesis-builder.workspace = true
+sc-service.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
+
+[build-dependencies]
+substrate-build-script-utils = { version = "11.0.0", default-features = true }
 
 [features]
 default = []
@@ -62,7 +65,6 @@ members = [
   "frame/lighthouse",
   "frame/digital-twin",
   "frame/xcm-info",
-  "primitives",
   "runtime",
 ]
 
@@ -77,6 +79,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
 smallvec = { version = "1.11", default-features = false }
+hex-literal = { version = "0.4.1", default-features = false }
 log = { version = "0.4.19", default-features = false }
 
 # (native)
@@ -84,7 +87,6 @@ bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
-hex-literal = "0.3.4"
 serde = { version = "1.0.171", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
@@ -108,6 +110,8 @@ sp-session = { version = "38.1.0", default-features = false }
 sp-transaction-pool = { version = "36.0.0", default-features = false }
 sp-version = { version = "39.0.0", default-features = false }
 sp-weights = { version = "31.1.0", default-features = false }
+sp-genesis-builder = { version = "0.17.0", default-features = false }
+sp-keyring = { version = "41.0.0", default-features = false }
 
 # (native)
 frame-benchmarking-cli = { version = "47.2.0" }
@@ -141,9 +145,7 @@ sp-blockchain = { version = "39.0.0" }
 sp-consensus = { version = "0.42.0" }
 sp-consensus-grandpa = { version = "23.1.0" }
 sp-keystore = { version = "0.42.0" }
-sp-keyring = { version = "41.0.0", default-features = false }
 sp-timestamp = { version = "36.0.0" }
-sp-genesis-builder = { version = "0.17.0", default-features = false }
 try-runtime-cli = { version = "0.42.0" }
 
 # Substrate pallets
@@ -155,6 +157,7 @@ frame-executive = { version = "40.0.1", default-features = false }
 frame-system-rpc-runtime-api = { version = "36.0.0", default-features = false }
 pallet-assets = { version = "42.0.0", default-features = false }
 pallet-aura = { version = "39.0.0", default-features = false }
+pallet-authorship= { version = "40.0.0", default-features = false }
 pallet-collective = { version = "40.1.0", default-features = false }
 pallet-collator-selection = { version = "21.0.0", default-features = false }
 pallet-democracy = { version = "40.1.0", default-features = false }
@@ -164,6 +167,7 @@ pallet-multisig = { version = "40.1.0", default-features = false }
 pallet-migrations = { version = "10.1.0", default-features = false }
 pallet-preimage = { version = "40.0.0", default-features = false }
 pallet-scheduler = { version = "41.2.0", default-features = false }
+pallet-session= { version = "40.0.1", default-features = false }
 pallet-treasury = { version = "39.0.0", default-features = false }
 pallet-utility = { version = "40.0.0", default-features = false }
 pallet-vesting = { version = "40.1.0", default-features = false }
@@ -194,15 +198,18 @@ cumulus-relay-chain-rpc-interface = { version = "0.22.0" }
 
 # Cumulus
 # (wasm)
+cumulus-pallet-aura-ext = { version = "0.20.0", default-features = false }
 cumulus-pallet-dmp-queue = { version = "0.20.0", default-features = false }
 cumulus-pallet-parachain-system = { version = "0.20.0", default-features = false }
 cumulus-pallet-xcm = { version = "0.19.1", default-features = false }
 cumulus-pallet-xcmp-queue = { version = "0.20.0", default-features = false }
 cumulus-pallet-session-benchmarking = { version = "21.0.0", default-features = false }
+cumulus-pallet-weight-reclaim = { version = "0.2.0", default-features = false }
+cumulus-primitives-aura = { version = "0.17.0", default-features = false }
 cumulus-primitives-core = { version = "0.18.1", default-features = false }
 cumulus-primitives-timestamp = { version = "0.19.0", default-features = false }
 cumulus-primitives-utility = { version = "0.20.0", default-features = false }
-staging-parachain-info = { version = "0.20.0", default-features = false }
+parachain-info = { version = "0.20.0", package = "staging-parachain-info", default-features = false }
 
 # Polkadot
 # (native)
@@ -210,14 +217,14 @@ polkadot-cli = { version = "23.0.0" }
 
 # Polkadot
 # (wasm)
-polkadot-parachain = { version = "1.0.0" }
+polkadot-parachain = { version = "1.0.0", default-features = false }
 polkadot-runtime-parachains = { version = "19.1.0", default-features = false }
 polkadot-primitives = { version = "18.1.0", default-features = false }
 polkadot-parachain-primitives = { version = "16.1.0", default-features = false }
 polkadot-runtime-common = { version = "19.1.0", default-features = false }
-staging-xcm = { version = "16.2.0" }
-staging-xcm-builder = { version = "20.1.1" }
-staging-xcm-executor = { version = "19.1.2" }
+xcm = { version = "16.2.0", package = "staging-xcm", default-features = false }
+xcm-builder = { version = "20.1.1", package = "staging-xcm-builder", default-features = false }
+xcm-executor = { version = "19.1.2", package = "staging-xcm-executor", default-features = false }
 
 # Build deps
-substrate-wasm-builder = { version = "26.0.1" }
+substrate-wasm-builder = "26.0.1"

@@ -15,23 +15,16 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Low-level types used throughout the Robonomics code.
+//! A set of common values used in robonomics runtime.
 
-#![warn(missing_docs)]
-#![cfg_attr(not(feature = "std"), no_std)]
-
-use hex_literal::hex;
-use sp_runtime::{
-    generic,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
-};
+pub use sp_runtime::{generic, traits::{IdentifyAccount, Verify}};
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 /// An index to a block.
 pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
+pub type Signature = sp_runtime::MultiSignature;
 
 /// Some way of identifying an account on the chain. We intentionally make it equivalent
 /// to the public key of our transaction signing scheme.
@@ -63,35 +56,49 @@ pub type Hash = sp_core::H256;
 /// time scale is milliseconds.
 pub type Timestamp = u64;
 
-/// Digest item type.
-pub type DigestItem = generic::DigestItem;
+/// Money matters.
+pub mod currency {
+    use super::*;
+    use hex_literal::hex;
 
-/// Header type.
-pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+    pub const COASE: Balance = 1_000;
+    pub const GLUSHKOV: Balance = 1_000 * COASE;
+    pub const XRT: Balance = 1_000 * GLUSHKOV;
 
-/// Block type.
-pub type Block = generic::Block<Header, OpaqueExtrinsic>;
+    pub const fn deposit(items: u32, bytes: u32) -> Balance {
+        items as Balance * 150 * GLUSHKOV / 100 + (bytes as Balance) * 60 * GLUSHKOV
+    }
 
-/// Block ID.
-pub type BlockId = generic::BlockId<Block>;
+    /// ERC20 Robonomics Token: https://etherscan.io/token/0x7de91b204c1c737bcee6f000aaa6569cf7061cb7
+    pub const ERC20_XRT_ADDRESS: [u8; 20] = hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"];
 
-/// Set of community accounts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CommunityAccount {
-    /// Treasury manage community funds via open governance.
-    Treasury,
-}
+    /// Set of community accounts.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum CommunityAccount {
+        /// Treasury manage community funds via open governance.
+        Treasury,
+    }
 
-impl IdentifyAccount for CommunityAccount {
-    type AccountId = AccountId;
-    fn into_account(self) -> Self::AccountId {
-        match self {
-            CommunityAccount::Treasury => AccountId::from(hex![
-                "6d6f646c70792f74727372790000000000000000000000000000000000000000"
-            ]),
+    impl IdentifyAccount for CommunityAccount {
+        type AccountId = AccountId;
+        fn into_account(self) -> Self::AccountId {
+            match self {
+                CommunityAccount::Treasury => AccountId::from(hex![
+                    "6d6f646c70792f74727372790000000000000000000000000000000000000000"
+                ]),
+            }
         }
     }
 }
 
-/// ERC20 Robonomics Token: https://etherscan.io/token/0x7de91b204c1c737bcee6f000aaa6569cf7061cb7
-pub const ERC20_XRT_ADDRESS: [u8; 20] = hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"];
+/// Time constants.
+pub mod time {
+    use super::{BlockNumber, Moment};
+
+    pub const MILLISECS_PER_BLOCK: Moment = 6000;
+    pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
+    pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
+    pub const HOURS: BlockNumber = MINUTES * 60;
+    pub const DAYS: BlockNumber = HOURS * 24;
+}
+

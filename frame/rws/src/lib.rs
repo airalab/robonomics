@@ -21,7 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet_prelude::Weight;
-use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
+use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen, DecodeWithMemTracking};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -30,7 +30,7 @@ pub use pallet::*;
 //#[cfg(test)]
 //mod tests;
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum Subscription {
     /// Lifetime subscription.
     Lifetime {

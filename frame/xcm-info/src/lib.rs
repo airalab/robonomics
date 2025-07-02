@@ -27,6 +27,7 @@ pub mod pallet {
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
     use xcm::latest::prelude::*;
+    use xcm::opaque::v3::MultiLocation;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

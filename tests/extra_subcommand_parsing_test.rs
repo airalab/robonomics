@@ -23,9 +23,9 @@ use assert_cmd::Command;
 
 #[test]
 fn polkadot_omni_node_help_excludes_export_chain_spec() {
-	// Run `polkadot-omni-node --help` and capture stdout.
-	let output = Command::cargo_bin("polkadot-omni-node")
-		.expect("binary `polkadot-omni-node` should be built by the workspace")
+	// Run `robonomics --help` and capture stdout.
+	let output = Command::cargo_bin("robonomics")
+		.expect("binary `robonomics` should be built by the workspace")
 		.arg("--help")
 		.assert()
 		.success()
@@ -36,6 +36,6 @@ fn polkadot_omni_node_help_excludes_export_chain_spec() {
 	let help_text = String::from_utf8_lossy(&output);
 	assert!(
 		!help_text.contains("export-chain-spec"),
-		"`polkadot-omni-node --help` must NOT list the \"export-chain-spec\" subcommand"
+		"`robonomics --help` must NOT list the \"export-chain-spec\" subcommand"
 	);
 }

@@ -22,7 +22,7 @@ use frame_support::{
     traits::{BalanceStatus, ReservableCurrency},
 };
 use frame_system::offchain::AppCrypto;
-use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use sp_core::crypto::{Pair, Public};
@@ -36,7 +36,7 @@ use crate::economics::SimpleMarket;
 use crate::traits::*;
 
 /// Agreement that could be proven by asymmetric cryptography.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
 pub struct SignedAgreement<T, E, AccountId, Signature> {
     pub technics: T,
     pub economics: E,
@@ -119,7 +119,7 @@ where
 }
 
 /// Report that could be proven by asymmetric cryptography.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
 pub struct SignedReport<Index, AccountId, Signature, Message> {
     pub index: Index,
     pub sender: AccountId,

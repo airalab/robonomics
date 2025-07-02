@@ -10,6 +10,8 @@ mkShell {
   buildInputs = [
     clang
     toolchain
+    pkg-config
+    openssl
   ] ++ lib.optionals stdenv.isDarwin [
     darwin.apple_sdk.frameworks.Security
   ];
