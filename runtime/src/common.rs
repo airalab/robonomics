@@ -17,8 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! A set of common values used in robonomics runtime.
 
-pub use sp_runtime::{generic, traits::{IdentifyAccount, Verify}};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+pub use sp_runtime::{
+    generic,
+    traits::{IdentifyAccount, Verify},
+};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -101,4 +104,3 @@ pub mod time {
     pub const HOURS: BlockNumber = MINUTES * 60;
     pub const DAYS: BlockNumber = HOURS * 24;
 }
-

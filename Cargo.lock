@@ -8152,21 +8152,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-robonomics-lighthouse"
-version = "0.5.0"
-dependencies = [
- "async-trait",
- "frame-support 40.1.0",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-inherents 36.0.0",
- "sp-runtime 41.1.0",
- "sp-std 14.0.0",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "pallet-robonomics-rws"
 version = "1.6.0"
 dependencies = [
@@ -11144,6 +11129,7 @@ dependencies = [
  "cumulus-primitives-utility",
  "frame-benchmarking",
  "frame-executive",
+ "frame-metadata-hash-extension",
  "frame-support 40.1.0",
  "frame-system",
  "frame-system-benchmarking",
@@ -11158,16 +11144,17 @@ dependencies = [
  "pallet-democracy",
  "pallet-identity",
  "pallet-membership",
+ "pallet-migrations",
  "pallet-multisig",
  "pallet-preimage",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
- "pallet-robonomics-lighthouse",
  "pallet-robonomics-rws",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-state-trie-migration",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",

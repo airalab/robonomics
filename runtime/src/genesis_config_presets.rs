@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Runtime genesis config presets
 
+use crate::common::{currency::XRT, AccountId, AuraId};
 use crate::*;
-use crate::common::{AuraId, AccountId, currency::XRT};
 
 use alloc::{vec, vec::Vec};
 use cumulus_primitives_core::ParaId;
@@ -36,7 +36,11 @@ fn robonomics_genesis(
 ) -> serde_json::Value {
     build_struct_json_patch!(RuntimeGenesisConfig {
         balances: BalancesConfig {
-            balances: endowed_accounts.iter().cloned().map(|k| (k, endowment)).collect(),
+            balances: endowed_accounts
+                .iter()
+                .cloned()
+                .map(|k| (k, endowment))
+                .collect(),
         },
         parachain_info: ParachainInfoConfig { parachain_id: id },
         collator_selection: CollatorSelectionConfig {
@@ -65,16 +69,27 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
             vec![
-                (Sr25519Keyring::Alice.to_account_id(), Sr25519Keyring::Alice.public().into()),
-                (Sr25519Keyring::Bob.to_account_id(), Sr25519Keyring::Bob.public().into()),
+                (
+                    Sr25519Keyring::Alice.to_account_id(),
+                    Sr25519Keyring::Alice.public().into(),
+                ),
+                (
+                    Sr25519Keyring::Bob.to_account_id(),
+                    Sr25519Keyring::Bob.public().into(),
+                ),
             ],
-            Sr25519Keyring::well_known().map(|k| k.to_account_id()).collect(),
+            Sr25519Keyring::well_known()
+                .map(|k| k.to_account_id())
+                .collect(),
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
         ),
         sp_genesis_builder::DEV_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
-            vec![(Sr25519Keyring::Alice.to_account_id(), Sr25519Keyring::Alice.public().into())],
+            vec![(
+                Sr25519Keyring::Alice.to_account_id(),
+                Sr25519Keyring::Alice.public().into(),
+            )],
             vec![
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Bob.to_account_id(),

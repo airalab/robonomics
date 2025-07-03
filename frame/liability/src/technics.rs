@@ -24,7 +24,17 @@ use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(
+    Encode,
+    Decode,
+    Clone,
+    PartialEq,
+    Eq,
+    TypeInfo,
+    RuntimeDebug,
+    MaxEncodedLen,
+    DecodeWithMemTracking,
+)]
 pub struct IPFS {
     pub hash: H256,
 }

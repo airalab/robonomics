@@ -40,11 +40,14 @@ pallet-collator-selection.workspace = true
 pallet-collective.workspace = true
 pallet-democracy.workspace = true
 frame-executive.workspace = true
+frame-metadata-hash-extension.workspace = true
 pallet-identity.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
+pallet-state-trie-migration.workspace = true
 pallet-treasury.workspace = true
 pallet-membership.workspace = true
+pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
@@ -60,12 +63,11 @@ pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-sudo.workspace = true
 
 # robonomics dependencies
-pallet-robonomics-datalog = { path = "../frame/datalog", default-features = false }
-pallet-robonomics-digital-twin = { path = "../frame/digital-twin", default-features = false }
-pallet-robonomics-launch = { path = "../frame/launch", default-features = false }
-pallet-robonomics-liability = { path = "../frame/liability", default-features = false }
-pallet-robonomics-lighthouse = { path = "../frame/lighthouse", default-features = false }
-pallet-robonomics-rws = { path = "../frame/rws", default-features = false }
+pallet-robonomics-datalog.workspace = true
+pallet-robonomics-digital-twin.workspace = true
+pallet-robonomics-launch.workspace = true
+pallet-robonomics-liability.workspace = true
+pallet-robonomics-rws.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -97,6 +99,7 @@ default = ["std"]
 with-tracing = ["frame-executive/with-tracing"]
 std = [
   "substrate-wasm-builder",
+  "frame-benchmarking?/std",
   "parity-scale-codec/std",
   "sp-api/std",
   "sp-block-builder/std",
@@ -119,6 +122,7 @@ std = [
   "pallet-collator-selection/std",
   "pallet-democracy/std",
   "frame-executive/std",
+  "frame-metadata-hash-extension/std",
   "pallet-identity/std",
   "pallet-scheduler/std",
   "pallet-session/std",
@@ -138,7 +142,6 @@ std = [
   "pallet-robonomics-digital-twin/std",
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
-  "pallet-robonomics-lighthouse/std",
   "pallet-robonomics-rws/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
@@ -161,7 +164,7 @@ std = [
   "scale-info/std",
 ]
 runtime-benchmarks = [
-  "frame-benchmarking",
+  "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",

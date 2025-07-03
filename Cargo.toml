@@ -13,7 +13,7 @@ repository.workspace = true
 
 [workspace.package]
 version = "4.0.0"
-edition = "2024"
+edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
 homepage = "https://robonomics.network"
@@ -36,8 +36,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 color-eyre = { version = "0.6.3", default-features = false }
-polkadot-omni-node-lib = "0.5.1" 
-robonomics-runtime.path = "./runtime" 
+polkadot-omni-node-lib = "0.5.1"
+robonomics-runtime.path = "./runtime"
 sp-genesis-builder.workspace = true
 sc-service.workspace = true
 
@@ -49,12 +49,8 @@ substrate-build-script-utils = { version = "11.0.0", default-features = true }
 
 [features]
 default = []
-runtime-benchmarks = [
-  "polkadot-omni-node-lib/runtime-benchmarks",
-]
-try-runtime = [
-  "polkadot-omni-node-lib/try-runtime",
-]
+runtime-benchmarks = ["polkadot-omni-node-lib/runtime-benchmarks"]
+try-runtime = ["polkadot-omni-node-lib/try-runtime"]
 
 [workspace]
 members = [
@@ -62,7 +58,6 @@ members = [
   "frame/launch",
   "frame/datalog",
   "frame/liability",
-  "frame/lighthouse",
   "frame/digital-twin",
   "frame/xcm-info",
   "runtime",
@@ -87,7 +82,10 @@ bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
-serde = { version = "1.0.171", default-features = false, features = ["derive", "alloc"] }
+serde = { version = "1.0.171", default-features = false, features = [
+  "derive",
+  "alloc",
+] }
 serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
@@ -154,10 +152,11 @@ pallet-balances = { version = "41.1.0", default-features = false }
 frame-support = { version = "40.1.0", default-features = false }
 frame-system = { version = "40.1.0", default-features = false }
 frame-executive = { version = "40.0.1", default-features = false }
+frame-metadata-hash-extension = { version = "0.8.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "36.0.0", default-features = false }
 pallet-assets = { version = "42.0.0", default-features = false }
 pallet-aura = { version = "39.0.0", default-features = false }
-pallet-authorship= { version = "40.0.0", default-features = false }
+pallet-authorship = { version = "40.0.0", default-features = false }
 pallet-collective = { version = "40.1.0", default-features = false }
 pallet-collator-selection = { version = "21.0.0", default-features = false }
 pallet-democracy = { version = "40.1.0", default-features = false }
@@ -167,7 +166,8 @@ pallet-multisig = { version = "40.1.0", default-features = false }
 pallet-migrations = { version = "10.1.0", default-features = false }
 pallet-preimage = { version = "40.0.0", default-features = false }
 pallet-scheduler = { version = "41.2.0", default-features = false }
-pallet-session= { version = "40.0.1", default-features = false }
+pallet-session = { version = "40.0.1", default-features = false }
+pallet-state-trie-migration = { version = "44.1.0", default-features = false }
 pallet-treasury = { version = "39.0.0", default-features = false }
 pallet-utility = { version = "40.0.0", default-features = false }
 pallet-vesting = { version = "40.1.0", default-features = false }
@@ -226,5 +226,12 @@ xcm = { version = "16.2.0", package = "staging-xcm", default-features = false }
 xcm-builder = { version = "20.1.1", package = "staging-xcm-builder", default-features = false }
 xcm-executor = { version = "19.1.2", package = "staging-xcm-executor", default-features = false }
 
-# Build deps
+# Substrate build deps
 substrate-wasm-builder = "26.0.1"
+
+# Robonomics pallets
+pallet-robonomics-datalog = { path = "./frame/datalog", default-features = false }
+pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-features = false }
+pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
+pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
+pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
