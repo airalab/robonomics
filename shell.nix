@@ -11,8 +11,10 @@ mkShell {
     clang
     toolchain
     pkg-config
+    jemalloc
     openssl
     taplo
+    yarn
   ] ++ lib.optionals stdenv.isDarwin [
     darwin.apple_sdk.frameworks.Security
   ];

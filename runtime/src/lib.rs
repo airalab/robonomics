@@ -383,6 +383,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
         cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
     type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
     type ConsensusHook = ConsensusHook;
+    type RelayParentOffset = ConstU32<0>;
     type WeightInfo = ();
 }
 
@@ -628,10 +629,6 @@ pub type Migrations = (
     pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
     //cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
     //cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-    pallet_session::migrations::v1::MigrateV0ToV1<
-        Runtime,
-        pallet_session::migrations::v1::InitOffenceSeverity<Runtime>,
-    >,
     InitMigrationStorage,
     // permanent
     //pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
@@ -643,6 +640,7 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
     fn on_runtime_upgrade() -> Weight {
         use sp_core::crypto::Ss58Codec;
         use sp_keyring::Sr25519Keyring;
+        use frame_support::traits::BuildGenesisConfig;
 
         // setup sudo
         if let Ok(sudo_key) =
@@ -652,7 +650,7 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
         }
 
         // setup collators
-        let invulnerables = vec![
+        let invulnerables: Vec<(AccountId, AuraId)> = vec![
             (
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Alice.public().into(),
@@ -662,17 +660,18 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
                 Sr25519Keyring::Bob.public().into(),
             ),
         ];
-        for (collator, aura) in invulnerables.clone() {
-            let _ = Session::set_keys(
-                RuntimeOrigin::signed(collator),
-                SessionKeys { aura },
-                vec![],
-            );
-        }
-        let _ = CollatorSelection::set_invulnerables(
-            RuntimeOrigin::root(),
-            invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-        );
+        pallet_session::GenesisConfig::<Runtime> {
+            keys: invulnerables
+                    .iter()
+                    .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
+                    .collect(),
+            ..Default::default()
+        }.build();
+        pallet_collator_selection::GenesisConfig::<Runtime> {
+            invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+            candidacy_bond: 32 * XRT,
+            desired_candidates: 100,
+        }.build();
 
         Default::default()
     }
@@ -834,6 +833,25 @@ impl_runtime_apis! {
 
         fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
             genesis_config_presets::preset_names()
+        }
+    }
+
+    #[cfg(feature = "try-runtime")]
+    impl frame_try_runtime::TryRuntime<Block> for Runtime {
+        fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
+            let weight = Executive::try_runtime_upgrade(checks).unwrap();
+            (weight, RuntimeBlockWeights::get().max_block)
+        }
+
+        fn execute_block(
+            block: Block,
+            state_root_check: bool,
+            signature_check: bool,
+            select: frame_try_runtime::TryStateSelect,
+        ) -> Weight {
+            // NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
+            // have a backtrace here.
+            Executive::try_execute_block(block, state_root_check, signature_check, select).unwrap()
         }
     }
 }

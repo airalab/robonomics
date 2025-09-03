@@ -58,7 +58,6 @@ fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     )
     .with_name("Robonomics Local Develoment")
     .with_id("robonomics-local-development")
-    .with_chain_type(sc_service::ChainType::Local)
     .with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
     .build();
     Ok(config)
