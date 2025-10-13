@@ -53,7 +53,6 @@ fn robonomics_development_config() -> Result<GenericChainSpec, String> {
         robonomics_runtime::WASM_BINARY.ok_or("wasm not available")?,
         Extensions {
             relay_chain: "westend-local".into(),
-            para_id: 2048,
         },
     )
     .with_name("Robonomics Local Develoment")
