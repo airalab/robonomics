@@ -381,7 +381,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type ReservedXcmpWeight = ReservedXcmpWeight;
     type CheckAssociatedRelayNumber =
         cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
-    type SelectCore = cumulus_pallet_parachain_system::DefaultCoreSelector<Runtime>;
     type ConsensusHook = ConsensusHook;
     type RelayParentOffset = ConstU32<0>;
     type WeightInfo = ();
@@ -407,6 +406,8 @@ impl pallet_session::Config for Runtime {
     type Keys = SessionKeys;
     type DisablingStrategy = ();
     type WeightInfo = ();
+    type Currency = Balances;
+    type KeyDeposit = ();
 }
 
 impl pallet_aura::Config for Runtime {
@@ -813,12 +814,6 @@ impl_runtime_apis! {
     impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
         fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
             ParachainSystem::collect_collation_info(header)
-        }
-    }
-
-    impl cumulus_primitives_core::GetCoreSelectorApi<Block> for Runtime {
-        fn core_selector() -> (CoreSelector, ClaimQueueOffset) {
-            ParachainSystem::core_selector()
         }
     }
 
