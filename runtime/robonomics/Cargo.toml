@@ -177,6 +177,12 @@ runtime-benchmarks = [
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
+  #-------------------------
+  "cumulus-pallet-parachain-system/runtime-benchmarks",
+  "cumulus-pallet-xcmp-queue/runtime-benchmarks",
+  "cumulus-pallet-dmp-queue/runtime-benchmarks",
+  "cumulus-pallet-weight-reclaim/runtime-benchmarks",
+  "pallet-collator-selection/runtime-benchmarks",
 ]
 try-runtime = [
 	"cumulus-pallet-aura-ext/try-runtime",

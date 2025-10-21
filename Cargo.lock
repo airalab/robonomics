@@ -2787,6 +2787,7 @@ dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "derive-where",
  "docify",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
