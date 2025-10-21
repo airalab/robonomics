@@ -317,6 +317,15 @@ parameter_types! {
     pub const MetadataDepositPerByte: Balance = deposit(0, 1);
 }
 
+// pub struct AssetsBenchmarkHelper;
+//
+// #[cfg(feature = "runtime-benchmarks")]
+// impl pallet_assets::BenchmarkHelper<parity_scale_codec::Compact<u32>> for AssetsBenchmarkHelper {
+//     fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u32> {
+//         parity_scale_codec::Compact(id)
+//     }
+// }
+
 impl pallet_assets::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Balance = Balance;
@@ -337,6 +346,9 @@ impl pallet_assets::Config for Runtime {
     type RemoveItemsLimit = ConstU32<1000>;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
     type CallbackHandle = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
+    // type BenchmarkHelper = AssetsBenchmarkHelper;
 }
 
 parameter_types! {
@@ -639,9 +651,9 @@ pub type Migrations = (
 pub struct InitMigrationStorage;
 impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
     fn on_runtime_upgrade() -> Weight {
+        use frame_support::traits::BuildGenesisConfig;
         use sp_core::crypto::Ss58Codec;
         use sp_keyring::Sr25519Keyring;
-        use frame_support::traits::BuildGenesisConfig;
 
         // setup sudo
         if let Ok(sudo_key) =
@@ -663,16 +675,18 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
         ];
         pallet_session::GenesisConfig::<Runtime> {
             keys: invulnerables
-                    .iter()
-                    .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
-                    .collect(),
+                .iter()
+                .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
+                .collect(),
             ..Default::default()
-        }.build();
+        }
+        .build();
         pallet_collator_selection::GenesisConfig::<Runtime> {
             invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
             candidacy_bond: 32 * XRT,
             desired_candidates: 100,
-        }.build();
+        }
+        .build();
 
         Default::default()
     }

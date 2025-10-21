@@ -37,7 +37,7 @@ pallet-aura.workspace = true
 pallet-authorship.workspace = true
 pallet-balances.workspace = true
 pallet-collator-selection.workspace = true
-pallet-collective.workspace = true
+# pallet-collective.workspace = true
 pallet-democracy.workspace = true
 frame-executive.workspace = true
 frame-metadata-hash-extension.workspace = true
@@ -118,7 +118,7 @@ std = [
   "pallet-authorship/std",
   "pallet-assets/std",
   "pallet-balances/std",
-  "pallet-collective/std",
+  # "pallet-collective/std",
   "pallet-collator-selection/std",
   "pallet-democracy/std",
   "frame-executive/std",
@@ -169,7 +169,8 @@ runtime-benchmarks = [
   "frame-system/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "pallet-balances/runtime-benchmarks",
-  "pallet-collective/runtime-benchmarks",
+  # "pallet-collective/runtime-benchmarks",
+  "pallet-assets/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
