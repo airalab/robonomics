@@ -25,16 +25,17 @@ pub mod traits;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// pub mod weights;
+pub mod weights;
 
 pub use pallet::*;
 pub use signed::*;
 pub use traits::*;
-// pub use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::traits::*;
+    use super::*;
     use frame_support::{dispatch, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use sp_std::prelude::*;
@@ -55,6 +56,9 @@ pub mod pallet {
 
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     pub type TechnicsFor<T> =
@@ -119,7 +123,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create agreement between two parties.
-        #[pallet::weight(200_000)]
+        #[pallet::weight(T::WeightInfo::create())]
         #[pallet::call_index(0)]
         pub fn create(origin: OriginFor<T>, agreement: T::Agreement) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
@@ -147,7 +151,7 @@ pub mod pallet {
         }
 
         /// Publish technical report of complite works.
-        #[pallet::weight(200_000)]
+        #[pallet::weight(T::WeightInfo::finalize())]
         #[pallet::call_index(1)]
         pub fn finalize(origin: OriginFor<T>, report: ReportFor<T>) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;

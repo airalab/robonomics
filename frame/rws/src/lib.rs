@@ -27,10 +27,10 @@ use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-// pub mod weights;
+pub mod weights;
 
 pub use pallet::*;
-// pub use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 //#[cfg(test)]
 //mod tests;
@@ -178,6 +178,8 @@ pub mod pallet {
         type MaxDevicesAmount: Get<u32>;
         #[pallet::constant]
         type MaxAuctionIndexesAmount: Get<u32>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::error]
@@ -318,7 +320,7 @@ pub mod pallet {
         /// - writes auction bid
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::weight(T::WeightInfo::bid())]
         pub fn bid(
             origin: OriginFor<T>,
             index: T::AuctionIndex,
@@ -361,7 +363,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::weight(T::WeightInfo::set_devices())]
         pub fn set_devices(
             origin: OriginFor<T>,
             devices: BoundedVec<T::AccountId, T::MaxDevicesAmount>,
@@ -383,7 +385,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::weight(T::WeightInfo::set_oracle())]
         pub fn set_oracle(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
@@ -402,7 +404,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::weight(T::WeightInfo::set_subscription())]
         pub fn set_subscription(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -430,7 +432,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::weight(T::WeightInfo::start_auction())]
         pub fn start_auction(
             origin: OriginFor<T>,
             kind: Subscription,

@@ -453,13 +453,13 @@ impl pallet_robonomics_datalog::Config for Runtime {
     type Record = BoundedVec<u8, MaximumMessageSize>;
     type RuntimeEvent = RuntimeEvent;
     type WindowSize = WindowSize;
-    // type WeightInfo = pallet_robonomics_datalog::weights::RobonomicsWeight<Runtime>;
-    type WeightInfo = ();
+    type WeightInfo = pallet_robonomics_datalog::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = H256;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_launch::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -482,10 +482,12 @@ impl pallet_robonomics_rws::Config for Runtime {
     type MinimalBid = MinimalBid;
     type MaxDevicesAmount = ConstU32<32>;
     type MaxAuctionIndexesAmount = ConstU32<4096>;
+    type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_digital_twin::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_liability::Config for Runtime {
@@ -502,6 +504,7 @@ impl pallet_robonomics_liability::Config for Runtime {
         pallet_robonomics_liability::technics::IPFS,
     >;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_liability::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
