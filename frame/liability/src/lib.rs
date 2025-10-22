@@ -23,9 +23,14 @@ pub mod signed;
 pub mod technics;
 pub mod traits;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+// pub mod weights;
+
 pub use pallet::*;
 pub use signed::*;
 pub use traits::*;
+// pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {

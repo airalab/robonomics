@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,18 +17,21 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Benchmarks for Datalog Pallet
 
+#![cfg(feature = "runtime-benchmarks")]
+
 use super::{Pallet as Datalog, *};
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::v2::*;
 use frame_support::pallet_prelude::{Get, MaxEncodedLen};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_std::prelude::*;
 
+const SEED: u32 = 0;
+
 fn setup_record<T: Config>() -> T::Record {
     let s = <T::Record as MaxEncodedLen>::max_encoded_len();
     let mut v = Vec::with_capacity(s - 4);
     v.resize(s - 4, 0x1F);
-
     v.using_encoded(|mut slice| T::Record::decode(&mut slice).unwrap_or_default())
 }
 
@@ -42,21 +45,35 @@ where
     Ok(())
 }
 
-const SEED: u32 = 0;
+#[benchmarks]
+mod benchmarks {
+    use super::*;
+    #[cfg(test)]
+    use frame_system::RawOrigin;
 
-benchmarks! {
-
-    record {
-        let caller: T::AccountId =  account("caller", 1, SEED );
+    #[benchmark]
+    fn record() -> Result<(), BenchmarkError> {
+        let caller: T::AccountId = account("caller", 1, SEED);
         let data = setup_record::<T>();
-        setup_datalog::<T>( caller.clone(), data.clone() )?;
-    }: _( RawOrigin::Signed(caller), data )
+        setup_datalog::<T>(caller.clone(), data.clone())?;
 
-    erase {
-        let caller : T::AccountId=  account("caller", 1, SEED);
+        #[extrinsic_call]
+        record(RawOrigin::Signed(caller), data);
+
+        Ok(())
+    }
+
+    #[benchmark]
+    fn erase() -> Result<(), BenchmarkError> {
+        let caller: T::AccountId = account("caller", 1, SEED);
         let data = setup_record::<T>();
-        setup_datalog::<T>( caller.clone(), data )?;
-    }: _( RawOrigin::Signed(caller) )
+        setup_datalog::<T>(caller.clone(), data)?;
+
+        #[extrinsic_call]
+        erase(RawOrigin::Signed(caller));
+
+        Ok(())
+    }
+
+    impl_benchmark_test_suite!(Datalog, crate::tests::new_test_ext(), crate::tests::Runtime,);
 }
-
-impl_benchmark_test_suite!(Datalog, crate::tests::new_test_ext(), crate::tests::Runtime,);

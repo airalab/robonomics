@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,10 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Benchmarks for Launch Pallet
 
+#![cfg(feature = "runtime-benchmarks")]
+
 use super::{Pallet as Launch, *};
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
-pub use pallet::*;
 use parity_scale_codec::{Decode, Encode};
 use sp_runtime::Vec;
 
@@ -46,17 +47,24 @@ fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str> {
     Ok(())
 }
 
-benchmarks! {
+#[benchmarks]
+mod benchmarks {
+    use super::*;
+    #[cfg(test)]
+    use frame_system::RawOrigin;
 
-    launch {
-        let caller: T::AccountId =  account("caller", 1, SEED );
-        let data: T::AccountId =  account("caller", 1, SEED );
+    #[benchmark]
+    fn launch() -> Result<(), BenchmarkError> {
+        let caller: T::AccountId = account("caller", 1, SEED);
+        let data: T::AccountId = account("caller", 1, SEED);
         let param = setup_param::<T>();
-        setup_launch::<T>( caller.clone() )?;
-    }: _( RawOrigin::Signed(caller), data, param)
+        setup_launch::<T>(caller.clone())?;
 
-    verify {
+        #[extrinsic_call]
+        launch(RawOrigin::Signed(caller), data, param);
+
+        Ok(())
     }
-}
 
-impl_benchmark_test_suite!(Launch, crate::tests::new_test_ext(), crate::tests::Runtime,);
+    impl_benchmark_test_suite!(Launch, crate::tests::new_test_ext(), crate::tests::Runtime,);
+}

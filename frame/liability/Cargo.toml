@@ -14,6 +14,11 @@ sp-runtime = { workspace = true }
 sp-arithmetic = { workspace = true }
 frame-system = { workspace = true }
 frame-support = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+hex-literal = { workspace = true }
+sp-keyring = { workspace = true }
+pallet-balances = { workspace = true, default-features = false }
+# robonomics-primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 hex-literal = { workspace = true }
@@ -31,5 +36,13 @@ std = [
   "sp-arithmetic/std",
   "frame-system/std",
   "frame-support/std",
+  "frame-benchmarking?/std",
   "scale-info/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]

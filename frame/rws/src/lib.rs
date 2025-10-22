@@ -25,7 +25,12 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxE
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+// pub mod weights;
+
 pub use pallet::*;
+// pub use weights::WeightInfo;
 
 //#[cfg(test)]
 //mod tests;

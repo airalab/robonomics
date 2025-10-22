@@ -18,7 +18,12 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+// pub mod weights;
+
 pub use pallet::*;
+// pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {

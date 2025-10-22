@@ -8415,6 +8415,7 @@ dependencies = [
 name = "pallet-robonomics-digital-twin"
 version = "0.3.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -8445,6 +8446,7 @@ dependencies = [
 name = "pallet-robonomics-liability"
 version = "0.10.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
@@ -8463,6 +8465,7 @@ dependencies = [
 name = "pallet-robonomics-rws"
 version = "1.6.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",
@@ -8909,6 +8912,7 @@ dependencies = [
 name = "pallet-xcm-info"
 version = "0.1.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
