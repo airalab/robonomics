@@ -26,8 +26,6 @@ use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_std::prelude::*;
 
-const SEED: u32 = 0;
-
 fn setup_record<T: Config>() -> T::Record {
     let s = <T::Record as MaxEncodedLen>::max_encoded_len();
     let mut v = Vec::with_capacity(s - 4);

@@ -35,7 +35,7 @@ use frame_support::{
     parameter_types,
     traits::{
         fungible, tokens::imbalance::ResolveTo, AsEnsureOriginWithArg, ConstBool, ConstU128,
-        ConstU32, ConstU64, Currency, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced,
+        ConstU32, ConstU64, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced,
         WithdrawReasons,
     },
     weights::{
@@ -865,7 +865,7 @@ impl_runtime_apis! {
             Vec<frame_benchmarking::BenchmarkList>,
             Vec<frame_support::traits::StorageInfo>,
         ) {
-            use frame_benchmarking::{Benchmarking, BenchmarkList};
+            use frame_benchmarking::BenchmarkList;
             use frame_support::traits::StorageInfoTrait;
             use frame_system_benchmarking::Pallet as SystemBench;
 
@@ -880,7 +880,7 @@ impl_runtime_apis! {
         fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
-            use frame_benchmarking::{BenchmarkBatch, Benchmarking};
+            use frame_benchmarking::BenchmarkBatch;
             use frame_support::traits::TrackedStorageKey;
             use frame_system_benchmarking::Pallet as SystemBench;
             use hex_literal::hex;

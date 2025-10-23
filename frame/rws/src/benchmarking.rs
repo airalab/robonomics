@@ -21,17 +21,10 @@
 
 use super::{Pallet as Rws, *};
 use frame_benchmarking::v2::*;
-use frame_support::{
-    assert_ok,
-    pallet_prelude::{Get, MaxEncodedLen},
-    traits::Currency,
-};
+use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
 use frame_system::RawOrigin;
-use parity_scale_codec::{Decode, Encode};
 use sp_runtime::traits::StaticLookup;
 use sp_std::prelude::*;
-
-use crate::*;
 
 const SEED: u32 = 0;
 

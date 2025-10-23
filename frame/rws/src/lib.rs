@@ -288,6 +288,7 @@ pub mod pallet {
         /// - Dependes of call method.
         /// - Basically this sould be free by concept.
         /// # </weight>
+        #[pallet::call_index(0)]
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
@@ -320,6 +321,7 @@ pub mod pallet {
         /// - writes auction bid
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::bid())]
         pub fn bid(
             origin: OriginFor<T>,
@@ -363,6 +365,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::set_devices())]
         pub fn set_devices(
             origin: OriginFor<T>,
@@ -385,6 +388,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::set_oracle())]
         pub fn set_oracle(
             origin: OriginFor<T>,
@@ -404,6 +408,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
+        #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::set_subscription())]
         pub fn set_subscription(
             origin: OriginFor<T>,
@@ -432,6 +437,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
+        #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::start_auction())]
         pub fn start_auction(
             origin: OriginFor<T>,

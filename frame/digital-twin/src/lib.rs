@@ -78,6 +78,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create new digital twin.
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::create())]
         pub fn create(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
@@ -89,6 +90,7 @@ pub mod pallet {
         }
 
         /// Set data source account for difital twin.
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::set_source())]
         pub fn set_source(
             origin: OriginFor<T>,
