@@ -690,20 +690,6 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
 #[macro_use]
 extern crate frame_benchmarking;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benches {
-//     define_benchmarks!(
-//         [frame_system, SystemBench::<Runtime>]
-//         // Robonomics pallets
-//         [robonomics_datalog, Datalog]
-//         [robonomics_digital_twin, DigitalTwin]
-//         [robonomics_launch, Launch]
-//         [robonomics_liability, Liability]
-//         [robonomics_rws, RWS]
-//         // [robonomics_xcm_info, XcmInfo]
-//     );
-// }
-
 #[cfg(feature = "runtime-benchmarks")]
 frame_benchmarking::define_benchmarks!(
     [frame_system, SystemBench::<Runtime>]
@@ -893,12 +879,9 @@ impl_runtime_apis! {
 
         fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
-        // ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
-            // use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
-             use frame_benchmarking::{BenchmarkBatch, Benchmarking};
-             use frame_support::traits::TrackedStorageKey;
-
+            use frame_benchmarking::{BenchmarkBatch, Benchmarking};
+            use frame_support::traits::TrackedStorageKey;
             use frame_system_benchmarking::Pallet as SystemBench;
             use hex_literal::hex;
 
