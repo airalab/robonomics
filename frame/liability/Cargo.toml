@@ -18,7 +18,6 @@ frame-benchmarking = { workspace = true, optional = true }
 hex-literal = { workspace = true }
 sp-keyring = { workspace = true }
 pallet-balances = { workspace = true, default-features = false }
-# robonomics-primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 hex-literal = { workspace = true }

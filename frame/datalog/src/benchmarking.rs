@@ -53,7 +53,7 @@ mod benchmarks {
 
     #[benchmark]
     fn record() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = account("caller", 1, SEED);
+        let caller: T::AccountId = whitelisted_caller();
         let data = setup_record::<T>();
         setup_datalog::<T>(caller.clone(), data.clone())?;
 
@@ -65,7 +65,7 @@ mod benchmarks {
 
     #[benchmark]
     fn erase() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = account("caller", 1, SEED);
+        let caller: T::AccountId = whitelisted_caller();
         let data = setup_record::<T>();
         setup_datalog::<T>(caller.clone(), data)?;
 

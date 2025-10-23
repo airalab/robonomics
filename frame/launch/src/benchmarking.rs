@@ -35,7 +35,7 @@ fn setup_param<T: Config>() -> T::Parameter {
 }
 
 fn setup_launch<T: Config>(caller: T::AccountId) -> Result<(), &'static str> {
-    let data: T::AccountId = account("caller", 1, SEED);
+    let data: T::AccountId = account("data", 2, SEED);
     let param = setup_param::<T>();
     for _ in 0..1000 {
         Launch::<T>::launch(
@@ -55,8 +55,8 @@ mod benchmarks {
 
     #[benchmark]
     fn launch() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = account("caller", 1, SEED);
-        let data: T::AccountId = account("caller", 1, SEED);
+        let caller: T::AccountId = whitelisted_caller();
+        let data: T::AccountId = account("data", 3, SEED);
         let param = setup_param::<T>();
         setup_launch::<T>(caller.clone())?;
 

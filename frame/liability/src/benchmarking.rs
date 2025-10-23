@@ -145,15 +145,12 @@ mod benchmarks {
     use frame_support::traits::Currency;
     use parity_scale_codec::{Decode, Encode};
     use sp_core::sr25519;
-    // use sp_keyring::AccountKeyring;
     use sp_runtime::{AccountId32, MultiSignature};
 
-    // Helper function to create dummy signature
     fn dummy_signature() -> MultiSignature {
         MultiSignature::Sr25519(sr25519::Signature::from_raw([0u8; 64]))
     }
 
-    // Helper function to create test agreement
     fn create_test_agreement() -> SignedAgreement<
         IPFS,
         SimpleMarket<AccountId32, benchmark_runtime::Balances>,
@@ -164,8 +161,6 @@ mod benchmarks {
             hash: IPFS_HASH.into(),
         };
         let economics = SimpleMarket::<AccountId32, benchmark_runtime::Balances> { price: 10 };
-        // let promisee: AccountId32 = AccountKeyring::Alice.into();
-        // let promisor: AccountId32 = AccountKeyring::Bob.into();
         let promisee: AccountId32 = account("alice", 0, 0);
         let promisor: AccountId32 = account("bob", 0, 0);
         let _ = benchmark_runtime::Balances::make_free_balance_be(&promisee, 10000u128);
@@ -182,11 +177,9 @@ mod benchmarks {
         }
     }
 
-    // Helper function to create test report
     fn create_test_report() -> SignedReport<u32, AccountId32, MultiSignature, IPFS> {
         SignedReport {
             index: 0,
-            // sender: AccountKeyring::Bob.into(),
             sender: account("bob", 0, 0),
             payload: IPFS {
                 hash: IPFS_HASH.into(),

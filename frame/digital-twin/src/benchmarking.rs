@@ -35,7 +35,7 @@ mod benchmarks {
 
     #[benchmark]
     fn create() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = account("caller", 1, SEED);
+        let caller: T::AccountId = whitelisted_caller();
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
 
         #[extrinsic_call]
@@ -46,7 +46,7 @@ mod benchmarks {
 
     #[benchmark]
     fn set_source() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = account("caller", 1, SEED);
+        let caller: T::AccountId = whitelisted_caller();
         let id: u32 = 0;
         let topic: H256 = Default::default();
         let source: T::AccountId = account("source", 2, SEED);

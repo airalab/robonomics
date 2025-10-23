@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for Datalog Pallet
+// Benchmarks for RWS Pallet
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -47,18 +47,10 @@ mod benchmarks {
     #[cfg(test)]
     use frame_system::RawOrigin;
 
-    // ???
-    // #[benchmark]
-    // fn call() {
-    // }
-
     #[benchmark]
     fn bid() {
         let caller = funded_account::<T>("caller", 0);
-        // Pallet::<T>::new_auction(Default::default());
-
         let _ = Pallet::<T>::start_auction(RawOrigin::Root.into(), Default::default());
-
         let queue = Pallet::<T>::auction_queue();
         let index = queue.first().unwrap();
         let amount = T::MinimalBid::get() * 10u32.into();
@@ -70,7 +62,7 @@ mod benchmarks {
     #[benchmark]
     fn set_devices() {
         let caller: T::AccountId = whitelisted_caller();
-        let device: T::AccountId = whitelisted_caller();
+        let device: T::AccountId = account("device", 2, SEED);
         let mut devices = frame_support::BoundedVec::new();
         assert_ok!(devices.try_push(device));
 
@@ -89,7 +81,7 @@ mod benchmarks {
     #[benchmark]
     fn set_subscription() {
         let oracle: T::AccountId = whitelisted_caller();
-        let target: T::AccountId = whitelisted_caller();
+        let target: T::AccountId = account("target", 3, SEED);
         let oracle_lookup = T::Lookup::unlookup(oracle.clone());
 
         assert_ok!(Rws::<T>::set_oracle(RawOrigin::Root.into(), oracle_lookup));
@@ -100,8 +92,6 @@ mod benchmarks {
 
     #[benchmark]
     fn start_auction() {
-        let caller: T::AccountId = whitelisted_caller();
-
         #[extrinsic_call]
         _(RawOrigin::Root, Default::default());
     }
