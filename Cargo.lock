@@ -2787,6 +2787,7 @@ dependencies = [
  "cumulus-primitives-storage-weight-reclaim",
  "derive-where",
  "docify",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -7805,24 +7806,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-collective"
-version = "43.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "620c2e8c2b88e4c9416a0b16accec13f361afab22194908ce58ac12645fe0b1a"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-conviction-voting"
 version = "43.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8432,6 +8415,7 @@ dependencies = [
 name = "pallet-robonomics-digital-twin"
 version = "0.3.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -8462,6 +8446,7 @@ dependencies = [
 name = "pallet-robonomics-liability"
 version = "0.10.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
@@ -8480,6 +8465,7 @@ dependencies = [
 name = "pallet-robonomics-rws"
 version = "1.6.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",
@@ -8926,6 +8912,7 @@ dependencies = [
 name = "pallet-xcm-info"
 version = "0.1.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -11788,7 +11775,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
- "pallet-collective",
  "pallet-democracy",
  "pallet-identity",
  "pallet-membership",

@@ -25,7 +25,12 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxE
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 //#[cfg(test)]
 //mod tests;
@@ -173,6 +178,8 @@ pub mod pallet {
         type MaxDevicesAmount: Get<u32>;
         #[pallet::constant]
         type MaxAuctionIndexesAmount: Get<u32>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::error]
@@ -281,6 +288,7 @@ pub mod pallet {
         /// - Dependes of call method.
         /// - Basically this sould be free by concept.
         /// # </weight>
+        #[pallet::call_index(0)]
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
@@ -313,7 +321,8 @@ pub mod pallet {
         /// - writes auction bid
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::call_index(1)]
+        #[pallet::weight(T::WeightInfo::bid())]
         pub fn bid(
             origin: OriginFor<T>,
             index: T::AuctionIndex,
@@ -356,7 +365,8 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::call_index(2)]
+        #[pallet::weight(T::WeightInfo::set_devices())]
         pub fn set_devices(
             origin: OriginFor<T>,
             devices: BoundedVec<T::AccountId, T::MaxDevicesAmount>,
@@ -378,7 +388,8 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::call_index(3)]
+        #[pallet::weight(T::WeightInfo::set_oracle())]
         pub fn set_oracle(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
@@ -397,7 +408,8 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::call_index(4)]
+        #[pallet::weight(T::WeightInfo::set_subscription())]
         pub fn set_subscription(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -425,7 +437,8 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::weight(100_000)]
+        #[pallet::call_index(5)]
+        #[pallet::weight(T::WeightInfo::start_auction())]
         pub fn start_auction(
             origin: OriginFor<T>,
             kind: Subscription,

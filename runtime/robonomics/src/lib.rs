@@ -35,7 +35,7 @@ use frame_support::{
     parameter_types,
     traits::{
         fungible, tokens::imbalance::ResolveTo, AsEnsureOriginWithArg, ConstBool, ConstU128,
-        ConstU32, ConstU64, Currency, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced,
+        ConstU32, ConstU64, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced,
         WithdrawReasons,
     },
     weights::{
@@ -337,6 +337,8 @@ impl pallet_assets::Config for Runtime {
     type RemoveItemsLimit = ConstU32<1000>;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
     type CallbackHandle = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -451,12 +453,13 @@ impl pallet_robonomics_datalog::Config for Runtime {
     type Record = BoundedVec<u8, MaximumMessageSize>;
     type RuntimeEvent = RuntimeEvent;
     type WindowSize = WindowSize;
-    type WeightInfo = pallet_robonomics_datalog::weights::RobonomicsWeight<Runtime>;
+    type WeightInfo = pallet_robonomics_datalog::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_launch::Config for Runtime {
     type Parameter = H256;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_launch::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -479,10 +482,12 @@ impl pallet_robonomics_rws::Config for Runtime {
     type MinimalBid = MinimalBid;
     type MaxDevicesAmount = ConstU32<32>;
     type MaxAuctionIndexesAmount = ConstU32<4096>;
+    type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_digital_twin::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_liability::Config for Runtime {
@@ -499,6 +504,7 @@ impl pallet_robonomics_liability::Config for Runtime {
         pallet_robonomics_liability::technics::IPFS,
     >;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_robonomics_liability::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -639,9 +645,9 @@ pub type Migrations = (
 pub struct InitMigrationStorage;
 impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
     fn on_runtime_upgrade() -> Weight {
+        use frame_support::traits::BuildGenesisConfig;
         use sp_core::crypto::Ss58Codec;
         use sp_keyring::Sr25519Keyring;
-        use frame_support::traits::BuildGenesisConfig;
 
         // setup sudo
         if let Ok(sudo_key) =
@@ -663,16 +669,18 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
         ];
         pallet_session::GenesisConfig::<Runtime> {
             keys: invulnerables
-                    .iter()
-                    .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
-                    .collect(),
+                .iter()
+                .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
+                .collect(),
             ..Default::default()
-        }.build();
+        }
+        .build();
         pallet_collator_selection::GenesisConfig::<Runtime> {
             invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
             candidacy_bond: 32 * XRT,
             desired_candidates: 100,
-        }.build();
+        }
+        .build();
 
         Default::default()
     }
@@ -683,14 +691,15 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
 extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
-mod benches {
-    define_benchmarks!(
-        [frame_system, SystemBench::<Runtime>]
-        // Robonomics pallets
-        [robonomics_datalog, Datalog]
-        [robonomics_launch, Launch]
-    );
-}
+frame_benchmarking::define_benchmarks!(
+    [frame_system, SystemBench::<Runtime>]
+    // Robonomics pallets
+    [pallet_robonomics_datalog, Datalog]
+    [pallet_robonomics_digital_twin, DigitalTwin]
+    [pallet_robonomics_launch, Launch]
+    [pallet_robonomics_liability, Liability]
+    [pallet_robonomics_rws, RWS]
+);
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
@@ -847,6 +856,56 @@ impl_runtime_apis! {
             // NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
             // have a backtrace here.
             Executive::try_execute_block(block, state_root_check, signature_check, select).unwrap()
+        }
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    impl frame_benchmarking::Benchmark<Block> for Runtime {
+        fn benchmark_metadata(extra: bool) -> (
+            Vec<frame_benchmarking::BenchmarkList>,
+            Vec<frame_support::traits::StorageInfo>,
+        ) {
+            use frame_benchmarking::BenchmarkList;
+            use frame_support::traits::StorageInfoTrait;
+            use frame_system_benchmarking::Pallet as SystemBench;
+
+            let mut list = Vec::<BenchmarkList>::new();
+            list_benchmarks!(list, extra);
+
+            let storage_info = AllPalletsWithSystem::storage_info();
+
+            (list, storage_info)
+        }
+
+        fn dispatch_benchmark(
+            config: frame_benchmarking::BenchmarkConfig
+        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
+            use frame_benchmarking::BenchmarkBatch;
+            use frame_support::traits::TrackedStorageKey;
+            use frame_system_benchmarking::Pallet as SystemBench;
+            use hex_literal::hex;
+
+            #[allow(non_local_definitions)]
+            impl frame_system_benchmarking::Config for Runtime {}
+
+            let whitelist: Vec<TrackedStorageKey> = vec![
+                // Block Number
+                hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
+                // Total Issuance
+                hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
+                // Execution Phase
+                hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
+                // Event Count
+                hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
+                // System Events
+                hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+            ];
+
+            let mut batches = Vec::<BenchmarkBatch>::new();
+            let params = (&config, &whitelist);
+            add_benchmarks!(params, batches);
+
+            Ok(batches)
         }
     }
 }

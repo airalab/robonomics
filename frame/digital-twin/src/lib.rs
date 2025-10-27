@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,7 +18,12 @@
 //! Digital twin runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -27,10 +32,14 @@ pub mod pallet {
     use sp_core::H256;
     use sp_std::collections::btree_map::BTreeMap;
 
+    use super::*;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::event]
@@ -69,7 +78,8 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create new digital twin.
-        #[pallet::weight(50_000)]
+        #[pallet::call_index(0)]
+        #[pallet::weight(T::WeightInfo::create())]
         pub fn create(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
             let id = <Total<T>>::get().unwrap_or(0);
@@ -80,7 +90,8 @@ pub mod pallet {
         }
 
         /// Set data source account for difital twin.
-        #[pallet::weight(50_000)]
+        #[pallet::call_index(1)]
+        #[pallet::weight(T::WeightInfo::set_source())]
         pub fn set_source(
             origin: OriginFor<T>,
             id: u32,

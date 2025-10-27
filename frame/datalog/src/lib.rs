@@ -21,12 +21,12 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::from_over_into)]
 
-pub use pallet::*;
-pub use weights::WeightInfo;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod weights;
+
+pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 #[allow(clippy::module_inception)]

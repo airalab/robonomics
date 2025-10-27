@@ -18,15 +18,19 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod weights;
+
+pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+
+    use super::*;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -34,6 +38,8 @@ pub mod pallet {
         type Parameter: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::storage]
@@ -55,7 +61,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Launch a robot with given parameter.
-        #[pallet::weight(500_000)]
+        #[pallet::weight(T::WeightInfo::launch())]
         #[pallet::call_index(0)]
         pub fn launch(
             origin: OriginFor<T>,
