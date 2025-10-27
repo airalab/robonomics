@@ -88,7 +88,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
     spec_version: 40,
-    impl_version: 0,
+    impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
     system_version: 1,
@@ -206,7 +206,7 @@ impl pallet_utility::Config for Runtime {
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_timestamp::Config for Runtime {
-    type Moment = Moment;
+    type Moment = u64;
     type OnTimestampSet = Aura;
     type MinimumPeriod = ConstU64<0>;
     type WeightInfo = ();
@@ -415,7 +415,7 @@ impl pallet_session::Config for Runtime {
 impl pallet_aura::Config for Runtime {
     type AuthorityId = AuraId;
     type DisabledValidators = ();
-    type MaxAuthorities = ConstU32<32>;
+    type MaxAuthorities = ConstU32<100>;
     type AllowMultipleBlocksPerSlot = ConstBool<true>;
     type SlotDuration = ConstU64<MILLISECS_PER_BLOCK>;
 }
@@ -472,7 +472,7 @@ parameter_types! {
 impl pallet_robonomics_rws::Config for Runtime {
     type Call = RuntimeCall;
     type Time = Timestamp;
-    type Moment = Moment;
+    type Moment = u64;
     type AuctionIndex = u32;
     type AuctionCurrency = Balances;
     type RuntimeEvent = RuntimeEvent;
@@ -632,20 +632,17 @@ pub type Executive = frame_executive::Executive<
 
 /// Migrations to apply on runtime upgrade.
 pub type Migrations = (
-    pallet_collator_selection::migration::v2::MigrationToV2<Runtime>,
     pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
     //cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
     //cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
     InitMigrationStorage,
     // permanent
     //pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-    cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 );
 
 pub struct InitMigrationStorage;
 impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
     fn on_runtime_upgrade() -> Weight {
-        use frame_support::traits::BuildGenesisConfig;
         use sp_core::crypto::Ss58Codec;
         use sp_keyring::Sr25519Keyring;
 
@@ -657,30 +654,71 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
         }
 
         // setup collators
-        let invulnerables: Vec<(AccountId, AuraId)> = vec![
-            (
-                Sr25519Keyring::Alice.to_account_id(),
-                Sr25519Keyring::Alice.public().into(),
-            ),
-            (
-                Sr25519Keyring::Bob.to_account_id(),
-                Sr25519Keyring::Bob.public().into(),
-            ),
+        use pallet_collator_selection::{CandidacyBond, DesiredCandidates, Invulnerables};
+        let desired_candidates = 25;
+        let candidacy_bond = 32 * XRT;
+        let invulnerables: Vec<AccountId> = vec![
+            Sr25519Keyring::Alice.to_account_id(),
+            Sr25519Keyring::Bob.to_account_id(),
         ];
-        pallet_session::GenesisConfig::<Runtime> {
-            keys: invulnerables
-                .iter()
-                .map(|x| (x.0.clone(), x.0.clone(), SessionKeys { aura: x.1.clone() }))
-                .collect(),
-            ..Default::default()
-        }
-        .build();
-        pallet_collator_selection::GenesisConfig::<Runtime> {
-            invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-            candidacy_bond: 32 * XRT,
-            desired_candidates: 100,
-        }
-        .build();
+
+        let bounded_invulnerables: BoundedVec<
+            _,
+            <Runtime as pallet_collator_selection::Config>::MaxInvulnerables,
+        > = invulnerables
+            .clone()
+            .try_into()
+            .expect("genesis invulnerables are more than T::MaxInvulnerables");
+
+        DesiredCandidates::<Runtime>::put(desired_candidates);
+        CandidacyBond::<Runtime>::put(candidacy_bond);
+        Invulnerables::<Runtime>::put(bounded_invulnerables);
+
+        // Genesis init pallet_session
+        use pallet_session::{NextKeys, QueuedKeys, SessionHandler, SessionManager, Validators};
+
+        // insert genesis keys
+        NextKeys::<Runtime>::insert(
+            Sr25519Keyring::Alice.to_account_id(),
+            SessionKeys {
+                aura: Sr25519Keyring::Alice.public().into(),
+            },
+        );
+        NextKeys::<Runtime>::insert(
+            Sr25519Keyring::Bob.to_account_id(),
+            SessionKeys {
+                aura: Sr25519Keyring::Bob.public().into(),
+            },
+        );
+
+        // init validators
+        let initial_validators_0 =
+            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(0)
+                .unwrap_or_else(|| {
+                    frame_support::print(
+                        "No initial validator provided by `SessionManager`, use \
+                    session config keys to generate initial validator set.",
+                    );
+                    invulnerables
+                });
+
+        let initial_validators_1 =
+            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(1)
+                .unwrap_or_else(|| initial_validators_0.clone());
+
+        let queued_keys: Vec<_> = initial_validators_1
+            .into_iter()
+            .filter_map(|v| pallet_session::Pallet::<Runtime>::load_keys(&v).map(|k| (v, k)))
+            .collect();
+
+        <Runtime as pallet_session::Config>::SessionHandler::on_genesis_session::<
+            <Runtime as pallet_session::Config>::Keys,
+        >(&queued_keys);
+
+        Validators::<Runtime>::put(initial_validators_0);
+        QueuedKeys::<Runtime>::put(queued_keys);
+
+        <Runtime as pallet_session::Config>::SessionManager::start_session(0);
 
         Default::default()
     }
