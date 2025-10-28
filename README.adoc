@@ -95,12 +95,14 @@ nix-shell --run "cargo run --release"
 === Running Benchmarks
 
  . Build the node with benchmarking features enabled:
++
 [source, shell]
 ----
 cargo build --release --features runtime-benchmarks
 ----
 
  . Run the benchmark script to generate weights:
++
 [source, shell]
 ----
 ./scripts/weights/benchmark-commands.sh
