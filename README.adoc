@@ -92,6 +92,22 @@ git clone --recursive https://github.com/airalab/robonomics && cd robonomics
 nix-shell --run "cargo run --release"
 ----
 
+=== Running Benchmarks
+
+Build the node with benchmarking features enabled.
+
+[source, shell]
+----
+cargo build --release --features runtime-benchmarks
+----
+
+Then run the benchmark script to generate weights.
+
+[source, shell]
+----
+./scripts/weights/benchmark-commands.sh
+----
+
 == Network maintaining
 
 Currently Robonomics is maintained by developers but anyone can https://www.robonomics.events/#/collators[support the project].
