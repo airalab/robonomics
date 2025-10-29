@@ -116,6 +116,29 @@ pub mod pallet {
             });
             Ok(().into())
         }
+
+        /// Remove data source account for digital twin.
+        #[pallet::call_index(2)]
+        #[pallet::weight(T::WeightInfo::remove_source())]
+        pub fn remove_source(
+            origin: OriginFor<T>,
+            id: u32,
+            topic: H256,
+            source: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                <Owner<T>>::get(id) == Some(sender.clone()),
+                "sender should be a twin owner"
+            );
+            Self::deposit_event(Event::TopicChanged(sender, id, topic, source.clone()));
+            <DigitalTwin<T>>::mutate(id, |m| {
+                if let Some(map) = m {
+                    map.remove(&topic);
+                }
+            });
+            Ok(().into())
+        }
     }
 }
 
@@ -163,10 +186,18 @@ mod tests {
         type SS58Prefix = ();
         type OnSetCode = ();
         type MaxConsumers = frame_support::traits::ConstU32<16>;
+        type RuntimeTask = RuntimeTask;
+        type ExtensionsWeightInfo = ();
+        type SingleBlockMigrations = ();
+        type MultiBlockMigrator = ();
+        type PreInherents = ();
+        type PostInherents = ();
+        type PostTransactions = ();
     }
 
     impl Config for Runtime {
         type RuntimeEvent = RuntimeEvent;
+        type WeightInfo = ();
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
@@ -207,6 +238,37 @@ mod tests {
                 0,
                 Default::default(),
                 bad_sender
+            ));
+        })
+    }
+
+    #[test]
+    fn test_remove_source() {
+        new_test_ext().execute_with(|| {
+            let sender = 1;
+            let bad_sender = 2;
+            let source = 3;
+            assert_ok!(DigitalTwin::create(RuntimeOrigin::signed(sender)));
+            assert_ok!(DigitalTwin::set_source(
+                RuntimeOrigin::signed(sender),
+                0,
+                Default::default(),
+                source
+            ));
+            assert_err!(
+                DigitalTwin::remove_source(
+                    RuntimeOrigin::signed(bad_sender),
+                    0,
+                    Default::default(),
+                    source
+                ),
+                DispatchError::Other("sender should be a twin owner")
+            );
+            assert_ok!(DigitalTwin::remove_source(
+                RuntimeOrigin::signed(sender),
+                0,
+                Default::default(),
+                source
             ));
         })
     }
