@@ -64,31 +64,31 @@ mod benchmarks {
         Ok(())
     }
 
-    // #[benchmark]
-    // fn remove_source() -> Result<(), BenchmarkError> {
-    //     let caller: T::AccountId = account("caller", 1, SEED);
-    //     let id: u32 = 0;
-    //     let topic: H256 = Default::default();
-    //     let source: T::AccountId = account("source", 2, SEED);
-    //     DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
-    //     DigitalTwin::<T>::set_source(
-    //         RawOrigin::Signed(caller.clone()).into(),
-    //         id,
-    //         topic,
-    //         source.clone(),
-    //     )?;
-    //     DigitalTwin::<T>::remove_source(
-    //         RawOrigin::Signed(caller.clone()).into(),
-    //         id,
-    //         topic,
-    //         source.clone(),
-    //     )?;
-    //
-    //     #[extrinsic_call]
-    //     remove_source(RawOrigin::Signed(caller), id, topic, source);
-    //
-    //     Ok(())
-    // }
+    #[benchmark]
+    fn remove_source() -> Result<(), BenchmarkError> {
+        let caller: T::AccountId = whitelisted_caller();
+        let id: u32 = 0;
+        let topic: H256 = Default::default();
+        let source: T::AccountId = account("source", 2, SEED);
+        DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
+        DigitalTwin::<T>::set_source(
+            RawOrigin::Signed(caller.clone()).into(),
+            id,
+            topic,
+            source.clone(),
+        )?;
+        DigitalTwin::<T>::remove_source(
+            RawOrigin::Signed(caller.clone()).into(),
+            id,
+            topic,
+            source.clone(),
+        )?;
+
+        #[extrinsic_call]
+        remove_source(RawOrigin::Signed(caller), id, topic, source);
+
+        Ok(())
+    }
 
     impl_benchmark_test_suite!(
         DigitalTwin,
