@@ -117,7 +117,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Remove data source account for difital twin.
+        /// Remove data source account for digital twin.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::remove_source())]
         pub fn remove_source(
