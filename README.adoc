@@ -94,6 +94,13 @@ nix-shell --run "cargo run --release"
 
 === Running Benchmarks
 
+ . Install the frame-omni-bencher command-line tool:
++
+[source, shell]
+----
+cargo install frame-omni-bencher
+----
+
  . Build the node with benchmarking features enabled:
 +
 [source, shell]
