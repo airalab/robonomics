@@ -56,7 +56,7 @@ jobs:
       run: rustup target list --installed
 
     - name: WASM
-      run: rustup component add rust-src --toolchain 1.81.0-x86_64-unknown-linux-gnu
+      run: rustup component add rust-src --toolchain 1.88.0-x86_64-unknown-linux-gnu
 
     - uses: actions-rs/clippy-check@v1
       with:

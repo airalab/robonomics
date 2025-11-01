@@ -33,7 +33,7 @@ jobs:
       run: rustup target list --installed
 
     - name: WASM
-      run: rustup component add rust-src --toolchain 1.81.0-x86_64-unknown-linux-gnu
+      run: rustup component add rust-src --toolchain 1.88.0-x86_64-unknown-linux-gnu
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
