@@ -14,7 +14,7 @@ on:
         value: ${{ jobs.check-and-tests.outputs.status }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}--${{ inputs.build_script }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
