@@ -1,5 +1,14 @@
-name: Static Analysis
-on: [push, workflow_dispatch]
+name: Static Code Checks 
+
+on: 
+  push:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      clippy_status:
+        description: "Status of the static checks"
+        value: ${{ jobs.fmt.outputs.status && jobs.clippy.outputs.status && jobs.check-license.outputs.status }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
@@ -8,6 +17,8 @@ jobs:
   fmt:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v3
@@ -33,6 +44,8 @@ jobs:
   clippy:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
@@ -59,6 +72,8 @@ jobs:
   check-license:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v3

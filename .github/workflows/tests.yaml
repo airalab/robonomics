@@ -2,7 +2,8 @@ name: Tests
 on:
   push:
     branches:
-    - '**'
+    - 'feat/*'
+    - 'fix/*'
     tags-ignore:
     - v[0-9]+.[0-9]+.[0-9]+*
   workflow_dispatch:
@@ -11,16 +12,17 @@ on:
       test_status:
         description: "Status of the tests"
         value: ${{ jobs.check-and-tests.outputs.status }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
-  base-checks:
-    uses: ./.github/workflows/base_checks.yaml
+  static-checks:
+    uses: ./.github/workflows/static.yaml
 
   checks-and-tests:
-    needs: base-checks
+    needs: static-checks
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -41,7 +43,13 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Install deps
-      run: sudo apt -y install protobuf-compiler
+      run: |
+        sudo apt -y install protobuf-compiler pkg-config
+        if ! command -v sccache; then
+            cargo install sccache --locked
+        fi
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "SCCACHE_CACHE_SIZE=100G" >> $GITHUB_ENV
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
