@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   static-checks:
-    uses: ./.github/workflows/static.yaml
+    uses: ./.github/workflows/static.yml
 
   checks-and-tests:
     needs: static-checks
