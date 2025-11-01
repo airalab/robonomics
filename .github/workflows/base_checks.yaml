@@ -17,6 +17,9 @@ jobs:
     - name: Checkout the source code
       uses: actions/checkout@v3
 
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
     - name: Install deps
       run: |
         sudo apt -y install protobuf-compiler pkg-config
@@ -25,15 +28,6 @@ jobs:
         fi
         echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
         echo "SCCACHE_CACHE_SIZE=100G" >> $GITHUB_ENV
-
-    - name: Install & display rust toolchain
-      run: rustup show
-
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
-
-    - name: WASM
-      run: rustup component add rust-src --toolchain 1.88.0-x86_64-unknown-linux-gnu
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
