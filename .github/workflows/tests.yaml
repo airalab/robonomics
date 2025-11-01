@@ -6,13 +6,24 @@ on:
     tags-ignore:
     - v[0-9]+.[0-9]+.[0-9]+*
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      test_status:
+        description: "Status of the tests"
+        value: ${{ jobs.check-and-tests.outputs.status }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
+  base-checks:
+    uses: ./.github/workflows/base_checks.yaml
+
   checks-and-tests:
+    needs: base-checks
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
     - name: Free disk space
       run: |

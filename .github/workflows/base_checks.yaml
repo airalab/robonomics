@@ -6,6 +6,11 @@ on:
     tags-ignore:
     - v[0-9]+.[0-9]+.[0-9]+*
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      check_status:
+        description: "Status of the base checks"
+        value: ${{ jobs.compile-and-check.outputs.status }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
@@ -13,6 +18,8 @@ concurrency:
 jobs:
   compile-and-check:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
