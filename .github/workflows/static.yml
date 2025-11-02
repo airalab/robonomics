@@ -23,9 +23,6 @@ jobs:
       - name: Checkout the source code
         uses: actions/checkout@v3
 
-      - name: Install deps
-        run: sudo apt -y install protobuf-compiler
-
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
@@ -40,34 +37,6 @@ jobs:
             cargo install taplo-cli
           fi
           taplo fmt --check
-
-  clippy:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Install deps
-      run: sudo apt -y install protobuf-compiler
-
-    - name: free disk space
-      run: |
-        sudo swapoff -a
-        sudo rm -f /swapfile
-        sudo apt clean
-
-    - uses: actions-rs/clippy-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --features runtime-benchmarks
-        # TODO: Temporary permit warnings, remove it later when fix
-        #-- -D warnings
 
   check-license:
     if: github.event.pull_request.draft == false

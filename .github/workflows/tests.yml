@@ -42,14 +42,11 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
+    - name: Enable rust cache
+      uses: Swatinem/rust-cache@v2
+
     - name: Install deps
-      run: |
-        sudo apt -y install protobuf-compiler pkg-config
-        if ! command -v sccache; then
-            cargo install sccache --locked
-        fi
-        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-        echo "SCCACHE_CACHE_SIZE=100G" >> $GITHUB_ENV
+      run: sudo apt -y install protobuf-compiler pkg-config
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
