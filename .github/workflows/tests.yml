@@ -42,11 +42,8 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Enable rust cache
-      uses: Swatinem/rust-cache@v2
-
     - name: Install deps
-      run: sudo apt -y install protobuf-compiler pkg-config
+      run: sudo apt -y install solc protobuf-compiler pkg-config
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
