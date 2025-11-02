@@ -10,11 +10,11 @@ env:
   SUBWASM_VERSION: 0.16.1
 
 jobs:
-  checks-and-tests:
+  tests:
     uses: ./.github/workflows/tests.yaml
 
   native-linux:
-    needs: checks-and-tests
+    needs: tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,9 +25,6 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
-
-    - name: Install deps
-      run: sudo apt -y install pkg-config protobuf-compiler
 
     - name: aarch64 setup
       if: contains(matrix.target, 'aarch64')
@@ -70,14 +67,11 @@ jobs:
         path: target/${{ matrix.target }}/release/robonomics
 
   native-macos:
-    needs: checks-and-tests
+    needs: tests
     runs-on: macos-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
-
-    - name: Install deps
-      run: brew install protobuf
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -140,7 +134,7 @@ jobs:
         push: true
 
   srtool:
-    needs: checks-and-tests
+    needs: tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
