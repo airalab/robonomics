@@ -33,16 +33,5 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Install deps
-      run: |
-        sudo add-apt-repository ppa:ethereum/ethereum
-        sudo add-apt-repository ppa:conscioususer/polly-daily
-        sudo apt-get update
-        sudo apt-get install solc polly protobuf-compiler pkg-config
-        cargo install resolc
-
-    - name: Check all features compilation
-      run: cargo check --verbose --features runtime-benchmarks --locked
-
     - name: Run all tests
       run: cargo test --features runtime-benchmarks --locked
