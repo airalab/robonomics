@@ -38,6 +38,7 @@ jobs:
         sudo add-apt-repository ppa:ethereum/ethereum
         sudo apt-get update
         sudo apt-get install solc protobuf-compiler pkg-config
+        cargo install resolc
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
