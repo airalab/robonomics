@@ -34,7 +34,10 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Install deps
-      run: sudo apt -y install solc protobuf-compiler pkg-config
+      run: |
+        sudo add-apt-repository ppa:ethereum/ethereum
+        sudo apt-get update
+        sudo apt-get install solc protobuf-compiler pkg-config
 
     - name: Check all features compilation
       run: cargo check --verbose --features runtime-benchmarks --locked
