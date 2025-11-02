@@ -52,6 +52,9 @@ jobs:
       if: contains(matrix.target, 'aarch64')
       run: rustup target add ${{ matrix.target }}
 
+    - name: Install deps
+      run: sudo apt -y install pkg-config protobuf-compiler
+
     - name: Build optimized binary
       run: build --profile production --target ${{ matrix.target }} --verbose --locked
 
@@ -76,8 +79,11 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
+    - name: Install deps
+      run: brew install protobuf
+
     - name: Build optimized binary
-      run: cargo build --release --verbose --locked
+      run: cargo build --profile production --verbose --locked
 
     - uses: actions/upload-artifact@v4
       with:

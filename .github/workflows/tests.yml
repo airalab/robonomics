@@ -33,5 +33,8 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
+    - name: Install deps
+      run: sudo apt -y install pkg-config protobuf-compiler
+
     - name: Run all tests
       run: cargo test --profile production --workspace --features runtime-benchmarks --locked
