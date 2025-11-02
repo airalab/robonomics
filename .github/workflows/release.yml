@@ -53,7 +53,7 @@ jobs:
       run: rustup target add ${{ matrix.target }}
 
     - name: Build optimized binary
-      run: CARGO_PROFILE_RELEASE_LTO=true RUSTFLAGS="-C codegen-units=1" cargo build --release --target ${{ matrix.target }} --verbose --locked
+      run: build --profile production --target ${{ matrix.target }} --verbose --locked
 
     - name: Set artifact name
       env:
