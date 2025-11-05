@@ -149,10 +149,12 @@ jobs:
 
     - name: Srtool build
       id: srtool_build
-      uses: chevdor/srtool-actions@v0.8.0
+      uses: chevdor/srtool-actions@v0.9.2
+      env:
+        BUILD_OPTS: "--features on-chain-release-build"
       with:
-        chain: ${{ matrix.chain }}
-        runtime_dir: runtime/${{ matrix.chain }}
+        chain: robonomics 
+        runtime_dir: runtime/robonomics
 
     - name: Summary
       run: |
@@ -190,7 +192,7 @@ jobs:
       run: |
         subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b robonomics || \
           echo "Subwasm call failed, check the logs. This is likely because robonomics is not known by subwasm" | \
-          tee ${{ matrix.chain }}-diff.txt
+          tee robonomics-diff.txt
 
     - name: Archive Artifacts for robonomics runtime
       uses: actions/upload-artifact@v4
