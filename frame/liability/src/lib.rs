@@ -200,10 +200,9 @@ mod tests {
     use crate::technics::IPFS;
     use crate::traits::*;
     use crate::{self as liability, *};
-    use frame_support::{assert_err, assert_ok, parameter_types};
+    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
     use hex_literal::hex;
     use sp_core::{crypto::Pair, sr25519, H256};
-    use sp_keyring::AccountKeyring;
     use sp_runtime::{
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, BuildStorage, MultiSignature,
@@ -226,30 +225,12 @@ mod tests {
         pub const BlockHashCount: u64 = 250;
     }
 
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
     impl frame_system::Config for Runtime {
-        type RuntimeOrigin = RuntimeOrigin;
-        type RuntimeCall = RuntimeCall;
-        type Nonce = u32;
         type Block = Block;
-        type Hash = H256;
-        type Hashing = ::sp_runtime::traits::BlakeTwo256;
         type AccountId = AccountId32;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type RuntimeEvent = RuntimeEvent;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type PalletInfo = PalletInfo;
         type AccountData = pallet_balances::AccountData<Balance>;
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = frame_support::traits::Everything;
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type OnSetCode = ();
-        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     parameter_types! {
@@ -271,7 +252,8 @@ mod tests {
         type FreezeIdentifier = ();
         type MaxFreezes = ();
         type RuntimeHoldReason = ();
-        type MaxHolds = ();
+        type RuntimeFreezeReason = ();
+        type DoneSlashHandler = ();
     }
 
     impl Config for Runtime {
@@ -296,6 +278,7 @@ mod tests {
             // Provide report in IPFS
             IPFS,
         >;
+        type WeightInfo = ();
     }
 
     // IPFS raw hash (sha256)
@@ -303,13 +286,16 @@ mod tests {
         hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
+        use sp_keyring::sr25519::Keyring;
+
         let storage = RuntimeGenesisConfig {
             system: Default::default(),
             balances: pallet_balances::GenesisConfig::<Runtime> {
                 balances: vec![
-                    (AccountKeyring::Alice.into(), 100 * XRT),
-                    (AccountKeyring::Bob.into(), 100 * XRT),
+                    (Keyring::Alice.into(), 100 * XRT),
+                    (Keyring::Bob.into(), 100 * XRT),
                 ],
+                dev_accounts: None,
             },
         }
         .build_storage()
