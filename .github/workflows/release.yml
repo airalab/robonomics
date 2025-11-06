@@ -56,7 +56,7 @@ jobs:
       run: sudo apt -y install pkg-config protobuf-compiler
 
     - name: Build optimized binary
-      run: build --profile production --target ${{ matrix.target }} --verbose --locked
+      run: cargo build --profile production --target ${{ matrix.target }} --verbose --locked
 
     - name: Set artifact name
       env:
