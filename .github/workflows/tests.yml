@@ -13,6 +13,9 @@ on:
         description: "Status of the tests"
         value: ${{ jobs.check-and-tests.outputs.status }}
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}--${{ inputs.build_script }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
