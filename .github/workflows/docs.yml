@@ -24,6 +24,9 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
+      - name: Install deps
+        run: sudo apt -y install pkg-config protobuf-compiler
+
       - name: Setup pages
         id: pages
         uses: actions/configure-pages@v5

@@ -11,7 +11,7 @@ env:
 
 jobs:
   tests:
-    uses: ./.github/workflows/tests.yaml
+    uses: ./.github/workflows/tests.yml
 
   native-linux:
     needs: tests
