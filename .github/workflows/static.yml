@@ -1,4 +1,6 @@
 name: Static Code Checks 
+permissions:
+  contents: read
 
 on: 
   push:
