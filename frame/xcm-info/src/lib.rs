@@ -25,7 +25,7 @@ mod benchmarking;
 pub use pallet::*;
 // pub use weights::WeightInfo;
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
@@ -39,6 +39,7 @@ pub mod pallet {
         /// AssetId type for asset<>location linkage setup.
         type AssetId: Parameter + Copy + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
@@ -77,7 +78,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn set_relay_network(origin: OriginFor<T>, network_id: NetworkId) -> DispatchResult {
             ensure_root(origin)?;
 
@@ -88,7 +89,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn set_asset_link(
             origin: OriginFor<T>,
             asset_id: T::AssetId,

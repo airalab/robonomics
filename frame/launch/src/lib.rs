@@ -37,6 +37,7 @@ pub mod pallet {
         /// Robot launch parameter data type.
         type Parameter: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
@@ -79,8 +80,8 @@ pub mod pallet {
 #[cfg(test)]
 mod tests {
     use frame_support::{assert_ok, derive_impl, parameter_types, BoundedVec};
-    use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, BuildStorage};
+
+    use sp_runtime::BuildStorage;
 
     use crate::{self as launch, *};
 

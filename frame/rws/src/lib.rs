@@ -161,6 +161,7 @@ pub mod pallet {
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Reference call weight, general transaction consumes this weight.
         #[pallet::constant]

@@ -55,6 +55,7 @@ pub mod pallet {
         type Report: dispatch::Parameter + Report<Index, Self::AccountId> + MaxEncodedLen;
 
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// Extrinsic weights
@@ -202,7 +203,7 @@ mod tests {
     use crate::{self as liability, *};
     use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
     use hex_literal::hex;
-    use sp_core::{crypto::Pair, sr25519, H256};
+    use sp_core::{crypto::Pair, sr25519};
     use sp_runtime::{
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, BuildStorage, MultiSignature,

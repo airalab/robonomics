@@ -48,6 +48,7 @@ pub mod pallet {
         /// Datalog record data type.
         type Record: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Data log window size
         #[pallet::constant]
@@ -135,7 +136,7 @@ pub mod pallet {
 
             let window_size = T::WindowSize::get();
             // get the number of items in the ring buffer
-            let count = idx.count(window_size);
+            let _count = idx.count(window_size);
 
             for start in idx.iter(window_size) {
                 DatalogItem::<T>::remove((&sender, start))
@@ -251,8 +252,8 @@ pub mod pallet {
 #[cfg(test)]
 mod tests {
     use frame_support::{assert_err, assert_ok, derive_impl, parameter_types, BoundedVec};
-    use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
+
+    use sp_runtime::{BuildStorage, DispatchError};
 
     use crate::{self as datalog, *};
 
