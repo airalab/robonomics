@@ -8,9 +8,11 @@ with llvmPackages;
 
 mkShell {
   buildInputs = [
-    libz
     clang
     toolchain
+    pkg-config
+    openssl
+    taplo
   ] ++ lib.optionals stdenv.isDarwin [
     darwin.apple_sdk.frameworks.Security
   ];

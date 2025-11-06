@@ -10,41 +10,11 @@ env:
   SUBWASM_VERSION: 0.16.1
 
 jobs:
-  checks-and-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Free disk space
-      run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf "/usr/local/share/boost"
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-        df -h
-
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: Install deps
-      run: sudo apt -y install protobuf-compiler
-
-    - name: Install & display rust toolchain
-      run: rustup show
-
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
-
-    - name: Check all features compilation
-      run: cargo check --verbose --features runtime-benchmarks --locked
-
-    - name: WASM
-      run: rustup component add rust-src --toolchain 1.81.0-x86_64-unknown-linux-gnu
-
-    - name: Run all tests
-      run: cargo test --features runtime-benchmarks --locked
+  tests:
+    uses: ./.github/workflows/tests.yaml
 
   native-linux:
-    needs: checks-and-tests
+    needs: tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -55,9 +25,6 @@ jobs:
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
-
-    - name: Install deps
-      run: sudo apt -y install protobuf-compiler
 
     - name: aarch64 setup
       if: contains(matrix.target, 'aarch64')
@@ -78,18 +45,18 @@ jobs:
         touch .cargo/config
         printf '[target.x86_64-unknown-linux-gnu]\nrustflags = ["-Clink-arg=-fuse-ld=lld"]' >> .cargo/config
 
-    - name: Install & display rust toolchain
-      run: rustup show
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Add aarch64 target
       if: contains(matrix.target, 'aarch64')
       run: rustup target add ${{ matrix.target }}
 
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
+    - name: Install deps
+      run: sudo apt -y install pkg-config protobuf-compiler
 
     - name: Build optimized binary
-      run: CARGO_PROFILE_RELEASE_LTO=true RUSTFLAGS="-C codegen-units=1" cargo build --release --target ${{ matrix.target }} --verbose --locked
+      run: build --profile production --target ${{ matrix.target }} --verbose --locked
 
     - name: Set artifact name
       env:
@@ -103,23 +70,20 @@ jobs:
         path: target/${{ matrix.target }}/release/robonomics
 
   native-macos:
-    needs: checks-and-tests
+    needs: tests
     runs-on: macos-latest
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
 
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
     - name: Install deps
-      run: brew install protobuf sccache
-
-    - name: Install & display rust toolchain
-      run: rustup show
-
-    - name: Check targets are installed correctly
-      run: rustup target list --installed
+      run: brew install protobuf
 
     - name: Build optimized binary
-      run: cargo build --release --verbose --locked
+      run: cargo build --profile production --verbose --locked
 
     - uses: actions/upload-artifact@v4
       with:
@@ -176,11 +140,8 @@ jobs:
         push: true
 
   srtool:
-    needs: checks-and-tests
+    needs: tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        chain: ["main"]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -188,19 +149,21 @@ jobs:
 
     - name: Srtool build
       id: srtool_build
-      uses: chevdor/srtool-actions@v0.8.0
+      uses: chevdor/srtool-actions@v0.9.2
+      env:
+        BUILD_OPTS: "--features on-chain-release-build"
       with:
-        chain: ${{ matrix.chain }}
-        runtime_dir: runtime/${{ matrix.chain }}
+        chain: robonomics 
+        runtime_dir: runtime/robonomics
 
     - name: Summary
       run: |
-        echo '${{ steps.srtool_build.outputs.json }}' | jq > ${{ matrix.chain }}-srtool-digest.json
-        cat ${{ matrix.chain }}-srtool-digest.json
+        echo '${{ steps.srtool_build.outputs.json }}' | jq > robonomics-srtool-digest.json
+        cat robonomics-srtool-digest.json
         echo "Compact Runtime: ${{ steps.srtool_build.outputs.wasm }}"
         echo "Compressed Runtime: ${{ steps.srtool_build.outputs.wasm_compressed }}"
-        cp ${{ steps.srtool_build.outputs.wasm }} ${{ matrix.chain }}_runtime.compact.wasm
-        cp ${{ steps.srtool_build.outputs.wasm_compressed }} ${{ matrix.chain }}_runtime.compact.compressed.wasm
+        cp ${{ steps.srtool_build.outputs.wasm }} robonomics_runtime.compact.wasm
+        cp ${{ steps.srtool_build.outputs.wasm_compressed }} robonomics_runtime.compact.compressed.wasm
 
     # We now get extra information thanks to subwasm
     - name: Install subwasm
@@ -214,35 +177,35 @@ jobs:
       run: |
         subwasm info ${{ steps.srtool_build.outputs.wasm }}
         subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }}
-        subwasm --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-info.json
-        subwasm --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.chain }}-compressed-info.json
+        subwasm --json info ${{ steps.srtool_build.outputs.wasm }} > robonomics-info.json
+        subwasm --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > robonomics-compressed-info.json
 
     - name: Extract the metadata
       shell: bash
       run: |
         subwasm meta ${{ steps.srtool_build.outputs.wasm }}
-        subwasm --json meta ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.chain }}-metadata.json
+        subwasm --json meta ${{ steps.srtool_build.outputs.wasm }} > robonomics-metadata.json
 
     - name: Check the metadata diff
       shell: bash
       # the following subwasm call will error for chains that are not known and/or live, that includes shell for instance
       run: |
-        subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b ${{ matrix.chain }} || \
-          echo "Subwasm call failed, check the logs. This is likely because ${{ matrix.chain }} is not known by subwasm" | \
-          tee ${{ matrix.chain }}-diff.txt
+        subwasm diff ${{ steps.srtool_build.outputs.wasm }} --chain-b robonomics || \
+          echo "Subwasm call failed, check the logs. This is likely because robonomics is not known by subwasm" | \
+          tee robonomics-diff.txt
 
-    - name: Archive Artifacts for ${{ matrix.chain }}
+    - name: Archive Artifacts for robonomics runtime
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.chain }}-runtime
+        name: robonomics-runtime
         path: |
-          ${{ matrix.chain }}_runtime.compact.wasm
-          ${{ matrix.chain }}_runtime.compact.compressed.wasm
-          ${{ matrix.chain }}-srtool-digest.json
-          ${{ matrix.chain }}-info.json
-          ${{ matrix.chain }}-compressed-info.json
-          ${{ matrix.chain }}-metadata.json
-          ${{ matrix.chain }}-diff.txt
+          robonomics_runtime.compact.wasm
+          robonomics_runtime.compact.compressed.wasm
+          robonomics-srtool-digest.json
+          robonomics-info.json
+          robonomics-compressed-info.json
+          robonomics-metadata.json
+          robonomics-diff.txt
 
   publish-release-draft:
     needs: [native-linux, native-macOS, srtool]
@@ -333,63 +296,60 @@ jobs:
   upload-runtimes:
     needs: publish-release-draft
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        chain: ["main"]
     steps:
     - name: Download runtime
       uses: actions/download-artifact@v4
       with:
-        name: ${{ matrix.chain }}-runtime
+        name: robonomics-runtime
 
     - name: Get runtime version
       id: get-runtime-version
       run: |
         ls -R
-        chain=${{ matrix.chain }}
-        runtime_version=$(cat $chain-compressed-info.json | jq '.core_version' | tr -d '"' | cut -d ' ' -f 1)
+        chain=robonomics
+        runtime_version=$(cat robonomics-compressed-info.json | jq '.core_version' | tr -d '"' | cut -d ' ' -f 1)
         echo $runtime_version
         echo "runtime=$(echo $runtime_version)" >> $GITHUB_ENV
-        echo "${{ matrix.chain }}=$(echo $runtime_version)" >> $GITHUB_OUTPUT
+        echo "$robonomics=$(echo $runtime_version)" >> $GITHUB_OUTPUT
 
-    - name: Upload ${{ matrix.chain }} Wasm
+    - name: Upload Robonomics Wasm
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.chain }}_runtime.compact.compressed.wasm
+        asset_path: robonomics_runtime.compact.compressed.wasm
         asset_name: ${{ env.runtime }}.wasm
         asset_content_type: application/wasm
 
-    - name: Upload ${{ matrix.chain }} Metadata
+    - name: Upload Robonomics Metadata
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.chain }}-metadata.json
-        asset_name: ${{ matrix.chain }}-metadata.json
+        asset_path: robonomics-metadata.json
+        asset_name: robonomics-metadata.json
         asset_content_type: application/json
 
-    - name: Upload ${{ matrix.chain }} Compressed Info
+    - name: Upload Robonomics Compressed Info
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.chain }}-compressed-info.json
-        asset_name: ${{ matrix.chain }}-compressed-info.json
+        asset_path: robonomics-compressed-info.json
+        asset_name: robonomics-compressed-info.json
         asset_content_type: application/json
 
-    - name: Upload ${{ matrix.chain }} Srtool Digest
+    - name: Upload Robonomics Srtool Digest
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.chain }}-srtool-digest.json
-        asset_name: ${{ matrix.chain }}-srtool-digest.json
+        asset_path: robonomics-srtool-digest.json
+        asset_name: robonomics-srtool-digest.json
         asset_content_type: application/json
 
     outputs:

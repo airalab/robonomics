@@ -1,0 +1,55 @@
+name: Static Code Checks 
+
+on: 
+  push:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      clippy_status:
+        description: "Status of the static checks"
+        value: ${{ jobs.fmt.outputs.status && jobs.clippy.outputs.status && jobs.check-license.outputs.status }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_script }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  fmt:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v3
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Check fmt
+        run: cargo fmt -- --check
+
+      - name: Check Cargo.toml format
+        run: |
+          if taplo --version &> /dev/null; then
+            echo "taplo-cli is already installed"
+          else
+            cargo install taplo-cli
+          fi
+          taplo fmt --check
+
+  check-license:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v3
+
+      - name: Check license
+        uses: viperproject/check-license-header@v2
+        with:
+          path: ./
+          config: ./.github/license-check/config.json
+          strict: false

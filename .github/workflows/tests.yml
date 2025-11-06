@@ -1,0 +1,40 @@
+name: Tests
+on:
+  push:
+    branches:
+    - 'feat/*'
+    - 'fix/*'
+    tags-ignore:
+    - v[0-9]+.[0-9]+.[0-9]+*
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      test_status:
+        description: "Status of the tests"
+        value: ${{ jobs.check-and-tests.outputs.status }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}--${{ inputs.build_script }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  static-checks:
+    uses: ./.github/workflows/static.yml
+
+  tests:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v3
+
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Install deps
+      run: sudo apt -y install pkg-config protobuf-compiler
+
+    - name: Run all tests
+      run: cargo test --workspace --locked

@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,22 +18,29 @@
 //! Simple robot launch runtime module. This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod weights;
+
+pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
+    use super::*;
+
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// Robot launch parameter data type.
         type Parameter: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::storage]
@@ -55,7 +62,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Launch a robot with given parameter.
-        #[pallet::weight(500_000)]
+        #[pallet::weight(T::WeightInfo::launch())]
         #[pallet::call_index(0)]
         pub fn launch(
             origin: OriginFor<T>,
@@ -72,10 +79,9 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
+    use frame_support::{assert_ok, derive_impl, parameter_types, BoundedVec};
 
-    use frame_support::{assert_ok, parameter_types, BoundedVec};
-    use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, BuildStorage};
+    use sp_runtime::BuildStorage;
 
     use crate::{self as launch, *};
 
@@ -93,30 +99,9 @@ mod tests {
         pub const BlockHashCount: u64 = 250;
     }
 
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
     impl frame_system::Config for Runtime {
-        type RuntimeOrigin = RuntimeOrigin;
-        type RuntimeCall = RuntimeCall;
-        type Hash = H256;
-        type Hashing = sp_runtime::traits::BlakeTwo256;
         type Block = Block;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
-        type RuntimeEvent = RuntimeEvent;
-        type Nonce = u32;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type PalletInfo = PalletInfo;
-        type AccountData = ();
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = frame_support::traits::Everything;
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type OnSetCode = ();
-        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     impl pallet_timestamp::Config for Runtime {
@@ -135,6 +120,7 @@ mod tests {
     impl Config for Runtime {
         type Parameter = BoundedVec<u8, MaximumMessageSize>;
         type RuntimeEvent = RuntimeEvent;
+        type WeightInfo = ();
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {
