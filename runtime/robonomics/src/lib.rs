@@ -27,7 +27,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 extern crate alloc;
 
 use alloc::{vec, vec::Vec};
-use cumulus_primitives_core::{AggregateMessageOrigin, ClaimQueueOffset, CoreSelector};
+use cumulus_primitives_core::AggregateMessageOrigin;
 use frame_support::{
     construct_runtime, derive_impl,
     dispatch::DispatchClass,
@@ -35,13 +35,10 @@ use frame_support::{
     parameter_types,
     traits::{
         fungible, tokens::imbalance::ResolveTo, AsEnsureOriginWithArg, ConstBool, ConstU128,
-        ConstU32, ConstU64, EitherOfDiverse, EqualPrivilegeOnly, Imbalance, OnUnbalanced,
-        WithdrawReasons,
+        ConstU32, ConstU64, Imbalance, OnUnbalanced, WithdrawReasons,
     },
     weights::{
-        constants::{
-            BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
-        },
+        constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_REF_TIME_PER_SECOND},
         ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
         WeightToFeePolynomial,
     },
@@ -57,9 +54,9 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
 use sp_runtime::{
     impl_opaque_keys,
-    traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
+    traits::{BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
+    BoundedVec, FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
