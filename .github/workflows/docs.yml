@@ -35,12 +35,14 @@ jobs:
         run: cargo clean --doc
 
       - name: Build docs
-        run: cargo doc --no-deps
+        run: cargo doc --workspace --no-deps
 
       - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0;url=doc/index.html">' > target/doc/index.html
+        run: echo '<meta http-equiv="refresh" content="0;url=robonomics/index.html">' > target/doc/index.html
+
       - name: Remove lock file
         run: rm target/doc/.lock
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
