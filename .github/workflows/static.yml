@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
   workflow_call:
     outputs:
-      clippy_status:
+      status:
         description: "Status of the static checks"
-        value: ${{ jobs.fmt.outputs.status && jobs.clippy.outputs.status && jobs.check-license.outputs.status }}
+        value: ${{ jobs.fmt.outputs.status && jobs.check-license.outputs.status }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_script }}

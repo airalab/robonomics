@@ -5,13 +5,13 @@ permissions:
 on:
   push:
     branches:
-    - "master"
+    - 'master'
   workflow_dispatch:
   workflow_call:
     outputs:
       status:
-        description: "Status of nightly byukdes"
-        value: ${{ jobs.native-linux.outputs.status && jobs.macos.outputs.status && jobs.srtool.outputs.status }}
+        description: "Status of nightly builds"
+        value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
 
 
 concurrency:
@@ -33,6 +33,8 @@ jobs:
         target:
         - x86_64-unknown-linux-gnu
         - aarch64-unknown-linux-gnu
+    outputs:
+      status: ${{ job.status }}
 
     steps:
     - name: Checkout the source code
@@ -48,8 +50,8 @@ jobs:
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          cache-shared-key: "nightly-build"
+      with:
+        cache-shared-key: "nightly-build"
 
     - name: Add aarch64 target
       if: contains(matrix.target, 'aarch64')
@@ -75,6 +77,9 @@ jobs:
   native-macos:
     needs: tests
     runs-on: macos-latest
+    outputs:
+      status: ${{ job.status }}
+
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
@@ -98,6 +103,9 @@ jobs:
   docker:
     needs: native-linux
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v3
@@ -147,6 +155,9 @@ jobs:
   srtool:
     needs: tests
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+
     steps:
     - uses: actions/checkout@v3
       with:
