@@ -6,7 +6,6 @@ on:
   push:
     tags:
     - v[0-9]+.[0-9]+.[0-9]+*
-  workflow_dispatch:
 
 jobs:
   nightly:
@@ -20,8 +19,6 @@ jobs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
     - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
 
     - name: Download runtime
       uses: actions/download-artifact@v4

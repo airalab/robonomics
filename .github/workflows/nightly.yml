@@ -43,10 +43,12 @@ jobs:
         sudo apt install -y gcc-multilib g++-multilib
         sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
+        mkdir -p .cargo
+        touch .cargo/config
+        printf '[target.aarch64-unknown-linux-gnu]\nlinker = "aarch64-linux-gnu-gcc"' >> .cargo/config
+
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        cache-shared-key: "nightly-build"
 
     - name: Add aarch64 target
       if: contains(matrix.target, 'aarch64')
