@@ -38,7 +38,8 @@ jobs:
           if taplo --version &> /dev/null; then
             echo "taplo-cli is already installed"
           else
-            cargo install taplo-cli
+            curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+              | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
           fi
           taplo fmt --check
 
