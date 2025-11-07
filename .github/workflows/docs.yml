@@ -23,6 +23,8 @@ jobs:
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: "docs-build"
 
       - name: Install deps
         run: sudo apt -y install pkg-config protobuf-compiler

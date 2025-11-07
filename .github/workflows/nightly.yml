@@ -13,9 +13,8 @@ on:
         description: "Status of nightly builds"
         value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
 
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}--${{ inputs.build_script }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_script }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 env:
