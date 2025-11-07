@@ -6,16 +6,12 @@ on:
   push:
     branches:
     - 'master'
-  workflow_dispatch:
+
   workflow_call:
     outputs:
       status:
         description: "Status of nightly builds"
         value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_script }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 env:
   SUBWASM_VERSION: 0.16.1

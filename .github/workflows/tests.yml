@@ -3,23 +3,17 @@ permissions:
   contents: read
 
 on:
-  push:
+  pull_request:
+    types:
+      - opened
     branches:
     - 'feat/*'
     - 'fix/*'
-    - 'master'
-    tags-ignore:
-    - v[0-9]+.[0-9]+.[0-9]+*
-  workflow_dispatch:
   workflow_call:
     outputs:
       status:
         description: "Status of the tests"
         value: ${{ jobs.check-and-tests.outputs.status }}
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.build_script }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   static-checks:
