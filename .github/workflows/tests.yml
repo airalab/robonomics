@@ -1,4 +1,7 @@
 name: Tests
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -12,9 +15,6 @@ on:
       test_status:
         description: "Status of the tests"
         value: ${{ jobs.check-and-tests.outputs.status }}
-
-permissions:
-  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}--${{ inputs.build_script }}
@@ -35,6 +35,8 @@ jobs:
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-shared-key: "test-build"
 
     - name: Install deps
       run: sudo apt -y install pkg-config protobuf-compiler
