@@ -5,7 +5,7 @@ pushd .
 
 # The following line ensure we run from the project root
 PROJECT_ROOT=`git rev-parse --show-toplevel`
-FILE=$PROJECT_ROOT/target/release/robonomics
+FILE=$PROJECT_ROOT/target/production/robonomics
 cd $PROJECT_ROOT/scripts/docker
 
 # Find the current version from Cargo.toml
@@ -24,17 +24,17 @@ then
     # checks if file exist
     if [ ! -f "$FILE" ] 
     then
-        echo "$FILE does not exist. You must have robonomics built first! to build go to project root direction and enter command: cargo build --release"
+        echo "$FILE does not exist. You must have robonomics built first! to build go to project root direction and enter command: cargo build --profile production"
         exit 1
     fi
     # contine if file exists
     echo "If first docker build, copying file robonomics to working directory"
     mkdir "${ARCH}"
-    cp ../../target/release/robonomics ./${ARCH}/
+    cp ../../target/production/robonomics ./${ARCH}/
 else
     echo "If not first build, proceed to docker-compose build and run"
 fi
-time docker build -f ./Dockerfile --build-arg RUSTC_WRAPPER= --build-arg PROFILE=release --build-arg TARGETARCH=$ARCH -t robonomics/robonomics:latest .
+time docker build -f ./Dockerfile --build-arg RUSTC_WRAPPER= --build-arg PROFILE=production --build-arg TARGETARCH=$ARCH -t robonomics/robonomics:latest .
 
 # cleanup binary file
 rm -r ${ARCH}
