@@ -9,7 +9,7 @@ image:https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_b
 
 image:https://img.shields.io/github/license/airalab/robonomics["License", link="https://github.com/airalab/robonomics/blob/master/LICENSE"]
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
-image:https://github.com/airalab/robonomics/workflows/Nightly/badge.svg?branch=master["CI", link="https://github.com/airalab/robonomics/actions/workflows/nightly.yml"]
+image:https://github.com/airalab/robonomics/workflows/Nightly/badge.svg["Nightly", link="https://github.com/airalab/robonomics/actions/workflows/nightly.yml"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
