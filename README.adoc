@@ -3,13 +3,13 @@
 image:https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg["Web3 Foundation Grants — Wave Two Recipient", link="https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d"]
 
 :Author: Robonomics Network Developers
-:Revision: 0.7.0
+:Revision: 0.8.0
 :toc:
 :sectnums:
 
 image:https://img.shields.io/github/license/airalab/robonomics["License", link="https://github.com/airalab/robonomics/blob/master/LICENSE"]
-image:https://github.com/airalab/robonomics/workflows/Testing/badge.svg?branch=master["CI Status", link="https://github.com/airalab/robonomics/actions"]
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
+image:https://github.com/airalab/robonomics/workflows/Nightly/badge.svg?branch=master["CI", link="https://github.com/airalab/robonomics/actions/workflows/nightly.yml"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
@@ -22,7 +22,6 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 == Try it out
 
 . https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
-. Run the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
 
 == The Robonomics Crates
 

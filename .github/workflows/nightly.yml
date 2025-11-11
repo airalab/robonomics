@@ -1,4 +1,4 @@
-name: Nightly Binary Build
+name: Nightly
 permissions:
   contents: read
 
