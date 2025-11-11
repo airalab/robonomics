@@ -1,4 +1,4 @@
-name: Release Draft Build
+name: Release
 permissions:
   contents: read
 

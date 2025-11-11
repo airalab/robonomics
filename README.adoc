@@ -13,15 +13,14 @@ image:https://github.com/airalab/robonomics/workflows/Nightly/badge.svg["Nightly
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
-> Implementation of a https://robonomics.network node in Rust, based on the https://substrate.dev[Substrate framework].
-
-This repo contains runtimes for the Earth Parachain, Mars Parachain, and Robonomics Relay chain networks. The README provides information about installing the robonomics binary and developing on the codebase. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
+> Implementation of a https://robonomics.network node in Rust, based on the https://polkadot.com/platform/sdk/[Polkadot SDK]. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
 == Try it out
 
-. https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
+. https://get.robonomics.network[Get Node]
+. https://parachain.robonomics.network[Open Portal]
 
 == The Robonomics Crates
 

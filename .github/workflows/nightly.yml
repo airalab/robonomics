@@ -83,8 +83,6 @@ jobs:
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        cache-shared-key: "nightly-build"
 
     - name: Install deps
       run: brew install protobuf

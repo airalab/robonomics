@@ -1,4 +1,4 @@
-name: Static Code Checks 
+name: Syntax
 permissions:
   contents: read
 
