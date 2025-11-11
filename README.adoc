@@ -28,10 +28,8 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 
 Structure of **Robonomics** followed:
 
-- **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
-- **Robonomics CLI** - console line primitives that make framework functions runnable.
-- **Robonomics Protocol** - network library that helps to build P2P communication in Industry 4.0 and Smart City cases.
-- **Robonomics Frame** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
+- **The Node** - Robonomics Network OMNI node with buildin Polkadot & Kusama parachain specs.
+- **Frame / Pallets** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
 
 Full docs available at https://crates.robonomics.network.
 
@@ -48,11 +46,11 @@ You will also need to install the following packages:
 
  . Linux:
 [source, shell]
-sudo apt install cmake git clang libclang-dev protobuf-compiler
+sudo apt install protobuf-compiler
 
  . Mac:
 [source, shell]
-brew install cmake pkg-config git llvm
+brew install pkg-config git llvm
 
  . Windows (PowerShell):
 +
@@ -66,7 +64,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source.
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v3.0.0 robonomics
+cargo install --force --git https://github.com/airalab/robonomics --tag v4.0.0 robonomics
 
 And then launch full node of robonomics testnet parachain.
 
@@ -88,8 +86,8 @@ curl https://nixos.org/nix/install | sh
 +
 [source, shell]
 ----
-git clone --recursive https://github.com/airalab/robonomics && cd robonomics
-nix-shell --run "cargo run --release"
+git clone https://github.com/airalab/robonomics && cd robonomics
+nix-shell --run "cargo run --profile production"
 ----
 
 === Running Benchmarks
@@ -130,7 +128,7 @@ or it could be <<building-from-source,build from source>>.
 Launch command:
 [source, shell]
 ----
-robonomics --collator --lighthouse-account [YOUR_ACCOUNT_ADDRESS]
+robonomics --collator
 ----
 
 == Robotics integration
