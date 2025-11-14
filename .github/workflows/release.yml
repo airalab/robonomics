@@ -10,6 +10,9 @@ on:
 jobs:
   nightly:
     uses: ./.github/workflows/nightly.yml
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
   publish-release-draft:
     needs: nightly
