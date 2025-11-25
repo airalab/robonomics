@@ -39,6 +39,7 @@ sp-consensus-grandpa = { workspace = true }
 sp-io = { workspace = true }
 sp-offchain = { workspace = true }
 sp-runtime = { workspace = true }
+sp-runtime-interface = { workspace = true, features = ["std"] }
 sp-session = { workspace = true }
 sp-transaction-pool = { workspace = true }
 sp-timestamp = { workspace = true }
@@ -58,6 +59,7 @@ cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
+cumulus-primitives-proof-size-hostfunction = { path = "../../vendor/proof-size-hostfunction" } 
 
 robonomics-primitives = { path = "../../primitives" }
 robonomics-rpc-core = { path = "../rpc/core" }

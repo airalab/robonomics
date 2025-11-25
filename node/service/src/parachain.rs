@@ -49,6 +49,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 type HostFunctions = (
+    cumulus_primitives_proof_size_hostfunction::storage_proof_size::HostFunctions,
     sp_io::SubstrateHostFunctions,
     frame_benchmarking::benchmarking::HostFunctions,
 );
