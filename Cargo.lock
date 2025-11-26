@@ -11753,7 +11753,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "assert_cmd",
  "color-eyre",
@@ -11765,7 +11765,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
