@@ -37,6 +37,9 @@ pub use weights::WeightInfo;
 #[cfg(test)]
 mod tests;
 
+/// Number of milliseconds in a day.
+const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
+
 /// RWS subscription modes: daily, lifetime.
 #[derive(
     PartialEq,
@@ -115,15 +118,29 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     last_update: Moment,
     /// Subscription mode (lifetime, daily, etc).
     mode: SubscriptionMode,
+    /// Expiration time for Daily subscriptions (None for Lifetime subscriptions).
+    expiration_time: Option<Moment>,
 }
 
-impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
+impl<Moment> SubscriptionLedger<Moment>
+where
+    Moment: HasCompact + MaxEncodedLen + Clone + From<u32> + core::ops::Add<Output = Moment>,
+{
     pub fn new(last_update: Moment, mode: SubscriptionMode) -> Self {
+        let expiration_time = match mode {
+            SubscriptionMode::Daily { days } => {
+                let duration_ms = Moment::from(days * DAYS_TO_MS);
+                Some(last_update.clone() + duration_ms)
+            }
+            SubscriptionMode::Lifetime { .. } => None,
+        };
+
         Self {
             free_weight: Default::default(),
             issue_time: last_update.clone(),
             last_update,
             mode,
+            expiration_time,
         }
     }
 }
@@ -146,7 +163,6 @@ pub mod pallet {
         <T as frame_system::Config>::AccountId,
     >>::Balance;
 
-    const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
     #[pallet::config]
@@ -283,12 +299,18 @@ pub mod pallet {
             let now = T::Time::now();
             let utps = match subscription.mode {
                 SubscriptionMode::Lifetime { tps } => tps,
-                SubscriptionMode::Daily { days } => {
-                    let duration_ms = <T::Time as Time>::Moment::from(days * DAYS_TO_MS);
-                    // If subscription active then 0.01 TPS else throw an error
-                    if now < subscription.issue_time.clone() + duration_ms {
-                        10_000 // uTPS
+                SubscriptionMode::Daily { .. } => {
+                    // Use cached expiration_time instead of recalculating
+                    if let Some(ref expiration_time) = subscription.expiration_time {
+                        // If subscription active then 0.01 TPS else throw an error
+                        if now < *expiration_time {
+                            10_000 // uTPS
+                        } else {
+                            Err(Error::<T>::SubscriptionIsOver)?
+                        }
                     } else {
+                        // This should never happen as Daily subscriptions always have expiration_time
+                        // but handle gracefully to avoid panics
                         Err(Error::<T>::SubscriptionIsOver)?
                     }
                 }
