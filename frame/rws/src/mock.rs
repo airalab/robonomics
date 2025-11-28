@@ -92,6 +92,7 @@ impl pallet_rws::Config for Test {
     type ReferenceCallWeight = ReferenceCallWeight;
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
+    type StartAuctionOrigin = frame_system::EnsureRoot<Self::AccountId>;
     type WeightInfo = ();
 }
 
