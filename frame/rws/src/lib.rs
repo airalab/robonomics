@@ -20,7 +20,6 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::Weight;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -30,10 +29,6 @@ mod benchmarking;
 pub mod weights;
 
 pub use pallet::*;
-pub use weights::WeightInfo;
-
-/// Pallet weights.
-pub mod weights;
 pub use weights::WeightInfo;
 
 //#[cfg(test)]
@@ -164,8 +159,6 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        /// Call weights.
-        type WeightInfo: weights::WeightInfo;
         /// Reference call weight, general transaction consumes this weight.
         #[pallet::constant]
         type ReferenceCallWeight: Get<u64>;
