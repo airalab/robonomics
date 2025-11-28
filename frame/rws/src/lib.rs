@@ -122,8 +122,9 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     expiration_time: Option<Moment>,
 }
 
-impl<Moment: HasCompact + MaxEncodedLen + Clone + From<u32> + core::ops::Add<Output = Moment>>
-    SubscriptionLedger<Moment>
+impl<Moment> SubscriptionLedger<Moment>
+where
+    Moment: HasCompact + MaxEncodedLen + Clone + From<u32> + core::ops::Add<Output = Moment>,
 {
     pub fn new(last_update: Moment, mode: SubscriptionMode) -> Self {
         let expiration_time = match mode {
@@ -300,14 +301,16 @@ pub mod pallet {
                 SubscriptionMode::Lifetime { tps } => tps,
                 SubscriptionMode::Daily { .. } => {
                     // Use cached expiration_time instead of recalculating
-                    let expiration_time = subscription
-                        .expiration_time
-                        .clone()
-                        .ok_or(Error::<T>::SubscriptionIsOver)?;
-                    // If subscription active then 0.01 TPS else throw an error
-                    if now < expiration_time {
-                        10_000 // uTPS
+                    if let Some(expiration_time) = subscription.expiration_time.clone() {
+                        // If subscription active then 0.01 TPS else throw an error
+                        if now < expiration_time {
+                            10_000 // uTPS
+                        } else {
+                            Err(Error::<T>::SubscriptionIsOver)?
+                        }
                     } else {
+                        // This should never happen as Daily subscriptions always have expiration_time
+                        // but handle gracefully to avoid panics
                         Err(Error::<T>::SubscriptionIsOver)?
                     }
                 }
