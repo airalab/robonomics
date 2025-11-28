@@ -589,6 +589,8 @@ pub mod pallet {
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
+        /// Origin that can start auctions (root, governance, or automated system)
+        type StartAuctionOrigin: EnsureOrigin<Self::RuntimeOrigin>;
         /// Extrinsic weights
         type WeightInfo: WeightInfo;
     }
@@ -871,7 +873,8 @@ pub mod pallet {
 
         /// Start subscription auction.
         ///
-        /// The dispatch origin for this call must be _root_.
+        /// The dispatch origin for this call must satisfy `StartAuctionOrigin`.
+        /// This allows configuration for root, governance pallets, or automated systems.
         ///
         /// # <weight>
         /// - O(1).
@@ -884,7 +887,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             mode: SubscriptionMode,
         ) -> DispatchResultWithPostInfo {
-            let _ = ensure_root(origin)?;
+            T::StartAuctionOrigin::ensure_origin(origin)?;
 
             let id = <Auction<T>>::count();
             <Auction<T>>::set(id, Some(AuctionLedger::new(mode)));
