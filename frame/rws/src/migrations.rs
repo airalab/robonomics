@@ -158,11 +158,21 @@ pub mod v2 {
                 // In v2: Subscription<AccountId, u32 -> SubscriptionLedger>
                 // Strategy: All v1 subscriptions get subscription_id = 0
                 for (account, old_ledger) in Ledger::<T>::drain() {
+                    let mode = convert_subscription_mode(old_ledger.kind.clone());
+                    let expiration_time = match old_ledger.kind {
+                        SubscriptionV1::Daily { days } => {
+                            let duration_ms =
+                                <T::Time as Time>::Moment::from(days * crate::DAYS_TO_MS);
+                            Some(old_ledger.issue_time.clone() + duration_ms)
+                        }
+                        SubscriptionV1::Lifetime { .. } => None,
+                    };
                     let new_ledger = crate::SubscriptionLedger {
                         free_weight: old_ledger.free_weight,
                         issue_time: old_ledger.issue_time,
                         last_update: old_ledger.last_update,
-                        mode: convert_subscription_mode(old_ledger.kind),
+                        mode,
+                        expiration_time,
                     };
                     crate::Subscription::<T>::insert(&account, 0u32, new_ledger);
                     migrated_subscriptions += 1;
