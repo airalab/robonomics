@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for RWS Pallet
+// Benchmarks for RWS Pallet v2.0
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -23,7 +23,6 @@ use super::{Pallet as Rws, *};
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
 use frame_system::RawOrigin;
-use sp_runtime::traits::StaticLookup;
 use sp_std::prelude::*;
 
 const SEED: u32 = 0;
@@ -37,57 +36,87 @@ fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    #[cfg(test)]
-    use frame_system::RawOrigin;
-
-    #[benchmark]
-    fn bid() {
-        let caller = funded_account::<T>("caller", 0);
-        let _ = Pallet::<T>::start_auction(RawOrigin::Root.into(), Default::default());
-        let queue = Pallet::<T>::auction_queue();
-        let index = queue.first().unwrap();
-        let amount = T::MinimalBid::get() * 10u32.into();
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), index.clone(), amount);
-    }
-
-    #[benchmark]
-    fn set_devices() {
-        let caller: T::AccountId = whitelisted_caller();
-        let device: T::AccountId = account("device", 2, SEED);
-        let mut devices = frame_support::BoundedVec::new();
-        assert_ok!(devices.try_push(device));
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), devices);
-    }
-
-    #[benchmark]
-    fn set_oracle() {
-        let oracle = T::Lookup::unlookup(whitelisted_caller());
-
-        #[extrinsic_call]
-        _(RawOrigin::Root, oracle);
-    }
-
-    #[benchmark]
-    fn set_subscription() {
-        let oracle: T::AccountId = whitelisted_caller();
-        let target: T::AccountId = account("target", 3, SEED);
-        let oracle_lookup = T::Lookup::unlookup(oracle.clone());
-
-        assert_ok!(Rws::<T>::set_oracle(RawOrigin::Root.into(), oracle_lookup));
-
-        #[extrinsic_call]
-        set_subscription(RawOrigin::Signed(oracle), target, Default::default());
-    }
 
     #[benchmark]
     fn start_auction() {
         #[extrinsic_call]
-        _(RawOrigin::Root, Default::default());
+        _(RawOrigin::Root, SubscriptionMode::Lifetime { tps: 1000 });
     }
 
-    impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime,);
+    #[benchmark]
+    fn bid() {
+        // Start an auction first
+        let mode = SubscriptionMode::Lifetime { tps: 1000 };
+        assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
+
+        let caller = funded_account::<T>("caller", 0);
+        let auction_id = 0u32; // First auction
+        let amount = T::MinimalBid::get() * 10u32.into();
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), auction_id, amount);
+    }
+
+    #[benchmark]
+    fn claim() {
+        // Start an auction and place a bid
+        let mode = SubscriptionMode::Lifetime { tps: 1000 };
+        assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
+
+        let caller = funded_account::<T>("caller", 0);
+        let auction_id = 0u32;
+        let amount = T::MinimalBid::get() * 10u32.into();
+        assert_ok!(Pallet::<T>::bid(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            amount
+        ));
+
+        // Fast forward time past auction duration
+        let now = T::Time::now();
+        <T::Time as frame_support::traits::Time>::set_timestamp(
+            now + T::AuctionDuration::get() + 1u32.into(),
+        );
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), auction_id, None);
+    }
+
+    #[benchmark]
+    fn call() {
+        // Create a subscription first via auction
+        let mode = SubscriptionMode::Lifetime { tps: 100_000 };
+        assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
+
+        let caller = funded_account::<T>("caller", 0);
+        let auction_id = 0u32;
+        let amount = T::MinimalBid::get() * 10u32.into();
+        assert_ok!(Pallet::<T>::bid(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            amount
+        ));
+
+        // Fast forward and claim
+        let now = T::Time::now();
+        <T::Time as frame_support::traits::Time>::set_timestamp(
+            now + T::AuctionDuration::get() + 1u32.into(),
+        );
+        assert_ok!(Pallet::<T>::claim(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            None
+        ));
+
+        let subscription_id = 0u32;
+        let inner_call = frame_system::Call::<T>::remark {
+            remark: vec![0u8; 100],
+        };
+        let call = Box::new(<T as Config>::RuntimeCall::from(inner_call));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id, call);
+    }
+
+    impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
 }
