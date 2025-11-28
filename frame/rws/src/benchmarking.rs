@@ -112,10 +112,10 @@ mod benchmarks {
         let inner_call = frame_system::Call::<T>::remark {
             remark: vec![0u8; 100],
         };
-        let call = Box::new(<T as Config>::RuntimeCall::from(inner_call));
+        let boxed_call = Box::new(<T as Config>::RuntimeCall::from(inner_call));
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), subscription_id, call);
+        _(RawOrigin::Signed(caller), subscription_id, boxed_call);
     }
 
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
