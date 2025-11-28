@@ -301,9 +301,9 @@ pub mod pallet {
                 SubscriptionMode::Lifetime { tps } => tps,
                 SubscriptionMode::Daily { .. } => {
                     // Use cached expiration_time instead of recalculating
-                    if let Some(expiration_time) = subscription.expiration_time.clone() {
+                    if let Some(ref expiration_time) = subscription.expiration_time {
                         // If subscription active then 0.01 TPS else throw an error
-                        if now < expiration_time {
+                        if now < *expiration_time {
                             10_000 // uTPS
                         } else {
                             Err(Error::<T>::SubscriptionIsOver)?

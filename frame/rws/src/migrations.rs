@@ -159,7 +159,7 @@ pub mod v2 {
                 // Strategy: All v1 subscriptions get subscription_id = 0
                 for (account, old_ledger) in Ledger::<T>::drain() {
                     let mode = convert_subscription_mode(old_ledger.kind.clone());
-                    let expiration_time = match old_ledger.kind {
+                    let expiration_time = match &old_ledger.kind {
                         SubscriptionV1::Daily { days } => {
                             let duration_ms =
                                 <T::Time as Time>::Moment::from(days * crate::DAYS_TO_MS);
