@@ -19,7 +19,6 @@
 
 use crate::{self as rws, *};
 use frame_support::{assert_err, assert_ok, parameter_types};
-use pallet_robonomics_datalog as datalog;
 use sp_core::H256;
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
@@ -39,7 +38,6 @@ frame_support::construct_runtime!(
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
-        Datalog: datalog,
         RWS: rws,
     }
 );
@@ -113,19 +111,6 @@ impl pallet_balances::Config for Runtime {
     type FreezeIdentifier = ();
     type MaxFreezes = ();
     type DoneSlashHandler = ();
-}
-
-parameter_types! {
-    pub const WindowSize: u64 = 128;
-    pub const MaximumMessageSize: u32 = 512;
-}
-
-impl datalog::Config for Runtime {
-    type Record = frame_support::BoundedVec<u8, MaximumMessageSize>;
-    type RuntimeEvent = RuntimeEvent;
-    type Time = Timestamp;
-    type WindowSize = WindowSize;
-    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -512,9 +497,10 @@ fn test_rws_call_with_lifetime_subscription() {
         // Weight = 70_952_000 * 500_000 * 10_000 / 1_000_000_000 = 354_760_000
         Timestamp::set_timestamp(1_000_000 + 100_000 + 10_000);
 
-        // Try to call datalog record
-        let call = RuntimeCall::Datalog(datalog::Call::record {
-            record: frame_support::BoundedVec::try_from(b"test data".to_vec()).unwrap(),
+        // Try to call a balances transfer
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
         });
 
         assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)));
@@ -522,7 +508,7 @@ fn test_rws_call_with_lifetime_subscription() {
         // Check weight was consumed
         let subscription = RWS::subscription(ALICE, 0).unwrap();
         // After 10 seconds at 500,000 uTPS, we accumulated 354,760,000 weight units
-        // The datalog call weight would be subtracted from this
+        // The call weight would be subtracted from this
         assert!(subscription.free_weight > 0);
     });
 }
@@ -546,8 +532,9 @@ fn test_rws_call_with_daily_subscription() {
         // Weight = 70_952_000 * 10_000 * 1_000_000 / 1_000_000_000 = 709_520_000
         Timestamp::set_timestamp(1_000_000 + 100_000 + 1_000_000);
 
-        let call = RuntimeCall::Datalog(datalog::Call::record {
-            record: frame_support::BoundedVec::try_from(b"test".to_vec()).unwrap(),
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
         });
 
         assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)));
@@ -612,8 +599,9 @@ fn test_insufficient_weight_error() {
         assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
 
         // Try to call immediately without waiting for weight to accumulate
-        let call = RuntimeCall::Datalog(datalog::Call::record {
-            record: frame_support::BoundedVec::try_from(b"test data that requires weight".to_vec()).unwrap(),
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
         });
 
         assert_err!(
@@ -640,8 +628,9 @@ fn test_expired_daily_subscription_error() {
         let one_day_ms: u64 = 24 * 60 * 60 * 1000;
         Timestamp::set_timestamp(1_000_000 + 100_000 + one_day_ms + 1_000);
 
-        let call = RuntimeCall::Datalog(datalog::Call::record {
-            record: frame_support::BoundedVec::try_from(b"test".to_vec()).unwrap(),
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
         });
 
         assert_err!(
@@ -654,8 +643,9 @@ fn test_expired_daily_subscription_error() {
 #[test]
 fn test_non_existent_subscription_error() {
     new_test_ext().execute_with(|| {
-        let call = RuntimeCall::Datalog(datalog::Call::record {
-            record: frame_support::BoundedVec::try_from(b"test".to_vec()).unwrap(),
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
         });
 
         assert_err!(
