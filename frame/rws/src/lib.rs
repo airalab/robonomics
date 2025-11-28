@@ -134,7 +134,9 @@ pub mod pallet {
     use frame_support::{
         dispatch::GetDispatchInfo,
         pallet_prelude::*,
-        traits::{Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable},
+        traits::{
+            Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable,
+        },
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{traits::AtLeast32Bit, DispatchResult};

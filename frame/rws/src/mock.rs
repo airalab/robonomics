@@ -18,60 +18,35 @@
 //! Mock runtime for testing RWS pallet.
 
 use crate::{self as pallet_rws};
-use frame_support::{
-    parameter_types,
-    traits::{ConstU32, ConstU64},
-};
-use sp_core::H256;
-use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage,
-};
+use frame_support::{derive_impl, parameter_types, traits::ConstU64};
+use sp_runtime::{traits::IdentityLookup, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;
+type Balance = u128;
+type Moment = u64;
+
+const ALICE: u64 = 1;
+const BOB: u64 = 2;
+const CHARLIE: u64 = 3;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
     pub enum Test
     {
         System: frame_system,
-        Balances: pallet_balances,
         Timestamp: pallet_timestamp,
+        Balances: pallet_balances,
         RWS: pallet_rws,
     }
 );
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type DbWeight = frame_support::weights::constants::RocksDbWeight;
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type Nonce = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Block = Block;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = ConstU64<250>;
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<u128>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = ConstU32<16>;
-    type RuntimeTask = ();
-    type SingleBlockMigrations = ();
-    type MultiBlockMigrator = ();
-    type PreInherents = ();
-    type PostInherents = ();
-    type PostTransactions = ();
-    type ExtensionsWeightInfo = ();
+    type AccountData = pallet_balances::AccountData<Balance>;
+    type DbWeight = frame_support::weights::constants::RocksDbWeight;
 }
 
 parameter_types! {
@@ -82,7 +57,7 @@ impl pallet_balances::Config for Test {
     type MaxLocks = ();
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 8];
-    type Balance = u128;
+    type Balance = Balance;
     type RuntimeEvent = RuntimeEvent;
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
@@ -96,7 +71,7 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_timestamp::Config for Test {
-    type Moment = u64;
+    type Moment = Moment;
     type OnTimestampSet = ();
     type MinimumPeriod = ConstU64<1>;
     type WeightInfo = ();
@@ -127,8 +102,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(1, 10000), (2, 20000), (3, 30000)],
-        dev_accounts: Default::default(),
+        balances: vec![(ALICE, 10_000_000), (BOB, 5_000_000), (CHARLIE, 5_000_000)],
+        dev_accounts: None,
     }
     .assimilate_storage(&mut t)
     .unwrap();

@@ -97,24 +97,24 @@ pub mod v2 {
     >;
 
     #[storage_alias]
-    pub type AuctionQueue<T: Config> =
-        StorageValue<Pallet<T>, BoundedVec<u32, ConstU32<100>>>;
+    pub type AuctionQueue<T: Config> = StorageValue<Pallet<T>, BoundedVec<u32, ConstU32<100>>>;
 
     #[storage_alias]
     pub type AuctionNext<T: Config> = StorageValue<Pallet<T>, u32>;
 
     #[storage_alias]
-    pub type AuctionV1<T: Config> = StorageMap<
-        Pallet<T>,
-        Twox64Concat,
-        u32,
-        AuctionLedgerV1<
-            <T as frame_system::Config>::AccountId,
-            <<T as Config>::AuctionCurrency as Currency<
+    pub type AuctionV1<T: Config> =
+        StorageMap<
+            Pallet<T>,
+            Twox64Concat,
+            u32,
+            AuctionLedgerV1<
                 <T as frame_system::Config>::AccountId,
-            >>::Balance,
-        >,
-    >;
+                <<T as Config>::AuctionCurrency as Currency<
+                    <T as frame_system::Config>::AccountId,
+                >>::Balance,
+            >,
+        >;
 
     #[storage_alias]
     pub type UnspendBondValue<T: Config> = StorageValue<
@@ -167,10 +167,10 @@ pub mod v2 {
                     crate::Subscription::<T>::insert(&account, 0u32, new_ledger);
                     migrated_subscriptions += 1;
                 }
-                weight = weight.saturating_add(T::DbWeight::get().reads_writes(
-                    migrated_subscriptions as u64,
-                    migrated_subscriptions as u64,
-                ));
+                weight = weight.saturating_add(
+                    T::DbWeight::get()
+                        .reads_writes(migrated_subscriptions as u64, migrated_subscriptions as u64),
+                );
 
                 // Migrate Auction storage
                 // In v1: Auction<AuctionIndex -> AuctionLedger> (without created, subscription_id)
@@ -188,10 +188,10 @@ pub mod v2 {
                     crate::Auction::<T>::insert(auction_id, new_auction);
                     migrated_auctions += 1;
                 }
-                weight = weight.saturating_add(T::DbWeight::get().reads_writes(
-                    migrated_auctions as u64,
-                    migrated_auctions as u64,
-                ));
+                weight = weight.saturating_add(
+                    T::DbWeight::get()
+                        .reads_writes(migrated_auctions as u64, migrated_auctions as u64),
+                );
 
                 // Clear deprecated storage items
                 let _ = Oracle::<T>::kill();
@@ -288,10 +288,7 @@ pub mod v2 {
                         AuctionQueue::<T>::get().is_none(),
                         "AuctionQueue not cleared"
                     );
-                    ensure!(
-                        AuctionNext::<T>::get().is_none(),
-                        "AuctionNext not cleared"
-                    );
+                    ensure!(AuctionNext::<T>::get().is_none(), "AuctionNext not cleared");
                     ensure!(
                         UnspendBondValue::<T>::get().is_none(),
                         "UnspendBondValue not cleared"
@@ -358,8 +355,7 @@ mod tests {
                     .expect("test vector is within bounds"),
             );
             v2::AuctionQueue::<Test>::put(
-                sp_runtime::BoundedVec::try_from(vec![0u32])
-                    .expect("test vector is within bounds"),
+                sp_runtime::BoundedVec::try_from(vec![0u32]).expect("test vector is within bounds"),
             );
             v2::AuctionNext::<Test>::put(1u32);
             v2::UnspendBondValue::<Test>::put(500u128);

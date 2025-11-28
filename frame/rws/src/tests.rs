@@ -17,105 +17,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Robonomics Web Services pallet tests.
 
-use crate::{self as rws, *};
-use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
-use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
-
-type Block = frame_system::mocking::MockBlock<Runtime>;
-type Balance = u128;
-type Moment = u64;
+use crate::{mock::*, *};
+use frame_support::{assert_err, assert_ok};
+use sp_runtime::DispatchError;
 
 const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
-
-frame_support::construct_runtime!(
-    pub enum Runtime {
-        System: frame_system,
-        Timestamp: pallet_timestamp,
-        Balances: pallet_balances,
-        RWS: rws,
-    }
-);
-
-parameter_types! {
-    pub const BlockHashCount: u64 = 250;
-}
-
-#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
-impl frame_system::Config for Runtime {
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Block = Block;
-    type AccountData = pallet_balances::AccountData<Balance>;
-}
-
-parameter_types! {
-    pub const MinimumPeriod: u64 = 5;
-}
-
-impl pallet_timestamp::Config for Runtime {
-    type Moment = Moment;
-    type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const MaxLocks: u32 = 50;
-    pub const MaxReserves: u32 = 50;
-    pub const ExistentialDeposit: Balance = 10;
-}
-
-impl pallet_balances::Config for Runtime {
-    type MaxLocks = MaxLocks;
-    type MaxReserves = MaxReserves;
-    type ReserveIdentifier = [u8; 8];
-    type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = System;
-    type WeightInfo = ();
-    type RuntimeHoldReason = ();
-    type RuntimeFreezeReason = ();
-    type FreezeIdentifier = ();
-    type MaxFreezes = ();
-    type DoneSlashHandler = ();
-}
-
-parameter_types! {
-    pub const ReferenceCallWeight: u64 = 70_952_000;  // transfer call weight
-    pub const AuctionDuration: Moment = 100_000; // 100 seconds in milliseconds
-    pub const MinimalBid: Balance = 100;
-}
-
-impl Config for Runtime {
-    type Call = RuntimeCall;
-    type Time = Timestamp;
-    type Moment = Moment;
-    type AuctionCurrency = Balances;
-    type RuntimeEvent = RuntimeEvent;
-    type ReferenceCallWeight = ReferenceCallWeight;
-    type AuctionDuration = AuctionDuration;
-    type MinimalBid = MinimalBid;
-    type WeightInfo = ();
-}
-
-fn new_test_ext() -> sp_io::TestExternalities {
-    let mut storage = frame_system::GenesisConfig::<Runtime>::default()
-        .build_storage()
-        .unwrap();
-
-    pallet_balances::GenesisConfig::<Runtime> {
-        balances: vec![(ALICE, 10_000_000), (BOB, 5_000_000), (CHARLIE, 5_000_000)],
-        dev_accounts: None,
-    }
-    .assimilate_storage(&mut storage)
-    .unwrap();
-
-    storage.into()
-}
 
 // ========== Auction Lifecycle Tests ==========
 
@@ -273,7 +181,7 @@ fn test_bid_too_small_error() {
         // Bid below minimal bid
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(ALICE), 0, 50),
-            Error::<Runtime>::TooSmallBid
+            Error::<Test>::TooSmallBid
         );
 
         // First valid bid
@@ -282,11 +190,11 @@ fn test_bid_too_small_error() {
         // Try to outbid with same or lower amount
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(BOB), 0, 200),
-            Error::<Runtime>::TooSmallBid
+            Error::<Test>::TooSmallBid
         );
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(BOB), 0, 150),
-            Error::<Runtime>::TooSmallBid
+            Error::<Test>::TooSmallBid
         );
     });
 }
@@ -296,7 +204,7 @@ fn test_bid_non_existent_auction_error() {
     new_test_ext().execute_with(|| {
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(ALICE), 999, 200),
-            Error::<Runtime>::NotExistAuction
+            Error::<Test>::NotExistAuction
         );
     });
 }
@@ -320,7 +228,7 @@ fn test_bid_after_auction_period_ends() {
         // Try to outbid after period ends
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(BOB), 0, 300),
-            Error::<Runtime>::BiddingPeriodIsOver
+            Error::<Test>::BiddingPeriodIsOver
         );
 
         // First bid on expired auction should still work (no previous winner)
@@ -349,7 +257,7 @@ fn test_claim_successful() {
         // Cannot claim before auction ends
         assert_err!(
             RWS::claim(RuntimeOrigin::signed(ALICE), 0, None),
-            Error::<Runtime>::ClaimIsNotAllowed
+            Error::<Test>::ClaimIsNotAllowed
         );
 
         // Move past auction period
@@ -416,7 +324,7 @@ fn test_claim_by_non_winner_error() {
         // BOB tries to claim but is not the winner
         assert_err!(
             RWS::claim(RuntimeOrigin::signed(BOB), 0, None),
-            Error::<Runtime>::ClaimIsNotAllowed
+            Error::<Test>::ClaimIsNotAllowed
         );
     });
 }
@@ -440,7 +348,7 @@ fn test_double_claim_error() {
         // Second claim should fail
         assert_err!(
             RWS::claim(RuntimeOrigin::signed(ALICE), 0, None),
-            Error::<Runtime>::ClaimIsNotAllowed
+            Error::<Test>::ClaimIsNotAllowed
         );
     });
 }
@@ -580,7 +488,7 @@ fn test_insufficient_weight_error() {
 
         assert_err!(
             RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)),
-            Error::<Runtime>::FreeWeightIsNotEnough
+            Error::<Test>::FreeWeightIsNotEnough
         );
     });
 }
@@ -609,7 +517,7 @@ fn test_expired_daily_subscription_error() {
 
         assert_err!(
             RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)),
-            Error::<Runtime>::SubscriptionIsOver
+            Error::<Test>::SubscriptionIsOver
         );
     });
 }
@@ -624,7 +532,7 @@ fn test_non_existent_subscription_error() {
 
         assert_err!(
             RWS::call(RuntimeOrigin::signed(ALICE), 999, Box::new(call)),
-            Error::<Runtime>::NoSubscription
+            Error::<Test>::NoSubscription
         );
     });
 }
@@ -644,7 +552,7 @@ fn test_bid_with_insufficient_balance() {
         // Try to bid more than available balance
         assert_err!(
             RWS::bid(RuntimeOrigin::signed(ALICE), 0, 20_000_000),
-            pallet_balances::Error::<Runtime>::InsufficientBalance
+            pallet_balances::Error::<Test>::InsufficientBalance
         );
     });
 }
@@ -683,7 +591,7 @@ fn test_subscription_expiration_boundary() {
         });
         assert_err!(
             RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call2)),
-            Error::<Runtime>::SubscriptionIsOver
+            Error::<Test>::SubscriptionIsOver
         );
     });
 }

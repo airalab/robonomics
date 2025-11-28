@@ -48,7 +48,7 @@ mod benchmarks {
         // Start an auction first
         let mode = SubscriptionMode::Lifetime { tps: 1000 };
         assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
-        
+
         let caller = funded_account::<T>("caller", 0);
         let auction_id = 0u32; // First auction
         let amount = T::MinimalBid::get() * 10u32.into();
@@ -62,15 +62,21 @@ mod benchmarks {
         // Start an auction and place a bid
         let mode = SubscriptionMode::Lifetime { tps: 1000 };
         assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
-        
+
         let caller = funded_account::<T>("caller", 0);
         let auction_id = 0u32;
         let amount = T::MinimalBid::get() * 10u32.into();
-        assert_ok!(Pallet::<T>::bid(RawOrigin::Signed(caller.clone()).into(), auction_id, amount));
+        assert_ok!(Pallet::<T>::bid(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            amount
+        ));
 
         // Fast forward time past auction duration
         let now = T::Time::now();
-        <T::Time as frame_support::traits::Time>::set_timestamp(now + T::AuctionDuration::get() + 1u32.into());
+        <T::Time as frame_support::traits::Time>::set_timestamp(
+            now + T::AuctionDuration::get() + 1u32.into(),
+        );
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), auction_id, None);
@@ -81,19 +87,31 @@ mod benchmarks {
         // Create a subscription first via auction
         let mode = SubscriptionMode::Lifetime { tps: 100_000 };
         assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
-        
+
         let caller = funded_account::<T>("caller", 0);
         let auction_id = 0u32;
         let amount = T::MinimalBid::get() * 10u32.into();
-        assert_ok!(Pallet::<T>::bid(RawOrigin::Signed(caller.clone()).into(), auction_id, amount));
+        assert_ok!(Pallet::<T>::bid(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            amount
+        ));
 
         // Fast forward and claim
         let now = T::Time::now();
-        <T::Time as frame_support::traits::Time>::set_timestamp(now + T::AuctionDuration::get() + 1u32.into());
-        assert_ok!(Pallet::<T>::claim(RawOrigin::Signed(caller.clone()).into(), auction_id, None));
+        <T::Time as frame_support::traits::Time>::set_timestamp(
+            now + T::AuctionDuration::get() + 1u32.into(),
+        );
+        assert_ok!(Pallet::<T>::claim(
+            RawOrigin::Signed(caller.clone()).into(),
+            auction_id,
+            None
+        ));
 
         let subscription_id = 0u32;
-        let inner_call = frame_system::Call::<T>::remark { remark: vec![0u8; 100] };
+        let inner_call = frame_system::Call::<T>::remark {
+            remark: vec![0u8; 100],
+        };
         let call = Box::new(<T as Config>::RuntimeCall::from(inner_call));
 
         #[extrinsic_call]
