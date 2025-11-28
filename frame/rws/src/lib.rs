@@ -162,7 +162,8 @@ pub mod pallet {
         /// Reference call weight, general transaction consumes this weight.
         #[pallet::constant]
         type ReferenceCallWeight: Get<u64>;
-        /// Subscription auction duration in blocks.
+        /// Subscription auction duration in time units (`Moment`).
+        /// The unit of `Moment` is typically milliseconds.
         #[pallet::constant]
         type AuctionDuration: Get<Self::Moment>;
         /// Minimal auction bid.
@@ -269,7 +270,7 @@ pub mod pallet {
                 }
             };
 
-            // Reference call weight * TPS * secons passed from last update
+            // Reference call weight * TPS * seconds passed from last update
             let delta: u64 = (now.clone() - subscription.last_update).into();
             subscription.last_update = now;
             subscription.free_weight +=
@@ -321,7 +322,7 @@ pub mod pallet {
                 ensure!(auction.best_price < amount, Error::<T>::TooSmallBid);
                 // Ensure auction is still in bidding period
                 ensure!(
-                    auction.created.clone() + T::AuctionDuration::get() < now,
+                    auction.created.clone() + T::AuctionDuration::get() > now,
                     Error::<T>::BiddingPeriodIsOver,
                 );
 
@@ -366,7 +367,7 @@ pub mod pallet {
 
             // Check auction already claimed.
             ensure!(
-                auction.subscription_id == None,
+                auction.subscription_id.is_none(),
                 Error::<T>::ClaimIsNotAllowed,
             );
 
@@ -376,7 +377,7 @@ pub mod pallet {
                 Error::<T>::ClaimIsNotAllowed,
             );
             ensure!(
-                auction.created.clone() + T::AuctionDuration::get() >= now,
+                auction.created.clone() + T::AuctionDuration::get() <= now,
                 Error::<T>::ClaimIsNotAllowed,
             );
 
