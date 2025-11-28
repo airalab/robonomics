@@ -678,8 +678,8 @@ pub mod pallet {
         /// The dispatch origin for this call must be _Signed_.
         ///
         /// # <weight>
-        /// - Dependes of call method.
-        /// - Basically this sould be free by concept.
+        /// - Depends of call method.
+        /// - Basically this should be free by concept.
         /// # </weight>
         #[pallet::call_index(0)]
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
@@ -703,7 +703,7 @@ pub mod pallet {
                     if let Some(ref expiration_time) = subscription.expiration_time {
                         // If subscription active then 0.01 TPS else throw an error
                         if now < *expiration_time {
-                            10_000 // uTPS
+                            10_000 // μTPS
                         } else {
                             Err(Error::<T>::SubscriptionIsOver)?
                         }
