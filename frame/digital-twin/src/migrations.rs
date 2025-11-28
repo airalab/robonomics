@@ -80,8 +80,14 @@ fn migrate_v1_to_v2<T: Config>() -> Weight {
             // Convert old Source mapping to new TopicData::Source
             Topics::<T>::insert(id, topic, TopicData::Source(source.clone()));
             
-            // Add to topic list (ignore if max topics exceeded)
-            let _ = topic_list.try_push(*topic);
+            // Add to topic list - warn if max topics exceeded
+            if topic_list.try_push(*topic).is_err() {
+                #[cfg(feature = "std")]
+                eprintln!(
+                    "WARNING: Digital twin {} exceeded MaxTopicsPerTwin limit. Topic {:?} will not be enumerable but remains accessible.",
+                    id, topic
+                );
+            }
             
             writes += 1;
         }
