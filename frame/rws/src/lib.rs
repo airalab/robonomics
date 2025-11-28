@@ -256,7 +256,7 @@ pub mod pallet {
         }
     }
 
-    #[pallet::call(weight(<T as Config>::WeightInfo))]
+    #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Authenticates the RWS staker and dispatches a free function call.
         ///
@@ -298,7 +298,10 @@ pub mod pallet {
             let delta: u64 = (now.clone() - subscription.last_update).into();
             subscription.last_update = now;
             subscription.free_weight +=
-                T::ReferenceCallWeight::get() * (utps as u64) * delta / 1_000_000_000;
+                T::ReferenceCallWeight::get()
+                    .saturating_mul(utps as u64)
+                    .saturating_mul(delta)
+                    .saturating_div(1_000_000_000);
 
             let call_weight = call.get_dispatch_info().call_weight;
             // Ensure than free weight is enough for call

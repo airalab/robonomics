@@ -197,7 +197,10 @@ pub mod v2 {
                 let _ = Oracle::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-                // Clear Devices storage in batches to avoid unbounded operations
+                // Clear Devices storage in batches to avoid unbounded operations.
+                // NOTE: This migration only clears up to 1000 device entries (MAX_REMOVALS).
+                // If there are more than 1000 device entries in production, this migration will be incomplete.
+                // Manual intervention or multi-block migration is required to fully clear Devices storage in such cases.
                 const MAX_REMOVALS: u32 = 1000;
                 let devices_count = Devices::<T>::clear(MAX_REMOVALS, None).unique as u64;
                 weight = weight.saturating_add(T::DbWeight::get().writes(devices_count));
