@@ -197,7 +197,9 @@ pub mod v2 {
                 let _ = Oracle::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-                let devices_count = Devices::<T>::clear(u32::MAX, None).unique as u64;
+                // Clear Devices storage in batches to avoid unbounded operations
+                const MAX_REMOVALS: u32 = 1000;
+                let devices_count = Devices::<T>::clear(MAX_REMOVALS, None).unique as u64;
                 weight = weight.saturating_add(T::DbWeight::get().writes(devices_count));
 
                 let _ = AuctionQueue::<T>::kill();
@@ -350,8 +352,15 @@ mod tests {
 
             // Insert deprecated storage
             v2::Oracle::<Test>::put(account1);
-            v2::Devices::<Test>::insert(account1, sp_runtime::BoundedVec::try_from(vec![account2]).unwrap());
-            v2::AuctionQueue::<Test>::put(sp_runtime::BoundedVec::try_from(vec![0u32]).unwrap());
+            v2::Devices::<Test>::insert(
+                account1,
+                sp_runtime::BoundedVec::try_from(vec![account2])
+                    .expect("test vector is within bounds"),
+            );
+            v2::AuctionQueue::<Test>::put(
+                sp_runtime::BoundedVec::try_from(vec![0u32])
+                    .expect("test vector is within bounds"),
+            );
             v2::AuctionNext::<Test>::put(1u32);
             v2::UnspendBondValue::<Test>::put(500u128);
 
