@@ -506,9 +506,10 @@ fn test_rws_call_with_lifetime_subscription() {
         let subscription = RWS::subscription(ALICE, 0).unwrap();
         assert_eq!(subscription.free_weight, 0);
 
-        // Wait 10 seconds (10000 ms) for weight to accumulate
+        // Wait 10 seconds (10_000 ms) for weight to accumulate
         // At 500_000 uTPS (0.5 TPS):
-        // 70_952_000 * 500_000 * 10_000 / 1_000_000_000 = 354_760_000 weight
+        // Weight = ReferenceCallWeight * uTPS * delta_ms / 1_000_000_000
+        // Weight = 70_952_000 * 500_000 * 10_000 / 1_000_000_000 = 354_760_000
         Timestamp::set_timestamp(1_000_000 + 100_000 + 10_000);
 
         // Try to call datalog record
@@ -520,9 +521,8 @@ fn test_rws_call_with_lifetime_subscription() {
 
         // Check weight was consumed
         let subscription = RWS::subscription(ALICE, 0).unwrap();
-        // After 1 second at 500,000 uTPS, we should have:
-        // 70_952_000 * 500_000 * 1 / 1_000_000_000 = 35_476 weight units
-        // The call weight would be subtracted from this
+        // After 10 seconds at 500,000 uTPS, we accumulated 354,760,000 weight units
+        // The datalog call weight would be subtracted from this
         assert!(subscription.free_weight > 0);
     });
 }
@@ -540,9 +540,10 @@ fn test_rws_call_with_daily_subscription() {
         Timestamp::set_timestamp(1_000_000 + 100_000);
         assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
 
-        // Wait 1000 seconds for weight to accumulate
+        // Wait 1000 seconds (1_000_000 ms) for weight to accumulate
         // Daily subscriptions have 0.01 TPS (10_000 uTPS)
-        // After 1000 seconds: 70_952_000 * 10_000 * 1_000_000 / 1_000_000_000 = 7,095,200,000 weight
+        // Weight = ReferenceCallWeight * uTPS * delta_ms / 1_000_000_000
+        // Weight = 70_952_000 * 10_000 * 1_000_000 / 1_000_000_000 = 709_520_000
         Timestamp::set_timestamp(1_000_000 + 100_000 + 1_000_000);
 
         let call = RuntimeCall::Datalog(datalog::Call::record {
