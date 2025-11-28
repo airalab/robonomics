@@ -183,15 +183,14 @@ pub mod v2 {
                 );
 
                 // Migrate Auction storage
-                // In v1: Auction<AuctionIndex -> AuctionLedger> (without created, subscription_id)
-                // In v2: Auction<u32 -> AuctionLedger> (with created, subscription_id, mode instead of kind)
-                // Strategy: Set created to current time, subscription_id to None
-                let now = T::Time::now();
+                // In v1: Auction<AuctionIndex -> AuctionLedger> (without created, subscription_id, first_bid_time)
+                // In v2: Auction<u32 -> AuctionLedger> (with first_bid_time, subscription_id, mode instead of kind)
+                // Strategy: Set first_bid_time to None (we don't know when bidding started), subscription_id to None
                 for (auction_id, old_auction) in AuctionV1::<T>::drain() {
                     let new_auction = crate::AuctionLedger {
                         winner: old_auction.winner,
                         best_price: old_auction.best_price,
-                        created: now.clone(),
+                        first_bid_time: None,
                         mode: convert_subscription_mode(old_auction.kind),
                         subscription_id: None,
                     };
@@ -403,7 +402,8 @@ mod tests {
             assert_eq!(new_auction.best_price, 1000u128);
             assert_eq!(new_auction.mode, SubscriptionMode::Lifetime { tps: 100 });
             assert!(new_auction.subscription_id.is_none());
-            // created field should be set to current time during migration
+            // first_bid_time should be None for migrated auctions since we don't know when bidding started
+            assert!(new_auction.first_bid_time.is_none());
 
             // Verify old storage is cleared
             assert!(v2::Ledger::<Test>::get(account1).is_none());

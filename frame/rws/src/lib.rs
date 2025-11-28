@@ -79,9 +79,8 @@ where
     /// Current best price.
     #[codec(compact)]
     pub best_price: Balance,
-    /// Auction creation timestamp.
-    #[codec(compact)]
-    pub created: Moment,
+    /// Timestamp when first bid was placed (None if no bids yet).
+    pub first_bid_time: Option<Moment>,
     /// Subscription mode for this auction
     pub mode: SubscriptionMode,
     /// Subscription id when claimed.
@@ -94,13 +93,13 @@ where
     Balance: HasCompact + MaxEncodedLen + Default,
     Moment: HasCompact + MaxEncodedLen,
 {
-    pub fn new(mode: SubscriptionMode, created: Moment) -> Self {
+    pub fn new(mode: SubscriptionMode) -> Self {
         Self {
             winner: None,
             subscription_id: None,
             best_price: Default::default(),
             mode,
-            created,
+            first_bid_time: None,
         }
     }
 }
@@ -369,11 +368,17 @@ pub mod pallet {
             if let Some(winner) = &auction.winner {
                 // Ensure best prices is less than proposed bid
                 ensure!(auction.best_price < amount, Error::<T>::TooSmallBid);
-                // Ensure auction is still in bidding period
-                ensure!(
-                    auction.created.clone() + T::AuctionDuration::get() > now,
-                    Error::<T>::BiddingPeriodIsOver,
-                );
+                // Ensure auction is still in bidding period (must have first_bid_time set)
+                if let Some(ref first_bid_time) = auction.first_bid_time {
+                    ensure!(
+                        first_bid_time.clone() + T::AuctionDuration::get() > now,
+                        Error::<T>::BiddingPeriodIsOver,
+                    );
+                } else {
+                    // If there's a winner but no first_bid_time (should only happen with migrated auctions),
+                    // reject further bids to prevent undefined behavior
+                    return Err(Error::<T>::BiddingPeriodIsOver.into());
+                }
 
                 T::AuctionCurrency::reserve(&sender, amount.clone())?;
                 T::AuctionCurrency::unreserve(&winner, auction.best_price);
@@ -387,6 +392,8 @@ pub mod pallet {
                 T::AuctionCurrency::reserve(&sender, amount.clone())?;
                 auction.winner = Some(sender.clone());
                 auction.best_price = amount.clone();
+                // Set first_bid_time when the first bid is placed
+                auction.first_bid_time = Some(now);
             }
             <Auction<T>>::set(&auction_id, Some(auction));
 
@@ -425,10 +432,17 @@ pub mod pallet {
                 auction.winner == Some(sender.clone()),
                 Error::<T>::ClaimIsNotAllowed,
             );
-            ensure!(
-                auction.created.clone() + T::AuctionDuration::get() <= now,
-                Error::<T>::ClaimIsNotAllowed,
-            );
+            // Ensure auction has received at least one bid (first_bid_time is set)
+            // and the bidding period has ended
+            if let Some(ref first_bid_time) = auction.first_bid_time {
+                ensure!(
+                    first_bid_time.clone() + T::AuctionDuration::get() <= now,
+                    Error::<T>::ClaimIsNotAllowed,
+                );
+            } else {
+                // Cannot claim auction without any bids
+                return Err(Error::<T>::ClaimIsNotAllowed.into());
+            }
 
             // Set subscription owner to auction winner or dedicated account if set.
             let beneficiary = beneficiary.unwrap_or(sender.clone());
@@ -473,7 +487,7 @@ pub mod pallet {
             let _ = ensure_root(origin)?;
 
             let id = <Auction<T>>::count();
-            <Auction<T>>::set(id, Some(AuctionLedger::new(mode, T::Time::now())));
+            <Auction<T>>::set(id, Some(AuctionLedger::new(mode)));
 
             Self::deposit_event(Event::AuctionStarted(id));
             Ok(().into())
