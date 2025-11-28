@@ -257,12 +257,6 @@ pub mod v2 {
                             .map_err(|_| "Failed to decode pre-upgrade state")?;
 
                     // Check all subscriptions migrated
-                    let mut new_subscription_count = 0u32;
-                    for (_, _) in crate::Subscription::<T>::iter_prefix_values(&0u32) {
-                        new_subscription_count += 1;
-                    }
-
-                    // Actually, we need to iterate through all accounts
                     let mut actual_subscription_count = 0u32;
                     for _ in crate::Subscription::<T>::iter() {
                         actual_subscription_count += 1;
