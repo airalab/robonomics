@@ -50,17 +50,17 @@ use core::marker::PhantomData;
 /// Weight functions needed for `pallet_robonomics_digital_twin`.
 pub trait WeightInfo {
 	fn create() -> Weight;
-	fn set_source() -> Weight;
-	fn remove_source() -> Weight;
+	fn set_topic() -> Weight;
+	fn remove_topic() -> Weight;
 }
 
 /// Weights for `pallet_robonomics_digital_twin` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	/// Storage: `DigitalTwin::Total` (r:1 w:1)
-	/// Proof: `DigitalTwin::Total` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `DigitalTwin::TwinCount` (r:1 w:1)
+	/// Proof: `DigitalTwin::TwinCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `DigitalTwin::Owner` (r:0 w:1)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	fn create() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
@@ -71,39 +71,43 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	/// Storage: `DigitalTwin::Owner` (r:1 w:0)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `DigitalTwin::DigitalTwin` (r:1 w:1)
-	/// Proof: `DigitalTwin::DigitalTwin` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn set_source() -> Weight {
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::Topics` (r:1 w:1)
+	/// Proof: `DigitalTwin::Topics` (`max_values`: None, `max_size`: Some(600), added: 3075, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::TopicList` (r:1 w:1)
+	/// Proof: `DigitalTwin::TopicList` (`max_values`: None, `max_size`: Some(3236), added: 5711, mode: `MaxEncodedLen`)
+	fn set_topic() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `234`
-		//  Estimated: `3699`
+		//  Estimated: `6701`
 		// Minimum execution time: 24_419_000 picoseconds.
-		Weight::from_parts(31_829_000, 3699)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+		Weight::from_parts(31_829_000, 6701)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 	/// Storage: `DigitalTwin::Owner` (r:1 w:0)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `DigitalTwin::DigitalTwin` (r:1 w:1)
-	/// Proof: `DigitalTwin::DigitalTwin` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn remove_source() -> Weight {
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::Topics` (r:1 w:1)
+	/// Proof: `DigitalTwin::Topics` (`max_values`: None, `max_size`: Some(600), added: 3075, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::TopicList` (r:1 w:1)
+	/// Proof: `DigitalTwin::TopicList` (`max_values`: None, `max_size`: Some(3236), added: 5711, mode: `MaxEncodedLen`)
+	fn remove_topic() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `166`
-		//  Estimated: `3631`
+		//  Estimated: `6701`
 		// Minimum execution time: 21_290_000 picoseconds.
-		Weight::from_parts(24_150_000, 3631)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
+		Weight::from_parts(24_150_000, 6701)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
-	/// Storage: `DigitalTwin::Total` (r:1 w:1)
-	/// Proof: `DigitalTwin::Total` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `DigitalTwin::TwinCount` (r:1 w:1)
+	/// Proof: `DigitalTwin::TwinCount` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
 	/// Storage: `DigitalTwin::Owner` (r:0 w:1)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	fn create() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
@@ -114,29 +118,33 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 	/// Storage: `DigitalTwin::Owner` (r:1 w:0)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `DigitalTwin::DigitalTwin` (r:1 w:1)
-	/// Proof: `DigitalTwin::DigitalTwin` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn set_source() -> Weight {
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::Topics` (r:1 w:1)
+	/// Proof: `DigitalTwin::Topics` (`max_values`: None, `max_size`: Some(600), added: 3075, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::TopicList` (r:1 w:1)
+	/// Proof: `DigitalTwin::TopicList` (`max_values`: None, `max_size`: Some(3236), added: 5711, mode: `MaxEncodedLen`)
+	fn set_topic() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `234`
-		//  Estimated: `3699`
+		//  Estimated: `6701`
 		// Minimum execution time: 24_419_000 picoseconds.
-		Weight::from_parts(31_829_000, 3699)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+		Weight::from_parts(31_829_000, 6701)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 	/// Storage: `DigitalTwin::Owner` (r:1 w:0)
-	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	/// Storage: `DigitalTwin::DigitalTwin` (r:1 w:1)
-	/// Proof: `DigitalTwin::DigitalTwin` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn remove_source() -> Weight {
+	/// Proof: `DigitalTwin::Owner` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::Topics` (r:1 w:1)
+	/// Proof: `DigitalTwin::Topics` (`max_values`: None, `max_size`: Some(600), added: 3075, mode: `MaxEncodedLen`)
+	/// Storage: `DigitalTwin::TopicList` (r:1 w:1)
+	/// Proof: `DigitalTwin::TopicList` (`max_values`: None, `max_size`: Some(3236), added: 5711, mode: `MaxEncodedLen`)
+	fn remove_topic() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `166`
-		//  Estimated: `3631`
+		//  Estimated: `6701`
 		// Minimum execution time: 21_290_000 picoseconds.
-		Weight::from_parts(24_150_000, 3631)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
+		Weight::from_parts(24_150_000, 6701)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 }

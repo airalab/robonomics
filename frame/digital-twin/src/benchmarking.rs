@@ -15,12 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for Digital Twin Pallet
+// Benchmarks for Digital Twin Pallet v2
 
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::{Pallet as DigitalTwin, *};
 use frame_benchmarking::v2::*;
+use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 use sp_core::H256;
 use sp_std::prelude::*;
@@ -30,13 +31,10 @@ const SEED: u32 = 0;
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    #[cfg(test)]
-    use frame_system::RawOrigin;
 
     #[benchmark]
     fn create() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
-        DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
 
         #[extrinsic_call]
         create(RawOrigin::Signed(caller));
@@ -45,18 +43,13 @@ mod benchmarks {
     }
 
     #[benchmark]
-    fn set_source() -> Result<(), BenchmarkError> {
+    fn set_topic() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
         let id: u32 = 0;
         let topic: H256 = Default::default();
         let source: T::AccountId = account("source", 2, SEED);
+        
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
-        DigitalTwin::<T>::set_source(
-            RawOrigin::Signed(caller.clone()).into(),
-            id,
-            topic,
-            source.clone(),
-        )?;
 
         #[extrinsic_call]
         set_source(RawOrigin::Signed(caller), id, topic, source);
@@ -65,27 +58,22 @@ mod benchmarks {
     }
 
     #[benchmark]
-    fn remove_source() -> Result<(), BenchmarkError> {
+    fn remove_topic() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
         let id: u32 = 0;
         let topic: H256 = Default::default();
         let source: T::AccountId = account("source", 2, SEED);
+        
         DigitalTwin::<T>::create(RawOrigin::Signed(caller.clone()).into())?;
         DigitalTwin::<T>::set_source(
             RawOrigin::Signed(caller.clone()).into(),
             id,
             topic,
-            source.clone(),
-        )?;
-        DigitalTwin::<T>::remove_source(
-            RawOrigin::Signed(caller.clone()).into(),
-            id,
-            topic,
-            source.clone(),
+            source,
         )?;
 
         #[extrinsic_call]
-        remove_source(RawOrigin::Signed(caller), id, topic, source);
+        remove_topic(RawOrigin::Signed(caller), id, topic);
 
         Ok(())
     }
@@ -96,3 +84,4 @@ mod benchmarks {
         crate::tests::Runtime,
     );
 }
+
