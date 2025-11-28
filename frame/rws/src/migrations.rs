@@ -185,18 +185,12 @@ pub mod v2 {
                 // Migrate Auction storage
                 // In v1: Auction<AuctionIndex -> AuctionLedger> (without created, subscription_id, first_bid_time)
                 // In v2: Auction<u32 -> AuctionLedger> (with first_bid_time, subscription_id, mode instead of kind)
-                // Strategy: Set first_bid_time to None if no winner, subscription_id to None
+                // Strategy: Set first_bid_time to None (we don't know when bidding started), subscription_id to None
                 for (auction_id, old_auction) in AuctionV1::<T>::drain() {
                     let new_auction = crate::AuctionLedger {
-                        winner: old_auction.winner.clone(),
+                        winner: old_auction.winner,
                         best_price: old_auction.best_price,
-                        first_bid_time: if old_auction.winner.is_some() {
-                            // If there's already a winner, we assume the auction has started
-                            // but we don't know when, so we set it to None to allow immediate claiming
-                            None
-                        } else {
-                            None
-                        },
+                        first_bid_time: None,
                         mode: convert_subscription_mode(old_auction.kind),
                         subscription_id: None,
                     };

@@ -374,6 +374,10 @@ pub mod pallet {
                         first_bid_time.clone() + T::AuctionDuration::get() > now,
                         Error::<T>::BiddingPeriodIsOver,
                     );
+                } else {
+                    // If there's a winner but no first_bid_time (should only happen with migrated auctions),
+                    // reject further bids to prevent undefined behavior
+                    return Err(Error::<T>::BiddingPeriodIsOver.into());
                 }
 
                 T::AuctionCurrency::reserve(&sender, amount.clone())?;
@@ -437,7 +441,7 @@ pub mod pallet {
                 );
             } else {
                 // Cannot claim auction without any bids
-                Err(Error::<T>::ClaimIsNotAllowed)?
+                return Err(Error::<T>::ClaimIsNotAllowed.into());
             }
 
             // Set subscription owner to auction winner or dedicated account if set.
