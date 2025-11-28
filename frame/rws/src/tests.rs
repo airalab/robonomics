@@ -18,12 +18,8 @@
 //! Robonomics Web Services pallet tests.
 
 use crate::{self as rws, *};
-use frame_support::{assert_err, assert_ok, parameter_types};
-use sp_core::H256;
-use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage, DispatchError,
-};
+use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 type Balance = u128;
@@ -46,37 +42,12 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Runtime {
-    type BaseCallFilter = frame_support::traits::Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type DbWeight = ();
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type RuntimeTask = RuntimeTask;
-    type Nonce = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Block = Block;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
-    type Version = ();
-    type PalletInfo = PalletInfo;
     type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
-    type SingleBlockMigrations = ();
-    type MultiBlockMigrator = ();
-    type PreInherents = ();
-    type PostInherents = ();
-    type PostTransactions = ();
-    type ExtensionsWeightInfo = ();
 }
 
 parameter_types! {
@@ -390,7 +361,10 @@ fn test_claim_successful() {
         // Check subscription was created for Alice with id 0
         let subscription = RWS::subscription(ALICE, 0).unwrap();
         assert_eq!(subscription.issue_time, 1_000_000 + 100_000);
-        assert_eq!(subscription.mode, SubscriptionMode::Lifetime { tps: 10_000 });
+        assert_eq!(
+            subscription.mode,
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        );
 
         // Check auction is marked as claimed
         let auction = RWS::auction(0).unwrap();
@@ -555,7 +529,7 @@ fn test_free_weight_accumulation() {
         assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
 
         let initial_time = 1_000_000 + 100_000;
-        
+
         // Check weight accumulation over time
         Timestamp::set_timestamp(initial_time + 1_000);
         let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
@@ -564,7 +538,7 @@ fn test_free_weight_accumulation() {
         });
         // This call just updates the subscription weight
         let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call));
-        
+
         let sub1 = RWS::subscription(ALICE, 0).unwrap();
         let weight1 = sub1.free_weight;
 
@@ -771,7 +745,7 @@ fn test_weight_calculation_accuracy() {
         let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call));
 
         let subscription = RWS::subscription(ALICE, 0).unwrap();
-        
+
         // Expected weight after 1 second at 1 TPS:
         // ReferenceCallWeight * tps * delta_ms / 1_000_000_000
         // = 70_952_000 * 1_000_000 * 1_000 / 1_000_000_000
