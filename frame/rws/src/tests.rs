@@ -232,11 +232,15 @@ fn test_bid_after_auction_period_ends() {
         );
 
         // First bid on expired auction should still work (no previous winner)
+        // Reset timestamp and start a new auction
+        Timestamp::set_timestamp(2_000_000);
         assert_ok!(RWS::start_auction(
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
+        // Move time beyond auction duration (100_000 ms)
         Timestamp::set_timestamp(2_000_000 + 100_000 + 1);
+        // First bid after bidding period ends is allowed when there's no winner yet
         assert_ok!(RWS::bid(RuntimeOrigin::signed(CHARLIE), 1, 200));
     });
 }
