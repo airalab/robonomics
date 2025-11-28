@@ -51,7 +51,7 @@ fn test_start_auction_lifetime() {
         let auction = RWS::auction(0).unwrap();
         assert_eq!(auction.winner, None);
         assert_eq!(auction.best_price, 0);
-        assert_eq!(auction.created, 1_000_000);
+        assert_eq!(auction.first_bid_time, None);
         assert_eq!(auction.mode, SubscriptionMode::Lifetime { tps: 10_000 });
         assert_eq!(auction.subscription_id, None);
     });
@@ -69,7 +69,7 @@ fn test_start_auction_daily() {
 
         let auction = RWS::auction(0).unwrap();
         assert_eq!(auction.mode, SubscriptionMode::Daily { days: 30 });
-        assert_eq!(auction.created, 2_000_000);
+        assert_eq!(auction.first_bid_time, None);
     });
 }
 
@@ -132,6 +132,7 @@ fn test_bid_first_becomes_winner() {
         let auction = RWS::auction(0).unwrap();
         assert_eq!(auction.winner, Some(ALICE));
         assert_eq!(auction.best_price, 200);
+        assert_eq!(auction.first_bid_time, Some(1_000_000));
 
         // Check Alice's balance was reserved
         assert_eq!(Balances::reserved_balance(ALICE), 200);
@@ -219,10 +220,14 @@ fn test_bid_after_auction_period_ends() {
             SubscriptionMode::Daily { days: 30 }
         ));
 
-        // First bid within period
+        // First bid within period (this starts the countdown)
         assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
 
-        // Move time beyond auction duration (100_000 ms)
+        // Verify first_bid_time was set
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.first_bid_time, Some(1_000_000));
+
+        // Move time beyond auction duration (100_000 ms) from first bid
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
         // Try to outbid after period ends
@@ -231,17 +236,22 @@ fn test_bid_after_auction_period_ends() {
             Error::<Test>::BiddingPeriodIsOver
         );
 
-        // First bid on expired auction should still work (no previous winner)
-        // Reset timestamp and start a new auction
+        // Start a new auction that has no bids yet
         Timestamp::set_timestamp(2_000_000);
         assert_ok!(RWS::start_auction(
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        // Move time beyond auction duration (100_000 ms)
+        
+        // Move time way forward (auction created long ago)
         Timestamp::set_timestamp(2_000_000 + 100_000 + 1);
-        // First bid after bidding period ends is allowed when there's no winner yet
+        
+        // First bid on an auction with no previous bids should work regardless of time passed since creation
         assert_ok!(RWS::bid(RuntimeOrigin::signed(CHARLIE), 1, 200));
+        
+        // Verify the first bid set the first_bid_time to current time
+        let auction2 = RWS::auction(1).unwrap();
+        assert_eq!(auction2.first_bid_time, Some(2_000_000 + 100_000 + 1));
     });
 }
 
