@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -20,11 +20,17 @@
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use parity_scale_codec::{Decode, Encode, HasCompact, MaxEncodedLen};
+use frame_support::pallet_prelude::Weight;
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 /// Pallet weights.
 pub mod weights;
@@ -34,7 +40,17 @@ pub use weights::WeightInfo;
 //mod tests;
 
 /// RWS subscription modes: daily, lifetime.
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+#[derive(
+    PartialEq,
+    Eq,
+    Clone,
+    Encode,
+    Decode,
+    TypeInfo,
+    RuntimeDebug,
+    MaxEncodedLen,
+    DecodeWithMemTracking,
+)]
 pub enum SubscriptionMode {
     /// Lifetime subscription.
     Lifetime {
@@ -146,6 +162,7 @@ pub mod pallet {
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Call weights.
         type WeightInfo: weights::WeightInfo;
@@ -158,6 +175,8 @@ pub mod pallet {
         /// Minimal auction bid.
         #[pallet::constant]
         type MinimalBid: Get<BalanceOf<Self>>;
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::error]
@@ -229,8 +248,8 @@ pub mod pallet {
         /// - Dependes of call method.
         /// - Basically this sould be free by concept.
         /// # </weight>
-        #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         #[pallet::call_index(0)]
+        #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
             subscription_id: u32,
@@ -292,6 +311,7 @@ pub mod pallet {
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
         #[pallet::call_index(1)]
+        #[pallet::weight(T::WeightInfo::bid())]
         pub fn bid(
             origin: OriginFor<T>,
             auction_id: u32,
@@ -339,6 +359,7 @@ pub mod pallet {
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
         #[pallet::call_index(2)]
+        #[pallet::weight(T::WeightInfo::claim())]
         pub fn claim(
             origin: OriginFor<T>,
             auction_id: u32,
@@ -401,6 +422,7 @@ pub mod pallet {
         /// - One DB change.
         /// # </weight>
         #[pallet::call_index(4)]
+        #[pallet::weight(T::WeightInfo::start_auction())]
         pub fn start_auction(
             origin: OriginFor<T>,
             mode: SubscriptionMode,

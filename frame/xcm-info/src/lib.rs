@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -18,21 +18,28 @@
 //! On-chain XCM setup & information.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+// pub mod weights;
 
-#[frame_support::pallet]
+pub use pallet::*;
+// pub use weights::WeightInfo;
+
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
     use xcm::latest::prelude::*;
+    use xcm::opaque::v3::MultiLocation;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// AssetId type for asset<>location linkage setup.
         type AssetId: Parameter + Copy + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
     }
 
@@ -71,7 +78,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn set_relay_network(origin: OriginFor<T>, network_id: NetworkId) -> DispatchResult {
             ensure_root(origin)?;
 
@@ -82,7 +89,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(1)]
-        #[pallet::weight(10_000)]
+        #[pallet::weight({10_000})]
         pub fn set_asset_link(
             origin: OriginFor<T>,
             asset_id: T::AssetId,

@@ -3,35 +3,31 @@
 image:https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg["Web3 Foundation Grants — Wave Two Recipient", link="https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d"]
 
 :Author: Robonomics Network Developers
-:Revision: 0.7.0
+:Revision: 0.8.0
 :toc:
 :sectnums:
 
 image:https://img.shields.io/github/license/airalab/robonomics["License", link="https://github.com/airalab/robonomics/blob/master/LICENSE"]
-image:https://github.com/airalab/robonomics/workflows/Testing/badge.svg?branch=master["CI Status", link="https://github.com/airalab/robonomics/actions"]
 image:https://img.shields.io/github/release/airalab/robonomics.svg["Release", link="https://github.com/airalab/robonomics/releases"]
+image:https://github.com/airalab/robonomics/workflows/Nightly/badge.svg["Nightly", link="https://github.com/airalab/robonomics/actions/workflows/nightly.yml"]
 image:https://img.shields.io/github/downloads/airalab/robonomics/total.svg["Downloads", link="https://github.com/airalab/robonomics/releases"]
 image:https://img.shields.io/matrix/robonomics:matrix.org["Matrix", link="https://matrix.to/#/#robonomics:matrix.org"]
 
-> Implementation of a https://robonomics.network node in Rust, based on the https://substrate.dev[Substrate framework].
-
-This repo contains runtimes for the Earth Parachain, Mars Parachain, and Robonomics Relay chain networks. The README provides information about installing the robonomics binary and developing on the codebase. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
+> Implementation of a https://robonomics.network node in Rust, based on the https://polkadot.com/platform/sdk/[Polkadot SDK]. For more specific guides, like how to be a node, see the https://wiki.robonomics.network[Robonomics Wiki].
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
 == Try it out
 
-. https://get.robonomics.network[Get Node] and/or https://parachain.robonomics.network[Open Portal].
-. Run the https://wiki.robonomics.network/docs/playground-overview/[Robonomics Playground].
+. https://get.robonomics.network[Get Node]
+. https://parachain.robonomics.network[Open Portal]
 
 == The Robonomics Crates
 
 Structure of **Robonomics** followed:
 
-- **Robonomics Node** - substrate-based blockchain node with Robonomics Network extensions.
-- **Robonomics CLI** - console line primitives that make framework functions runnable.
-- **Robonomics Protocol** - network library that helps to build P2P communication in Industry 4.0 and Smart City cases.
-- **Robonomics Frame** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
+- **The Node** - Robonomics Network OMNI node with buildin Polkadot & Kusama parachain specs.
+- **Frame / Pallets** - a collection of pallets suitable for Smart City and Industry 4.0 cases.
 
 Full docs available at https://crates.robonomics.network.
 
@@ -48,11 +44,11 @@ You will also need to install the following packages:
 
  . Linux:
 [source, shell]
-sudo apt install cmake git clang libclang-dev protobuf-compiler
+sudo apt install protobuf-compiler
 
  . Mac:
 [source, shell]
-brew install cmake pkg-config git llvm
+brew install pkg-config git llvm
 
  . Windows (PowerShell):
 +
@@ -66,7 +62,7 @@ brew install cmake pkg-config git llvm
 Install robonomics node from git source.
 
 [source, shell]
-cargo install --force --git https://github.com/airalab/robonomics --tag v3.0.0 robonomics
+cargo install --force --git https://github.com/airalab/robonomics --tag v4.0.0 robonomics
 
 And then launch full node of robonomics testnet parachain.
 
@@ -88,8 +84,31 @@ curl https://nixos.org/nix/install | sh
 +
 [source, shell]
 ----
-git clone --recursive https://github.com/airalab/robonomics && cd robonomics
-nix-shell --run "cargo run --release"
+git clone https://github.com/airalab/robonomics && cd robonomics
+nix-shell --run "cargo run --profile production"
+----
+
+=== Running Benchmarks
+
+ . Install the frame-omni-bencher command-line tool:
++
+[source, shell]
+----
+cargo install frame-omni-bencher
+----
+
+ . Build the node with benchmarking features enabled:
++
+[source, shell]
+----
+cargo build --release --features runtime-benchmarks
+----
+
+ . Run the benchmark script to generate weights:
++
+[source, shell]
+----
+./scripts/weights/benchmark-commands.sh
 ----
 
 == Network maintaining
@@ -107,7 +126,7 @@ or it could be <<building-from-source,build from source>>.
 Launch command:
 [source, shell]
 ----
-robonomics --collator --lighthouse-account [YOUR_ACCOUNT_ADDRESS]
+robonomics --collator
 ----
 
 == Robotics integration

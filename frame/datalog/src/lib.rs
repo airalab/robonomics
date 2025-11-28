@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::from_over_into)]
 
-pub use pallet::*;
-pub use weights::WeightInfo;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-mod weights;
+pub mod weights;
+
+pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 #[allow(clippy::module_inception)]
@@ -48,6 +48,7 @@ pub mod pallet {
         /// Datalog record data type.
         type Record: Parameter + Default + MaxEncodedLen;
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         /// Data log window size
         #[pallet::constant]
@@ -126,7 +127,7 @@ pub mod pallet {
         }
 
         /// Clear account datalog.
-        #[pallet::weight(T::WeightInfo::erase(T::WindowSize::get()))]
+        #[pallet::weight(T::WeightInfo::erase())]
         #[pallet::call_index(1)]
         pub fn erase(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
@@ -135,14 +136,14 @@ pub mod pallet {
 
             let window_size = T::WindowSize::get();
             // get the number of items in the ring buffer
-            let count = idx.count(window_size);
+            let _count = idx.count(window_size);
 
             for start in idx.iter(window_size) {
                 DatalogItem::<T>::remove((&sender, start))
             }
 
             Self::deposit_event(Event::Erased(sender));
-            Ok(Some(T::WeightInfo::erase(count)).into())
+            Ok(().into())
         }
     }
 
@@ -250,9 +251,9 @@ pub mod pallet {
 
 #[cfg(test)]
 mod tests {
-    use frame_support::{assert_err, assert_ok, parameter_types, BoundedVec};
-    use sp_core::H256;
-    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
+    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types, BoundedVec};
+
+    use sp_runtime::{BuildStorage, DispatchError};
 
     use crate::{self as datalog, *};
 
@@ -271,30 +272,9 @@ mod tests {
         pub const BlockHashCount: u64 = 250;
     }
 
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
     impl frame_system::Config for Runtime {
-        type RuntimeOrigin = RuntimeOrigin;
-        type Nonce = u32;
         type Block = Block;
-        type RuntimeCall = RuntimeCall;
-        type Hash = H256;
-        type Hashing = sp_runtime::traits::BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
-        type RuntimeEvent = RuntimeEvent;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type PalletInfo = PalletInfo;
-        type AccountData = ();
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = frame_support::traits::Everything;
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type OnSetCode = ();
-        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     impl pallet_timestamp::Config for Runtime {

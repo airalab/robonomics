@@ -264,7 +264,7 @@ async function main() {
   const previousTag = argv.from;
   const newTag = argv.to;
 
-  const runtimes = ["main"].map((runtimeName) =>
+  const runtimes = ["robonomics"].map((runtimeName) =>
     getRuntimeInfo(argv["srtool-report-folder"], runtimeName)
   );
 

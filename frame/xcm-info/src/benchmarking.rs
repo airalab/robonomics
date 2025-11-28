@@ -15,63 +15,39 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for Datalog Pallet
+// Benchmarks for XcmInfo Pallet
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::{Pallet as Datalog, *};
+use super::{Pallet as XcmInfo, *};
 use frame_benchmarking::v2::*;
 use frame_support::pallet_prelude::{Get, MaxEncodedLen};
 use frame_system::RawOrigin;
 use parity_scale_codec::{Decode, Encode};
 use sp_std::prelude::*;
 
-fn setup_record<T: Config>() -> T::Record {
-    let s = <T::Record as MaxEncodedLen>::max_encoded_len();
-    let mut v = Vec::with_capacity(s - 4);
-    v.resize(s - 4, 0x1F);
-    v.using_encoded(|mut slice| T::Record::decode(&mut slice).unwrap_or_default())
-}
-
-fn setup_datalog<T: Config>(caller: T::AccountId, data: T::Record) -> Result<(), &'static str>
-where
-    T::Record: Clone,
-{
-    for _ in 0..T::WindowSize::get() {
-        Datalog::<T>::record(RawOrigin::Signed(caller.clone()).into(), data.clone())?;
-    }
-    Ok(())
-}
-
 #[benchmarks]
 mod benchmarks {
     use super::*;
     #[cfg(test)]
     use frame_system::RawOrigin;
+    use staging_xcm::opaque::v3::MultiLocation;
+    use staging_xcm::v5::NetworkId;
 
     #[benchmark]
-    fn record() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = whitelisted_caller();
-        let data = setup_record::<T>();
-        setup_datalog::<T>(caller.clone(), data.clone())?;
-
+    fn set_relay_network() {
         #[extrinsic_call]
-        record(RawOrigin::Signed(caller), data);
-
-        Ok(())
+        _(RawOrigin::Root, NetworkId::Kusama);
     }
 
     #[benchmark]
-    fn erase() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = whitelisted_caller();
-        let data = setup_record::<T>();
-        setup_datalog::<T>(caller.clone(), data)?;
+    fn set_asset_link() {
+        let location = MultiLocation::here();
+        let asset_id: T::AssetId = Default::default();
 
         #[extrinsic_call]
-        erase(RawOrigin::Signed(caller));
-
-        Ok(())
+        _(RawOrigin::Root, asset_id, location);
     }
 
-    impl_benchmark_test_suite!(Datalog, crate::tests::new_test_ext(), crate::tests::Runtime,);
+    impl_benchmark_test_suite!(XcmInfo, crate::tests::new_test_ext(), crate::tests::Runtime,);
 }

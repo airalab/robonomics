@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2024 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -23,13 +23,19 @@ pub mod signed;
 pub mod technics;
 pub mod traits;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 pub use pallet::*;
 pub use signed::*;
 pub use traits::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::traits::*;
+    use super::*;
     use frame_support::{dispatch, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
     use sp_std::prelude::*;
@@ -49,7 +55,11 @@ pub mod pallet {
         type Report: dispatch::Parameter + Report<Index, Self::AccountId> + MaxEncodedLen;
 
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// Extrinsic weights
+        type WeightInfo: WeightInfo;
     }
 
     pub type TechnicsFor<T> =
@@ -114,7 +124,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Create agreement between two parties.
-        #[pallet::weight(200_000)]
+        #[pallet::weight(T::WeightInfo::create())]
         #[pallet::call_index(0)]
         pub fn create(origin: OriginFor<T>, agreement: T::Agreement) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
@@ -142,7 +152,7 @@ pub mod pallet {
         }
 
         /// Publish technical report of complite works.
-        #[pallet::weight(200_000)]
+        #[pallet::weight(T::WeightInfo::finalize())]
         #[pallet::call_index(1)]
         pub fn finalize(origin: OriginFor<T>, report: ReportFor<T>) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
@@ -191,10 +201,9 @@ mod tests {
     use crate::technics::IPFS;
     use crate::traits::*;
     use crate::{self as liability, *};
-    use frame_support::{assert_err, assert_ok, parameter_types};
+    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
     use hex_literal::hex;
-    use sp_core::{crypto::Pair, sr25519, H256};
-    use sp_keyring::AccountKeyring;
+    use sp_core::{crypto::Pair, sr25519};
     use sp_runtime::{
         traits::{IdentifyAccount, IdentityLookup, Verify},
         AccountId32, BuildStorage, MultiSignature,
@@ -217,30 +226,12 @@ mod tests {
         pub const BlockHashCount: u64 = 250;
     }
 
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
     impl frame_system::Config for Runtime {
-        type RuntimeOrigin = RuntimeOrigin;
-        type RuntimeCall = RuntimeCall;
-        type Nonce = u32;
         type Block = Block;
-        type Hash = H256;
-        type Hashing = ::sp_runtime::traits::BlakeTwo256;
         type AccountId = AccountId32;
         type Lookup = IdentityLookup<Self::AccountId>;
-        type RuntimeEvent = RuntimeEvent;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type PalletInfo = PalletInfo;
         type AccountData = pallet_balances::AccountData<Balance>;
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = frame_support::traits::Everything;
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type OnSetCode = ();
-        type MaxConsumers = frame_support::traits::ConstU32<16>;
     }
 
     parameter_types! {
@@ -262,7 +253,8 @@ mod tests {
         type FreezeIdentifier = ();
         type MaxFreezes = ();
         type RuntimeHoldReason = ();
-        type MaxHolds = ();
+        type RuntimeFreezeReason = ();
+        type DoneSlashHandler = ();
     }
 
     impl Config for Runtime {
@@ -287,6 +279,7 @@ mod tests {
             // Provide report in IPFS
             IPFS,
         >;
+        type WeightInfo = ();
     }
 
     // IPFS raw hash (sha256)
@@ -294,13 +287,16 @@ mod tests {
         hex!["30f3d649b3d140a6601e11a2cfbe3560e60dc5434f62d702ac8ceff4e1890015"];
 
     fn new_test_ext() -> sp_io::TestExternalities {
+        use sp_keyring::sr25519::Keyring;
+
         let storage = RuntimeGenesisConfig {
             system: Default::default(),
             balances: pallet_balances::GenesisConfig::<Runtime> {
                 balances: vec![
-                    (AccountKeyring::Alice.into(), 100 * XRT),
-                    (AccountKeyring::Bob.into(), 100 * XRT),
+                    (Keyring::Alice.into(), 100 * XRT),
+                    (Keyring::Bob.into(), 100 * XRT),
                 ],
+                dev_accounts: None,
             },
         }
         .build_storage()

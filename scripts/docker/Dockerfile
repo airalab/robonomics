@@ -36,7 +36,7 @@ HEALTHCHECK --interval=300s --timeout=75s --start-period=30s --retries=3 \
 
 LABEL description="This is the 2nd stage: an image where we copy the robonomics binary"
 
-ARG PROFILE=release
+ARG PROFILE=production
 # add binary to docker image
 ARG TARGETOS
 ARG TARGETARCH

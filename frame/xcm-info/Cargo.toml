@@ -10,20 +10,29 @@ repository.workspace = true
 [dependencies]
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
 parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
-staging-xcm = { workspace = true }
+xcm = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
   "frame-support/std",
   "frame-system/std",
+  "frame-benchmarking?/std",
   "parity-scale-codec/std",
   "scale-info/std",
   "sp-runtime/std",
   "sp-std/std",
-  "staging-xcm/std",
+  "xcm/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]
