@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 41,
+    spec_version: 42,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -204,7 +204,7 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_timestamp::Config for Runtime {
     type Moment = u64;
-    type OnTimestampSet = ();
+    type OnTimestampSet = Aura;
     type MinimumPeriod = ConstU64<0>;
     type WeightInfo = ();
 }
@@ -945,27 +945,9 @@ impl_runtime_apis! {
     }
 }
 
-/// Recovery block executor that pass blocks when authorities list is empty.
-pub struct BlockExecutor<T, I>(core::marker::PhantomData<(T, I)>);
-
-impl<Block, T, I> frame_support::traits::ExecuteBlock<Block> for BlockExecutor<T, I>
-where
-    Block: BlockT,
-    T: cumulus_pallet_aura_ext::Config,
-    I: frame_support::traits::ExecuteBlock<Block>,
-{
-    fn execute_block(block: Block) {
-        if pallet_aura::Authorities::<T>::get().len() > 0 {
-            cumulus_pallet_aura_ext::BlockExecutor::<T, I>::execute_block(block);
-        } else {
-            I::execute_block(block);
-        }
-    }
-}
-
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
-    BlockExecutor = BlockExecutor<Runtime, Executive>,
+    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor<Runtime, Executive>,
 }
 
 parameter_types! {

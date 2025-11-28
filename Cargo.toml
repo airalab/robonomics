@@ -12,7 +12,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [workspace.package]
-version = "4.0.1"
+version = "4.0.2"
 edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
