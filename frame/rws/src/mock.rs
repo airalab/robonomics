@@ -79,7 +79,7 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;
-    pub const AuctionDuration: u64 = 86400000; // 1 day in milliseconds
+    pub const AuctionDuration: u64 = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: u128 = 100;
 }
 
