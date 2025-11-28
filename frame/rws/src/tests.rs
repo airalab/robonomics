@@ -676,3 +676,74 @@ fn test_weight_calculation_accuracy() {
         assert!(subscription.free_weight < 70_952_000);
     });
 }
+
+#[test]
+fn test_multiple_auctions_remain_live_until_first_bid() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create 3 auctions at time 1_000_000
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 50_000 }
+        ));
+
+        // Verify all auctions have no first_bid_time
+        assert_eq!(RWS::auction(0).unwrap().first_bid_time, None);
+        assert_eq!(RWS::auction(1).unwrap().first_bid_time, None);
+        assert_eq!(RWS::auction(2).unwrap().first_bid_time, None);
+
+        // Move time way forward (1 hour = 3_600_000 ms)
+        Timestamp::set_timestamp(1_000_000 + 3_600_000);
+
+        // First bid on auction 0 should work even though created long ago
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_eq!(
+            RWS::auction(0).unwrap().first_bid_time,
+            Some(1_000_000 + 3_600_000)
+        );
+
+        // Move time forward another 50_000 ms (within auction period for auction 0)
+        Timestamp::set_timestamp(1_000_000 + 3_600_000 + 50_000);
+
+        // Auction 0 is still in bidding period (started from first bid)
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(BOB), 0, 300));
+
+        // Auction 1 still has no bids and can accept its first bid
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 1, 200));
+        assert_eq!(
+            RWS::auction(1).unwrap().first_bid_time,
+            Some(1_000_000 + 3_600_000 + 50_000)
+        );
+
+        // Move time forward another 100_000 ms (past auction 0's period)
+        Timestamp::set_timestamp(1_000_000 + 3_600_000 + 50_000 + 100_000);
+
+        // Auction 0 bidding period is over (100_000 ms since first bid)
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(CHARLIE), 0, 400),
+            Error::<Test>::BiddingPeriodIsOver
+        );
+
+        // Auction 1 bidding period is also over (100_000 ms since first bid)
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(CHARLIE), 1, 400),
+            Error::<Test>::BiddingPeriodIsOver
+        );
+
+        // Auction 2 still has no bids and can accept its first bid at any time
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(CHARLIE), 2, 200));
+        assert_eq!(
+            RWS::auction(2).unwrap().first_bid_time,
+            Some(1_000_000 + 3_600_000 + 50_000 + 100_000)
+        );
+    });
+}
