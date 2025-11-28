@@ -34,8 +34,8 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-//#[cfg(test)]
-//mod tests;
+#[cfg(test)]
+mod tests;
 
 /// RWS subscription modes: daily, lifetime.
 #[derive(

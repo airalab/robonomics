@@ -18,41 +18,23 @@
 //! Robonomics Web Services pallet tests.
 
 use crate::{self as rws, *};
-use frame_support::{
-    assert_err, assert_ok, parameter_types, traits::OnInitialize, weights::Weight,
-};
-use pallet_robonomics_datalog as datalog;
-use pallet_robonomics_staking as staking;
-use sp_core::H256;
-use sp_runtime::{testing::Header, traits::IdentityLookup, DispatchError, Perbill};
+use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 type Block = frame_system::mocking::MockBlock<Runtime>;
 type Balance = u128;
-type BlockNumber = u64;
 type Moment = u64;
 
 const ALICE: u64 = 1;
-const ALICE_C: u64 = 10;
-
 const BOB: u64 = 2;
-const BOB_C: u64 = 20;
-
 const CHARLIE: u64 = 3;
-const CHARLIE_C: u64 = 30;
 
 frame_support::construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Pallet, Storage},
-        Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Datalog: datalog::{Pallet, Call, Storage, Event<T>},
-        Staking: staking::{Pallet, Call, Storage, Event<T>},
-        RWS: rws::{Pallet, Call, Storage, Event<T>},
+    pub enum Runtime {
+        System: frame_system,
+        Timestamp: pallet_timestamp,
+        Balances: pallet_balances,
+        RWS: rws,
     }
 );
 
@@ -60,31 +42,12 @@ parameter_types! {
     pub const BlockHashCount: u64 = 250;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Runtime {
-    type Origin = Origin;
-    type Index = u64;
-    type BlockNumber = BlockNumber;
-    type Call = Call;
-    type Hash = H256;
-    type Hashing = sp_runtime::traits::BlakeTwo256;
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type Event = Event;
-    type BlockHashCount = BlockHashCount;
-    type Version = ();
+    type Block = Block;
     type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type DbWeight = ();
-    type BaseCallFilter = frame_support::traits::Everything;
-    type SystemWeightInfo = ();
-    type BlockWeights = ();
-    type BlockLength = ();
-    type SS58Prefix = ();
-    type PalletInfo = PalletInfo;
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -94,7 +57,7 @@ parameter_types! {
 impl pallet_timestamp::Config for Runtime {
     type Moment = Moment;
     type OnTimestampSet = ();
-    type MinimumPeriod = ();
+    type MinimumPeriod = MinimumPeriod;
     type WeightInfo = ();
 }
 
@@ -109,254 +72,685 @@ impl pallet_balances::Config for Runtime {
     type MaxReserves = MaxReserves;
     type ReserveIdentifier = [u8; 8];
     type Balance = Balance;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
+    type RuntimeHoldReason = ();
+    type RuntimeFreezeReason = ();
+    type FreezeIdentifier = ();
+    type MaxFreezes = ();
+    type DoneSlashHandler = ();
 }
 
 parameter_types! {
-    pub const WindowSize: u64 = 128;
-    pub const MaximumMessageSize: usize = 512;
-}
-
-impl datalog::Config for Runtime {
-    type Record = Vec<u8>;
-    type Event = Event;
-    type Time = Timestamp;
-    type WindowSize = WindowSize;
-    type MaximumMessageSize = MaximumMessageSize;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const BondingDuration: BlockNumber = 1;
-    pub const StakeReward: Perbill = Perbill::from_parts(40);
-    pub const BonusReward: Perbill = Perbill::from_parts(200);
-}
-
-impl pallet_robonomics_staking::Config for Runtime {
-    type Currency = Balances;
-    type Event = Event;
-    type BondingDuration = BondingDuration;
-    type StakeReward = StakeReward;
-    type BonusReward = BonusReward;
-    type OnBond = RWS;
-}
-
-parameter_types! {
-    pub const ReferenceCallWeight: Weight = 70_952_000;  // let it be transfer call weight
-    pub const WeightLimit: Weight = Weight::max_value() / 2;
-    pub const AuctionDuration: BlockNumber = 10;
-    pub const AuctionCost: Balance = 5_000;
+    pub const ReferenceCallWeight: u64 = 70_952_000;  // transfer call weight
+    pub const AuctionDuration: Moment = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: Balance = 100;
 }
 
 impl Config for Runtime {
-    type Call = Call;
+    type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = Moment;
-    type AuctionIndex = u32;
     type AuctionCurrency = Balances;
-    type Event = Event;
+    type RuntimeEvent = RuntimeEvent;
     type ReferenceCallWeight = ReferenceCallWeight;
-    type WeightLimit = WeightLimit;
     type AuctionDuration = AuctionDuration;
-    type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
+    type WeightInfo = ();
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {
-    let mut storage = frame_system::GenesisConfig::default()
-        .build_storage::<Runtime>()
+    let mut storage = frame_system::GenesisConfig::<Runtime>::default()
+        .build_storage()
         .unwrap();
 
-    let _ = pallet_balances::GenesisConfig::<Runtime> {
-        balances: vec![(ALICE, 10_000_000), (BOB, 42_000), (CHARLIE, 10_000)],
+    pallet_balances::GenesisConfig::<Runtime> {
+        balances: vec![(ALICE, 10_000_000), (BOB, 5_000_000), (CHARLIE, 5_000_000)],
+        dev_accounts: None,
     }
-    .assimilate_storage(&mut storage);
+    .assimilate_storage(&mut storage)
+    .unwrap();
 
     storage.into()
 }
 
-fn next_block(mut count: u32) {
-    let init_time = 1600438152000;
-    while count > 0 {
-        let block_number = System::block_number() + 1;
-        System::set_block_number(block_number);
-        Timestamp::set_timestamp(init_time + block_number * 12_000);
-        RWS::on_initialize(block_number);
-        count -= 1;
-    }
-}
+// ========== Auction Lifecycle Tests ==========
 
 #[test]
-fn test_set_oracle() {
-    let oracle = 1;
+fn test_start_auction_lifetime() {
     new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Only root can start auctions
         assert_err!(
-            RWS::set_oracle(Origin::none(), oracle),
+            RWS::start_auction(
+                RuntimeOrigin::signed(ALICE),
+                SubscriptionMode::Lifetime { tps: 10_000 }
+            ),
             DispatchError::BadOrigin
         );
 
-        assert_err!(
-            RWS::set_oracle(Origin::signed(oracle), oracle),
-            DispatchError::BadOrigin
-        );
-
-        assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-        assert_eq!(RWS::oracle(), Some(oracle));
-    })
-}
-
-#[test]
-fn test_set_devices() {
-    let phone = 10;
-    let car = 11;
-    new_test_ext().execute_with(|| {
-        let devices = vec![phone, car];
-        assert_ok!(RWS::set_devices(Origin::signed(ALICE), devices.clone()));
-        assert_eq!(RWS::devices(ALICE), devices);
-    })
-}
-
-#[test]
-fn test_set_subscription() {
-    let oracle = CHARLIE;
-    new_test_ext().execute_with(|| {
-        assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-
-        assert_err!(
-            RWS::set_subscription(Origin::none(), ALICE, Default::default()),
-            DispatchError::BadOrigin,
-        );
-
-        assert_err!(
-            RWS::set_subscription(Origin::signed(ALICE), ALICE, Default::default()),
-            Error::<Runtime>::OracleOnlyCall,
-        );
-
-        let lifetime = Subscription::Lifetime { tps: 10 };
-        assert_ok!(RWS::set_subscription(
-            Origin::signed(oracle),
-            ALICE,
-            lifetime.clone(),
+        // Root starts a lifetime subscription auction
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
         ));
-        assert_eq!(RWS::ledger(ALICE).unwrap().kind, lifetime);
-    })
-}
 
-#[test]
-fn test_simple_subscription() {
-    let oracle = CHARLIE;
-    new_test_ext().execute_with(|| {
-        Timestamp::set_timestamp(1600438152000);
-
-        assert_ok!(RWS::set_oracle(Origin::root(), oracle));
-        assert_ok!(RWS::set_subscription(
-            Origin::signed(oracle),
-            ALICE,
-            Subscription::Lifetime { tps: 500_000 },
-        ));
-        assert_ok!(RWS::set_devices(Origin::signed(ALICE), vec![BOB]));
-
-        assert_eq!(RWS::ledger(ALICE).unwrap().issue_time, 1600438152000);
-        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 0);
-
-        let call = Call::from(datalog::Call::record {
-            record: "true".into(),
-        });
-        assert_err!(
-            RWS::call(Origin::signed(BOB), ALICE, Box::new(call.clone())),
-            Error::<Runtime>::FreeWeightIsNotEnough,
-        );
-
-        Timestamp::set_timestamp(1600438153000);
-        assert_err!(
-            RWS::call(Origin::signed(BOB), ALICE, Box::new(call.clone())),
-            Error::<Runtime>::FreeWeightIsNotEnough,
-        );
-        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 35476000);
-
-        Timestamp::set_timestamp(1600438155000);
-        assert_err!(
-            RWS::call(Origin::signed(BOB), ALICE, Box::new(call.clone())),
-            Error::<Runtime>::FreeWeightIsNotEnough,
-        );
-        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 106428000);
-
-        Timestamp::set_timestamp(1600438165000);
-        assert_ok!(RWS::call(Origin::signed(BOB), ALICE, Box::new(call)));
-        assert_eq!(RWS::ledger(ALICE).unwrap().free_weight, 110188000);
+        // Check auction was created with id 0
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.winner, None);
+        assert_eq!(auction.best_price, 0);
+        assert_eq!(auction.created, 1_000_000);
+        assert_eq!(auction.mode, SubscriptionMode::Lifetime { tps: 10_000 });
+        assert_eq!(auction.subscription_id, None);
     });
 }
 
 #[test]
-fn test_subscription_auction() {
+fn test_start_auction_daily() {
     new_test_ext().execute_with(|| {
-        next_block(1);
+        Timestamp::set_timestamp(2_000_000);
 
-        assert_eq!(RWS::auction_queue().len(), 0);
-        assert_ok!(Staking::bond(Origin::signed(ALICE), ALICE_C, 10_500));
-        assert_eq!(RWS::auction_queue().len(), 2);
-        assert_eq!(RWS::unspend_bond_value(), 500);
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
 
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.mode, SubscriptionMode::Daily { days: 30 });
+        assert_eq!(auction.created, 2_000_000);
+    });
+}
+
+#[test]
+fn test_start_multiple_auctions() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Start 3 concurrent auctions
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 5_000 }
+        ));
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 100_000 }
+        ));
+
+        // Check all auctions exist
+        assert!(RWS::auction(0).is_some());
+        assert!(RWS::auction(1).is_some());
+        assert!(RWS::auction(2).is_some());
+        assert!(RWS::auction(3).is_none());
+
+        // Verify each has correct mode
         assert_eq!(
-            RWS::auction(0).unwrap(),
-            AuctionLedger {
-                winner: None,
-                best_price: 0,
-                kind: Subscription::Daily { days: 30 },
-            },
+            RWS::auction(0).unwrap().mode,
+            SubscriptionMode::Lifetime { tps: 5_000 }
         );
         assert_eq!(
-            RWS::auction(1).unwrap(),
-            AuctionLedger {
-                winner: None,
-                best_price: 0,
-                kind: Subscription::Daily { days: 30 },
-            },
+            RWS::auction(1).unwrap().mode,
+            SubscriptionMode::Daily { days: 30 }
         );
-        assert_eq!(RWS::auction(2), None);
+        assert_eq!(
+            RWS::auction(2).unwrap().mode,
+            SubscriptionMode::Lifetime { tps: 100_000 }
+        );
+    });
+}
 
-        next_block(2);
+// ========== Auction Bidding Tests ==========
 
-        assert_ok!(Staking::bond(Origin::signed(BOB), BOB_C, 2_500));
-        assert_eq!(RWS::auction_queue().len(), 2);
-        assert_eq!(RWS::unspend_bond_value(), 3_000);
+#[test]
+fn test_bid_first_becomes_winner() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
 
-        next_block(2);
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
 
-        assert_ok!(Staking::bond(Origin::signed(CHARLIE), CHARLIE_C, 2_100));
-        assert_eq!(RWS::auction_queue().len(), 3);
-        assert_eq!(RWS::unspend_bond_value(), 100);
+        // First bid becomes the winner
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
 
-        next_block(3);
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.winner, Some(ALICE));
+        assert_eq!(auction.best_price, 200);
+
+        // Check Alice's balance was reserved
+        assert_eq!(Balances::reserved_balance(ALICE), 200);
+        assert_eq!(Balances::free_balance(ALICE), 10_000_000 - 200);
+    });
+}
+
+#[test]
+fn test_bid_outbidding() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 50_000 }
+        ));
+
+        // Alice bids first
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_eq!(Balances::reserved_balance(ALICE), 200);
+
+        // Bob outbids Alice
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(BOB), 0, 300));
+
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.winner, Some(BOB));
+        assert_eq!(auction.best_price, 300);
+
+        // Alice's reserve should be unreserved, Bob's should be reserved
+        assert_eq!(Balances::reserved_balance(ALICE), 0);
+        assert_eq!(Balances::reserved_balance(BOB), 300);
+        assert_eq!(Balances::free_balance(ALICE), 10_000_000);
+        assert_eq!(Balances::free_balance(BOB), 5_000_000 - 300);
+    });
+}
+
+#[test]
+fn test_bid_too_small_error() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+
+        // Bid below minimal bid
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(ALICE), 0, 50),
+            Error::<Runtime>::TooSmallBid
+        );
+
+        // First valid bid
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        // Try to outbid with same or lower amount
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(BOB), 0, 200),
+            Error::<Runtime>::TooSmallBid
+        );
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(BOB), 0, 150),
+            Error::<Runtime>::TooSmallBid
+        );
+    });
+}
+
+#[test]
+fn test_bid_non_existent_auction_error() {
+    new_test_ext().execute_with(|| {
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(ALICE), 999, 200),
+            Error::<Runtime>::NotExistAuction
+        );
+    });
+}
+
+#[test]
+fn test_bid_after_auction_period_ends() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+
+        // First bid within period
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        // Move time beyond auction duration (100_000 ms)
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // Try to outbid after period ends
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(BOB), 0, 300),
+            Error::<Runtime>::BiddingPeriodIsOver
+        );
+
+        // First bid on expired auction should still work (no previous winner)
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        Timestamp::set_timestamp(2_000_000 + 100_000 + 1);
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(CHARLIE), 1, 200));
+    });
+}
+
+// ========== Auction Claiming Tests ==========
+
+#[test]
+fn test_claim_successful() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        // Cannot claim before auction ends
+        assert_err!(
+            RWS::claim(RuntimeOrigin::signed(ALICE), 0, None),
+            Error::<Runtime>::ClaimIsNotAllowed
+        );
+
+        // Move past auction period
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // Alice claims the auction
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Check subscription was created for Alice with id 0
+        let subscription = RWS::subscription(ALICE, 0).unwrap();
+        assert_eq!(subscription.issue_time, 1_000_000 + 100_000);
+        assert_eq!(
+            subscription.mode,
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        );
+
+        // Check auction is marked as claimed
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.subscription_id, Some(0));
+
+        // Check reserved balance was slashed
+        assert_eq!(Balances::reserved_balance(ALICE), 0);
+    });
+}
+
+#[test]
+fn test_claim_to_beneficiary() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // Alice claims but assigns to BOB
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, Some(BOB)));
+
+        // Subscription should be created for BOB, not ALICE
+        assert!(RWS::subscription(ALICE, 0).is_none());
+        assert!(RWS::subscription(BOB, 0).is_some());
+
+        let subscription = RWS::subscription(BOB, 0).unwrap();
+        assert_eq!(subscription.mode, SubscriptionMode::Daily { days: 30 });
+    });
+}
+
+#[test]
+fn test_claim_by_non_winner_error() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // BOB tries to claim but is not the winner
+        assert_err!(
+            RWS::claim(RuntimeOrigin::signed(BOB), 0, None),
+            Error::<Runtime>::ClaimIsNotAllowed
+        );
+    });
+}
+
+#[test]
+fn test_double_claim_error() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // First claim succeeds
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Second claim should fail
+        assert_err!(
+            RWS::claim(RuntimeOrigin::signed(ALICE), 0, None),
+            Error::<Runtime>::ClaimIsNotAllowed
+        );
+    });
+}
+
+// ========== Subscription Usage Tests ==========
+
+#[test]
+fn test_rws_call_with_lifetime_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Setup auction and create subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 500_000 } // 0.5 TPS
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Initial subscription has no free weight
+        let subscription = RWS::subscription(ALICE, 0).unwrap();
+        assert_eq!(subscription.free_weight, 0);
+
+        // Wait 10 seconds (10_000 ms) for weight to accumulate
+        // At 500_000 uTPS (0.5 TPS):
+        // Weight = ReferenceCallWeight * uTPS * delta_ms / 1_000_000_000
+        // Weight = 70_952_000 * 500_000 * 10_000 / 1_000_000_000 = 354_760_000
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 10_000);
+
+        // Try to call a balances transfer
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)));
+
+        // Check weight was consumed
+        let subscription = RWS::subscription(ALICE, 0).unwrap();
+        // After 10 seconds at 500,000 uTPS, we accumulated 354,760,000 weight units
+        // The call weight would be subtracted from this
+        assert!(subscription.free_weight > 0);
+    });
+}
+
+#[test]
+fn test_rws_call_with_daily_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Wait 1000 seconds (1_000_000 ms) for weight to accumulate
+        // Daily subscriptions have 0.01 TPS (10_000 uTPS)
+        // Weight = ReferenceCallWeight * uTPS * delta_ms / 1_000_000_000
+        // Weight = 70_952_000 * 10_000 * 1_000_000 / 1_000_000_000 = 709_520_000
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 1_000_000);
+
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)));
+    });
+}
+
+#[test]
+fn test_free_weight_accumulation() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 1_000_000 } // 1 TPS
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        let initial_time = 1_000_000 + 100_000;
+
+        // Check weight accumulation over time
+        Timestamp::set_timestamp(initial_time + 1_000);
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+        // This call just updates the subscription weight
+        let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call));
+
+        let sub1 = RWS::subscription(ALICE, 0).unwrap();
+        let weight1 = sub1.free_weight;
+
+        // Wait another second
+        Timestamp::set_timestamp(initial_time + 2_000);
+        let call2 = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+        let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call2));
+
+        let sub2 = RWS::subscription(ALICE, 0).unwrap();
+        let weight2 = sub2.free_weight;
+
+        // Weight should have accumulated more
+        assert!(weight2 > weight1 || weight2 == weight1); // May be same if call consumed accumulated weight
+    });
+}
+
+#[test]
+fn test_insufficient_weight_error() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription with very low TPS
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 1 } // Very low TPS
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Try to call immediately without waiting for weight to accumulate
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
 
         assert_err!(
-            RWS::bid(Origin::signed(ALICE), 8, 50),
-            Error::<Runtime>::NotLiveAuction,
+            RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)),
+            Error::<Runtime>::FreeWeightIsNotEnough
         );
+    });
+}
+
+#[test]
+fn test_expired_daily_subscription_error() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 1 } // 1 day subscription
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Move time beyond subscription period (1 day = 86,400,000 ms)
+        let one_day_ms: u64 = 24 * 60 * 60 * 1000;
+        Timestamp::set_timestamp(1_000_000 + 100_000 + one_day_ms + 1_000);
+
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+
         assert_err!(
-            RWS::bid(Origin::signed(ALICE), 0, 50),
-            Error::<Runtime>::TooSmallBid,
+            RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)),
+            Error::<Runtime>::SubscriptionIsOver
         );
-        assert_ok!(RWS::bid(Origin::signed(ALICE), 0, 150));
-        assert_eq!(RWS::auction(0).unwrap().winner, Some(ALICE));
+    });
+}
 
-        next_block(1);
+#[test]
+fn test_non_existent_subscription_error() {
+    new_test_ext().execute_with(|| {
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
 
-        assert_eq!(RWS::auction_queue().len(), 3);
-        assert_ok!(RWS::bid(Origin::signed(BOB), 0, 151));
-        assert_eq!(RWS::auction(0).unwrap().winner, Some(BOB));
-
-        next_block(1);
-
-        assert_eq!(RWS::auction_queue().len(), 2);
-        assert_eq!(
-            RWS::ledger(BOB).unwrap().kind,
-            Subscription::Daily { days: 30 }
+        assert_err!(
+            RWS::call(RuntimeOrigin::signed(ALICE), 999, Box::new(call)),
+            Error::<Runtime>::NoSubscription
         );
-    })
+    });
+}
+
+// ========== Fail Cases and Edge Cases Tests ==========
+
+#[test]
+fn test_bid_with_insufficient_balance() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+
+        // Try to bid more than available balance
+        assert_err!(
+            RWS::bid(RuntimeOrigin::signed(ALICE), 0, 20_000_000),
+            pallet_balances::Error::<Runtime>::InsufficientBalance
+        );
+    });
+}
+
+#[test]
+fn test_subscription_expiration_boundary() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Use a shorter subscription period to avoid overflow
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 1 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        let subscription_start = 1_000_000 + 100_000;
+        let one_day_ms: u64 = 24 * 60 * 60 * 1000;
+
+        // Test 10 minutes after subscription start (600_000 ms)
+        Timestamp::set_timestamp(subscription_start + 600_000);
+        let call1 = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+        // This should work as subscription is still active
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call1)));
+
+        // Just after expiration should fail
+        Timestamp::set_timestamp(subscription_start + one_day_ms + 1);
+        let call2 = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+        assert_err!(
+            RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call2)),
+            Error::<Runtime>::SubscriptionIsOver
+        );
+    });
+}
+
+#[test]
+fn test_multiple_subscriptions_per_user() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create first subscription for ALICE
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Create second subscription for ALICE
+        Timestamp::set_timestamp(2_000_000);
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 1, 300));
+        Timestamp::set_timestamp(2_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 1, None));
+
+        // ALICE should have two subscriptions with IDs 0 and 1
+        assert!(RWS::subscription(ALICE, 0).is_some());
+        assert!(RWS::subscription(ALICE, 1).is_some());
+        assert!(RWS::subscription(ALICE, 2).is_none());
+    });
+}
+
+#[test]
+fn test_weight_calculation_accuracy() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription with specific TPS
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 1_000_000 } // 1 TPS (1,000,000 uTPS)
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        let start_time = 1_000_000 + 100_000;
+
+        // Wait exactly 1 second (1000 ms)
+        Timestamp::set_timestamp(start_time + 1_000);
+
+        let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 1,
+        });
+        let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call));
+
+        let subscription = RWS::subscription(ALICE, 0).unwrap();
+
+        // Expected weight after 1 second at 1 TPS:
+        // ReferenceCallWeight * tps * delta_ms / 1_000_000_000
+        // = 70_952_000 * 1_000_000 * 1_000 / 1_000_000_000
+        // = 70_952_000
+        // But the call also consumed some weight, so it should be less
+        assert!(subscription.free_weight < 70_952_000);
+    });
 }

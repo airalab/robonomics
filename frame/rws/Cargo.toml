@@ -22,7 +22,6 @@ sp-io = { workspace = true }
 sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-timestamp = { workspace = true }
-pallet-robonomics-datalog = { path = "../datalog" }
 
 [features]
 default = ["std"]
@@ -38,7 +37,6 @@ std = [
   "frame-benchmarking?/std",
   "pallet-balances/std",
   "pallet-timestamp/std",
-  "pallet-robonomics-datalog/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
