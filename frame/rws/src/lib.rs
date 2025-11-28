@@ -26,6 +26,9 @@ use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod migrations;
+#[cfg(test)]
+pub mod mock;
 pub mod weights;
 
 pub use pallet::*;
@@ -131,7 +134,7 @@ pub mod pallet {
     use frame_support::{
         dispatch::GetDispatchInfo,
         pallet_prelude::*,
-        traits::{Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable},
+        traits::{Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable},
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{traits::AtLeast32Bit, DispatchResult};
@@ -231,6 +234,25 @@ pub mod pallet {
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> Weight {
+            migrations::v2::MigrateToV2::<T>::on_runtime_upgrade()
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
+            migrations::v2::MigrateToV2::<T>::pre_upgrade()
+                .map_err(|e| sp_runtime::TryRuntimeError::from(e))
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
+            migrations::v2::MigrateToV2::<T>::post_upgrade(state)
+                .map_err(|e| sp_runtime::TryRuntimeError::from(e))
+        }
+    }
 
     #[pallet::call(weight(<T as Config>::WeightInfo))]
     impl<T: Config> Pallet<T> {
