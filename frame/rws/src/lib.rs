@@ -15,7 +15,248 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Web Services runtime module.
+//! # Robonomics Web Services (RWS) Pallet
+//!
+//! The RWS pallet provides a subscription-based fee mechanism for the Robonomics Network.
+//! It allows users to acquire subscriptions through an auction system and then use those
+//! subscriptions to make free (feeless) transactions up to their allocated capacity.
+//!
+//! ## Overview
+//!
+//! The RWS pallet implements a subscription model where users can:
+//! - Participate in auctions to acquire subscriptions
+//! - Use their subscriptions to execute transactions without paying per-transaction fees
+//! - Choose between different subscription types based on their needs
+//!
+//! This system is particularly useful for IoT devices and automated systems that need to
+//! make many transactions without managing individual transaction fees.
+//!
+//! ## Subscription Types
+//!
+//! The pallet supports two types of subscriptions:
+//!
+//! ### Lifetime Subscription
+//!
+//! A lifetime subscription with custom TPS (Transactions Per Second) allocation that never expires.
+//!
+//! ```ignore
+//! SubscriptionMode::Lifetime { tps: 10_000 } // 0.01 TPS (10,000 microTPS)
+//! ```
+//!
+//! - **TPS**: Specified in microTPS (μTPS), where 1 TPS = 1,000,000 μTPS
+//! - **Duration**: Never expires
+//! - **Use case**: Long-term users who need consistent transaction capacity
+//!
+//! ### Daily Subscription
+//!
+//! A time-limited subscription with a fixed TPS allocation of 0.01 TPS.
+//!
+//! ```ignore
+//! SubscriptionMode::Daily { days: 30 } // Fixed 0.01 TPS for 30 days
+//! ```
+//!
+//! - **TPS**: Fixed at 10,000 μTPS (0.01 TPS)
+//! - **Duration**: Expires after the specified number of days
+//! - **Use case**: Short-term or trial users
+//!
+//! ## Auction Lifecycle
+//!
+//! The subscription acquisition process follows a multi-phase auction lifecycle:
+//!
+//! ```text
+//! ┌──────────────────────────────────────────────────────────────────┐
+//! │                    AUCTION LIFECYCLE                             │
+//! └──────────────────────────────────────────────────────────────────┘
+//!
+//! 1. CREATION
+//!    ┌─────────────────┐
+//!    │ start_auction() │ ← Root authority creates auction
+//!    │  (Root only)    │
+//!    └────────┬────────┘
+//!             │
+//!             v
+//! 2. BIDDING PERIOD
+//!    ┌─────────────────┐
+//!    │   bid()         │ ← First bid starts timer
+//!    │   (Anyone)      │    (AuctionDuration countdown begins)
+//!    └────────┬────────┘
+//!             │         ← More bids can be placed
+//!             │           (Must be higher than current best)
+//!             │
+//!             v
+//!    ┌─────────────────┐
+//!    │  Wait for       │
+//!    │ AuctionDuration │ ← Fixed time period after first bid
+//!    └────────┬────────┘
+//!             │
+//!             v
+//! 3. CLAIM PHASE
+//!    ┌─────────────────┐
+//!    │   claim()       │ ← Winner claims after AuctionDuration
+//!    │  (Winner only)  │    (Creates subscription)
+//!    └────────┬────────┘
+//!             │
+//!             v
+//! 4. USAGE
+//!    ┌─────────────────┐
+//!    │   call()        │ ← Owner uses subscription for feeless calls
+//!    │ (Owner only)    │
+//!    └─────────────────┘
+//! ```
+//!
+//! ### Auction Rules
+//!
+//! - **Creation**: Only root authority can start auctions via `start_auction()`
+//! - **First Bid**: Must exceed `MinimalBid` and starts the `AuctionDuration` timer
+//! - **Subsequent Bids**: Must exceed current `best_price`, previous bidder's funds are unreserved
+//! - **Bidding Period**: Lasts for `AuctionDuration` milliseconds after the first bid
+//! - **Claiming**: Only the winner can claim after `AuctionDuration` has passed
+//! - **Payment**: Winner's bid is slashed and burned upon claiming
+//!
+//! ## Free Weight Mechanism
+//!
+//! Subscriptions use a "free weight" system to track transaction capacity:
+//!
+//! ### Weight Accumulation Formula
+//!
+//! ```text
+//! free_weight += ReferenceCallWeight × μTPS × Δt_seconds / 1_000_000_000
+//! ```
+//!
+//! Where:
+//! - `ReferenceCallWeight`: Base weight cost for a standard transaction
+//! - `μTPS`: Subscription's TPS in microTPS (1 TPS = 1,000,000 μTPS)
+//! - `Δt_seconds`: Time elapsed since last update in seconds
+//! - `1_000_000_000`: Conversion factor from seconds to nanoseconds
+//!
+//! ### Weight Consumption
+//!
+//! When executing a call:
+//! 1. Free weight is accumulated based on time elapsed
+//! 2. Call's weight requirement is checked against available free weight
+//! 3. If sufficient, the weight is deducted and call executes feeless
+//! 4. If insufficient, the call is rejected with `FreeWeightIsNotEnough` error
+//!
+//! ### TPS Calculation Example
+//!
+//! For a subscription with 10,000 μTPS (0.01 TPS):
+//! - Over 1 second: accumulates `ReferenceCallWeight × 10,000 / 1,000,000,000` weight units
+//! - Over 100 seconds: can execute approximately 1 reference transaction
+//!
+//! ## Storage Structure
+//!
+//! The pallet uses the following storage items:
+//!
+//! ### Auction Storage
+//!
+//! ```ignore
+//! type Auction = CountedStorageMap<auction_id, AuctionLedger>
+//! ```
+//!
+//! A counted map storing all auctions by their ID. The counter automatically increments
+//! when new auctions are created via `start_auction()`.
+//!
+//! **AuctionLedger** contains:
+//! - `winner`: Current highest bidder (None if no bids yet)
+//! - `best_price`: Current highest bid amount
+//! - `first_bid_time`: Timestamp when first bid was placed (starts timer)
+//! - `mode`: Subscription type being auctioned
+//! - `subscription_id`: ID of subscription after claiming (None until claimed)
+//!
+//! ### Subscription Storage
+//!
+//! ```ignore
+//! type Subscription = StorageDoubleMap<account_id, subscription_id, SubscriptionLedger>
+//! ```
+//!
+//! A double map allowing users to own multiple subscriptions, indexed by account and subscription ID.
+//!
+//! **SubscriptionLedger** contains:
+//! - `free_weight`: Accumulated weight available for transactions
+//! - `issue_time`: When subscription was created
+//! - `last_update`: Last time free_weight was updated
+//! - `mode`: Subscription type (Lifetime or Daily)
+//! - `expiration_time`: When Daily subscription expires (None for Lifetime)
+//!
+//! ## Usage Examples
+//!
+//! ### Starting an Auction
+//!
+//! ```ignore
+//! // Root starts a lifetime subscription auction with 0.1 TPS
+//! RWS::start_auction(
+//!     RuntimeOrigin::root(),
+//!     SubscriptionMode::Lifetime { tps: 100_000 }
+//! )?;
+//!
+//! // Root starts a 30-day subscription auction
+//! RWS::start_auction(
+//!     RuntimeOrigin::root(),
+//!     SubscriptionMode::Daily { days: 30 }
+//! )?;
+//! ```
+//!
+//! ### Bidding on an Auction
+//!
+//! ```ignore
+//! // Alice bids 1000 tokens on auction 0
+//! RWS::bid(
+//!     RuntimeOrigin::signed(alice),
+//!     0, // auction_id
+//!     1000
+//! )?;
+//!
+//! // Bob outbids Alice with 1500 tokens
+//! RWS::bid(
+//!     RuntimeOrigin::signed(bob),
+//!     0,
+//!     1500
+//! )?;
+//! ```
+//!
+//! ### Claiming a Won Auction
+//!
+//! ```ignore
+//! // After AuctionDuration has passed, Bob claims the subscription
+//! RWS::claim(
+//!     RuntimeOrigin::signed(bob),
+//!     0, // auction_id
+//!     None // Bob will be the subscription owner
+//! )?;
+//!
+//! // Or Bob can specify a different beneficiary
+//! RWS::claim(
+//!     RuntimeOrigin::signed(bob),
+//!     0,
+//!     Some(charlie) // Charlie becomes the subscription owner
+//! )?;
+//! ```
+//!
+//! ### Using a Subscription
+//!
+//! ```ignore
+//! // Bob uses his subscription (id: 0) to execute a transfer
+//! RWS::call(
+//!     RuntimeOrigin::signed(bob),
+//!     0, // subscription_id
+//!     Box::new(RuntimeCall::Balances(
+//!         pallet_balances::Call::transfer_allow_death {
+//!             dest: alice,
+//!             value: 100
+//!         }
+//!     ))
+//! )?;
+//! ```
+//!
+//! ## Errors
+//!
+//! - `NotExistAuction`: Auction with the given ID doesn't exist
+//! - `TooSmallBid`: Bid amount is below minimum or current best price
+//! - `NoSubscription`: Subscription doesn't exist for this account
+//! - `FreeWeightIsNotEnough`: Insufficient accumulated weight for the call
+//! - `SubscriptionIsOver`: Daily subscription has expired
+//! - `BiddingPeriodIsOver`: Cannot bid after AuctionDuration has passed
+//! - `ClaimIsNotAllowed`: Caller is not winner or bidding period hasn't ended
 
 // This can be compiled with `#[no_std]`, ready for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -40,7 +281,22 @@ mod tests;
 /// Number of milliseconds in a day.
 const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
 
-/// RWS subscription modes: daily, lifetime.
+/// RWS subscription modes: Lifetime and Daily.
+///
+/// Subscriptions determine how transaction capacity is allocated to users.
+/// Each mode has different characteristics regarding TPS allocation and duration.
+///
+/// # Examples
+///
+/// Creating a Lifetime subscription with custom TPS:
+/// ```ignore
+/// let lifetime = SubscriptionMode::Lifetime { tps: 50_000 }; // 0.05 TPS
+/// ```
+///
+/// Creating a Daily subscription (always 0.01 TPS):
+/// ```ignore
+/// let daily = SubscriptionMode::Daily { days: 7 }; // 1 week, 0.01 TPS
+/// ```
 #[derive(
     PartialEq,
     Eq,
@@ -53,20 +309,64 @@ const DAYS_TO_MS: u32 = 24 * 60 * 60 * 1000;
     DecodeWithMemTracking,
 )]
 pub enum SubscriptionMode {
-    /// Lifetime subscription.
+    /// Lifetime subscription with custom TPS allocation that never expires.
+    ///
+    /// This mode allows specifying any TPS value and the subscription remains
+    /// valid indefinitely. Ideal for users who need consistent, long-term
+    /// transaction capacity.
+    ///
+    /// # Fields
+    ///
+    /// * `tps` - Transactions Per Second in microTPS (μTPS), where 1 TPS = 1,000,000 μTPS.
+    ///   For example, 10_000 μTPS = 0.01 TPS.
     Lifetime {
-        /// How much Transactions Per Second this subscription gives (in uTPS).
+        /// How much Transactions Per Second this subscription gives (in μTPS).
+        ///
+        /// This value determines how quickly free weight accumulates for the subscription.
+        /// Higher TPS means more transactions can be executed per unit of time.
         #[codec(compact)]
         tps: u32,
     },
-    /// Daily subscription (each daily subscription have 1 TPS).
+    /// Daily subscription with fixed 0.01 TPS that expires after a specified duration.
+    ///
+    /// This mode always provides 10,000 μTPS (0.01 TPS) and expires after the
+    /// specified number of days. The expiration time is calculated as:
+    /// `issue_time + (days × 24 × 60 × 60 × 1000)` milliseconds.
+    ///
+    /// # Fields
+    ///
+    /// * `days` - Number of days the subscription remains active.
     Daily {
-        /// How long days this subscription active.
+        /// How many days this subscription remains active.
+        ///
+        /// After this period expires (calculated from issue_time), attempts to use
+        /// the subscription will fail with `SubscriptionIsOver` error.
         #[codec(compact)]
         days: u32,
     },
 }
 
+/// Auction state tracking structure.
+///
+/// This structure maintains all information about an ongoing or completed auction.
+/// It tracks the current winner, best bid, timing information, and the subscription
+/// mode being auctioned.
+///
+/// # Lifecycle States
+///
+/// 1. **Initial**: `winner = None`, `first_bid_time = None` - Auction created, no bids yet
+/// 2. **Bidding**: `winner = Some(account)`, `first_bid_time = Some(time)` - Active bidding
+/// 3. **Claiming**: After `first_bid_time + AuctionDuration` - Winner can claim
+/// 4. **Claimed**: `subscription_id = Some(id)` - Auction completed
+///
+/// # Examples
+///
+/// ```ignore
+/// // Create a new auction for a Lifetime subscription
+/// let auction = AuctionLedger::new(SubscriptionMode::Lifetime { tps: 100_000 });
+/// assert_eq!(auction.winner, None);
+/// assert_eq!(auction.best_price, 0);
+/// ```
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
 pub struct AuctionLedger<AccountId, Balance, Moment>
 where
@@ -74,16 +374,47 @@ where
     Balance: HasCompact + MaxEncodedLen,
     Moment: HasCompact + MaxEncodedLen,
 {
-    /// Auction winner address.
+    /// Current auction winner (highest bidder).
+    ///
+    /// - `None` if no bids have been placed yet
+    /// - `Some(account)` once the first valid bid is received
+    ///
+    /// This account has their bid amount reserved in the AuctionCurrency.
+    /// If outbid, their reserved funds are released and the new winner's funds are reserved.
     pub winner: Option<AccountId>,
-    /// Current best price.
+    
+    /// Current highest bid amount.
+    ///
+    /// - `0` initially (no bids placed)
+    /// - Updated when a higher bid is accepted
+    ///
+    /// New bids must exceed this amount (for auctions with existing bids) or
+    /// exceed `MinimalBid` (for first bid).
     #[codec(compact)]
     pub best_price: Balance,
-    /// Timestamp when first bid was placed (None if no bids yet).
+    
+    /// Timestamp when the first bid was placed.
+    ///
+    /// - `None` if no bids have been placed
+    /// - `Some(timestamp)` once first bid is accepted
+    ///
+    /// This timestamp is crucial as it starts the `AuctionDuration` countdown.
+    /// The auction can only be claimed after `first_bid_time + AuctionDuration`.
     pub first_bid_time: Option<Moment>,
-    /// Subscription mode for this auction
+    
+    /// The subscription mode being auctioned.
+    ///
+    /// This determines what type of subscription the winner will receive:
+    /// - `Lifetime { tps }` for permanent subscriptions with custom TPS
+    /// - `Daily { days }` for time-limited subscriptions with fixed 0.01 TPS
     pub mode: SubscriptionMode,
-    /// Subscription id when claimed.
+    
+    /// Subscription ID assigned when auction is claimed.
+    ///
+    /// - `None` until the winner calls `claim()`
+    /// - `Some(id)` after successful claim
+    ///
+    /// Once set, the auction is considered complete and cannot be claimed again.
     pub subscription_id: Option<u32>,
 }
 
@@ -104,20 +435,89 @@ where
     }
 }
 
+/// Subscription state and capacity tracking structure.
+///
+/// This structure maintains the state of an active subscription, including its
+/// accumulated free weight, timing information, and subscription parameters.
+///
+/// # Free Weight System
+///
+/// The `free_weight` field accumulates over time based on the subscription's TPS:
+///
+/// ```text
+/// free_weight += ReferenceCallWeight × μTPS × Δt_seconds / 1_000_000_000
+/// ```
+///
+/// When a transaction is executed via `call()`, the required weight is deducted
+/// from `free_weight`. If insufficient weight is available, the call is rejected.
+///
+/// # Expiration
+///
+/// - **Lifetime subscriptions**: `expiration_time = None`, never expire
+/// - **Daily subscriptions**: `expiration_time = Some(issue_time + days × DAYS_TO_MS)`
+///
+/// # Examples
+///
+/// ```ignore
+/// // Create a lifetime subscription
+/// let lifetime_sub = SubscriptionLedger::new(
+///     now,
+///     SubscriptionMode::Lifetime { tps: 50_000 }
+/// );
+/// assert_eq!(lifetime_sub.expiration_time, None);
+///
+/// // Create a daily subscription
+/// let daily_sub = SubscriptionLedger::new(
+///     now,
+///     SubscriptionMode::Daily { days: 7 }
+/// );
+/// assert!(daily_sub.expiration_time.is_some());
+/// ```
 #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
 pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
-    /// Free execution weights accumulator.
+    /// Accumulated free execution weight available for transactions.
+    ///
+    /// This value increases over time based on the subscription's TPS and decreases
+    /// when transactions are executed. The accumulation formula is:
+    ///
+    /// `free_weight += ReferenceCallWeight × μTPS × elapsed_seconds / 1_000_000_000`
+    ///
+    /// When executing a call, the call's weight is checked against this value.
+    /// If sufficient, the weight is deducted; otherwise, the call fails with
+    /// `FreeWeightIsNotEnough` error.
     #[codec(compact)]
     free_weight: u64,
-    /// Subscription creation timestamp.
+    
+    /// Timestamp when the subscription was created.
+    ///
+    /// This is set when the subscription is first created via `claim()` and never changes.
+    /// Used for record-keeping and calculating expiration time for Daily subscriptions.
     #[codec(compact)]
     issue_time: Moment,
-    /// Moment of time for last subscription update (used for TPS estimation).
+    
+    /// Timestamp of the last subscription update.
+    ///
+    /// Updated each time `call()` is invoked to use the subscription. This timestamp
+    /// is used to calculate the time elapsed (Δt) for free weight accumulation.
+    /// The longer the time since last update, the more free weight accumulates.
     #[codec(compact)]
     last_update: Moment,
-    /// Subscription mode (lifetime, daily, etc).
+    
+    /// The subscription mode (Lifetime or Daily).
+    ///
+    /// Determines:
+    /// - TPS allocation: Lifetime uses custom `tps`, Daily uses fixed 10,000 μTPS
+    /// - Expiration: Lifetime never expires, Daily expires after specified days
     mode: SubscriptionMode,
-    /// Expiration time for Daily subscriptions (None for Lifetime subscriptions).
+    
+    /// Expiration timestamp for Daily subscriptions.
+    ///
+    /// - `None` for Lifetime subscriptions (never expire)
+    /// - `Some(timestamp)` for Daily subscriptions, calculated as:
+    ///   `issue_time + (days × 24 × 60 × 60 × 1000)` milliseconds
+    ///
+    /// When present, calls via this subscription fail with `SubscriptionIsOver`
+    /// error after the current time exceeds this timestamp.
     expiration_time: Option<Moment>,
 }
 
