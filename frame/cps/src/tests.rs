@@ -39,7 +39,6 @@ impl frame_system::Config for Runtime {
 parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
-    pub const MaxNodesPerOwner: u32 = 1000;
     pub const MaxRootNodes: u32 = 100;
 }
 
@@ -47,7 +46,6 @@ impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
-    type MaxNodesPerOwner = MaxNodesPerOwner;
     type MaxRootNodes = MaxRootNodes;
     type WeightInfo = ();
 }
@@ -80,7 +78,6 @@ fn create_root_node_works() {
 
         // Check indexes
         assert_eq!(Cps::root_nodes().len(), 1);
-        assert_eq!(Cps::nodes_by_owner(account).len(), 1);
     });
 }
 
@@ -111,7 +108,6 @@ fn create_child_node_works() {
 
         // Check indexes
         assert_eq!(Cps::nodes_by_parent(0).len(), 1);
-        assert_eq!(Cps::nodes_by_owner(account).len(), 2);
     });
 }
 
@@ -556,5 +552,114 @@ fn clear_meta_and_payload_works() {
         let node = Cps::nodes(0).unwrap();
         assert_eq!(node.meta, None);
         assert_eq!(node.payload, None);
+    });
+}
+
+#[test]
+fn delete_leaf_node_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create parent
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        // Create child
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(0),
+            None,
+            None
+        ));
+
+        // Delete child node
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), 1));
+
+        // Verify node is deleted
+        assert!(Cps::nodes(1).is_none());
+
+        // Verify parent's children index is updated
+        assert_eq!(Cps::nodes_by_parent(0).len(), 0);
+    });
+}
+
+#[test]
+fn delete_root_node_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create root node
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        assert_eq!(Cps::root_nodes().len(), 1);
+
+        // Delete root node
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), 0));
+
+        // Verify node is deleted
+        assert!(Cps::nodes(0).is_none());
+
+        // Verify root nodes index is updated
+        assert_eq!(Cps::root_nodes().len(), 0);
+    });
+}
+
+#[test]
+fn delete_node_with_children_fails() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create parent
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        // Create child
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(0),
+            None,
+            None
+        ));
+
+        // Try to delete parent node (should fail)
+        assert_noop!(
+            Cps::delete_node(RuntimeOrigin::signed(account), 0),
+            Error::<Runtime>::NodeHasChildren
+        );
+    });
+}
+
+#[test]
+fn delete_node_non_owner_fails() {
+    new_test_ext().execute_with(|| {
+        let account1 = 1u64;
+        let account2 = 2u64;
+
+        // Create node with account1
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account1),
+            None,
+            None,
+            None
+        ));
+
+        // Try to delete with account2
+        assert_noop!(
+            Cps::delete_node(RuntimeOrigin::signed(account2), 0),
+            Error::<Runtime>::NotNodeOwner
+        );
     });
 }

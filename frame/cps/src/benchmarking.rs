@@ -106,5 +106,27 @@ mod benchmarks {
         assert_eq!(<Nodes<T>>::get(1).unwrap().parent, Some(2));
     }
 
+    #[benchmark]
+    fn delete_node() {
+        let caller: T::AccountId = whitelisted_caller();
+
+        // Setup: create a parent node
+        let _ =
+            Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
+
+        // Create child node to delete
+        let _ = Pallet::<T>::create_node(
+            RawOrigin::Signed(caller.clone()).into(),
+            Some(0),
+            None,
+            None,
+        );
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), 1);
+
+        assert!(<Nodes<T>>::get(1).is_none());
+    }
+
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
 }

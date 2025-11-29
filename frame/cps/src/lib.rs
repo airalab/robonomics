@@ -28,6 +28,7 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+use frame_support::traits::StorageVersion;
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
@@ -131,10 +132,6 @@ pub mod pallet {
         #[pallet::constant]
         type MaxChildrenPerNode: Get<u32>;
 
-        /// Maximum nodes per owner
-        #[pallet::constant]
-        type MaxNodesPerOwner: Get<u32>;
-
         /// Maximum root nodes
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
@@ -144,7 +141,11 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
+
+    /// Storage version for migrations
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     /// Next node ID counter
     #[pallet::storage]
@@ -154,24 +155,18 @@ pub mod pallet {
     /// Nodes storage
     #[pallet::storage]
     #[pallet::getter(fn nodes)]
-    pub type Nodes<T: Config> = StorageMap<_, Twox64Concat, NodeId, Node<T::AccountId>>;
-
-    /// Index of nodes by owner
-    #[pallet::storage]
-    #[pallet::getter(fn nodes_by_owner)]
-    pub type NodesByOwner<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        BoundedVec<NodeId, T::MaxNodesPerOwner>,
-        ValueQuery,
-    >;
+    pub type Nodes<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Node<T::AccountId>>;
 
     /// Index of children by parent node
     #[pallet::storage]
     #[pallet::getter(fn nodes_by_parent)]
-    pub type NodesByParent<T: Config> =
-        StorageMap<_, Twox64Concat, NodeId, BoundedVec<NodeId, T::MaxChildrenPerNode>, ValueQuery>;
+    pub type NodesByParent<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        NodeId,
+        BoundedVec<NodeId, T::MaxChildrenPerNode>,
+        ValueQuery,
+    >;
 
     /// Root nodes (nodes without parents)
     #[pallet::storage]
@@ -210,10 +205,10 @@ pub mod pallet {
         MaxDepthExceeded,
         /// Too many children for node
         TooManyChildren,
-        /// Too many nodes per owner
-        TooManyNodesPerOwner,
         /// Too many root nodes
         TooManyRootNodes,
+        /// Node has children and cannot be deleted
+        NodeHasChildren,
     }
 
     #[pallet::hooks]
@@ -269,13 +264,6 @@ pub mod pallet {
 
             // Store node
             <Nodes<T>>::insert(node_id, node);
-
-            // Add to owner index
-            <NodesByOwner<T>>::try_mutate(&sender, |nodes| {
-                nodes
-                    .try_push(node_id)
-                    .map_err(|_| Error::<T>::TooManyNodesPerOwner)
-            })?;
 
             Self::deposit_event(Event::NodeCreated(node_id, parent_id, sender));
             Ok(())
@@ -382,6 +370,44 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::NodeMoved(node_id, old_parent, new_parent_id, sender));
+            Ok(())
+        }
+
+        /// Delete a node
+        #[pallet::call_index(4)]
+        #[pallet::weight(T::WeightInfo::delete_node())]
+        pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            // Get the node
+            let node = <Nodes<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
+
+            // Verify ownership
+            ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
+
+            // Check if node has children
+            let children = <NodesByParent<T>>::get(node_id);
+            ensure!(children.is_empty(), Error::<T>::NodeHasChildren);
+
+            // Remove from parent's children index
+            if let Some(parent_id) = node.parent {
+                <NodesByParent<T>>::mutate(parent_id, |children| {
+                    children.retain(|&id| id != node_id);
+                });
+            } else {
+                // Remove from root nodes
+                <RootNodes<T>>::mutate(|roots| {
+                    roots.retain(|&id| id != node_id);
+                });
+            }
+
+            // Remove the node's children index entry
+            <NodesByParent<T>>::remove(node_id);
+
+            // Remove the node itself
+            <Nodes<T>>::remove(node_id);
+
+            Self::deposit_event(Event::NodeDeleted(node_id, sender));
             Ok(())
         }
     }

@@ -25,13 +25,14 @@ The CPS (Cyber-Physical System) pallet provides a hierarchical tree structure fo
 ### Primary Storage
 
 - `NextNodeId`: Counter for generating unique node IDs
-- `Nodes`: Main storage for node data
+- `Nodes`: Main storage for node data (uses Blake2_128Concat hasher for security)
 
 ### Indexes
 
-- `NodesByOwner`: Index nodes by their owner account
-- `NodesByParent`: Index children by parent node
+- `NodesByParent`: Index children by parent node (uses Blake2_128Concat hasher)
 - `RootNodes`: List of all root nodes (nodes without parents)
+
+**Note:** NodesByOwner index removed in favor of off-chain indexing for better scalability.
 
 ## Extrinsics
 
@@ -82,6 +83,17 @@ Move a node to a different parent.
 - Cannot create cycles (moving ancestor under descendant)
 - Tree depth limit must not be exceeded after move
 
+### `delete_node(node_id)`
+
+Delete a node from the tree.
+
+- `node_id`: Node to delete
+
+**Requirements:**
+- Node must exist
+- Caller must be node owner
+- Node must not have any children
+
 ## Events
 
 - `NodeCreated(node_id, parent_id, owner)`: Node created
@@ -97,8 +109,9 @@ The pallet can be configured with the following constants:
 - `MaxDataSize`: Maximum size for data fields (default: 2048 bytes)
 - `MaxTreeDepth`: Maximum tree depth (default: 32 levels)
 - `MaxChildrenPerNode`: Maximum children per node (default: 100)
-- `MaxNodesPerOwner`: Maximum nodes per owner (default: 1000)
 - `MaxRootNodes`: Maximum root nodes (default: 100)
+
+**Storage Version:** v1 - Initial implementation with Blake2_128Concat hashers
 
 ## Usage Example
 
@@ -131,6 +144,9 @@ Cps::move_node(origin, 1, 2)?;
 // Update metadata
 let new_meta = Some(NodeData::Plain(vec![7, 8, 9].try_into().unwrap()));
 Cps::set_meta(origin, 1, new_meta)?;
+
+// Delete a leaf node (must not have children)
+Cps::delete_node(origin, 2)?;
 ```
 
 ## Privacy Model
