@@ -132,11 +132,11 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y gcc-aarch64-linux-gnu musl-tools pkg-config protobuf-compiler
-        
+
         # Download and setup musl-cross for aarch64
         wget https://musl.cc/aarch64-linux-musl-cross.tgz
         tar -xzf aarch64-linux-musl-cross.tgz
-        
+
         mkdir -p .cargo
         cat >> .cargo/config << EOF
         [target.aarch64-unknown-linux-musl]
