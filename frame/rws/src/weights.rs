@@ -50,9 +50,7 @@ use core::marker::PhantomData;
 /// Weight functions needed for `pallet_robonomics_rws`.
 pub trait WeightInfo {
 	fn bid() -> Weight;
-	fn set_devices() -> Weight;
-	fn set_oracle() -> Weight;
-	fn set_subscription() -> Weight;
+	fn claim() -> Weight;
 	fn start_auction() -> Weight;
 }
 
@@ -74,39 +72,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	/// Storage: `RWS::Devices` (r:0 w:1)
-	/// Proof: `RWS::Devices` (`max_values`: None, `max_size`: Some(1065), added: 3540, mode: `MaxEncodedLen`)
-	fn set_devices() -> Weight {
+    // TODO: run benchmark
+	fn claim() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 12_720_000 picoseconds.
 		Weight::from_parts(13_480_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	/// Storage: `RWS::Oracle` (r:0 w:1)
-	/// Proof: `RWS::Oracle` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	fn set_oracle() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 5_010_000 picoseconds.
-		Weight::from_parts(8_030_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	/// Storage: `RWS::Oracle` (r:1 w:0)
-	/// Proof: `RWS::Oracle` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Timestamp::Now` (r:1 w:0)
-	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `RWS::Ledger` (r:0 w:1)
-	/// Proof: `RWS::Ledger` (`max_values`: None, `max_size`: Some(69), added: 2544, mode: `MaxEncodedLen`)
-	fn set_subscription() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `140`
-		//  Estimated: `1517`
-		// Minimum execution time: 20_780_000 picoseconds.
-		Weight::from_parts(23_199_000, 1517)
-			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	/// Storage: `RWS::AuctionNext` (r:1 w:1)
@@ -143,39 +115,13 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
-	/// Storage: `RWS::Devices` (r:0 w:1)
-	/// Proof: `RWS::Devices` (`max_values`: None, `max_size`: Some(1065), added: 3540, mode: `MaxEncodedLen`)
-	fn set_devices() -> Weight {
+    // TODO: run benchmark
+	fn claim() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 12_720_000 picoseconds.
 		Weight::from_parts(13_480_000, 0)
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	/// Storage: `RWS::Oracle` (r:0 w:1)
-	/// Proof: `RWS::Oracle` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	fn set_oracle() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 5_010_000 picoseconds.
-		Weight::from_parts(8_030_000, 0)
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	/// Storage: `RWS::Oracle` (r:1 w:0)
-	/// Proof: `RWS::Oracle` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
-	/// Storage: `Timestamp::Now` (r:1 w:0)
-	/// Proof: `Timestamp::Now` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `RWS::Ledger` (r:0 w:1)
-	/// Proof: `RWS::Ledger` (`max_values`: None, `max_size`: Some(69), added: 2544, mode: `MaxEncodedLen`)
-	fn set_subscription() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `140`
-		//  Estimated: `1517`
-		// Minimum execution time: 20_780_000 picoseconds.
-		Weight::from_parts(23_199_000, 1517)
-			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	/// Storage: `RWS::AuctionNext` (r:1 w:1)

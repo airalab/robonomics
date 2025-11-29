@@ -8479,13 +8479,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "1.6.0"
+version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
- "pallet-robonomics-datalog",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
