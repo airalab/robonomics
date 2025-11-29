@@ -35,7 +35,7 @@ docker run -d \
 
 ## Building Locally
 
-To build the Docker image locally:
+To build the Docker image locally for x86_64:
 
 ```bash
 # Build the Robonomics binary with musl target
@@ -47,7 +47,25 @@ cp target/x86_64-unknown-linux-musl/production/robonomics scripts/docker/amd64/
 
 # Build Docker image
 cd scripts/docker
-docker build -t robonomics/robonomics:local .
+docker build --build-arg TARGETARCH=amd64 -t robonomics/robonomics:local .
+```
+
+For aarch64 (ARM64) cross-compilation:
+
+```bash
+# Install cross-compilation tools
+rustup target add aarch64-unknown-linux-musl
+
+# Build the binary
+cargo build --profile production --target aarch64-unknown-linux-musl
+
+# Create architecture directory and copy binary
+mkdir -p scripts/docker/arm64
+cp target/aarch64-unknown-linux-musl/production/robonomics scripts/docker/arm64/
+
+# Build Docker image
+cd scripts/docker
+docker build --build-arg TARGETARCH=arm64 -t robonomics/robonomics:local .
 ```
 
 ## Health Check
