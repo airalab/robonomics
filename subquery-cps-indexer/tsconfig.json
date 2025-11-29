@@ -10,7 +10,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "target": "es2017",
-    "strict": false,
+    "strict": false,  // Note: Disabled because SubQuery's generated code doesn't compile with strict mode
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "lib": [

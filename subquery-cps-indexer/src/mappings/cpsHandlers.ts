@@ -136,10 +136,9 @@ export async function handleMetaSet(event: SubstrateEvent): Promise<void> {
     algorithm: node.metaAlgorithm,
   };
 
-  // Fetch the updated node data from chain state
-  // Note: In a real scenario, you would query the chain state here
-  // For now, we mark it as updated and will capture the actual data
-  // when the state is queried by the subquery node
+  // Note: SubQuery event handlers don't have direct access to chain state.
+  // The actual new metadata value must be queried separately by clients
+  // using the Robonomics RPC API: api.query.cps.nodes(nodeId)
   
   node.updatedAtBlock = blockNumber;
   node.updatedAt = timestamp;
@@ -157,7 +156,7 @@ export async function handleMetaSet(event: SubstrateEvent): Promise<void> {
     txHash,
     actor: ensureString(owner),
     oldValue: JSON.stringify(oldMeta),
-    newValue: 'Updated - query state for current value',
+    newValue: 'METADATA_UPDATED - query chain state at this block for current value',
     oldParentId: undefined,
     newParentId: undefined,
   });
@@ -210,6 +209,10 @@ export async function handlePayloadSet(event: SubstrateEvent): Promise<void> {
     algorithm: node.payloadAlgorithm,
   };
 
+  // Note: SubQuery event handlers don't have direct access to chain state.
+  // The actual new payload value must be queried separately by clients
+  // using the Robonomics RPC API: api.query.cps.nodes(nodeId)
+
   node.updatedAtBlock = blockNumber;
   node.updatedAt = timestamp;
   
@@ -226,7 +229,7 @@ export async function handlePayloadSet(event: SubstrateEvent): Promise<void> {
     txHash,
     actor: ensureString(owner),
     oldValue: JSON.stringify(oldPayload),
-    newValue: 'Updated - query state for current value',
+    newValue: 'PAYLOAD_UPDATED - query chain state at this block for current value',
     oldParentId: undefined,
     newParentId: undefined,
   });

@@ -51,10 +51,15 @@ export async function getOrCreateDailyStats(date: Date): Promise<DailyStats> {
 
 /**
  * Convert a Substrate event timestamp to Date
+ * Falls back to current date if timestamp is unavailable (should rarely happen)
  */
 export function getTimestamp(block: any): Date {
   const timestamp = block.timestamp || block.block.timestamp;
-  return timestamp ? new Date(timestamp.toNumber()) : new Date();
+  if (!timestamp) {
+    logger.warn('Timestamp unavailable in block, using current time');
+    return new Date();
+  }
+  return new Date(timestamp.toNumber());
 }
 
 /**
@@ -109,15 +114,18 @@ export function ensureString(value: any): string {
 /**
  * Unwrap Substrate Option type to string or undefined
  * Handles Codec Option types from Substrate events
+ * 
+ * Note: Uses 'any' type because Substrate Codec types don't have
+ * TypeScript definitions and vary by runtime version
  */
 export function unwrapOption(option: any): string | undefined {
   if (!option) return undefined;
   
-  // Check if it's a Substrate Option type
+  // Check if it's a Substrate Option type with isSome/unwrap methods
   if (typeof option === 'object' && 'isSome' in option) {
     return option.isSome && option.unwrap ? option.unwrap().toString() : undefined;
   }
   
-  // Already unwrapped or not an Option
+  // Not an Option type - return undefined
   return undefined;
 }
