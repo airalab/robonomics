@@ -82,13 +82,6 @@ Move a node to a different parent.
 - Cannot create cycles (moving ancestor under descendant)
 - Tree depth limit must not be exceeded after move
 
-### `create_crypto_profile(algorithm, public_params)`
-
-Create a new crypto profile for encryption.
-
-- `algorithm`: Algorithm identifier
-- `public_params`: Public parameters for the algorithm
-
 ## Events
 
 - `NodeCreated(node_id, parent_id, owner)`: Node created
@@ -165,7 +158,6 @@ NodeData::Encrypted {
 
 The encryption algorithm is specified at the node level, allowing flexibility for future algorithm additions while maintaining backward compatibility.
 
-The crypto profile stores public parameters for the encryption algorithm, allowing authorized parties to decrypt the data off-chain.
 
 ## Security Considerations
 
