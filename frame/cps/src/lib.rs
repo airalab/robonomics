@@ -28,10 +28,13 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-use frame_support::{traits::Get, BoundedVec};
+use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
+
+/// Maximum data size for node metadata, payload, and crypto profile parameters
+pub type MaxDataSize = ConstU32<2048>;
 
 /// Node identifier type
 pub type NodeId = u64;
@@ -43,22 +46,20 @@ pub type CryptoProfileId = u64;
 pub type AlgorithmId = u64;
 
 /// Node data that can be either plain or encrypted
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
-#[scale_info(skip_type_params(MaxSize))]
-#[codec(mel_bound())]
-pub enum NodeData<MaxSize: Get<u32>> {
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+pub enum NodeData {
     /// Plain unencrypted data
-    Plain(BoundedVec<u8, MaxSize>),
+    Plain(BoundedVec<u8, MaxDataSize>),
     /// Encrypted data with crypto profile reference
     Encrypted {
         /// Crypto profile ID used for encryption
         crypto_profile: CryptoProfileId,
         /// Encrypted ciphertext
-        ciphertext: BoundedVec<u8, MaxSize>,
+        ciphertext: BoundedVec<u8, MaxDataSize>,
     },
 }
 
-impl<MaxSize: Get<u32>> sp_std::fmt::Debug for NodeData<MaxSize> {
+impl sp_std::fmt::Debug for NodeData {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
@@ -74,144 +75,45 @@ impl<MaxSize: Get<u32>> sp_std::fmt::Debug for NodeData<MaxSize> {
     }
 }
 
-impl<MaxSize: Get<u32>> PartialEq for NodeData<MaxSize> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Plain(a), Self::Plain(b)) => a == b,
-            (
-                Self::Encrypted {
-                    crypto_profile: cp1,
-                    ciphertext: ct1,
-                },
-                Self::Encrypted {
-                    crypto_profile: cp2,
-                    ciphertext: ct2,
-                },
-            ) => cp1 == cp2 && ct1 == ct2,
-            _ => false,
-        }
-    }
-}
-
-impl<MaxSize: Get<u32>> Eq for NodeData<MaxSize> {}
-
-impl<MaxSize: Get<u32>> Clone for NodeData<MaxSize> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Plain(vec) => Self::Plain(vec.clone()),
-            Self::Encrypted {
-                crypto_profile,
-                ciphertext,
-            } => Self::Encrypted {
-                crypto_profile: *crypto_profile,
-                ciphertext: ciphertext.clone(),
-            },
-        }
-    }
-}
-
 /// Crypto profile for encryption
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
-#[scale_info(skip_type_params(MaxSize))]
-#[codec(mel_bound())]
-pub struct CryptoProfile<MaxSize: Get<u32>> {
-    /// Profile ID
-    pub id: CryptoProfileId,
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+pub struct CryptoProfile {
     /// Algorithm identifier
     pub algorithm: AlgorithmId,
     /// Public parameters for the crypto algorithm
-    pub public_params: BoundedVec<u8, MaxSize>,
+    pub public_params: BoundedVec<u8, MaxDataSize>,
 }
 
-impl<MaxSize: Get<u32>> sp_std::fmt::Debug for CryptoProfile<MaxSize> {
+impl sp_std::fmt::Debug for CryptoProfile {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         f.debug_struct("CryptoProfile")
-            .field("id", &self.id)
             .field("algorithm", &self.algorithm)
             .field("public_params_len", &self.public_params.len())
             .finish()
     }
 }
 
-impl<MaxSize: Get<u32>> PartialEq for CryptoProfile<MaxSize> {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-            && self.algorithm == other.algorithm
-            && self.public_params == other.public_params
-    }
-}
-
-impl<MaxSize: Get<u32>> Eq for CryptoProfile<MaxSize> {}
-
-impl<MaxSize: Get<u32>> Clone for CryptoProfile<MaxSize> {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            algorithm: self.algorithm,
-            public_params: self.public_params.clone(),
-        }
-    }
-}
-
 /// Node structure representing a CPS node
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
-#[scale_info(skip_type_params(MaxSize))]
-#[codec(mel_bound())]
-pub struct Node<AccountId: MaxEncodedLen, MaxSize: Get<u32>> {
-    /// Node ID
-    pub id: NodeId,
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+pub struct Node<AccountId: MaxEncodedLen> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
     /// Node owner
     pub owner: AccountId,
     /// Metadata
-    pub meta: Option<NodeData<MaxSize>>,
+    pub meta: Option<NodeData>,
     /// Payload data
-    pub payload: Option<NodeData<MaxSize>>,
+    pub payload: Option<NodeData>,
 }
 
-impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, MaxSize: Get<u32>> sp_std::fmt::Debug
-    for Node<AccountId, MaxSize>
-{
+impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for Node<AccountId> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         f.debug_struct("Node")
-            .field("id", &self.id)
             .field("parent", &self.parent)
             .field("owner", &self.owner)
             .field("meta", &self.meta)
             .field("payload", &self.payload)
             .finish()
-    }
-}
-
-impl<AccountId: MaxEncodedLen, MaxSize: Get<u32>> PartialEq for Node<AccountId, MaxSize>
-where
-    AccountId: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-            && self.parent == other.parent
-            && self.owner == other.owner
-            && self.meta == other.meta
-            && self.payload == other.payload
-    }
-}
-
-impl<AccountId: MaxEncodedLen, MaxSize: Get<u32>> Eq for Node<AccountId, MaxSize> where AccountId: Eq
-{}
-
-impl<AccountId: MaxEncodedLen, MaxSize: Get<u32>> Clone for Node<AccountId, MaxSize>
-where
-    AccountId: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id,
-            parent: self.parent,
-            owner: self.owner.clone(),
-            meta: self.meta.clone(),
-            payload: self.payload.clone(),
-        }
     }
 }
 
@@ -226,10 +128,6 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-        /// Maximum data size for node metadata and payload
-        #[pallet::constant]
-        type MaxDataSize: Get<u32>;
 
         /// Maximum tree depth
         #[pallet::constant]
@@ -262,8 +160,7 @@ pub mod pallet {
     /// Nodes storage
     #[pallet::storage]
     #[pallet::getter(fn nodes)]
-    pub type Nodes<T: Config> =
-        StorageMap<_, Twox64Concat, NodeId, Node<T::AccountId, T::MaxDataSize>>;
+    pub type Nodes<T: Config> = StorageMap<_, Twox64Concat, NodeId, Node<T::AccountId>>;
 
     /// Index of nodes by owner
     #[pallet::storage]
@@ -292,7 +189,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn crypto_profiles)]
     pub type CryptoProfiles<T: Config> =
-        StorageMap<_, Twox64Concat, CryptoProfileId, CryptoProfile<T::MaxDataSize>>;
+        StorageMap<_, Twox64Concat, CryptoProfileId, CryptoProfile>;
 
     /// Next crypto profile ID counter
     #[pallet::storage]
@@ -353,8 +250,8 @@ pub mod pallet {
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
-            meta: Option<NodeData<T::MaxDataSize>>,
-            payload: Option<NodeData<T::MaxDataSize>>,
+            meta: Option<NodeData>,
+            payload: Option<NodeData>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -395,7 +292,6 @@ pub mod pallet {
 
             // Create node
             let node = Node {
-                id: node_id,
                 parent: parent_id,
                 owner: sender.clone(),
                 meta,
@@ -422,7 +318,7 @@ pub mod pallet {
         pub fn set_meta(
             origin: OriginFor<T>,
             node_id: NodeId,
-            meta: Option<NodeData<T::MaxDataSize>>,
+            meta: Option<NodeData>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -449,7 +345,7 @@ pub mod pallet {
         pub fn set_payload(
             origin: OriginFor<T>,
             node_id: NodeId,
-            payload: Option<NodeData<T::MaxDataSize>>,
+            payload: Option<NodeData>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -536,7 +432,7 @@ pub mod pallet {
         pub fn create_crypto_profile(
             origin: OriginFor<T>,
             algorithm: AlgorithmId,
-            public_params: BoundedVec<u8, T::MaxDataSize>,
+            public_params: BoundedVec<u8, MaxDataSize>,
         ) -> DispatchResult {
             ensure_signed(origin)?;
 
@@ -544,7 +440,6 @@ pub mod pallet {
             <NextProfileId<T>>::put(profile_id.saturating_add(1));
 
             let profile = CryptoProfile {
-                id: profile_id,
                 algorithm,
                 public_params,
             };
@@ -610,11 +505,11 @@ pub mod pallet {
         }
 
         /// Validate node data
-        fn validate_node_data(data: &NodeData<T::MaxDataSize>) -> DispatchResult {
+        fn validate_node_data(data: &NodeData) -> DispatchResult {
             match data {
                 NodeData::Plain(vec) => {
                     ensure!(
-                        vec.len() as u32 <= T::MaxDataSize::get(),
+                        vec.len() as u32 <= <MaxDataSize as frame_support::traits::Get<u32>>::get(),
                         Error::<T>::DataTooLarge
                     );
                 }
@@ -623,7 +518,8 @@ pub mod pallet {
                     ciphertext,
                 } => {
                     ensure!(
-                        ciphertext.len() as u32 <= T::MaxDataSize::get(),
+                        ciphertext.len() as u32
+                            <= <MaxDataSize as frame_support::traits::Get<u32>>::get(),
                         Error::<T>::DataTooLarge
                     );
                     ensure!(

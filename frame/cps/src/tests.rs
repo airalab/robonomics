@@ -49,7 +49,6 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MaxDataSize: u32 = 1024;
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxNodesPerOwner: u32 = 1000;
@@ -58,7 +57,6 @@ parameter_types! {
 
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxDataSize = MaxDataSize;
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxNodesPerOwner = MaxNodesPerOwner;
@@ -89,7 +87,6 @@ fn create_root_node_works() {
 
         assert_eq!(Cps::next_node_id(), 1);
         let node = Cps::nodes(0).unwrap();
-        assert_eq!(node.id, 0);
         assert_eq!(node.parent, None);
         assert_eq!(node.owner, account);
 
@@ -453,7 +450,6 @@ fn create_crypto_profile_works() {
         assert_eq!(Cps::next_profile_id(), 1);
 
         let profile = Cps::crypto_profiles(0).unwrap();
-        assert_eq!(profile.id, 0);
         assert_eq!(profile.algorithm, 1);
         assert_eq!(profile.public_params, public_params);
     });
