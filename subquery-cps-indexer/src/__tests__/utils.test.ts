@@ -1,4 +1,4 @@
-import { parseNodeData, ensureString, createCompositeId } from '../mappings/utils';
+import { parseNodeData, ensureString, createCompositeId, unwrapOption } from '../mappings/utils';
 
 describe('Utils', () => {
   describe('parseNodeData', () => {
@@ -96,6 +96,41 @@ describe('Utils', () => {
     it('should handle single value', () => {
       const result = createCompositeId('single');
       expect(result).toBe('single');
+    });
+  });
+
+  describe('unwrapOption', () => {
+    it('should unwrap Some Option', () => {
+      const mockOption = {
+        isSome: true,
+        unwrap: () => ({ toString: () => '123' }),
+      };
+      const result = unwrapOption(mockOption);
+      expect(result).toBe('123');
+    });
+
+    it('should return undefined for None Option', () => {
+      const mockOption = {
+        isSome: false,
+        unwrap: () => null,
+      };
+      const result = unwrapOption(mockOption);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined for null', () => {
+      const result = unwrapOption(null);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined for undefined', () => {
+      const result = unwrapOption(undefined);
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined for non-Option objects', () => {
+      const result = unwrapOption({ foo: 'bar' });
+      expect(result).toBeUndefined();
     });
   });
 });

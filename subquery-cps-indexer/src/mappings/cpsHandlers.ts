@@ -7,6 +7,7 @@ import {
   parseNodeData,
   createCompositeId,
   ensureString,
+  unwrapOption,
 } from './utils';
 
 /**
@@ -27,7 +28,7 @@ export async function handleNodeCreated(event: SubstrateEvent): Promise<void> {
   const txHash = event.extrinsic?.extrinsic.hash.toString() || 'unknown';
 
   // Create the node entity
-  const parentIdValue = (parentId as any)?.isSome ? (parentId as any).unwrap().toString() : undefined;
+  const parentIdValue = unwrapOption(parentId);
   
   const node = Node.create({
     id: nodeId.toString(),
@@ -271,7 +272,7 @@ export async function handleNodeMoved(event: SubstrateEvent): Promise<void> {
     return;
   }
 
-  const oldParent = (oldParentId as any)?.isSome ? (oldParentId as any).unwrap().toString() : undefined;
+  const oldParent = unwrapOption(oldParentId);
   const newParent = newParentId.toString();
 
   // Update node parent

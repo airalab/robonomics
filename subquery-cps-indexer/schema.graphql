@@ -12,6 +12,9 @@ type Node @entity {
   
   """
   Reference to parent node entity (null for root nodes)
+  
+  Note: This is a relationship field. SubQuery automatically generates
+  a 'parentId' string field for the foreign key.
   """
   parent: Node
   

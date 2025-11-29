@@ -105,3 +105,19 @@ export function ensureString(value: any): string {
   }
   return String(value);
 }
+
+/**
+ * Unwrap Substrate Option type to string or undefined
+ * Handles Codec Option types from Substrate events
+ */
+export function unwrapOption(option: any): string | undefined {
+  if (!option) return undefined;
+  
+  // Check if it's a Substrate Option type
+  if (typeof option === 'object' && 'isSome' in option) {
+    return option.isSome && option.unwrap ? option.unwrap().toString() : undefined;
+  }
+  
+  // Already unwrapped or not an Option
+  return undefined;
+}
