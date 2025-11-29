@@ -189,6 +189,15 @@ Each node stores its complete path from the root, providing several performance 
 
 The path is automatically updated when nodes are moved, with recursive updates propagating to all descendants.
 
+### Compact SCALE Encoding
+
+Node paths use custom compact SCALE encoding for storage efficiency:
+
+- Each `NodeId` (u64) in the path is encoded using SCALE compact format, reducing storage size for small node IDs (which are common in typical tree structures)
+- Path length is also encoded as compact, optimizing for typical short paths
+- This can reduce storage costs by 50-87% for paths with small node IDs (< 2^14)
+- Example: A path with 3 small node IDs (< 16384) uses ~6 bytes instead of 24 bytes
+
 ## Security Considerations
 
 - **Ownership**: Only node owners can modify their nodes
