@@ -28,139 +28,46 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-use frame_support::traits::{Get, StorageVersion};
 use frame_support::{traits::ConstU32, BoundedVec};
-use parity_scale_codec::{Compact, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
 /// Maximum data size for node metadata, payload, and crypto profile parameters
 pub type MaxDataSize = ConstU32<2048>;
 
-/// Node identifier type
-pub type NodeId = u64;
+/// Node identifier newtype with compact encoding for efficient storage
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+)]
+pub struct NodeId(#[codec(compact)] pub u64);
 
-/// Compact-encoded node path for efficient storage
-/// Wraps BoundedVec<NodeId> with compact encoding for each element
-#[derive(PartialEq, Eq, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
-#[scale_info(skip_type_params(S))]
-pub struct CompactNodePath<S: Get<u32>> {
-    inner: BoundedVec<NodeId, S>,
-}
-
-impl<S: Get<u32>> CompactNodePath<S> {
-    /// Create a new empty path
-    pub fn new() -> Self {
-        Self {
-            inner: BoundedVec::default(),
-        }
-    }
-
-    /// Create from a BoundedVec
-    pub fn from_bounded_vec(vec: BoundedVec<NodeId, S>) -> Self {
-        Self { inner: vec }
-    }
-
-    /// Get the inner BoundedVec
-    pub fn as_bounded_vec(&self) -> &BoundedVec<NodeId, S> {
-        &self.inner
-    }
-
-    /// Check if path contains a node ID
-    pub fn contains(&self, id: &NodeId) -> bool {
-        self.inner.contains(id)
-    }
-
-    /// Get the length of the path
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Check if path is empty
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
-    }
-
-    /// Try to push a node ID to the path
-    pub fn try_push(&mut self, id: NodeId) -> Result<(), ()> {
-        self.inner.try_push(id).map_err(|_| ())
-    }
-
-    /// Iterate over the path
-    pub fn iter(&self) -> sp_std::slice::Iter<NodeId> {
-        self.inner.iter()
-    }
-
-    /// Get a slice of the path
-    pub fn as_slice(&self) -> &[NodeId] {
-        self.inner.as_slice()
+impl From<u64> for NodeId {
+    fn from(id: u64) -> Self {
+        Self(id)
     }
 }
 
-impl<S: Get<u32>> sp_std::ops::Index<usize> for CompactNodePath<S> {
-    type Output = NodeId;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.inner[index]
+impl From<NodeId> for u64 {
+    fn from(id: NodeId) -> Self {
+        id.0
     }
 }
 
-impl<S: Get<u32>> Default for CompactNodePath<S> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<S: Get<u32>> Clone for CompactNodePath<S> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<S: Get<u32>> sp_std::fmt::Debug for CompactNodePath<S> {
-    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-        self.inner.fmt(f)
-    }
-}
-
-// Custom SCALE encoding using Compact for each NodeId
-impl<S: Get<u32>> Encode for CompactNodePath<S> {
-    fn size_hint(&self) -> usize {
-        // Compact length + compact elements
-        Compact(self.inner.len() as u32).size_hint()
-            + self
-                .inner
-                .iter()
-                .map(|id| Compact(*id).size_hint())
-                .sum::<usize>()
-    }
-
-    fn encode_to<T: parity_scale_codec::Output + ?Sized>(&self, dest: &mut T) {
-        // Encode length as compact
-        Compact(self.inner.len() as u32).encode_to(dest);
-        // Encode each element as compact
-        for id in self.inner.iter() {
-            Compact(*id).encode_to(dest);
-        }
-    }
-}
-
-// Custom SCALE decoding using Compact for each NodeId
-impl<S: Get<u32>> Decode for CompactNodePath<S> {
-    fn decode<I: parity_scale_codec::Input>(
-        input: &mut I,
-    ) -> Result<Self, parity_scale_codec::Error> {
-        let len = <Compact<u32>>::decode(input)?.0 as usize;
-        let mut inner = BoundedVec::default();
-        for _ in 0..len {
-            let id = <Compact<u64>>::decode(input)?.0;
-            inner
-                .try_push(id)
-                .map_err(|_| parity_scale_codec::Error::from("Path length exceeded"))?;
-        }
-        Ok(Self { inner })
+impl NodeId {
+    /// Saturating add for node ID
+    pub fn saturating_add(self, rhs: u64) -> Self {
+        Self(self.0.saturating_add(rhs))
     }
 }
 
@@ -222,8 +129,8 @@ pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Node owner
     pub owner: AccountId,
     /// Complete path from root to this node (includes all ancestor IDs in order)
-    /// Uses compact encoding for efficient storage
-    pub path: CompactNodePath<T::MaxTreeDepth>,
+    /// NodeId uses compact encoding for efficient storage
+    pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
     /// Metadata
     pub meta: Option<NodeData>,
     /// Payload data
@@ -396,7 +303,7 @@ pub mod pallet {
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
 
-                CompactNodePath::default()
+                BoundedVec::default()
             };
 
             // Create node
@@ -576,7 +483,7 @@ pub mod pallet {
         /// Recursively update paths of all descendant nodes
         fn update_descendant_paths(
             parent_id: NodeId,
-            parent_path: &CompactNodePath<T::MaxTreeDepth>,
+            parent_path: &BoundedVec<NodeId, T::MaxTreeDepth>,
         ) -> DispatchResult {
             let children = <NodesByParent<T>>::get(parent_id);
 

@@ -71,8 +71,8 @@ fn create_root_node_works() {
             None
         ));
 
-        assert_eq!(Cps::next_node_id(), 1);
-        let node = Cps::nodes(0).unwrap();
+        assert_eq!(Cps::next_node_id(), NodeId(1));
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.parent, None);
         assert_eq!(node.owner, account);
 
@@ -97,17 +97,17 @@ fn create_child_node_works() {
         // Create child
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
 
-        let child = Cps::nodes(1).unwrap();
-        assert_eq!(child.parent, Some(0));
+        let child = Cps::nodes(NodeId(1)).unwrap();
+        assert_eq!(child.parent, Some(NodeId(0)));
         assert_eq!(child.owner, account);
 
         // Check indexes
-        assert_eq!(Cps::nodes_by_parent(0).len(), 1);
+        assert_eq!(Cps::nodes_by_parent(NodeId(0)).len(), 1);
     });
 }
 
@@ -129,7 +129,7 @@ fn create_node_with_data_works() {
             payload.clone()
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.meta, meta);
         assert_eq!(node.payload, payload);
     });
@@ -152,7 +152,7 @@ fn create_node_with_encrypted_data_works() {
             None
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.meta, meta);
     });
 }
@@ -174,7 +174,7 @@ fn create_node_with_encrypted_payload_works() {
             payload.clone()
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.payload, payload);
     });
 }
@@ -201,7 +201,7 @@ fn create_node_with_both_encrypted_works() {
             payload.clone()
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.meta, meta);
         assert_eq!(node.payload, payload);
     });
@@ -213,7 +213,12 @@ fn create_node_parent_not_found_fails() {
         let account = 1u64;
 
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account), Some(999), None, None),
+            Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(999)),
+                None,
+                None
+            ),
             Error::<Runtime>::ParentNotFound
         );
     });
@@ -235,7 +240,7 @@ fn create_child_owner_mismatch_fails() {
 
         // Try to create child with account2
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account2), Some(0), None, None),
+            Cps::create_node(RuntimeOrigin::signed(account2), Some(NodeId(0)), None, None),
             Error::<Runtime>::OwnerMismatch
         );
     });
@@ -260,11 +265,11 @@ fn set_meta_works() {
         ));
         assert_ok!(Cps::set_meta(
             RuntimeOrigin::signed(account),
-            0,
+            NodeId(0),
             meta.clone()
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.meta, meta);
     });
 }
@@ -288,7 +293,7 @@ fn set_meta_non_owner_fails() {
             BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
         ));
         assert_noop!(
-            Cps::set_meta(RuntimeOrigin::signed(account2), 0, meta),
+            Cps::set_meta(RuntimeOrigin::signed(account2), NodeId(0), meta),
             Error::<Runtime>::NotNodeOwner
         );
     });
@@ -313,11 +318,11 @@ fn set_payload_works() {
         ));
         assert_ok!(Cps::set_payload(
             RuntimeOrigin::signed(account),
-            0,
+            NodeId(0),
             payload.clone()
         ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.payload, payload);
     });
 }
@@ -338,7 +343,7 @@ fn move_node_works() {
         // Create child (node 1)
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
@@ -352,14 +357,18 @@ fn move_node_works() {
         ));
 
         // Move node 1 from parent 0 to parent 2
-        assert_ok!(Cps::move_node(RuntimeOrigin::signed(account), 1, 2));
+        assert_ok!(Cps::move_node(
+            RuntimeOrigin::signed(account),
+            NodeId(1),
+            NodeId(2)
+        ));
 
-        let node = Cps::nodes(1).unwrap();
-        assert_eq!(node.parent, Some(2));
+        let node = Cps::nodes(NodeId(1)).unwrap();
+        assert_eq!(node.parent, Some(NodeId(2)));
 
         // Check indexes updated
-        assert_eq!(Cps::nodes_by_parent(0).len(), 0);
-        assert_eq!(Cps::nodes_by_parent(2).len(), 1);
+        assert_eq!(Cps::nodes_by_parent(NodeId(0)).len(), 0);
+        assert_eq!(Cps::nodes_by_parent(NodeId(2)).len(), 1);
     });
 }
 
@@ -379,7 +388,7 @@ fn move_node_cycle_detection_works() {
         // Create child (node 1)
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
@@ -387,20 +396,20 @@ fn move_node_cycle_detection_works() {
         // Create grandchild (node 2)
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(1),
+            Some(NodeId(1)),
             None,
             None
         ));
 
         // Try to move node 0 under its child node 1 (would create cycle)
         assert_noop!(
-            Cps::move_node(RuntimeOrigin::signed(account), 0, 1),
+            Cps::move_node(RuntimeOrigin::signed(account), NodeId(0), NodeId(1)),
             Error::<Runtime>::CycleDetected
         );
 
         // Try to move node 0 under its grandchild node 2 (would create cycle)
         assert_noop!(
-            Cps::move_node(RuntimeOrigin::signed(account), 0, 2),
+            Cps::move_node(RuntimeOrigin::signed(account), NodeId(0), NodeId(2)),
             Error::<Runtime>::CycleDetected
         );
     });
@@ -423,7 +432,7 @@ fn move_node_owner_mismatch_fails() {
         // Create child with account1
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account1),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
@@ -438,7 +447,7 @@ fn move_node_owner_mismatch_fails() {
 
         // Try to move node owned by account1 to parent owned by account2
         assert_noop!(
-            Cps::move_node(RuntimeOrigin::signed(account1), 1, 2),
+            Cps::move_node(RuntimeOrigin::signed(account1), NodeId(1), NodeId(2)),
             Error::<Runtime>::OwnerMismatch
         );
     });
@@ -458,46 +467,46 @@ fn path_tracking_works() {
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(1),
+            Some(NodeId(1)),
             None,
             None
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(2),
+            Some(NodeId(2)),
             None,
             None
         ));
 
         // Test path tracking
-        let node0 = Cps::nodes(0).unwrap();
+        let node0 = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node0.path.len(), 0); // Root has empty path
 
-        let node1 = Cps::nodes(1).unwrap();
+        let node1 = Cps::nodes(NodeId(1)).unwrap();
         assert_eq!(node1.path.len(), 1);
-        assert_eq!(node1.path[0], 0);
+        assert_eq!(node1.path[0], NodeId(0));
 
-        let node2 = Cps::nodes(2).unwrap();
+        let node2 = Cps::nodes(NodeId(2)).unwrap();
         assert_eq!(node2.path.len(), 2);
-        assert_eq!(node2.path[0], 0);
-        assert_eq!(node2.path[1], 1);
+        assert_eq!(node2.path[0], NodeId(0));
+        assert_eq!(node2.path[1], NodeId(1));
 
-        let node3 = Cps::nodes(3).unwrap();
+        let node3 = Cps::nodes(NodeId(3)).unwrap();
         assert_eq!(node3.path.len(), 3);
-        assert_eq!(node3.path[0], 0);
-        assert_eq!(node3.path[1], 1);
-        assert_eq!(node3.path[2], 2);
+        assert_eq!(node3.path[0], NodeId(0));
+        assert_eq!(node3.path[1], NodeId(1));
+        assert_eq!(node3.path[2], NodeId(2));
 
         // Test cycle detection via path
-        assert!(node3.path.contains(&2));
-        assert!(node3.path.contains(&1));
-        assert!(node3.path.contains(&0));
+        assert!(node3.path.contains(&NodeId(2)));
+        assert!(node3.path.contains(&NodeId(1)));
+        assert!(node3.path.contains(&NodeId(0)));
     });
 }
 
@@ -525,14 +534,18 @@ fn move_root_to_child_works() {
         assert_eq!(Cps::root_nodes().len(), 2);
 
         // Move node 0 under node 1
-        assert_ok!(Cps::move_node(RuntimeOrigin::signed(account), 0, 1));
+        assert_ok!(Cps::move_node(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            NodeId(1)
+        ));
 
-        let node = Cps::nodes(0).unwrap();
-        assert_eq!(node.parent, Some(1));
+        let node = Cps::nodes(NodeId(0)).unwrap();
+        assert_eq!(node.parent, Some(NodeId(1)));
 
         // Check root nodes updated
         assert_eq!(Cps::root_nodes().len(), 1);
-        assert_eq!(Cps::root_nodes()[0], 1);
+        assert_eq!(Cps::root_nodes()[0], NodeId(1));
     });
 }
 
@@ -556,12 +569,20 @@ fn clear_meta_and_payload_works() {
         ));
 
         // Clear meta
-        assert_ok!(Cps::set_meta(RuntimeOrigin::signed(account), 0, None));
+        assert_ok!(Cps::set_meta(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            None
+        ));
 
         // Clear payload
-        assert_ok!(Cps::set_payload(RuntimeOrigin::signed(account), 0, None));
+        assert_ok!(Cps::set_payload(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            None
+        ));
 
-        let node = Cps::nodes(0).unwrap();
+        let node = Cps::nodes(NodeId(0)).unwrap();
         assert_eq!(node.meta, None);
         assert_eq!(node.payload, None);
     });
@@ -581,13 +602,13 @@ fn move_node_updates_descendant_paths() {
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(1),
+            Some(NodeId(1)),
             None,
             None
         ));
@@ -599,28 +620,32 @@ fn move_node_updates_descendant_paths() {
         ));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(3),
+            Some(NodeId(3)),
             None,
             None
         ));
 
         // Before move: 0 -> 1 -> 2 and 3 -> 4
-        let node2 = Cps::nodes(2).unwrap();
-        assert_eq!(node2.path.as_slice(), &[0, 1]);
+        let node2 = Cps::nodes(NodeId(2)).unwrap();
+        assert_eq!(node2.path.as_slice(), &[NodeId(0), NodeId(1)]);
 
         // Move node 1 (with child 2) under node 3
-        assert_ok!(Cps::move_node(RuntimeOrigin::signed(account), 1, 3));
+        assert_ok!(Cps::move_node(
+            RuntimeOrigin::signed(account),
+            NodeId(1),
+            NodeId(3)
+        ));
 
         // After move: 0 and 3 -> 4, 3 -> 1 -> 2
-        let node1 = Cps::nodes(1).unwrap();
-        assert_eq!(node1.path.as_slice(), &[3]);
+        let node1 = Cps::nodes(NodeId(1)).unwrap();
+        assert_eq!(node1.path.as_slice(), &[NodeId(3)]);
 
-        let node2 = Cps::nodes(2).unwrap();
-        assert_eq!(node2.path.as_slice(), &[3, 1]);
+        let node2 = Cps::nodes(NodeId(2)).unwrap();
+        assert_eq!(node2.path.as_slice(), &[NodeId(3), NodeId(1)]);
 
         // Node 4 should be unchanged
-        let node4 = Cps::nodes(4).unwrap();
-        assert_eq!(node4.path.as_slice(), &[3]);
+        let node4 = Cps::nodes(NodeId(4)).unwrap();
+        assert_eq!(node4.path.as_slice(), &[NodeId(3)]);
     });
 }
 
@@ -640,19 +665,19 @@ fn delete_leaf_node_works() {
         // Create child
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
 
         // Delete child node
-        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), 1));
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), NodeId(1)));
 
         // Verify node is deleted
-        assert!(Cps::nodes(1).is_none());
+        assert!(Cps::nodes(NodeId(1)).is_none());
 
         // Verify parent's children index is updated
-        assert_eq!(Cps::nodes_by_parent(0).len(), 0);
+        assert_eq!(Cps::nodes_by_parent(NodeId(0)).len(), 0);
     });
 }
 
@@ -672,10 +697,10 @@ fn delete_root_node_works() {
         assert_eq!(Cps::root_nodes().len(), 1);
 
         // Delete root node
-        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), 0));
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), NodeId(0)));
 
         // Verify node is deleted
-        assert!(Cps::nodes(0).is_none());
+        assert!(Cps::nodes(NodeId(0)).is_none());
 
         // Verify root nodes index is updated
         assert_eq!(Cps::root_nodes().len(), 0);
@@ -698,14 +723,14 @@ fn delete_node_with_children_fails() {
         // Create child
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None
         ));
 
         // Try to delete parent node (should fail)
         assert_noop!(
-            Cps::delete_node(RuntimeOrigin::signed(account), 0),
+            Cps::delete_node(RuntimeOrigin::signed(account), NodeId(0)),
             Error::<Runtime>::NodeHasChildren
         );
     });
@@ -727,7 +752,7 @@ fn delete_node_non_owner_fails() {
 
         // Try to delete with account2
         assert_noop!(
-            Cps::delete_node(RuntimeOrigin::signed(account2), 0),
+            Cps::delete_node(RuntimeOrigin::signed(account2), NodeId(0)),
             Error::<Runtime>::NotNodeOwner
         );
     });

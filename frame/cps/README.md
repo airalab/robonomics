@@ -127,7 +127,7 @@ let payload = Some(NodeData::Encrypted {
     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
     ciphertext: vec![4, 5, 6].try_into().unwrap(),
 });
-Cps::create_node(origin, Some(0), None, payload)?;
+Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
 
 // Create a node with both encrypted metadata and payload
 let encrypted_meta = Some(NodeData::Encrypted {
@@ -138,17 +138,17 @@ let encrypted_payload = Some(NodeData::Encrypted {
     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
     ciphertext: vec![13, 14, 15].try_into().unwrap(),
 });
-Cps::create_node(origin, Some(0), encrypted_meta, encrypted_payload)?;
+Cps::create_node(origin, Some(NodeId(0)), encrypted_meta, encrypted_payload)?;
 
 // Move the child to a different parent
-Cps::move_node(origin, 1, 2)?;
+Cps::move_node(origin, NodeId(1), NodeId(2))?;
 
 // Update metadata
 let new_meta = Some(NodeData::Plain(vec![7, 8, 9].try_into().unwrap()));
-Cps::set_meta(origin, 1, new_meta)?;
+Cps::set_meta(origin, NodeId(1), new_meta)?;
 
 // Delete a leaf node (must not have children)
-Cps::delete_node(origin, 2)?;
+Cps::delete_node(origin, NodeId(2))?;
 ```
 
 ## Privacy Model
@@ -191,12 +191,14 @@ The path is automatically updated when nodes are moved, with recursive updates p
 
 ### Compact SCALE Encoding
 
-Node paths use custom compact SCALE encoding for storage efficiency:
+Node paths use built-in compact SCALE encoding for storage efficiency via the `NodeId` newtype:
 
-- Each `NodeId` (u64) in the path is encoded using SCALE compact format, reducing storage size for small node IDs (which are common in typical tree structures)
-- Path length is also encoded as compact, optimizing for typical short paths
+- `NodeId` is a newtype wrapper around `u64` with the `#[codec(compact)]` attribute
+- This automatically encodes each `NodeId` in the path using SCALE compact format
+- Storage size is reduced for small node IDs (which are common in typical tree structures)
 - This can reduce storage costs by 50-87% for paths with small node IDs (< 2^14)
 - Example: A path with 3 small node IDs (< 16384) uses ~6 bytes instead of 24 bytes
+- No performance overhead - all operations remain O(1) with simple array access
 
 ## Security Considerations
 
