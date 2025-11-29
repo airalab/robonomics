@@ -16,7 +16,7 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
+        value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.native-linux-musl.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
 
 env:
   SUBWASM_VERSION: 0.16.1
@@ -100,8 +100,65 @@ jobs:
         name: robonomics-macOS-latest-x86_64
         path: target/production/robonomics
 
+  native-linux-musl:
+    needs: tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+        - x86_64-unknown-linux-musl
+        - aarch64-unknown-linux-musl
+    outputs:
+      status: ${{ job.status }}
+
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v3
+
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Add musl target
+      run: rustup target add ${{ matrix.target }}
+
+    - name: Install musl tools for x86_64
+      if: contains(matrix.target, 'x86_64')
+      run: |
+        sudo apt update
+        sudo apt install -y musl-tools pkg-config protobuf-compiler
+
+    - name: Install musl tools for aarch64
+      if: contains(matrix.target, 'aarch64')
+      run: |
+        sudo apt update
+        sudo apt install -y gcc-aarch64-linux-gnu musl-tools pkg-config protobuf-compiler
+        
+        # Download and setup musl-cross for aarch64
+        wget https://musl.cc/aarch64-linux-musl-cross.tgz
+        tar -xzf aarch64-linux-musl-cross.tgz
+        
+        mkdir -p .cargo
+        cat >> .cargo/config << EOF
+        [target.aarch64-unknown-linux-musl]
+        linker = "${{ github.workspace }}/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"
+        EOF
+
+    - name: Build optimized binary
+      run: cargo build --profile production --target ${{ matrix.target }} --verbose --locked
+
+    - name: Set artifact name
+      env:
+        TARGET: ${{ matrix.target }}
+      id: artifact-name
+      run: echo "::set-output name=name::robonomics-alpine-latest-${TARGET%%-*}"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact-name.outputs.name }}
+        path: target/${{ matrix.target }}/production/robonomics
+
   docker:
-    needs: native-linux
+    needs: native-linux-musl
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -129,13 +186,13 @@ jobs:
     - name: Download pre-built amd64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-ubuntu-latest-x86_64
+        name: robonomics-alpine-latest-x86_64
         path: scripts/docker/amd64/
 
     - name: Download pre-built aarch64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-ubuntu-latest-aarch64
+        name: robonomics-alpine-latest-aarch64
         path: scripts/docker/arm64/
 
     - name: Make binary executable and copy it to docker folder
