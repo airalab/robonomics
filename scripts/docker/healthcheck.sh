@@ -2,14 +2,16 @@
 
 set -e
 
-head () {
-    polkadot-js-api --ws ws://127.0.0.1:9944 query.system.number 2>/dev/null |\
-        tail -3 |\
-        jq -r .number
+# Query the current block number via RPC
+get_block_number() {
+    curl -sS -H "Content-Type: application/json" \
+         -d '{"id":1, "jsonrpc":"2.0", "method":"chain_getHeader"}' \
+         http://127.0.0.1:9944 | jq -e -r '.result.number // empty' | sed 's/^0x//' | xargs -r printf "%d" || echo "0"
 }
 
-start=$(head)
+start=$(get_block_number)
 sleep 60
-end=$(head)
+end=$(get_block_number)
 
+# Check if block number has increased (chain is progressing)
 [ "$start" != "$end" ]

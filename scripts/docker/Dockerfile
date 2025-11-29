@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM alpine:3.21
 
 # metadata
 ARG VCS_REF
@@ -16,15 +16,12 @@ LABEL io.parity.image.authors="research@robonomics.network" \
 # show backtraces
 ENV RUST_BACKTRACE=1
 
-RUN apt-get update && \
-        echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
-        apt-get install dialog apt-utils -y && \
-        apt-get install jq curl bash gcc g++ make -y && \
-	curl -sL https://deb.nodesource.com/setup_22.x | bash - && \
-	apt-get install -y nodejs && \
-        npm install -g npm@latest && \
-        npm install -g @polkadot/api-cli && \
-	useradd -m -u 1001 -U -s /bin/sh -d /robonomics robonomics && \
+RUN apk add --no-cache \
+        jq \
+        curl \
+        bash && \
+	addgroup -g 1001 robonomics && \
+	adduser -D -u 1001 -G robonomics -h /robonomics robonomics && \
 	mkdir -p /robonomics/.local/share && \
 	mkdir /data && \
 	chown -R robonomics:robonomics /data && \
