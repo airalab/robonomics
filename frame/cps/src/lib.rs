@@ -90,22 +90,29 @@ impl sp_std::fmt::Debug for NodeData {
 
 /// Node structure representing a CPS node
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
-pub struct Node<AccountId: MaxEncodedLen> {
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
+pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
     /// Node owner
     pub owner: AccountId,
+    /// Complete path from root to this node (includes all ancestor IDs in order)
+    pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
     /// Metadata
     pub meta: Option<NodeData>,
     /// Payload data
     pub payload: Option<NodeData>,
 }
 
-impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for Node<AccountId> {
+impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
+    for Node<AccountId, T>
+{
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         f.debug_struct("Node")
             .field("parent", &self.parent)
             .field("owner", &self.owner)
+            .field("path", &self.path)
             .field("meta", &self.meta)
             .field("payload", &self.payload)
             .finish()
@@ -155,7 +162,7 @@ pub mod pallet {
     /// Nodes storage
     #[pallet::storage]
     #[pallet::getter(fn nodes)]
-    pub type Nodes<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Node<T::AccountId>>;
+    pub type Nodes<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Node<T::AccountId, T>>;
 
     /// Index of children by parent node
     #[pallet::storage]
@@ -231,13 +238,22 @@ pub mod pallet {
             let node_id = <NextNodeId<T>>::get();
             <NextNodeId<T>>::put(node_id.saturating_add(1));
 
-            // Validate parent and ownership
-            if let Some(pid) = parent_id {
+            // Build path based on parent
+            let path = if let Some(pid) = parent_id {
                 let parent = <Nodes<T>>::get(pid).ok_or(Error::<T>::ParentNotFound)?;
                 ensure!(parent.owner == sender, Error::<T>::OwnerMismatch);
 
-                // Check tree depth
-                Self::check_tree_depth(pid)?;
+                // Check tree depth - path already includes all ancestors
+                ensure!(
+                    parent.path.len() < T::MaxTreeDepth::get() as usize,
+                    Error::<T>::MaxDepthExceeded
+                );
+
+                // Build new path by extending parent's path
+                let mut new_path = parent.path.clone();
+                new_path
+                    .try_push(pid)
+                    .map_err(|_| Error::<T>::MaxDepthExceeded)?;
 
                 // Add to parent's children index
                 <NodesByParent<T>>::try_mutate(pid, |children| {
@@ -245,19 +261,24 @@ pub mod pallet {
                         .try_push(node_id)
                         .map_err(|_| Error::<T>::TooManyChildren)
                 })?;
+
+                new_path
             } else {
-                // Add to root nodes
+                // Root node has empty path
                 <RootNodes<T>>::try_mutate(|roots| {
                     roots
                         .try_push(node_id)
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
-            }
+
+                BoundedVec::default()
+            };
 
             // Create node
             let node = Node {
                 parent: parent_id,
                 owner: sender.clone(),
+                path,
                 meta,
                 payload,
             };
@@ -331,14 +352,18 @@ pub mod pallet {
             ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
             ensure!(new_parent.owner == sender, Error::<T>::OwnerMismatch);
 
-            // Check for cycles
+            // Check for cycles - node_id cannot be an ancestor of new_parent
+            // If node_id is in new_parent's path, moving node under new_parent would create a cycle
             ensure!(
-                !Self::is_ancestor(new_parent_id, node_id)?,
+                !new_parent.path.contains(&node_id),
                 Error::<T>::CycleDetected
             );
 
             // Check tree depth after move
-            Self::check_tree_depth(new_parent_id)?;
+            ensure!(
+                new_parent.path.len() < T::MaxTreeDepth::get() as usize,
+                Error::<T>::MaxDepthExceeded
+            );
 
             let old_parent = node.parent;
 
@@ -362,12 +387,22 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::TooManyChildren)
             })?;
 
-            // Update node's parent
+            // Build new path
+            let mut new_path = new_parent.path.clone();
+            new_path
+                .try_push(new_parent_id)
+                .map_err(|_| Error::<T>::MaxDepthExceeded)?;
+
+            // Update node's parent and path
             <Nodes<T>>::mutate(node_id, |node_opt| {
                 if let Some(node) = node_opt {
                     node.parent = Some(new_parent_id);
+                    node.path = new_path.clone();
                 }
             });
+
+            // Recursively update all descendant paths
+            Self::update_descendant_paths(node_id, &new_path)?;
 
             Self::deposit_event(Event::NodeMoved(node_id, old_parent, new_parent_id, sender));
             Ok(())
@@ -413,56 +448,32 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// Check if ancestor_id is an ancestor of node_id
-        pub fn is_ancestor(node_id: NodeId, ancestor_id: NodeId) -> Result<bool, DispatchError> {
-            let mut current_id = node_id;
-            let max_depth = T::MaxTreeDepth::get();
-            let mut depth = 0u32;
+        /// Recursively update paths of all descendant nodes
+        fn update_descendant_paths(
+            parent_id: NodeId,
+            parent_path: &BoundedVec<NodeId, T::MaxTreeDepth>,
+        ) -> DispatchResult {
+            let children = <NodesByParent<T>>::get(parent_id);
 
-            loop {
-                if current_id == ancestor_id {
-                    return Ok(true);
-                }
+            for child_id in children.iter() {
+                // Build new path for child
+                let mut new_path = parent_path.clone();
+                new_path
+                    .try_push(parent_id)
+                    .map_err(|_| Error::<T>::MaxDepthExceeded)?;
 
-                if depth >= max_depth {
-                    return Err(Error::<T>::MaxDepthExceeded.into());
-                }
+                // Update child's path
+                <Nodes<T>>::mutate(child_id, |node_opt| {
+                    if let Some(node) = node_opt {
+                        node.path = new_path.clone();
+                    }
+                });
 
-                match <Nodes<T>>::get(current_id) {
-                    Some(node) => match node.parent {
-                        Some(parent_id) => {
-                            current_id = parent_id;
-                            depth += 1;
-                        }
-                        None => return Ok(false),
-                    },
-                    None => return Ok(false),
-                }
+                // Recursively update descendants
+                Self::update_descendant_paths(*child_id, &new_path)?;
             }
-        }
 
-        /// Check tree depth from node to root
-        fn check_tree_depth(node_id: NodeId) -> DispatchResult {
-            let mut current_id = node_id;
-            let max_depth = T::MaxTreeDepth::get();
-            let mut depth = 0u32;
-
-            loop {
-                if depth >= max_depth {
-                    return Err(Error::<T>::MaxDepthExceeded.into());
-                }
-
-                match <Nodes<T>>::get(current_id) {
-                    Some(node) => match node.parent {
-                        Some(parent_id) => {
-                            current_id = parent_id;
-                            depth += 1;
-                        }
-                        None => return Ok(()),
-                    },
-                    None => return Ok(()),
-                }
-            }
+            Ok(())
         }
     }
 }

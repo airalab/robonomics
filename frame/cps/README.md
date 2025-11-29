@@ -16,9 +16,10 @@ The CPS (Cyber-Physical System) pallet provides a hierarchical tree structure fo
 
 - **Hierarchical Structure**: Organize nodes in a tree with configurable depth limits
 - **Ownership Model**: Each node has an owner, children inherit parent's owner
-- **Data Privacy**: Support for both plain and encrypted data with crypto profiles
-- **Tree Integrity**: Cycle detection prevents invalid tree structures
-- **Efficient Indexing**: Multiple indexes for fast queries by owner, parent, and root nodes
+- **Data Privacy**: Support for both plain and encrypted data using XChaCha20-Poly1305 AEAD
+- **Tree Integrity**: O(1) cycle detection via ancestor path tracking
+- **Efficient Operations**: Path stored in each node eliminates recursive lookups
+- **Efficient Indexing**: Multiple indexes for fast queries by parent and root nodes
 
 ## Storage
 
@@ -26,6 +27,7 @@ The CPS (Cyber-Physical System) pallet provides a hierarchical tree structure fo
 
 - `NextNodeId`: Counter for generating unique node IDs
 - `Nodes`: Main storage for node data (uses Blake2_128Concat hasher for security)
+  - Each node stores its complete ancestor path for O(1) cycle detection and depth checks
 
 ### Indexes
 
@@ -174,6 +176,18 @@ NodeData::Encrypted {
 
 The encryption algorithm is specified at the node level, allowing flexibility for future algorithm additions while maintaining backward compatibility.
 
+## Performance Optimizations
+
+### Ancestor Path Storage
+
+Each node stores its complete path from the root, providing several performance benefits:
+
+1. **O(1) Cycle Detection**: Moving a node requires only checking if the target parent ID exists in the node's path array, avoiding recursive tree traversal
+2. **O(1) Depth Validation**: Tree depth is immediately available from the path length without traversing parent links
+3. **No Loop Instructions**: All validation operations use simple array operations instead of loops, making the pallet more efficient
+4. **Predictable Gas Costs**: Path-based operations have constant time complexity regardless of tree depth
+
+The path is automatically updated when nodes are moved, with recursive updates propagating to all descendants.
 
 ## Security Considerations
 

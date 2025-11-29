@@ -445,7 +445,7 @@ fn move_node_owner_mismatch_fails() {
 }
 
 #[test]
-fn is_ancestor_works() {
+fn path_tracking_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
@@ -475,17 +475,29 @@ fn is_ancestor_works() {
             None
         ));
 
-        // Test ancestor relationships
-        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 2).unwrap(), true);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 1).unwrap(), true);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 0).unwrap(), true);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(2, 1).unwrap(), true);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(2, 0).unwrap(), true);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(1, 0).unwrap(), true);
+        // Test path tracking
+        let node0 = Cps::nodes(0).unwrap();
+        assert_eq!(node0.path.len(), 0); // Root has empty path
 
-        // Test non-ancestors
-        assert_eq!(Pallet::<Runtime>::is_ancestor(0, 1).unwrap(), false);
-        assert_eq!(Pallet::<Runtime>::is_ancestor(1, 2).unwrap(), false);
+        let node1 = Cps::nodes(1).unwrap();
+        assert_eq!(node1.path.len(), 1);
+        assert_eq!(node1.path[0], 0);
+
+        let node2 = Cps::nodes(2).unwrap();
+        assert_eq!(node2.path.len(), 2);
+        assert_eq!(node2.path[0], 0);
+        assert_eq!(node2.path[1], 1);
+
+        let node3 = Cps::nodes(3).unwrap();
+        assert_eq!(node3.path.len(), 3);
+        assert_eq!(node3.path[0], 0);
+        assert_eq!(node3.path[1], 1);
+        assert_eq!(node3.path[2], 2);
+
+        // Test cycle detection via path
+        assert!(node3.path.contains(&2));
+        assert!(node3.path.contains(&1));
+        assert!(node3.path.contains(&0));
     });
 }
 
@@ -552,6 +564,63 @@ fn clear_meta_and_payload_works() {
         let node = Cps::nodes(0).unwrap();
         assert_eq!(node.meta, None);
         assert_eq!(node.payload, None);
+    });
+}
+
+#[test]
+fn move_node_updates_descendant_paths() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create tree: 0 -> 1 -> 2 and separate 3 -> 4
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(0),
+            None,
+            None
+        ));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(1),
+            None,
+            None
+        ));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(3),
+            None,
+            None
+        ));
+
+        // Before move: 0 -> 1 -> 2 and 3 -> 4
+        let node2 = Cps::nodes(2).unwrap();
+        assert_eq!(node2.path.as_slice(), &[0, 1]);
+
+        // Move node 1 (with child 2) under node 3
+        assert_ok!(Cps::move_node(RuntimeOrigin::signed(account), 1, 3));
+
+        // After move: 0 and 3 -> 4, 3 -> 1 -> 2
+        let node1 = Cps::nodes(1).unwrap();
+        assert_eq!(node1.path.as_slice(), &[3]);
+
+        let node2 = Cps::nodes(2).unwrap();
+        assert_eq!(node2.path.as_slice(), &[3, 1]);
+
+        // Node 4 should be unchanged
+        let node4 = Cps::nodes(4).unwrap();
+        assert_eq!(node4.path.as_slice(), &[3]);
     });
 }
 
