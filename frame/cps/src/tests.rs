@@ -491,16 +491,16 @@ fn is_ancestor_works() {
         ));
 
         // Test ancestor relationships
-        assert_ok!(Pallet::<Runtime>::is_ancestor(3, 2), true);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(3, 1), true);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(3, 0), true);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(2, 1), true);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(2, 0), true);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(1, 0), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 2).unwrap(), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 1).unwrap(), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(3, 0).unwrap(), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(2, 1).unwrap(), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(2, 0).unwrap(), true);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(1, 0).unwrap(), true);
 
         // Test non-ancestors
-        assert_ok!(Pallet::<Runtime>::is_ancestor(0, 1), false);
-        assert_ok!(Pallet::<Runtime>::is_ancestor(1, 2), false);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(0, 1).unwrap(), false);
+        assert_eq!(Pallet::<Runtime>::is_ancestor(1, 2).unwrap(), false);
     });
 }
 

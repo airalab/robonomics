@@ -85,27 +85,17 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
     fn create_node() -> Weight {
         Weight::from_parts(50_000_000, 0)
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(3))
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(4))
     }
     fn set_meta() -> Weight {
         Weight::from_parts(30_000_000, 0)
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(1))
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(1))
     }
     fn set_payload() -> Weight {
         Weight::from_parts(30_000_000, 0)
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(1))
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(1))
     }
     fn move_node() -> Weight {
         Weight::from_parts(60_000_000, 0)
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(4))
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(4))
     }
     fn create_crypto_profile() -> Weight {
         Weight::from_parts(20_000_000, 0)
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(1))
-            .saturating_add(Weight::from_parts(0, 0).saturating_mul(2))
     }
 }
