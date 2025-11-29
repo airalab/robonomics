@@ -41,7 +41,7 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller.clone()), None, meta, payload);
 
-        assert_eq!(<NextNodeId<T>>::get(), 1);
+        assert_eq!(<NextNodeId<T>>::get(), NodeId(1));
     }
 
     #[benchmark]
@@ -57,9 +57,9 @@ mod benchmarks {
         ));
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), 0, meta);
+        _(RawOrigin::Signed(caller), NodeId(0), meta);
 
-        assert!(<Nodes<T>>::get(0).unwrap().meta.is_some());
+        assert!(<Nodes<T>>::get(NodeId(0)).unwrap().meta.is_some());
     }
 
     #[benchmark]
@@ -75,9 +75,9 @@ mod benchmarks {
         ));
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), 0, payload);
+        _(RawOrigin::Signed(caller), NodeId(0), payload);
 
-        assert!(<Nodes<T>>::get(0).unwrap().payload.is_some());
+        assert!(<Nodes<T>>::get(NodeId(0)).unwrap().payload.is_some());
     }
 
     #[benchmark]
@@ -91,7 +91,7 @@ mod benchmarks {
         // Create child node
         let _ = Pallet::<T>::create_node(
             RawOrigin::Signed(caller.clone()).into(),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None,
         );
@@ -101,9 +101,9 @@ mod benchmarks {
             Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), 1, 2);
+        _(RawOrigin::Signed(caller), NodeId(1), NodeId(2));
 
-        assert_eq!(<Nodes<T>>::get(1).unwrap().parent, Some(2));
+        assert_eq!(<Nodes<T>>::get(NodeId(1)).unwrap().parent, Some(NodeId(2)));
     }
 
     #[benchmark]
@@ -117,15 +117,15 @@ mod benchmarks {
         // Create child node to delete
         let _ = Pallet::<T>::create_node(
             RawOrigin::Signed(caller.clone()).into(),
-            Some(0),
+            Some(NodeId(0)),
             None,
             None,
         );
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), 1);
+        _(RawOrigin::Signed(caller), NodeId(1));
 
-        assert!(<Nodes<T>>::get(1).is_none());
+        assert!(<Nodes<T>>::get(NodeId(1)).is_none());
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
