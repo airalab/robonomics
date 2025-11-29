@@ -19,14 +19,7 @@ ENV RUST_BACKTRACE=1
 RUN apk add --no-cache \
         jq \
         curl \
-        bash \
-        gcc \
-        g++ \
-        make \
-        nodejs \
-        npm && \
-        npm install -g npm@latest && \
-        npm install -g @polkadot/api-cli && \
+        bash && \
 	addgroup -g 1001 robonomics && \
 	adduser -D -u 1001 -G robonomics -h /robonomics robonomics && \
 	mkdir -p /robonomics/.local/share && \
