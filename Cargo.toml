@@ -62,6 +62,7 @@ members = [
   "frame/liability",
   "frame/digital-twin",
   "frame/xcm-info",
+  "frame/cps",
   "runtime/robonomics",
 ]
 
