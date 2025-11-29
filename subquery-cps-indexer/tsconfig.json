@@ -10,7 +10,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "target": "es2017",
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "lib": [

@@ -11,12 +11,7 @@ type Node @entity {
   id: ID!
   
   """
-  Parent node ID (null for root nodes)
-  """
-  parentId: String
-  
-  """
-  Reference to parent node entity
+  Reference to parent node entity (null for root nodes)
   """
   parent: Node
   

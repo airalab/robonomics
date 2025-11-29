@@ -3,11 +3,11 @@ name: robonomics-cps-indexer
 version: 1.0.0
 runner:
   node:
-    name: '@subql/node-substrate'
-    version: '>=3.0.0'
+    name: '@subql/node'
+    version: '>=6.4.0'
   query:
     name: '@subql/query'
-    version: '*'
+    version: '>=2.0.0'
 description: 'SubQuery indexer for Robonomics CPS (Cyber-Physical Systems) Pallet - Hierarchical on-chain organization with audit trails'
 repository: 'https://github.com/airalab/robonomics'
 

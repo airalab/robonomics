@@ -27,9 +27,11 @@ export async function handleNodeCreated(event: SubstrateEvent): Promise<void> {
   const txHash = event.extrinsic?.extrinsic.hash.toString() || 'unknown';
 
   // Create the node entity
+  const parentIdValue = (parentId as any)?.isSome ? (parentId as any).unwrap().toString() : undefined;
+  
   const node = Node.create({
     id: nodeId.toString(),
-    parentId: parentId.isSome ? parentId.unwrap().toString() : undefined,
+    parentId: parentIdValue,
     owner: ensureString(owner),
     metaType: undefined,
     metaData: undefined,
@@ -60,11 +62,11 @@ export async function handleNodeCreated(event: SubstrateEvent): Promise<void> {
     actor: ensureString(owner),
     oldValue: undefined,
     newValue: JSON.stringify({
-      parentId: node.parentId,
+      parentId: parentIdValue,
       owner: node.owner,
     }),
     oldParentId: undefined,
-    newParentId: node.parentId,
+    newParentId: parentIdValue,
   });
 
   await history.save();
@@ -86,7 +88,7 @@ export async function handleNodeCreated(event: SubstrateEvent): Promise<void> {
   stats.activeNodes = stats.activeNodes + BigInt(1);
   
   // Update root nodes count if this is a root
-  if (!node.parentId) {
+  if (!parentIdValue) {
     stats.rootNodes = stats.rootNodes + BigInt(1);
   }
   
@@ -269,7 +271,7 @@ export async function handleNodeMoved(event: SubstrateEvent): Promise<void> {
     return;
   }
 
-  const oldParent = oldParentId.isSome ? oldParentId.unwrap().toString() : undefined;
+  const oldParent = (oldParentId as any)?.isSome ? (oldParentId as any).unwrap().toString() : undefined;
   const newParent = newParentId.toString();
 
   // Update node parent
