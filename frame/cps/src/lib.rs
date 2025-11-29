@@ -39,21 +39,33 @@ pub type MaxDataSize = ConstU32<2048>;
 /// Node identifier type
 pub type NodeId = u64;
 
-/// Crypto profile identifier type
-pub type CryptoProfileId = u64;
-
-/// Algorithm identifier type
-pub type AlgorithmId = u64;
+/// Crypto algorithm enum for encryption
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+)]
+pub enum CryptoAlgorithm {
+    /// XChaCha20-Poly1305 AEAD encryption
+    XChaCha20Poly1305,
+}
 
 /// Node data that can be either plain or encrypted
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 pub enum NodeData {
     /// Plain unencrypted data
     Plain(BoundedVec<u8, MaxDataSize>),
-    /// Encrypted data with crypto profile reference
+    /// Encrypted data with crypto algorithm
     Encrypted {
-        /// Crypto profile ID used for encryption
-        crypto_profile: CryptoProfileId,
+        /// Crypto algorithm used for encryption
+        algorithm: CryptoAlgorithm,
         /// Encrypted ciphertext
         ciphertext: BoundedVec<u8, MaxDataSize>,
     },
@@ -64,32 +76,14 @@ impl sp_std::fmt::Debug for NodeData {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
             Self::Encrypted {
-                crypto_profile,
+                algorithm,
                 ciphertext,
             } => f
                 .debug_struct("Encrypted")
-                .field("crypto_profile", crypto_profile)
+                .field("algorithm", algorithm)
                 .field("ciphertext_len", &ciphertext.len())
                 .finish(),
         }
-    }
-}
-
-/// Crypto profile for encryption
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
-pub struct CryptoProfile {
-    /// Algorithm identifier
-    pub algorithm: AlgorithmId,
-    /// Public parameters for the crypto algorithm
-    pub public_params: BoundedVec<u8, MaxDataSize>,
-}
-
-impl sp_std::fmt::Debug for CryptoProfile {
-    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-        f.debug_struct("CryptoProfile")
-            .field("algorithm", &self.algorithm)
-            .field("public_params_len", &self.public_params.len())
-            .finish()
     }
 }
 
@@ -185,17 +179,6 @@ pub mod pallet {
     pub type RootNodes<T: Config> =
         StorageValue<_, BoundedVec<NodeId, T::MaxRootNodes>, ValueQuery>;
 
-    /// Crypto profiles storage
-    #[pallet::storage]
-    #[pallet::getter(fn crypto_profiles)]
-    pub type CryptoProfiles<T: Config> =
-        StorageMap<_, Twox64Concat, CryptoProfileId, CryptoProfile>;
-
-    /// Next crypto profile ID counter
-    #[pallet::storage]
-    #[pallet::getter(fn next_profile_id)]
-    pub type NextProfileId<T> = StorageValue<_, CryptoProfileId, ValueQuery>;
-
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -209,8 +192,6 @@ pub mod pallet {
         NodeMoved(NodeId, Option<NodeId>, NodeId, T::AccountId),
         /// Node deleted [node_id, owner]
         NodeDeleted(NodeId, T::AccountId),
-        /// Crypto profile created [profile_id, algorithm]
-        CryptoProfileCreated(CryptoProfileId, AlgorithmId),
     }
 
     #[pallet::error]
@@ -219,8 +200,6 @@ pub mod pallet {
         NodeNotFound,
         /// Parent node not found
         ParentNotFound,
-        /// Crypto profile not found
-        CryptoProfileNotFound,
         /// Caller is not the node owner
         NotNodeOwner,
         /// Owner mismatch between parent and child
@@ -235,8 +214,6 @@ pub mod pallet {
         TooManyNodesPerOwner,
         /// Too many root nodes
         TooManyRootNodes,
-        /// Data size exceeds maximum
-        DataTooLarge,
     }
 
     #[pallet::hooks]
@@ -405,30 +382,6 @@ pub mod pallet {
             });
 
             Self::deposit_event(Event::NodeMoved(node_id, old_parent, new_parent_id, sender));
-            Ok(())
-        }
-
-        /// Create a crypto profile
-        #[pallet::call_index(4)]
-        #[pallet::weight(T::WeightInfo::create_crypto_profile())]
-        pub fn create_crypto_profile(
-            origin: OriginFor<T>,
-            algorithm: AlgorithmId,
-            public_params: BoundedVec<u8, MaxDataSize>,
-        ) -> DispatchResult {
-            ensure_signed(origin)?;
-
-            let profile_id = <NextProfileId<T>>::get();
-            <NextProfileId<T>>::put(profile_id.saturating_add(1));
-
-            let profile = CryptoProfile {
-                algorithm,
-                public_params,
-            };
-
-            <CryptoProfiles<T>>::insert(profile_id, profile);
-
-            Self::deposit_event(Event::CryptoProfileCreated(profile_id, algorithm));
             Ok(())
         }
     }

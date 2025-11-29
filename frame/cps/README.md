@@ -26,8 +26,6 @@ The CPS (Cyber-Physical System) pallet provides a hierarchical tree structure fo
 
 - `NextNodeId`: Counter for generating unique node IDs
 - `Nodes`: Main storage for node data
-- `NextProfileId`: Counter for crypto profile IDs
-- `CryptoProfiles`: Storage for crypto profiles
 
 ### Indexes
 
@@ -42,12 +40,11 @@ The CPS (Cyber-Physical System) pallet provides a hierarchical tree structure fo
 Create a new node in the tree.
 
 - `parent_id`: Optional parent node ID (None for root nodes)
-- `meta`: Optional metadata (plain or encrypted)
-- `payload`: Optional payload data (plain or encrypted)
+- `meta`: Optional metadata (plain or encrypted with XChaCha20-Poly1305)
+- `payload`: Optional payload data (plain or encrypted with XChaCha20-Poly1305)
 
 **Requirements:**
 - If parent is specified, it must exist and caller must be its owner
-- Crypto profiles must exist for encrypted data
 - Tree depth limit must not be exceeded
 
 ### `set_meta(node_id, meta)`
@@ -60,7 +57,6 @@ Update node metadata.
 **Requirements:**
 - Node must exist
 - Caller must be node owner
-- Crypto profiles must exist for encrypted data
 
 ### `set_payload(node_id, payload)`
 
@@ -72,7 +68,6 @@ Update node payload.
 **Requirements:**
 - Node must exist
 - Caller must be node owner
-- Crypto profiles must exist for encrypted data
 
 ### `move_node(node_id, new_parent_id)`
 
@@ -101,13 +96,12 @@ Create a new crypto profile for encryption.
 - `PayloadSet(node_id, owner)`: Payload updated
 - `NodeMoved(node_id, old_parent, new_parent, owner)`: Node moved
 - `NodeDeleted(node_id, owner)`: Node deleted
-- `CryptoProfileCreated(profile_id, algorithm)`: Crypto profile created
 
 ## Configuration
 
 The pallet can be configured with the following constants:
 
-- `MaxDataSize`: Maximum size for data fields (default: 1024 bytes)
+- `MaxDataSize`: Maximum size for data fields (default: 2048 bytes)
 - `MaxTreeDepth`: Maximum tree depth (default: 32 levels)
 - `MaxChildrenPerNode`: Maximum children per node (default: 100)
 - `MaxNodesPerOwner`: Maximum nodes per owner (default: 1000)
@@ -116,19 +110,27 @@ The pallet can be configured with the following constants:
 ## Usage Example
 
 ```rust
-// Create a crypto profile
-Cps::create_crypto_profile(origin, 1, public_params)?;
-
 // Create a root node with plain metadata
 let meta = Some(NodeData::Plain(vec![1, 2, 3].try_into().unwrap()));
 Cps::create_node(origin, None, meta, None)?;
 
-// Create a child node with encrypted payload
+// Create a child node with encrypted payload using XChaCha20-Poly1305
 let payload = Some(NodeData::Encrypted {
-    crypto_profile: 0,
+    algorithm: CryptoAlgorithm::XChaCha20Poly1305,
     ciphertext: vec![4, 5, 6].try_into().unwrap(),
 });
 Cps::create_node(origin, Some(0), None, payload)?;
+
+// Create a node with both encrypted metadata and payload
+let encrypted_meta = Some(NodeData::Encrypted {
+    algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+    ciphertext: vec![10, 11, 12].try_into().unwrap(),
+});
+let encrypted_payload = Some(NodeData::Encrypted {
+    algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+    ciphertext: vec![13, 14, 15].try_into().unwrap(),
+});
+Cps::create_node(origin, Some(0), encrypted_meta, encrypted_payload)?;
 
 // Move the child to a different parent
 Cps::move_node(origin, 1, 2)?;
@@ -152,14 +154,16 @@ NodeData::Plain(BoundedVec::from(vec![1, 2, 3]))
 
 ### Encrypted Data
 
-Data encrypted with a referenced crypto profile:
+Data encrypted using XChaCha20-Poly1305 AEAD:
 
 ```rust
 NodeData::Encrypted {
-    crypto_profile: 0,  // Reference to crypto profile
+    algorithm: CryptoAlgorithm::XChaCha20Poly1305,
     ciphertext: BoundedVec::from(vec![...]),  // Encrypted data
 }
 ```
+
+The encryption algorithm is specified at the node level, allowing flexibility for future algorithm additions while maintaining backward compatibility.
 
 The crypto profile stores public parameters for the encryption algorithm, allowing authorized parties to decrypt the data off-chain.
 

@@ -48,7 +48,6 @@ pub trait WeightInfo {
     fn set_meta() -> Weight;
     fn set_payload() -> Weight;
     fn move_node() -> Weight;
-    fn create_crypto_profile() -> Weight;
 }
 
 /// Weights for pallet_robonomics_cps using the Substrate node and recommended hardware.
@@ -74,11 +73,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(4))
             .saturating_add(T::DbWeight::get().writes(4))
     }
-    fn create_crypto_profile() -> Weight {
-        Weight::from_parts(20_000_000, 0)
-            .saturating_add(T::DbWeight::get().reads(1))
-            .saturating_add(T::DbWeight::get().writes(2))
-    }
 }
 
 // For backwards compatibility and tests
@@ -94,8 +88,5 @@ impl WeightInfo for () {
     }
     fn move_node() -> Weight {
         Weight::from_parts(60_000_000, 0)
-    }
-    fn create_crypto_profile() -> Weight {
-        Weight::from_parts(20_000_000, 0)
     }
 }

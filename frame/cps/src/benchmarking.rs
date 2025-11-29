@@ -106,16 +106,5 @@ mod benchmarks {
         assert_eq!(<Nodes<T>>::get(1).unwrap().parent, Some(2));
     }
 
-    #[benchmark]
-    fn create_crypto_profile() {
-        let caller: T::AccountId = whitelisted_caller();
-        let public_params = BoundedVec::try_from(vec![1u8; 100]).unwrap();
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), 1, public_params);
-
-        assert_eq!(<NextProfileId<T>>::get(), 1);
-    }
-
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
 }

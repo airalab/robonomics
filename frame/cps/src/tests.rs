@@ -144,16 +144,8 @@ fn create_node_with_encrypted_data_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        // Create crypto profile first
-        let public_params = BoundedVec::try_from(vec![1, 2, 3]).unwrap();
-        assert_ok!(Cps::create_crypto_profile(
-            RuntimeOrigin::signed(account),
-            1,
-            public_params
-        ));
-
         let meta = Some(NodeData::Encrypted {
-            crypto_profile: 0,
+            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
             ciphertext: BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
         });
 
@@ -170,19 +162,52 @@ fn create_node_with_encrypted_data_works() {
 }
 
 #[test]
-fn create_node_with_invalid_crypto_profile_fails() {
+fn create_node_with_encrypted_payload_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        let payload = Some(NodeData::Encrypted {
+            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            ciphertext: BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
+        });
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            payload.clone()
+        ));
+
+        let node = Cps::nodes(0).unwrap();
+        assert_eq!(node.payload, payload);
+    });
+}
+
+#[test]
+fn create_node_with_both_encrypted_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
         let meta = Some(NodeData::Encrypted {
-            crypto_profile: 999,
-            ciphertext: BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
+            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            ciphertext: BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
         });
 
-        assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account), None, meta, None),
-            Error::<Runtime>::CryptoProfileNotFound
-        );
+        let payload = Some(NodeData::Encrypted {
+            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            ciphertext: BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
+        });
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            meta.clone(),
+            payload.clone()
+        ));
+
+        let node = Cps::nodes(0).unwrap();
+        assert_eq!(node.meta, meta);
+        assert_eq!(node.payload, payload);
     });
 }
 
@@ -420,26 +445,6 @@ fn move_node_owner_mismatch_fails() {
             Cps::move_node(RuntimeOrigin::signed(account1), 1, 2),
             Error::<Runtime>::OwnerMismatch
         );
-    });
-}
-
-#[test]
-fn create_crypto_profile_works() {
-    new_test_ext().execute_with(|| {
-        let account = 1u64;
-        let public_params = BoundedVec::try_from(vec![1, 2, 3]).unwrap();
-
-        assert_ok!(Cps::create_crypto_profile(
-            RuntimeOrigin::signed(account),
-            1,
-            public_params.clone()
-        ));
-
-        assert_eq!(Cps::next_profile_id(), 1);
-
-        let profile = Cps::crypto_profiles(0).unwrap();
-        assert_eq!(profile.algorithm, 1);
-        assert_eq!(profile.public_params, public_params);
     });
 }
 
