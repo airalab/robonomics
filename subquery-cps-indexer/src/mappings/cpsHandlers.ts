@@ -303,13 +303,10 @@ export async function handleNodeMoved(event: SubstrateEvent): Promise<void> {
   const stats = await getOrCreateStatistics();
   stats.nodeMoves = stats.nodeMoves + BigInt(1);
   
-  // Update root nodes count
-  if (!oldParent && newParent) {
-    // Was root, now has parent
+  // Update root nodes count if node was a root before
+  if (!oldParent) {
+    // Node was a root, now has a parent
     stats.rootNodes = stats.rootNodes - BigInt(1);
-  } else if (oldParent && !newParent) {
-    // Had parent, now is root
-    stats.rootNodes = stats.rootNodes + BigInt(1);
   }
   
   stats.lastUpdatedBlock = blockNumber;
