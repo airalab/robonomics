@@ -255,14 +255,6 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Validate node data
-            if let Some(ref m) = meta {
-                Self::validate_node_data(m)?;
-            }
-            if let Some(ref p) = payload {
-                Self::validate_node_data(p)?;
-            }
-
             // Get new node ID
             let node_id = <NextNodeId<T>>::get();
             <NextNodeId<T>>::put(node_id.saturating_add(1));
@@ -322,11 +314,6 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Validate node data
-            if let Some(ref m) = meta {
-                Self::validate_node_data(m)?;
-            }
-
             // Update node
             <Nodes<T>>::try_mutate(node_id, |node_opt| {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
@@ -348,11 +335,6 @@ pub mod pallet {
             payload: Option<NodeData>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-
-            // Validate node data
-            if let Some(ref p) = payload {
-                Self::validate_node_data(p)?;
-            }
 
             // Update node
             <Nodes<T>>::try_mutate(node_id, |node_opt| {
@@ -502,33 +484,6 @@ pub mod pallet {
                     None => return Ok(()),
                 }
             }
-        }
-
-        /// Validate node data
-        fn validate_node_data(data: &NodeData) -> DispatchResult {
-            match data {
-                NodeData::Plain(vec) => {
-                    ensure!(
-                        vec.len() as u32 <= <MaxDataSize as frame_support::traits::Get<u32>>::get(),
-                        Error::<T>::DataTooLarge
-                    );
-                }
-                NodeData::Encrypted {
-                    crypto_profile,
-                    ciphertext,
-                } => {
-                    ensure!(
-                        ciphertext.len() as u32
-                            <= <MaxDataSize as frame_support::traits::Get<u32>>::get(),
-                        Error::<T>::DataTooLarge
-                    );
-                    ensure!(
-                        <CryptoProfiles<T>>::contains_key(crypto_profile),
-                        Error::<T>::CryptoProfileNotFound
-                    );
-                }
-            }
-            Ok(())
         }
     }
 }

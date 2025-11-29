@@ -26,7 +26,6 @@ type Block = frame_system::mocking::MockBlock<Runtime>;
 frame_support::construct_runtime!(
     pub enum Runtime {
         System: frame_system,
-        Timestamp: pallet_timestamp,
         Cps: pallet_cps,
     }
 );
@@ -35,17 +34,6 @@ frame_support::construct_runtime!(
 impl frame_system::Config for Runtime {
     type Block = Block;
     type AccountData = ();
-}
-
-parameter_types! {
-    pub const MinimumPeriod: u64 = 5;
-}
-
-impl pallet_timestamp::Config for Runtime {
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
 }
 
 parameter_types! {

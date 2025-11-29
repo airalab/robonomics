@@ -20,7 +20,6 @@ frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
-pallet-timestamp = { workspace = true }
 
 [features]
 default = ["std"]
