@@ -6,7 +6,7 @@ set -e
 get_block_number() {
     curl -sS -H "Content-Type: application/json" \
          -d '{"id":1, "jsonrpc":"2.0", "method":"chain_getHeader"}' \
-         http://127.0.0.1:9944 | jq -r '.result.number' | sed 's/^0x//' | xargs printf "%d"
+         http://127.0.0.1:9944 | jq -e -r '.result.number // empty' | sed 's/^0x//' | xargs -r printf "%d" || echo "0"
 }
 
 start=$(get_block_number)
