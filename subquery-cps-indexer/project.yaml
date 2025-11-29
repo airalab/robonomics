@@ -1,0 +1,69 @@
+specVersion: 1.0.0
+name: robonomics-cps-indexer
+version: 1.0.0
+runner:
+  node:
+    name: '@subql/node-substrate'
+    version: '>=3.0.0'
+  query:
+    name: '@subql/query'
+    version: '*'
+description: 'SubQuery indexer for Robonomics CPS (Cyber-Physical Systems) Pallet - Hierarchical on-chain organization with audit trails'
+repository: 'https://github.com/airalab/robonomics'
+
+schema:
+  file: ./schema.graphql
+
+network:
+  # Robonomics Kusama Parachain
+  chainId: '0x631ccc82a078481584041656af292834e3a7e4be7fc3e1e4e87eefdaf19ee23a'
+  # You can also use wss://kusama.rpc.robonomics.network for Kusama parachain
+  # or wss://main.rpc.robonomics.network for main relay
+  endpoint: wss://kusama.rpc.robonomics.network
+  # For local development, use:
+  # endpoint: ws://127.0.0.1:9944
+  dictionary: https://api.subquery.network/sq/subquery/polkadot-dictionary
+  # Genesis hash for Robonomics
+  genesisHash: '0x631ccc82a078481584041656af292834e3a7e4be7fc3e1e4e87eefdaf19ee23a'
+
+dataSources:
+  - kind: substrate/Runtime
+    # Start indexing from block 1 (adjust if needed)
+    startBlock: 1
+    mapping:
+      file: ./dist/index.js
+      handlers:
+        # Handle node creation events
+        - handler: handleNodeCreated
+          kind: substrate/EventHandler
+          filter:
+            module: cps
+            method: NodeCreated
+        
+        # Handle metadata updates
+        - handler: handleMetaSet
+          kind: substrate/EventHandler
+          filter:
+            module: cps
+            method: MetaSet
+        
+        # Handle payload updates
+        - handler: handlePayloadSet
+          kind: substrate/EventHandler
+          filter:
+            module: cps
+            method: PayloadSet
+        
+        # Handle node movement in tree
+        - handler: handleNodeMoved
+          kind: substrate/EventHandler
+          filter:
+            module: cps
+            method: NodeMoved
+        
+        # Handle node deletion
+        - handler: handleNodeDeleted
+          kind: substrate/EventHandler
+          filter:
+            module: cps
+            method: NodeDeleted

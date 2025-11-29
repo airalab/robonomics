@@ -1,0 +1,282 @@
+# GraphQL Schema for Robonomics CPS Indexer
+# This schema defines the relational database structure for indexing the CPS pallet
+
+"""
+Represents a node in the CPS hierarchical tree
+"""
+type Node @entity {
+  """
+  Node ID (unique identifier)
+  """
+  id: ID!
+  
+  """
+  Parent node ID (null for root nodes)
+  """
+  parentId: String
+  
+  """
+  Reference to parent node entity
+  """
+  parent: Node
+  
+  """
+  Child nodes (one-to-many relationship)
+  """
+  children: [Node!] @derivedFrom(field: "parent")
+  
+  """
+  Owner account address
+  """
+  owner: String!
+  
+  """
+  Metadata type (Plain or Encrypted)
+  """
+  metaType: String
+  
+  """
+  Metadata content (hex-encoded)
+  """
+  metaData: String
+  
+  """
+  Metadata encryption algorithm (if encrypted)
+  """
+  metaAlgorithm: String
+  
+  """
+  Payload type (Plain or Encrypted)
+  """
+  payloadType: String
+  
+  """
+  Payload content (hex-encoded)
+  """
+  payloadData: String
+  
+  """
+  Payload encryption algorithm (if encrypted)
+  """
+  payloadAlgorithm: String
+  
+  """
+  Block number when node was created
+  """
+  createdAtBlock: BigInt!
+  
+  """
+  Timestamp when node was created
+  """
+  createdAt: Date!
+  
+  """
+  Block number of last update
+  """
+  updatedAtBlock: BigInt!
+  
+  """
+  Timestamp of last update
+  """
+  updatedAt: Date!
+  
+  """
+  Flag indicating if node is deleted
+  """
+  isDeleted: Boolean!
+  
+  """
+  Block number when node was deleted (if deleted)
+  """
+  deletedAtBlock: BigInt
+  
+  """
+  Timestamp when node was deleted (if deleted)
+  """
+  deletedAt: Date
+  
+  """
+  History records for this node
+  """
+  history: [NodeHistory!] @derivedFrom(field: "node")
+}
+
+"""
+Audit trail for node changes
+"""
+type NodeHistory @entity {
+  """
+  Unique ID: nodeId-blockNumber-eventIndex
+  """
+  id: ID!
+  
+  """
+  Reference to the node
+  """
+  node: Node!
+  
+  """
+  Action performed: CREATED, META_SET, PAYLOAD_SET, MOVED, DELETED
+  """
+  action: String!
+  
+  """
+  Block number when action occurred
+  """
+  blockNumber: BigInt!
+  
+  """
+  Timestamp when action occurred
+  """
+  timestamp: Date!
+  
+  """
+  Transaction hash
+  """
+  txHash: String!
+  
+  """
+  Account that performed the action
+  """
+  actor: String!
+  
+  """
+  Old value before change (for updates and moves, JSON encoded)
+  """
+  oldValue: String
+  
+  """
+  New value after change (JSON encoded)
+  """
+  newValue: String
+  
+  """
+  Old parent ID (for MOVED action)
+  """
+  oldParentId: String
+  
+  """
+  New parent ID (for MOVED action)
+  """
+  newParentId: String
+}
+
+"""
+Index for quick owner lookups
+"""
+type OwnerIndex @entity {
+  """
+  Composite ID: owner-nodeId
+  """
+  id: ID!
+  
+  """
+  Owner account address
+  """
+  owner: String!
+  
+  """
+  Reference to the node
+  """
+  node: Node!
+  
+  """
+  Block number when ownership was established
+  """
+  createdAtBlock: BigInt!
+}
+
+"""
+Statistics and aggregated data
+"""
+type Statistics @entity {
+  """
+  Singleton ID (always "global")
+  """
+  id: ID!
+  
+  """
+  Total number of nodes ever created
+  """
+  totalNodesCreated: BigInt!
+  
+  """
+  Current number of active (non-deleted) nodes
+  """
+  activeNodes: BigInt!
+  
+  """
+  Total number of deleted nodes
+  """
+  deletedNodes: BigInt!
+  
+  """
+  Total number of root nodes
+  """
+  rootNodes: BigInt!
+  
+  """
+  Total number of metadata updates
+  """
+  metaUpdates: BigInt!
+  
+  """
+  Total number of payload updates
+  """
+  payloadUpdates: BigInt!
+  
+  """
+  Total number of node moves
+  """
+  nodeMoves: BigInt!
+  
+  """
+  Last updated block
+  """
+  lastUpdatedBlock: BigInt!
+  
+  """
+  Last updated timestamp
+  """
+  lastUpdatedAt: Date!
+}
+
+"""
+Daily aggregated statistics
+"""
+type DailyStats @entity {
+  """
+  Date in YYYY-MM-DD format
+  """
+  id: ID!
+  
+  """
+  Number of nodes created on this day
+  """
+  nodesCreated: Int!
+  
+  """
+  Number of nodes deleted on this day
+  """
+  nodesDeleted: Int!
+  
+  """
+  Number of metadata updates on this day
+  """
+  metaUpdates: Int!
+  
+  """
+  Number of payload updates on this day
+  """
+  payloadUpdates: Int!
+  
+  """
+  Number of node moves on this day
+  """
+  nodeMoves: Int!
+  
+  """
+  Date of the statistics
+  """
+  date: Date!
+}
