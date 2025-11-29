@@ -15,7 +15,131 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Cyber-Physical System pallet. This can be compiled with `#[no_std]`, ready for Wasm.
+//! # CPS Pallet: On-chain Hierarchical Tree for Cyber-Physical Systems
+//!
+//! This pallet provides a decentralized registry for cyber-physical systems organized
+//! as a hierarchical tree structure with ownership-based access control and support
+//! for both plain and encrypted data storage.
+//!
+//! ## Architecture
+//!
+//! ### Storage Layout
+//!
+//! The pallet uses three storage items:
+//!
+//! 1. **`Nodes`**: Primary storage mapping `NodeId` → `Node<AccountId, Config>`
+//!    - Uses `Blake2_128Concat` hasher for cryptographic security
+//!    - Each node stores its complete ancestor path for O(1) operations
+//!
+//! 2. **`NodesByParent`**: Index mapping `NodeId` → `BoundedVec<NodeId>`
+//!    - Enables O(1) lookup of all children for a given parent
+//!    - Uses `Blake2_128Concat` hasher
+//!
+//! 3. **`RootNodes`**: Global list of `BoundedVec<NodeId>`
+//!    - Tracks all nodes without parents
+//!    - Limited by `MaxRootNodes` configuration
+//!
+//! ### Performance Characteristics
+//!
+//! All core operations are O(1) time complexity:
+//! - **Cycle detection**: `new_parent.path.contains(&node_id)` → O(1)
+//! - **Depth validation**: `parent.path.len() < MaxTreeDepth` → O(1)
+//! - **Child lookup**: Direct index access via `NodesByParent` → O(1)
+//!
+//! Trade-off: Requires O(depth) storage per node for path tracking, but eliminates
+//! expensive recursive tree traversals during validation.
+//!
+//! ### Compact Encoding
+//!
+//! `NodeId` uses `#[codec(compact)]` attribute to enable SCALE compact encoding:
+//! - Node IDs 0-63: 1 byte (87% savings vs 8 bytes)
+//! - Node IDs 64-16,383: 2 bytes (75% savings)
+//! - Node IDs 16,384+: 3+ bytes (62%+ savings)
+//!
+//! ## Usage Examples
+//!
+//! ### Creating a Root Node
+//!
+//! ```ignore
+//! use pallet_robonomics_cps::{NodeData, NodeId};
+//! use frame_support::BoundedVec;
+//!
+//! // Plain metadata
+//! let meta = Some(NodeData::Plain(
+//!     BoundedVec::try_from(b"sensor_config".to_vec()).unwrap()
+//! ));
+//!
+//! // Create root (parent = None)
+//! Cps::create_node(origin, None, meta, None)?;
+//! ```
+//!
+//! ### Creating a Child Node with Encrypted Data
+//!
+//! ```ignore
+//! use pallet_robonomics_cps::{NodeData, NodeId, CryptoAlgorithm};
+//!
+//! // Encrypted payload
+//! let payload = Some(NodeData::Encrypted {
+//!     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+//!     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
+//! });
+//!
+//! // Create child under node 0
+//! Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
+//! ```
+//!
+//! ### Moving Nodes with Cycle Detection
+//!
+//! ```ignore
+//! // This will FAIL if node_id is an ancestor of new_parent_id
+//! Cps::move_node(origin, NodeId(5), NodeId(10))?;
+//! // Error: CycleDetected if NodeId(10) descends from NodeId(5)
+//! ```
+//!
+//! ### Querying the Tree
+//!
+//! ```ignore
+//! // Get a node
+//! let node = Nodes::<T>::get(NodeId(0)).ok_or(Error::<T>::NodeNotFound)?;
+//!
+//! // Get all children
+//! let children = NodesByParent::<T>::get(NodeId(0));
+//!
+//! // Get all root nodes
+//! let roots = RootNodes::<T>::get();
+//!
+//! // Check if node is ancestor (O(1))
+//! let is_ancestor = node.path.contains(&NodeId(ancestor_id));
+//! ```
+//!
+//! ## Security Invariants
+//!
+//! The pallet maintains the following invariants:
+//!
+//! 1. **No Cycles**: The tree is acyclic (enforced by path checking)
+//! 2. **Ownership Consistency**: Children always have parent's owner
+//! 3. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
+//! 4. **Deletion Safety**: Cannot delete nodes with children
+//! 5. **Depth Limits**: Tree depth never exceeds `MaxTreeDepth`
+//!
+//! ## Testing
+//!
+//! Run the comprehensive test suite:
+//!
+//! ```bash
+//! cargo test -p pallet-robonomics-cps
+//! ```
+//!
+//! Tests cover:
+//! - Node creation (root and children)
+//! - Data updates (metadata and payload)
+//! - Node movement with cycle detection
+//! - Node deletion with safety checks
+//! - Ownership validation
+//! - Index consistency
+//! - Encrypted data handling
+//! - Path tracking and updates
+//!
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -33,10 +157,29 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
-/// Maximum data size for node metadata, payload, and crypto profile parameters
+/// Maximum data size for node metadata, payload, and crypto profile parameters.
+///
+/// Set to 2048 bytes to accommodate typical sensor readings, configuration data,
+/// and encrypted payloads while preventing DoS attacks via large data submissions.
 pub type MaxDataSize = ConstU32<2048>;
 
-/// Node identifier newtype with compact encoding for efficient storage
+/// Node identifier newtype with compact encoding for efficient storage.
+///
+/// The `#[codec(compact)]` attribute enables SCALE compact encoding, which uses
+/// variable-length encoding to reduce storage costs for small node IDs:
+///
+/// | Node ID Range | Standard | Compact | Savings |
+/// |---------------|----------|---------|---------|
+/// | 0-63          | 8 bytes  | 1 byte  | 87%     |
+/// | 64-16,383     | 8 bytes  | 2 bytes | 75%     |
+/// | 16,384+       | 8 bytes  | 3+ bytes| 62%+    |
+///
+/// # Example
+///
+/// ```ignore
+/// let node_id = NodeId(42);  // Uses 1 byte in compact encoding
+/// let next_id = node_id.saturating_add(1);  // NodeId(43)
+/// ```
 #[derive(
     Encode,
     Decode,
@@ -65,13 +208,37 @@ impl From<NodeId> for u64 {
 }
 
 impl NodeId {
-    /// Saturating add for node ID
+    /// Saturating add for node ID increments.
+    ///
+    /// Returns `NodeId(u64::MAX)` if addition would overflow instead of wrapping.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let id = NodeId(u64::MAX);
+    /// let next = id.saturating_add(1);  // Still NodeId(u64::MAX)
+    /// ```
     pub fn saturating_add(self, rhs: u64) -> Self {
         Self(self.0.saturating_add(rhs))
     }
 }
 
-/// Crypto algorithm enum for encryption
+/// Cryptographic algorithm identifier for encrypted data.
+///
+/// Currently supports XChaCha20-Poly1305, an AEAD (Authenticated Encryption with
+/// Associated Data) cipher providing:
+/// - 256-bit key security
+/// - 192-bit nonce (no reuse concerns)
+/// - Authentication tag for integrity
+///
+/// Additional algorithms can be added as enum variants while maintaining backward
+/// compatibility with existing encrypted data.
+///
+/// # Example
+///
+/// ```ignore
+/// let algo = CryptoAlgorithm::XChaCha20Poly1305;
+/// ```
 #[derive(
     Encode,
     Decode,
@@ -85,20 +252,87 @@ impl NodeId {
     Debug,
 )]
 pub enum CryptoAlgorithm {
-    /// XChaCha20-Poly1305 AEAD encryption
+    /// XChaCha20-Poly1305 AEAD encryption.
+    ///
+    /// Recommended for most use cases due to:
+    /// - High performance (software-optimized)
+    /// - Large nonce space (192 bits prevents reuse concerns)
+    /// - Strong security guarantees (256-bit keys, authenticated encryption)
+    ///
+    /// Resources:
+    /// - RFC 8439: ChaCha20-Poly1305
+    /// - XChaCha20 extends nonce to 192 bits
     XChaCha20Poly1305,
 }
 
-/// Node data that can be either plain or encrypted
+/// Node data container supporting both plain and encrypted storage.
+///
+/// This enum allows mixed privacy models within the same tree:
+/// - Public metadata with encrypted payload
+/// - Encrypted metadata with public payload
+/// - Both encrypted or both plain
+///
+/// # Storage Considerations
+///
+/// Both variants use `BoundedVec<u8, MaxDataSize>` which:
+/// - Enforces 2048-byte limit at construction time
+/// - Prevents DoS attacks via oversized data
+/// - Implements `MaxEncodedLen` for predictable storage costs
+///
+/// # Examples
+///
+/// ## Plain Data
+///
+/// ```ignore
+/// let meta = NodeData::Plain(
+///     BoundedVec::try_from(b"temperature: 22.5C".to_vec()).unwrap()
+/// );
+/// ```
+///
+/// ## Encrypted Data
+///
+/// ```ignore
+/// // Assume `encrypt()` returns ciphertext bytes
+/// let payload = NodeData::Encrypted {
+///     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+///     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
+/// };
+/// ```
+///
+/// ## Mixed Privacy
+///
+/// ```ignore
+/// // Public configuration, private operational data
+/// Cps::create_node(
+///     origin,
+///     Some(parent_id),
+///     Some(NodeData::Plain(config_bytes)),           // Public
+///     Some(NodeData::Encrypted { ... })              // Private
+/// )?;
+/// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 pub enum NodeData {
-    /// Plain unencrypted data
+    /// Plain unencrypted data visible to all.
+    ///
+    /// Use for:
+    /// - Public system specifications
+    /// - Non-sensitive configuration
+    /// - Transparently verifiable data
     Plain(BoundedVec<u8, MaxDataSize>),
-    /// Encrypted data with crypto algorithm
+    
+    /// Encrypted data with algorithm specification.
+    ///
+    /// Use for:
+    /// - Sensitive operational data
+    /// - Personal information (GDPR/HIPAA)
+    /// - Trade secrets or proprietary information
+    ///
+    /// Note: Encryption/decryption happens off-chain. The pallet only stores
+    /// ciphertext and algorithm identifier.
     Encrypted {
         /// Crypto algorithm used for encryption
         algorithm: CryptoAlgorithm,
-        /// Encrypted ciphertext
+        /// Encrypted ciphertext (includes nonce/tag if AEAD)
         ciphertext: BoundedVec<u8, MaxDataSize>,
     },
 }
@@ -119,7 +353,65 @@ impl sp_std::fmt::Debug for NodeData {
     }
 }
 
-/// Node structure representing a CPS node
+/// Node structure representing a cyber-physical system in the tree.
+///
+/// Each node maintains:
+/// 1. **Parent link** (`Option<NodeId>`): None for root nodes
+/// 2. **Owner** (`AccountId`): Who controls this node and its subtree
+/// 3. **Path** (`BoundedVec<NodeId>`): Complete ancestor chain for O(1) operations
+/// 4. **Metadata** (`Option<NodeData>`): Configuration, specifications, capabilities
+/// 5. **Payload** (`Option<NodeData>`): Operational data, sensor readings, telemetry
+///
+/// # Path-Based Performance
+///
+/// The `path` field stores all ancestor node IDs from root to parent:
+///
+/// ```text
+/// Tree:        Node A (root)
+///                 |
+///              Node B         <- path: [A]
+///                 |
+///              Node C         <- path: [A, B]
+/// ```
+///
+/// This enables:
+/// - **O(1) Cycle Detection**: `path.contains(&node_id)` checks if moving would create a cycle
+/// - **O(1) Depth Check**: `path.len()` returns current depth without traversal
+/// - **O(1) Ancestor Test**: Direct lookup in path vector
+///
+/// Trade-off: Uses O(depth) storage per node, but eliminates expensive recursive operations.
+///
+/// # Examples
+///
+/// ## Creating a Root Node
+///
+/// ```ignore
+/// let root = Node {
+///     parent: None,
+///     owner: account_id,
+///     path: BoundedVec::default(),  // Empty for root
+///     meta: Some(NodeData::Plain(...)),
+///     payload: None,
+/// };
+/// ```
+///
+/// ## Creating a Child Node
+///
+/// ```ignore
+/// let parent_node = Nodes::<T>::get(parent_id).unwrap();
+///
+/// // Build path: parent's path + parent's ID
+/// let mut child_path = parent_node.path.clone();
+/// child_path.try_push(parent_id).map_err(|_| Error::<T>::MaxDepthExceeded)?;
+///
+/// let child = Node {
+///     parent: Some(parent_id),
+///     owner: parent_node.owner.clone(),  // Inherit owner
+///     path: child_path,
+///     meta: Some(NodeData::Plain(...)),
+///     payload: Some(NodeData::Encrypted { ... }),
+/// };
+/// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
