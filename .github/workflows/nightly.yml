@@ -142,6 +142,8 @@ jobs:
 
     - name: Build optimized binary for aarch64
       if: contains(matrix.target, 'aarch64')
+      env:
+        CROSS_CONTAINER_OPTS: "--volume /usr/bin/protoc:/usr/bin/protoc --volume /usr/include/google:/usr/include/google"
       run: cross build --profile production --target ${{ matrix.target }} --verbose --locked
 
     - name: Set artifact name
