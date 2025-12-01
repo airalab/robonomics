@@ -327,8 +327,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type MaxPageSize = MaxPageSize;
     type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-    // No fees for XCM message delivery to siblings - consider adding proper pricing in production
-    type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
+    // Charge a conservative fee for XCM message delivery to siblings
+    type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::SiblingParachainConservativeMessageFee<Runtime, WeightToFee>;
     type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Runtime>;
 }
 
