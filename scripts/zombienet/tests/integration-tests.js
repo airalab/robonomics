@@ -171,9 +171,11 @@ async function testExtrinsicSubmission() {
     
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        parachainApi.disconnect().then(() => {
-          reject(new Error('Transaction timeout'));
-        });
+        parachainApi.disconnect()
+          .catch(() => {}) // Ignore disconnect errors in timeout
+          .finally(() => {
+            reject(new Error('Transaction timeout'));
+          });
       }, TESTS_CONFIG.transactionTimeout);
       
       let resolved = false;

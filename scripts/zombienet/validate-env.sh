@@ -121,9 +121,25 @@ fi
 # Check port availability
 echo "[9/10] Checking port availability..."
 PORTS_IN_USE=0
-# Using lsof (macOS/Linux) and netstat (fallback) for portability
+# Check ports using available tools (lsof, netstat, or ss)
 for PORT in 9944 9945 9988 9989 30333 30334 31200 31201; do
-    if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 || netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
+    port_in_use=false
+    
+    # Try lsof if available
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+            port_in_use=true
+        fi
+    fi
+    
+    # Try netstat as fallback
+    if [ "$port_in_use" = false ] && command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
+            port_in_use=true
+        fi
+    fi
+    
+    if [ "$port_in_use" = true ]; then
         check_warn "Port $PORT is already in use"
         ((PORTS_IN_USE++))
     fi

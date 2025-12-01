@@ -52,8 +52,18 @@ download_if_missing() {
     
     if [ ! -f "$output" ]; then
         log_info "Downloading $(basename "$output")..."
-        curl -L -o "$output" "$url"
-        chmod +x "$output"
+        if curl -L -o "$output" "$url"; then
+            chmod +x "$output"
+            # Verify the file is executable
+            if [ ! -x "$output" ]; then
+                log_error "Downloaded file is not executable: $output"
+                return 1
+            fi
+            log_info "Successfully downloaded $(basename "$output")"
+        else
+            log_error "Failed to download from $url"
+            return 1
+        fi
     else
         log_info "$(basename "$output") already exists, skipping download"
     fi
