@@ -170,7 +170,7 @@ use sp_std::prelude::*;
 /// - **Logging**: Maintain an audit trail of payload modifications
 ///
 /// The callback is invoked AFTER the payload has been successfully written to storage,
-/// ensuring that the operation has completed before any side effects are triggered.
+/// ensuring that the operation has been completed before any side effects are triggered.
 ///
 /// # Example Implementation
 ///
@@ -179,11 +179,11 @@ use sp_std::prelude::*;
 ///
 /// pub struct MyPayloadHandler;
 ///
-/// impl OnPayloadSet<AccountId> for MyPayloadHandler {
+/// impl<EncryptedData> OnPayloadSet<AccountId, EncryptedData> for MyPayloadHandler {
 ///     fn on_payload_set(
 ///         node_id: NodeId,
-///         meta: Option<NodeData>,
-///         payload: Option<NodeData>
+///         meta: Option<NodeData<EncryptedData>>,
+///         payload: Option<NodeData<EncryptedData>>
 ///     ) {
 ///         // Custom logic here - e.g., emit a custom event, update an index, etc.
 ///         log::info!("Payload set on node {:?}", node_id);
@@ -198,7 +198,7 @@ use sp_std::prelude::*;
 /// ```ignore
 /// type OnPayloadSet = (HandlerA, HandlerB, HandlerC);
 /// ```
-pub trait OnPayloadSet<AccountId> {
+pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
     /// Called when a payload is set on a node.
     ///
     /// # Parameters
@@ -206,15 +206,15 @@ pub trait OnPayloadSet<AccountId> {
     /// - `node_id`: The ID of the node whose payload was updated
     /// - `meta`: The current metadata of the node (if any)
     /// - `payload`: The new payload that was set (if any, None means payload was cleared)
-    fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>);
+    fn on_payload_set(node_id: NodeId, meta: Option<NodeData<EncryptedData>>, payload: Option<NodeData<EncryptedData>>);
 }
 
 /// Default no-op implementation for `()` type.
 ///
 /// This allows using `type OnPayloadSet = ()` in the runtime configuration
 /// to disable the callback without requiring an explicit implementation.
-impl<AccountId> OnPayloadSet<AccountId> for () {
-    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData>, _payload: Option<NodeData>) {
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> for () {
+    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData<EncryptedData>>, _payload: Option<NodeData<EncryptedData>>) {
         // No-op: do nothing
     }
 }
@@ -227,8 +227,8 @@ impl<AccountId> OnPayloadSet<AccountId> for () {
 /// ```
 macro_rules! impl_on_payload_set_for_tuples {
     ($($t:ident),+) => {
-        impl<AccountId, $($t: OnPayloadSet<AccountId>),+> OnPayloadSet<AccountId> for ($($t,)+) {
-            fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
+        impl<AccountId, EncryptedData: MaxEncodedLen + Clone, $($t: OnPayloadSet<AccountId, EncryptedData>),+> OnPayloadSet<AccountId, EncryptedData> for ($($t,)+) {
+            fn on_payload_set(node_id: NodeId, meta: Option<NodeData<EncryptedData>>, payload: Option<NodeData<EncryptedData>>) {
                 $(
                     $t::on_payload_set(node_id, meta.clone(), payload.clone());
                 )+
@@ -547,6 +547,7 @@ impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for N
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(T))]
+#[allow(clippy::multiple_bound_locations)]
 pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
@@ -645,7 +646,7 @@ pub mod pallet {
         /// type OnPayloadSet = MyCustomHandler; // Single handler
         /// type OnPayloadSet = (HandlerA, HandlerB); // Multiple handlers
         /// ```
-        type OnPayloadSet: OnPayloadSet<Self::AccountId>;
+        type OnPayloadSet: OnPayloadSet<Self::AccountId, Self::EncryptedData>;
 
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
@@ -832,7 +833,7 @@ pub mod pallet {
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
                 node.payload = payload;
-                Ok::<(Option<NodeData>, Option<NodeData>), DispatchError>((meta, node.payload.clone()))
+                Ok::<(Option<NodeData<T::EncryptedData>>, Option<NodeData<T::EncryptedData>>), DispatchError>((meta, node.payload.clone()))
             })?;
 
             Self::deposit_event(Event::PayloadSet(node_id, sender));

@@ -796,14 +796,14 @@ fn on_payload_set_callback_invoked() {
     
     // Thread-local storage to track callback invocations
     thread_local! {
-        static CALLBACK_INVOKED: RefCell<Option<(NodeId, Option<NodeData>, Option<NodeData>)>> = RefCell::new(None);
+        static CALLBACK_INVOKED: RefCell<Option<(NodeId, Option<NodeData<DefaultEncryptedData>>, Option<NodeData<DefaultEncryptedData>>)>> = RefCell::new(None);
     }
     
     // Custom callback handler for testing
     pub struct TestPayloadHandler;
     
-    impl OnPayloadSet<u64> for TestPayloadHandler {
-        fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
+    impl OnPayloadSet<u64, DefaultEncryptedData> for TestPayloadHandler {
+        fn on_payload_set(node_id: NodeId, meta: Option<NodeData<DefaultEncryptedData>>, payload: Option<NodeData<DefaultEncryptedData>>) {
             CALLBACK_INVOKED.with(|cell| {
                 *cell.borrow_mut() = Some((node_id, meta, payload));
             });
@@ -835,6 +835,7 @@ fn on_payload_set_callback_invoked() {
         type MaxChildrenPerNode = MaxChildrenPerNode;
         type MaxRootNodes = MaxRootNodes;
         type OnPayloadSet = TestPayloadHandler;
+        type EncryptedData = DefaultEncryptedData;
         type WeightInfo = ();
     }
     
