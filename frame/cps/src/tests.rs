@@ -762,3 +762,29 @@ fn delete_node_non_owner_fails() {
         );
     });
 }
+
+#[test]
+fn debug_formatting_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+        
+        // Create a node with encrypted data
+        let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+            BoundedVec::try_from(vec![1, 2, 3]).unwrap()
+        );
+        let meta = Some(NodeData::Encrypted(encrypted));
+        
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            meta,
+            None
+        ));
+        
+        let node = Cps::nodes(NodeId(0)).unwrap();
+        // This verifies Debug is properly implemented for Node with encrypted data
+        let debug_str = format!("{:?}", node);
+        assert!(!debug_str.is_empty());
+        assert!(debug_str.contains("Node"));
+    });
+}
