@@ -779,7 +779,10 @@ fn on_payload_set_callback_invoked() {
         }
     }
     
-    // Create a custom test runtime with our callback handler
+    // Create a separate test runtime with our callback handler.
+    // We need a distinct runtime instance because the global `Runtime` at the top
+    // of this file is configured with `OnPayloadSet = ()` (no-op), and we can't
+    // modify it for this single test without affecting other tests.
     type TestBlock = frame_system::mocking::MockBlock<TestRuntime>;
     
     frame_support::construct_runtime!(
