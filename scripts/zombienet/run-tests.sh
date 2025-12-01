@@ -142,6 +142,12 @@ run_tests() {
     # Update the config to use the correct binaries
     log_info "Using configuration: ${CONFIG_FILE}"
     
+    # Detect node executable (could be 'node' or 'nodejs')
+    local node_cmd="node"
+    if ! command_exists node && command_exists nodejs; then
+        node_cmd="nodejs"
+    fi
+    
     # Run zombienet with test command
     log_info "Spawning test network with zombienet..."
     
@@ -149,7 +155,7 @@ run_tests() {
     # The test script will be executed after the network is up
     "$ZOMBIENET_BIN" test "$CONFIG_FILE" \
         --provider native \
-        -- node "${TESTS_DIR}/integration-tests.js"
+        -- "$node_cmd" "${TESTS_DIR}/integration-tests.js"
 }
 
 # Cleanup function
