@@ -23,6 +23,7 @@ use frame_support::{
     traits::{OnRuntimeUpgrade, StorageVersion},
     weights::Weight,
 };
+use parity_scale_codec::{Decode, Encode};
 
 #[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
