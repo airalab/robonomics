@@ -47,6 +47,7 @@ impl pallet_cps::Config for Runtime {
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxRootNodes = MaxRootNodes;
+    type OnPayloadSet = ();
     type WeightInfo = ();
 }
 
@@ -755,5 +756,119 @@ fn delete_node_non_owner_fails() {
             Cps::delete_node(RuntimeOrigin::signed(account2), NodeId(0)),
             Error::<Runtime>::NotNodeOwner
         );
+    });
+}
+
+#[test]
+fn on_payload_set_callback_invoked() {
+    use sp_std::cell::RefCell;
+    
+    // Thread-local storage to track callback invocations
+    thread_local! {
+        static CALLBACK_INVOKED: RefCell<Option<(NodeId, Option<NodeData>, Option<NodeData>)>> = RefCell::new(None);
+    }
+    
+    // Custom callback handler for testing
+    pub struct TestPayloadHandler;
+    
+    impl OnPayloadSet<u64> for TestPayloadHandler {
+        fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
+            CALLBACK_INVOKED.with(|cell| {
+                *cell.borrow_mut() = Some((node_id, meta, payload));
+            });
+        }
+    }
+    
+    // Create a custom test runtime with our callback handler
+    type TestBlock = frame_system::mocking::MockBlock<TestRuntime>;
+    
+    frame_support::construct_runtime!(
+        pub enum TestRuntime {
+            System: frame_system,
+            Cps: pallet_cps,
+        }
+    );
+    
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
+    impl frame_system::Config for TestRuntime {
+        type Block = TestBlock;
+        type AccountData = ();
+    }
+    
+    impl pallet_cps::Config for TestRuntime {
+        type RuntimeEvent = RuntimeEvent;
+        type MaxTreeDepth = MaxTreeDepth;
+        type MaxChildrenPerNode = MaxChildrenPerNode;
+        type MaxRootNodes = MaxRootNodes;
+        type OnPayloadSet = TestPayloadHandler;
+        type WeightInfo = ();
+    }
+    
+    let mut ext = {
+        let t = frame_system::GenesisConfig::<TestRuntime>::default()
+            .build_storage()
+            .unwrap();
+        sp_io::TestExternalities::new(t)
+    };
+    
+    ext.execute_with(|| {
+        System::set_block_number(1);
+        let account = 1u64;
+        
+        // Reset callback tracker
+        CALLBACK_INVOKED.with(|cell| *cell.borrow_mut() = None);
+        
+        // Create a node with initial metadata
+        let meta = Some(NodeData::Plain(
+            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
+        ));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            meta.clone(),
+            None
+        ));
+        
+        // Reset callback tracker (create_node doesn't trigger the callback)
+        CALLBACK_INVOKED.with(|cell| *cell.borrow_mut() = None);
+        
+        // Set payload - this should trigger the callback
+        let payload = Some(NodeData::Plain(
+            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
+        ));
+        assert_ok!(Cps::set_payload(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            payload.clone()
+        ));
+        
+        // Verify callback was invoked with correct parameters
+        CALLBACK_INVOKED.with(|cell| {
+            let invocation = cell.borrow();
+            assert!(invocation.is_some(), "Callback was not invoked");
+            
+            let (node_id, cb_meta, cb_payload) = invocation.as_ref().unwrap();
+            assert_eq!(*node_id, NodeId(0), "Callback received wrong node_id");
+            assert_eq!(*cb_meta, meta, "Callback received wrong metadata");
+            assert_eq!(*cb_payload, payload, "Callback received wrong payload");
+        });
+        
+        // Test clearing payload
+        CALLBACK_INVOKED.with(|cell| *cell.borrow_mut() = None);
+        
+        assert_ok!(Cps::set_payload(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            None
+        ));
+        
+        // Verify callback was invoked with None payload
+        CALLBACK_INVOKED.with(|cell| {
+            let invocation = cell.borrow();
+            assert!(invocation.is_some(), "Callback was not invoked for clear");
+            
+            let (_node_id, _cb_meta, cb_payload) = invocation.as_ref().unwrap();
+            assert_eq!(*cb_payload, None, "Callback should receive None when payload is cleared");
+        });
     });
 }

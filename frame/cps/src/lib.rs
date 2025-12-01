@@ -157,6 +157,92 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
+/// Callback trait invoked when a payload is set on a node.
+///
+/// This trait allows runtime-level hooks to be executed after a payload has been successfully
+/// updated on a CPS node. It follows Substrate's standard pattern for runtime callbacks and
+/// enables various use cases such as:
+///
+/// - **Indexing**: Track payload changes for off-chain indexing or querying
+/// - **Notifications**: Trigger events or notifications to external systems
+/// - **Analytics**: Collect metrics about payload updates
+/// - **Automation**: Chain additional actions based on payload changes
+/// - **Logging**: Maintain an audit trail of payload modifications
+///
+/// The callback is invoked AFTER the payload has been successfully written to storage,
+/// ensuring that the operation has completed before any side effects are triggered.
+///
+/// # Example Implementation
+///
+/// ```ignore
+/// use pallet_robonomics_cps::{OnPayloadSet, NodeId, NodeData};
+///
+/// pub struct MyPayloadHandler;
+///
+/// impl OnPayloadSet<AccountId> for MyPayloadHandler {
+///     fn on_payload_set(
+///         node_id: NodeId,
+///         meta: Option<NodeData>,
+///         payload: Option<NodeData>
+///     ) {
+///         // Custom logic here - e.g., emit a custom event, update an index, etc.
+///         log::info!("Payload set on node {:?}", node_id);
+///     }
+/// }
+/// ```
+///
+/// # Multiple Handlers
+///
+/// Multiple handlers can be combined using tuples:
+///
+/// ```ignore
+/// type OnPayloadSet = (HandlerA, HandlerB, HandlerC);
+/// ```
+pub trait OnPayloadSet<AccountId> {
+    /// Called when a payload is set on a node.
+    ///
+    /// # Parameters
+    ///
+    /// - `node_id`: The ID of the node whose payload was updated
+    /// - `meta`: The current metadata of the node (if any)
+    /// - `payload`: The new payload that was set (if any, None means payload was cleared)
+    fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>);
+}
+
+/// Default no-op implementation for `()` type.
+///
+/// This allows using `type OnPayloadSet = ()` in the runtime configuration
+/// to disable the callback without requiring an explicit implementation.
+impl<AccountId> OnPayloadSet<AccountId> for () {
+    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData>, _payload: Option<NodeData>) {
+        // No-op: do nothing
+    }
+}
+
+/// Implementation for tuples to support multiple handlers.
+///
+/// This allows combining multiple callback handlers:
+/// ```ignore
+/// type OnPayloadSet = (HandlerA, HandlerB);
+/// ```
+macro_rules! impl_on_payload_set_for_tuples {
+    ($($t:ident),+) => {
+        impl<AccountId, $($t: OnPayloadSet<AccountId>),+> OnPayloadSet<AccountId> for ($($t,)+) {
+            fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
+                $(
+                    $t::on_payload_set(node_id, meta.clone(), payload.clone());
+                )+
+            }
+        }
+    };
+}
+
+impl_on_payload_set_for_tuples!(A);
+impl_on_payload_set_for_tuples!(A, B);
+impl_on_payload_set_for_tuples!(A, B, C);
+impl_on_payload_set_for_tuples!(A, B, C, D);
+impl_on_payload_set_for_tuples!(A, B, C, D, E);
+
 /// Maximum data size for node metadata, payload, and crypto profile parameters.
 ///
 /// Set to 2048 bytes to accommodate typical sensor readings, configuration data,
@@ -467,6 +553,26 @@ pub mod pallet {
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
 
+        /// Callback handler invoked when a payload is set on a node.
+        ///
+        /// Use `()` for no callback, or implement the `OnPayloadSet` trait
+        /// for custom runtime-level hooks. Multiple handlers can be combined
+        /// using tuples: `(HandlerA, HandlerB)`.
+        ///
+        /// The callback receives:
+        /// - The node ID that was updated
+        /// - The current metadata of the node
+        /// - The new payload that was set
+        ///
+        /// # Example
+        ///
+        /// ```ignore
+        /// type OnPayloadSet = (); // No callback
+        /// type OnPayloadSet = MyCustomHandler; // Single handler
+        /// type OnPayloadSet = (HandlerA, HandlerB); // Multiple handlers
+        /// ```
+        type OnPayloadSet: OnPayloadSet<Self::AccountId>;
+
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
     }
@@ -646,15 +752,19 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Update node
-            <Nodes<T>>::try_mutate(node_id, |node_opt| {
+            // Capture metadata and new payload for callback
+            let (meta, new_payload) = <Nodes<T>>::try_mutate(node_id, |node_opt| {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
-                node.payload = payload;
-                Ok::<(), DispatchError>(())
+                node.payload = payload.clone();
+                Ok::<(Option<NodeData>, Option<NodeData>), DispatchError>((node.meta.clone(), payload))
             })?;
 
             Self::deposit_event(Event::PayloadSet(node_id, sender));
+
+            // Invoke the callback after successful payload update
+            T::OnPayloadSet::on_payload_set(node_id, meta, new_payload);
+
             Ok(())
         }
 
