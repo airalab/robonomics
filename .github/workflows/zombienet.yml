@@ -17,6 +17,8 @@ jobs:
   zombienet-tests:
     name: Run Zombienet Tests
     runs-on: ubuntu-latest
+    # Timeout accounts for: build time (~30min), binary downloads (~5min),
+    # network initialization (~5min), and test execution (~10min) with buffer
     timeout-minutes: 60
     
     steps:

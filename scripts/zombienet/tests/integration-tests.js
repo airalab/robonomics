@@ -15,6 +15,8 @@ const TESTS_CONFIG = {
   parachainWsUrl: 'ws://127.0.0.1:9988',
   timeout: 300000, // 5 minutes
   blockProductionWaitTime: 60000, // 1 minute
+  transactionTimeout: 60000, // 1 minute
+  networkStabilizationTime: 30000, // 30 seconds
 };
 
 // Test results tracking
@@ -170,7 +172,7 @@ async function testExtrinsicSubmission() {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('Transaction timeout'));
-      }, 60000); // 1 minute timeout
+      }, TESTS_CONFIG.transactionTimeout);
       
       tx.signAndSend(alice, ({ status, events }) => {
         if (status.isInBlock) {
@@ -207,7 +209,7 @@ async function runTests() {
   try {
     // Wait a bit for the network to stabilize
     log.info('Waiting for network to stabilize...');
-    await sleep(30000); // 30 seconds
+    await sleep(TESTS_CONFIG.networkStabilizationTime);
     
     // Run tests sequentially
     await testNetworkInitialization();

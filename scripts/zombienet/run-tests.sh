@@ -97,6 +97,7 @@ setup_environment() {
     fi
     
     # Download polkadot if not present
+    # Note: The polkadot binary from releases is universal (works on Linux and macOS)
     if [ ! -f "$POLKADOT_BIN" ]; then
         log_info "Downloading polkadot ${POLKADOT_VERSION}..."
         local polkadot_url="https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot"
