@@ -64,7 +64,7 @@ pub mod v1 {
             }
 
             // Migrate LocationOf storage
-            let _location_of_count = v0::LocationOf::<T>::iter().count();
+            
             v0::LocationOf::<T>::translate::<xcm::v3::MultiLocation, _>(|_asset_id, old_location| {
                 weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
                 
