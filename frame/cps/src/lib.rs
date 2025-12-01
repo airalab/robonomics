@@ -521,7 +521,8 @@ pub mod pallet {
             + Member
             + MaxEncodedLen
             + Clone
-            + TypeInfo;
+            + TypeInfo
+            + sp_std::fmt::Debug;
 
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
