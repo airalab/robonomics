@@ -784,17 +784,7 @@ fn debug_formatting_works() {
         
         let node = Cps::nodes(NodeId(0)).unwrap();
         // This verifies Debug is properly implemented for Node with encrypted data
-        let debug_str = format!("{:- name: Set artifact name
--      env:
--        TARGET: ${{ matrix.target }}
--      id: artifact-name
--      run: echo "::set-output name=name::robonomics-ubuntu-latest-${TARGET%%-*}"
--
--    - uses: actions/upload-artifact@v4
--      with:
--        name: ${{ steps.artifact-name.outputs.name }}
--        path: target/${{ matrix.target }}/production/robonomics
-?}", node);
+        let debug_str = format!("{:?}", node);
         assert!(!debug_str.is_empty());
         assert!(debug_str.contains("Node"));
     });
