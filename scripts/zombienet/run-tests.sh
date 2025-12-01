@@ -23,7 +23,12 @@ ZOMBIENET_VERSION="v1.3.106"
 POLKADOT_VERSION="v1.15.2"
 ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet"
 POLKADOT_BIN="${SCRIPT_DIR}/bin/polkadot"
-ROBONOMICS_BIN="${PROJECT_ROOT}/target/release/robonomics"
+# Check for production profile binary first, fall back to release
+if [ -f "${PROJECT_ROOT}/target/production/robonomics" ]; then
+    ROBONOMICS_BIN="${PROJECT_ROOT}/target/production/robonomics"
+else
+    ROBONOMICS_BIN="${PROJECT_ROOT}/target/release/robonomics"
+fi
 CONFIG_FILE="${SCRIPT_DIR}/robonomics-local.toml"
 TESTS_DIR="${SCRIPT_DIR}/tests"
 
@@ -117,9 +122,12 @@ setup_environment() {
     # Check if robonomics binary exists
     if [ ! -f "$ROBONOMICS_BIN" ]; then
         log_warn "Robonomics binary not found at ${ROBONOMICS_BIN}"
-        log_info "Building robonomics..."
+        log_info "Building robonomics with production profile..."
         cd "$PROJECT_ROOT"
-        cargo build --release
+        cargo build --profile production
+        
+        # Update binary path after build
+        ROBONOMICS_BIN="${PROJECT_ROOT}/target/production/robonomics"
         
         if [ ! -f "$ROBONOMICS_BIN" ]; then
             log_error "Failed to build robonomics binary"

@@ -87,7 +87,7 @@ View workflow: `.github/workflows/zombienet.yml`
 ### Runtime
 - Zombienet binary (auto-downloaded)
 - Polkadot binary (auto-downloaded)
-- Robonomics binary (must be built: `cargo build --release`)
+- Robonomics binary (must be built: `cargo build --profile production`)
 
 ### Node.js Packages
 - `@polkadot/api` - Polkadot.js API
@@ -108,7 +108,7 @@ View workflow: `.github/workflows/zombienet.yml`
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | Port in use | Previous test didn't clean up | Kill processes: `pkill -f zombienet` |
-| Binary not found | Robonomics not built | Run: `cargo build --release` |
+| Binary not found | Robonomics not built | Run: `cargo build --profile production` |
 | Connection timeout | Network starting slowly | Increase wait times in config |
 | Transaction fails | Insufficient gas/funds | Check Alice account balance |
 | Node crashes | Out of memory | Close other applications, check RAM |

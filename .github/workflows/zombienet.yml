@@ -47,7 +47,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build Robonomics
-        run: cargo build --release
+        run: cargo build --profile production
 
       - name: Install Node.js
         uses: actions/setup-node@v4

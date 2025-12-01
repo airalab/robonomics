@@ -61,7 +61,7 @@ The tests verify:
 1. **Build Robonomics** (if not already built)
    ```bash
    cd /path/to/robonomics
-   cargo build --release
+   cargo build --profile production
    ```
 
 2. **Run the test suite**
@@ -180,7 +180,7 @@ jobs:
           sudo apt install -y pkg-config protobuf-compiler
       
       - name: Build Robonomics
-        run: cargo build --release
+        run: cargo build --profile production
       
       - name: Run Zombienet tests
         run: ./scripts/zombienet/run-tests.sh
@@ -212,7 +212,7 @@ scripts/zombienet/
 
 2. **Binary not found**
    - Error: `robonomics binary not found`
-   - Solution: Build Robonomics first: `cargo build --release`
+   - Solution: Build Robonomics first: `cargo build --profile production`
 
 3. **Node.js version**
    - Error: Module compatibility issues

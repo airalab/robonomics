@@ -88,9 +88,13 @@ fi
 
 # Check Robonomics binary
 echo "[6/10] Checking Robonomics binary..."
-ROBONOMICS_BIN="${PROJECT_ROOT}/target/release/robonomics"
-if [ -f "$ROBONOMICS_BIN" ]; then
-    check_pass "Robonomics binary exists at $ROBONOMICS_BIN"
+# Check for production profile binary first, fall back to release
+if [ -f "${PROJECT_ROOT}/target/production/robonomics" ]; then
+    ROBONOMICS_BIN="${PROJECT_ROOT}/target/production/robonomics"
+    check_pass "Robonomics binary exists at $ROBONOMICS_BIN (production profile)"
+elif [ -f "${PROJECT_ROOT}/target/release/robonomics" ]; then
+    ROBONOMICS_BIN="${PROJECT_ROOT}/target/release/robonomics"
+    check_pass "Robonomics binary exists at $ROBONOMICS_BIN (release profile)"
 else
     check_warn "Robonomics binary not found (will be built if needed)"
 fi
