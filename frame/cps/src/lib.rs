@@ -757,8 +757,8 @@ pub mod pallet {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
-                node.payload = payload.clone();
-                Ok::<(Option<NodeData>, Option<NodeData>), DispatchError>((meta, payload))
+                node.payload = payload;
+                Ok::<(Option<NodeData>, Option<NodeData>), DispatchError>((meta, node.payload.clone()))
             })?;
 
             Self::deposit_event(Event::PayloadSet(node_id, sender));

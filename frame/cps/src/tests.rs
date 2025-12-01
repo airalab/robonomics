@@ -761,7 +761,7 @@ fn delete_node_non_owner_fails() {
 
 #[test]
 fn on_payload_set_callback_invoked() {
-    use sp_std::cell::RefCell;
+    use std::cell::RefCell;
     
     // Thread-local storage to track callback invocations
     thread_local! {
