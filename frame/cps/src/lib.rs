@@ -336,9 +336,9 @@ pub enum DefaultEncryptedData {
 ///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(EncryptedData))]
-#[codec(mel_bound())]
+#[allow(clippy::multiple_bound_locations)]
 pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Plain unencrypted data visible to all.
     ///
@@ -358,6 +358,16 @@ pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Note: Encryption/decryption happens off-chain. The pallet only stores
     /// the encrypted data structure as defined by the runtime.
     Encrypted(EncryptedData),
+}
+
+impl<EncryptedData: MaxEncodedLen> MaxEncodedLen for NodeData<EncryptedData> {
+    fn max_encoded_len() -> usize {
+        // 1 byte for enum variant + max of the two variant sizes
+        1 + sp_std::cmp::max(
+            <BoundedVec<u8, MaxDataSize>>::max_encoded_len(),
+            EncryptedData::max_encoded_len(),
+        )
+    }
 }
 
 impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for NodeData<EncryptedData> {
@@ -431,9 +441,9 @@ impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for N
 ///     payload: Some(NodeData::Encrypted(encrypted_data)),
 /// };
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(T))]
-#[codec(mel_bound())]
+#[allow(clippy::multiple_bound_locations)]
 pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
@@ -446,6 +456,16 @@ pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     pub meta: Option<NodeData<T::EncryptedData>>,
     /// Payload data
     pub payload: Option<NodeData<T::EncryptedData>>,
+}
+
+impl<AccountId: MaxEncodedLen, T: Config> MaxEncodedLen for Node<AccountId, T> {
+    fn max_encoded_len() -> usize {
+        Option::<NodeId>::max_encoded_len()
+            .saturating_add(AccountId::max_encoded_len())
+            .saturating_add(BoundedVec::<NodeId, T::MaxTreeDepth>::max_encoded_len())
+            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
+            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
+    }
 }
 
 impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
