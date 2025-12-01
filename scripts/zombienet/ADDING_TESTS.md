@@ -316,6 +316,220 @@ const tx = api.tx.someModule.privilegedCall(...args);
 await api.tx.sudo.sudo(tx).signAndSend(sudo);
 ```
 
+## XCM Testing Examples
+
+The test suite includes XCM (Cross-Consensus Messaging) v5 tests demonstrating cross-chain communication patterns.
+
+### Testing XCM Upward Messages (Parachain → Relay Chain)
+
+```javascript
+async function testXcmUpwardMessage(testResults) {
+  testResults.total++;
+  log.test('Testing XCM upward message...');
+  
+  try {
+    const relayApi = await connectToNode(XCM_TESTS_CONFIG.relayWsUrl, 'Relay Chain');
+    const parachainApi = await connectToNode(XCM_TESTS_CONFIG.parachainWsUrl, 'Parachain');
+    
+    const keyring = new Keyring({ type: 'sr25519' });
+    const alice = keyring.addFromUri('//Alice');
+    
+    // XCM v5 uses Location instead of MultiLocation
+    const dest = { V4: { parents: 1, interior: 'Here' } };
+    
+    // Create XCM message
+    const message = {
+      V4: [
+        {
+          UnpaidExecution: {
+            weight_limit: 'Unlimited'
+          }
+        },
+        {
+          Transact: {
+            origin_kind: 'SovereignAccount',
+            call: {
+              encoded: parachainApi.tx.system.remarkWithEvent('XCM test').toHex()
+            }
+          }
+        }
+      ]
+    };
+    
+    // Send XCM message
+    await parachainApi.tx.polkadotXcm.send(dest, message)
+      .signAndSend(alice, ({ status }) => {
+        if (status.isInBlock) {
+          log.info('XCM message sent');
+        }
+      });
+    
+    // Monitor for events on relay chain
+    // ... event monitoring logic
+    
+    await relayApi.disconnect();
+    await parachainApi.disconnect();
+    
+    log.success('XCM upward message test passed');
+    testResults.passed++;
+    return true;
+  } catch (error) {
+    log.error(`XCM upward message test failed: ${error.message}`);
+    testResults.failed++;
+    return false;
+  }
+}
+```
+
+### Testing XCM Downward Messages (Relay Chain → Parachain)
+
+```javascript
+async function testXcmDownwardMessage(testResults) {
+  testResults.total++;
+  log.test('Testing XCM downward message...');
+  
+  try {
+    const relayApi = await connectToNode(XCM_TESTS_CONFIG.relayWsUrl, 'Relay Chain');
+    const parachainApi = await connectToNode(XCM_TESTS_CONFIG.parachainWsUrl, 'Parachain');
+    
+    const keyring = new Keyring({ type: 'sr25519' });
+    const alice = keyring.addFromUri('//Alice');
+    
+    // Get parachain ID
+    const parachainId = await parachainApi.query.parachainInfo.parachainId();
+    
+    // Destination: target parachain
+    const dest = {
+      V4: {
+        parents: 0,
+        interior: { X1: [{ Parachain: parachainId.toString() }] }
+      }
+    };
+    
+    // XCM message with sudo origin
+    const message = {
+      V4: [
+        {
+          UnpaidExecution: {
+            weight_limit: 'Unlimited'
+          }
+        },
+        {
+          Transact: {
+            origin_kind: 'Superuser',
+            call: {
+              encoded: parachainApi.tx.system.remarkWithEvent('Downward XCM').toHex()
+            }
+          }
+        }
+      ]
+    };
+    
+    // Send via sudo from relay chain
+    const xcmSend = relayApi.tx.xcmPallet.send(dest, message);
+    await relayApi.tx.sudo.sudo(xcmSend)
+      .signAndSend(alice, ({ status }) => {
+        if (status.isInBlock) {
+          log.info('Downward XCM sent via sudo');
+        }
+      });
+    
+    // Monitor DMP queue on parachain
+    // ... event monitoring logic
+    
+    await relayApi.disconnect();
+    await parachainApi.disconnect();
+    
+    log.success('XCM downward message test passed');
+    testResults.passed++;
+    return true;
+  } catch (error) {
+    log.error(`XCM downward message test failed: ${error.message}`);
+    testResults.failed++;
+    return false;
+  }
+}
+```
+
+### Testing Cross-Parachain Asset Transfers
+
+```javascript
+async function testAssetHubTransfer(testResults) {
+  testResults.total++;
+  log.test('Testing AssetHub token transfer...');
+  
+  try {
+    const parachainApi = await connectToNode(XCM_TESTS_CONFIG.parachainWsUrl, 'Parachain');
+    const assetHubApi = await connectToNode(XCM_TESTS_CONFIG.assetHubWsUrl, 'AssetHub');
+    
+    const keyring = new Keyring({ type: 'sr25519' });
+    const alice = keyring.addFromUri('//Alice');
+    
+    // Destination: AssetHub (parachain 1000)
+    const dest = {
+      V4: {
+        parents: 1,
+        interior: { X1: [{ Parachain: '1000' }] }
+      }
+    };
+    
+    // Beneficiary on AssetHub
+    const beneficiary = {
+      V4: {
+        parents: 0,
+        interior: { X1: [{ AccountId32: { network: null, id: alice.publicKey } }] }
+      }
+    };
+    
+    // Assets to transfer (native token)
+    const assets = {
+      V4: [
+        {
+          id: { parents: 0, interior: 'Here' },
+          fun: { Fungible: '1000000000000' } // Amount
+        }
+      ]
+    };
+    
+    // Execute reserve transfer
+    await parachainApi.tx.polkadotXcm.limitedReserveTransferAssets(
+      dest,
+      beneficiary,
+      assets,
+      0, // Fee asset item
+      'Unlimited' // Weight limit
+    ).signAndSend(alice, ({ status }) => {
+      if (status.isInBlock) {
+        log.info('Asset transfer initiated');
+      }
+    });
+    
+    // Verify on AssetHub
+    // ... balance verification logic
+    
+    await parachainApi.disconnect();
+    await assetHubApi.disconnect();
+    
+    log.success('AssetHub transfer test passed');
+    testResults.passed++;
+    return true;
+  } catch (error) {
+    log.error(`AssetHub transfer test failed: ${error.message}`);
+    testResults.failed++;
+    return false;
+  }
+}
+```
+
+### Key Points for XCM Tests
+
+1. **Use XCM v5 Types**: Always use `Location` (not `MultiLocation`) and the v5 API
+2. **Event Monitoring**: Subscribe to events on both source and destination chains
+3. **Timeouts**: XCM messages may take time to process; use appropriate timeouts
+4. **Weight Limits**: Specify weight limits for execution (Unlimited for testing)
+5. **Origin Kinds**: Use appropriate origin kinds (SovereignAccount, Superuser, etc.)
+6. **Error Handling**: XCM errors may occur in events; check for failure events
+
 ## Testing Tips
 
 - Run tests multiple times to catch intermittent failures
@@ -330,3 +544,5 @@ await api.tx.sudo.sudo(tx).signAndSend(sudo);
 - [Polkadot.js API Docs](https://polkadot.js.org/docs/api)
 - [Substrate Metadata](https://docs.substrate.io/reference/metadata/)
 - [Testing Best Practices](https://wiki.polkadot.network/docs/build-integration)
+- [XCM Format Documentation](https://wiki.polkadot.network/docs/learn-xcm)
+- [XCM v5 Migration Guide](https://github.com/paritytech/polkadot-sdk/blob/master/docs/XCM_v5_MIGRATION.md)
