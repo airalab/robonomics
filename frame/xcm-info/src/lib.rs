@@ -100,8 +100,9 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            <LocationOf<T>>::insert(asset_id, location.clone());
-            <AssetIdOf<T>>::insert(location.clone(), asset_id);
+            let location_clone = location.clone();
+            <LocationOf<T>>::insert(asset_id, location_clone.clone());
+            <AssetIdOf<T>>::insert(location_clone, asset_id);
             Self::deposit_event(Event::<T>::AssetLinkAdded(asset_id, location));
 
             Ok(())
