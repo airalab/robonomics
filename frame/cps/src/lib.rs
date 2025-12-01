@@ -76,13 +76,13 @@
 //! ### Creating a Child Node with Encrypted Data
 //!
 //! ```ignore
-//! use pallet_robonomics_cps::{NodeData, NodeId, CryptoAlgorithm};
+//! use pallet_robonomics_cps::{NodeData, NodeId, DefaultEncryptedData};
 //!
 //! // Encrypted payload
-//! let payload = Some(NodeData::Encrypted {
-//!     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-//!     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
-//! });
+//! let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+//!     BoundedVec::try_from(encrypted_bytes).unwrap()
+//! );
+//! let payload = Some(NodeData::Encrypted(encrypted));
 //!
 //! // Create child under node 0
 //! Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
@@ -223,13 +223,16 @@ impl NodeId {
     }
 }
 
-/// Cryptographic algorithm identifier for encrypted data.
+/// Default encrypted data implementation supporting multiple encryption algorithms.
 ///
-/// Currently supports XChaCha20-Poly1305, an AEAD (Authenticated Encryption with
-/// Associated Data) cipher providing:
-/// - 256-bit key security
-/// - 192-bit nonce (no reuse concerns)
-/// - Authentication tag for integrity
+/// This enum provides a standard implementation that runtimes can use for the
+/// `EncryptedData` associated type. Each variant represents a different encryption
+/// scheme with its encrypted payload.
+///
+/// Currently supports:
+/// - XChaCha20-Poly1305: AEAD cipher with 256-bit keys and 192-bit nonces
+/// - AES-GCM-256: AEAD cipher with 256-bit keys
+/// - ChaCha20-Poly1305: AEAD cipher with 256-bit keys
 ///
 /// Additional algorithms can be added as enum variants while maintaining backward
 /// compatibility with existing encrypted data.
@@ -237,7 +240,9 @@ impl NodeId {
 /// # Example
 ///
 /// ```ignore
-/// let algo = CryptoAlgorithm::XChaCha20Poly1305;
+/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+///     BoundedVec::try_from(encrypted_bytes).unwrap()
+/// );
 /// ```
 #[derive(
     Encode,
@@ -246,12 +251,11 @@ impl NodeId {
     TypeInfo,
     MaxEncodedLen,
     Clone,
-    Copy,
     PartialEq,
     Eq,
     Debug,
 )]
-pub enum CryptoAlgorithm {
+pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///
     /// Recommended for most use cases due to:
@@ -262,7 +266,24 @@ pub enum CryptoAlgorithm {
     /// Resources:
     /// - RFC 8439: ChaCha20-Poly1305
     /// - XChaCha20 extends nonce to 192 bits
-    XChaCha20Poly1305,
+    XChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
+    
+    /// AES-256-GCM AEAD encryption.
+    ///
+    /// Hardware-accelerated on most modern processors (AES-NI).
+    /// Provides:
+    /// - 256-bit key security
+    /// - 96-bit nonce (requires careful management)
+    /// - Authentication tag for integrity
+    AesGcm256(BoundedVec<u8, MaxDataSize>),
+    
+    /// ChaCha20-Poly1305 AEAD encryption.
+    ///
+    /// Standard ChaCha20-Poly1305 (96-bit nonce):
+    /// - High performance on platforms without AES-NI
+    /// - 256-bit key security
+    /// - Requires nonce management
+    ChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
 }
 
 /// Node data container supporting both plain and encrypted storage.
@@ -272,9 +293,14 @@ pub enum CryptoAlgorithm {
 /// - Encrypted metadata with public payload
 /// - Both encrypted or both plain
 ///
+/// # Type Parameters
+///
+/// - `EncryptedData`: The encrypted data type from the runtime configuration.
+///   This allows different runtimes to implement custom encryption schemes.
+///
 /// # Storage Considerations
 ///
-/// Both variants use `BoundedVec<u8, MaxDataSize>` which:
+/// Plain variant uses `BoundedVec<u8, MaxDataSize>` which:
 /// - Enforces 2048-byte limit at construction time
 /// - Prevents DoS attacks via oversized data
 /// - Implements `MaxEncodedLen` for predictable storage costs
@@ -292,11 +318,11 @@ pub enum CryptoAlgorithm {
 /// ## Encrypted Data
 ///
 /// ```ignore
-/// // Assume `encrypt()` returns ciphertext bytes
-/// let payload = NodeData::Encrypted {
-///     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-///     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
-/// };
+/// // Using DefaultEncryptedData
+/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+///     BoundedVec::try_from(encrypted_bytes).unwrap()
+/// );
+/// let payload = NodeData::Encrypted(encrypted);
 /// ```
 ///
 /// ## Mixed Privacy
@@ -307,11 +333,13 @@ pub enum CryptoAlgorithm {
 ///     origin,
 ///     Some(parent_id),
 ///     Some(NodeData::Plain(config_bytes)),           // Public
-///     Some(NodeData::Encrypted { ... })              // Private
+///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
-pub enum NodeData {
+#[scale_info(skip_type_params(EncryptedData))]
+#[codec(mel_bound())]
+pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Plain unencrypted data visible to all.
     ///
     /// Use for:
@@ -320,7 +348,7 @@ pub enum NodeData {
     /// - Transparently verifiable data
     Plain(BoundedVec<u8, MaxDataSize>),
     
-    /// Encrypted data with algorithm specification.
+    /// Encrypted data using runtime-configured encryption scheme.
     ///
     /// Use for:
     /// - Sensitive operational data
@@ -328,26 +356,17 @@ pub enum NodeData {
     /// - Trade secrets or proprietary information
     ///
     /// Note: Encryption/decryption happens off-chain. The pallet only stores
-    /// ciphertext and algorithm identifier.
-    Encrypted {
-        /// Crypto algorithm used for encryption
-        algorithm: CryptoAlgorithm,
-        /// Encrypted ciphertext (includes nonce/tag if AEAD)
-        ciphertext: BoundedVec<u8, MaxDataSize>,
-    },
+    /// the encrypted data structure as defined by the runtime.
+    Encrypted(EncryptedData),
 }
 
-impl sp_std::fmt::Debug for NodeData {
+impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for NodeData<EncryptedData> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
-            Self::Encrypted {
-                algorithm,
-                ciphertext,
-            } => f
-                .debug_struct("Encrypted")
-                .field("algorithm", algorithm)
-                .field("ciphertext_len", &ciphertext.len())
+            Self::Encrypted(data) => f
+                .debug_tuple("Encrypted")
+                .field(data)
                 .finish(),
         }
     }
@@ -409,7 +428,7 @@ impl sp_std::fmt::Debug for NodeData {
 ///     owner: parent_node.owner.clone(),  // Inherit owner
 ///     path: child_path,
 ///     meta: Some(NodeData::Plain(...)),
-///     payload: Some(NodeData::Encrypted { ... }),
+///     payload: Some(NodeData::Encrypted(encrypted_data)),
 /// };
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
@@ -424,9 +443,9 @@ pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// NodeId uses compact encoding for efficient storage
     pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
     /// Metadata
-    pub meta: Option<NodeData>,
+    pub meta: Option<NodeData<T::EncryptedData>>,
     /// Payload data
-    pub payload: Option<NodeData>,
+    pub payload: Option<NodeData<T::EncryptedData>>,
 }
 
 impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
@@ -466,6 +485,23 @@ pub mod pallet {
         /// Maximum root nodes
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
+
+        /// Encrypted data type for encrypted node data.
+        ///
+        /// This type encapsulates the encryption algorithm and encrypted payload.
+        /// Different runtimes can provide different implementations to support
+        /// various encryption schemes (AES, zkProofs, homomorphic encryption, etc.)
+        ///
+        /// # Example
+        ///
+        /// ```ignore
+        /// type EncryptedData = DefaultEncryptedData;
+        /// ```
+        type EncryptedData: Parameter
+            + Member
+            + MaxEncodedLen
+            + Clone
+            + TypeInfo;
 
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
@@ -553,8 +589,8 @@ pub mod pallet {
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
-            meta: Option<NodeData>,
-            payload: Option<NodeData>,
+            meta: Option<NodeData<T::EncryptedData>>,
+            payload: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -620,7 +656,7 @@ pub mod pallet {
         pub fn set_meta(
             origin: OriginFor<T>,
             node_id: NodeId,
-            meta: Option<NodeData>,
+            meta: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -642,7 +678,7 @@ pub mod pallet {
         pub fn set_payload(
             origin: OriginFor<T>,
             node_id: NodeId,
-            payload: Option<NodeData>,
+            payload: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 

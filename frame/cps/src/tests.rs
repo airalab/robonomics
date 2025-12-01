@@ -47,6 +47,7 @@ impl pallet_cps::Config for Runtime {
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxRootNodes = MaxRootNodes;
+    type EncryptedData = pallet_cps::DefaultEncryptedData;
     type WeightInfo = ();
 }
 
@@ -140,10 +141,11 @@ fn create_node_with_encrypted_data_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        let meta = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-            ciphertext: BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
-        });
+        let meta = Some(NodeData::Encrypted(
+            DefaultEncryptedData::XChaCha20Poly1305(
+                BoundedVec::try_from(vec![7, 8, 9]).unwrap()
+            )
+        ));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -162,10 +164,11 @@ fn create_node_with_encrypted_payload_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        let payload = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-            ciphertext: BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
-        });
+        let payload = Some(NodeData::Encrypted(
+            DefaultEncryptedData::XChaCha20Poly1305(
+                BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap()
+            )
+        ));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -184,15 +187,17 @@ fn create_node_with_both_encrypted_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        let meta = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-            ciphertext: BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        });
+        let meta = Some(NodeData::Encrypted(
+            DefaultEncryptedData::XChaCha20Poly1305(
+                BoundedVec::try_from(vec![1, 2, 3]).unwrap()
+            )
+        ));
 
-        let payload = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-            ciphertext: BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
-        });
+        let payload = Some(NodeData::Encrypted(
+            DefaultEncryptedData::XChaCha20Poly1305(
+                BoundedVec::try_from(vec![4, 5, 6]).unwrap()
+            )
+        ));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
