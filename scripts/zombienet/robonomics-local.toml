@@ -18,7 +18,7 @@ id = 2000
 chain = "dev"
 cumulus_based = true
 
-  [parachains.collator]
+  [[parachains.collators]]
   name = "collator-01"
   command = "robonomics"
   args = ["-lparachain=debug"]
