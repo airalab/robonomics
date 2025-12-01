@@ -76,13 +76,13 @@
 //! ### Creating a Child Node with Encrypted Data
 //!
 //! ```ignore
-//! use pallet_robonomics_cps::{NodeData, NodeId, CryptoAlgorithm};
+//! use pallet_robonomics_cps::{NodeData, NodeId, DefaultEncryptedData};
 //!
 //! // Encrypted payload
-//! let payload = Some(NodeData::Encrypted {
-//!     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-//!     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
-//! });
+//! let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+//!     BoundedVec::try_from(encrypted_bytes).unwrap()
+//! );
+//! let payload = Some(NodeData::Encrypted(encrypted));
 //!
 //! // Create child under node 0
 //! Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
@@ -170,7 +170,7 @@ use sp_std::prelude::*;
 /// - **Logging**: Maintain an audit trail of payload modifications
 ///
 /// The callback is invoked AFTER the payload has been successfully written to storage,
-/// ensuring that the operation has completed before any side effects are triggered.
+/// ensuring that the operation has been completed before any side effects are triggered.
 ///
 /// # Example Implementation
 ///
@@ -179,11 +179,11 @@ use sp_std::prelude::*;
 ///
 /// pub struct MyPayloadHandler;
 ///
-/// impl OnPayloadSet<AccountId> for MyPayloadHandler {
+/// impl<EncryptedData> OnPayloadSet<AccountId, EncryptedData> for MyPayloadHandler {
 ///     fn on_payload_set(
 ///         node_id: NodeId,
-///         meta: Option<NodeData>,
-///         payload: Option<NodeData>
+///         meta: Option<NodeData<EncryptedData>>,
+///         payload: Option<NodeData<EncryptedData>>
 ///     ) {
 ///         // Custom logic here - e.g., emit a custom event, update an index, etc.
 ///         log::info!("Payload set on node {:?}", node_id);
@@ -198,7 +198,7 @@ use sp_std::prelude::*;
 /// ```ignore
 /// type OnPayloadSet = (HandlerA, HandlerB, HandlerC);
 /// ```
-pub trait OnPayloadSet<AccountId> {
+pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
     /// Called when a payload is set on a node.
     ///
     /// # Parameters
@@ -206,15 +206,23 @@ pub trait OnPayloadSet<AccountId> {
     /// - `node_id`: The ID of the node whose payload was updated
     /// - `meta`: The current metadata of the node (if any)
     /// - `payload`: The new payload that was set (if any, None means payload was cleared)
-    fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>);
+    fn on_payload_set(
+        node_id: NodeId,
+        meta: Option<NodeData<EncryptedData>>,
+        payload: Option<NodeData<EncryptedData>>,
+    );
 }
 
 /// Default no-op implementation for `()` type.
 ///
 /// This allows using `type OnPayloadSet = ()` in the runtime configuration
 /// to disable the callback without requiring an explicit implementation.
-impl<AccountId> OnPayloadSet<AccountId> for () {
-    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData>, _payload: Option<NodeData>) {
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> for () {
+    fn on_payload_set(
+        _node_id: NodeId,
+        _meta: Option<NodeData<EncryptedData>>,
+        _payload: Option<NodeData<EncryptedData>>,
+    ) {
         // No-op: do nothing
     }
 }
@@ -227,8 +235,8 @@ impl<AccountId> OnPayloadSet<AccountId> for () {
 /// ```
 macro_rules! impl_on_payload_set_for_tuples {
     ($($t:ident),+) => {
-        impl<AccountId, $($t: OnPayloadSet<AccountId>),+> OnPayloadSet<AccountId> for ($($t,)+) {
-            fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
+        impl<AccountId, EncryptedData: MaxEncodedLen + Clone, $($t: OnPayloadSet<AccountId, EncryptedData>),+> OnPayloadSet<AccountId, EncryptedData> for ($($t,)+) {
+            fn on_payload_set(node_id: NodeId, meta: Option<NodeData<EncryptedData>>, payload: Option<NodeData<EncryptedData>>) {
                 $(
                     $t::on_payload_set(node_id, meta.clone(), payload.clone());
                 )+
@@ -266,6 +274,7 @@ pub type MaxDataSize = ConstU32<2048>;
 /// let node_id = NodeId(42);  // Uses 1 byte in compact encoding
 /// let next_id = node_id.saturating_add(1);  // NodeId(43)
 /// ```
+#[cfg_attr(feature = "std", derive(Debug))]
 #[derive(
     Encode,
     Decode,
@@ -276,7 +285,6 @@ pub type MaxDataSize = ConstU32<2048>;
     Copy,
     PartialEq,
     Eq,
-    Debug,
     Default,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
@@ -309,13 +317,16 @@ impl NodeId {
     }
 }
 
-/// Cryptographic algorithm identifier for encrypted data.
+/// Default encrypted data implementation supporting multiple encryption algorithms.
 ///
-/// Currently supports XChaCha20-Poly1305, an AEAD (Authenticated Encryption with
-/// Associated Data) cipher providing:
-/// - 256-bit key security
-/// - 192-bit nonce (no reuse concerns)
-/// - Authentication tag for integrity
+/// This enum provides a standard implementation that runtimes can use for the
+/// `EncryptedData` associated type. Each variant represents a different encryption
+/// scheme with its encrypted payload.
+///
+/// Currently supports:
+/// - XChaCha20-Poly1305: AEAD cipher with 256-bit keys and 192-bit nonces
+/// - AES-GCM-256: AEAD cipher with 256-bit keys
+/// - ChaCha20-Poly1305: AEAD cipher with 256-bit keys
 ///
 /// Additional algorithms can be added as enum variants while maintaining backward
 /// compatibility with existing encrypted data.
@@ -323,21 +334,13 @@ impl NodeId {
 /// # Example
 ///
 /// ```ignore
-/// let algo = CryptoAlgorithm::XChaCha20Poly1305;
+/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+///     BoundedVec::try_from(encrypted_bytes).unwrap()
+/// );
 /// ```
-#[derive(
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    TypeInfo,
-    MaxEncodedLen,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-)]
-pub enum CryptoAlgorithm {
+#[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///
     /// Recommended for most use cases due to:
@@ -348,7 +351,24 @@ pub enum CryptoAlgorithm {
     /// Resources:
     /// - RFC 8439: ChaCha20-Poly1305
     /// - XChaCha20 extends nonce to 192 bits
-    XChaCha20Poly1305,
+    XChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
+
+    /// AES-256-GCM AEAD encryption.
+    ///
+    /// Hardware-accelerated on most modern processors (AES-NI).
+    /// Provides:
+    /// - 256-bit key security
+    /// - 96-bit nonce (requires careful management)
+    /// - Authentication tag for integrity
+    AesGcm256(BoundedVec<u8, MaxDataSize>),
+
+    /// ChaCha20-Poly1305 AEAD encryption.
+    ///
+    /// Standard ChaCha20-Poly1305 (96-bit nonce):
+    /// - High performance on platforms without AES-NI
+    /// - 256-bit key security
+    /// - Requires nonce management
+    ChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
 }
 
 /// Node data container supporting both plain and encrypted storage.
@@ -358,9 +378,14 @@ pub enum CryptoAlgorithm {
 /// - Encrypted metadata with public payload
 /// - Both encrypted or both plain
 ///
+/// # Type Parameters
+///
+/// - `EncryptedData`: The encrypted data type from the runtime configuration.
+///   This allows different runtimes to implement custom encryption schemes.
+///
 /// # Storage Considerations
 ///
-/// Both variants use `BoundedVec<u8, MaxDataSize>` which:
+/// Plain variant uses `BoundedVec<u8, MaxDataSize>` which:
 /// - Enforces 2048-byte limit at construction time
 /// - Prevents DoS attacks via oversized data
 /// - Implements `MaxEncodedLen` for predictable storage costs
@@ -378,11 +403,11 @@ pub enum CryptoAlgorithm {
 /// ## Encrypted Data
 ///
 /// ```ignore
-/// // Assume `encrypt()` returns ciphertext bytes
-/// let payload = NodeData::Encrypted {
-///     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
-///     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
-/// };
+/// // Using DefaultEncryptedData
+/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+///     BoundedVec::try_from(encrypted_bytes).unwrap()
+/// );
+/// let payload = NodeData::Encrypted(encrypted);
 /// ```
 ///
 /// ## Mixed Privacy
@@ -393,11 +418,30 @@ pub enum CryptoAlgorithm {
 ///     origin,
 ///     Some(parent_id),
 ///     Some(NodeData::Plain(config_bytes)),           // Public
-///     Some(NodeData::Encrypted { ... })              // Private
+///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
-pub enum NodeData {
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
+#[scale_info(skip_type_params(EncryptedData))]
+#[allow(clippy::multiple_bound_locations)]
+/// Type parameter for encrypted payloads stored in `NodeData`.
+///
+/// # Type Parameter
+/// - `EncryptedData`: The type used to represent encrypted data in the runtime.
+///   - Must implement [`MaxEncodedLen`] to ensure the encoded size is bounded for on-chain storage.
+///   - Should be SCALE-encodable and typically defined by the runtime to match the chosen encryption scheme.
+///   - The bound prevents oversized data submissions and ensures compatibility with storage limits.
+///
+/// # Example
+/// ```ignore
+/// // Define a runtime struct for encrypted data
+/// #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq)]
+/// pub struct MyEncryptedPayload { ... }
+///
+/// // Use in NodeData
+/// let payload: NodeData<MyEncryptedPayload> = NodeData::Encrypted(my_encrypted);
+/// ```
+pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Plain unencrypted data visible to all.
     ///
     /// Use for:
@@ -405,8 +449,8 @@ pub enum NodeData {
     /// - Non-sensitive configuration
     /// - Transparently verifiable data
     Plain(BoundedVec<u8, MaxDataSize>),
-    
-    /// Encrypted data with algorithm specification.
+
+    /// Encrypted data using runtime-configured encryption scheme.
     ///
     /// Use for:
     /// - Sensitive operational data
@@ -414,27 +458,28 @@ pub enum NodeData {
     /// - Trade secrets or proprietary information
     ///
     /// Note: Encryption/decryption happens off-chain. The pallet only stores
-    /// ciphertext and algorithm identifier.
-    Encrypted {
-        /// Crypto algorithm used for encryption
-        algorithm: CryptoAlgorithm,
-        /// Encrypted ciphertext (includes nonce/tag if AEAD)
-        ciphertext: BoundedVec<u8, MaxDataSize>,
-    },
+    /// the encrypted data structure as defined by the runtime.
+    Encrypted(EncryptedData),
 }
 
-impl sp_std::fmt::Debug for NodeData {
+impl<EncryptedData: MaxEncodedLen> MaxEncodedLen for NodeData<EncryptedData> {
+    fn max_encoded_len() -> usize {
+        // 1 byte for enum variant + max of the two variant sizes
+        1 + sp_std::cmp::max(
+            <BoundedVec<u8, MaxDataSize>>::max_encoded_len(),
+            EncryptedData::max_encoded_len(),
+        )
+    }
+}
+
+#[cfg(feature = "std")]
+impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug
+    for NodeData<EncryptedData>
+{
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
-            Self::Encrypted {
-                algorithm,
-                ciphertext,
-            } => f
-                .debug_struct("Encrypted")
-                .field("algorithm", algorithm)
-                .field("ciphertext_len", &ciphertext.len())
-                .finish(),
+            Self::Encrypted(data) => f.debug_tuple("Encrypted").field(data).finish(),
         }
     }
 }
@@ -495,12 +540,12 @@ impl sp_std::fmt::Debug for NodeData {
 ///     owner: parent_node.owner.clone(),  // Inherit owner
 ///     path: child_path,
 ///     meta: Some(NodeData::Plain(...)),
-///     payload: Some(NodeData::Encrypted { ... }),
+///     payload: Some(NodeData::Encrypted(encrypted_data)),
 /// };
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(T))]
-#[codec(mel_bound())]
+#[allow(clippy::multiple_bound_locations)]
 pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
@@ -510,11 +555,22 @@ pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// NodeId uses compact encoding for efficient storage
     pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
     /// Metadata
-    pub meta: Option<NodeData>,
+    pub meta: Option<NodeData<T::EncryptedData>>,
     /// Payload data
-    pub payload: Option<NodeData>,
+    pub payload: Option<NodeData<T::EncryptedData>>,
 }
 
+impl<AccountId: MaxEncodedLen, T: Config> MaxEncodedLen for Node<AccountId, T> {
+    fn max_encoded_len() -> usize {
+        Option::<NodeId>::max_encoded_len()
+            .saturating_add(AccountId::max_encoded_len())
+            .saturating_add(BoundedVec::<NodeId, T::MaxTreeDepth>::max_encoded_len())
+            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
+            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
+    }
+}
+
+#[cfg(feature = "std")]
 impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
     for Node<AccountId, T>
 {
@@ -553,6 +609,19 @@ pub mod pallet {
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
 
+        /// Encrypted data type for encrypted node data.
+        ///
+        /// This type encapsulates the encryption algorithm and encrypted payload.
+        /// Different runtimes can provide different implementations to support
+        /// various encryption schemes (AES, zkProofs, homomorphic encryption, etc.)
+        ///
+        /// # Example
+        ///
+        /// ```ignore
+        /// type EncryptedData = DefaultEncryptedData;
+        /// ```
+        type EncryptedData: Parameter + Member + MaxEncodedLen + Clone + TypeInfo;
+
         /// Callback handler invoked when a payload is set on a node.
         ///
         /// Use `()` for no callback, or implement the `OnPayloadSet` trait
@@ -571,7 +640,7 @@ pub mod pallet {
         /// type OnPayloadSet = MyCustomHandler; // Single handler
         /// type OnPayloadSet = (HandlerA, HandlerB); // Multiple handlers
         /// ```
-        type OnPayloadSet: OnPayloadSet<Self::AccountId>;
+        type OnPayloadSet: OnPayloadSet<Self::AccountId, Self::EncryptedData>;
 
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
@@ -659,8 +728,8 @@ pub mod pallet {
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
-            meta: Option<NodeData>,
-            payload: Option<NodeData>,
+            meta: Option<NodeData<T::EncryptedData>>,
+            payload: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -726,7 +795,7 @@ pub mod pallet {
         pub fn set_meta(
             origin: OriginFor<T>,
             node_id: NodeId,
-            meta: Option<NodeData>,
+            meta: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -748,7 +817,7 @@ pub mod pallet {
         pub fn set_payload(
             origin: OriginFor<T>,
             node_id: NodeId,
-            payload: Option<NodeData>,
+            payload: Option<NodeData<T::EncryptedData>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -758,7 +827,13 @@ pub mod pallet {
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
                 node.payload = payload;
-                Ok::<(Option<NodeData>, Option<NodeData>), DispatchError>((meta, node.payload.clone()))
+                Ok::<
+                    (
+                        Option<NodeData<T::EncryptedData>>,
+                        Option<NodeData<T::EncryptedData>>,
+                    ),
+                    DispatchError,
+                >((meta, node.payload.clone()))
             })?;
 
             Self::deposit_event(Event::PayloadSet(node_id, sender));
