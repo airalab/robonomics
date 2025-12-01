@@ -206,7 +206,11 @@ pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
     /// - `node_id`: The ID of the node whose payload was updated
     /// - `meta`: The current metadata of the node (if any)
     /// - `payload`: The new payload that was set (if any, None means payload was cleared)
-    fn on_payload_set(node_id: NodeId, meta: Option<NodeData<EncryptedData>>, payload: Option<NodeData<EncryptedData>>);
+    fn on_payload_set(
+        node_id: NodeId,
+        meta: Option<NodeData<EncryptedData>>,
+        payload: Option<NodeData<EncryptedData>>,
+    );
 }
 
 /// Default no-op implementation for `()` type.
@@ -214,7 +218,11 @@ pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
 /// This allows using `type OnPayloadSet = ()` in the runtime configuration
 /// to disable the callback without requiring an explicit implementation.
 impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> for () {
-    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData<EncryptedData>>, _payload: Option<NodeData<EncryptedData>>) {
+    fn on_payload_set(
+        _node_id: NodeId,
+        _meta: Option<NodeData<EncryptedData>>,
+        _payload: Option<NodeData<EncryptedData>>,
+    ) {
         // No-op: do nothing
     }
 }
@@ -331,16 +339,7 @@ impl NodeId {
 /// );
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    TypeInfo,
-    MaxEncodedLen,
-    Clone,
-    PartialEq,
-    Eq,
-)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///
@@ -353,7 +352,7 @@ pub enum DefaultEncryptedData {
     /// - RFC 8439: ChaCha20-Poly1305
     /// - XChaCha20 extends nonce to 192 bits
     XChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
-    
+
     /// AES-256-GCM AEAD encryption.
     ///
     /// Hardware-accelerated on most modern processors (AES-NI).
@@ -362,7 +361,7 @@ pub enum DefaultEncryptedData {
     /// - 96-bit nonce (requires careful management)
     /// - Authentication tag for integrity
     AesGcm256(BoundedVec<u8, MaxDataSize>),
-    
+
     /// ChaCha20-Poly1305 AEAD encryption.
     ///
     /// Standard ChaCha20-Poly1305 (96-bit nonce):
@@ -434,7 +433,7 @@ pub enum DefaultEncryptedData {
 ///   - The bound prevents oversized data submissions and ensures compatibility with storage limits.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// // Define a runtime struct for encrypted data
 /// #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq)]
 /// pub struct MyEncryptedPayload { ... }
@@ -450,7 +449,7 @@ pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// - Non-sensitive configuration
     /// - Transparently verifiable data
     Plain(BoundedVec<u8, MaxDataSize>),
-    
+
     /// Encrypted data using runtime-configured encryption scheme.
     ///
     /// Use for:
@@ -474,14 +473,13 @@ impl<EncryptedData: MaxEncodedLen> MaxEncodedLen for NodeData<EncryptedData> {
 }
 
 #[cfg(feature = "std")]
-impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for NodeData<EncryptedData> {
+impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug
+    for NodeData<EncryptedData>
+{
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
-            Self::Encrypted(data) => f
-                .debug_tuple("Encrypted")
-                .field(data)
-                .finish(),
+            Self::Encrypted(data) => f.debug_tuple("Encrypted").field(data).finish(),
         }
     }
 }
@@ -622,11 +620,7 @@ pub mod pallet {
         /// ```ignore
         /// type EncryptedData = DefaultEncryptedData;
         /// ```
-        type EncryptedData: Parameter
-            + Member
-            + MaxEncodedLen
-            + Clone
-            + TypeInfo;
+        type EncryptedData: Parameter + Member + MaxEncodedLen + Clone + TypeInfo;
 
         /// Callback handler invoked when a payload is set on a node.
         ///
@@ -833,7 +827,13 @@ pub mod pallet {
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
                 node.payload = payload;
-                Ok::<(Option<NodeData<T::EncryptedData>>, Option<NodeData<T::EncryptedData>>), DispatchError>((meta, node.payload.clone()))
+                Ok::<
+                    (
+                        Option<NodeData<T::EncryptedData>>,
+                        Option<NodeData<T::EncryptedData>>,
+                    ),
+                    DispatchError,
+                >((meta, node.payload.clone()))
             })?;
 
             Self::deposit_event(Event::PayloadSet(node_id, sender));
