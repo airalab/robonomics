@@ -112,6 +112,137 @@
 //! let is_ancestor = node.path.contains(&NodeId(ancestor_id));
 //! ```
 //!
+//! ## Proxy-Based Access Delegation
+//!
+//! The pallet integrates seamlessly with Substrate's `pallet-proxy` to enable
+//! delegated access to CPS nodes. Node owners can grant specific accounts
+//! proxy permissions to perform operations on their behalf.
+//!
+//! ### Setting Up Proxy Access
+//!
+//! Define a `ProxyType` enum in your runtime that implements `InstanceFilter`:
+//!
+//! ```ignore
+//! use frame_support::traits::InstanceFilter;
+//! use parity_scale_codec::{Decode, Encode};
+//! 
+//! #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+//! pub enum ProxyType {
+//!     Any,       // Allows all operations
+//!     CpsNode,   // Restricted to CPS operations only
+//! }
+//!
+//! impl InstanceFilter<RuntimeCall> for ProxyType {
+//!     fn filter(&self, c: &RuntimeCall) -> bool {
+//!         match self {
+//!             ProxyType::Any => true,
+//!             ProxyType::CpsNode => matches!(
+//!                 c,
+//!                 RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { .. })
+//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { .. })
+//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { .. })
+//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { .. })
+//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { .. })
+//!             ),
+//!         }
+//!     }
+//!     
+//!     fn is_superset(&self, o: &Self) -> bool {
+//!         match (self, o) {
+//!             (ProxyType::Any, _) => true,
+//!             (_, ProxyType::Any) => false,
+//!             _ => self == o,
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ### Usage Examples
+//!
+//! #### 1. Owner Grants Proxy Access
+//!
+//! ```ignore
+//! // Owner adds a proxy with CpsNode permissions
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(owner),
+//!     proxy_account,
+//!     ProxyType::CpsNode,
+//!     0  // delay blocks
+//! )?;
+//! ```
+//!
+//! #### 2. Proxy Updates Node Data
+//!
+//! ```ignore
+//! // Proxy account updates node payload on behalf of owner
+//! let new_payload = NodeData::Plain(b"sensor_reading: 23.5C".to_vec().try_into()?);
+//! 
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(proxy_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: NodeId(0),
+//!         payload: Some(new_payload),
+//!     }))
+//! )?;
+//! ```
+//!
+//! #### 3. Proxy Manages Node Hierarchy
+//!
+//! ```ignore
+//! // Proxy creates child node
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(proxy_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::create_node {
+//!         parent_id: Some(NodeId(0)),
+//!         meta: Some(NodeData::Plain(b"child_sensor".to_vec().try_into()?)),
+//!         payload: None,
+//!     }))
+//! )?;
+//!
+//! // Proxy moves node to new parent
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(proxy_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::move_node {
+//!         node_id: NodeId(1),
+//!         new_parent_id: NodeId(2),
+//!     }))
+//! )?;
+//! ```
+//!
+//! #### 4. Owner Revokes Proxy Access
+//!
+//! ```ignore
+//! // Owner removes proxy permissions
+//! Proxy::remove_proxy(
+//!     RuntimeOrigin::signed(owner),
+//!     proxy_account,
+//!     ProxyType::CpsNode,
+//!     0
+//! )?;
+//! ```
+//!
+//! ### Security Considerations
+//!
+//! - **Type Safety**: `ProxyType::CpsNode` restricts proxies to CPS operations only
+//! - **Ownership Preserved**: All operations maintain original ownership semantics
+//! - **Revocable**: Owners can revoke proxy access at any time
+//! - **Auditable**: All proxy actions are recorded in events
+//! - **No Privilege Escalation**: Proxies cannot grant permissions to other accounts
+//!
+//! ### Use Cases
+//!
+//! 1. **IoT Device Management**: Grant IoT gateways write access to update sensor data
+//! 2. **Multi-Signature Workflows**: Distribute node management across team members
+//! 3. **Automated Systems**: Allow bots to update node state based on external triggers
+//! 4. **Temporary Access**: Grant time-limited access for maintenance or audits
+//! 5. **Hierarchical Management**: Delegate subtree management to department leads
+//!
 //! ## Security Invariants
 //!
 //! The pallet maintains the following invariants:
@@ -121,6 +252,9 @@
 //! 3. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
 //! 4. **Deletion Safety**: Cannot delete nodes with children
 //! 5. **Depth Limits**: Tree depth never exceeds `MaxTreeDepth`
+//! 6. **Proxy Delegation** (optional): When using `pallet-proxy`, access can be delegated
+//!    while maintaining all ownership invariants. Proxies act on behalf of owners but
+//!    cannot transfer ownership or elevate privileges.
 //!
 //! ## Testing
 //!
@@ -139,6 +273,7 @@
 //! - Index consistency
 //! - Encrypted data handling
 //! - Path tracking and updates
+//! - Proxy-based access delegation (requires `pallet-proxy` integration)
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
