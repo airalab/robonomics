@@ -6,12 +6,16 @@ This directory contains integration tests for the Robonomics network using [Zomb
 
 The integration test suite spawns a temporary test network consisting of:
 - A Rococo local relay chain with 2 validators (Alice and Bob)
-- A Robonomics parachain with 2 collators
+- A Robonomics parachain (ID 2000) with 2 collators
+- An AssetHub parachain (ID 1000) with 1 collator
 
 The tests verify:
 1. **Network Initialization** - Ensures relay chain and parachain nodes start correctly
 2. **Block Production** - Verifies blocks are being produced on both chains
 3. **Extrinsic Submission** - Tests basic transaction submission and inclusion
+4. **XCM Upward Messages** - Tests sending XCM messages from parachain to relay chain
+5. **XCM Downward Messages** - Tests sending XCM messages from relay chain to parachain
+6. **XCM Cross-Parachain Transfers** - Tests asset transfers between Robonomics and AssetHub
 
 ## Prerequisites
 
@@ -41,8 +45,8 @@ The tests verify:
    brew install node            # macOS
    ```
 
-3. **Zombienet & Polkadot** (automatically downloaded by test runner)
-   - The test runner will automatically download zombienet and polkadot binaries
+3. **Zombienet, Polkadot & Polkadot-Parachain** (automatically downloaded by test runner)
+   - The test runner will automatically download zombienet, polkadot, and polkadot-parachain binaries
    - Alternatively, you can manually download them:
      ```bash
      # Zombienet
@@ -52,6 +56,10 @@ The tests verify:
      # Polkadot
      curl -L -o polkadot https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.15.2/polkadot
      chmod +x polkadot
+     
+     # Polkadot-Parachain (for AssetHub)
+     curl -L -o polkadot-parachain https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.15.2/polkadot-parachain
+     chmod +x polkadot-parachain
      ```
 
 ## Quick Start
@@ -105,6 +113,14 @@ chain = "rococo-local"
   validator = true
 
 [[parachains]]
+id = 1000
+chain = "asset-hub-rococo-local"
+
+  [[parachains.collators]]
+  name = "assethub-collator"
+  command = "polkadot-parachain"
+
+[[parachains]]
 id = 2000
 chain = "dev"
 
@@ -119,12 +135,13 @@ chain = "dev"
 
 ### Test Configuration
 
-Test parameters can be modified in `tests/integration-tests.js`:
+Test parameters can be modified in `tests/integration-tests.js` and `tests/xcm-tests.js`:
 
 ```javascript
 const TESTS_CONFIG = {
   relayWsUrl: 'ws://127.0.0.1:9944',           // Relay chain WS endpoint
   parachainWsUrl: 'ws://127.0.0.1:9988',       // Parachain WS endpoint
+  assetHubWsUrl: 'ws://127.0.0.1:9910',        // AssetHub WS endpoint
   timeout: 300000,                              // Global timeout (5 min)
   blockProductionWaitTime: 60000,               // Wait time for blocks (1 min)
 };
@@ -132,22 +149,53 @@ const TESTS_CONFIG = {
 
 ## Test Suite Details
 
-### 1. Network Initialization Test
+### Basic Tests
+
+#### 1. Network Initialization Test
 - Connects to relay chain and parachain nodes
 - Verifies chain names and RPC endpoints are accessible
 - Ensures both chains are running
 
-### 2. Block Production Test
+#### 2. Block Production Test
 - Records initial block numbers on both chains
 - Waits for a specified duration
 - Verifies block numbers have increased
 - Ensures continuous block production
 
-### 3. Extrinsic Submission Test
+#### 3. Extrinsic Submission Test
 - Uses Alice's development account
 - Submits a `system.remark` extrinsic to the parachain
 - Waits for transaction inclusion in a block
 - Verifies successful execution
+
+### XCM Tests
+
+The XCM test suite uses XCM v5 with the new `Location` types. All tests verify cross-chain message passing and execution.
+
+#### 4. XCM Upward Message Test
+- **Purpose**: Tests XCM messages from parachain to relay chain
+- **Method**: Sends `polkadotXcm.send()` with a remark transaction
+- **Verification**: 
+  - Checks for `polkadotXcm.Sent` event on parachain
+  - Monitors relay chain for message processing events
+- **Expected Result**: Message sent successfully and received on relay chain
+
+#### 5. XCM Downward Message Test
+- **Purpose**: Tests XCM messages from relay chain to parachain
+- **Method**: Uses sudo to execute `xcmPallet.send()` from relay chain
+- **Verification**:
+  - Confirms sudo execution on relay chain
+  - Monitors parachain DMP queue for message processing
+- **Expected Result**: Message delivered and processed on parachain
+
+#### 6. AssetHub Token Transfer Test
+- **Purpose**: Tests cross-parachain asset transfers via XCM
+- **Method**: Uses `polkadotXcm.limitedReserveTransferAssets()` to transfer tokens
+- **Route**: Robonomics (2000) → Relay Chain → AssetHub (1000)
+- **Verification**:
+  - Checks for transfer initiation on Robonomics
+  - Monitors AssetHub for asset reception
+- **Expected Result**: Tokens successfully transferred between parachains
 
 ## CI/CD Integration
 
@@ -191,14 +239,17 @@ jobs:
 ```
 scripts/zombienet/
 ├── README.md                      # This file
+├── ADDING_TESTS.md                # Guide for adding new tests
 ├── run-tests.sh                   # Main test runner script
 ├── robonomics-local.toml          # Zombienet network configuration
 ├── bin/                           # Downloaded binaries (auto-created)
 │   ├── zombienet
-│   └── polkadot
+│   ├── polkadot
+│   └── polkadot-parachain
 └── tests/
     ├── package.json               # Node.js dependencies
-    └── integration-tests.js       # Test suite implementation
+    ├── integration-tests.js       # Main test suite
+    └── xcm-tests.js               # XCM-specific tests
 ```
 
 ## Troubleshooting

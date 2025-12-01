@@ -23,6 +23,7 @@ ZOMBIENET_VERSION="v1.3.106"
 POLKADOT_VERSION="v1.15.2"
 ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet"
 POLKADOT_BIN="${SCRIPT_DIR}/bin/polkadot"
+POLKADOT_PARACHAIN_BIN="${SCRIPT_DIR}/bin/polkadot-parachain"
 # Check for production profile binary first, fall back to release
 if [ -f "${PROJECT_ROOT}/target/production/robonomics" ]; then
     ROBONOMICS_BIN="${PROJECT_ROOT}/target/production/robonomics"
@@ -119,6 +120,13 @@ setup_environment() {
         download_if_missing "$polkadot_url" "$POLKADOT_BIN"
     fi
     
+    # Download polkadot-parachain for AssetHub if not present
+    if [ ! -f "$POLKADOT_PARACHAIN_BIN" ]; then
+        log_info "Downloading polkadot-parachain ${POLKADOT_VERSION}..."
+        local polkadot_parachain_url="https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot-parachain"
+        download_if_missing "$polkadot_parachain_url" "$POLKADOT_PARACHAIN_BIN"
+    fi
+    
     # Check if robonomics binary exists
     if [ ! -f "$ROBONOMICS_BIN" ]; then
         log_warn "Robonomics binary not found at ${ROBONOMICS_BIN}"
@@ -137,6 +145,7 @@ setup_environment() {
     
     log_info "Robonomics binary: ${ROBONOMICS_BIN}"
     log_info "Polkadot binary: ${POLKADOT_BIN}"
+    log_info "Polkadot-parachain binary: ${POLKADOT_PARACHAIN_BIN}"
     log_info "Zombienet binary: ${ZOMBIENET_BIN}"
     
     # Install test dependencies

@@ -8,6 +8,11 @@
  */
 
 const { ApiPromise, WsProvider } = require('@polkadot/api');
+const {
+  testXcmUpwardMessage,
+  testXcmDownwardMessage,
+  testAssetHubTransfer,
+} = require('./xcm-tests');
 
 // Test configuration
 const TESTS_CONFIG = {
@@ -226,10 +231,19 @@ async function runTests() {
     log.info('Waiting for network to stabilize...');
     await sleep(TESTS_CONFIG.networkStabilizationTime);
     
-    // Run tests sequentially
+    // Run basic tests sequentially
     await testNetworkInitialization();
     await testBlockProduction();
     await testExtrinsicSubmission();
+    
+    // Run XCM tests
+    log.info('='.repeat(50));
+    log.info('Starting XCM Integration Tests');
+    log.info('='.repeat(50));
+    
+    await testXcmUpwardMessage(testResults);
+    await testXcmDownwardMessage(testResults);
+    await testAssetHubTransfer(testResults);
     
     // Print results
     log.info('='.repeat(50));
