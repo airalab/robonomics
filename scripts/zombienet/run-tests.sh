@@ -167,12 +167,13 @@ run_tests() {
         node_cmd="nodejs"
     fi
     
-    # Run zombienet with test command
+    # Run zombienet with spawn command
     log_info "Spawning test network with zombienet..."
     
-    # Run zombienet in test mode
-    # The test script will be executed after the network is up
-    "$ZOMBIENET_BIN" test "$CONFIG_FILE" \
+    # Spawn the network in the background
+    # zombienet spawn starts the network and runs the command after it's ready
+    # The -- syntax allows us to run a command after the network is up
+    "$ZOMBIENET_BIN" spawn "$CONFIG_FILE" \
         --provider native \
         -- "$node_cmd" "${TESTS_DIR}/integration-tests.js"
 }
