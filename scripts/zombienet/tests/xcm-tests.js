@@ -77,7 +77,7 @@ async function testXcmUpwardMessage(testResults) {
           Transact: {
             origin_kind: 'SovereignAccount',
             call: {
-              encoded: parachainApi.tx.system.remarkWithEvent('XCM upward test').toHex()
+              encoded: relayApi.tx.system.remarkWithEvent('XCM upward test').toHex()
             }
           }
         }
