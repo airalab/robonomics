@@ -302,6 +302,14 @@ XcmInfo::set_asset_link(RuntimeOrigin::root(), 1u32, relay_native)?;
 
 2. **Mapping Overwrites**: Calling `set_asset_link` with an existing asset ID will overwrite the previous location. The reverse mapping from the old location will persist in storage.
 
+   **Implications**: This creates stale data where an old location still maps to an asset ID, even though that asset now maps to a different location. In most cases, this is harmless as the forward mapping (asset ID → location) is the primary one used. However, if you rely heavily on reverse lookups (location → asset ID), be aware of this behavior.
+
+   **Workarounds**: 
+   - Avoid reusing asset IDs for different locations when possible
+   - If cleanup is required, consider implementing a storage migration
+   - For critical applications, add a dedicated extrinsic to remove specific mappings
+   - Document your asset ID assignment strategy to prevent accidental conflicts
+
 3. **No Deletion**: The pallet does not provide functionality to remove mappings. Consider this when managing asset lifecycles.
 
 4. **XCM Version Compatibility**: Ensure Location structures are compatible with the XCM version used across your chain ecosystem.

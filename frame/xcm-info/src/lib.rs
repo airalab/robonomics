@@ -572,8 +572,12 @@ mod tests {
             assert_eq!(XcmInfo::location_of(asset_id), Some(location_2.clone()));
             assert_eq!(XcmInfo::assetid_of(&location_2), Some(asset_id));
 
-            // Note: location_1 -> asset_id mapping still exists in AssetIdOf storage
-            // This is expected behavior as the extrinsic doesn't clean up old reverse mappings
+            // Note: This demonstrates expected behavior - location_1 -> asset_id mapping
+            // still exists in AssetIdOf storage. The extrinsic doesn't clean up old 
+            // reverse mappings to avoid expensive storage scans. If this becomes an issue,
+            // consider using a migration to clean up stale mappings or implementing a
+            // dedicated removal extrinsic.
+            assert_eq!(XcmInfo::assetid_of(&location_1), Some(asset_id));
         })
     }
 }
