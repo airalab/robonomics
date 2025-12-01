@@ -23,8 +23,9 @@ use frame_support::{
     traits::{OnRuntimeUpgrade, StorageVersion},
     weights::Weight,
 };
-use parity_scale_codec::{Decode, Encode};
 
+#[cfg(feature = "try-runtime")]
+use parity_scale_codec::{Decode, Encode};
 #[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
 
@@ -42,12 +43,20 @@ pub mod v1 {
         use xcm::v3::MultiLocation;
 
         #[storage_alias]
-        pub type LocationOf<T: pallet::Config> =
-            StorageMap<pallet::Pallet<T>, Blake2_128Concat, <T as pallet::Config>::AssetId, MultiLocation>;
+        pub type LocationOf<T: pallet::Config> = StorageMap<
+            pallet::Pallet<T>,
+            Blake2_128Concat,
+            <T as pallet::Config>::AssetId,
+            MultiLocation,
+        >;
 
         #[storage_alias]
-        pub type AssetIdOf<T: pallet::Config> =
-            StorageMap<pallet::Pallet<T>, Blake2_128Concat, MultiLocation, <T as pallet::Config>::AssetId>;
+        pub type AssetIdOf<T: pallet::Config> = StorageMap<
+            pallet::Pallet<T>,
+            Blake2_128Concat,
+            MultiLocation,
+            <T as pallet::Config>::AssetId,
+        >;
     }
 
     /// Migrate from MultiLocation to Location
@@ -64,24 +73,28 @@ pub mod v1 {
             }
 
             // Migrate LocationOf storage
-            
-            v0::LocationOf::<T>::translate::<xcm::v3::MultiLocation, _>(|_asset_id, old_location| {
-                weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
-                
-                // Convert v3::MultiLocation to latest Location using VersionedLocation
-                let versioned = xcm::VersionedLocation::V3(old_location);
-                versioned.try_into().ok()
-            });
+
+            v0::LocationOf::<T>::translate::<xcm::v3::MultiLocation, _>(
+                |_asset_id, old_location| {
+                    weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+
+                    // Convert v3::MultiLocation to latest Location using VersionedLocation
+                    let versioned = xcm::VersionedLocation::V3(old_location);
+                    versioned.try_into().ok()
+                },
+            );
 
             // Migrate AssetIdOf storage - need to handle key change
             let drained_asset_ids: sp_std::vec::Vec<_> = v0::AssetIdOf::<T>::drain().collect();
-            let _asset_id_of_count = drained_asset_ids.len();
             for (old_location, asset_id) in drained_asset_ids {
                 weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 2));
-                
+
                 // Convert v3::MultiLocation to latest Location using VersionedLocation
                 let versioned = xcm::VersionedLocation::V3(old_location);
-                if let Ok(new_location) = <xcm::VersionedLocation as TryInto<xcm::latest::prelude::Location>>::try_into(versioned) {
+                if let Ok(new_location) = <xcm::VersionedLocation as TryInto<
+                    xcm::latest::prelude::Location,
+                >>::try_into(versioned)
+                {
                     pallet::AssetIdOf::<T>::insert(new_location, asset_id);
                 }
             }
@@ -102,13 +115,15 @@ pub mod v1 {
 
         #[cfg(feature = "try-runtime")]
         fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
-            let (old_location_count, old_asset_id_count): (u32, u32) = 
+            let (old_location_count, old_asset_id_count): (u32, u32) =
                 Decode::decode(&mut &state[..])
                     .map_err(|_| "Failed to decode pre-upgrade state")?;
 
             let new_location_count = pallet::LocationOf::<T>::iter().count() as u32;
             let new_asset_id_count = pallet::AssetIdOf::<T>::iter().count() as u32;
 
+            // Note: new counts may be less than old counts if some v3::MultiLocation values
+            // fail to convert to the new Location format. This is expected behavior.
             ensure!(
                 new_location_count <= old_location_count,
                 "LocationOf entries count mismatch after migration"
