@@ -171,11 +171,16 @@ async function testExtrinsicSubmission() {
     
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        reject(new Error('Transaction timeout'));
+        parachainApi.disconnect().then(() => {
+          reject(new Error('Transaction timeout'));
+        });
       }, TESTS_CONFIG.transactionTimeout);
       
+      let resolved = false;
+      
       tx.signAndSend(alice, ({ status, events }) => {
-        if (status.isInBlock) {
+        if (status.isInBlock && !resolved) {
+          resolved = true;
           log.info(`Transaction included in block: ${status.asInBlock.toHex()}`);
           clearTimeout(timeoutId);
           
@@ -188,8 +193,15 @@ async function testExtrinsicSubmission() {
           log.info(`Transaction finalized: ${status.asFinalized.toHex()}`);
         }
       }).catch((error) => {
-        clearTimeout(timeoutId);
-        reject(error);
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeoutId);
+          parachainApi.disconnect().then(() => {
+            reject(error);
+          }).catch(() => {
+            reject(error);
+          });
+        }
       });
     });
   } catch (error) {
