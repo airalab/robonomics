@@ -157,73 +157,130 @@
 //! }
 //! ```
 //!
-//! ### Usage Examples
+//! ### Complete User Story: IoT Sensor Management
 //!
-//! #### 1. Owner Grants Proxy Access
+//! **Scenario**: Alice owns a network of temperature sensors represented as CPS nodes.
+//! She wants to allow her IoT gateway device to update sensor readings without giving
+//! it full account access.
 //!
 //! ```ignore
-//! // Owner adds a proxy with CpsNode permissions
+//! // Step 1: Alice (owner) creates the sensor node hierarchy
+//! let alice = AccountId::from([1u8; 32]);
+//! let gateway = AccountId::from([2u8; 32]);
+//!
+//! // Create root node for sensor network
+//! Cps::create_node(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     None,  // root node
+//!     Some(NodeData::Plain(b"Building_A_Sensors".to_vec().try_into()?)),
+//!     None,
+//! )?;
+//! let network_id = NodeId(0);
+//!
+//! // Create individual sensor nodes
+//! Cps::create_node(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     Some(network_id),
+//!     Some(NodeData::Plain(b"Room_101_Temperature".to_vec().try_into()?)),
+//!     Some(NodeData::Plain(b"22.5C".to_vec().try_into()?)),
+//! )?;
+//! let sensor_id = NodeId(1);
+//!
+//! // Step 2: Alice grants the gateway proxy access for CPS operations only
+//! // The 'delay' parameter (0) means no time delay before the proxy becomes active.
+//! // Set to non-zero (e.g., 100 blocks) for time-locked proxies requiring advance notice.
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     gateway.clone(),
+//!     ProxyType::CpsNode,  // Restricts gateway to CPS operations only
+//!     0  // No delay - proxy is immediately active
+//! )?;
+//!
+//! // Step 3: Gateway updates sensor reading on Alice's behalf
+//! let new_reading = NodeData::Plain(b"23.1C".to_vec().try_into()?);
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(gateway.clone()),
+//!     alice.clone(),
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: sensor_id,
+//!         payload: Some(new_reading),
+//!     }))
+//! )?;
+//!
+//! // Step 4: Alice can verify the update
+//! let node = Nodes::<T>::get(sensor_id).unwrap();
+//! assert_eq!(node.payload, Some(NodeData::Plain(b"23.1C".to_vec().try_into()?)));
+//! assert_eq!(node.owner, alice);  // Ownership unchanged
+//!
+//! // Step 5: When gateway is decommissioned, Alice revokes access
+//! Proxy::remove_proxy(
+//!     RuntimeOrigin::signed(alice),
+//!     gateway,
+//!     ProxyType::CpsNode,
+//!     0
+//! )?;
+//! ```
+//!
+//! ### Additional Usage Examples
+//!
+//! #### 1. Time-Delayed Proxy for Security
+//!
+//! ```ignore
+//! // Grant proxy access with 100-block delay for security-critical operations
+//! // This gives the owner time to review and potentially cancel before it activates
 //! Proxy::add_proxy(
 //!     RuntimeOrigin::signed(owner),
 //!     proxy_account,
 //!     ProxyType::CpsNode,
-//!     0  // delay blocks
+//!     100  // Proxy activates after 100 blocks
 //! )?;
 //! ```
 //!
-//! #### 2. Proxy Updates Node Data
+//! #### 2. Multi-Signature Workflow for Team Management
 //!
 //! ```ignore
-//! // Proxy account updates node payload on behalf of owner
-//! let new_payload = NodeData::Plain(b"sensor_reading: 23.5C".to_vec().try_into()?);
-//! 
-//! Proxy::proxy(
-//!     RuntimeOrigin::signed(proxy_account),
-//!     owner,
-//!     None,
-//!     Box::new(RuntimeCall::Cps(Call::set_payload {
-//!         node_id: NodeId(0),
-//!         payload: Some(new_payload),
-//!     }))
-//! )?;
-//! ```
-//!
-//! #### 3. Proxy Manages Node Hierarchy
-//!
-//! ```ignore
-//! // Proxy creates child node
-//! Proxy::proxy(
-//!     RuntimeOrigin::signed(proxy_account),
-//!     owner,
-//!     None,
-//!     Box::new(RuntimeCall::Cps(Call::create_node {
-//!         parent_id: Some(NodeId(0)),
-//!         meta: Some(NodeData::Plain(b"child_sensor".to_vec().try_into()?)),
-//!         payload: None,
-//!     }))
-//! )?;
-//!
-//! // Proxy moves node to new parent
-//! Proxy::proxy(
-//!     RuntimeOrigin::signed(proxy_account),
-//!     owner,
-//!     None,
-//!     Box::new(RuntimeCall::Cps(Call::move_node {
-//!         node_id: NodeId(1),
-//!         new_parent_id: NodeId(2),
-//!     }))
-//! )?;
-//! ```
-//!
-//! #### 4. Owner Revokes Proxy Access
-//!
-//! ```ignore
-//! // Owner removes proxy permissions
-//! Proxy::remove_proxy(
-//!     RuntimeOrigin::signed(owner),
-//!     proxy_account,
+//! // Team lead grants proxy access to multiple team members
+//! // Each can update their department's sensor nodes
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(team_lead),
+//!     engineer_alice,
 //!     ProxyType::CpsNode,
 //!     0
+//! )?;
+//!
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(team_lead),
+//!     engineer_bob,
+//!     ProxyType::CpsNode,
+//!     0
+//! )?;
+//!
+//! // Engineer Alice reorganizes node hierarchy for her department
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(engineer_alice),
+//!     team_lead,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::move_node {
+//!         node_id: NodeId(5),
+//!         new_parent_id: NodeId(3),
+//!     }))
+//! )?;
+//! ```
+//!
+//! #### 3. Automated Bot with Restricted Access
+//!
+//! ```ignore
+//! // Automation bot updates node data based on external events
+//! // ProxyType::CpsNode ensures it can only manage CPS nodes, not transfer funds
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(monitoring_bot),
+//!     system_owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: NodeId(10),
+//!         payload: Some(NodeData::Plain(b"alert: threshold exceeded".to_vec().try_into()?)),
+//!     }))
 //! )?;
 //! ```
 //!
