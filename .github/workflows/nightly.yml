@@ -16,7 +16,7 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.native-linux.outputs.status && jobs.native-macos.outputs.status && jobs.native-linux-musl.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
+        value: ${{ jobs.release-binary.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
 
 env:
   SUBWASM_VERSION: 0.16.1
@@ -25,143 +25,65 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
-  native-linux:
+  release-binary:
     needs: tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-        - x86_64-unknown-linux-gnu
-        - aarch64-unknown-linux-gnu
-    outputs:
-      status: ${{ job.status }}
-
+    name: Binary - ${{ matrix.platform.os-name }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    matrix:
+      platform:
+        - os-name: Ubuntu-x86_64
+          runs-on: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+        - os-name: Alpine-x86_64
+          runs-on: ubuntu-latest
+          target: x86_64-unknown-linux-musl
+        - os-name: Ubuntu-aarch64
+          runs-on: ubuntu-latest
+          target: aarch64-unknown-linux-gnu
+        - os-name: Alpine-aarch64
+          runs-on: ubuntu-latest
+          target: aarch64-unknown-linux-musl
+        - os-name: Linux-riscv64
+          runs-on: ubuntu-latest
+          target: riscv64gc-unknown-linux-gnu
+        - os-name: Windows-x86_64
+          runs-on: windows-latest
+          target: x86_64-pc-windows-msvc
+        - os-name: macOS-x86_64
+          runs-on: macOS-latest
+          target: x86_64-apple-darwin
     steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: aarch64 setup
-      if: contains(matrix.target, 'aarch64')
-      shell: bash
-      run: |
-        sudo apt update
-        sudo apt install -y gcc-multilib g++-multilib
-        sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-        mkdir -p .cargo
-        touch .cargo/config
-        printf '[target.aarch64-unknown-linux-gnu]\nlinker = "aarch64-linux-gnu-gcc"' >> .cargo/config
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Add aarch64 target
-      if: contains(matrix.target, 'aarch64')
-      run: rustup target add ${{ matrix.target }}
-
-    - name: Install deps
-      run: sudo apt -y install pkg-config protobuf-compiler
-
-    - name: Build optimized binary
-      run: cargo build --profile production --target ${{ matrix.target }} --verbose --locked
-
-    - name: Set artifact name
-      env:
-        TARGET: ${{ matrix.target }}
-      id: artifact-name
-      run: echo "::set-output name=name::robonomics-ubuntu-latest-${TARGET%%-*}"
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.artifact-name.outputs.name }}
-        path: target/${{ matrix.target }}/production/robonomics
-
-  native-macos:
-    needs: tests
-    runs-on: macos-latest
-    outputs:
-      status: ${{ job.status }}
-
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Install deps
-      run: brew install protobuf
-
-    - name: Build optimized binary
-      run: cargo build --profile production --verbose --locked
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: robonomics-macOS-latest-x86_64
-        path: target/production/robonomics
-
-  native-linux-musl:
-    needs: tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-        - x86_64-unknown-linux-musl
-        - aarch64-unknown-linux-musl
-    outputs:
-      status: ${{ job.status }}
-
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v3
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Add musl target
-      run: rustup target add ${{ matrix.target }}
-
-    - name: Install musl tools for x86_64
-      if: contains(matrix.target, 'x86_64')
-      run: |
-        sudo apt update
-        sudo apt install -y musl-tools pkg-config protobuf-compiler
-
-    - name: Install cross for aarch64
-      if: contains(matrix.target, 'aarch64')
-      run: |
-        sudo apt update
-        sudo apt install -y pkg-config protobuf-compiler
-        wget -qO- https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar -xzf - -C /usr/local/bin
-
-    - name: Build optimized binary for x86_64
-      if: contains(matrix.target, 'x86_64')
-      run: cargo build --profile production --target ${{ matrix.target }} --verbose --locked
-
-    - name: Build optimized binary for aarch64
-      if: contains(matrix.target, 'aarch64')
-      run: cross build --profile production --target ${{ matrix.target }} --verbose --locked
-
-    - name: Set artifact name
-      env:
-        TARGET: ${{ matrix.target }}
-      id: artifact-name
-      run: echo "name=robonomics-alpine-latest-${TARGET%%-*}" >> $GITHUB_OUTPUT
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.artifact-name.outputs.name }}
-        path: target/${{ matrix.target }}/production/robonomics
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt -y install pkg-config protobuf-compiler
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: "--locked --profile production"
+          strip: true
+      - name: Set artifact name
+        env:
+          TARGET: ${{ matrix.platform.target }}
+        run: echo "::set-output name=name::robonomics-${TARGET%%-*}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: target/${{ matrix.platform.target }}/production/robonomics
 
   docker:
-    needs: native-linux-musl
+    needs: release-binary
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
 
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -182,13 +104,13 @@ jobs:
     - name: Download pre-built amd64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-alpine-latest-x86_64
+        name: robonomics-x86_64-unknown-linux-musl
         path: scripts/docker/amd64/
 
     - name: Download pre-built aarch64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-alpine-latest-aarch64
+        name: robonomics-aarch64-unknown-linux-musl
         path: scripts/docker/arm64/
 
     - name: Make binary executable and copy it to docker folder
