@@ -1,0 +1,29 @@
+[relaychain]
+default_command = "polkadot"
+default_args = ["-lparachain=debug"]
+chain = "rococo-local"
+
+  [[relaychain.nodes]]
+  name = "alice"
+  validator = true
+  args = ["-lparachain=debug"]
+
+  [[relaychain.nodes]]
+  name = "bob"
+  validator = true
+  args = ["-lparachain=debug"]
+
+[[parachains]]
+id = 2000
+chain = "dev"
+cumulus_based = true
+
+  [[parachains.collators]]
+  name = "collator-01"
+  command = "robonomics"
+  args = ["-lparachain=debug"]
+
+  [[parachains.collators]]
+  name = "collator-02"
+  command = "robonomics"
+  args = ["-lparachain=debug"]
