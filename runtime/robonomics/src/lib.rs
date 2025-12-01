@@ -630,6 +630,7 @@ pub type Executive = frame_executive::Executive<
 pub type Migrations = (
     pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
     // XCM migrations
+    pallet_xcm_info::migration::v1::MigrateToV1<Runtime>,
     cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
     cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,

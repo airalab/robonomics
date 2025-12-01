@@ -20,6 +20,7 @@
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+pub mod migration;
 // pub mod weights;
 
 pub use pallet::*;
@@ -32,6 +33,10 @@ pub mod pallet {
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
     use xcm::latest::prelude::*;
+
+    /// The current storage version
+    const STORAGE_VERSION: frame_support::traits::StorageVersion = 
+        frame_support::traits::StorageVersion::new(1);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -55,6 +60,7 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
 
     /// Relay network identifier.

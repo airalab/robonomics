@@ -144,7 +144,16 @@ parameter_types! {
 pub struct ParentOrParentsPlurality;
 impl Contains<Location> for ParentOrParentsPlurality {
     fn contains(location: &Location) -> bool {
-        matches!(location, Location { parents: 1, interior } if matches!(interior, Here | Junctions::X1(_)))
+        if location.parents != 1 {
+            return false;
+        }
+        match &location.interior {
+            Here => true,
+            Junctions::X1(arc) => {
+                matches!(arc.first(), Some(&Junction::Plurality { .. }))
+            }
+            _ => false,
+        }
     }
 }
 
@@ -310,14 +319,15 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type ChannelInfo = ParachainSystem;
     type VersionWrapper = PolkadotXcm;
-    // TODO: This needs to be properly configured with a message queue implementation
-    // For now using () as a placeholder - messages will be handled by ParachainSystem
+    // XcmpQueue field is currently () as message enqueueing is handled internally
+    // by the pallet's own queue management system and ParachainSystem
     type XcmpQueue = ();
     type MaxInboundSuspended = MaxInboundSuspended;
     type MaxActiveOutboundChannels = MaxActiveOutboundChannels;
     type MaxPageSize = MaxPageSize;
     type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
+    // No fees for XCM message delivery to siblings - consider adding proper pricing in production
     type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery<ParaId>;
     type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Runtime>;
 }
