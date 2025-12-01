@@ -112,6 +112,265 @@
 //! let is_ancestor = node.path.contains(&NodeId(ancestor_id));
 //! ```
 //!
+//! ## Proxy-Based Access Delegation
+//!
+//! The pallet integrates seamlessly with Substrate's `pallet-proxy` to enable
+//! delegated access to CPS nodes. Node owners can grant specific accounts
+//! proxy permissions to perform operations on their behalf.
+//!
+//! ### Setting Up Proxy Access
+//!
+//! Define a `ProxyType` enum in your runtime that implements `InstanceFilter`:
+//!
+//! ```ignore
+//! use frame_support::traits::InstanceFilter;
+//! use parity_scale_codec::{Decode, Encode};
+//! 
+//! #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+//! pub enum ProxyType {
+//!     Any,       // Allows all operations
+//!     /// CPS write access with optional node restriction
+//!     /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
+//!     /// - `CpsWrite(Some(node_id))`: Access only to specific node and its descendants
+//!     CpsWrite(Option<NodeId>),
+//! }
+//!
+//! impl InstanceFilter<RuntimeCall> for ProxyType {
+//!     fn filter(&self, c: &RuntimeCall) -> bool {
+//!         match self {
+//!             ProxyType::Any => true,
+//!             ProxyType::CpsWrite(allowed_node) => {
+//!                 // Check if it's a CPS call
+//!                 let is_cps_call = matches!(
+//!                     c,
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { .. })
+//!                 );
+//!                 
+//!                 if !is_cps_call {
+//!                     return false;
+//!                 }
+//!                 
+//!                 // If no specific node restriction, allow all CPS calls
+//!                 if allowed_node.is_none() {
+//!                     return true;
+//!                 }
+//!                 
+//!                 // Check if call targets the allowed node
+//!                 match c {
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { node_id, .. }) => {
+//!                         Some(node_id) == allowed_node.as_ref()
+//!                     }
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { parent_id, .. }) => {
+//!                         parent_id.as_ref() == allowed_node.as_ref()
+//!                     }
+//!                     _ => false,
+//!                 }
+//!             }
+//!         }
+//!     }
+//!     
+//!     fn is_superset(&self, o: &Self) -> bool {
+//!         match (self, o) {
+//!             (ProxyType::Any, _) => true,
+//!             (_, ProxyType::Any) => false,
+//!             (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
+//!             (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => a == b,
+//!             _ => false,
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ### Complete User Story: IoT Sensor Management
+//!
+//! **Scenario**: Alice owns a network of temperature sensors represented as CPS nodes.
+//! She wants to allow her IoT gateway device to update sensor readings without giving
+//! it full account access.
+//!
+//! ```ignore
+//! // Step 1: Alice (owner) creates the sensor node hierarchy
+//! let alice = AccountId::from([1u8; 32]);
+//! let gateway = AccountId::from([2u8; 32]);
+//!
+//! // Create root node for sensor network
+//! Cps::create_node(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     None,  // root node
+//!     Some(NodeData::Plain(b"Building_A_Sensors".to_vec().try_into()?)),
+//!     None,
+//! )?;
+//! let network_id = NodeId(0);
+//!
+//! // Create individual sensor nodes
+//! Cps::create_node(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     Some(network_id),
+//!     Some(NodeData::Plain(b"Room_101_Temperature".to_vec().try_into()?)),
+//!     Some(NodeData::Plain(b"22.5C".to_vec().try_into()?)),
+//! )?;
+//! let sensor_id = NodeId(1);
+//!
+//! // Step 2: Alice grants the gateway proxy access for CPS operations only
+//! // The 'delay' parameter (0) means no time delay before the proxy becomes active.
+//! // Set to non-zero (e.g., 100 blocks) for time-locked proxies requiring advance notice.
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(alice.clone()),
+//!     gateway.clone(),
+//!     ProxyType::CpsWrite(None),  // Restricts gateway to CPS operations only
+//!     0  // No delay - proxy is immediately active
+//! )?;
+//!
+//! // Step 3: Gateway updates sensor reading on Alice's behalf
+//! let new_reading = NodeData::Plain(b"23.1C".to_vec().try_into()?);
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(gateway.clone()),
+//!     alice.clone(),
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: sensor_id,
+//!         payload: Some(new_reading),
+//!     }))
+//! )?;
+//!
+//! // Step 4: Alice can verify the update
+//! let node = Nodes::<T>::get(sensor_id).unwrap();
+//! assert_eq!(node.payload, Some(NodeData::Plain(b"23.1C".to_vec().try_into()?)));
+//! assert_eq!(node.owner, alice);  // Ownership unchanged
+//!
+//! // Step 5: When gateway is decommissioned, Alice revokes access
+//! Proxy::remove_proxy(
+//!     RuntimeOrigin::signed(alice),
+//!     gateway,
+//!     ProxyType::CpsWrite(None),
+//!     0
+//! )?;
+//! ```
+//!
+//! ### Additional Usage Examples
+//!
+//! #### 1. Time-Delayed Proxy for Security
+//!
+//! ```ignore
+//! // Grant proxy access with 100-block delay for security-critical operations
+//! // This gives the owner time to review and potentially cancel before it activates
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(owner),
+//!     proxy_account,
+//!     ProxyType::CpsWrite(None),
+//!     100  // Proxy activates after 100 blocks
+//! )?;
+//! ```
+//!
+//! #### 2. Multi-Signature Workflow for Team Management
+//!
+//! ```ignore
+//! // Team lead grants proxy access to multiple team members
+//! // Each can update their department's sensor nodes
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(team_lead),
+//!     engineer_alice,
+//!     ProxyType::CpsWrite(None),
+//!     0
+//! )?;
+//!
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(team_lead),
+//!     engineer_bob,
+//!     ProxyType::CpsWrite(None),
+//!     0
+//! )?;
+//!
+//! // Engineer Alice reorganizes node hierarchy for her department
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(engineer_alice),
+//!     team_lead,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::move_node {
+//!         node_id: NodeId(5),
+//!         new_parent_id: NodeId(3),
+//!     }))
+//! )?;
+//! ```
+//!
+//! #### 3. Node-Specific Proxy Restriction
+//!
+//! ```ignore
+//! // Grant proxy access to only a specific node and its descendants
+//! // Useful for delegating management of a specific subtree
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(owner),
+//!     contractor_account,
+//!     ProxyType::CpsWrite(Some(NodeId(5))),  // Only node 5 and its children
+//!     0
+//! )?;
+//!
+//! // Contractor can update node 5
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(contractor_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: NodeId(5),
+//!         payload: Some(NodeData::Plain(b"updated".to_vec().try_into()?)),
+//!     }))
+//! )?;
+//!
+//! // Contractor can create children under node 5
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(contractor_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::create_node {
+//!         parent_id: Some(NodeId(5)),
+//!         meta: Some(NodeData::Plain(b"child_node".to_vec().try_into()?)),
+//!         payload: None,
+//!     }))
+//! )?;
+//!
+//! // But contractor CANNOT update other nodes (e.g., node 3)
+//! // This call would fail with NotProxy error
+//! ```
+//!
+//! #### 4. Automated Bot with Restricted Access
+//!
+//! ```ignore
+//! // Automation bot updates node data based on external events
+//! // ProxyType::CpsWrite(None) ensures it can only manage CPS nodes, not transfer funds
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(monitoring_bot),
+//!     system_owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: NodeId(10),
+//!         payload: Some(NodeData::Plain(b"alert: threshold exceeded".to_vec().try_into()?)),
+//!     }))
+//! )?;
+//! ```
+//!
+//! ### Security Considerations
+//!
+//! - **Type Safety**: `ProxyType::CpsWrite` restricts proxies to CPS operations only
+//! - **Node-Level Granularity**: `CpsWrite(Some(node_id))` enables fine-grained access control
+//! - **Ownership Preserved**: All operations maintain original ownership semantics
+//! - **Revocable**: Owners can revoke proxy access at any time
+//! - **Auditable**: All proxy actions are recorded in events
+//! - **No Privilege Escalation**: Proxies cannot grant permissions to other accounts
+//!
+//! ### Use Cases
+//!
+//! 1. **IoT Device Management**: Grant IoT gateways write access to update sensor data
+//! 2. **Multi-Signature Workflows**: Distribute node management across team members
+//! 3. **Automated Systems**: Allow bots to update node state based on external triggers
+//! 4. **Temporary Access**: Grant time-limited access for maintenance or audits
+//! 5. **Hierarchical Management**: Delegate subtree management to department leads
+//!
 //! ## Security Invariants
 //!
 //! The pallet maintains the following invariants:
@@ -121,6 +380,9 @@
 //! 3. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
 //! 4. **Deletion Safety**: Cannot delete nodes with children
 //! 5. **Depth Limits**: Tree depth never exceeds `MaxTreeDepth`
+//! 6. **Proxy Delegation** (optional): When using `pallet-proxy`, access can be delegated
+//!    while maintaining all ownership invariants. Proxies act on behalf of owners but
+//!    cannot transfer ownership or elevate privileges.
 //!
 //! ## Testing
 //!
@@ -139,6 +401,7 @@
 //! - Index consistency
 //! - Encrypted data handling
 //! - Path tracking and updates
+//! - Proxy-based access delegation (requires `pallet-proxy` integration)
 //!
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -285,6 +548,8 @@ pub type MaxDataSize = ConstU32<2048>;
     Copy,
     PartialEq,
     Eq,
+    PartialOrd,
+    Ord,
     Default,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);

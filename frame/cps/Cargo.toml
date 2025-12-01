@@ -20,6 +20,8 @@ frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-proxy = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
