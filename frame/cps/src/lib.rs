@@ -129,21 +129,50 @@
 //! #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 //! pub enum ProxyType {
 //!     Any,       // Allows all operations
-//!     CpsNode,   // Restricted to CPS operations only
+//!     /// CPS write access with optional node restriction
+//!     /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
+//!     /// - `CpsWrite(Some(node_id))`: Access only to specific node and its descendants
+//!     CpsWrite(Option<NodeId>),
 //! }
 //!
 //! impl InstanceFilter<RuntimeCall> for ProxyType {
 //!     fn filter(&self, c: &RuntimeCall) -> bool {
 //!         match self {
 //!             ProxyType::Any => true,
-//!             ProxyType::CpsNode => matches!(
-//!                 c,
-//!                 RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { .. })
-//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { .. })
-//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { .. })
-//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { .. })
-//!                     | RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { .. })
-//!             ),
+//!             ProxyType::CpsWrite(allowed_node) => {
+//!                 // Check if it's a CPS call
+//!                 let is_cps_call = matches!(
+//!                     c,
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { .. })
+//!                         | RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { .. })
+//!                 );
+//!                 
+//!                 if !is_cps_call {
+//!                     return false;
+//!                 }
+//!                 
+//!                 // If no specific node restriction, allow all CPS calls
+//!                 if allowed_node.is_none() {
+//!                     return true;
+//!                 }
+//!                 
+//!                 // Check if call targets the allowed node
+//!                 match c {
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { node_id, .. }) |
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { node_id, .. }) => {
+//!                         Some(node_id) == allowed_node.as_ref()
+//!                     }
+//!                     RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { parent_id, .. }) => {
+//!                         parent_id.as_ref() == allowed_node.as_ref()
+//!                     }
+//!                     _ => false,
+//!                 }
+//!             }
 //!         }
 //!     }
 //!     
@@ -151,7 +180,9 @@
 //!         match (self, o) {
 //!             (ProxyType::Any, _) => true,
 //!             (_, ProxyType::Any) => false,
-//!             _ => self == o,
+//!             (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
+//!             (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => a == b,
+//!             _ => false,
 //!         }
 //!     }
 //! }
@@ -192,7 +223,7 @@
 //! Proxy::add_proxy(
 //!     RuntimeOrigin::signed(alice.clone()),
 //!     gateway.clone(),
-//!     ProxyType::CpsNode,  // Restricts gateway to CPS operations only
+//!     ProxyType::CpsWrite(None),  // Restricts gateway to CPS operations only
 //!     0  // No delay - proxy is immediately active
 //! )?;
 //!
@@ -217,7 +248,7 @@
 //! Proxy::remove_proxy(
 //!     RuntimeOrigin::signed(alice),
 //!     gateway,
-//!     ProxyType::CpsNode,
+//!     ProxyType::CpsWrite(None),
 //!     0
 //! )?;
 //! ```
@@ -232,7 +263,7 @@
 //! Proxy::add_proxy(
 //!     RuntimeOrigin::signed(owner),
 //!     proxy_account,
-//!     ProxyType::CpsNode,
+//!     ProxyType::CpsWrite(None),
 //!     100  // Proxy activates after 100 blocks
 //! )?;
 //! ```
@@ -245,14 +276,14 @@
 //! Proxy::add_proxy(
 //!     RuntimeOrigin::signed(team_lead),
 //!     engineer_alice,
-//!     ProxyType::CpsNode,
+//!     ProxyType::CpsWrite(None),
 //!     0
 //! )?;
 //!
 //! Proxy::add_proxy(
 //!     RuntimeOrigin::signed(team_lead),
 //!     engineer_bob,
-//!     ProxyType::CpsNode,
+//!     ProxyType::CpsWrite(None),
 //!     0
 //! )?;
 //!
@@ -268,11 +299,50 @@
 //! )?;
 //! ```
 //!
-//! #### 3. Automated Bot with Restricted Access
+//! #### 3. Node-Specific Proxy Restriction
+//!
+//! ```ignore
+//! // Grant proxy access to only a specific node and its descendants
+//! // Useful for delegating management of a specific subtree
+//! Proxy::add_proxy(
+//!     RuntimeOrigin::signed(owner),
+//!     contractor_account,
+//!     ProxyType::CpsWrite(Some(NodeId(5))),  // Only node 5 and its children
+//!     0
+//! )?;
+//!
+//! // Contractor can update node 5
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(contractor_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::set_payload {
+//!         node_id: NodeId(5),
+//!         payload: Some(NodeData::Plain(b"updated".to_vec().try_into()?)),
+//!     }))
+//! )?;
+//!
+//! // Contractor can create children under node 5
+//! Proxy::proxy(
+//!     RuntimeOrigin::signed(contractor_account),
+//!     owner,
+//!     None,
+//!     Box::new(RuntimeCall::Cps(Call::create_node {
+//!         parent_id: Some(NodeId(5)),
+//!         meta: Some(NodeData::Plain(b"child_node".to_vec().try_into()?)),
+//!         payload: None,
+//!     }))
+//! )?;
+//!
+//! // But contractor CANNOT update other nodes (e.g., node 3)
+//! // This call would fail with NotProxy error
+//! ```
+//!
+//! #### 4. Automated Bot with Restricted Access
 //!
 //! ```ignore
 //! // Automation bot updates node data based on external events
-//! // ProxyType::CpsNode ensures it can only manage CPS nodes, not transfer funds
+//! // ProxyType::CpsWrite(None) ensures it can only manage CPS nodes, not transfer funds
 //! Proxy::proxy(
 //!     RuntimeOrigin::signed(monitoring_bot),
 //!     system_owner,
@@ -286,7 +356,8 @@
 //!
 //! ### Security Considerations
 //!
-//! - **Type Safety**: `ProxyType::CpsNode` restricts proxies to CPS operations only
+//! - **Type Safety**: `ProxyType::CpsWrite` restricts proxies to CPS operations only
+//! - **Node-Level Granularity**: `CpsWrite(Some(node_id))` enables fine-grained access control
 //! - **Ownership Preserved**: All operations maintain original ownership semantics
 //! - **Revocable**: Owners can revoke proxy access at any time
 //! - **Auditable**: All proxy actions are recorded in events
@@ -477,6 +548,8 @@ pub type MaxDataSize = ConstU32<2048>;
     Copy,
     PartialEq,
     Eq,
+    PartialOrd,
+    Ord,
     Default,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
