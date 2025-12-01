@@ -35,7 +35,7 @@ pub mod pallet {
     use xcm::latest::prelude::*;
 
     /// The current storage version
-    const STORAGE_VERSION: frame_support::traits::StorageVersion = 
+    const STORAGE_VERSION: frame_support::traits::StorageVersion =
         frame_support::traits::StorageVersion::new(1);
 
     #[pallet::config]
@@ -71,14 +71,12 @@ pub mod pallet {
     /// AssetId to location mapping.
     #[pallet::storage]
     #[pallet::getter(fn location_of)]
-    pub(super) type LocationOf<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AssetId, Location>;
+    pub(super) type LocationOf<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Location>;
 
     /// Location to AssetId mapping.
     #[pallet::storage]
     #[pallet::getter(fn assetid_of)]
-    pub(super) type AssetIdOf<T: Config> =
-        StorageMap<_, Blake2_128Concat, Location, T::AssetId>;
+    pub(super) type AssetIdOf<T: Config> = StorageMap<_, Blake2_128Concat, Location, T::AssetId>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
