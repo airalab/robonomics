@@ -86,7 +86,6 @@ pub mod v1 {
 
             // Migrate AssetIdOf storage - need to handle key change
             let drained_asset_ids: sp_std::vec::Vec<_> = v0::AssetIdOf::<T>::drain().collect();
-            let _asset_id_of_count = drained_asset_ids.len();
             for (old_location, asset_id) in drained_asset_ids {
                 weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 2));
 
@@ -123,6 +122,8 @@ pub mod v1 {
             let new_location_count = pallet::LocationOf::<T>::iter().count() as u32;
             let new_asset_id_count = pallet::AssetIdOf::<T>::iter().count() as u32;
 
+            // Note: new counts may be less than old counts if some v3::MultiLocation values
+            // fail to convert to the new Location format. This is expected behavior.
             ensure!(
                 new_location_count <= old_location_count,
                 "LocationOf entries count mismatch after migration"
