@@ -271,6 +271,16 @@ pub enum DefaultCryptoAlgorithm {
 
 /// Node data container supporting both plain and encrypted storage.
 ///
+/// This enum is generic over the `CryptoAlgorithm` type, which is configured via the
+/// pallet's `Config` trait. This allows different runtimes to use different encryption
+/// algorithm enums without modifying the pallet code.
+///
+/// # Type Parameters
+///
+/// * `CryptoAlgorithm` - The cryptographic algorithm type from the runtime configuration.
+///   Must implement `MaxEncodedLen` for predictable storage costs. Typically set to
+///   `DefaultCryptoAlgorithm` or a custom enum defined by the runtime.
+///
 /// This enum allows mixed privacy models within the same tree:
 /// - Public metadata with encrypted payload
 /// - Encrypted metadata with public payload
@@ -361,12 +371,20 @@ impl<CryptoAlgorithm: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for
 
 /// Node structure representing a cyber-physical system in the tree.
 ///
+/// # Type Parameters
+///
+/// * `AccountId` - The account identifier type from the runtime. Must implement `MaxEncodedLen`
+///   for predictable storage costs.
+/// * `T` - The pallet's `Config` trait, providing access to associated types like
+///   `CryptoAlgorithm` (for encrypted data), `MaxTreeDepth` (for path length bounds),
+///   and other configuration parameters.
+///
 /// Each node maintains:
 /// 1. **Parent link** (`Option<NodeId>`): None for root nodes
 /// 2. **Owner** (`AccountId`): Who controls this node and its subtree
-/// 3. **Path** (`BoundedVec<NodeId>`): Complete ancestor chain for O(1) operations
-/// 4. **Metadata** (`Option<NodeData>`): Configuration, specifications, capabilities
-/// 5. **Payload** (`Option<NodeData>`): Operational data, sensor readings, telemetry
+/// 3. **Path** (`BoundedVec<NodeId, T::MaxTreeDepth>`): Complete ancestor chain for O(1) operations
+/// 4. **Metadata** (`Option<NodeData<T::CryptoAlgorithm>>`): Configuration, specifications, capabilities
+/// 5. **Payload** (`Option<NodeData<T::CryptoAlgorithm>>`): Operational data, sensor readings, telemetry
 ///
 /// # Path-Based Performance
 ///
