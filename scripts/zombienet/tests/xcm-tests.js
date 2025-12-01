@@ -62,7 +62,7 @@ async function testXcmUpwardMessage(testResults) {
     log.info(`Using Alice account: ${alice.address}`);
     
     // Create an XCM message - a simple remark to the relay chain
-    // Using XCM v5 Location type (parent location)
+    // Using XCM v4 versioned format (the latest stable version in the implementation)
     const dest = { V4: { parents: 1, interior: 'Here' } };
     
     // Create a simple XCM message with Transact instruction
@@ -339,7 +339,7 @@ async function testAssetHubTransfer(testResults) {
     
     log.info(`Using Alice account: ${alice.address}`);
     
-    // Get initial balance on AssetHub
+    // Get AssetHub account ID for Alice
     const assetHubAccountId = alice.address;
     log.info(`AssetHub account: ${assetHubAccountId}`);
     
@@ -377,11 +377,12 @@ async function testAssetHubTransfer(testResults) {
     };
     
     // Define assets to transfer (native token)
+    // Amount: 1 token = 1_000_000_000_000 (10^12 units, 12 decimal places)
     const assets = {
       V4: [
         {
           id: { parents: 0, interior: 'Here' },
-          fun: { Fungible: '1000000000000' } // 1 token with 12 decimals
+          fun: { Fungible: '1000000000000' } // 1 token (12 decimals)
         }
       ]
     };
