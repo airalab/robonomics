@@ -200,7 +200,8 @@ async function testExtrinsicSubmission() {
           clearTimeout(timeoutId);
           parachainApi.disconnect().then(() => {
             reject(error);
-          }).catch(() => {
+          }).catch((disconnectError) => {
+            log.error(`Error during disconnect: ${disconnectError && disconnectError.message ? disconnectError.message : disconnectError}`);
             reject(error);
           });
         }
