@@ -1,0 +1,24 @@
+{
+  "name": "robonomics-zombienet-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Robonomics using Zombienet",
+  "main": "integration-tests.js",
+  "scripts": {
+    "test": "node integration-tests.js"
+  },
+  "keywords": [
+    "robonomics",
+    "zombienet",
+    "integration-tests",
+    "substrate",
+    "polkadot"
+  ],
+  "author": "Robonomics Network <research@robonomics.network>",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@polkadot/api": "^12.3.2",
+    "@polkadot/keyring": "^12.3.2",
+    "@polkadot/util": "^12.3.2",
+    "@polkadot/util-crypto": "^12.3.2"
+  }
+}
