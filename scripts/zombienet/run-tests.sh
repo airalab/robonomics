@@ -78,10 +78,21 @@ setup_environment() {
         exit 1
     fi
     
+    # Detect platform
+    local platform="linux-x64"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        platform="macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        platform="linux-x64"
+    else
+        log_warn "Unsupported platform: $OSTYPE. Trying linux-x64..."
+        platform="linux-x64"
+    fi
+    
     # Download zombienet if not present
     if [ ! -f "$ZOMBIENET_BIN" ]; then
-        log_info "Downloading zombienet ${ZOMBIENET_VERSION}..."
-        local zombienet_url="https://github.com/paritytech/zombienet/releases/download/${ZOMBIENET_VERSION}/zombienet-linux-x64"
+        log_info "Downloading zombienet ${ZOMBIENET_VERSION} for ${platform}..."
+        local zombienet_url="https://github.com/paritytech/zombienet/releases/download/${ZOMBIENET_VERSION}/zombienet-${platform}"
         download_if_missing "$zombienet_url" "$ZOMBIENET_BIN"
     fi
     

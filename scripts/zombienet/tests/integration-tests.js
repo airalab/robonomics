@@ -7,7 +7,6 @@
  * spawned using zombienet.
  */
 
-const { spawn } = require('child_process');
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 
 // Test configuration

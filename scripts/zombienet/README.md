@@ -108,7 +108,7 @@ chain = "rococo-local"
 id = 2000
 chain = "dev"
 
-  [parachains.collator]
+  [[parachains.collators]]
   name = "collator-01"
   command = "robonomics"
 

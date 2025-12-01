@@ -97,7 +97,13 @@ fi
 
 # Check available disk space
 echo "[7/10] Checking disk space..."
-AVAILABLE_SPACE=$(df -BG "$PROJECT_ROOT" | awk 'NR==2 {print $4}' | tr -d 'G')
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS uses different df output format
+    AVAILABLE_SPACE=$(df -k "$PROJECT_ROOT" | awk 'NR==2 {print int($4/1024/1024)}')
+else
+    # Linux
+    AVAILABLE_SPACE=$(df -k "$PROJECT_ROOT" | awk 'NR==2 {print int($4/1024/1024)}')
+fi
 if [ "$AVAILABLE_SPACE" -ge 10 ]; then
     check_pass "Sufficient disk space: ${AVAILABLE_SPACE}GB available"
 else
