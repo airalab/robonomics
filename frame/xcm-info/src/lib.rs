@@ -32,7 +32,6 @@ pub mod pallet {
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
     use xcm::latest::prelude::*;
-    use xcm::opaque::v3::MultiLocation;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -52,7 +51,7 @@ pub mod pallet {
         /// Updated Relay XCM identifier.
         RelayNetworkChanged(NetworkId),
         /// Added new asset XCM location.
-        AssetLinkAdded(T::AssetId, MultiLocation),
+        AssetLinkAdded(T::AssetId, Location),
     }
 
     #[pallet::pallet]
@@ -67,13 +66,13 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn location_of)]
     pub(super) type LocationOf<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AssetId, MultiLocation>;
+        StorageMap<_, Blake2_128Concat, T::AssetId, Location>;
 
     /// Location to AssetId mapping.
     #[pallet::storage]
     #[pallet::getter(fn assetid_of)]
     pub(super) type AssetIdOf<T: Config> =
-        StorageMap<_, Blake2_128Concat, MultiLocation, T::AssetId>;
+        StorageMap<_, Blake2_128Concat, Location, T::AssetId>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -93,23 +92,23 @@ pub mod pallet {
         pub fn set_asset_link(
             origin: OriginFor<T>,
             asset_id: T::AssetId,
-            location: MultiLocation,
+            location: Location,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            <LocationOf<T>>::insert(asset_id, location);
-            <AssetIdOf<T>>::insert(location, asset_id);
+            <LocationOf<T>>::insert(asset_id, location.clone());
+            <AssetIdOf<T>>::insert(location.clone(), asset_id);
             Self::deposit_event(Event::<T>::AssetLinkAdded(asset_id, location));
 
             Ok(())
         }
     }
 
-    impl<T: Config> MaybeEquivalence<MultiLocation, T::AssetId> for Pallet<T> {
-        fn convert(id: &MultiLocation) -> Option<T::AssetId> {
+    impl<T: Config> MaybeEquivalence<Location, T::AssetId> for Pallet<T> {
+        fn convert(id: &Location) -> Option<T::AssetId> {
             <AssetIdOf<T>>::get(id)
         }
-        fn convert_back(what: &T::AssetId) -> Option<MultiLocation> {
+        fn convert_back(what: &T::AssetId) -> Option<Location> {
             <LocationOf<T>>::get(what)
         }
     }

@@ -67,7 +67,7 @@ mod common;
 use common::{currency::*, time::*, *};
 
 mod genesis_config_presets;
-//pub mod xcm_config;
+pub mod xcm_config;
 
 /// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 /// relay chain.
@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 43,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -374,8 +374,8 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
     type DmpQueue = frame_support::traits::EnqueueWithOrigin<(), RelayOrigin>;
-    type OutboundXcmpMessageSource = ();
-    type XcmpMessageHandler = ();
+    type OutboundXcmpMessageSource = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
+    type XcmpMessageHandler = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
     type ReservedDmpWeight = ReservedDmpWeight;
     type ReservedXcmpWeight = ReservedXcmpWeight;
     type CheckAssociatedRelayNumber =
@@ -566,11 +566,10 @@ construct_runtime! {
         Liability: pallet_robonomics_liability = 56,
 
         // XCM support.
-        //XcmpQueue: cumulus_pallet_xcmp_queue = 70,
-        //PolkadotXcm: pallet_xcm = 71,
-        //CumulusXcm: cumulus_pallet_xcm = 72,
-        //DmpQueue: cumulus_pallet_dmp_queue = 73,
-        //XcmInfo: pallet_xcm_info = 74,
+        XcmpQueue: cumulus_pallet_xcmp_queue = 70,
+        PolkadotXcm: pallet_xcm = 71,
+        CumulusXcm: cumulus_pallet_xcm = 72,
+        XcmInfo: pallet_xcm_info = 74,
 
         // Elastic scaling consensus
         Authorship: pallet_authorship = 80,
@@ -630,11 +629,12 @@ pub type Executive = frame_executive::Executive<
 /// Migrations to apply on runtime upgrade.
 pub type Migrations = (
     pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-    //cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-    //cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
+    // XCM migrations
+    cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
+    pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
     InitMigrationStorage,
     // permanent
-    //pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
 
 pub struct InitMigrationStorage;
@@ -734,6 +734,9 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
+    // XCM pallets
+    [pallet_xcm, PolkadotXcm]
+    [cumulus_pallet_xcmp_queue, XcmpQueue]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.

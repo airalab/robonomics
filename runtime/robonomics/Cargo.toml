@@ -89,6 +89,8 @@ xcm-executor.workspace = true
 pallet-xcm.workspace = true
 pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-primitives.workspace = true
+polkadot-parachain-primitives.workspace = true
+polkadot-runtime-common.workspace = true
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
@@ -157,6 +159,8 @@ std = [
   "pallet-xcm/std",
   "pallet-xcm-info/std",
   "polkadot-primitives/std",
+  "polkadot-parachain-primitives/std",
+  "polkadot-runtime-common/std",
   "parachain-info/std",
   "scale-info/std",
 ]
