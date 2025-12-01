@@ -425,6 +425,23 @@ pub enum DefaultEncryptedData {
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(EncryptedData))]
 #[allow(clippy::multiple_bound_locations)]
+/// Type parameter for encrypted payloads stored in `NodeData`.
+///
+/// # Type Parameter
+/// - `EncryptedData`: The type used to represent encrypted data in the runtime.
+///   - Must implement [`MaxEncodedLen`] to ensure the encoded size is bounded for on-chain storage.
+///   - Should be SCALE-encodable and typically defined by the runtime to match the chosen encryption scheme.
+///   - The bound prevents oversized data submissions and ensures compatibility with storage limits.
+///
+/// # Example
+/// ```
+/// // Define a runtime struct for encrypted data
+/// #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq)]
+/// pub struct MyEncryptedPayload { ... }
+///
+/// // Use in NodeData
+/// let payload: NodeData<MyEncryptedPayload> = NodeData::Encrypted(my_encrypted);
+/// ```
 pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Plain unencrypted data visible to all.
     ///
@@ -530,7 +547,6 @@ impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for N
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
 #[scale_info(skip_type_params(T))]
-#[allow(clippy::multiple_bound_locations)]
 pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
