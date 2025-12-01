@@ -180,6 +180,7 @@ pub type MaxDataSize = ConstU32<2048>;
 /// let node_id = NodeId(42);  // Uses 1 byte in compact encoding
 /// let next_id = node_id.saturating_add(1);  // NodeId(43)
 /// ```
+#[cfg_attr(feature = "std", derive(Debug))]
 #[derive(
     Encode,
     Decode,
@@ -190,7 +191,6 @@ pub type MaxDataSize = ConstU32<2048>;
     Copy,
     PartialEq,
     Eq,
-    Debug,
     Default,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
@@ -244,6 +244,7 @@ impl NodeId {
 ///     BoundedVec::try_from(encrypted_bytes).unwrap()
 /// );
 /// ```
+#[cfg_attr(feature = "std", derive(Debug))]
 #[derive(
     Encode,
     Decode,
@@ -253,7 +254,6 @@ impl NodeId {
     Clone,
     PartialEq,
     Eq,
-    Debug,
 )]
 pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
@@ -370,6 +370,7 @@ impl<EncryptedData: MaxEncodedLen> MaxEncodedLen for NodeData<EncryptedData> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for NodeData<EncryptedData> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
@@ -468,6 +469,7 @@ impl<AccountId: MaxEncodedLen, T: Config> MaxEncodedLen for Node<AccountId, T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
     for Node<AccountId, T>
 {
@@ -521,8 +523,7 @@ pub mod pallet {
             + Member
             + MaxEncodedLen
             + Clone
-            + TypeInfo
-            + sp_std::fmt::Debug;
+            + TypeInfo;
 
         /// Weight information for extrinsics
         type WeightInfo: WeightInfo;
