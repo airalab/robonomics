@@ -121,8 +121,20 @@ fi
 # Check available memory
 echo "[8/10] Checking memory..."
 if command -v free >/dev/null 2>&1; then
-    AVAILABLE_MEM=$(free -g | awk 'NR==2 {print $7}')
-    if [ "$AVAILABLE_MEM" -ge 4 ]; then
+    AVAILABLE_MEM=$(free -g | awk '
+        NR==1 {
+            for (i=1; i<=NF; i++) {
+                if ($i == "available") {
+                    avail_col = i
+                    break
+                }
+            }
+        }
+        NR==2 && avail_col {
+            print $avail_col
+        }
+    ')
+    if [ -n "$AVAILABLE_MEM" ] && [ "$AVAILABLE_MEM" -ge 4 ]; then
         check_pass "Sufficient memory: ${AVAILABLE_MEM}GB available"
     else
         check_warn "Low memory: ${AVAILABLE_MEM}GB available (4GB+ recommended)"
