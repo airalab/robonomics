@@ -364,7 +364,7 @@ async function testAssetHubTransfer(testResults) {
     const dest = {
       V4: {
         parents: 1,
-        interior: { X1: [{ Parachain: '1000' }] }
+        interior: { X1: { Parachain: '1000' } }
       }
     };
     
