@@ -28,7 +28,6 @@ use frame_support::{
 };
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
-use cumulus_primitives_core::ParaId;
 use polkadot_parachain_primitives::primitives::Sibling;
 
 // Polkadot imports
@@ -150,7 +149,7 @@ impl Contains<Location> for ParentOrParentsPlurality {
         match &location.interior {
             Here => true,
             Junctions::X1(arc) => {
-                matches!(**arc, Junction::Plurality { .. })
+                matches!(arc.as_ref(), [Junction::Plurality { .. }])
             }
             _ => false,
         }
@@ -313,7 +312,17 @@ parameter_types! {
     pub const MaxInboundSuspended: u32 = 1000;
     pub const MaxActiveOutboundChannels: u32 = 128;
     pub const MaxPageSize: u32 = 65536;
+    pub const BaseXcmpDeliveryFee: u128 = 1_000_000_000;
+    pub const XcmpByteFee: u128 = 1_000_000;
 }
+
+/// Price for delivering an XCM to a sibling parachain destination.
+pub type PriceForSiblingParachainDelivery = polkadot_runtime_common::xcm_sender::ExponentialPrice<
+    RelayLocation,
+    BaseXcmpDeliveryFee,
+    XcmpByteFee,
+    XcmpQueue,
+>;
 
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
@@ -328,7 +337,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
     // Charge a conservative fee for XCM message delivery to siblings
-    type PriceForSiblingDelivery = polkadot_runtime_common::xcm_sender::SiblingParachainConservativeMessageFee<Runtime, WeightToFee>;
+    type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
     type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Runtime>;
 }
 
