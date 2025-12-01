@@ -127,24 +127,20 @@ jobs:
         sudo apt update
         sudo apt install -y musl-tools pkg-config protobuf-compiler
 
-    - name: Install musl tools for aarch64
+    - name: Install cross for aarch64
       if: contains(matrix.target, 'aarch64')
       run: |
         sudo apt update
-        sudo apt install -y gcc-aarch64-linux-gnu musl-tools pkg-config protobuf-compiler
+        sudo apt install -y pkg-config protobuf-compiler
+        wget -qO- https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-gnu.tar.gz | sudo tar -xzf - -C /usr/local/bin
 
-        # Download and setup musl-cross for aarch64
-        wget https://musl.cc/aarch64-linux-musl-cross.tgz
-        tar -xzf aarch64-linux-musl-cross.tgz
-
-        mkdir -p .cargo
-        cat >> .cargo/config.toml << EOF
-        [target.aarch64-unknown-linux-musl]
-        linker = "${{ github.workspace }}/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"
-        EOF
-
-    - name: Build optimized binary
+    - name: Build optimized binary for x86_64
+      if: contains(matrix.target, 'x86_64')
       run: cargo build --profile production --target ${{ matrix.target }} --verbose --locked
+
+    - name: Build optimized binary for aarch64
+      if: contains(matrix.target, 'aarch64')
+      run: cross build --profile production --target ${{ matrix.target }} --verbose --locked
 
     - name: Set artifact name
       env:
