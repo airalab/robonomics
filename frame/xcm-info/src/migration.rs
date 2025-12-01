@@ -74,8 +74,9 @@ pub mod v1 {
             });
 
             // Migrate AssetIdOf storage - need to handle key change
-            let _asset_id_of_count = v0::AssetIdOf::<T>::drain().count();
-            for (old_location, asset_id) in v0::AssetIdOf::<T>::drain() {
+            let drained_asset_ids: sp_std::vec::Vec<_> = v0::AssetIdOf::<T>::drain().collect();
+            let _asset_id_of_count = drained_asset_ids.len();
+            for (old_location, asset_id) in drained_asset_ids {
                 weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 2));
                 
                 // Convert v3::MultiLocation to latest Location using VersionedLocation
