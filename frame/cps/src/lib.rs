@@ -223,7 +223,10 @@ impl NodeId {
     }
 }
 
-/// Cryptographic algorithm identifier for encrypted data.
+/// Default cryptographic algorithm implementation.
+///
+/// This enum provides a default implementation for the `CryptoAlgorithm` associated type.
+/// Runtimes can use this default or implement their own custom crypto algorithm types.
 ///
 /// Currently supports XChaCha20-Poly1305, an AEAD (Authenticated Encryption with
 /// Associated Data) cipher providing:
@@ -231,13 +234,14 @@ impl NodeId {
 /// - 192-bit nonce (no reuse concerns)
 /// - Authentication tag for integrity
 ///
-/// Additional algorithms can be added as enum variants while maintaining backward
-/// compatibility with existing encrypted data.
-///
 /// # Example
 ///
 /// ```ignore
-/// let algo = CryptoAlgorithm::XChaCha20Poly1305;
+/// // Use in runtime configuration
+/// impl pallet_robonomics_cps::Config for Runtime {
+///     type CryptoAlgorithm = DefaultCryptoAlgorithm;
+///     // ... other config
+/// }
 /// ```
 #[derive(
     Encode,
@@ -251,7 +255,7 @@ impl NodeId {
     Eq,
     Debug,
 )]
-pub enum CryptoAlgorithm {
+pub enum DefaultCryptoAlgorithm {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///
     /// Recommended for most use cases due to:
@@ -294,7 +298,7 @@ pub enum CryptoAlgorithm {
 /// ```ignore
 /// // Assume `encrypt()` returns ciphertext bytes
 /// let payload = NodeData::Encrypted {
-///     algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+///     algorithm: DefaultCryptoAlgorithm::XChaCha20Poly1305,
 ///     ciphertext: BoundedVec::try_from(encrypted_bytes).unwrap(),
 /// };
 /// ```
@@ -311,7 +315,9 @@ pub enum CryptoAlgorithm {
 /// )?;
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
-pub enum NodeData {
+#[scale_info(skip_type_params(CryptoAlgorithm))]
+#[codec(mel_bound(CryptoAlgorithm: MaxEncodedLen))]
+pub enum NodeData<CryptoAlgorithm: MaxEncodedLen> {
     /// Plain unencrypted data visible to all.
     ///
     /// Use for:
@@ -337,7 +343,7 @@ pub enum NodeData {
     },
 }
 
-impl sp_std::fmt::Debug for NodeData {
+impl<CryptoAlgorithm: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug for NodeData<CryptoAlgorithm> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
@@ -424,9 +430,9 @@ pub struct Node<AccountId: MaxEncodedLen, T: Config> {
     /// NodeId uses compact encoding for efficient storage
     pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
     /// Metadata
-    pub meta: Option<NodeData>,
+    pub meta: Option<NodeData<T::CryptoAlgorithm>>,
     /// Payload data
-    pub payload: Option<NodeData>,
+    pub payload: Option<NodeData<T::CryptoAlgorithm>>,
 }
 
 impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
@@ -454,6 +460,33 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// Cryptographic algorithm type for encrypted node data.
+        ///
+        /// This associated type allows runtimes to define their own crypto algorithm enums,
+        /// making it easy to extend encryption support without modifying the pallet code.
+        ///
+        /// # Example
+        ///
+        /// ```ignore
+        /// // Use the default implementation
+        /// type CryptoAlgorithm = DefaultCryptoAlgorithm;
+        ///
+        /// // Or define a custom enum
+        /// #[derive(Encode, Decode, TypeInfo, MaxEncodedLen, Clone, Copy, PartialEq, Eq, Debug)]
+        /// pub enum MyCryptoAlgorithm {
+        ///     XChaCha20Poly1305,
+        ///     AesGcm256,
+        ///     ChaCha20,
+        /// }
+        /// type CryptoAlgorithm = MyCryptoAlgorithm;
+        /// ```
+        type CryptoAlgorithm: Parameter
+            + Member
+            + MaxEncodedLen
+            + Clone
+            + Copy
+            + sp_std::fmt::Debug;
 
         /// Maximum tree depth
         #[pallet::constant]
@@ -553,8 +586,8 @@ pub mod pallet {
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
-            meta: Option<NodeData>,
-            payload: Option<NodeData>,
+            meta: Option<NodeData<T::CryptoAlgorithm>>,
+            payload: Option<NodeData<T::CryptoAlgorithm>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -620,7 +653,7 @@ pub mod pallet {
         pub fn set_meta(
             origin: OriginFor<T>,
             node_id: NodeId,
-            meta: Option<NodeData>,
+            meta: Option<NodeData<T::CryptoAlgorithm>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -642,7 +675,7 @@ pub mod pallet {
         pub fn set_payload(
             origin: OriginFor<T>,
             node_id: NodeId,
-            payload: Option<NodeData>,
+            payload: Option<NodeData<T::CryptoAlgorithm>>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 

@@ -44,6 +44,7 @@ parameter_types! {
 
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type CryptoAlgorithm = DefaultCryptoAlgorithm;
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxRootNodes = MaxRootNodes;
@@ -141,7 +142,7 @@ fn create_node_with_encrypted_data_works() {
         let account = 1u64;
 
         let meta = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            algorithm: DefaultCryptoAlgorithm::XChaCha20Poly1305,
             ciphertext: BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
         });
 
@@ -163,7 +164,7 @@ fn create_node_with_encrypted_payload_works() {
         let account = 1u64;
 
         let payload = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            algorithm: DefaultCryptoAlgorithm::XChaCha20Poly1305,
             ciphertext: BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
         });
 
@@ -185,12 +186,12 @@ fn create_node_with_both_encrypted_works() {
         let account = 1u64;
 
         let meta = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            algorithm: DefaultCryptoAlgorithm::XChaCha20Poly1305,
             ciphertext: BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
         });
 
         let payload = Some(NodeData::Encrypted {
-            algorithm: CryptoAlgorithm::XChaCha20Poly1305,
+            algorithm: DefaultCryptoAlgorithm::XChaCha20Poly1305,
             ciphertext: BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
         });
 

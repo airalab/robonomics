@@ -279,6 +279,45 @@ Customize the pallet for your use case:
 - **Shallow hierarchies**: Reduce MaxTreeDepth to 10-15
 - **Enterprise multi-site**: Increase MaxRootNodes to 1000+
 
+### Custom Encryption Algorithms
+
+The pallet supports extensible encryption algorithms through a configurable associated type. You can define custom encryption algorithms by implementing your own enum:
+
+```rust
+use parity_scale_codec::{Encode, Decode};
+use scale_info::TypeInfo;
+use frame_support::pallet_prelude::MaxEncodedLen;
+
+#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MyCryptoAlgorithm {
+    XChaCha20Poly1305,
+    AesGcm256,
+    ChaCha20,
+}
+
+impl pallet_robonomics_cps::Config for Runtime {
+    type CryptoAlgorithm = MyCryptoAlgorithm;
+    // ... other config
+}
+```
+
+**Default Implementation:**
+
+The pallet provides `DefaultCryptoAlgorithm` with XChaCha20-Poly1305 support out of the box:
+
+```rust
+impl pallet_robonomics_cps::Config for Runtime {
+    type CryptoAlgorithm = pallet_robonomics_cps::DefaultCryptoAlgorithm;
+    // ... other config
+}
+```
+
+**Benefits of Configurable Algorithms:**
+- Add new algorithms without modifying pallet code
+- Different runtimes can support different encryption schemes
+- Easy testing with mock crypto types
+- Future-proof for emerging cryptographic standards
+
 ## Security & Trust
 
 ### What's Protected
@@ -321,6 +360,7 @@ Customize the pallet for your use case:
    ```rust
    impl pallet_robonomics_cps::Config for Runtime {
        type RuntimeEvent = RuntimeEvent;
+       type CryptoAlgorithm = pallet_robonomics_cps::DefaultCryptoAlgorithm;
        type MaxTreeDepth = ConstU32<32>;
        type MaxChildrenPerNode = ConstU32<100>;
        type MaxRootNodes = ConstU32<100>;
@@ -377,12 +417,13 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 - ✅ Plain and encrypted data storage
 - ✅ O(1) operations via path storage
 - ✅ Compact encoding for efficiency
+- ✅ Extensible encryption algorithms via Config trait
 
 **Planned (v2):**
 - 🔮 Multi-owner nodes with role-based permissions
 - 🔮 Node templates for rapid deployment
 - 🔮 Batch operations for bulk updates
-- 🔮 Additional encryption algorithms (AES-GCM, ChaCha20)
+- 🔮 Built-in implementations for additional encryption algorithms (AES-GCM, ChaCha20)
 - 🔮 Off-chain worker integration for automated maintenance
 
 ## Technical Documentation
