@@ -48,7 +48,7 @@ const CHARLIE: u64 = 3;
 )]
 pub enum ProxyType {
     Any,
-    RwsManager(Option<u32>),
+    RwsUser(u32),
 }
 
 impl Default for ProxyType {
@@ -61,31 +61,11 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
     fn filter(&self, c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::RwsManager(allowed_auction) => {
-                let is_rws_call = matches!(
-                    c,
-                    RuntimeCall::RWS(pallet_rws::Call::bid { .. })
-                        | RuntimeCall::RWS(pallet_rws::Call::claim { .. })
-                        | RuntimeCall::RWS(pallet_rws::Call::call { .. })
-                );
-                
-                if !is_rws_call {
-                    return false;
-                }
-                
-                if allowed_auction.is_none() {
-                    return true;
-                }
-                
+            ProxyType::RwsUser(allowed_subscription_id) => {
+                // Only allow RWS::call operations for the specific subscription
                 match c {
-                    RuntimeCall::RWS(pallet_rws::Call::bid { auction_id, .. }) |
-                    RuntimeCall::RWS(pallet_rws::Call::claim { auction_id, .. }) => {
-                        Some(auction_id) == allowed_auction.as_ref()
-                    }
-                    // For call operations on existing subscriptions, allow them
-                    // The subscription ownership check in the RWS pallet provides the primary security
-                    RuntimeCall::RWS(pallet_rws::Call::call { .. }) => {
-                        true
+                    RuntimeCall::RWS(pallet_rws::Call::call { subscription_id, .. }) => {
+                        subscription_id == allowed_subscription_id
                     }
                     _ => false,
                 }
@@ -97,8 +77,7 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
         match (self, o) {
             (ProxyType::Any, _) => true,
             (_, ProxyType::Any) => false,
-            (ProxyType::RwsManager(None), ProxyType::RwsManager(_)) => true,
-            (ProxyType::RwsManager(Some(a)), ProxyType::RwsManager(Some(b))) => a == b,
+            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
             _ => false,
         }
     }

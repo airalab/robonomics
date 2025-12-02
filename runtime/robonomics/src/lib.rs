@@ -356,7 +356,7 @@ impl pallet_multisig::Config for Runtime {
     type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
-/// Proxy type for RWS subscription management with optional auction restriction.
+/// Proxy type for delegating RWS subscription usage.
 #[derive(
     Copy,
     Clone,
@@ -374,10 +374,9 @@ impl pallet_multisig::Config for Runtime {
 pub enum ProxyType {
     /// Allow all calls
     Any,
-    /// RWS subscription management with optional auction restriction
-    /// - `RwsManager(None)`: Access to all RWS operations for subscriptions owned by proxied account
-    /// - `RwsManager(Some(auction_id))`: Access only to specific auction's operations
-    RwsManager(Option<u32>),
+    /// RWS subscription user - allows using a specific subscription via RWS::call
+    /// The parameter is the subscription_id that the proxy can use
+    RwsUser(u32),
 }
 
 impl Default for ProxyType {
@@ -390,35 +389,11 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
     fn filter(&self, c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::RwsManager(allowed_auction) => {
-                // Check if it's an RWS call
-                let is_rws_call = matches!(
-                    c,
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::bid { .. })
-                        | RuntimeCall::RWS(pallet_robonomics_rws::Call::claim { .. })
-                        | RuntimeCall::RWS(pallet_robonomics_rws::Call::call { .. })
-                );
-                
-                if !is_rws_call {
-                    return false;
-                }
-                
-                // If no auction restriction, allow all RWS calls
-                if allowed_auction.is_none() {
-                    return true;
-                }
-                
-                // Check if call targets the allowed auction
+            ProxyType::RwsUser(allowed_subscription_id) => {
+                // Only allow RWS::call operations for the specific subscription
                 match c {
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::bid { auction_id, .. }) |
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::claim { auction_id, .. }) => {
-                        Some(auction_id) == allowed_auction.as_ref()
-                    }
-                    // For call operations on existing subscriptions, allow them
-                    // We cannot validate which auction the subscription came from without additional storage lookups
-                    // The subscription ownership check in the RWS pallet provides the primary security
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call { .. }) => {
-                        true
+                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call { subscription_id, .. }) => {
+                        subscription_id == allowed_subscription_id
                     }
                     _ => false,
                 }
@@ -430,9 +405,7 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
         match (self, o) {
             (ProxyType::Any, _) => true,
             (_, ProxyType::Any) => false,
-            (ProxyType::RwsManager(None), ProxyType::RwsManager(_)) => true,
-            (ProxyType::RwsManager(Some(a)), ProxyType::RwsManager(Some(b))) => a == b,
-            _ => false,
+            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
         }
     }
 }
