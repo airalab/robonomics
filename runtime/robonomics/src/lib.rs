@@ -414,10 +414,11 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
                     RuntimeCall::RWS(pallet_robonomics_rws::Call::claim { auction_id, .. }) => {
                         Some(auction_id) == allowed_auction.as_ref()
                     }
-                    // For call operations on existing subscriptions, allow if no auction restriction
-                    // (since we can't easily determine which auction the subscription came from)
+                    // For call operations on existing subscriptions, allow them
+                    // We cannot validate which auction the subscription came from without additional storage lookups
+                    // The subscription ownership check in the RWS pallet provides the primary security
                     RuntimeCall::RWS(pallet_robonomics_rws::Call::call { .. }) => {
-                        allowed_auction.is_none()
+                        true
                     }
                     _ => false,
                 }
