@@ -21,7 +21,7 @@
 
 use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, pallet_prelude::Get, traits::{Currency, Time}};
+use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
@@ -72,58 +72,27 @@ mod benchmarks {
             amount
         ));
 
-        // Fast forward time past auction duration by advancing block and setting timestamp
-        let _now = T::Time::now();
-        let _new_time = _now + T::AuctionDuration::get() + 1u32.into();
-        // Use frame_system to advance the block number which should trigger timestamp update
-        frame_system::Pallet::<T>::set_block_number(100u32.into());
+        // Fast forward time past auction duration
+        // Advance block number which will also advance timestamp in the runtime
+        frame_system::Pallet::<T>::set_block_number(1000u32.into());
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), auction_id, None);
     }
 
-    // Note: The `call` benchmark is commented out because it requires a runtime-specific
-    // Call type that can't be easily constructed in a generic benchmark context.
-    // The benchmark can be re-enabled when testing with a specific runtime configuration.
-    /*
-    #[benchmark]
-    fn call()
-    where
-        <T as Config>::Call: From<frame_system::Call<T>>,
-    {
-        // Create a subscription first via auction
-        let mode = SubscriptionMode::Lifetime { tps: 100_000 };
-        assert_ok!(Pallet::<T>::start_auction(RawOrigin::Root.into(), mode));
-
-        let caller = funded_account::<T>("caller", 0);
-        let auction_id = 0u32;
-        let amount = T::MinimalBid::get() * 10u32.into();
-        assert_ok!(Pallet::<T>::bid(
-            RawOrigin::Signed(caller.clone()).into(),
-            auction_id,
-            amount
-        ));
-
-        // Fast forward and claim
-        frame_system::Pallet::<T>::set_block_number(100u32.into());
-        assert_ok!(Pallet::<T>::claim(
-            RawOrigin::Signed(caller.clone()).into(),
-            auction_id,
-            None
-        ));
-
-        let subscription_id = 0u32;
-        // Use the simplest possible call - a remark from frame_system
-        // Convert it to the runtime call type expected by this pallet
-        let system_remark = frame_system::Call::<T>::remark { remark: vec![0u8; 100] };
-        // The Call type in Config should have From<frame_system::Call<T>> implemented at runtime level
-        let inner_call: <T as Config>::Call = system_remark.into();
-        let boxed_call = Box::new(inner_call);
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), subscription_id, boxed_call);
-    }
-    */
+    // NOTE: The `call` benchmark is omitted because it requires constructing a value of
+    // type `<T as Config>::Call`, which is typically `RuntimeCall` at the runtime level.
+    // This type cannot be constructed generically at the pallet level without runtime-specific
+    // knowledge. The benchmark should be implemented at the runtime level using
+    // frame-benchmarking-cli if needed for production weight calculations.
+    //
+    // For reference, the call extrinsic signature is:
+    // pub fn call(origin: OriginFor<T>, subscription_id: u32, call: Box<<T as Config>::Call>)
+    //
+    // To benchmark this in a specific runtime:
+    // 1. Use the runtime's RuntimeCall type directly
+    // 2. Or add a BenchmarkHelper trait to the pallet Config that provides a method to
+    //    construct sample Call values for benchmarking
 
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
 }
