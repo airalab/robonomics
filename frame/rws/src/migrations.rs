@@ -141,9 +141,7 @@ pub mod v2 {
             let current_version = Pallet::<T>::in_code_storage_version();
 
             log::info!(
-                "🔄 RWS migration: on-chain version: {:?}, current version: {:?}",
-                onchain_version,
-                current_version
+                "🔄 RWS migration: on-chain version: {onchain_version:?}, current version: {current_version:?}"
             );
 
             if onchain_version == 1 && current_version == 2 {
@@ -203,7 +201,7 @@ pub mod v2 {
                 );
 
                 // Clear deprecated storage items
-                let _ = Oracle::<T>::kill();
+                Oracle::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
                 // Clear Devices storage in batches to avoid unbounded operations.
@@ -214,13 +212,13 @@ pub mod v2 {
                 let devices_count = Devices::<T>::clear(MAX_REMOVALS, None).unique as u64;
                 weight = weight.saturating_add(T::DbWeight::get().writes(devices_count));
 
-                let _ = AuctionQueue::<T>::kill();
+                AuctionQueue::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-                let _ = AuctionNext::<T>::kill();
+                AuctionNext::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
-                let _ = UnspendBondValue::<T>::kill();
+                UnspendBondValue::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
                 // Update storage version
@@ -228,9 +226,7 @@ pub mod v2 {
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
                 log::info!(
-                    "✅ RWS migration complete: {} subscriptions, {} auctions migrated",
-                    migrated_subscriptions,
-                    migrated_auctions
+                    "✅ RWS migration complete: {migrated_subscriptions} subscriptions, {migrated_auctions} auctions migrated"
                 );
 
                 weight

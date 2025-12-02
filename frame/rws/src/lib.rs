@@ -667,12 +667,12 @@ pub mod pallet {
         dispatch::GetDispatchInfo,
         pallet_prelude::*,
         traits::{
-            fungibles::{Inspect, MutateHold},
+            fungibles::{Inspect, Mutate},
             Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable,
         },
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::{traits::AtLeast32Bit, DispatchResult};
+    use sp_runtime::{traits::{AccountIdConversion, AtLeast32Bit}, DispatchResult};
     use sp_std::prelude::*;
 
     type BalanceOf<T> = <<T as Config>::AuctionCurrency as Currency<
@@ -682,14 +682,10 @@ pub mod pallet {
     type AssetBalanceOf<T> =
         <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+    type AssetIdOf<T> =
+        <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-    /// Reason for holding assets in this pallet.
-    #[pallet::composite_enum]
-    pub enum HoldReason {
-        /// Assets are locked for a lifetime subscription.
-        LifetimeSubscription,
-    }
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -704,17 +700,16 @@ pub mod pallet {
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
         /// Fungibles trait for interacting with pallet-assets.
-        type Assets: Inspect<Self::AccountId> + MutateHold<Self::AccountId, Reason = Self::RuntimeHoldReason>;
-        /// The asset ID type.
-        type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+        type Assets: Inspect<Self::AccountId> + Mutate<Self::AccountId>;
+        /// The pallet account ID for holding locked assets.
+        #[pallet::constant]
+        type PalletId: Get<frame_support::PalletId>;
         /// The specific asset ID used for lifetime subscriptions.
         #[pallet::constant]
-        type LifetimeAssetId: Get<Self::AssetId>;
+        type LifetimeAssetId: Get<AssetIdOf<Self>>;
         /// Conversion ratio: how many microTPS (μTPS) per 1 locked asset token.
         #[pallet::constant]
         type AssetToTpsRatio: Get<u32>;
-        /// The overarching hold reason.
-        type RuntimeHoldReason: From<HoldReason>;
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -860,7 +855,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             // Ensure that subscription owner or any of subscription devices call this method
-            let mut subscription = <Subscription<T>>::get(&sender, &subscription_id)
+            let mut subscription = <Subscription<T>>::get(&sender, subscription_id)
                 .ok_or(Error::<T>::NoSubscription)?;
 
             let now = T::Time::now();
@@ -895,11 +890,11 @@ pub mod pallet {
             let call_weight = call.get_dispatch_info().call_weight;
             // Ensure than free weight is enough for call
             if subscription.free_weight < call_weight.ref_time() {
-                <Subscription<T>>::set(&sender, &subscription_id, Some(subscription));
+                <Subscription<T>>::set(&sender, subscription_id, Some(subscription));
                 Err(Error::<T>::FreeWeightIsNotEnough)?
             } else {
                 subscription.free_weight -= call_weight.ref_time();
-                <Subscription<T>>::set(&sender, &subscription_id, Some(subscription));
+                <Subscription<T>>::set(&sender, subscription_id, Some(subscription));
             }
 
             let res =
@@ -931,7 +926,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             let now = T::Time::now();
-            let mut auction = <Auction<T>>::get(&auction_id).ok_or(Error::<T>::NotExistAuction)?;
+            let mut auction = <Auction<T>>::get(auction_id).ok_or(Error::<T>::NotExistAuction)?;
 
             if let Some(winner) = &auction.winner {
                 // Ensure best prices is less than proposed bid
@@ -948,22 +943,22 @@ pub mod pallet {
                     return Err(Error::<T>::BiddingPeriodIsOver.into());
                 }
 
-                T::AuctionCurrency::reserve(&sender, amount.clone())?;
-                T::AuctionCurrency::unreserve(&winner, auction.best_price);
+                T::AuctionCurrency::reserve(&sender, amount)?;
+                T::AuctionCurrency::unreserve(winner, auction.best_price);
                 auction.winner = Some(sender.clone());
-                auction.best_price = amount.clone();
+                auction.best_price = amount;
             } else {
                 ensure!(T::MinimalBid::get() < amount, Error::<T>::TooSmallBid);
 
                 // In case no one bid for this auction bid becomes winner
                 // It's also suits for auctions out of bidding period
-                T::AuctionCurrency::reserve(&sender, amount.clone())?;
+                T::AuctionCurrency::reserve(&sender, amount)?;
                 auction.winner = Some(sender.clone());
-                auction.best_price = amount.clone();
+                auction.best_price = amount;
                 // Set first_bid_time when the first bid is placed
                 auction.first_bid_time = Some(now);
             }
-            <Auction<T>>::set(&auction_id, Some(auction));
+            <Auction<T>>::set(auction_id, Some(auction));
 
             Self::deposit_event(Event::NewBid(auction_id, sender, amount));
             Ok(().into())
@@ -987,7 +982,7 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             let now = T::Time::now();
-            let mut auction = <Auction<T>>::get(&auction_id).ok_or(Error::<T>::NotExistAuction)?;
+            let mut auction = <Auction<T>>::get(auction_id).ok_or(Error::<T>::NotExistAuction)?;
 
             // Check auction already claimed.
             ensure!(
@@ -1024,13 +1019,13 @@ pub mod pallet {
             // register subscription
             <Subscription<T>>::set(
                 &beneficiary,
-                &subscription_id,
+                subscription_id,
                 Some(SubscriptionLedger::new(now, auction.mode.clone())),
             );
 
             // Update subscription id in auction ledger
             auction.subscription_id = Some(subscription_id);
-            <Auction<T>>::set(&auction_id, Some(auction));
+            <Auction<T>>::set(auction_id, Some(auction));
 
             Self::deposit_event(Event::AuctionFinished(auction_id));
             Self::deposit_event(Event::SubscriptionActivated(beneficiary, subscription_id));
@@ -1104,9 +1099,11 @@ pub mod pallet {
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
             let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
 
-            // Lock the assets
+            // Lock the assets by transferring them to the pallet account
             let asset_id = T::LifetimeAssetId::get();
-            T::Assets::hold(asset_id, &HoldReason::LifetimeSubscription.into(), &sender, amount)
+            let pallet_account = T::PalletId::get().into_account_truncating();
+            
+            T::Assets::transfer(asset_id, &sender, &pallet_account, amount, frame_support::traits::tokens::Preservation::Expendable)
                 .map_err(|_| Error::<T>::CannotLockAssets)?;
 
             // Create the subscription
@@ -1114,12 +1111,12 @@ pub mod pallet {
             let subscription_id = <Subscription<T>>::iter_key_prefix(&sender).count() as u32;
             <Subscription<T>>::set(
                 &sender,
-                &subscription_id,
+                subscription_id,
                 Some(SubscriptionLedger::new(now, SubscriptionMode::Lifetime { tps })),
             );
 
             // Store the locked amount for later unlock
-            <LockedAssets<T>>::set(&sender, &subscription_id, Some(amount));
+            <LockedAssets<T>>::set(&sender, subscription_id, Some(amount));
 
             Self::deposit_event(Event::SubscriptionActivated(sender, subscription_id));
             Ok(().into())
@@ -1162,28 +1159,24 @@ pub mod pallet {
 
             // Verify subscription exists
             ensure!(
-                <Subscription<T>>::contains_key(&sender, &subscription_id),
+                <Subscription<T>>::contains_key(&sender, subscription_id),
                 Error::<T>::NoSubscription
             );
 
             // Verify this subscription has locked assets
-            let locked_amount = <LockedAssets<T>>::get(&sender, &subscription_id)
+            let locked_amount = <LockedAssets<T>>::get(&sender, subscription_id)
                 .ok_or(Error::<T>::NotAssetLockedSubscription)?;
 
-            // Unlock the assets
+            // Unlock the assets by transferring them back from the pallet account
             let asset_id = T::LifetimeAssetId::get();
-            T::Assets::release(
-                asset_id,
-                &HoldReason::LifetimeSubscription.into(),
-                &sender,
-                locked_amount,
-                frame_support::traits::tokens::Precision::Exact,
-            )
-            .map_err(|_| Error::<T>::CannotUnlockAssets)?;
+            let pallet_account = T::PalletId::get().into_account_truncating();
+            
+            T::Assets::transfer(asset_id, &pallet_account, &sender, locked_amount, frame_support::traits::tokens::Preservation::Expendable)
+                .map_err(|_| Error::<T>::CannotUnlockAssets)?;
 
             // Remove subscription and locked assets record
-            <Subscription<T>>::remove(&sender, &subscription_id);
-            <LockedAssets<T>>::remove(&sender, &subscription_id);
+            <Subscription<T>>::remove(&sender, subscription_id);
+            <LockedAssets<T>>::remove(&sender, subscription_id);
 
             Self::deposit_event(Event::SubscriptionStopped(sender, subscription_id));
             Ok(().into())

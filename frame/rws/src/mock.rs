@@ -18,7 +18,7 @@
 //! Mock runtime for testing RWS pallet.
 
 use crate::{self as pallet_rws};
-use frame_support::{assert_ok, derive_impl, parameter_types, traits::ConstU64};
+use frame_support::{assert_ok, derive_impl, parameter_types, traits::{ConstU32, ConstU64, ConstU128}};
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -69,7 +69,7 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
     type FreezeIdentifier = ();
     type MaxFreezes = ();
-    type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeHoldReason = ();
     type RuntimeFreezeReason = ();
     type DoneSlashHandler = ();
 }
@@ -80,19 +80,20 @@ impl pallet_assets::Config for Test {
     type AssetId = AssetId;
     type AssetIdParameter = AssetId;
     type Currency = Balances;
-    type CreateOrigin = frame_support::traits::AsEnsureOriginWithArg<frame_system::EnsureRoot<u64>>;
+    type CreateOrigin = frame_support::traits::AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
-    type AssetDeposit = ConstU64<0>;
-    type AssetAccountDeposit = ConstU64<0>;
-    type MetadataDepositBase = ConstU64<0>;
-    type MetadataDepositPerByte = ConstU64<0>;
-    type ApprovalDeposit = ConstU64<0>;
-    type StringLimit = frame_support::traits::ConstU32<50>;
+    type AssetDeposit = ConstU128<0>;
+    type AssetAccountDeposit = ConstU128<0>;
+    type MetadataDepositBase = ConstU128<0>;
+    type MetadataDepositPerByte = ConstU128<0>;
+    type ApprovalDeposit = ConstU128<0>;
+    type StringLimit = ConstU32<50>;
     type Freezer = ();
     type Extra = ();
     type WeightInfo = ();
-    type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+    type RemoveItemsLimit = ConstU32<1000>;
     type CallbackHandle = ();
+    type Holder = ();
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = ();
 }
@@ -110,6 +111,7 @@ parameter_types! {
     pub const MinimalBid: u128 = 100;
     pub const LifetimeAssetId: AssetId = LIFETIME_ASSET_ID;
     pub const AssetToTpsRatio: u32 = 100; // 100 μTPS per 1 asset token
+    pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 
 impl pallet_rws::Config for Test {
@@ -119,10 +121,9 @@ impl pallet_rws::Config for Test {
     type Moment = u64;
     type AuctionCurrency = Balances;
     type Assets = Assets;
-    type AssetId = AssetId;
+    type PalletId = RwsPalletId;
     type LifetimeAssetId = LifetimeAssetId;
     type AssetToTpsRatio = AssetToTpsRatio;
-    type RuntimeHoldReason = RuntimeHoldReason;
     type ReferenceCallWeight = ReferenceCallWeight;
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
