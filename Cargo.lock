@@ -11797,6 +11797,7 @@ dependencies = [
  "pallet-migrations",
  "pallet-multisig",
  "pallet-preimage",
+ "pallet-proxy",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
