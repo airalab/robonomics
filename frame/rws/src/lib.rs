@@ -128,15 +128,21 @@
 //!
 //! ### Asset-to-TPS Conversion
 //!
-//! The relationship between locked assets and TPS is governed by the `AssetToTpsRatio` configuration:
+//! The relationship between locked assets and TPS is governed by the `AssetToTpsRatio` configuration,
+//! which uses Substrate's `Permill` type for precise ratio representation:
 //!
 //! ```text
-//! TPS (μTPS) = Locked Asset Amount × AssetToTpsRatio
+//! TPS (μTPS) = (Locked Asset Amount × AssetToTpsRatio.parts) / 10
 //! ```
 //!
-//! For example, with `AssetToTpsRatio = 100`:
-//! - Locking 1000 asset tokens = 100,000 μTPS (0.1 TPS)
-//! - Locking 100 asset tokens = 10,000 μTPS (0.01 TPS)
+//! Where `AssetToTpsRatio` is a `Permill` representing μTPS per 10 tokens.
+//!
+//! For example, with `AssetToTpsRatio = Permill::from_parts(1_000)`:
+//! - 1_000 parts per million = 1000 μTPS per 10 tokens = 100 μTPS per 1 token
+//! - Locking 1000 asset tokens = (1000 × 1000) / 10 = 100,000 μTPS (0.1 TPS)
+//! - Locking 100 asset tokens = (100 × 1000) / 10 = 10,000 μTPS (0.01 TPS)
+//!
+//! Using `Permill` provides better precision and prevents overflow issues in the calculation.
 //!
 //! ### Lifecycle Diagram
 //!
@@ -173,7 +179,8 @@
 //!
 //! ```ignore
 //! // Alice locks 500 asset tokens
-//! // With AssetToTpsRatio = 100, this gives 50,000 μTPS (0.05 TPS)
+//! // With AssetToTpsRatio = Permill::from_parts(1_000) (100 μTPS per token)
+//! // This gives (500 × 1000) / 10 = 50,000 μTPS (0.05 TPS)
 //! RWS::start_lifetime(
 //!     RuntimeOrigin::signed(alice),
 //!     500 // amount of assets to lock
@@ -672,7 +679,7 @@ pub mod pallet {
         },
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::{traits::{AccountIdConversion, AtLeast32Bit}, DispatchResult};
+    use sp_runtime::{traits::{AccountIdConversion, AtLeast32Bit}, DispatchResult, Permill};
     use sp_std::prelude::*;
 
     type BalanceOf<T> = <<T as Config>::AuctionCurrency as Currency<
@@ -708,8 +715,10 @@ pub mod pallet {
         #[pallet::constant]
         type LifetimeAssetId: Get<AssetIdOf<Self>>;
         /// Conversion ratio: how many microTPS (μTPS) per 1 locked asset token.
+        /// Expressed as Permill representing μTPS per 10 tokens.
+        /// For example, Permill::from_parts(1_000) = 1000 μTPS per 10 tokens = 100 μTPS per token.
         #[pallet::constant]
-        type AssetToTpsRatio: Get<u32>;
+        type AssetToTpsRatio: Get<Permill>;
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -1091,11 +1100,19 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            // Calculate TPS from amount using the configured ratio
+            // Calculate TPS from amount using the configured ratio (Permill)
+            // The ratio represents μTPS per 10 tokens stored as parts per million
+            // For example: Permill::from_parts(1_000) = 1000 μTPS per 10 tokens = 100 μTPS per token
+            // So for N tokens: (N / 10) * parts = (N * parts) / 10
             let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
-            let ratio_u128: u128 = T::AssetToTpsRatio::get().into();
+            let ratio = T::AssetToTpsRatio::get();
+            
+            // Calculate: (amount * ratio_parts) / 10
+            let ratio_parts: u128 = ratio.deconstruct().into();
             let tps_u128 = amount_u128
-                .checked_mul(ratio_u128)
+                .checked_mul(ratio_parts)
+                .ok_or(Error::<T>::ArithmeticOverflow)?
+                .checked_div(10)
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
             let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
 

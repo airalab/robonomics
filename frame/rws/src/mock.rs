@@ -19,7 +19,7 @@
 
 use crate::{self as pallet_rws};
 use frame_support::{assert_ok, derive_impl, parameter_types, traits::{ConstU32, ConstU64, ConstU128}};
-use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, Permill};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -110,7 +110,8 @@ parameter_types! {
     pub const AuctionDuration: u64 = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: u128 = 100;
     pub const LifetimeAssetId: AssetId = LIFETIME_ASSET_ID;
-    pub const AssetToTpsRatio: u32 = 100; // 100 μTPS per 1 asset token
+    // Ratio: Permill::from_parts(1_000) = 1000 μTPS per 10 tokens = 100 μTPS per 1 token
+    pub AssetToTpsRatio: Permill = Permill::from_parts(1_000);
     pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 
