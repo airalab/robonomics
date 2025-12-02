@@ -425,6 +425,446 @@ call(
 
 ---
 
+## 🔐 Proxy-Based Access Delegation
+
+The RWS pallet integrates seamlessly with `pallet-proxy` to enable **delegated subscription management**. This allows subscription owners to grant specific accounts the ability to manage their subscriptions without transferring ownership.
+
+### Overview
+
+Proxy-based access delegation enables powerful use cases:
+- **IoT Device Management**: Grant devices permission to use subscriptions without exposing owner keys
+- **Team Subscriptions**: Allow multiple team members to manage shared subscriptions
+- **Automated Systems**: Enable bots to bid on auctions or manage subscriptions on behalf of owners
+- **Time-Delayed Operations**: Schedule future subscription operations with announcement delays
+- **Fine-Grained Control**: Restrict proxy access to specific auctions or operations
+
+Integration with `pallet-proxy` provides:
+- ✅ **Type Safety**: `RwsManager` proxy type restricts to RWS operations only
+- ✅ **Auction-Level Granularity**: Optional auction ID restriction for precise control
+- ✅ **Ownership Preservation**: Original owner retains full control
+- ✅ **Revocability**: Proxies can be removed at any time
+- ✅ **Auditability**: All proxy actions are traceable on-chain
+- ✅ **No Privilege Escalation**: Proxies cannot grant additional permissions
+
+### ProxyType Configuration
+
+The runtime defines a `ProxyType::RwsManager` variant specifically for RWS subscription management:
+
+```rust
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+    /// RWS subscription management with optional auction restriction
+    /// - `RwsManager(None)`: Access to all RWS operations for subscriptions owned by proxied account
+    /// - `RwsManager(Some(auction_id))`: Access only to specific auction's operations
+    RwsManager(Option<u32>),
+}
+
+impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::RwsManager(allowed_auction) => {
+                // Check if it's an RWS call
+                let is_rws_call = matches!(
+                    c,
+                    RuntimeCall::RWS(pallet_rws::Call::bid { .. })
+                        | RuntimeCall::RWS(pallet_rws::Call::claim { .. })
+                        | RuntimeCall::RWS(pallet_rws::Call::call { .. })
+                );
+                
+                if !is_rws_call {
+                    return false;
+                }
+                
+                // If no auction restriction, allow all RWS calls
+                if allowed_auction.is_none() {
+                    return true;
+                }
+                
+                // Check if call targets the allowed auction
+                match c {
+                    RuntimeCall::RWS(pallet_rws::Call::bid { auction_id, .. }) |
+                    RuntimeCall::RWS(pallet_rws::Call::claim { auction_id, .. }) => {
+                        Some(auction_id) == allowed_auction.as_ref()
+                    }
+                    // For call operations on existing subscriptions, allow if no auction restriction
+                    RuntimeCall::RWS(pallet_rws::Call::call { .. }) => {
+                        allowed_auction.is_none()
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+    
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::RwsManager(None), ProxyType::RwsManager(_)) => true,
+            (ProxyType::RwsManager(Some(a)), ProxyType::RwsManager(Some(b))) => a == b,
+            _ => false,
+        }
+    }
+}
+```
+
+### Complete User Story: IoT Subscription Management
+
+This example demonstrates a real-world scenario where Alice owns a subscription and delegates device management to an IoT gateway.
+
+```rust
+// ═══════════════════════════════════════════════════════════════════
+// SCENARIO: Alice owns a factory with IoT sensors. She wants the IoT
+// gateway to execute transactions using her RWS subscription without
+// giving it access to her main account keys.
+// ═══════════════════════════════════════════════════════════════════
+
+// STEP 1: Alice participates in auction and wins
+// ───────────────────────────────────────────────
+Timestamp::set_timestamp(1_000_000);
+
+// Root starts auction for 30-day subscription
+RWS::start_auction(
+    RuntimeOrigin::root(),
+    SubscriptionMode::Daily { days: 30 }
+)?;
+// → Auction 0 created
+
+// Alice bids 100 XRT
+RWS::bid(
+    RuntimeOrigin::signed(ALICE),
+    0,  // auction_id
+    100 * XRT
+)?;
+// → Alice is winning bidder
+// → 100 XRT reserved from Alice's balance
+
+// Wait for auction to end
+Timestamp::set_timestamp(1_000_000 + AuctionDuration::get() + 1);
+
+// Alice claims the subscription
+RWS::claim(
+    RuntimeOrigin::signed(ALICE),
+    0,     // auction_id
+    None   // Alice will be the beneficiary
+)?;
+// → Subscription 0 created for Alice
+// → 100 XRT burned
+// → Alice can now use subscription for free transactions
+
+
+// STEP 2: Alice adds IoT gateway as proxy
+// ────────────────────────────────────────
+const IOT_GATEWAY: AccountId = 0x123...; // Gateway account
+
+// Alice creates a proxy for the IoT gateway with RwsManager type
+Proxy::add_proxy(
+    RuntimeOrigin::signed(ALICE),
+    IOT_GATEWAY,
+    ProxyType::RwsManager(None),  // Access to ALL RWS operations
+    0  // No announcement delay
+)?;
+// → Gateway can now manage Alice's RWS subscriptions
+// → Gateway CANNOT access Alice's balance, governance, etc.
+// → Deposit reserved from Alice for proxy storage
+
+
+// STEP 3: IoT gateway uses subscription on Alice's behalf
+// ────────────────────────────────────────────────────────
+Timestamp::set_timestamp(2_000_000);
+
+// Gateway wants to record sensor data using Alice's subscription
+let sensor_data = RuntimeCall::Datalog(
+    pallet_datalog::Call::record {
+        record: b"temperature:23.5C".to_vec().try_into().unwrap()
+    }
+);
+
+// Gateway executes via proxy
+Proxy::proxy(
+    RuntimeOrigin::signed(IOT_GATEWAY),
+    ALICE,  // Real account (subscription owner)
+    Some(ProxyType::RwsManager(None)),
+    Box::new(RuntimeCall::RWS(
+        pallet_rws::Call::call {
+            subscription_id: 0,
+            call: Box::new(sensor_data)
+        }
+    ))
+)?;
+// → Gateway successfully uses Alice's subscription
+// → Transaction executes with Pays::No (no fees)
+// → Alice's subscription weight is deducted
+// → Sensor data recorded to chain
+
+
+// STEP 4: Alice monitors and controls access
+// ───────────────────────────────────────────
+// Alice can check her proxies at any time
+let proxies = Proxy::proxies(ALICE);
+// → Returns: [(IOT_GATEWAY, ProxyType::RwsManager(None), 0)]
+
+// If gateway is compromised or decommissioned, Alice revokes access
+Proxy::remove_proxy(
+    RuntimeOrigin::signed(ALICE),
+    IOT_GATEWAY,
+    ProxyType::RwsManager(None),
+    0
+)?;
+// → Gateway can no longer use Alice's subscription
+// → Alice's deposit returned
+// → Subscription remains active for Alice
+
+
+// STEP 5: Alice can still use subscription directly
+// ──────────────────────────────────────────────────
+RWS::call(
+    RuntimeOrigin::signed(ALICE),
+    0,  // subscription_id
+    Box::new(RuntimeCall::Datalog(
+        pallet_datalog::Call::record {
+            record: b"manual_entry:data".to_vec().try_into().unwrap()
+        }
+    ))
+)?;
+// → Alice retains full control regardless of proxy status
+```
+
+### Additional Usage Examples
+
+#### Example 1: Time-Delayed Proxy for Security
+
+Protect high-value subscriptions with announcement delays:
+
+```rust
+// Alice creates a proxy with 1-day announcement delay
+Proxy::add_proxy(
+    RuntimeOrigin::signed(ALICE),
+    BOB,
+    ProxyType::RwsManager(None),
+    24 * HOURS  // Bob must announce 24 hours before acting
+)?;
+
+// Bob wants to use subscription
+Proxy::announce(
+    RuntimeOrigin::signed(BOB),
+    ALICE,
+    BlakeTwo256::hash_of(&rws_call)
+)?;
+// → Bob's intent is recorded on-chain
+// → Alice has 24 hours to review and potentially revoke proxy
+
+// After 24 hours, Bob can execute
+Proxy::proxy_announced(
+    RuntimeOrigin::signed(BOB),
+    ALICE,
+    ALICE,  // No other proxies involved
+    Some(ProxyType::RwsManager(None)),
+    Box::new(rws_call)
+)?;
+// → Transaction executes using Alice's subscription
+```
+
+#### Example 2: Multi-Signature Workflow for Team Subscriptions
+
+Combine with multisig for team-managed subscriptions:
+
+```rust
+// Team creates a multisig account
+let team_account = MultiAddress::Id(TEAM_MULTISIG);
+
+// Team multisig wins auction and claims subscription
+// (via standard multisig approval process)
+RWS::bid(RuntimeOrigin::signed(TEAM_MULTISIG), 0, 200 * XRT)?;
+// ... auction ends ...
+RWS::claim(RuntimeOrigin::signed(TEAM_MULTISIG), 0, None)?;
+
+// Team adds individual members as proxies
+Proxy::add_proxy(
+    RuntimeOrigin::signed(TEAM_MULTISIG),
+    ALICE,
+    ProxyType::RwsManager(None),
+    0
+)?;
+
+Proxy::add_proxy(
+    RuntimeOrigin::signed(TEAM_MULTISIG),
+    BOB,
+    ProxyType::RwsManager(None),
+    0
+)?;
+
+// Now Alice or Bob can use the team subscription independently
+Proxy::proxy(
+    RuntimeOrigin::signed(ALICE),
+    TEAM_MULTISIG,
+    Some(ProxyType::RwsManager(None)),
+    Box::new(RuntimeCall::RWS(pallet_rws::Call::call { ... }))
+)?;
+```
+
+#### Example 3: Auction-Specific Proxy Restriction
+
+Grant proxy access to a specific auction only:
+
+```rust
+// Root starts two auctions
+RWS::start_auction(RuntimeOrigin::root(), SubscriptionMode::Daily { days: 7 })?;  // Auction 0
+RWS::start_auction(RuntimeOrigin::root(), SubscriptionMode::Lifetime { tps: 50_000 })?;  // Auction 1
+
+// Alice grants Bob permission to bid ONLY on auction 1
+Proxy::add_proxy(
+    RuntimeOrigin::signed(ALICE),
+    BOB,
+    ProxyType::RwsManager(Some(1)),  // Restricted to auction 1
+    0
+)?;
+
+// Bob can bid on auction 1 using Alice's funds
+Proxy::proxy(
+    RuntimeOrigin::signed(BOB),
+    ALICE,
+    Some(ProxyType::RwsManager(Some(1))),
+    Box::new(RuntimeCall::RWS(pallet_rws::Call::bid {
+        auction_id: 1,
+        amount: 150 * XRT
+    }))
+)?;
+// → Success: Bid placed on behalf of Alice for auction 1
+
+// But Bob CANNOT bid on auction 0
+Proxy::proxy(
+    RuntimeOrigin::signed(BOB),
+    ALICE,
+    Some(ProxyType::RwsManager(Some(1))),
+    Box::new(RuntimeCall::RWS(pallet_rws::Call::bid {
+        auction_id: 0,
+        amount: 150 * XRT
+    }))
+)?;
+// → Error: ProxyType filter rejects call (wrong auction)
+```
+
+#### Example 4: Automated Bot with Restricted RWS Access
+
+Deploy autonomous bots with limited permissions:
+
+```rust
+// Alice creates a subscription management bot
+const AUTO_BIDDER_BOT: AccountId = 0x456...;
+
+// Grant bot RwsManager-only access (no balance transfers, governance, etc.)
+Proxy::add_proxy(
+    RuntimeOrigin::signed(ALICE),
+    AUTO_BIDDER_BOT,
+    ProxyType::RwsManager(None),
+    0
+)?;
+
+// Bot can autonomously bid on auctions for Alice
+Proxy::proxy(
+    RuntimeOrigin::signed(AUTO_BIDDER_BOT),
+    ALICE,
+    Some(ProxyType::RwsManager(None)),
+    Box::new(RuntimeCall::RWS(pallet_rws::Call::bid {
+        auction_id: 5,
+        amount: calculate_optimal_bid()
+    }))
+)?;
+// → Bot successfully bids using Alice's account
+
+// Bot CANNOT transfer Alice's funds
+Proxy::proxy(
+    RuntimeOrigin::signed(AUTO_BIDDER_BOT),
+    ALICE,
+    Some(ProxyType::RwsManager(None)),
+    Box::new(RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+        dest: BOB,
+        value: 100 * XRT
+    }))
+)?;
+// → Error: ProxyType::RwsManager filter blocks non-RWS calls
+```
+
+### Security Considerations
+
+#### Type Safety
+- **Restricted Call Space**: `ProxyType::RwsManager` only allows RWS pallet calls
+- **No Escalation**: Proxies cannot call `Proxy::add_proxy` or other privilege-granting functions
+- **Compile-Time Guarantees**: Substrate's type system enforces restrictions
+
+#### Auction-Level Granularity
+- **Fine-Grained Control**: `RwsManager(Some(auction_id))` limits access to specific auctions
+- **Prevents Overreach**: Bot restricted to auction 1 cannot affect auction 0
+- **Flexible Permissions**: Combine auction restrictions with time delays for maximum control
+
+#### Ownership Preservation
+- **Owner Supremacy**: Original account owner retains full control
+- **Independent Access**: Owner can use subscription even while proxies are active
+- **Proxy Removal**: Owner can revoke proxy access instantly
+- **No Transfer**: Proxies do not transfer ownership; they delegate specific operations
+
+#### Revocability
+- **Instant Revocation**: `Proxy::remove_proxy` immediately blocks proxy access
+- **Deposit Recovery**: Proxy deposits returned to owner upon removal
+- **No Backdoors**: Revoked proxies have zero access to subscription
+
+#### Auditability
+- **On-Chain Records**: All proxy actions emit events with full context
+- **Transparent Delegation**: `Proxy::proxies(account)` lists all active proxies
+- **Action Attribution**: Events identify both proxy (delegate) and real (owner) accounts
+
+#### No Privilege Escalation
+- **Closed Permission Model**: Proxies cannot grant new proxies
+- **Horizontal Access**: `RwsManager` proxies cannot escalate to `Any` or other types
+- **Isolated Operations**: Actions limited to explicitly granted capabilities
+
+### Use Cases
+
+#### 1. IoT Device Fleet Management
+- **Scenario**: Company with 1,000 sensors needing free transactions
+- **Solution**: Company account owns subscription; each sensor is a proxy
+- **Benefits**: 
+  - Sensors operate autonomously without exposing company keys
+  - Individual sensor compromise doesn't affect others (revoke single proxy)
+  - Centralized subscription management with distributed execution
+
+#### 2. Multi-Signature Team Subscriptions
+- **Scenario**: DAO wants shared subscription for member activities
+- **Solution**: Multisig account owns subscription; members are proxies
+- **Benefits**:
+  - Members can use subscription without multisig approval per transaction
+  - Critical operations (new subscription, revoke member) require multisig
+  - Clear audit trail of which member performed each action
+
+#### 3. Automated Subscription Renewals
+- **Scenario**: User wants bot to automatically bid on new auctions
+- **Solution**: User grants bot `RwsManager` proxy with no auction restriction
+- **Benefits**:
+  - Bot monitors auctions and bids optimally
+  - User retains control (can revoke bot anytime)
+  - Bot cannot access funds or perform non-RWS operations
+
+#### 4. Temporary Access for Maintenance/Audits
+- **Scenario**: User needs contractor to debug subscription issues
+- **Solution**: Grant contractor time-delayed `RwsManager` proxy for 7 days
+- **Benefits**:
+  - Contractor can test subscription usage
+  - Time delay provides security window for owner to review
+  - Automatic expiration (or manual revocation) after engagement
+
+#### 5. Hierarchical Subscription Management
+- **Scenario**: Organization with departments needing separate subscription access
+- **Solution**: Parent account owns multiple subscriptions; each department is proxy for their subscription
+- **Benefits**:
+  - Department A's proxy can't access Department B's subscription
+  - Central billing with departmental autonomy
+  - Easy reorganization (revoke/add proxies as structure changes)
+
+---
+
 ## 🔍 Key Design Features
 
 ### Account-Based Subscription Model

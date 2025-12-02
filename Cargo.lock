@@ -8486,6 +8486,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-proxy",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",

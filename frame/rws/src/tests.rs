@@ -18,7 +18,7 @@
 //! Robonomics Web Services pallet tests.
 
 use crate::{mock::*, *};
-use frame_support::{assert_err, assert_ok};
+use frame_support::{assert_err, assert_ok, traits::InstanceFilter};
 use sp_runtime::DispatchError;
 
 const ALICE: u64 = 1;
@@ -745,5 +745,441 @@ fn test_multiple_auctions_remain_live_until_first_bid() {
             RWS::auction(2).unwrap().first_bid_time,
             Some(1_000_000 + 3_600_000 + 50_000 + 100_000)
         );
+    });
+}
+
+// ========== Proxy Integration Tests ==========
+
+#[test]
+fn proxy_can_bid_on_auction() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Start auction
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+
+        // ALICE adds BOB as RwsManager proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB bids on behalf of ALICE
+        let bid_call = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 0,
+            amount: 200,
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(bid_call)
+        ));
+
+        // Verify ALICE is the winner
+        let auction = RWS::auction(0).unwrap();
+        assert_eq!(auction.winner, Some(ALICE));
+        assert_eq!(auction.best_price, 200);
+    });
+}
+
+#[test]
+fn proxy_can_claim_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Start auction and ALICE wins
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 1);
+
+        // ALICE adds BOB as proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB claims subscription on behalf of ALICE
+        let claim_call = RuntimeCall::RWS(crate::Call::claim {
+            auction_id: 0,
+            beneficiary: None,
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(claim_call)
+        ));
+
+        // Verify ALICE has subscription
+        assert!(RWS::subscription(ALICE, 0).is_some());
+    });
+}
+
+#[test]
+fn proxy_can_use_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // ALICE creates subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 1_000_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 1);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Wait for some weight to accumulate
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 2_000);
+
+        // First, verify that ALICE can use the subscription directly (without proxy)
+        let initial_charlie_balance = Balances::free_balance(CHARLIE);
+        let transfer_call_direct = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 50,
+        });
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(transfer_call_direct)));
+        assert_eq!(Balances::free_balance(CHARLIE), initial_charlie_balance + 50);
+
+        // Now add proxy and test
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB uses ALICE's subscription via proxy
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 50,
+        });
+        let rws_call = RuntimeCall::RWS(crate::Call::call {
+            subscription_id: 0,
+            call: Box::new(transfer_call),
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(rws_call)
+        ));
+
+        // Verify transfer occurred
+        assert_eq!(Balances::free_balance(CHARLIE), initial_charlie_balance + 100);
+    });
+}
+
+#[test]
+fn proxy_cannot_exceed_permissions() {
+    new_test_ext().execute_with(|| {
+        // ALICE adds BOB as RwsManager proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // Verify the proxy was added
+        let (proxies, _deposit) = Proxy::proxies(ALICE);
+        assert_eq!(proxies.len(), 1);
+        assert_eq!(proxies[0].delegate, BOB);
+
+        // BOB cannot make balance transfers directly (non-RWS call)
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 100,
+        });
+        
+        // This should fail because Balance transfers are not RWS calls
+        let result = Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(transfer_call)
+        );
+        
+        // The proxy call should be rejected
+        assert!(result.is_err(), "Expected proxy call to fail but it succeeded");
+    });
+}
+
+#[test]
+fn owner_can_revoke_proxy_access() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // ALICE creates subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 1_000_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 1);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 2_000);
+
+        // ALICE adds BOB as proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB can use subscription
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 100,
+        });
+        let rws_call = RuntimeCall::RWS(crate::Call::call {
+            subscription_id: 0,
+            call: Box::new(transfer_call.clone()),
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(rws_call.clone())
+        ));
+
+        // ALICE revokes proxy
+        assert_ok!(Proxy::remove_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB can no longer use subscription
+        let rws_call2 = RuntimeCall::RWS(crate::Call::call {
+            subscription_id: 0,
+            call: Box::new(transfer_call),
+        });
+        assert_err!(
+            Proxy::proxy(
+                RuntimeOrigin::signed(BOB),
+                ALICE,
+                Some(ProxyType::RwsManager(None)),
+                Box::new(rws_call2)
+            ),
+            pallet_proxy::Error::<Test>::NotProxy
+        );
+    });
+}
+
+#[test]
+fn proxy_type_any_allows_all_operations() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // ALICE adds BOB as Any proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::Any,
+            0
+        ));
+
+        // BOB can bid on behalf of ALICE
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        let bid_call = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 0,
+            amount: 200,
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::Any),
+            Box::new(bid_call)
+        ));
+
+        // BOB can also make balance transfers (Any type allows everything)
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 100,
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::Any),
+            Box::new(transfer_call)
+        ));
+    });
+}
+
+#[test]
+fn proxy_with_auction_restriction_works() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Start two auctions
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 30 }
+        ));
+
+        // ALICE adds BOB as proxy restricted to auction 1
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(Some(1)),
+            0
+        ));
+
+        // BOB can bid on auction 1
+        let bid_call1 = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 1,
+            amount: 200,
+        });
+        assert_ok!(Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(Some(1))),
+            Box::new(bid_call1)
+        ));
+
+        // Verify ALICE is winning auction 1
+        assert_eq!(RWS::auction(1).unwrap().winner, Some(ALICE));
+
+        // BOB cannot bid on auction 0 (restricted to auction 1)
+        let bid_call0 = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 0,
+            amount: 200,
+        });
+        let result = Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(Some(1))),
+            Box::new(bid_call0)
+        );
+        assert!(result.is_err(), "Expected auction restriction to block bid on auction 0");
+    });
+}
+
+#[test]
+fn proxy_ownership_validation_works() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // ALICE adds BOB as proxy
+        assert_ok!(Proxy::add_proxy(
+            RuntimeOrigin::signed(ALICE),
+            BOB,
+            ProxyType::RwsManager(None),
+            0
+        ));
+
+        // BOB creates his own subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(BOB), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 1);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(BOB), 0, None));
+
+        // BOB cannot use his proxy relationship with ALICE to access BOB's own subscription
+        // The proxy allows BOB to act as ALICE, but the subscription belongs to BOB, not ALICE
+        Timestamp::set_timestamp(1_000_000 + 100_000 + 2_000);
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: CHARLIE,
+            value: 100,
+        });
+        let rws_call = RuntimeCall::RWS(crate::Call::call {
+            subscription_id: 0,
+            call: Box::new(transfer_call),
+        });
+        
+        // This should fail because when BOB proxies as ALICE, the RWS::call will look for
+        // ALICE's subscription 0, but that doesn't exist (BOB has subscription 0)
+        let result = Proxy::proxy(
+            RuntimeOrigin::signed(BOB),
+            ALICE,
+            Some(ProxyType::RwsManager(None)),
+            Box::new(rws_call)
+        );
+        assert!(result.is_err(), "Expected NoSubscription error");
+    });
+}
+
+#[test]
+fn proxy_type_filter_works_correctly() {
+    new_test_ext().execute_with(|| {
+        // Test that RwsManager(None) allows all RWS calls
+        let bid_call = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 0,
+            amount: 100,
+        });
+        assert!(ProxyType::RwsManager(None).filter(&bid_call));
+
+        let claim_call = RuntimeCall::RWS(crate::Call::claim {
+            auction_id: 0,
+            beneficiary: None,
+        });
+        assert!(ProxyType::RwsManager(None).filter(&claim_call));
+
+        // Test that RwsManager blocks non-RWS calls
+        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
+            dest: BOB,
+            value: 100,
+        });
+        assert!(!ProxyType::RwsManager(None).filter(&transfer_call));
+
+        // Test auction restriction
+        let bid_auction_0 = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 0,
+            amount: 100,
+        });
+        let bid_auction_1 = RuntimeCall::RWS(crate::Call::bid {
+            auction_id: 1,
+            amount: 100,
+        });
+
+        assert!(!ProxyType::RwsManager(Some(0)).filter(&bid_auction_1));
+        assert!(ProxyType::RwsManager(Some(0)).filter(&bid_auction_0));
+        assert!(ProxyType::RwsManager(Some(1)).filter(&bid_auction_1));
+        assert!(!ProxyType::RwsManager(Some(1)).filter(&bid_auction_0));
+    });
+}
+
+#[test]
+fn proxy_is_superset_works_correctly() {
+    new_test_ext().execute_with(|| {
+        // Any is superset of everything
+        assert!(ProxyType::Any.is_superset(&ProxyType::Any));
+        assert!(ProxyType::Any.is_superset(&ProxyType::RwsManager(None)));
+        assert!(ProxyType::Any.is_superset(&ProxyType::RwsManager(Some(0))));
+
+        // RwsManager(None) is superset of RwsManager with specific auction
+        assert!(ProxyType::RwsManager(None).is_superset(&ProxyType::RwsManager(None)));
+        assert!(ProxyType::RwsManager(None).is_superset(&ProxyType::RwsManager(Some(0))));
+        assert!(ProxyType::RwsManager(None).is_superset(&ProxyType::RwsManager(Some(1))));
+        assert!(!ProxyType::RwsManager(None).is_superset(&ProxyType::Any));
+
+        // RwsManager(Some(x)) is only superset of itself
+        assert!(ProxyType::RwsManager(Some(0)).is_superset(&ProxyType::RwsManager(Some(0))));
+        assert!(!ProxyType::RwsManager(Some(0)).is_superset(&ProxyType::RwsManager(Some(1))));
+        assert!(!ProxyType::RwsManager(Some(0)).is_superset(&ProxyType::RwsManager(None)));
+        assert!(!ProxyType::RwsManager(Some(0)).is_superset(&ProxyType::Any));
     });
 }
