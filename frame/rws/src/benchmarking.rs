@@ -120,24 +120,22 @@ mod benchmarks {
 
     #[benchmark]
     fn start_lifetime() {
-        // This is a placeholder benchmark - actual implementation would need
-        // proper setup of Assets pallet and funded accounts
-        let caller = funded_account::<T>("caller", 0);
-        let amount = 1000u32.into();
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), amount);
+        // TODO: Implement proper benchmark with Assets pallet setup
+        // This requires:
+        // 1. Creating and funding the lifetime asset
+        // 2. Minting assets to the caller account
+        // 3. Ensuring proper asset account initialization
+        unimplemented!("start_lifetime benchmark requires Assets pallet integration");
     }
 
     #[benchmark]
     fn stop_lifetime() {
-        // This is a placeholder benchmark - actual implementation would need
-        // proper setup with an existing asset-locked subscription
-        let caller = funded_account::<T>("caller", 0);
-        let subscription_id = 0u32;
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), subscription_id);
+        // TODO: Implement proper benchmark with pre-existing subscription
+        // This requires:
+        // 1. Setting up an asset-locked subscription via start_lifetime
+        // 2. Ensuring the pallet account has the locked assets
+        // 3. Properly initializing all storage items
+        unimplemented!("stop_lifetime benchmark requires Assets pallet integration");
     }
 
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
