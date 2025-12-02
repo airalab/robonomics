@@ -756,15 +756,17 @@ pub mod pallet {
         ClaimIsNotAllowed,
         /// Insufficient asset balance to lock.
         InsufficientAssetBalance,
-        /// Cannot lock assets.
+        /// Cannot lock assets. This could be due to insufficient balance, frozen account, or other transfer restrictions.
         CannotLockAssets,
         /// Arithmetic overflow when calculating TPS.
         ArithmeticOverflow,
+        /// Asset amount conversion failed.
+        AssetAmountConversionFailed,
         /// Not the subscription owner.
         NotSubscriptionOwner,
         /// Subscription was not created via asset locking.
         NotAssetLockedSubscription,
-        /// Cannot unlock assets.
+        /// Cannot unlock assets. The transfer back to the owner failed.
         CannotUnlockAssets,
     }
 
@@ -1104,7 +1106,7 @@ pub mod pallet {
             // The ratio represents μTPS per 10 tokens stored as parts per million
             // For example: Permill::from_parts(1_000) = 1000 μTPS per 10 tokens = 100 μTPS per token
             // So for N tokens: (N / 10) * parts = (N * parts) / 10
-            let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
+            let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::AssetAmountConversionFailed)?;
             let ratio = T::AssetToTpsRatio::get();
             
             // Calculate: (amount * ratio_parts) / 10
