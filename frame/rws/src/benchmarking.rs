@@ -21,9 +21,16 @@
 
 use super::{Pallet as Rws, *};
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
+use frame_support::{
+    assert_ok, 
+    pallet_prelude::Get, 
+    traits::{Currency, fungibles::{Inspect, Mutate}, Time}
+};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
+
+type AssetBalanceOf<T> =
+    <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 const SEED: u32 = 0;
 
@@ -112,7 +119,7 @@ mod benchmarks {
         let inner_call = frame_system::Call::<T>::remark {
             remark: vec![0u8; 100],
         };
-        let boxed_call = Box::new(<T as Config>::RuntimeCall::from(inner_call));
+        let boxed_call = Box::new(<T as Config>::Call::from(inner_call));
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), subscription_id, boxed_call);
@@ -120,22 +127,41 @@ mod benchmarks {
 
     #[benchmark]
     fn start_lifetime() {
-        // TODO: Implement proper benchmark with Assets pallet setup
-        // This requires:
-        // 1. Creating and funding the lifetime asset
-        // 2. Minting assets to the caller account
-        // 3. Ensuring proper asset account initialization
-        unimplemented!("start_lifetime benchmark requires Assets pallet integration");
+        // Get a whitelisted caller
+        let caller: T::AccountId = whitelisted_caller();
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        
+        // Get the asset ID from config
+        let asset_id = T::LifetimeAssetId::get();
+        
+        // Mint assets to the caller using the Assets trait
+        // This assumes the runtime benchmark environment has the asset created
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), amount);
     }
 
     #[benchmark]
     fn stop_lifetime() {
-        // TODO: Implement proper benchmark with pre-existing subscription
-        // This requires:
-        // 1. Setting up an asset-locked subscription via start_lifetime
-        // 2. Ensuring the pallet account has the locked assets
-        // 3. Properly initializing all storage items
-        unimplemented!("stop_lifetime benchmark requires Assets pallet integration");
+        // Setup: Create asset-locked subscription first
+        let caller: T::AccountId = whitelisted_caller();
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        let asset_id = T::LifetimeAssetId::get();
+        
+        // Mint assets to the caller
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+        
+        // Create the subscription via start_lifetime
+        assert_ok!(Pallet::<T>::start_lifetime(
+            RawOrigin::Signed(caller.clone()).into(),
+            amount
+        ));
+        
+        let subscription_id = 0u32;
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id);
     }
 
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
