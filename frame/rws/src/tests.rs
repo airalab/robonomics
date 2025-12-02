@@ -24,6 +24,7 @@ use sp_runtime::DispatchError;
 const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
+const LIFETIME_ASSET_ID: u32 = 1;
 
 // ========== Auction Lifecycle Tests ==========
 
@@ -745,5 +746,339 @@ fn test_multiple_auctions_remain_live_until_first_bid() {
             RWS::auction(2).unwrap().first_bid_time,
             Some(1_000_000 + 3_600_000 + 50_000 + 100_000)
         );
+    });
+}
+
+// ========== Asset Locking Lifetime Subscription Tests ==========
+
+#[test]
+fn test_start_lifetime_creates_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice locks 1000 assets
+        // With AssetToTpsRatio = 100, this should give 100_000 μTPS
+        let lock_amount = 1000;
+        assert_ok!(RWS::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            lock_amount
+        ));
+
+        // Verify subscription was created
+        let subscription = RWS::subscription(ALICE, 0).unwrap();
+        assert_eq!(
+            subscription.mode,
+            SubscriptionMode::Lifetime { tps: 100_000 }
+        );
+        assert_eq!(subscription.issue_time, 1_000_000);
+        assert_eq!(subscription.expiration_time, None);
+
+        // Verify assets were locked
+        assert_eq!(RWS::locked_assets(ALICE, 0), Some(lock_amount));
+
+        // Verify asset balance was reduced
+        assert_eq!(
+            Assets::balance(LIFETIME_ASSET_ID, &ALICE),
+            10_000_000 - lock_amount
+        );
+    });
+}
+
+#[test]
+fn test_start_lifetime_tps_calculation() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Test different amounts
+        // Amount 500 * Ratio 100 = 50_000 μTPS
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+        let sub0 = RWS::subscription(ALICE, 0).unwrap();
+        assert_eq!(sub0.mode, SubscriptionMode::Lifetime { tps: 50_000 });
+
+        // Amount 2000 * Ratio 100 = 200_000 μTPS
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 2000));
+        let sub1 = RWS::subscription(ALICE, 1).unwrap();
+        assert_eq!(sub1.mode, SubscriptionMode::Lifetime { tps: 200_000 });
+    });
+}
+
+#[test]
+fn test_start_lifetime_multiple_subscriptions() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice creates multiple subscriptions
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 100));
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 200));
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 300));
+
+        // Verify all subscriptions exist
+        assert!(RWS::subscription(ALICE, 0).is_some());
+        assert!(RWS::subscription(ALICE, 1).is_some());
+        assert!(RWS::subscription(ALICE, 2).is_some());
+
+        // Verify locked assets tracked separately
+        assert_eq!(RWS::locked_assets(ALICE, 0), Some(100));
+        assert_eq!(RWS::locked_assets(ALICE, 1), Some(200));
+        assert_eq!(RWS::locked_assets(ALICE, 2), Some(300));
+    });
+}
+
+#[test]
+fn test_start_lifetime_insufficient_balance() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Try to lock more than available
+        assert_err!(
+            RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 20_000_000),
+            Error::<Test>::CannotLockAssets
+        );
+    });
+}
+
+#[test]
+fn test_use_asset_locked_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice creates subscription with 1000 assets
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 1000));
+
+        // Fast forward 100 seconds to accumulate weight
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+
+        // Use subscription to make a call
+        let call = Box::new(RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![1, 2, 3] },
+        ));
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, call));
+    });
+}
+
+#[test]
+fn test_stop_lifetime_unlocks_assets() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        let lock_amount = 1000;
+        let initial_balance = Assets::balance(LIFETIME_ASSET_ID, &ALICE);
+
+        // Alice creates subscription
+        assert_ok!(RWS::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            lock_amount
+        ));
+
+        // Verify assets were locked
+        assert_eq!(
+            Assets::balance(LIFETIME_ASSET_ID, &ALICE),
+            initial_balance - lock_amount
+        );
+
+        // Stop the subscription
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+
+        // Verify assets were unlocked
+        assert_eq!(
+            Assets::balance(LIFETIME_ASSET_ID, &ALICE),
+            initial_balance
+        );
+
+        // Verify subscription and locked assets record removed
+        assert!(RWS::subscription(ALICE, 0).is_none());
+        assert!(RWS::locked_assets(ALICE, 0).is_none());
+    });
+}
+
+#[test]
+fn test_stop_lifetime_removes_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+        assert!(RWS::subscription(ALICE, 0).is_some());
+
+        // Stop it
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+
+        // Verify subscription is gone
+        assert!(RWS::subscription(ALICE, 0).is_none());
+    });
+}
+
+#[test]
+fn test_stop_lifetime_non_existent_subscription() {
+    new_test_ext().execute_with(|| {
+        // Try to stop non-existent subscription
+        assert_err!(
+            RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 999),
+            Error::<Test>::NoSubscription
+        );
+    });
+}
+
+#[test]
+fn test_stop_lifetime_not_owner() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice creates subscription
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+
+        // Bob tries to stop Alice's subscription
+        assert_err!(
+            RWS::stop_lifetime(RuntimeOrigin::signed(BOB), 0),
+            Error::<Test>::NoSubscription
+        );
+    });
+}
+
+#[test]
+fn test_stop_lifetime_auction_subscription_fails() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create auction-based subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Try to stop auction-based subscription (should fail - no locked assets)
+        assert_err!(
+            RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0),
+            Error::<Test>::NotAssetLockedSubscription
+        );
+    });
+}
+
+#[test]
+fn test_stop_lifetime_with_accumulated_weight() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 1000));
+
+        // Fast forward to accumulate weight
+        Timestamp::set_timestamp(1_100_000);
+
+        // Make a call to update weight
+        let call = Box::new(RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![1] },
+        ));
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, call));
+
+        // Should still be able to stop
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+    });
+}
+
+#[test]
+fn test_multiple_users_asset_locked_subscriptions() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice, Bob, and Charlie all create subscriptions
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 1000));
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(BOB), 500));
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(CHARLIE), 750));
+
+        // Verify all exist
+        assert!(RWS::subscription(ALICE, 0).is_some());
+        assert!(RWS::subscription(BOB, 0).is_some());
+        assert!(RWS::subscription(CHARLIE, 0).is_some());
+
+        // Each stops their own
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(BOB), 0));
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(CHARLIE), 0));
+
+        // All should be gone
+        assert!(RWS::subscription(ALICE, 0).is_none());
+        assert!(RWS::subscription(BOB, 0).is_none());
+        assert!(RWS::subscription(CHARLIE, 0).is_none());
+    });
+}
+
+#[test]
+fn test_start_lifetime_events() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Start subscription and check event
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+
+        // Check SubscriptionActivated event was emitted
+        System::assert_has_event(RuntimeEvent::RWS(Event::SubscriptionActivated(ALICE, 0)));
+    });
+}
+
+#[test]
+fn test_stop_lifetime_events() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create and stop subscription
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+
+        // Check SubscriptionStopped event was emitted
+        System::assert_has_event(RuntimeEvent::RWS(Event::SubscriptionStopped(ALICE, 0)));
+    });
+}
+
+#[test]
+fn test_asset_locked_vs_auction_based_subscriptions() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Alice creates asset-locked subscription (id 0)
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 1000));
+
+        // Alice wins auction for another subscription (id 1)
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 50_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Both subscriptions should exist
+        assert!(RWS::subscription(ALICE, 0).is_some());
+        assert!(RWS::subscription(ALICE, 1).is_some());
+
+        // Asset-locked has locked assets record
+        assert!(RWS::locked_assets(ALICE, 0).is_some());
+        // Auction-based does not
+        assert!(RWS::locked_assets(ALICE, 1).is_none());
+
+        // Can stop asset-locked
+        assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
+
+        // Cannot stop auction-based
+        assert_err!(
+            RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 1),
+            Error::<Test>::NotAssetLockedSubscription
+        );
+    });
+}
+
+#[test]
+fn test_ratio_edge_cases() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Very small amount: 1 * 100 = 100 μTPS
+        assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 1));
+        let sub = RWS::subscription(ALICE, 0).unwrap();
+        assert_eq!(sub.mode, SubscriptionMode::Lifetime { tps: 100 });
     });
 }

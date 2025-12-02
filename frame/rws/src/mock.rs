@@ -18,16 +18,19 @@
 //! Mock runtime for testing RWS pallet.
 
 use crate::{self as pallet_rws};
-use frame_support::{derive_impl, parameter_types, traits::ConstU64};
+use frame_support::{assert_ok, derive_impl, parameter_types, traits::ConstU64};
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
+type AssetId = u32;
+type AssetBalance = u128;
 type Moment = u64;
 
 const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
+const LIFETIME_ASSET_ID: AssetId = 1;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -36,6 +39,7 @@ frame_support::construct_runtime!(
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
+        Assets: pallet_assets,
         RWS: pallet_rws,
     }
 );
@@ -65,9 +69,32 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
     type FreezeIdentifier = ();
     type MaxFreezes = ();
-    type RuntimeHoldReason = ();
+    type RuntimeHoldReason = RuntimeHoldReason;
     type RuntimeFreezeReason = ();
     type DoneSlashHandler = ();
+}
+
+impl pallet_assets::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = AssetBalance;
+    type AssetId = AssetId;
+    type AssetIdParameter = AssetId;
+    type Currency = Balances;
+    type CreateOrigin = frame_support::traits::AsEnsureOriginWithArg<frame_system::EnsureRoot<u64>>;
+    type ForceOrigin = frame_system::EnsureRoot<u64>;
+    type AssetDeposit = ConstU64<0>;
+    type AssetAccountDeposit = ConstU64<0>;
+    type MetadataDepositBase = ConstU64<0>;
+    type MetadataDepositPerByte = ConstU64<0>;
+    type ApprovalDeposit = ConstU64<0>;
+    type StringLimit = frame_support::traits::ConstU32<50>;
+    type Freezer = ();
+    type Extra = ();
+    type WeightInfo = ();
+    type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+    type CallbackHandle = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ();
 }
 
 impl pallet_timestamp::Config for Test {
@@ -81,6 +108,8 @@ parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;
     pub const AuctionDuration: u64 = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: u128 = 100;
+    pub const LifetimeAssetId: AssetId = LIFETIME_ASSET_ID;
+    pub const AssetToTpsRatio: u32 = 100; // 100 μTPS per 1 asset token
 }
 
 impl pallet_rws::Config for Test {
@@ -89,6 +118,11 @@ impl pallet_rws::Config for Test {
     type Time = Timestamp;
     type Moment = u64;
     type AuctionCurrency = Balances;
+    type Assets = Assets;
+    type AssetId = AssetId;
+    type LifetimeAssetId = LifetimeAssetId;
+    type AssetToTpsRatio = AssetToTpsRatio;
+    type RuntimeHoldReason = RuntimeHoldReason;
     type ReferenceCallWeight = ReferenceCallWeight;
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
@@ -113,6 +147,35 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     ext.execute_with(|| {
         System::set_block_number(1);
         Timestamp::set_timestamp(1000);
+        
+        // Create the lifetime asset
+        assert_ok!(Assets::force_create(
+            RuntimeOrigin::root(),
+            LIFETIME_ASSET_ID,
+            ALICE, // admin
+            true,  // is_sufficient
+            1      // min_balance
+        ));
+        
+        // Mint assets to test accounts
+        assert_ok!(Assets::mint(
+            RuntimeOrigin::signed(ALICE),
+            LIFETIME_ASSET_ID,
+            ALICE,
+            10_000_000
+        ));
+        assert_ok!(Assets::mint(
+            RuntimeOrigin::signed(ALICE),
+            LIFETIME_ASSET_ID,
+            BOB,
+            5_000_000
+        ));
+        assert_ok!(Assets::mint(
+            RuntimeOrigin::signed(ALICE),
+            LIFETIME_ASSET_ID,
+            CHARLIE,
+            5_000_000
+        ));
     });
     ext
 }

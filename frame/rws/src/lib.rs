@@ -113,6 +113,122 @@
 //! - **Claiming**: Only the winner can claim after `AuctionDuration` has passed
 //! - **Payment**: Winner's bid is slashed and burned upon claiming
 //!
+//! ## Lifetime Subscription via Asset Locking
+//!
+//! In addition to the auction-based subscription model, users can acquire Lifetime subscriptions
+//! directly by locking assets from pallet-assets. This provides an alternative path that doesn't
+//! require waiting for auctions or competing with other bidders.
+//!
+//! ### Overview
+//!
+//! The asset locking mechanism allows users to:
+//! - Lock a specified amount of a configured asset
+//! - Receive a Lifetime subscription with TPS proportional to the locked amount
+//! - Stop the subscription at any time to unlock their assets
+//!
+//! ### Asset-to-TPS Conversion
+//!
+//! The relationship between locked assets and TPS is governed by the `AssetToTpsRatio` configuration:
+//!
+//! ```text
+//! TPS (μTPS) = Locked Asset Amount × AssetToTpsRatio
+//! ```
+//!
+//! For example, with `AssetToTpsRatio = 100`:
+//! - Locking 1000 asset tokens = 100,000 μTPS (0.1 TPS)
+//! - Locking 100 asset tokens = 10,000 μTPS (0.01 TPS)
+//!
+//! ### Lifecycle Diagram
+//!
+//! ```text
+//! ┌──────────────────────────────────────────────────────────────────┐
+//! │           ASSET LOCKING SUBSCRIPTION LIFECYCLE                   │
+//! └──────────────────────────────────────────────────────────────────┘
+//!
+//! 1. LOCK ASSETS
+//!    ┌──────────────────┐
+//!    │ start_lifetime() │ ← User locks assets
+//!    │  (amount)        │    TPS = amount × AssetToTpsRatio
+//!    └────────┬─────────┘
+//!             │
+//!             v
+//! 2. ACTIVE SUBSCRIPTION
+//!    ┌──────────────────┐
+//!    │   call()         │ ← User makes feeless calls
+//!    │ (subscription_id)│    Assets remain locked
+//!    └────────┬─────────┘
+//!             │
+//!             │  (User decides to stop)
+//!             v
+//! 3. STOP & UNLOCK
+//!    ┌──────────────────┐
+//!    │ stop_lifetime()  │ ← User stops subscription
+//!    │ (subscription_id)│    Assets are unlocked
+//!    └──────────────────┘
+//! ```
+//!
+//! ### Usage Examples
+//!
+//! #### Starting a Lifetime Subscription with Asset Locking
+//!
+//! ```ignore
+//! // Alice locks 500 asset tokens
+//! // With AssetToTpsRatio = 100, this gives 50,000 μTPS (0.05 TPS)
+//! RWS::start_lifetime(
+//!     RuntimeOrigin::signed(alice),
+//!     500 // amount of assets to lock
+//! )?;
+//! // Alice's subscription_id is 0 (her first subscription)
+//! ```
+//!
+//! #### Using the Subscription
+//!
+//! ```ignore
+//! // Alice uses her subscription for feeless calls
+//! RWS::call(
+//!     RuntimeOrigin::signed(alice),
+//!     0, // subscription_id
+//!     Box::new(RuntimeCall::Datalog(
+//!         pallet_datalog::Call::record {
+//!             record: vec![1, 2, 3]
+//!         }
+//!     ))
+//! )?;
+//! ```
+//!
+//! #### Stopping the Subscription to Unlock Assets
+//!
+//! ```ignore
+//! // Alice stops her subscription and gets her 500 tokens back
+//! RWS::stop_lifetime(
+//!     RuntimeOrigin::signed(alice),
+//!     0 // subscription_id
+//! )?;
+//! // Alice's assets are now unlocked and available
+//! ```
+//!
+//! ### Comparison with Auction-Based Subscriptions
+//!
+//! | Feature | Asset Locking | Auction-Based |
+//! |---------|--------------|---------------|
+//! | **Acquisition** | Immediate | Requires winning auction |
+//! | **Cost** | Locked assets (recoverable) | Burned tokens (permanent) |
+//! | **Duration** | Can be stopped anytime | Permanent (Lifetime) or Fixed (Daily) |
+//! | **TPS** | Configurable via locked amount | Fixed by auction |
+//! | **Asset Recovery** | Yes, via `stop_lifetime()` | No |
+//! | **Competition** | None | Must outbid others |
+//!
+//! ### Storage
+//!
+//! Asset-locked subscriptions use an additional storage item:
+//!
+//! ```ignore
+//! type LockedAssets = StorageDoubleMap<account_id, subscription_id, asset_amount>
+//! ```
+//!
+//! This tracks which subscriptions have locked assets and how much, enabling the unlock
+//! operation when `stop_lifetime()` is called.
+//!
 //! ## Free Weight Mechanism
 //!
 //! Subscriptions use a "free weight" system to track transaction capacity:
@@ -551,6 +667,7 @@ pub mod pallet {
         dispatch::GetDispatchInfo,
         pallet_prelude::*,
         traits::{
+            fungibles::{Inspect, MutateHold},
             Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable,
         },
     };
@@ -562,7 +679,17 @@ pub mod pallet {
         <T as frame_system::Config>::AccountId,
     >>::Balance;
 
+    type AssetBalanceOf<T> =
+        <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
+
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
+    /// Reason for holding assets in this pallet.
+    #[pallet::composite_enum]
+    pub enum HoldReason {
+        /// Assets are locked for a lifetime subscription.
+        LifetimeSubscription,
+    }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -576,6 +703,18 @@ pub mod pallet {
         type Moment: Parameter + AtLeast32Bit + Into<u64> + HasCompact + MaxEncodedLen;
         /// The auction bid currency.
         type AuctionCurrency: ReservableCurrency<Self::AccountId>;
+        /// Fungibles trait for interacting with pallet-assets.
+        type Assets: Inspect<Self::AccountId> + MutateHold<Self::AccountId, Reason = Self::RuntimeHoldReason>;
+        /// The asset ID type.
+        type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+        /// The specific asset ID used for lifetime subscriptions.
+        #[pallet::constant]
+        type LifetimeAssetId: Get<Self::AssetId>;
+        /// Conversion ratio: how many microTPS (μTPS) per 1 locked asset token.
+        #[pallet::constant]
+        type AssetToTpsRatio: Get<u32>;
+        /// The overarching hold reason.
+        type RuntimeHoldReason: From<HoldReason>;
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -611,6 +750,18 @@ pub mod pallet {
         BiddingPeriodIsOver,
         /// Auction claim is not allowed for this user (not winner or auction isn't finish).
         ClaimIsNotAllowed,
+        /// Insufficient asset balance to lock.
+        InsufficientAssetBalance,
+        /// Cannot lock assets.
+        CannotLockAssets,
+        /// Arithmetic overflow when calculating TPS.
+        ArithmeticOverflow,
+        /// Not the subscription owner.
+        NotSubscriptionOwner,
+        /// Subscription was not created via asset locking.
+        NotAssetLockedSubscription,
+        /// Cannot unlock assets.
+        CannotUnlockAssets,
     }
 
     #[pallet::event]
@@ -626,6 +777,8 @@ pub mod pallet {
         AuctionFinished(u32),
         /// RWS subscription activated for `AccountId`.
         SubscriptionActivated(T::AccountId, u32),
+        /// RWS subscription stopped and assets unlocked.
+        SubscriptionStopped(T::AccountId, u32),
     }
 
     #[pallet::storage]
@@ -648,6 +801,19 @@ pub mod pallet {
         Twox64Concat,
         u32,
         AuctionLedger<T::AccountId, BalanceOf<T>, <T::Time as Time>::Moment>,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn locked_assets)]
+    /// Maps subscription owner and subscription_id to the amount of locked assets.
+    /// Only populated for Lifetime subscriptions created via asset locking.
+    pub(super) type LockedAssets<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        Twox64Concat,
+        u32,
+        AssetBalanceOf<T>,
     >;
 
     #[pallet::pallet]
@@ -893,6 +1059,133 @@ pub mod pallet {
             <Auction<T>>::set(id, Some(AuctionLedger::new(mode)));
 
             Self::deposit_event(Event::AuctionStarted(id));
+            Ok(().into())
+        }
+
+        /// Start a lifetime subscription by locking assets.
+        ///
+        /// The dispatch origin for this call must be _Signed_.
+        ///
+        /// # Parameters
+        ///
+        /// * `amount` - Amount of asset tokens to lock
+        ///
+        /// # Behavior
+        ///
+        /// 1. Locks the specified amount of the configured asset from the caller's account
+        /// 2. Calculates TPS: `tps_utps = amount * AssetToTpsRatio`
+        /// 3. Creates a new Lifetime subscription with the calculated TPS
+        /// 4. Stores the locked amount associated with the subscription for later unlock
+        /// 5. Emits `SubscriptionActivated` event
+        ///
+        /// # Errors
+        ///
+        /// * `InsufficientAssetBalance` - Insufficient asset balance
+        /// * `CannotLockAssets` - Cannot lock assets
+        /// * `ArithmeticOverflow` - Arithmetic overflow
+        ///
+        /// # <weight>
+        /// - Asset hold operation
+        /// - Storage writes
+        /// # </weight>
+        #[pallet::call_index(5)]
+        #[pallet::weight(T::WeightInfo::start_lifetime())]
+        pub fn start_lifetime(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: AssetBalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            // Calculate TPS from amount using the configured ratio
+            let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
+            let ratio_u128: u128 = T::AssetToTpsRatio::get().into();
+            let tps_u128 = amount_u128
+                .checked_mul(ratio_u128)
+                .ok_or(Error::<T>::ArithmeticOverflow)?;
+            let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
+
+            // Lock the assets
+            let asset_id = T::LifetimeAssetId::get();
+            T::Assets::hold(asset_id, &HoldReason::LifetimeSubscription.into(), &sender, amount)
+                .map_err(|_| Error::<T>::CannotLockAssets)?;
+
+            // Create the subscription
+            let now = T::Time::now();
+            let subscription_id = <Subscription<T>>::iter_key_prefix(&sender).count() as u32;
+            <Subscription<T>>::set(
+                &sender,
+                &subscription_id,
+                Some(SubscriptionLedger::new(now, SubscriptionMode::Lifetime { tps })),
+            );
+
+            // Store the locked amount for later unlock
+            <LockedAssets<T>>::set(&sender, &subscription_id, Some(amount));
+
+            Self::deposit_event(Event::SubscriptionActivated(sender, subscription_id));
+            Ok(().into())
+        }
+
+        /// Stop a lifetime subscription and unlock assets.
+        ///
+        /// The dispatch origin for this call must be _Signed_ and must be the subscription owner.
+        ///
+        /// # Parameters
+        ///
+        /// * `subscription_id` - The subscription ID to destroy
+        ///
+        /// # Behavior
+        ///
+        /// 1. Verifies caller owns the subscription
+        /// 2. Verifies subscription is a Lifetime subscription created via asset locking
+        /// 3. Retrieves the locked amount
+        /// 4. Unlocks/releases the assets back to the caller
+        /// 5. Removes the subscription from storage
+        /// 6. Emits `SubscriptionStopped` event
+        ///
+        /// # Errors
+        ///
+        /// * `NoSubscription` - Subscription not found
+        /// * `NotAssetLockedSubscription` - Subscription not created via asset locking
+        /// * `CannotUnlockAssets` - Cannot unlock assets
+        ///
+        /// # <weight>
+        /// - Asset release operation
+        /// - Storage removals
+        /// # </weight>
+        #[pallet::call_index(6)]
+        #[pallet::weight(T::WeightInfo::stop_lifetime())]
+        pub fn stop_lifetime(
+            origin: OriginFor<T>,
+            subscription_id: u32,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            // Verify subscription exists
+            ensure!(
+                <Subscription<T>>::contains_key(&sender, &subscription_id),
+                Error::<T>::NoSubscription
+            );
+
+            // Verify this subscription has locked assets
+            let locked_amount = <LockedAssets<T>>::get(&sender, &subscription_id)
+                .ok_or(Error::<T>::NotAssetLockedSubscription)?;
+
+            // Unlock the assets
+            let asset_id = T::LifetimeAssetId::get();
+            T::Assets::release(
+                asset_id,
+                &HoldReason::LifetimeSubscription.into(),
+                &sender,
+                locked_amount,
+                frame_support::traits::tokens::Precision::Exact,
+            )
+            .map_err(|_| Error::<T>::CannotUnlockAssets)?;
+
+            // Remove subscription and locked assets record
+            <Subscription<T>>::remove(&sender, &subscription_id);
+            <LockedAssets<T>>::remove(&sender, &subscription_id);
+
+            Self::deposit_event(Event::SubscriptionStopped(sender, subscription_id));
             Ok(().into())
         }
     }

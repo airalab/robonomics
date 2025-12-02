@@ -118,5 +118,27 @@ mod benchmarks {
         _(RawOrigin::Signed(caller), subscription_id, boxed_call);
     }
 
+    #[benchmark]
+    fn start_lifetime() {
+        // This is a placeholder benchmark - actual implementation would need
+        // proper setup of Assets pallet and funded accounts
+        let caller = funded_account::<T>("caller", 0);
+        let amount = 1000u32.into();
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), amount);
+    }
+
+    #[benchmark]
+    fn stop_lifetime() {
+        // This is a placeholder benchmark - actual implementation would need
+        // proper setup with an existing asset-locked subscription
+        let caller = funded_account::<T>("caller", 0);
+        let subscription_id = 0u32;
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id);
+    }
+
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
 }
