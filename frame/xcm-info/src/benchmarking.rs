@@ -19,11 +19,9 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::{Pallet as XcmInfo, *};
+use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::pallet_prelude::{Get, MaxEncodedLen};
 use frame_system::RawOrigin;
-use parity_scale_codec::{Decode, Encode};
 use sp_std::prelude::*;
 
 #[benchmarks]
@@ -31,8 +29,8 @@ mod benchmarks {
     use super::*;
     #[cfg(test)]
     use frame_system::RawOrigin;
-    use staging_xcm::opaque::v3::MultiLocation;
-    use staging_xcm::v5::NetworkId;
+    use xcm::opaque::v3::MultiLocation;
+    use xcm::v5::NetworkId;
 
     #[benchmark]
     fn set_relay_network() {
