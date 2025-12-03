@@ -59,7 +59,7 @@ jobs:
         with:
           command: build
           toolchain: "1.88.0"
-          force-use-cross: ${{ matrix.platform.runs-on == ubuntu-latest }}
+          force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           use-rust-cache: true
           target: ${{ matrix.platform.target }}
           args: "--locked --profile production"
