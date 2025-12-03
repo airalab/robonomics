@@ -17,7 +17,7 @@ on:
     outputs:
       status:
         description: "Status of the tests"
-        value: ${{ jobs.check-and-tests.outputs.status }}
+        value: ${{ jobs.tests.outputs.status }}
 
 jobs:
   static-checks:

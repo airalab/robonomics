@@ -10,7 +10,7 @@ RESOLC_URL="https://github.com/paritytech/revive/releases/download/v${RESOLC_VER
 
 # Download resolc
 echo "Downloading resolc v${RESOLC_VERSION}..."
-curl -L "${RESOLC_URL}" -o /tmp/resolc
+curl -L --fail --max-time 300 "${RESOLC_URL}" -o /tmp/resolc
 
 # Verify checksum if provided via environment variable
 # Set RESOLC_SHA256 environment variable to enable checksum verification
