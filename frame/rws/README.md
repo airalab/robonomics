@@ -425,6 +425,279 @@ call(
 
 ---
 
+## 🔐 Proxy-Based Subscription Sharing
+
+The RWS pallet integrates with `pallet-proxy` to enable **subscription sharing**. This allows subscription owners to delegate usage of their subscriptions to other accounts without transferring ownership.
+
+### Overview
+
+The `ProxyType::RwsUser(subscription_id)` variant allows controlled delegation:
+- **Single Purpose**: Only allows using a specific subscription via `RWS::call`
+- **No Management Access**: Proxies cannot bid on auctions, claim subscriptions, or perform other management operations
+- **Subscription-Specific**: Each proxy is limited to a single subscription ID
+- **Revocable**: The subscription owner can remove proxy access at any time
+
+Integration with `pallet-proxy` provides:
+- ✅ **Type Safety**: `RwsUser` restricts to subscription usage only
+- ✅ **Subscription-Specific**: Each proxy targets exactly one subscription
+- ✅ **Ownership Preservation**: Original owner retains full control
+- ✅ **Revocability**: Proxies can be removed at any time
+- ✅ **Auditability**: All proxy actions are traceable on-chain
+- ✅ **No Privilege Escalation**: Proxies cannot grant additional permissions
+
+### ProxyType Configuration
+
+The runtime defines a `ProxyType::RwsUser` variant for subscription sharing:
+
+```rust
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+    /// RWS subscription user - allows using a specific subscription via RWS::call
+    /// The parameter is the subscription_id that the proxy can use
+    RwsUser(u32),
+}
+
+impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::RwsUser(allowed_subscription_id) => {
+                // Only allow RWS::call operations for the specific subscription
+                match c {
+                    RuntimeCall::RWS(pallet_rws::Call::call { subscription_id, .. }) => {
+                        subscription_id == allowed_subscription_id
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+    
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
+        }
+    }
+}
+```
+
+### Complete User Story: IoT Device Access
+
+This example demonstrates how Alice shares her subscription with an IoT device.
+
+```rust
+// ═══════════════════════════════════════════════════════════════════
+// SCENARIO: Alice owns a subscription and wants to share it with an
+// IoT device (represented by BOB's account) so the device can execute
+// transactions using Alice's subscription.
+// ═══════════════════════════════════════════════════════════════════
+
+// STEP 1: Alice acquires a subscription
+// ───────────────────────────────────────────────
+Timestamp::set_timestamp(1_000_000);
+
+// Root starts auction for lifetime subscription
+RWS::start_auction(
+    RuntimeOrigin::root(),
+    SubscriptionMode::Lifetime { tps: 1_000_000 }  // 1 TPS
+)?;
+
+// Alice bids and wins
+RWS::bid(RuntimeOrigin::signed(ALICE), 0, 100 * XRT)?;
+// → Alice is winning bidder
+// → 100 XRT reserved from Alice's balance
+
+// Wait for auction to end
+Timestamp::set_timestamp(1_000_000 + AuctionDuration::get() + 1);
+
+// Alice claims the subscription
+RWS::claim(RuntimeOrigin::signed(ALICE), 0, None)?;
+// → Subscription 0 created for Alice
+// → 100 XRT burned
+// → Alice can now use subscription for free transactions
+
+// STEP 2: Alice adds IoT device as RwsUser proxy
+// ────────────────────────────────────────────────
+const IOT_DEVICE: AccountId = BOB; // Device account
+
+// Alice creates a proxy for the IoT device with RwsUser type for subscription 0
+Proxy::add_proxy(
+    RuntimeOrigin::signed(ALICE),
+    IOT_DEVICE,
+    ProxyType::RwsUser(0),  // Can only use subscription 0
+    0  // No announcement delay
+)?;
+// → Device can now use Alice's subscription 0
+// → Device CANNOT bid on auctions, claim subscriptions, or use other subscriptions
+// → Deposit reserved from Alice for proxy storage
+
+// STEP 3: IoT device uses subscription on Alice's behalf
+// ────────────────────────────────────────────────────────
+Timestamp::set_timestamp(2_000_000);
+
+// Device wants to record sensor data using Alice's subscription
+let sensor_data = RuntimeCall::Datalog(
+    pallet_datalog::Call::record {
+        record: b"temperature:23.5C".to_vec().try_into().unwrap()
+    }
+);
+
+// Device executes via proxy
+Proxy::proxy(
+    RuntimeOrigin::signed(IOT_DEVICE),
+    ALICE,  // Real account (subscription owner)
+    Some(ProxyType::RwsUser(0)),
+    Box::new(RuntimeCall::RWS(
+        pallet_rws::Call::call {
+            subscription_id: 0,
+            call: Box::new(sensor_data)
+        }
+    ))
+)?;
+// → Device successfully uses Alice's subscription
+// → Transaction executes with Pays::No (no fees)
+// → Alice's subscription weight is deducted
+// → Sensor data recorded to chain
+
+// STEP 4: Alice can revoke access when needed
+// ───────────────────────────────────────────────
+// If device is compromised or decommissioned, Alice revokes access
+Proxy::remove_proxy(
+    RuntimeOrigin::signed(ALICE),
+    IOT_DEVICE,
+    ProxyType::RwsUser(0),
+    0
+)?;
+// → Device can no longer use Alice's subscription
+// → Alice's deposit returned
+// → Subscription remains active for Alice
+
+// STEP 5: Alice retains full control
+// ──────────────────────────────────────────────────
+RWS::call(
+    RuntimeOrigin::signed(ALICE),
+    0,  // subscription_id
+    Box::new(RuntimeCall::Datalog(
+        pallet_datalog::Call::record {
+            record: b"manual_entry:data".to_vec().try_into().unwrap()
+        }
+    ))
+)?;
+// → Alice retains full control regardless of proxy status
+```
+
+### Additional Usage Example: Multisig Shared Subscription
+
+Combine with multisig for team-managed subscription sharing:
+
+```rust
+// Team creates a multisig account and acquires subscription
+let team_account = TEAM_MULTISIG;
+
+// Team multisig wins auction and claims subscription
+RWS::bid(RuntimeOrigin::signed(TEAM_MULTISIG), 0, 200 * XRT)?;
+// ... auction ends ...
+RWS::claim(RuntimeOrigin::signed(TEAM_MULTISIG), 0, None)?;
+
+// Team adds individual members as RwsUser proxies
+Proxy::add_proxy(
+    RuntimeOrigin::signed(TEAM_MULTISIG),
+    ALICE,
+    ProxyType::RwsUser(0),  // Alice can use team subscription 0
+    0
+)?;
+
+Proxy::add_proxy(
+    RuntimeOrigin::signed(TEAM_MULTISIG),
+    BOB,
+    ProxyType::RwsUser(0),  // Bob can also use team subscription 0
+    0
+)?;
+
+// Now Alice or Bob can use the team subscription independently
+Proxy::proxy(
+    RuntimeOrigin::signed(ALICE),
+    TEAM_MULTISIG,
+    Some(ProxyType::RwsUser(0)),
+    Box::new(RuntimeCall::RWS(pallet_rws::Call::call {
+        subscription_id: 0,
+        call: Box::new(some_transaction)
+    }))
+)?;
+```
+
+### Security Considerations
+
+#### Type Safety
+- **Restricted Call Space**: `ProxyType::RwsUser` only allows `RWS::call` for a specific subscription
+- **No Management Operations**: Proxies cannot bid on auctions, claim subscriptions, or perform other management tasks
+- **Compile-Time Guarantees**: Substrate's type system enforces restrictions
+
+#### Subscription-Specific Control
+- **Single Subscription**: Each proxy is limited to exactly one subscription ID
+- **No Cross-Subscription Access**: Proxy for subscription 0 cannot access subscription 1
+- **Granular Permissions**: Owner can create different proxies for different subscriptions
+
+#### Ownership Preservation
+- **Owner Supremacy**: Original account owner retains full control
+- **Independent Access**: Owner can use subscription even while proxies are active
+- **Proxy Removal**: Owner can revoke proxy access instantly
+- **No Transfer**: Proxies do not transfer ownership; they delegate specific operations
+
+#### Revocability
+- **Instant Revocation**: `Proxy::remove_proxy` immediately blocks proxy access
+- **Deposit Recovery**: Proxy deposits returned to owner upon removal
+- **No Backdoors**: Revoked proxies have zero access to subscription
+
+#### Auditability
+- **On-Chain Records**: All proxy actions emit events with full context
+- **Transparent Delegation**: `Proxy::proxies(account)` lists all active proxies
+- **Action Attribution**: Events identify both proxy (delegate) and real (owner) accounts
+
+#### No Privilege Escalation
+- **Closed Permission Model**: Proxies cannot grant new proxies
+- **Usage Only**: `RwsUser` proxies can only execute calls via subscriptions
+- **Isolated Operations**: Actions limited to explicitly granted capabilities
+
+### Use Cases
+
+#### 1. IoT Device Fleet Management
+- **Scenario**: Company with sensors needing free transactions
+- **Solution**: Company account owns subscription; each sensor is a proxy
+- **Benefits**: 
+  - Sensors operate autonomously without exposing company keys
+  - Individual sensor compromise doesn't affect others (revoke single proxy)
+  - Centralized subscription management with distributed execution
+
+#### 2. Shared Team Subscriptions
+- **Scenario**: Team wants shared subscription for member activities
+- **Solution**: Multisig account owns subscription; members are proxies
+- **Benefits**:
+  - Members can use subscription without multisig approval per transaction
+  - Critical operations (new subscription, revoke member) require multisig
+  - Clear audit trail of which member performed each action
+
+#### 3. Service Account Delegation
+- **Scenario**: Backend service needs to execute transactions for users
+- **Solution**: Users grant service account proxy access to their subscriptions
+- **Benefits**:
+  - Service can operate on behalf of users
+  - Users retain ownership and control
+  - Users can revoke access anytime
+
+#### 4. Temporary Access
+- **Scenario**: User needs contractor to test subscription usage
+- **Solution**: Grant contractor `RwsUser` proxy for limited time
+- **Benefits**:
+  - Contractor can test subscription usage
+  - Easy revocation after engagement ends
+  - No access to management operations
+
+---
+
 ## 🔍 Key Design Features
 
 ### Account-Based Subscription Model

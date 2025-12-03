@@ -19,7 +19,9 @@
 
 use crate::{self as pallet_rws};
 use frame_support::{derive_impl, parameter_types, traits::ConstU64};
-use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, BuildStorage, RuntimeDebug};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -29,6 +31,57 @@ const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
 
+/// Proxy type for testing
+#[derive(
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    RuntimeDebug,
+    MaxEncodedLen,
+    TypeInfo,
+)]
+pub enum ProxyType {
+    Any,
+    RwsUser(u32),
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::RwsUser(allowed_subscription_id) => {
+                // Only allow RWS::call operations for the specific subscription
+                match c {
+                    RuntimeCall::RWS(pallet_rws::Call::call { subscription_id, .. }) => {
+                        subscription_id == allowed_subscription_id
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+    
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
+        }
+    }
+}
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
     pub enum Test
@@ -36,6 +89,7 @@ frame_support::construct_runtime!(
         System: frame_system,
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
+        Proxy: pallet_proxy,
         RWS: pallet_rws,
     }
 );
@@ -75,6 +129,29 @@ impl pallet_timestamp::Config for Test {
     type OnTimestampSet = ();
     type MinimumPeriod = ConstU64<1>;
     type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const ProxyDepositBase: Balance = 1;
+    pub const ProxyDepositFactor: Balance = 1;
+    pub const AnnouncementDepositBase: Balance = 1;
+    pub const AnnouncementDepositFactor: Balance = 1;
+}
+
+impl pallet_proxy::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = frame_support::traits::ConstU32<32>;
+    type MaxPending = frame_support::traits::ConstU32<32>;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+    type WeightInfo = ();
+    type BlockNumberProvider = System;
 }
 
 parameter_types! {

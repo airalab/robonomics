@@ -50,6 +50,7 @@ pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
+pallet-proxy.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-system.workspace = true
 frame-try-runtime = { optional = true, workspace = true }
@@ -128,6 +129,7 @@ std = [
   "pallet-membership/std",
   "pallet-multisig/std",
   "pallet-preimage/std",
+  "pallet-proxy/std",
   "frame-support/std",
   "frame-system/std",
   "frame-system-rpc-runtime-api/std",
@@ -169,6 +171,7 @@ runtime-benchmarks = [
   "pallet-balances/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
+  "pallet-proxy/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",

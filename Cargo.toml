@@ -167,6 +167,7 @@ pallet-message-queue = { version = "46.0.0", default-features = false }
 pallet-multisig = { version = "43.0.0", default-features = false }
 pallet-migrations = { version = "13.0.0", default-features = false }
 pallet-preimage = { version = "43.0.0", default-features = false }
+pallet-proxy = { version = "43.0.0", default-features = false }
 pallet-scheduler = { version = "44.0.0", default-features = false }
 pallet-session = { version = "43.0.0", default-features = false }
 pallet-state-trie-migration = { version = "48.0.0", default-features = false }
