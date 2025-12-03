@@ -32,21 +32,12 @@ jobs:
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler
-
-    - name: Install solc
+    - name: Install dependencies
       run: |
         sudo add-apt-repository ppa:ethereum/ethereum -y
         sudo apt update
-        sudo apt -y install solc
-
-    - name: Install resolc stub
-      run: |
+        sudo apt -y install pkg-config protobuf-compiler solc
         sudo cp ./scripts/resolc /usr/local/bin/resolc
-        sudo chmod +x /usr/local/bin/resolc
 
     - name: Build node with runtime-benchmarks
       run: cargo build --features runtime-benchmarks --profile production --locked
