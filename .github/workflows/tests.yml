@@ -3,12 +3,16 @@ permissions:
   contents: read
 
 on:
+  push:
+    branches:
+    - 'master'
   pull_request:
     types:
       - opened
     branches:
     - 'feat/*'
     - 'fix/*'
+    - 'release/*'
   workflow_call:
     outputs:
       status:
@@ -38,3 +42,37 @@ jobs:
 
     - name: Run all tests
       run: cargo test --workspace --locked
+
+  build-runtime-benchmarks:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v4
+
+    - name: Install rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt -y install pkg-config protobuf-compiler
+
+    - name: Install solc
+      run: |
+        sudo add-apt-repository ppa:ethereum/ethereum -y
+        sudo apt update
+        sudo apt -y install solc
+
+    - name: Install resolc
+      run: |
+        bash ./scripts/install-resolc.sh
+
+    - name: Build node with runtime-benchmarks
+      run: cargo build --features runtime-benchmarks --profile production --locked
+
+    - name: Upload benchmark binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: robonomics-benchmarks
+        path: target/production/robonomics
