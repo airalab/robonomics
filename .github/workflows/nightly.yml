@@ -35,10 +35,10 @@ jobs:
     strategy:
       matrix:
         platform:
-          - os-name: Alpine-x86_64
+          - os-name: Linux-x86_64
             runs-on: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - os-name: Alpine-aarch64
+          - os-name: Linux-aarch64
             runs-on: ubuntu-latest
             target: aarch64-unknown-linux-musl
           - os-name: Windows-x86_64
@@ -51,6 +51,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Protoc
+        if: ${{ matrix.platform.runs-on != 'ubuntu-latest' }}
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
