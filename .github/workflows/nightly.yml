@@ -25,6 +25,9 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
+  benchmarks:
+    uses: ./.github/workflows/benchmarks.yml
+
   release-binary:
     needs: tests
     name: Binary - ${{ matrix.platform.os-name }}
