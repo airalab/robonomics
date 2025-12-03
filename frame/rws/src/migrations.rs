@@ -215,7 +215,7 @@ pub mod v2 {
                 // Check if there might be more entries to clear (cursor indicates incomplete clearing)
                 if clear_result.maybe_cursor.is_some() {
                     log::warn!(
-                        "⚠️  Devices storage not fully cleared in migration. {} entries cleared, but more remain. \
+                        "[WARNING] Devices storage not fully cleared in migration. {} entries cleared, but more remain. \
                         Consider running a follow-up migration or manual cleanup.",
                         clear_result.unique
                     );

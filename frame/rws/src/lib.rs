@@ -1117,7 +1117,7 @@ pub mod pallet {
             let tps_u128 = amount_u128
                 .checked_mul(ratio_parts)
                 .ok_or(Error::<T>::ArithmeticOverflow)?
-                // Divide by 10 because the ratio represents μTPS per 10 tokens, giving the per-token rate
+                // Divide by 10 because the ratio represents uTPS per 10 tokens, giving the per-token rate
                 .checked_div(10)
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
             let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
