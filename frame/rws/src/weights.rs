@@ -52,6 +52,8 @@ pub trait WeightInfo {
 	fn bid() -> Weight;
 	fn claim() -> Weight;
 	fn start_auction() -> Weight;
+	fn start_lifetime() -> Weight;
+	fn stop_lifetime() -> Weight;
 }
 
 /// Weights for `pallet_robonomics_rws` using the Substrate node and recommended hardware.
@@ -96,6 +98,25 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+	/// Storage: `Assets::Asset` (r:1 w:0)
+	/// Storage: `Assets::Account` (r:1 w:1)
+	/// Storage: `RWS::Subscription` (r:1 w:1)
+	/// Storage: `RWS::LockedAssets` (r:0 w:1)
+	fn start_lifetime() -> Weight {
+		// Placeholder weight - should be benchmarked
+		Weight::from_parts(50_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+	/// Storage: `RWS::Subscription` (r:1 w:1)
+	/// Storage: `RWS::LockedAssets` (r:1 w:1)
+	/// Storage: `Assets::Account` (r:1 w:1)
+	fn stop_lifetime() -> Weight {
+		// Placeholder weight - should be benchmarked
+		Weight::from_parts(45_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
 }
 
 // For backwards compatibility and tests.
@@ -137,6 +158,18 @@ impl WeightInfo for () {
 		// Minimum execution time: 18_170_000 picoseconds.
 		Weight::from_parts(24_099_000, 17871)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	fn start_lifetime() -> Weight {
+		// Placeholder weight - should be benchmarked
+		Weight::from_parts(50_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	fn stop_lifetime() -> Weight {
+		// Placeholder weight - should be benchmarked
+		Weight::from_parts(45_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 }

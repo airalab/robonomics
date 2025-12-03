@@ -21,9 +21,16 @@
 
 use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, pallet_prelude::Get, traits::Currency};
+use frame_support::{
+    assert_ok, 
+    pallet_prelude::Get, 
+    traits::{Currency, fungibles::{Inspect, Mutate}, Time}
+};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
+
+type AssetBalanceOf<T> =
+    <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
 const SEED: u32 = 0;
 
@@ -93,6 +100,45 @@ mod benchmarks {
     // 1. Use the runtime's RuntimeCall type directly
     // 2. Or add a BenchmarkHelper trait to the pallet Config that provides a method to
     //    construct sample Call values for benchmarking
+
+    #[benchmark]
+    fn start_lifetime() {
+        // Get a whitelisted caller
+        let caller: T::AccountId = whitelisted_caller();
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        
+        // Get the asset ID from config
+        let asset_id = T::LifetimeAssetId::get();
+        
+        // Mint assets to the caller using the Assets trait
+        // This assumes the runtime benchmark environment has the asset created
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), amount);
+    }
+
+    #[benchmark]
+    fn stop_lifetime() {
+        // Setup: Create asset-locked subscription first
+        let caller: T::AccountId = whitelisted_caller();
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        let asset_id = T::LifetimeAssetId::get();
+        
+        // Mint assets to the caller
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+        
+        // Create the subscription via start_lifetime
+        assert_ok!(Pallet::<T>::start_lifetime(
+            RawOrigin::Signed(caller.clone()).into(),
+            amount
+        ));
+        
+        let subscription_id = 0u32;
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id);
+    }
 
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
 }
