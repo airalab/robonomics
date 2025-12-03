@@ -404,35 +404,36 @@ RWS::stop_lifetime(
 
 ```rust
 // Company deploys 10 IoT devices, each needs its own subscription
-// Assume we have device accounts: DEVICE_0, DEVICE_1, ..., DEVICE_9
+// Device accounts could be generated from a seed or derived from company account
 
-// Array of device account identifiers
-let device_accounts = [DEVICE_0, DEVICE_1, DEVICE_2, DEVICE_3, DEVICE_4,
-                       DEVICE_5, DEVICE_6, DEVICE_7, DEVICE_8, DEVICE_9];
+// Example device account generation (simplified)
+let device_accounts: Vec<AccountId> = (0..10)
+    .map(|i| derive_account_from_seed(&format!("company-device-{}", i)))
+    .collect();
 
-for device_id in 0..10 {
+for (device_id, device_account) in device_accounts.iter().enumerate() {
     // Each device gets 0.02 TPS (20,000 μTPS)
     // Required: 20,000 / 100 = 200 tokens per device
     RWS::start_lifetime(
-        RuntimeOrigin::signed(device_accounts[device_id]),
+        RuntimeOrigin::signed(device_account.clone()),
         200
     )?;
-    // → Each device gets subscription_id 0
+    // → Each device gets subscription_id 0 (their first subscription)
     // → Total locked: 10 × 200 = 2,000 tokens
 }
 
 // Each device operates independently
-for device_id in 0..10 {
+for device_account in &device_accounts {
     RWS::call(
-        RuntimeOrigin::signed(device_accounts[device_id]),
+        RuntimeOrigin::signed(device_account.clone()),
         0, // Each device's first subscription
-        Box::new(device_operation)
+        Box::new(device_operation.clone())
     )?;
 }
 
-// Decommission device 5
+// Decommission device 5 (index 5 in the array)
 RWS::stop_lifetime(
-    RuntimeOrigin::signed(device_accounts[5]),
+    RuntimeOrigin::signed(device_accounts[5].clone()),
     0
 )?;
 // → 200 tokens recovered from device 5
