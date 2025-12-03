@@ -78,7 +78,6 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
             (ProxyType::Any, _) => true,
             (_, ProxyType::Any) => false,
             (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
-            _ => false,
         }
     }
 }
