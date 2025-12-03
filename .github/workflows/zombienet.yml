@@ -49,6 +49,24 @@ jobs:
       - name: Build Robonomics
         run: cargo build --profile production
 
+      - name: Install Polkadot binaries
+        run: |
+          POLKADOT_VERSION="v1.15.2"
+          
+          # Download polkadot binary
+          wget -q https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot || exit 1
+          chmod +x polkadot
+          sudo mv polkadot /usr/local/bin/
+          
+          # Download polkadot-parachain binary
+          wget -q https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot-parachain || exit 1
+          chmod +x polkadot-parachain
+          sudo mv polkadot-parachain /usr/local/bin/
+          
+          # Verify installations
+          polkadot --version
+          polkadot-parachain --version
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
