@@ -14,14 +14,18 @@ curl -L --fail --max-time 300 "${RESOLC_URL}" -o /tmp/resolc
 
 # Verify checksum if provided via environment variable
 # Set RESOLC_SHA256 environment variable to enable checksum verification
-if [ -n "${RESOLC_SHA256}" ] && command -v sha256sum &> /dev/null; then
-    echo "Verifying checksum..."
-    echo "${RESOLC_SHA256}  /tmp/resolc" | sha256sum -c - || {
-        echo "Error: Checksum verification failed!"
-        rm -f /tmp/resolc
-        exit 1
-    }
-    echo "Checksum verification passed"
+if [ -n "${RESOLC_SHA256}" ]; then
+    if command -v sha256sum &> /dev/null; then
+        echo "Verifying checksum..."
+        echo "${RESOLC_SHA256}  /tmp/resolc" | sha256sum -c - || {
+            echo "Error: Checksum verification failed!"
+            rm -f /tmp/resolc
+            exit 1
+        }
+        echo "Checksum verification passed"
+    else
+        echo "Warning: RESOLC_SHA256 is set but sha256sum is not available. Skipping verification."
+    fi
 else
     echo "Note: Skipping checksum verification (set RESOLC_SHA256 environment variable to enable)"
 fi
