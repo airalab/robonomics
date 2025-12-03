@@ -17,6 +17,9 @@ on:
         value: ${{ jobs.build-benchmarks.outputs.status }}
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   build-benchmarks:
     needs: tests
     runs-on: ubuntu-latest
