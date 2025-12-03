@@ -768,6 +768,10 @@ pub mod pallet {
         NotAssetLockedSubscription,
         /// Cannot unlock assets. The transfer back to the owner failed.
         CannotUnlockAssets,
+        /// Invalid subscription state detected (data inconsistency).
+        InvalidSubscriptionState,
+        /// Invalid auction state detected (data inconsistency from migration).
+        InvalidAuctionState,
     }
 
     #[pallet::event]
@@ -883,8 +887,8 @@ pub mod pallet {
                         }
                     } else {
                         // This should never happen as Daily subscriptions always have expiration_time
-                        // but handle gracefully to avoid panics
-                        Err(Error::<T>::SubscriptionIsOver)?
+                        // This represents a data inconsistency
+                        Err(Error::<T>::InvalidSubscriptionState)?
                     }
                 }
             };
@@ -949,9 +953,9 @@ pub mod pallet {
                         Error::<T>::BiddingPeriodIsOver,
                     );
                 } else {
-                    // If there's a winner but no first_bid_time (should only happen with migrated auctions),
-                    // reject further bids to prevent undefined behavior
-                    return Err(Error::<T>::BiddingPeriodIsOver.into());
+                    // If there's a winner but no first_bid_time, this represents a data inconsistency
+                    // from migration. Reject further bids to prevent undefined behavior.
+                    return Err(Error::<T>::InvalidAuctionState.into());
                 }
 
                 T::AuctionCurrency::reserve(&sender, amount)?;
@@ -1110,11 +1114,12 @@ pub mod pallet {
             let ratio = T::AssetToTpsRatio::get();
             
             // Calculate: (amount * ratio_parts) / 10
+            // The ratio represents μTPS per 10 tokens, so we divide by 10 to get the per-token rate
             let ratio_parts: u128 = ratio.deconstruct().into();
             let tps_u128 = amount_u128
                 .checked_mul(ratio_parts)
                 .ok_or(Error::<T>::ArithmeticOverflow)?
-                .checked_div(10)
+                .checked_div(10) // Divide by 10 because the ratio represents μTPS per 10 tokens
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
             let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
 
@@ -1122,7 +1127,7 @@ pub mod pallet {
             let asset_id = T::LifetimeAssetId::get();
             let pallet_account = T::PalletId::get().into_account_truncating();
             
-            T::Assets::transfer(asset_id, &sender, &pallet_account, amount, frame_support::traits::tokens::Preservation::Expendable)
+            T::Assets::transfer(asset_id, &sender, &pallet_account, amount, frame_support::traits::tokens::Preservation::Preserve)
                 .map_err(|_| Error::<T>::CannotLockAssets)?;
 
             // Create the subscription

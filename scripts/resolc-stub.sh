@@ -18,7 +18,8 @@
 
 # Check if we're being called with --standard-json
 if [ "$1" = "--standard-json" ]; then
-    # Read the JSON input from stdin (not used but needs to be consumed)
+    # Read the JSON input from stdin (not used, but must be consumed to prevent broken pipe errors
+    # or stdin buffer issues when the caller expects the script to read input)
     cat > /dev/null
     
     # Return a minimal valid JSON response with empty compilation results
