@@ -187,8 +187,8 @@ parameter_types! {
     pub const AuctionDuration: u64 = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: u128 = 100;
     pub const LifetimeAssetId: AssetId = LIFETIME_ASSET_ID;
-    // Ratio: Permill::from_parts(1_000) = 1000 μTPS per 10 tokens = 100 μTPS per 1 token
-    pub AssetToTpsRatio: Permill = Permill::from_parts(1_000);
+    // Ratio: Permill::from_parts(100) = 100 μTPS per 1 token
+    pub AssetToTpsRatio: Permill = Permill::from_parts(100);
     pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 

@@ -205,12 +205,21 @@ pub mod v2 {
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
                 // Clear Devices storage in batches to avoid unbounded operations.
-                // NOTE: This migration only clears up to 1000 device entries (MAX_REMOVALS).
-                // If there are more than 1000 device entries in production, this migration will be incomplete.
-                // Manual intervention or multi-block migration is required to fully clear Devices storage in such cases.
+                // This attempts to clear up to MAX_REMOVALS entries. If there are more entries,
+                // they will remain and should be manually cleaned or handled in a follow-up migration.
                 const MAX_REMOVALS: u32 = 1000;
-                let devices_count = Devices::<T>::clear(MAX_REMOVALS, None).unique as u64;
+                let clear_result = Devices::<T>::clear(MAX_REMOVALS, None);
+                let devices_count = clear_result.unique as u64;
                 weight = weight.saturating_add(T::DbWeight::get().writes(devices_count));
+                
+                // Check if there might be more entries to clear (cursor indicates incomplete clearing)
+                if clear_result.maybe_cursor.is_some() {
+                    log::warn!(
+                        "[WARNING] Devices storage not fully cleared in migration. {} entries cleared, but more remain. \
+                        Consider running a follow-up migration or manual cleanup.",
+                        clear_result.unique
+                    );
+                }
 
                 AuctionQueue::<T>::kill();
                 weight = weight.saturating_add(T::DbWeight::get().writes(1));

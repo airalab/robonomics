@@ -453,31 +453,41 @@ fn test_free_weight_accumulation() {
 
         let initial_time = 1_000_000 + 100_000;
 
-        // Check weight accumulation over time
-        Timestamp::set_timestamp(initial_time + 1_000);
+        // Wait 10 seconds to accumulate enough weight for a transfer call
+        // At 1_000_000 uTPS (1 TPS):
+        // Weight = ReferenceCallWeight * uTPS * delta_ms / 1_000_000_000
+        // Weight = 70_952_000 * 1_000_000 * 10_000 / 1_000_000_000 = 709_520_000
+        Timestamp::set_timestamp(initial_time + 10_000);
         let call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
             dest: BOB,
             value: 1,
         });
-        // This call just updates the subscription weight
-        let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call));
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call)));
 
         let sub1 = RWS::subscription(ALICE, 0).unwrap();
         let weight1 = sub1.free_weight;
+        
+        // Verify that some weight remains after the call (accumulated weight > call weight)
+        assert!(weight1 > 0, "Weight should remain after call: {}", weight1);
 
-        // Wait another second
-        Timestamp::set_timestamp(initial_time + 2_000);
+        // Wait another 10 seconds for more weight to accumulate
+        Timestamp::set_timestamp(initial_time + 20_000);
         let call2 = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
             dest: BOB,
             value: 1,
         });
-        let _ = RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call2));
+        assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, Box::new(call2)));
 
         let sub2 = RWS::subscription(ALICE, 0).unwrap();
         let weight2 = sub2.free_weight;
 
-        // Weight should have accumulated more
-        assert!(weight2 > weight1 || weight2 == weight1); // May be same if call consumed accumulated weight
+        // Weight should have accumulated between the two calls
+        // Since both calls consume similar weight and 10 seconds passed, weight2 should be > weight1
+        assert!(
+            weight2 > weight1,
+            "Weight should accumulate over time. weight1: {}, weight2: {}",
+            weight1, weight2
+        );
     });
 }
 
