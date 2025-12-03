@@ -1113,13 +1113,12 @@ pub mod pallet {
             let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::AssetAmountConversionFailed)?;
             let ratio = T::AssetToTpsRatio::get();
             
-            // Calculate: (amount * ratio_parts) / 10
-            // The ratio represents μTPS per 10 tokens, so we divide by 10 to get the per-token rate
             let ratio_parts: u128 = ratio.deconstruct().into();
             let tps_u128 = amount_u128
                 .checked_mul(ratio_parts)
                 .ok_or(Error::<T>::ArithmeticOverflow)?
-                .checked_div(10) // Divide by 10 because the ratio represents μTPS per 10 tokens
+                // Divide by 10 because the ratio represents μTPS per 10 tokens, giving the per-token rate
+                .checked_div(10)
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
             let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
 
