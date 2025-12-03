@@ -167,6 +167,11 @@ run_tests() {
     # Ensure we're in the zombienet directory
     cd "$SCRIPT_DIR"
     
+    # Add bin directory and robonomics binary directory to PATH so Zombienet can find all binaries
+    local robonomics_dir="$(dirname "$ROBONOMICS_BIN")"
+    export PATH="${SCRIPT_DIR}/bin:${robonomics_dir}:$PATH"
+    log_info "Added ${SCRIPT_DIR}/bin and ${robonomics_dir} to PATH"
+    
     # Update the config to use the correct binaries
     log_info "Using configuration: ${CONFIG_FILE}"
     
