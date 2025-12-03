@@ -160,6 +160,350 @@ PHASE 4: USAGE
 
 ---
 
+## 🔐 Lifetime Subscriptions via Asset Locking
+
+In addition to the auction-based subscription model, users can acquire **Lifetime subscriptions directly** by locking assets from pallet-assets. This provides an alternative path that doesn't require waiting for auctions or competing with other bidders.
+
+### Overview and Benefits
+
+The asset locking mechanism offers several advantages:
+
+✅ **Immediate Activation** - No waiting for auctions or competing with other bidders  
+✅ **Recoverable Cost** - Assets are locked, not burned - can be recovered via `stop_lifetime()`  
+✅ **Flexible TPS** - Configure your transaction capacity by adjusting locked amount  
+✅ **No Competition** - Direct acquisition without market-driven bidding  
+✅ **On-Demand Control** - Start and stop subscriptions at will  
+
+### Asset-to-TPS Conversion Formula
+
+The relationship between locked assets and TPS allocation is governed by the `AssetToTpsRatio` configuration parameter, which uses Substrate's `Permill` type for precise ratio representation:
+
+```
+TPS (μTPS) = Locked Asset Amount × AssetToTpsRatio.parts
+```
+
+**Formula Components:**
+- `AssetToTpsRatio`: A `Permill` value representing μTPS per token
+- `Locked Asset Amount`: Number of tokens locked in pallet account
+- `TPS (μTPS)`: Resulting micro-transactions per second (1 TPS = 1,000,000 μTPS)
+
+**Example Calculations:**
+
+With `AssetToTpsRatio = Permill::from_parts(100)` (100 μTPS per token):
+
+| Locked Amount | Calculation | Result (μTPS) | Result (TPS) |
+|---------------|-------------|---------------|--------------|
+| 100 tokens    | 100 × 100   | 10,000 μTPS   | 0.01 TPS     |
+| 500 tokens    | 500 × 100   | 50,000 μTPS   | 0.05 TPS     |
+| 1,000 tokens  | 1000 × 100  | 100,000 μTPS  | 0.1 TPS      |
+| 10,000 tokens | 10000 × 100 | 1,000,000 μTPS| 1.0 TPS      |
+
+With `AssetToTpsRatio = Permill::from_parts(1000)` (1,000 μTPS per token):
+
+| Locked Amount | Calculation | Result (μTPS) | Result (TPS) |
+|---------------|-------------|---------------|--------------|
+| 10 tokens     | 10 × 1000   | 10,000 μTPS   | 0.01 TPS     |
+| 50 tokens     | 50 × 1000   | 50,000 μTPS   | 0.05 TPS     |
+| 100 tokens    | 100 × 1000  | 100,000 μTPS  | 0.1 TPS      |
+| 1,000 tokens  | 1000 × 1000 | 1,000,000 μTPS| 1.0 TPS      |
+
+Using `Permill` provides better precision and prevents overflow issues in the calculation.
+
+### Lifecycle Diagram
+
+```
+╔════════════════════════════════════════════════════════════════════╗
+║           ASSET LOCKING SUBSCRIPTION LIFECYCLE                     ║
+╚════════════════════════════════════════════════════════════════════╝
+
+PHASE 1: LOCK ASSETS & ACTIVATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────┐
+│ User                       │
+│ Has: 500 asset tokens      │
+└────────┬───────────────────┘
+         │ start_lifetime(500)
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Asset Transfer                     │
+│ • 500 tokens → Pallet Account      │
+│ • Assets LOCKED (not burned)       │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ TPS Calculation                    │
+│ • Amount: 500                      │
+│ • Ratio: 100 μTPS per token        │
+│ • Result: 50,000 μTPS (0.05 TPS)   │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Subscription Created               │
+│ • subscription_id: 0               │
+│ • mode: Lifetime { tps: 50000 }    │
+│ • free_weight: 0                   │
+│ • Never expires                    │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Storage Updates                    │
+│ • Subscription(User, 0) → Ledger   │
+│ • LockedAssets(User, 0) → 500      │
+└────────────────────────────────────┘
+         │
+         │ Emits: SubscriptionActivated(User, 0)
+         ▼
+
+
+PHASE 2: ACTIVE USAGE
+━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ User executes free transactions    │
+│ └─▶ call(subscription_id: 0, ...)  │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Weight Accumulation                │
+│ • Time passes → free_weight grows  │
+│ • Rate: 50,000 μTPS (0.05 TPS)     │
+│ • Call deducts used weight         │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Transaction Executes               │
+│ • Pays::No (feeless)               │
+│ • Assets remain locked             │
+└────────────────────────────────────┘
+         │
+         │ (User decides to stop)
+         ▼
+
+
+PHASE 3: STOP & UNLOCK
+━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ User                               │
+│ └─▶ stop_lifetime(subscription_id: 0)│
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Validation                         │
+│ • Subscription exists?             │
+│ • Has locked assets?               │
+│ • Caller is owner?                 │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Asset Unlock                       │
+│ • 500 tokens → User Account        │
+│ • Pallet Account → User            │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Storage Cleanup                    │
+│ • Remove Subscription(User, 0)     │
+│ • Remove LockedAssets(User, 0)     │
+└────────────────────────────────────┘
+         │
+         │ Emits: SubscriptionStopped(User, 0)
+         ▼
+    [ASSETS RECOVERED]
+```
+
+### Complete Usage Examples
+
+#### Example 1: Basic Lifetime Subscription
+
+```rust
+// Alice wants 0.05 TPS (50,000 μTPS) subscription
+// With AssetToTpsRatio = Permill::from_parts(100) (100 μTPS per token)
+// She needs: 50,000 / 100 = 500 tokens
+
+// STEP 1: Alice locks assets to create subscription
+RWS::start_lifetime(
+    RuntimeOrigin::signed(alice),
+    500 // amount of assets to lock
+)?;
+// → Alice's subscription_id is 0 (her first subscription)
+// → 500 tokens transferred to pallet account
+// → Subscription with 50,000 μTPS (0.05 TPS) created
+// → Emits: SubscriptionActivated(alice, 0)
+
+// STEP 2: Alice uses subscription for feeless transactions
+RWS::call(
+    RuntimeOrigin::signed(alice),
+    0, // subscription_id
+    Box::new(RuntimeCall::Datalog(
+        pallet_datalog::Call::record {
+            record: b"sensor_data:temp=23.5C".to_vec()
+        }
+    ))
+)?;
+// → Transaction executes with Pays::No (no fees)
+// → free_weight deducted from subscription
+// → Alice's 500 tokens remain locked
+
+// STEP 3: Alice stops subscription to recover assets
+RWS::stop_lifetime(
+    RuntimeOrigin::signed(alice),
+    0 // subscription_id
+)?;
+// → 500 tokens returned to alice
+// → Subscription removed from storage
+// → Emits: SubscriptionStopped(alice, 0)
+```
+
+#### Example 2: Multiple Subscriptions with Different TPS
+
+```rust
+// Bob wants multiple subscriptions with different capacities
+
+// Subscription 0: Low TPS for monitoring (0.01 TPS = 10,000 μTPS)
+RWS::start_lifetime(
+    RuntimeOrigin::signed(bob),
+    100 // 100 × 100 = 10,000 μTPS
+)?;
+
+// Subscription 1: High TPS for active operations (0.5 TPS = 500,000 μTPS)
+RWS::start_lifetime(
+    RuntimeOrigin::signed(bob),
+    5000 // 5000 × 100 = 500,000 μTPS
+)?;
+
+// Bob uses subscription 0 for monitoring
+RWS::call(
+    RuntimeOrigin::signed(bob),
+    0,
+    Box::new(monitor_call)
+)?;
+
+// Bob uses subscription 1 for heavy operations
+RWS::call(
+    RuntimeOrigin::signed(bob),
+    1,
+    Box::new(heavy_operation_call)
+)?;
+
+// Bob can stop specific subscriptions independently
+RWS::stop_lifetime(
+    RuntimeOrigin::signed(bob),
+    0 // Stop only subscription 0, subscription 1 remains active
+)?;
+```
+
+#### Example 3: IoT Fleet Management
+
+```rust
+// Company deploys 10 IoT devices, each needs its own subscription
+
+for device_id in 0..10 {
+    // Each device gets 0.02 TPS (20,000 μTPS)
+    // Required: 20,000 / 100 = 200 tokens per device
+    RWS::start_lifetime(
+        RuntimeOrigin::signed(device_account[device_id]),
+        200
+    )?;
+    // → Each device gets subscription_id 0
+    // → Total locked: 10 × 200 = 2,000 tokens
+}
+
+// Each device operates independently
+for device_id in 0..10 {
+    RWS::call(
+        RuntimeOrigin::signed(device_account[device_id]),
+        0, // Each device's first subscription
+        Box::new(device_operation)
+    )?;
+}
+
+// Decommission device 5
+RWS::stop_lifetime(
+    RuntimeOrigin::signed(device_account[5]),
+    0
+)?;
+// → 200 tokens recovered from device 5
+// → Other devices unaffected
+```
+
+### Comparison: Asset Locking vs Auction-Based
+
+| Feature | Asset Locking | Auction-Based |
+|---------|--------------|---------------|
+| **Acquisition Speed** | ⚡ Immediate | ⏳ Wait for auction + bidding period |
+| **Cost Type** | 🔒 Locked (recoverable) | 🔥 Burned (permanent) |
+| **Cost Recovery** | ✅ Yes, via `stop_lifetime()` | ❌ No recovery |
+| **Duration** | ♾️ Unlimited (until stopped) | ♾️ Lifetime or ⏰ Daily (fixed) |
+| **TPS Flexibility** | 🎛️ Configurable via amount | 🎯 Fixed by auction type |
+| **Competition** | ✅ None required | ⚔️ Must outbid others |
+| **Entry Barrier** | 💰 Need lockable assets | 💰 Need burnable tokens |
+| **Exit Flexibility** | ✅ Stop anytime | ❌ Cannot stop/refund |
+| **Best For** | Dynamic needs, temporary use | Long-term commitment |
+| **Risk** | 🛡️ Low (recoverable) | ⚠️ High (permanent cost) |
+
+### Storage Structure: LockedAssets
+
+The `LockedAssets` storage is a double map that tracks asset-locked subscriptions:
+
+```
+LockedAssets: StorageDoubleMap<AccountId, u32, AssetBalance>
+                                  ↑        ↑       ↑
+                                  │        │       └─ Amount of assets locked
+                                  │        └─────────── Subscription ID
+                                  └──────────────────── Account owner
+```
+
+**Purpose:**
+- Enables `stop_lifetime()` to determine locked amount for unlock
+- Distinguishes asset-locked subscriptions from auction-based ones
+- Supports multiple subscriptions per account with different locked amounts
+
+**Example Storage State:**
+
+```
+LockedAssets(Alice, 0) = 500
+LockedAssets(Alice, 1) = 1000
+LockedAssets(Bob, 0) = 200
+LockedAssets(Bob, 1) = None  ← Bob's subscription 1 is auction-based
+```
+
+**Lifecycle:**
+- **Created**: When `start_lifetime()` is called
+- **Queried**: When `stop_lifetime()` validates unlock eligibility
+- **Removed**: When `stop_lifetime()` completes successfully
+
+**Relationship to Subscription Storage:**
+
+```
+┌─────────────────────────┐         ┌──────────────────────────┐
+│ Subscription(Alice, 0)  │         │ LockedAssets(Alice, 0)   │
+│ ─────────────────────── │         │ ──────────────────────── │
+│ free_weight: 1_000_000  │ ◄─────► │ amount: 500              │
+│ mode: Lifetime{50000}   │   1:1   │                          │
+│ issue_time: T₀          │  Link   │ For asset-locked subs    │
+│ last_update: T₁         │         │ only                     │
+└─────────────────────────┘         └──────────────────────────┘
+
+┌─────────────────────────┐         ┌──────────────────────────┐
+│ Subscription(Bob, 0)    │         │ LockedAssets(Bob, 0)     │
+│ ─────────────────────── │         │ ──────────────────────── │
+│ mode: Daily{30}         │    ✖    │ None                     │
+│ (auction-based)         │  No     │                          │
+│                         │  Link   │ Auction subs don't have  │
+└─────────────────────────┘         │ locked assets            │
+                                     └──────────────────────────┘
+```
+
+---
+
 ## 💡 Free Weight Mechanism
 
 The system uses **weight-based metering** to control transaction throughput:
@@ -283,6 +627,24 @@ Subscription: DoubleMap<AccountId, u32, SubscriptionLedger>
 └─ Subscription(Bob, 0) ───┐
                            ▼
                      SubscriptionLedger { ... }
+
+
+LockedAssets: DoubleMap<AccountId, u32, AssetBalance>
+├─ LockedAssets(Alice, 0) ─┐
+│                          ▼
+│                        None  ← Auction-based subscription
+│
+├─ LockedAssets(Alice, 1) ─┐
+│                          ▼
+│                        500  ← Asset-locked: 500 tokens locked
+│
+└─ LockedAssets(Bob, 0) ───┐
+                           ▼
+                         200  ← Asset-locked: 200 tokens locked
+
+Note: LockedAssets entries only exist for subscriptions created
+      via start_lifetime(). Auction-based subscriptions have no
+      corresponding LockedAssets entry.
 ```
 
 ---
@@ -343,6 +705,59 @@ Execute a free transaction using a subscription.
 
 ---
 
+#### `start_lifetime(amount)`
+Start a lifetime subscription by locking assets.
+
+**Requirements:**
+- Caller must have sufficient balance of the configured lifetime asset
+- Amount must be convertible to valid TPS value
+
+**Parameters:**
+- `amount: AssetBalance` - Amount of assets to lock
+
+**Effects:**
+- Transfers assets from caller to pallet account (locks them)
+- Calculates TPS using formula: `amount × AssetToTpsRatio`
+- Creates new Lifetime subscription for caller
+- Assigns subscription_id (incremental per account)
+- Stores locked amount in `LockedAssets` storage
+- Emits `SubscriptionActivated` event
+
+**Example:**
+```rust
+// Lock 500 asset tokens
+// With AssetToTpsRatio = Permill::from_parts(100) (100 μTPS per token)
+// This gives: 500 × 100 = 50,000 μTPS (0.05 TPS)
+start_lifetime(500)
+```
+
+---
+
+#### `stop_lifetime(subscription_id)`
+Stop a lifetime subscription and unlock assets.
+
+**Requirements:**
+- Caller must own the subscription
+- Subscription must be a Lifetime subscription created via asset locking
+- Subscription must exist in `LockedAssets` storage
+
+**Parameters:**
+- `subscription_id: u32` - The subscription ID to stop
+
+**Effects:**
+- Transfers locked assets from pallet account back to caller
+- Removes subscription from storage
+- Removes locked amount record from `LockedAssets` storage
+- Emits `SubscriptionStopped` event
+
+**Example:**
+```rust
+// Stop subscription 0 and recover locked assets
+stop_lifetime(0)
+```
+
+---
+
 ### Governance Functions
 
 #### `start_auction(mode)`
@@ -364,9 +779,20 @@ Create a new subscription auction.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `AuctionDuration` | `Moment` | Duration of bidding period (in milliseconds) |
-| `MinimalBid` | `Balance` | Minimum first bid amount |
-| `ReferenceCallWeight` | `u64` | Weight unit for TPS calculations |
+| `Call` | Runtime call type | Type for dispatchable calls that can be executed via subscriptions |
+| `Time` | Time provider | Source for current time/timestamp |
+| `Moment` | Timestamp type | Time representation for durations and timestamps (typically milliseconds) |
+| `AuctionCurrency` | Currency trait | The currency used for auction bids (typically native token) |
+| `Assets` | Fungibles trait | Interaction with pallet-assets for asset locking functionality |
+| `PalletId` | PalletId | Unique identifier for the pallet account that holds locked assets |
+| `LifetimeAssetId` | Asset ID | Specific asset ID used for lifetime subscription asset locking |
+| `AssetToTpsRatio` | Permill | Conversion ratio: μTPS per 1 locked asset token (e.g., Permill::from_parts(100) = 100 μTPS per token) |
+| `RuntimeEvent` | Event type | The overarching event type for runtime |
+| `ReferenceCallWeight` | `u64` | Weight unit for TPS calculations (standard transaction weight) |
+| `AuctionDuration` | `Moment` | Duration of bidding period after first bid (in milliseconds) |
+| `MinimalBid` | `Balance` | Minimum amount for first bid in an auction |
+| `StartAuctionOrigin` | Origin type | Origin authorized to start auctions (typically root or governance) |
+| `WeightInfo` | Weight info trait | Benchmarked weights for extrinsic operations |
 
 ---
 
@@ -375,10 +801,11 @@ Create a new subscription auction.
 | Event | Parameters | Description |
 |-------|------------|-------------|
 | `AuctionStarted` | `(u32)` | New auction created |
-| `NewBid` | `(u32, AccountId, Balance)` | Bid placed |
-| `AuctionFinished` | `(u32)` | Auction claimed |
-| `SubscriptionActivated` | `(AccountId, u32)` | Subscription activated for user |
-| `RwsCall` | `(AccountId, u32, DispatchResult)` | Free transaction executed |
+| `NewBid` | `(u32, AccountId, Balance)` | Bid placed on auction |
+| `AuctionFinished` | `(u32)` | Auction claimed and subscription created |
+| `SubscriptionActivated` | `(AccountId, u32)` | Subscription activated for user (from auction or asset locking) |
+| `SubscriptionStopped` | `(AccountId, u32)` | Asset-locked subscription stopped and assets unlocked |
+| `RwsCall` | `(AccountId, u32, DispatchResult)` | Free transaction executed via subscription |
 
 ---
 
