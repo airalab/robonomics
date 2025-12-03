@@ -27,8 +27,6 @@ use sp_std::prelude::*;
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    #[cfg(test)]
-    use frame_system::RawOrigin;
     use xcm::opaque::v3::MultiLocation;
     use xcm::v5::NetworkId;
 
