@@ -23,6 +23,7 @@ sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-assets = { workspace = true }
+pallet-proxy = { workspace = true }
 
 [features]
 default = ["std"]
@@ -39,6 +40,7 @@ std = [
   "pallet-balances/std",
   "pallet-timestamp/std",
   "pallet-assets/std",
+  "pallet-proxy/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
