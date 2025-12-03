@@ -799,6 +799,9 @@ fn test_start_lifetime_tps_calculation() {
         assert_ok!(RWS::start_lifetime(RuntimeOrigin::signed(ALICE), 2000));
         let sub1 = RWS::subscription(ALICE, 1).unwrap();
         assert_eq!(sub1.mode, SubscriptionMode::Lifetime { tps: 200_000 });
+    });
+}
+
 // ========== Proxy Integration Tests ==========
 // These tests demonstrate proxy-based subscription sharing using ProxyType::RwsUser
 
@@ -1007,6 +1010,11 @@ fn test_stop_lifetime_non_existent_subscription() {
         assert_err!(
             RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 999),
             Error::<Test>::NoSubscription
+        );
+    });
+}
+
+#[test]
 fn owner_can_revoke_proxy_access() {
     new_test_ext().execute_with(|| {
         Timestamp::set_timestamp(1_000_000);
@@ -1093,6 +1101,24 @@ fn test_stop_lifetime_auction_subscription_fails() {
         Timestamp::set_timestamp(1_000_000);
 
         // Create auction-based subscription
+        assert_ok!(RWS::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Lifetime { tps: 10_000 }
+        ));
+        assert_ok!(RWS::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(RWS::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Try to stop auction-based subscription (should fail - no locked assets)
+        assert_err!(
+            RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0),
+            Error::<Test>::NotAssetLockedSubscription
+        );
+    });
+}
+
+#[test]
 fn proxy_type_any_allows_all_operations() {
     new_test_ext().execute_with(|| {
         Timestamp::set_timestamp(1_000_000);
@@ -1182,28 +1208,6 @@ fn test_start_lifetime_events() {
 
         // Check SubscriptionActivated event was emitted
         System::assert_has_event(RuntimeEvent::RWS(Event::SubscriptionActivated(ALICE, 0)));
-        let bid_call = RuntimeCall::RWS(crate::Call::bid {
-            auction_id: 0,
-            amount: 200,
-        });
-        assert_ok!(Proxy::proxy(
-            RuntimeOrigin::signed(BOB),
-            ALICE,
-            Some(ProxyType::Any),
-            Box::new(bid_call)
-        ));
-
-        // BOB can also make balance transfers (Any type allows everything)
-        let transfer_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-            dest: CHARLIE,
-            value: 100,
-        });
-        assert_ok!(Proxy::proxy(
-            RuntimeOrigin::signed(BOB),
-            ALICE,
-            Some(ProxyType::Any),
-            Box::new(transfer_call)
-        ));
     });
 }
 

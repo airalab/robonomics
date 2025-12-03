@@ -18,10 +18,10 @@
 //! Mock runtime for testing RWS pallet.
 
 use crate::{self as pallet_rws};
-use frame_support::{derive_impl, parameter_types, traits::ConstU64};
+use frame_support::{assert_ok, derive_impl, parameter_types, traits::{ConstU32, ConstU64, ConstU128}};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, BuildStorage, RuntimeDebug};
+use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, BuildStorage, Permill, RuntimeDebug};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
