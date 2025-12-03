@@ -179,7 +179,7 @@ The asset locking mechanism offers several advantages:
 The relationship between locked assets and TPS allocation is governed by the `AssetToTpsRatio` configuration parameter, which uses Substrate's `Permill` type for precise ratio representation:
 
 ```
-TPS (μTPS) = Locked Asset Amount × AssetToTpsRatio.parts
+TPS (μTPS) = Locked Asset Amount × AssetToTpsRatio.deconstruct()
 ```
 
 **Formula Components:**
@@ -404,12 +404,17 @@ RWS::stop_lifetime(
 
 ```rust
 // Company deploys 10 IoT devices, each needs its own subscription
+// Assume we have device accounts: DEVICE_0, DEVICE_1, ..., DEVICE_9
+
+// Array of device account identifiers
+let device_accounts = [DEVICE_0, DEVICE_1, DEVICE_2, DEVICE_3, DEVICE_4,
+                       DEVICE_5, DEVICE_6, DEVICE_7, DEVICE_8, DEVICE_9];
 
 for device_id in 0..10 {
     // Each device gets 0.02 TPS (20,000 μTPS)
     // Required: 20,000 / 100 = 200 tokens per device
     RWS::start_lifetime(
-        RuntimeOrigin::signed(device_account[device_id]),
+        RuntimeOrigin::signed(device_accounts[device_id]),
         200
     )?;
     // → Each device gets subscription_id 0
@@ -419,7 +424,7 @@ for device_id in 0..10 {
 // Each device operates independently
 for device_id in 0..10 {
     RWS::call(
-        RuntimeOrigin::signed(device_account[device_id]),
+        RuntimeOrigin::signed(device_accounts[device_id]),
         0, // Each device's first subscription
         Box::new(device_operation)
     )?;
@@ -427,7 +432,7 @@ for device_id in 0..10 {
 
 // Decommission device 5
 RWS::stop_lifetime(
-    RuntimeOrigin::signed(device_account[5]),
+    RuntimeOrigin::signed(device_accounts[5]),
     0
 )?;
 // → 200 tokens recovered from device 5
@@ -630,10 +635,6 @@ Subscription: DoubleMap<AccountId, u32, SubscriptionLedger>
 
 
 LockedAssets: DoubleMap<AccountId, u32, AssetBalance>
-├─ LockedAssets(Alice, 0) ─┐
-│                          ▼
-│                        None  ← Auction-based subscription
-│
 ├─ LockedAssets(Alice, 1) ─┐
 │                          ▼
 │                        500  ← Asset-locked: 500 tokens locked
@@ -643,8 +644,8 @@ LockedAssets: DoubleMap<AccountId, u32, AssetBalance>
                          200  ← Asset-locked: 200 tokens locked
 
 Note: LockedAssets entries only exist for subscriptions created
-      via start_lifetime(). Auction-based subscriptions have no
-      corresponding LockedAssets entry.
+      via start_lifetime(). Auction-based subscriptions (like
+      Alice's subscription 0) do not have entries in this storage.
 ```
 
 ---
