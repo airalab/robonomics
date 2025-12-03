@@ -6,13 +6,20 @@
 with pkgs;
 with llvmPackages;
 
-mkShell {
+let resolc = pkgs.writeShellApplication {
+  name = "resolc";
+  runtimeInputs = [ pkgs.coreutils ];
+  text = (builtins.readFile ./scripts/resolc);
+};
+in mkShell {
   buildInputs = [
     clang
     toolchain
     pkg-config
     openssl
     taplo
+    solc
+    resolc
   ] ++ lib.optionals stdenv.isDarwin [
     darwin.apple_sdk.frameworks.Security
   ];

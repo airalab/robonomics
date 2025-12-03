@@ -52,7 +52,10 @@ runtime-benchmarks = [
   "polkadot-omni-node-lib/runtime-benchmarks",
   "robonomics-runtime/runtime-benchmarks",
 ]
-try-runtime = ["polkadot-omni-node-lib/try-runtime"]
+try-runtime = [
+  "polkadot-omni-node-lib/try-runtime",
+  "robonomics-runtime/try-runtime",
+]
 
 [workspace]
 members = [

@@ -34,8 +34,10 @@ jobs:
 
     - name: Install deps
       run: |
+        sudo add-apt-repository ppa:ethereum/ethereum -y
         sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler
+        sudo apt -y install pkg-config protobuf-compiler solc
+        sudo cp ./scripts/resolc /usr/local/bin/resolc
 
     - name: Run all tests
-      run: cargo test --workspace --locked
+      run: cargo test --release --features try-runtime,runtime-benchmarks --workspace --locked
