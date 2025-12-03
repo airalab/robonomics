@@ -61,9 +61,10 @@ jobs:
         sudo apt update
         sudo apt -y install solc
 
-    - name: Install resolc
+    - name: Install resolc stub
       run: |
-        bash ./scripts/install-resolc.sh
+        sudo cp ./scripts/resolc /usr/local/bin/resolc
+        sudo chmod +x /usr/local/bin/resolc
 
     - name: Build node with runtime-benchmarks
       run: cargo build --features runtime-benchmarks --profile production --locked

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Stub resolc for CI testing
+
+# Handle common flags
+case "${1:-}" in
+  --version|-V)
+    echo "resolc stub v1.0.0 (CI testing mode)"
+    exit 0
+    ;;
+  --help|-h)
+    echo "resolc stub - CI testing mode"
+    echo "This is a stub implementation for CI testing purposes."
+    exit 0
+    ;;
+  *)
+    # Default: accept any arguments and exit successfully
+    exit 0
+    ;;
+esac
