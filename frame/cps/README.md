@@ -331,7 +331,8 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 {
     fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
         // Update metrics
-        Self::increment_payload_updates();
+        // Example: increment counter in your metrics storage
+        log::info!("Metrics: Node {:?} updated", node_id);
     }
 }
 
@@ -389,16 +390,9 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
         // Update metrics storage
-        UpdateMetrics::mutate(|metrics| {
-            metrics.total_updates += 1;
-            metrics.last_update = now();
-            
-            if payload.is_some() {
-                metrics.payload_sets += 1;
-            } else {
-                metrics.payload_clears += 1;
-            }
-        });
+        // Example: track update frequency, payload sizes, etc.
+        log::info!("Analytics: Node {:?} updated, payload present: {}", 
+                   node_id, payload.is_some());
     }
 }
 ```
