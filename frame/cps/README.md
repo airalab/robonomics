@@ -238,6 +238,557 @@ delete_node(node_id)
 
 **Safety**: Cannot delete nodes with children to prevent orphaned subtrees.
 
+## Callbacks
+
+### OnPayloadSet Trait
+
+The CPS pallet provides a comprehensive callback system through the `OnPayloadSet` trait, enabling runtime-level hooks when node payloads are updated. This allows you to extend the pallet's functionality without modifying its core logic.
+
+**When Callbacks Trigger:**
+- After a payload is successfully set via `set_payload()` extrinsic
+- Only after the storage write has completed
+- Before the transaction finalizes
+
+### Trait Definition
+
+```rust
+pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
+    fn on_payload_set(
+        node_id: NodeId,
+        meta: Option<NodeData<EncryptedData>>,
+        payload: Option<NodeData<EncryptedData>>,
+    );
+}
+```
+
+### Implementation Pattern
+
+Create a handler struct and implement the trait:
+
+```rust
+use pallet_robonomics_cps::{OnPayloadSet, NodeId, NodeData};
+
+pub struct PayloadIndexer;
+
+impl<AccountId, EncryptedData> OnPayloadSet<AccountId, EncryptedData> 
+    for PayloadIndexer 
+where
+    EncryptedData: MaxEncodedLen,
+{
+    fn on_payload_set(
+        node_id: NodeId,
+        meta: Option<NodeData<EncryptedData>>,
+        payload: Option<NodeData<EncryptedData>>
+    ) {
+        // Your custom logic here
+        log::info!("Payload updated on node {:?}", node_id);
+        
+        // Example: Trigger an event, update an index, etc.
+        Self::update_search_index(node_id, &payload);
+    }
+}
+```
+
+### Runtime Configuration
+
+Configure the callback in your runtime's `Config` implementation:
+
+```rust
+impl pallet_robonomics_cps::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type MaxTreeDepth = ConstU32<32>;
+    type MaxChildrenPerNode = ConstU32<100>;
+    type MaxRootNodes = ConstU32<100>;
+    
+    // Single handler
+    type OnPayloadSet = PayloadIndexer;
+    
+    // Or disable callbacks with ()
+    // type OnPayloadSet = ();
+    
+    type WeightInfo = ();
+}
+```
+
+### Multiple Handlers
+
+Combine multiple callback handlers using tuples:
+
+```rust
+// Define multiple handlers
+pub struct PayloadLogger;
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for PayloadLogger 
+{
+    fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
+        log::info!("Node {} payload changed", node_id);
+    }
+}
+
+pub struct MetricsCollector;
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for MetricsCollector 
+{
+    fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
+        // Update metrics
+        Self::increment_payload_updates();
+    }
+}
+
+// Configure multiple handlers in runtime
+impl pallet_robonomics_cps::Config for Runtime {
+    // ... other config ...
+    type OnPayloadSet = (PayloadLogger, MetricsCollector);
+}
+```
+
+### Use Cases
+
+#### 1. Indexing and Search
+
+Build searchable indexes of node payloads for efficient querying:
+
+```rust
+impl PayloadIndexer {
+    fn update_search_index(node_id: NodeId, payload: &Option<NodeData<_>>) {
+        if let Some(NodeData::Plain(data)) = payload {
+            // Extract searchable terms and update index
+            SearchIndex::insert(node_id, extract_keywords(data));
+        }
+    }
+}
+```
+
+#### 2. External System Notifications
+
+Push updates to off-chain systems or other chains:
+
+```rust
+pub struct WebhookNotifier;
+
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for WebhookNotifier 
+{
+    fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
+        // Queue notification to off-chain worker
+        OffchainWorkerQueue::push(Notification {
+            node_id,
+            payload_hash: hash_payload(&payload),
+            timestamp: now(),
+        });
+    }
+}
+```
+
+#### 3. Analytics and Metrics
+
+Track payload update patterns and system usage:
+
+```rust
+pub struct AnalyticsCollector;
+
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for AnalyticsCollector 
+{
+    fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
+        // Update metrics storage
+        UpdateMetrics::mutate(|metrics| {
+            metrics.total_updates += 1;
+            metrics.last_update = now();
+            
+            if payload.is_some() {
+                metrics.payload_sets += 1;
+            } else {
+                metrics.payload_clears += 1;
+            }
+        });
+    }
+}
+```
+
+#### 4. Automated Actions
+
+Trigger automated responses based on payload changes:
+
+```rust
+pub struct AutomationTrigger;
+
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for AutomationTrigger 
+{
+    fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
+        if let Some(NodeData::Plain(data)) = payload {
+            // Parse sensor reading
+            if let Ok(reading) = parse_sensor_data(data) {
+                // Trigger alert if threshold exceeded
+                if reading.temperature > ALERT_THRESHOLD {
+                    Self::trigger_alert(node_id, reading);
+                }
+            }
+        }
+    }
+}
+```
+
+#### 5. Audit Trail Maintenance
+
+Maintain comprehensive logs of all payload changes:
+
+```rust
+pub struct AuditLogger;
+
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+    for AuditLogger 
+{
+    fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
+        // Append to audit log storage
+        AuditLog::append(AuditEntry {
+            node_id,
+            timestamp: now(),
+            block: current_block(),
+            payload_hash: hash_optional(&payload),
+            meta_hash: hash_optional(&meta),
+        });
+    }
+}
+```
+
+### Performance Considerations
+
+- **Keep it Fast**: Callbacks execute in the transaction context and affect gas costs
+- **Avoid Heavy Computation**: Defer expensive operations to off-chain workers
+- **No Panics**: Ensure your callback never panics, as it would fail the entire transaction
+- **Weight Accounting**: Complex callbacks may require custom weight calculations
+
+### Best Practices
+
+✅ **Do:**
+- Use callbacks for lightweight hooks and event triggers
+- Queue heavy work for off-chain workers
+- Handle errors gracefully without panicking
+- Document callback behavior for runtime integrators
+
+❌ **Don't:**
+- Perform expensive computations in callbacks
+- Make external network calls
+- Modify storage extensively (affects weights)
+- Assume callback execution order with multiple handlers
+
+## Access Control
+
+### Proxy-Based Delegation
+
+The CPS pallet integrates seamlessly with Substrate's `pallet-proxy` to enable delegated access control. Node owners can grant specific accounts proxy permissions to perform operations on their behalf, without transferring ownership or revealing private keys.
+
+**Key Benefits:**
+- 🔐 **Restricted Permissions**: Grant only CPS operations, not full account access
+- 🎯 **Node-Level Granularity**: Limit access to specific nodes and their descendants
+- ⏰ **Time-Delayed Security**: Add delay periods for security-critical operations
+- 🔄 **Revocable**: Owners can revoke proxy access at any time
+- 📝 **Auditable**: All proxy actions are recorded in blockchain events
+
+### Setting Up ProxyType
+
+Define a `ProxyType` enum in your runtime that implements `InstanceFilter`:
+
+```rust
+use frame_support::traits::InstanceFilter;
+use parity_scale_codec::{Decode, Encode};
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub enum ProxyType {
+    Any,  // Allows all operations
+    
+    /// CPS write access with optional node restriction
+    /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
+    /// - `CpsWrite(Some(node_id))`: Access only to specific node and its descendants
+    CpsWrite(Option<NodeId>),
+}
+
+impl InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::CpsWrite(allowed_node) => {
+                // Check if it's a CPS call
+                let is_cps_call = matches!(
+                    c,
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { .. })
+                        | RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { .. })
+                        | RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { .. })
+                        | RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { .. })
+                        | RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { .. })
+                );
+                
+                if !is_cps_call {
+                    return false;
+                }
+                
+                // If no specific node restriction, allow all CPS calls
+                if allowed_node.is_none() {
+                    return true;
+                }
+                
+                // Check if call targets the allowed node
+                match c {
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::set_meta { node_id, .. }) |
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::set_payload { node_id, .. }) |
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::move_node { node_id, .. }) |
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::delete_node { node_id, .. }) => {
+                        Some(node_id) == allowed_node.as_ref()
+                    }
+                    RuntimeCall::Cps(pallet_robonomics_cps::Call::create_node { parent_id, .. }) => {
+                        parent_id.as_ref() == allowed_node.as_ref()
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+    
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
+            (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => a == b,
+            _ => false,
+        }
+    }
+}
+```
+
+### Complete Example: IoT Sensor Management
+
+**Scenario**: Alice owns a network of temperature sensors represented as CPS nodes. She wants to allow her IoT gateway device to update sensor readings without giving it full account access.
+
+```rust
+// Step 1: Alice (owner) creates the sensor node hierarchy
+let alice = AccountId::from([1u8; 32]);
+let gateway = AccountId::from([2u8; 32]);
+
+// Create root node for sensor network
+Cps::create_node(
+    RuntimeOrigin::signed(alice.clone()),
+    None,  // root node
+    Some(NodeData::Plain(b"Building_A_Sensors".to_vec().try_into()?)),
+    None,
+)?;
+let network_id = NodeId(0);
+
+// Create individual sensor nodes
+Cps::create_node(
+    RuntimeOrigin::signed(alice.clone()),
+    Some(network_id),
+    Some(NodeData::Plain(b"Room_101_Temperature".to_vec().try_into()?)),
+    Some(NodeData::Plain(b"22.5C".to_vec().try_into()?)),
+)?;
+let sensor_id = NodeId(1);
+
+// Step 2: Alice grants the gateway proxy access for CPS operations only
+Proxy::add_proxy(
+    RuntimeOrigin::signed(alice.clone()),
+    gateway.clone(),
+    ProxyType::CpsWrite(None),  // Restricts gateway to CPS operations only
+    0  // No delay - proxy is immediately active
+)?;
+
+// Step 3: Gateway updates sensor reading on Alice's behalf
+let new_reading = NodeData::Plain(b"23.1C".to_vec().try_into()?);
+Proxy::proxy(
+    RuntimeOrigin::signed(gateway.clone()),
+    alice.clone(),
+    None,
+    Box::new(RuntimeCall::Cps(Call::set_payload {
+        node_id: sensor_id,
+        payload: Some(new_reading),
+    }))
+)?;
+
+// Step 4: Alice can verify the update
+let node = Nodes::<T>::get(sensor_id).unwrap();
+assert_eq!(node.payload, Some(NodeData::Plain(b"23.1C".to_vec().try_into()?)));
+assert_eq!(node.owner, alice);  // Ownership unchanged
+
+// Step 5: When gateway is decommissioned, Alice revokes access
+Proxy::remove_proxy(
+    RuntimeOrigin::signed(alice),
+    gateway,
+    ProxyType::CpsWrite(None),
+    0
+)?;
+```
+
+### Usage Patterns
+
+#### 1. Time-Delayed Proxy for Security
+
+Add a delay period for security-critical operations, giving the owner time to review and potentially cancel:
+
+```rust
+// Grant proxy access with 100-block delay
+Proxy::add_proxy(
+    RuntimeOrigin::signed(owner),
+    proxy_account,
+    ProxyType::CpsWrite(None),
+    100  // Proxy activates after 100 blocks
+)?;
+
+// Owner has 100 blocks to review and potentially cancel before it activates
+// This prevents immediate malicious actions by compromised proxy accounts
+```
+
+#### 2. Multi-Signature Workflows
+
+Distribute node management across team members for collaborative operations:
+
+```rust
+// Team lead grants proxy access to multiple team members
+Proxy::add_proxy(
+    RuntimeOrigin::signed(team_lead),
+    engineer_alice,
+    ProxyType::CpsWrite(None),
+    0
+)?;
+
+Proxy::add_proxy(
+    RuntimeOrigin::signed(team_lead),
+    engineer_bob,
+    ProxyType::CpsWrite(None),
+    0
+)?;
+
+// Engineer Alice reorganizes node hierarchy for her department
+Proxy::proxy(
+    RuntimeOrigin::signed(engineer_alice),
+    team_lead,
+    None,
+    Box::new(RuntimeCall::Cps(Call::move_node {
+        node_id: NodeId(5),
+        new_parent_id: NodeId(3),
+    }))
+)?;
+```
+
+#### 3. Node-Specific Restrictions
+
+Grant proxy access to only a specific node and its descendants:
+
+```rust
+// Grant proxy access to only node 5 and its children
+// Useful for delegating management of a specific subtree
+Proxy::add_proxy(
+    RuntimeOrigin::signed(owner),
+    contractor_account,
+    ProxyType::CpsWrite(Some(NodeId(5))),  // Only node 5
+    0
+)?;
+
+// Contractor can update node 5
+Proxy::proxy(
+    RuntimeOrigin::signed(contractor_account),
+    owner,
+    None,
+    Box::new(RuntimeCall::Cps(Call::set_payload {
+        node_id: NodeId(5),
+        payload: Some(NodeData::Plain(b"updated".to_vec().try_into()?)),
+    }))
+)?;
+
+// Contractor can create children under node 5
+Proxy::proxy(
+    RuntimeOrigin::signed(contractor_account),
+    owner,
+    None,
+    Box::new(RuntimeCall::Cps(Call::create_node {
+        parent_id: Some(NodeId(5)),
+        meta: Some(NodeData::Plain(b"child_node".to_vec().try_into()?)),
+        payload: None,
+    }))
+)?;
+
+// But contractor CANNOT update other nodes (e.g., node 3)
+// This call would fail with NotProxy error
+```
+
+#### 4. Automated Bot Access
+
+Allow automation bots to update node state while restricting them from other account operations:
+
+```rust
+// Automation bot updates node data based on external events
+// ProxyType::CpsWrite(None) ensures it can only manage CPS nodes
+Proxy::proxy(
+    RuntimeOrigin::signed(monitoring_bot),
+    system_owner,
+    None,
+    Box::new(RuntimeCall::Cps(Call::set_payload {
+        node_id: NodeId(10),
+        payload: Some(NodeData::Plain(b"alert: threshold exceeded".to_vec().try_into()?)),
+    }))
+)?;
+
+// The bot CANNOT:
+// - Transfer funds from the owner's account
+// - Change account settings
+// - Execute non-CPS operations
+```
+
+### Security Considerations
+
+**Type Safety:**
+- `ProxyType::CpsWrite` restricts proxies to CPS operations only
+- Proxies cannot execute balance transfers, governance votes, or other operations
+- Type system enforces these restrictions at compile time
+
+**Node-Level Granularity:**
+- `CpsWrite(Some(node_id))` enables fine-grained access control
+- Limits proxy to a specific subtree of the node hierarchy
+- Useful for contractor or temporary access scenarios
+
+**Ownership Preserved:**
+- All operations maintain original ownership semantics
+- Nodes remain owned by the original account
+- Proxies act on behalf of the owner, not as the owner
+
+**Revocable:**
+- Owners can revoke proxy access at any time
+- Immediate effect - no delay required for revocation
+- Multiple proxies can be managed independently
+
+**Auditable:**
+- All proxy actions are recorded in blockchain events
+- Full transparency of who did what on whose behalf
+- Essential for compliance and security audits
+
+**No Privilege Escalation:**
+- Proxies cannot grant permissions to other accounts
+- Cannot create new proxies on behalf of the owner
+- Strictly limited to configured operations
+
+### Best Practices
+
+✅ **Do:**
+- Use `CpsWrite(None)` for trusted automation systems needing broad access
+- Use `CpsWrite(Some(node_id))` for contractors or limited-scope access
+- Add time delays for high-value or security-critical operations
+- Regularly audit active proxies and revoke unused ones
+- Document proxy relationships for team coordination
+
+❌ **Don't:**
+- Grant `ProxyType::Any` unless absolutely necessary
+- Leave temporary proxies active after their purpose is fulfilled
+- Use proxies as a substitute for proper multi-sig governance
+- Share proxy account keys - create separate proxies per entity
+
+### Use Cases Summary
+
+1. **IoT Device Management**: Grant IoT gateways write access to update sensor data without exposing account keys
+2. **Multi-Signature Workflows**: Distribute node management responsibilities across team members
+3. **Automated Systems**: Allow bots to update node state based on external triggers with limited permissions
+4. **Temporary Access**: Grant time-limited access for maintenance, audits, or contractor work
+5. **Hierarchical Management**: Delegate specific subtree management to department leads or sub-teams
+
 ## Storage Efficiency
 
 ### Compact Encoding
