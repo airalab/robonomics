@@ -409,13 +409,9 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
         if let Some(NodeData::Plain(data)) = payload {
-            // Parse sensor reading
-            if let Ok(reading) = parse_sensor_data(data) {
-                // Trigger alert if threshold exceeded
-                if reading.temperature > ALERT_THRESHOLD {
-                    Self::trigger_alert(node_id, reading);
-                }
-            }
+            // Example: Parse sensor reading and trigger alerts
+            // In practice, implement parse_sensor_data and trigger_alert for your use case
+            log::info!("Checking node {:?} payload for alert conditions", node_id);
         }
     }
 }
