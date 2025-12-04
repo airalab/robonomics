@@ -9,7 +9,7 @@ with llvmPackages;
 let resolc = pkgs.writeShellApplication {
   name = "resolc";
   runtimeInputs = [ pkgs.coreutils ];
-  text = (builtins.readFile ./scripts/resolc-stub.sh);
+  text = (builtins.readFile ./scripts/resolc);
 };
 in mkShell {
   buildInputs = [
