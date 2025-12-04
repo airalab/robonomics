@@ -6,6 +6,7 @@ mod commands;
 mod crypto;
 mod display;
 mod mqtt;
+mod types;
 
 #[derive(Parser)]
 #[command(name = "cps")]
