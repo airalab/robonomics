@@ -34,7 +34,7 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
         }
     }
 
-    display::tree::info(&format!("Deleting node {}", node_id));
+    display::tree::info(&format!("Deleting node {node_id}"));
 
     // In a real implementation:
     // let delete_call = robonomics::tx().cps().delete_node(NodeId(node_id));

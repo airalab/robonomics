@@ -10,7 +10,7 @@ pub async fn execute(config: &Config, node_id: u64, new_parent_id: u64) -> Resul
     let keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Moving node {} to parent {}", node_id, new_parent_id));
+    display::tree::info(&format!("Moving node {node_id} to parent {new_parent_id}"));
 
     // In a real implementation:
     // let move_call = robonomics::tx().cps().move_node(

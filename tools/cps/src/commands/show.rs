@@ -1,6 +1,6 @@
 use crate::blockchain::{Client, Config};
 use crate::display;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use colored::*;
 
 pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()> {
@@ -9,7 +9,7 @@ pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()
     let client = Client::new(config).await?;
     
     display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::progress(&format!("Fetching node {}...", node_id));
+    display::tree::progress(&format!("Fetching node {node_id}..."));
 
     // In a real implementation, we would query the blockchain here
     // For now, we'll show a demo of how it would work

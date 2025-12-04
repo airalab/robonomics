@@ -1,4 +1,3 @@
-use anyhow::Result;
 
 #[derive(Clone)]
 pub struct Config {

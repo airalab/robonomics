@@ -2,7 +2,7 @@ use colored::*;
 
 /// Print a beautiful tree structure for a CPS node
 pub fn print_tree(node_id: u64, owner: &str, meta: Option<&str>, payload: Option<&str>, children: &[u64]) {
-    println!("\n{} {}\n", "🌳 CPS Node".bright_cyan().bold(), format!("ID: {}", node_id).bright_white().bold());
+    println!("\n{} {}\n", "🌳 CPS Node".bright_cyan().bold(), format!("ID: {node_id}").bright_white().bold());
     
     // Owner
     println!("{}  {} {}", 

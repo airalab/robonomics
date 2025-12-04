@@ -1,8 +1,7 @@
 use crate::blockchain::{Client, Config};
-use crate::crypto;
 use crate::display;
-use crate::types::{EncryptedData, NodeData, NodeId};
-use anyhow::{anyhow, Result};
+use crate::types::NodeData;
+use anyhow::Result;
 use colored::*;
 
 pub async fn execute(

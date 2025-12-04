@@ -24,8 +24,8 @@ impl Client {
         let keypair = if let Some(suri) = &config.suri {
             let uri: SecretUri = suri
                 .parse()
-                .map_err(|e| anyhow!("Failed to parse SURI: {}", e))?;
-            Some(Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {}", e))?)
+                .map_err(|e| anyhow!("Failed to parse SURI: {e}"))?;
+            Some(Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {e}"))?)
         } else {
             None
         };

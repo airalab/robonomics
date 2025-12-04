@@ -10,7 +10,7 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool)
     let keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Updating payload for node {}", node_id));
+    display::tree::info(&format!("Updating payload for node {node_id}"));
 
     if encrypt {
         display::tree::warning("Encryption not yet fully implemented (requires recipient public key)");

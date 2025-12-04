@@ -40,7 +40,7 @@ pub fn encrypt(
 ) -> Result<Vec<u8>> {
     // Step 1: Derive shared secret using Diffie-Hellman
     let receiver_pubkey = PublicKey::from_bytes(receiver_public)
-        .map_err(|e| anyhow!("Invalid receiver public key: {}", e))?;
+        .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
     
     // For now, use a simple hash-based approach for shared secret
     // In production, this should use proper ECDH
@@ -55,14 +55,14 @@ pub fn encrypt(
     let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
     let mut okm = [0u8; 32];
     hkdf.expand(INFO, &mut okm)
-        .map_err(|e| anyhow!("HKDF expansion failed: {}", e))?;
+        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
 
     // Step 3: Encrypt with XChaCha20-Poly1305
     let cipher = XChaCha20Poly1305::new(&okm.into());
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
-        .map_err(|e| anyhow!("Encryption failed: {}", e))?;
+        .map_err(|e| anyhow!("Encryption failed: {e}"))?;
 
     // Step 4: Create message structure
     let message = EncryptedMessage {
@@ -73,7 +73,7 @@ pub fn encrypt(
     };
 
     // Serialize to JSON
-    serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {}", e))
+    serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
 }
 
 /// Decrypt data using sr25519 → XChaCha20-Poly1305 scheme
@@ -93,7 +93,7 @@ pub fn encrypt(
 pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec<u8>> {
     // Step 1: Parse message
     let message: EncryptedMessage = serde_json::from_slice(encrypted_data)
-        .map_err(|e| anyhow!("Failed to parse encrypted message: {}", e))?;
+        .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
 
     if message.version != 1 {
         return Err(anyhow!("Unsupported encryption version: {}", message.version));
@@ -102,7 +102,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     // Decode sender's public key
     let sender_public_bytes = bs58::decode(&message.from)
         .into_vec()
-        .map_err(|e| anyhow!("Failed to decode sender public key: {}", e))?;
+        .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
     
     if sender_public_bytes.len() != 32 {
         return Err(anyhow!("Invalid sender public key length"));
@@ -112,7 +112,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     sender_pk_array.copy_from_slice(&sender_public_bytes);
     
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
-        .map_err(|e| anyhow!("Invalid sender public key: {}", e))?;
+        .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
     // Step 2: Derive shared secret
     let mut shared_input = Vec::new();
@@ -125,19 +125,19 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
     let mut okm = [0u8; 32];
     hkdf.expand(INFO, &mut okm)
-        .map_err(|e| anyhow!("HKDF expansion failed: {}", e))?;
+        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
 
     // Decode nonce and ciphertext
     let nonce_bytes = base64::decode(&message.nonce)
-        .map_err(|e| anyhow!("Failed to decode nonce: {}", e))?;
+        .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
     let nonce = XNonce::from_slice(&nonce_bytes);
 
     let ciphertext = base64::decode(&message.ciphertext)
-        .map_err(|e| anyhow!("Failed to decode ciphertext: {}", e))?;
+        .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
     // Step 4: Decrypt
     let cipher = XChaCha20Poly1305::new(&okm.into());
     cipher
         .decrypt(nonce, ciphertext.as_ref())
-        .map_err(|e| anyhow!("Decryption failed: {}", e))
+        .map_err(|e| anyhow!("Decryption failed: {e}"))
 }
