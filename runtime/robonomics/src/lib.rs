@@ -799,7 +799,6 @@ impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
 }
 
 #[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
 extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
