@@ -284,7 +284,7 @@ where
         log::info!("Payload updated on node {:?}", node_id);
         
         // Example: Trigger an event, update an index, etc.
-        Self::update_search_index(node_id, &payload);
+        // Self::update_search_index(node_id, &payload);
     }
 }
 ```
@@ -352,8 +352,8 @@ Build searchable indexes of node payloads for efficient querying:
 impl PayloadIndexer {
     fn update_search_index(node_id: NodeId, payload: &Option<NodeData<_>>) {
         if let Some(NodeData::Plain(data)) = payload {
-            // Extract searchable terms and update index
-            SearchIndex::insert(node_id, extract_keywords(data));
+            // Extract searchable terms and update your search index
+            // Example: parse data and store in an off-chain storage or database
         }
     }
 }
@@ -371,11 +371,8 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
         // Queue notification to off-chain worker
-        OffchainWorkerQueue::push(Notification {
-            node_id,
-            payload_hash: hash_payload(&payload),
-            timestamp: now(),
-        });
+        // Example: send event to external system via off-chain worker
+        log::info!("Payload changed on node {:?}, notify external systems", node_id);
     }
 }
 ```
@@ -442,13 +439,8 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 {
     fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
         // Append to audit log storage
-        AuditLog::append(AuditEntry {
-            node_id,
-            timestamp: now(),
-            block: current_block(),
-            payload_hash: hash_optional(&payload),
-            meta_hash: hash_optional(&meta),
-        });
+        // Example: record the change in a separate storage item or event
+        log::info!("Audit: Node {:?} payload updated", node_id);
     }
 }
 ```
