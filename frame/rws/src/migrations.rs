@@ -211,7 +211,7 @@ pub mod v2 {
                 let clear_result = Devices::<T>::clear(MAX_REMOVALS, None);
                 let devices_count = clear_result.unique as u64;
                 weight = weight.saturating_add(T::DbWeight::get().writes(devices_count));
-                
+
                 // Check if there might be more entries to clear (cursor indicates incomplete clearing)
                 if clear_result.maybe_cursor.is_some() {
                     log::warn!(

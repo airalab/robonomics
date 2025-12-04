@@ -22,9 +22,12 @@
 use super::*;
 use frame_benchmarking::v2::*;
 use frame_support::{
-    assert_ok, 
-    pallet_prelude::Get, 
-    traits::{Currency, fungibles::{Inspect, Mutate}, Time}
+    assert_ok,
+    pallet_prelude::Get,
+    traits::{
+        fungibles::{Inspect, Mutate},
+        Currency, Time,
+    },
 };
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
@@ -106,10 +109,10 @@ mod benchmarks {
         // Get a whitelisted caller
         let caller: T::AccountId = whitelisted_caller();
         let amount: AssetBalanceOf<T> = 1000u32.into();
-        
+
         // Get the asset ID from config
         let asset_id = T::LifetimeAssetId::get();
-        
+
         // Mint assets to the caller using the Assets trait
         // This assumes the runtime benchmark environment has the asset created
         let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
@@ -124,16 +127,16 @@ mod benchmarks {
         let caller: T::AccountId = whitelisted_caller();
         let amount: AssetBalanceOf<T> = 1000u32.into();
         let asset_id = T::LifetimeAssetId::get();
-        
+
         // Mint assets to the caller
         let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
-        
+
         // Create the subscription via start_lifetime
         assert_ok!(Pallet::<T>::start_lifetime(
             RawOrigin::Signed(caller.clone()).into(),
             amount
         ));
-        
+
         let subscription_id = 0u32;
 
         #[extrinsic_call]

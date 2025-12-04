@@ -505,7 +505,7 @@ where
     /// This account has their bid amount reserved in the AuctionCurrency.
     /// If outbid, their reserved funds are released and the new winner's funds are reserved.
     pub winner: Option<AccountId>,
-    
+
     /// Current highest bid amount.
     ///
     /// - `0` initially (no bids placed)
@@ -515,7 +515,7 @@ where
     /// exceed `MinimalBid` (for first bid).
     #[codec(compact)]
     pub best_price: Balance,
-    
+
     /// Timestamp when the first bid was placed.
     ///
     /// - `None` if no bids have been placed
@@ -524,14 +524,14 @@ where
     /// This timestamp is crucial as it starts the `AuctionDuration` countdown.
     /// The auction can only be claimed after `first_bid_time + AuctionDuration`.
     pub first_bid_time: Option<Moment>,
-    
+
     /// The subscription mode being auctioned.
     ///
     /// This determines what type of subscription the winner will receive:
     /// - `Lifetime { tps }` for permanent subscriptions with custom TPS
     /// - `Daily { days }` for time-limited subscriptions with fixed 0.01 TPS
     pub mode: SubscriptionMode,
-    
+
     /// Subscription ID assigned when auction is claimed.
     ///
     /// - `None` until the winner calls `claim()`
@@ -610,14 +610,14 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// `FreeWeightIsNotEnough` error.
     #[codec(compact)]
     free_weight: u64,
-    
+
     /// Timestamp when the subscription was created.
     ///
     /// This is set when the subscription is first created via `claim()` and never changes.
     /// Used for record-keeping and calculating expiration time for Daily subscriptions.
     #[codec(compact)]
     issue_time: Moment,
-    
+
     /// Timestamp of the last subscription update.
     ///
     /// Updated each time `call()` is invoked to use the subscription. This timestamp
@@ -625,14 +625,14 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// The longer the time since last update, the more free weight accumulates.
     #[codec(compact)]
     last_update: Moment,
-    
+
     /// The subscription mode (Lifetime or Daily).
     ///
     /// Determines:
     /// - TPS allocation: Lifetime uses custom `tps`, Daily uses fixed 10,000 μTPS
     /// - Expiration: Lifetime never expires, Daily expires after specified days
     mode: SubscriptionMode,
-    
+
     /// Expiration timestamp for Daily subscriptions.
     ///
     /// - `None` for Lifetime subscriptions (never expire)
@@ -675,11 +675,15 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{
             fungibles::{Inspect, Mutate},
-            Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time, UnfilteredDispatchable,
+            Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time,
+            UnfilteredDispatchable,
         },
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::{traits::{AccountIdConversion, AtLeast32Bit}, DispatchResult, Permill};
+    use sp_runtime::{
+        traits::{AccountIdConversion, AtLeast32Bit},
+        DispatchResult, Permill,
+    };
     use sp_std::prelude::*;
 
     type BalanceOf<T> = <<T as Config>::AuctionCurrency as Currency<
@@ -817,14 +821,8 @@ pub mod pallet {
     #[pallet::getter(fn locked_assets)]
     /// Maps subscription owner and subscription_id to the amount of locked assets.
     /// Only populated for Lifetime subscriptions created via asset locking.
-    pub(super) type LockedAssets<T: Config> = StorageDoubleMap<
-        _,
-        Blake2_128Concat,
-        T::AccountId,
-        Twox64Concat,
-        u32,
-        AssetBalanceOf<T>,
-    >;
+    pub(super) type LockedAssets<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, AssetBalanceOf<T>>;
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -896,11 +894,10 @@ pub mod pallet {
             // Reference call weight * TPS * seconds passed from last update
             let delta: u64 = (now.clone() - subscription.last_update).into();
             subscription.last_update = now;
-            subscription.free_weight +=
-                T::ReferenceCallWeight::get()
-                    .saturating_mul(utps as u64)
-                    .saturating_mul(delta)
-                    .saturating_div(1_000_000_000);
+            subscription.free_weight += T::ReferenceCallWeight::get()
+                .saturating_mul(utps as u64)
+                .saturating_mul(delta)
+                .saturating_div(1_000_000_000);
 
             let call_weight = call.get_dispatch_info().call_weight;
             // Ensure than free weight is enough for call
@@ -1109,21 +1106,31 @@ pub mod pallet {
             // Calculate TPS from amount using the configured ratio (Permill)
             // The ratio represents μTPS per token stored as parts per million
             // For example: Permill::from_parts(100) = 100 μTPS per 1 token
-            let amount_u128: u128 = amount.try_into().map_err(|_| Error::<T>::AssetAmountConversionFailed)?;
+            let amount_u128: u128 = amount
+                .try_into()
+                .map_err(|_| Error::<T>::AssetAmountConversionFailed)?;
             let ratio = T::AssetToTpsRatio::get();
-            
+
             let ratio_parts: u128 = ratio.deconstruct().into();
             let tps_u128 = amount_u128
                 .checked_mul(ratio_parts)
                 .ok_or(Error::<T>::ArithmeticOverflow)?;
-            let tps: u32 = tps_u128.try_into().map_err(|_| Error::<T>::ArithmeticOverflow)?;
+            let tps: u32 = tps_u128
+                .try_into()
+                .map_err(|_| Error::<T>::ArithmeticOverflow)?;
 
             // Lock the assets by transferring them to the pallet account
             let asset_id = T::LifetimeAssetId::get();
             let pallet_account = T::PalletId::get().into_account_truncating();
-            
-            T::Assets::transfer(asset_id, &sender, &pallet_account, amount, frame_support::traits::tokens::Preservation::Preserve)
-                .map_err(|_| Error::<T>::CannotLockAssets)?;
+
+            T::Assets::transfer(
+                asset_id,
+                &sender,
+                &pallet_account,
+                amount,
+                frame_support::traits::tokens::Preservation::Preserve,
+            )
+            .map_err(|_| Error::<T>::CannotLockAssets)?;
 
             // Create the subscription
             let now = T::Time::now();
@@ -1131,7 +1138,10 @@ pub mod pallet {
             <Subscription<T>>::set(
                 &sender,
                 subscription_id,
-                Some(SubscriptionLedger::new(now, SubscriptionMode::Lifetime { tps })),
+                Some(SubscriptionLedger::new(
+                    now,
+                    SubscriptionMode::Lifetime { tps },
+                )),
             );
 
             // Store the locked amount for later unlock
@@ -1189,9 +1199,15 @@ pub mod pallet {
             // Unlock the assets by transferring them back from the pallet account
             let asset_id = T::LifetimeAssetId::get();
             let pallet_account = T::PalletId::get().into_account_truncating();
-            
-            T::Assets::transfer(asset_id, &pallet_account, &sender, locked_amount, frame_support::traits::tokens::Preservation::Expendable)
-                .map_err(|_| Error::<T>::CannotUnlockAssets)?;
+
+            T::Assets::transfer(
+                asset_id,
+                &pallet_account,
+                &sender,
+                locked_amount,
+                frame_support::traits::tokens::Preservation::Expendable,
+            )
+            .map_err(|_| Error::<T>::CannotUnlockAssets)?;
 
             // Remove subscription and locked assets record
             <Subscription<T>>::remove(&sender, subscription_id);

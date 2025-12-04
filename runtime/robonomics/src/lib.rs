@@ -56,7 +56,7 @@ use sp_runtime::{
     impl_opaque_keys,
     traits::{BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    BoundedVec, FixedPointNumber, Perbill, Perquintill,
+    BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -392,21 +392,20 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
             ProxyType::RwsUser(allowed_subscription_id) => {
                 // Only allow RWS::call operations for the specific subscription
                 match c {
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call { subscription_id, .. }) => {
-                        subscription_id == allowed_subscription_id
-                    }
+                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call {
+                        subscription_id, ..
+                    }) => subscription_id == allowed_subscription_id,
                     _ => false,
                 }
             }
         }
     }
-    
+
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
             (ProxyType::Any, _) => true,
             (_, ProxyType::Any) => false,
             (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
-            _ => false,
         }
     }
 }
@@ -543,9 +542,15 @@ parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
     pub const AuctionDuration: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
     pub const MinimalBid: Balance = 1 * XRT;
+    pub const AssetToTpsRatio: Permill = Permill::from_parts(1);
+    pub const RwsId: PalletId = PalletId(*b"RwsStake");
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
+    type Assets = Assets;
+    type LifetimeAssetId = ConstU32<42>;
+    type AssetToTpsRatio = AssetToTpsRatio;
+    type PalletId = RwsId;
     type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = u64;

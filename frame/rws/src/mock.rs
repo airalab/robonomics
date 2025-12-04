@@ -18,10 +18,16 @@
 //! Mock runtime for testing RWS pallet.
 
 use crate::{self as pallet_rws};
-use frame_support::{assert_ok, derive_impl, parameter_types, traits::{ConstU32, ConstU64, ConstU128}};
+use frame_support::{
+    assert_ok, derive_impl, parameter_types,
+    traits::{ConstU128, ConstU32, ConstU64},
+};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, BuildStorage, Permill, RuntimeDebug};
+use sp_runtime::{
+    traits::{BlakeTwo256, IdentityLookup},
+    BuildStorage, Permill, RuntimeDebug,
+};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -67,15 +73,15 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
             ProxyType::RwsUser(allowed_subscription_id) => {
                 // Only allow RWS::call operations for the specific subscription
                 match c {
-                    RuntimeCall::RWS(pallet_rws::Call::call { subscription_id, .. }) => {
-                        subscription_id == allowed_subscription_id
-                    }
+                    RuntimeCall::RWS(pallet_rws::Call::call {
+                        subscription_id, ..
+                    }) => subscription_id == allowed_subscription_id,
                     _ => false,
                 }
             }
         }
     }
-    
+
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
             (ProxyType::Any, _) => true,
@@ -134,7 +140,8 @@ impl pallet_assets::Config for Test {
     type AssetId = AssetId;
     type AssetIdParameter = AssetId;
     type Currency = Balances;
-    type CreateOrigin = frame_support::traits::AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
+    type CreateOrigin =
+        frame_support::traits::AsEnsureOriginWithArg<frame_system::EnsureSigned<u64>>;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
     type AssetDeposit = ConstU128<0>;
     type AssetAccountDeposit = ConstU128<0>;
@@ -226,7 +233,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     ext.execute_with(|| {
         System::set_block_number(1);
         Timestamp::set_timestamp(1000);
-        
+
         // Create the lifetime asset
         assert_ok!(Assets::force_create(
             RuntimeOrigin::root(),
@@ -235,7 +242,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             true,  // is_sufficient
             1      // min_balance
         ));
-        
+
         // Mint assets to test accounts
         assert_ok!(Assets::mint(
             RuntimeOrigin::signed(ALICE),

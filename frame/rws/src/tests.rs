@@ -243,13 +243,13 @@ fn test_bid_after_auction_period_ends() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        
+
         // Move time way forward (auction created long ago)
         Timestamp::set_timestamp(2_000_000 + 100_000 + 1);
-        
+
         // First bid on an auction with no previous bids should work regardless of time passed since creation
         assert_ok!(RWS::bid(RuntimeOrigin::signed(CHARLIE), 1, 200));
-        
+
         // Verify the first bid set the first_bid_time to current time
         let auction2 = RWS::auction(1).unwrap();
         assert_eq!(auction2.first_bid_time, Some(2_000_000 + 100_000 + 1));
@@ -466,7 +466,7 @@ fn test_free_weight_accumulation() {
 
         let sub1 = RWS::subscription(ALICE, 0).unwrap();
         let weight1 = sub1.free_weight;
-        
+
         // Verify that some weight remains after the call (accumulated weight > call weight)
         assert!(weight1 > 0, "Weight should remain after call: {}", weight1);
 
@@ -486,7 +486,8 @@ fn test_free_weight_accumulation() {
         assert!(
             weight2 > weight1,
             "Weight should accumulate over time. weight1: {}, weight2: {}",
-            weight1, weight2
+            weight1,
+            weight2
         );
     });
 }
@@ -836,7 +837,7 @@ fn proxy_can_use_subscription() {
         assert_ok!(Proxy::add_proxy(
             RuntimeOrigin::signed(ALICE),
             BOB,
-            ProxyType::RwsUser(0),  // BOB can use ALICE's subscription 0
+            ProxyType::RwsUser(0), // BOB can use ALICE's subscription 0
             0
         ));
 
@@ -861,7 +862,10 @@ fn proxy_can_use_subscription() {
         ));
 
         // Verify transfer occurred
-        assert_eq!(Balances::free_balance(CHARLIE), initial_charlie_balance + 50);
+        assert_eq!(
+            Balances::free_balance(CHARLIE),
+            initial_charlie_balance + 50
+        );
     });
 }
 
@@ -903,7 +907,7 @@ fn proxy_cannot_use_wrong_subscription() {
             subscription_id: 1,
             call: Box::new(transfer_call),
         });
-        
+
         // RwsUser(0) should allow subscription 0 but not subscription 1
         assert!(ProxyType::RwsUser(0).filter(&rws_call_sub_0));
         assert!(!ProxyType::RwsUser(0).filter(&rws_call_sub_1));
@@ -922,7 +926,7 @@ fn test_start_lifetime_insufficient_balance() {
         );
     });
 }
- 
+
 #[test]
 fn proxy_cannot_bid_or_claim() {
     new_test_ext().execute_with(|| {
@@ -935,7 +939,7 @@ fn proxy_cannot_bid_or_claim() {
             auction_id: 0,
             beneficiary: None,
         });
-        
+
         // RwsUser should block bid and claim operations
         assert!(!ProxyType::RwsUser(0).filter(&bid_call));
         assert!(!ProxyType::RwsUser(0).filter(&claim_call));
@@ -954,9 +958,9 @@ fn test_use_asset_locked_subscription() {
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
         // Use subscription to make a call
-        let call = Box::new(RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![1, 2, 3] },
-        ));
+        let call = Box::new(RuntimeCall::System(frame_system::Call::remark {
+            remark: vec![1, 2, 3],
+        }));
         assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, call));
     });
 }
@@ -985,10 +989,7 @@ fn test_stop_lifetime_unlocks_assets() {
         assert_ok!(RWS::stop_lifetime(RuntimeOrigin::signed(ALICE), 0));
 
         // Verify assets were unlocked
-        assert_eq!(
-            Assets::balance(LIFETIME_ASSET_ID, &ALICE),
-            initial_balance
-        );
+        assert_eq!(Assets::balance(LIFETIME_ASSET_ID, &ALICE), initial_balance);
 
         // Verify subscription and locked assets record removed
         assert!(RWS::subscription(ALICE, 0).is_none());
@@ -1171,9 +1172,9 @@ fn test_stop_lifetime_with_accumulated_weight() {
         Timestamp::set_timestamp(1_100_000);
 
         // Make a call to update weight
-        let call = Box::new(RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![1] },
-        ));
+        let call = Box::new(RuntimeCall::System(frame_system::Call::remark {
+            remark: vec![1],
+        }));
         assert_ok!(RWS::call(RuntimeOrigin::signed(ALICE), 0, call));
 
         // Should still be able to stop
@@ -1232,28 +1233,32 @@ fn test_stop_lifetime_events() {
 
         // Check SubscriptionStopped event was emitted
         System::assert_has_event(RuntimeEvent::RWS(Event::SubscriptionStopped(ALICE, 0)));
-   });
+    });
 }
-      
+
 #[test]
 fn proxy_type_filter_works_correctly() {
     new_test_ext().execute_with(|| {
         // Test that RwsUser(0) only allows call for subscription 0
         let call_sub_0 = RuntimeCall::RWS(crate::Call::call {
             subscription_id: 0,
-            call: Box::new(RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-                dest: BOB,
-                value: 100,
-            })),
+            call: Box::new(RuntimeCall::Balances(
+                pallet_balances::Call::transfer_allow_death {
+                    dest: BOB,
+                    value: 100,
+                },
+            )),
         });
         assert!(ProxyType::RwsUser(0).filter(&call_sub_0));
 
         let call_sub_1 = RuntimeCall::RWS(crate::Call::call {
             subscription_id: 1,
-            call: Box::new(RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-                dest: BOB,
-                value: 100,
-            })),
+            call: Box::new(RuntimeCall::Balances(
+                pallet_balances::Call::transfer_allow_death {
+                    dest: BOB,
+                    value: 100,
+                },
+            )),
         });
         assert!(!ProxyType::RwsUser(0).filter(&call_sub_1));
 
@@ -1332,7 +1337,7 @@ fn test_ratio_edge_cases() {
         assert_eq!(sub.mode, SubscriptionMode::Lifetime { tps: 100 });
     });
 }
-      
+
 #[test]
 fn proxy_is_superset_works_correctly() {
     new_test_ext().execute_with(|| {
