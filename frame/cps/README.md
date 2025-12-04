@@ -544,6 +544,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 
 **Scenario**: Alice owns a network of temperature sensors represented as CPS nodes. She wants to allow her IoT gateway device to update sensor readings without giving it full account access.
 
+**Note**: This example uses simplified syntax for clarity. In production, adapt the types and error handling to match your runtime configuration.
+
 ```rust
 // Step 1: Alice (owner) creates the sensor node hierarchy
 let alice = AccountId::from([1u8; 32]);
@@ -588,8 +590,8 @@ Proxy::proxy(
 )?;
 
 // Step 4: Alice can verify the update
-let node = Nodes::<T>::get(sensor_id).unwrap();
-assert_eq!(node.payload, Some(NodeData::Plain(b"23.1C".to_vec().try_into()?)));
+// (In practice, query via RPC or check events)
+let node = Cps::nodes(sensor_id).unwrap();
 assert_eq!(node.owner, alice);  // Ownership unchanged
 
 // Step 5: When gateway is decommissioned, Alice revokes access
