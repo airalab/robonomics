@@ -541,7 +541,7 @@ impl pallet_robonomics_launch::Config for Runtime {
 
 parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
-    pub const AuctionDuration: u64 = 60_000;  // 60,000 milliseconds (60 seconds)
+    pub const AuctionDuration: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
     pub const MinimalBid: Balance = 1 * XRT;
 }
 
