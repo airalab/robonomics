@@ -56,9 +56,9 @@ jobs:
           toolchain: "1.88.0"
           force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           use-rust-cache: true
+          strip: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           target: ${{ matrix.platform.target }}
           args: "--locked --profile production"
-          strip: true
       - uses: actions/upload-artifact@v4
         with:
           name: robonomics-${{ matrix.platform.target }}
