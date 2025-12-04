@@ -88,27 +88,27 @@ git clone https://github.com/airalab/robonomics && cd robonomics
 nix-shell --run "cargo run --profile production"
 ----
 
-=== Running Benchmarks
+=== Running Runtime Benchmarks
 
  . Install the frame-omni-bencher command-line tool:
 +
 [source, shell]
 ----
-cargo install frame-omni-bencher
+cargo install --release frame-omni-bencher
 ----
 
- . Build the node with benchmarking features enabled:
+ . Build the runtime with benchmarking features enabled:
 +
 [source, shell]
 ----
-cargo build --release --features runtime-benchmarks
+./scripts/build-runtime.sh --features=runtime-benchmarks
 ----
 
  . Run the benchmark script to generate weights:
 +
 [source, shell]
 ----
-./scripts/weights/benchmark-commands.sh
+./scripts/benchmark-weights.sh
 ----
 
 == Network maintaining

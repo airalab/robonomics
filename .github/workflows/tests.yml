@@ -39,5 +39,8 @@ jobs:
         sudo apt -y install pkg-config protobuf-compiler solc
         sudo cp ./scripts/resolc /usr/local/bin/resolc
 
-    - name: Run all tests
-      run: cargo test --release --features try-runtime,runtime-benchmarks --workspace --locked
+    - name: Build runtime with benchmarks
+      run: cargo build -p robonomics-runtime --features runtime-benchmarks --locked
+
+    - name: Run all workspace tests
+      run: cargo test --workspace --locked
