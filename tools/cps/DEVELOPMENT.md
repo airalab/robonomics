@@ -1,0 +1,382 @@
+# Development Guide
+
+This document provides information for developers working on the CPS CLI tool.
+
+## Prerequisites
+
+- Rust 1.88.0 or later
+- A running Robonomics node with CPS pallet
+- (Optional) MQTT broker for testing bridge functionality
+
+## Building
+
+```bash
+# Build in debug mode
+cargo build --package robonomics-cps-cli
+
+# Build in release mode (optimized)
+cargo build --release --package robonomics-cps-cli
+
+# The binary will be at:
+# Debug: target/debug/cps
+# Release: target/release/cps
+```
+
+## Running
+
+```bash
+# Run with cargo
+cargo run --package robonomics-cps-cli -- --help
+
+# Or run the binary directly
+./target/debug/cps --help
+```
+
+## Code Structure
+
+### Main Components
+
+1. **`src/main.rs`**: CLI entry point using `clap` for argument parsing
+2. **`src/blockchain/`**: Blockchain client and connection management
+3. **`src/commands/`**: Individual command implementations
+4. **`src/crypto/`**: Encryption/decryption utilities
+5. **`src/display/`**: Beautiful colored output formatting
+6. **`src/mqtt/`**: MQTT bridge configuration
+7. **`src/types.rs`**: Type definitions matching the CPS pallet
+
+### Adding a New Command
+
+1. Create a new file in `src/commands/` (e.g., `my_command.rs`)
+2. Implement the `execute` function
+3. Add the module to `src/commands/mod.rs`
+4. Add the command variant to the `Commands` enum in `src/main.rs`
+5. Add the command handler in the match statement in `main()`
+
+Example:
+
+```rust
+// src/commands/my_command.rs
+use crate::blockchain::{Client, Config};
+use crate::display;
+use anyhow::Result;
+
+pub async fn execute(config: &Config, param: String) -> Result<()> {
+    display::tree::progress("Executing my command...");
+    let client = Client::new(config).await?;
+    // Your implementation here
+    display::tree::success("Command completed!");
+    Ok(())
+}
+```
+
+## Generating Blockchain Metadata
+
+To interact with a live blockchain, you need to generate type definitions:
+
+```bash
+# Install subxt CLI
+cargo install subxt-cli
+
+# Start your Robonomics node (in another terminal)
+# Then generate metadata:
+subxt metadata --url ws://localhost:9944 > metadata.scale
+
+# Generate Rust types
+subxt codegen --file metadata.scale > src/robonomics_runtime.rs
+```
+
+Then use the generated types in your code:
+
+```rust
+#[subxt::subxt(runtime_metadata_path = "metadata.scale")]
+pub mod robonomics {}
+
+// Query storage
+let nodes_query = robonomics::storage().cps().nodes(NodeId(node_id));
+let node = client.api.storage().at_latest().await?
+    .fetch(&nodes_query).await?;
+
+// Submit extrinsic
+let create_call = robonomics::tx().cps().create_node(
+    parent_id,
+    meta_data,
+    payload_data,
+);
+client.api
+    .tx()
+    .sign_and_submit_then_watch_default(&create_call, keypair)
+    .await?
+    .wait_for_finalized_success()
+    .await?;
+```
+
+## Testing
+
+### Unit Tests
+
+```bash
+cargo test --package robonomics-cps-cli
+```
+
+### Integration Testing
+
+To test with a live node:
+
+1. Start a Robonomics development node:
+   ```bash
+   robonomics --dev --tmp
+   ```
+
+2. Set up environment:
+   ```bash
+   export ROBONOMICS_WS_URL=ws://localhost:9944
+   export ROBONOMICS_SURI=//Alice
+   ```
+
+3. Run commands:
+   ```bash
+   cargo run --package robonomics-cps-cli -- create --meta '{"test":true}'
+   cargo run --package robonomics-cps-cli -- show 0
+   ```
+
+### MQTT Testing
+
+1. Start mosquitto broker:
+   ```bash
+   mosquitto -v
+   ```
+
+2. Test subscribe in one terminal:
+   ```bash
+   cargo run --package robonomics-cps-cli -- mqtt subscribe "test/topic" 0
+   ```
+
+3. Publish messages in another:
+   ```bash
+   mosquitto_pub -t "test/topic" -m "test message"
+   ```
+
+## Code Quality
+
+### Linting
+
+```bash
+# Run clippy
+cargo clippy --package robonomics-cps-cli
+
+# Apply automatic fixes
+cargo clippy --fix --package robonomics-cps-cli --allow-dirty
+```
+
+### Formatting
+
+```bash
+# Check formatting
+cargo fmt --package robonomics-cps-cli -- --check
+
+# Apply formatting
+cargo fmt --package robonomics-cps-cli
+```
+
+## Debugging
+
+### Enable Rust logging
+
+```bash
+export RUST_LOG=debug
+cargo run --package robonomics-cps-cli -- show 0
+```
+
+### Using LLDB/GDB
+
+```bash
+# Build with debug symbols
+cargo build --package robonomics-cps-cli
+
+# Run with debugger
+rust-lldb target/debug/cps
+# or
+rust-gdb target/debug/cps
+```
+
+## Dependencies
+
+### Core Dependencies
+
+- `subxt`: Substrate RPC client
+- `subxt-signer`: Account signing utilities
+- `clap`: Command-line argument parsing
+- `tokio`: Async runtime
+- `anyhow`: Error handling
+
+### Crypto Dependencies
+
+- `schnorrkel`: sr25519 cryptography
+- `chacha20poly1305`: XChaCha20-Poly1305 encryption
+- `hkdf`: HMAC-based key derivation
+- `sha2`: SHA-256 hashing
+
+### UI Dependencies
+
+- `colored`: Terminal colors and formatting
+- `serde`/`serde_json`: Serialization
+
+### Optional Dependencies
+
+- `rumqttc`: MQTT client
+
+## Architecture Decisions
+
+### Why XChaCha20-Poly1305?
+
+- Large nonce space (192 bits) prevents nonce reuse
+- Fast in software (no hardware requirements)
+- Authenticated encryption (AEAD)
+- Well-tested and widely adopted
+
+### Why Subxt?
+
+- Type-safe blockchain interactions
+- Auto-generated types from metadata
+- Async/await support
+- Active development and good documentation
+
+### Why Separate Commands?
+
+- Modularity: Each command is self-contained
+- Testability: Easy to test individual commands
+- Maintainability: Clear code organization
+- Extensibility: Easy to add new commands
+
+## Common Issues
+
+### Connection Refused
+
+**Problem**: `Error when opening the TCP socket: Connection refused`
+
+**Solution**: Make sure your Robonomics node is running:
+```bash
+robonomics --dev --tmp
+```
+
+### Missing Metadata
+
+**Problem**: Types not found or compilation errors after generating metadata
+
+**Solution**: Regenerate metadata with the correct node version:
+```bash
+subxt metadata --url ws://localhost:9944 > metadata.scale
+subxt codegen --file metadata.scale > src/robonomics_runtime.rs
+```
+
+### Type Mismatch
+
+**Problem**: SCALE encoding/decoding errors
+
+**Solution**: Ensure your types match the pallet types exactly. Check:
+- Field order
+- Type names
+- Encoding attributes (`#[codec(...)]`)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+### Code Style
+
+- Follow Rust standard style (use `cargo fmt`)
+- Add documentation comments for public functions
+- Use descriptive variable names
+- Keep functions focused and small
+- Add tests for new functionality
+
+### Commit Messages
+
+Format: `<type>: <description>`
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes
+- `refactor`: Code refactoring
+- `test`: Test additions/changes
+- `chore`: Maintenance tasks
+
+Example:
+```
+feat: add support for encrypted MQTT messages
+fix: handle disconnection in MQTT bridge
+docs: update README with new examples
+```
+
+## Performance Considerations
+
+### Blockchain Queries
+
+- Use `at_latest()` for most recent state
+- Consider caching frequently accessed data
+- Batch queries when possible
+
+### MQTT Bridge
+
+- Adjust polling interval based on use case
+- Consider using subscriptions for real-time updates
+- Handle reconnection gracefully
+
+### Memory Usage
+
+- Use streaming for large payloads
+- Clear old data when no longer needed
+- Monitor memory in long-running bridges
+
+## Security Notes
+
+### Private Keys
+
+- Never log or print private keys
+- Use secure key storage (keyring, hardware wallet)
+- Validate key formats before use
+
+### Encryption
+
+- Always verify recipient public key
+- Use secure random number generation
+- Validate nonce uniqueness
+
+### Network
+
+- Use TLS for production MQTT
+- Validate WebSocket URLs
+- Handle connection errors gracefully
+
+## Future Improvements
+
+Potential areas for enhancement:
+
+1. **Metadata Caching**: Cache generated metadata to avoid regeneration
+2. **Batch Operations**: Support creating multiple nodes at once
+3. **Advanced Querying**: Add filtering and search capabilities
+4. **Monitoring Dashboard**: Web UI for visualizing CPS trees
+5. **Plugin System**: Allow custom command extensions
+6. **Configuration File**: Support for `.cpsrc` config file
+7. **Shell Completion**: Generate completions for bash/zsh/fish
+8. **Docker Support**: Containerized deployment
+9. **Metrics**: Export Prometheus metrics
+10. **Webhooks**: HTTP callback support for events
+
+## Resources
+
+- [Robonomics Documentation](https://wiki.robonomics.network)
+- [Subxt Documentation](https://docs.rs/subxt)
+- [Substrate Documentation](https://docs.substrate.io)
+- [MQTT Protocol](https://mqtt.org)
+- [XChaCha20 Spec](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha)
+
+## License
+
+Apache-2.0 - See LICENSE file for details
