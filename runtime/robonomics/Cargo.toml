@@ -86,7 +86,7 @@ parachain-info.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
-pallet-xcm.workspace = true
+#pallet-xcm.workspace = true
 pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-primitives.workspace = true
 
@@ -154,7 +154,7 @@ std = [
   "xcm/std",
   "xcm-builder/std",
   "xcm-executor/std",
-  "pallet-xcm/std",
+  #  "pallet-xcm/std",
   "pallet-xcm-info/std",
   "polkadot-primitives/std",
   "parachain-info/std",
@@ -174,7 +174,7 @@ runtime-benchmarks = [
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
-  "pallet-xcm/runtime-benchmarks",
+  #  "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
   "cumulus-pallet-parachain-system/runtime-benchmarks",

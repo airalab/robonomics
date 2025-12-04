@@ -1,76 +1,74 @@
----------------------------
-Robonomics Docker Compose 
----------------------------
-Users who use docker-compose to build and start the container. The following instructions assumed that docker-compose has already been installed on your system.
-If you do not have compose installed, please refer to this website https://docs.docker.com/compose/install/ .
-Also, it is required that you build the robonomics images prior to using these commands otherwise you will receive an error message telling you to build.
+# Robonomics Docker
 
+This directory contains the Dockerfile and health check script for building lightweight Alpine-based Robonomics images.
 
------------------
-### First time BUILD and RUN*
------------------
-Run the following command:
+## Using Pre-built Images
 
-	bash build-compose.sh
+Pre-built multi-architecture images are available on Docker Hub:
 
-----------------------------
-### Subsequent BUILD and RUN using docker-compose
-----------------------------
-Run the following command:
+```bash
+docker pull robonomics/robonomics:latest
+```
 
-	docker-compose up -d
+### Running a Node
 
----------------------------------
-### To STOP docker-compose container
----------------------------------
-Run the following command:
-  
-	docker-compose stop
+```bash
+docker run -d \
+  --name robonomics \
+  -p 30333:30333 \
+  -p 9944:9944 \
+  -p 9933:9933 \
+  -v robonomics-data:/data \
+  robonomics/robonomics:latest
+```
 
------------------------------------
-### To REMOVE docker-compose container
------------------------------------
-Run the following command:
- 	
-	docker-compose rm -f
+### Available Ports
 
+- `30333` - P2P port
+- `30334` - P2P port (parachain)
+- `9944` - WebSocket RPC
+- `9945` - WebSocket RPC (parachain)
+- `9933` - HTTP RPC
+- `9934` - HTTP RPC (parachain)
+- `9615` - Prometheus metrics
+- `9616` - Prometheus metrics (parachain)
 
----------------------------
-Robonomics Docker
----------------------------
+## Building Locally
 
-For those who prefer the standard docker image call, we have you covered below. Once again we assumed that you already have docker installed on your system. 
-If you do not have docker installed, please refer to this website https://docs.docker.com/engine/install/ .
+To build the Docker image locally for x86_64:
 
------------------------------------
-### To BUILD and RUN docker container
------------------------------------
-Run the following command:
- 	
-	bash build-docker.sh
+```bash
+# Build the Robonomics binary with musl target
+cargo build --profile production --target x86_64-unknown-linux-musl
 
------------------------------------
-### To STOP docker container
------------------------------------
-Run the following command:
- 	
-	docker stop robonomics
+# Create architecture directory and copy binary
+mkdir -p scripts/docker/amd64
+cp target/x86_64-unknown-linux-musl/production/robonomics scripts/docker/amd64/
 
------------------------------------
-### To RE-START docker container
------------------------------------
-Run the following command:
- 	
-	docker start robonomics
+# Build Docker image
+cd scripts/docker
+docker build --build-arg TARGETARCH=amd64 -t robonomics/robonomics:local .
+```
 
------------------------------------
-### To DELETE docker container
------------------------------------
-Run the following command:
- 	
-	docker rm -f robonomics
+For aarch64 (ARM64) cross-compilation:
 
+```bash
+# Install cross-compilation tools
+rustup target add aarch64-unknown-linux-musl
 
+# Build the binary
+cargo build --profile production --target aarch64-unknown-linux-musl
 
-*[Note]: this command will detect whether there is a binary file in the target/release location is, there is a limitation of Dockerfile where the file has
-be within the same directory and cannot be copied from another location hence we have to manually copy to the current directory prior to using docker-compose.
+# Create architecture directory and copy binary
+mkdir -p scripts/docker/arm64
+cp target/aarch64-unknown-linux-musl/production/robonomics scripts/docker/arm64/
+
+# Build Docker image
+cd scripts/docker
+docker build --build-arg TARGETARCH=arm64 -t robonomics/robonomics:local .
+```
+
+## Health Check
+
+The container includes a health check that monitors chain progression by querying the RPC endpoint. The health check runs every 5 minutes and verifies that the block number is increasing.
+
