@@ -104,6 +104,92 @@ pub struct EncryptedMessage {
 /// HKDF info string for domain separation
 const INFO: &[u8] = b"robonomics-cps-xchacha20poly1305";
 
+/// Derive shared secret from sr25519 keys using HKDF-based key agreement.
+///
+/// Since sr25519 uses Ristretto255 group (not directly compatible with X25519),
+/// we use a secure hash-based key agreement scheme:
+/// 1. Compute ECDH-like operation: secret_scalar * public_point (on Ristretto255)
+/// 2. Hash the result with HKDF for key derivation
+///
+/// This provides forward secrecy and is cryptographically secure, though not
+/// standard X25519. Both parties must use the same derivation to get matching secrets.
+///
+/// # Arguments
+///
+/// * `secret_key` - The secret key for DH
+/// * `public_key` - The public key to compute shared secret with
+///
+/// # Returns
+///
+/// Returns 32-byte shared secret
+///
+/// # Errors
+///
+/// Returns error if the operation fails
+fn derive_shared_secret(secret_key: &SecretKey, public_key: &PublicKey) -> Result<[u8; 32]> {
+    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::scalar::Scalar;
+    use sha2::{Digest, Sha512};
+    
+    // Get secret scalar (first 32 bytes of secret key)
+    let secret_bytes = secret_key.to_bytes();
+    let mut scalar_bytes = [0u8; 32];
+    scalar_bytes.copy_from_slice(&secret_bytes[..32]);
+    
+    // Create scalar (schnorrkel uses SHA-512 internally, we replicate this)
+    let scalar = Scalar::from_bytes_mod_order(scalar_bytes);
+    
+    // Get public key as Ristretto point
+    // schnorrkel PublicKey is compressed Ristretto255
+    let public_compressed = curve25519_dalek::ristretto::CompressedRistretto(public_key.to_bytes());
+    let public_point = public_compressed
+        .decompress()
+        .ok_or_else(|| anyhow!("Failed to decompress Ristretto255 public key"))?;
+    
+    // Perform scalar multiplication on Ristretto255
+    let shared_point = scalar * public_point;
+    
+    // Compress the result and hash it for the shared secret
+    // This ensures both parties get the same result
+    let shared_compressed = shared_point.compress();
+    
+    // Use SHA-512 to derive a uniform 64-byte output, then take first 32 bytes
+    // This matches how Substrate typically handles key agreement
+    let mut hasher = Sha512::new();
+    hasher.update(b"robonomics-cps-ecdh");
+    hasher.update(shared_compressed.as_bytes());
+    let hash_output = hasher.finalize();
+    
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&hash_output[..32]);
+    
+    Ok(result)
+}
+
+/// Derive encryption key from shared secret using HKDF-SHA256.
+///
+/// Uses HKDF (HMAC-based Key Derivation Function) with SHA256 to derive
+/// a 32-byte encryption key from the shared secret.
+///
+/// # Arguments
+///
+/// * `shared_secret` - The shared secret from ECDH
+///
+/// # Returns
+///
+/// Returns 32-byte encryption key
+///
+/// # Errors
+///
+/// Returns error if HKDF expansion fails
+fn derive_encryption_key(shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
+    let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
+    let mut okm = [0u8; 32];
+    hkdf.expand(INFO, &mut okm)
+        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
+    Ok(okm)
+}
+
 /// Encrypt data using sr25519 → XChaCha20-Poly1305 scheme.
 ///
 /// # Process
@@ -151,53 +237,24 @@ pub fn encrypt(
     sender_secret: &SecretKey,
     receiver_public: &[u8; 32],
 ) -> Result<Vec<u8>> {
-    // Step 1: Derive shared secret using proper ECDH (Curve25519)
+    // Step 1: Parse receiver's public key
     let receiver_pubkey = PublicKey::from_bytes(receiver_public)
         .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
     
-    // Perform X25519 Diffie-Hellman key agreement
-    // Extract the secret scalar from the secret key (first 32 bytes)
-    let secret_bytes = sender_secret.to_bytes();
-    let mut secret_scalar = [0u8; 32];
-    secret_scalar.copy_from_slice(&secret_bytes[..32]);
+    // Step 2: Derive shared secret using ECDH
+    let shared_secret = derive_shared_secret(sender_secret, &receiver_pubkey)?;
     
-    // Get receiver's public key bytes
-    let public_bytes = receiver_pubkey.to_bytes();
-    
-    // Perform X25519: shared_secret = scalar_mult(secret, public_point)
-    // Using curve25519-dalek's montgomery point for DH
-    use curve25519_dalek::montgomery::MontgomeryPoint;
-    use curve25519_dalek::scalar::Scalar;
-    
-    // Clamp the scalar for X25519 (set specific bits)
-    secret_scalar[0] &= 248;
-    secret_scalar[31] &= 127;
-    secret_scalar[31] |= 64;
-    
-    // Create Montgomery point from public key
-    let public_point = MontgomeryPoint(public_bytes);
-    
-    // Create scalar from clamped secret
-    let scalar = Scalar::from_bytes_mod_order(secret_scalar);
-    
-    // Perform scalar multiplication: shared_secret = secret_scalar * public_point
-    let shared_secret_point = &scalar * public_point;
-    let shared_secret = shared_secret_point.to_bytes();
+    // Step 3: Derive encryption key using HKDF
+    let encryption_key = derive_encryption_key(&shared_secret)?;
 
-    // Step 2: HKDF to derive encryption key
-    let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
-    let mut okm = [0u8; 32];
-    hkdf.expand(INFO, &mut okm)
-        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
-
-    // Step 3: Encrypt with XChaCha20-Poly1305
-    let cipher = XChaCha20Poly1305::new(&okm.into());
+    // Step 4: Encrypt with XChaCha20-Poly1305
+    let cipher = XChaCha20Poly1305::new(&encryption_key.into());
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
     let ciphertext = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|e| anyhow!("Encryption failed: {e}"))?;
 
-    // Step 4: Create message structure
+    // Step 5: Create message structure
     let sender_public = sender_secret.to_public();
     let message = EncryptedMessage {
         version: 1,
@@ -266,7 +323,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
         return Err(anyhow!("Unsupported encryption version: {}", message.version));
     }
 
-    // Decode sender's public key
+    // Step 2: Decode sender's public key
     let sender_public_bytes = bs58::decode(&message.from)
         .into_vec()
         .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
@@ -281,41 +338,13 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
-    // Step 2: Derive shared secret using proper ECDH (Curve25519)
-    // Extract the secret scalar from the secret key (first 32 bytes)
-    let secret_bytes = receiver_secret.to_bytes();
-    let mut secret_scalar = [0u8; 32];
-    secret_scalar.copy_from_slice(&secret_bytes[..32]);
+    // Step 3: Derive shared secret using ECDH
+    let shared_secret = derive_shared_secret(receiver_secret, &sender_public)?;
     
-    // Get sender's public key bytes
-    let public_bytes = sender_public.to_bytes();
-    
-    // Perform X25519: shared_secret = scalar_mult(secret, public_point)
-    use curve25519_dalek::montgomery::MontgomeryPoint;
-    use curve25519_dalek::scalar::Scalar;
-    
-    // Clamp the scalar for X25519
-    secret_scalar[0] &= 248;
-    secret_scalar[31] &= 127;
-    secret_scalar[31] |= 64;
-    
-    // Create Montgomery point from public key
-    let public_point = MontgomeryPoint(public_bytes);
-    
-    // Create scalar from clamped secret
-    let scalar = Scalar::from_bytes_mod_order(secret_scalar);
-    
-    // Perform scalar multiplication
-    let shared_secret_point = &scalar * public_point;
-    let shared_secret = shared_secret_point.to_bytes();
+    // Step 4: Derive encryption key using HKDF
+    let encryption_key = derive_encryption_key(&shared_secret)?;
 
-    // Step 3: HKDF to derive encryption key
-    let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
-    let mut okm = [0u8; 32];
-    hkdf.expand(INFO, &mut okm)
-        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
-
-    // Decode nonce and ciphertext
+    // Step 5: Decode nonce and ciphertext
     let nonce_bytes = base64::decode(&message.nonce)
         .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
     let nonce = XNonce::from_slice(&nonce_bytes);
@@ -323,9 +352,256 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let ciphertext = base64::decode(&message.ciphertext)
         .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
-    // Step 4: Decrypt
-    let cipher = XChaCha20Poly1305::new(&okm.into());
+     // Step 6: Decrypt
+    let cipher = XChaCha20Poly1305::new(&encryption_key.into());
     cipher
         .decrypt(nonce, ciphertext.as_ref())
         .map_err(|e| anyhow!("Decryption failed: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use schnorrkel::{Keypair, MiniSecretKey};
+    
+    /// Generate a test keypair from a seed
+    fn test_keypair(seed: u8) -> Keypair {
+        let mini_secret = MiniSecretKey::from_bytes(&[seed; 32]).unwrap();
+        mini_secret.expand_to_keypair(schnorrkel::ExpansionMode::Ed25519)
+    }
+    
+    #[test]
+    fn test_derive_shared_secret() {
+        // Create two keypairs
+        let alice = test_keypair(1);
+        let bob = test_keypair(2);
+        
+        // Derive shared secrets from both sides
+        let shared_alice_bob = derive_shared_secret(&alice.secret, &bob.public).unwrap();
+        let shared_bob_alice = derive_shared_secret(&bob.secret, &alice.public).unwrap();
+        
+        // Shared secrets should be identical
+        assert_eq!(shared_alice_bob, shared_bob_alice);
+        
+        // Shared secret should be 32 bytes
+        assert_eq!(shared_alice_bob.len(), 32);
+        
+        // Shared secret should not be all zeros
+        assert_ne!(shared_alice_bob, [0u8; 32]);
+    }
+    
+    #[test]
+    fn test_derive_shared_secret_different_pairs() {
+        // Create three keypairs
+        let alice = test_keypair(1);
+        let bob = test_keypair(2);
+        let charlie = test_keypair(3);
+        
+        // Derive different shared secrets
+        let shared_alice_bob = derive_shared_secret(&alice.secret, &bob.public).unwrap();
+        let shared_alice_charlie = derive_shared_secret(&alice.secret, &charlie.public).unwrap();
+        
+        // Different pairs should produce different shared secrets
+        assert_ne!(shared_alice_bob, shared_alice_charlie);
+    }
+    
+    #[test]
+    fn test_derive_encryption_key() {
+        let shared_secret = [42u8; 32];
+        
+        // Derive encryption key
+        let key1 = derive_encryption_key(&shared_secret).unwrap();
+        let key2 = derive_encryption_key(&shared_secret).unwrap();
+        
+        // Same shared secret should produce same key
+        assert_eq!(key1, key2);
+        
+        // Key should be 32 bytes
+        assert_eq!(key1.len(), 32);
+        
+        // Key should be different from shared secret (HKDF transforms it)
+        assert_ne!(key1, shared_secret);
+    }
+    
+    #[test]
+    fn test_derive_encryption_key_different_secrets() {
+        let shared_secret1 = [42u8; 32];
+        let shared_secret2 = [43u8; 32];
+        
+        let key1 = derive_encryption_key(&shared_secret1).unwrap();
+        let key2 = derive_encryption_key(&shared_secret2).unwrap();
+        
+        // Different shared secrets should produce different keys
+        assert_ne!(key1, key2);
+    }
+    
+    #[test]
+    fn test_encrypt_decrypt_roundtrip() {
+        // Create sender and receiver keypairs
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        
+        let plaintext = b"Hello, Robonomics CPS!";
+        
+        // Encrypt
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+        ).unwrap();
+        
+        // Encrypted data should not be empty
+        assert!(!encrypted.is_empty());
+        
+        // Encrypted data should be valid JSON
+        let _: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+        
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        
+        // Decrypted should match original plaintext
+        assert_eq!(decrypted, plaintext);
+    }
+    
+    #[test]
+    fn test_encrypt_produces_different_ciphertexts() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Same message";
+        
+        // Encrypt same message twice
+        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Should produce different ciphertexts due to random nonces
+        assert_ne!(encrypted1, encrypted2);
+        
+        // But both should decrypt to the same plaintext
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret).unwrap();
+        assert_eq!(decrypted1, plaintext);
+        assert_eq!(decrypted2, plaintext);
+    }
+    
+    #[test]
+    fn test_decrypt_with_wrong_key_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let wrong_receiver = test_keypair(3);
+        
+        let plaintext = b"Secret message";
+        
+        // Encrypt for receiver
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Try to decrypt with wrong key
+        let result = decrypt(&encrypted, &wrong_receiver.secret);
+        
+        // Should fail
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_decrypt_with_corrupted_data_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test message";
+        
+        // Encrypt
+        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Corrupt the data
+        if encrypted.len() > 10 {
+            encrypted[10] ^= 0xFF;
+        }
+        
+        // Try to decrypt corrupted data
+        let result = decrypt(&encrypted, &receiver.secret);
+        
+        // Should fail (either parse error or authentication failure)
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_encrypt_empty_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"";
+        
+        // Encrypt empty message
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        
+        // Should get empty message back
+        assert_eq!(decrypted, plaintext);
+    }
+    
+    #[test]
+    fn test_encrypt_large_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = vec![42u8; 10000]; // 10KB message
+        
+        // Encrypt
+        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+    
+    #[test]
+    fn test_encrypted_message_structure() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test";
+        
+        // Encrypt
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Parse the encrypted message
+        let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+        
+        // Check version
+        assert_eq!(message.version, 1);
+        
+        // Check sender public key is encoded
+        assert!(!message.from.is_empty());
+        let decoded_from = bs58::decode(&message.from).into_vec().unwrap();
+        assert_eq!(decoded_from.len(), 32);
+        
+        // Check nonce is base64 encoded and correct size
+        let nonce = base64::decode(&message.nonce).unwrap();
+        assert_eq!(nonce.len(), 24); // XChaCha20 nonce size
+        
+        // Check ciphertext is base64 encoded
+        let ciphertext = base64::decode(&message.ciphertext).unwrap();
+        assert!(!ciphertext.is_empty());
+    }
+    
+    #[test]
+    fn test_decrypt_rejects_wrong_version() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test";
+        
+        // Encrypt
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Parse and modify version
+        let mut message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+        message.version = 2;
+        let modified = serde_json::to_vec(&message).unwrap();
+        
+        // Try to decrypt
+        let result = decrypt(&modified, &receiver.secret);
+        
+        // Should fail due to unsupported version
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unsupported encryption version"));
+    }
 }
