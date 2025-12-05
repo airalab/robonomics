@@ -1,4 +1,4 @@
-use crate::blockchain::{Client, Config};
+use libcps::blockchain::{Client, Config};
 use crate::display;
 use anyhow::Result;
 use colored::*;

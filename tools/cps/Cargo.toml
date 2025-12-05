@@ -1,15 +1,24 @@
 [package]
-name = "robonomics-cps-cli"
+name = "libcps"
 version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+description = "Library for interacting with Robonomics CPS (Cyber-Physical Systems) pallet"
+readme = "README.md"
+keywords = ["robonomics", "blockchain", "iot", "cyber-physical-systems", "encryption"]
+categories = ["cryptography", "network-programming", "web-programming"]
+
+[lib]
+name = "libcps"
+path = "src/lib.rs"
 
 [[bin]]
 name = "cps"
 path = "src/main.rs"
+required-features = ["cli"]
 
 [dependencies]
 # Blockchain
@@ -27,8 +36,8 @@ sha2 = "0.10"
 rumqttc = "0.24"
 
 # CLI & Output
-clap = { version = "4.5", features = ["derive", "env"] }
-colored = "2.1"
+clap = { version = "4.5", features = ["derive", "env"], optional = true }
+colored = { version = "2.1", optional = true }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -40,3 +49,11 @@ hex = "0.4"
 # Async
 tokio = { version = "1.40", features = ["full"] }
 anyhow = "1.0"
+
+[features]
+default = ["cli"]
+cli = ["clap", "colored"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

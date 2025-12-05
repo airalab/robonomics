@@ -1,17 +1,44 @@
-# 🌳 Robonomics CPS CLI
+# 🌳 libcps - Robonomics CPS Library & CLI
 
-Beautiful, user-friendly command-line interface for managing hierarchical Cyber-Physical Systems on the Robonomics blockchain.
+A comprehensive Rust library and command-line interface for managing hierarchical Cyber-Physical Systems on the Robonomics blockchain.
+
+## 📦 Packages
+
+This crate provides two components:
+
+### 1. **libcps** (Library)
+A reusable library for building applications that interact with the Robonomics CPS pallet.
+
+### 2. **cps** (CLI Binary)
+A beautiful command-line interface for quick access to CPS pallet functionality.
 
 ## ✨ Features
 
-- 🎨 **Beautiful colored output** with emojis and ASCII art
+- 🎨 **Beautiful colored output** with emojis and ASCII art (CLI)
 - 🔐 **XChaCha20-Poly1305 encryption** with sr25519 key derivation
 - 📡 **MQTT bridge** for IoT device integration
-- 🌲 **Hierarchical tree visualization** of CPS nodes
+- 🌲 **Hierarchical tree visualization** of CPS nodes (CLI)
 - ⚙️ **Flexible configuration** via environment variables or CLI args
 - 🔒 **Secure by design** with proper key management
+- 📚 **Comprehensive documentation** for library API
+- 🔧 **Type-safe blockchain integration** via subxt
 
 ## 📦 Installation
+
+### As a Library
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+libcps = "0.1.0"
+```
+
+### CLI Tool from Crates.io
+
+```bash
+cargo install libcps
+```
 
 ### From Source
 
@@ -20,19 +47,86 @@ Beautiful, user-friendly command-line interface for managing hierarchical Cyber-
 git clone https://github.com/airalab/robonomics
 cd robonomics
 
+# Build the library
+cargo build --release --package libcps --lib
+
 # Build the CLI tool
-cargo build --release --package robonomics-cps-cli
+cargo build --release --package libcps --bin cps
 
 # The binary will be at: target/release/cps
 ```
 
-### Add to PATH (optional)
+### Add CLI to PATH (optional)
 
 ```bash
 sudo cp target/release/cps /usr/local/bin/
 ```
 
-## 🚀 Quick Start
+## 📚 Library Usage
+
+### Quick Start
+
+```rust
+use libcps::{Client, Config, types::NodeData};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Connect to blockchain
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    
+    let client = Client::new(&config).await?;
+    
+    // Create node data
+    let plain_data = NodeData::plain("sensor reading: 22.5C");
+    let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3]);
+    
+    // Use client.api to interact with blockchain
+    // (requires generated metadata from running node)
+    
+    Ok(())
+}
+```
+
+### Encryption Example
+
+```rust
+use libcps::crypto::{encrypt, decrypt};
+use schnorrkel::SecretKey;
+
+fn encrypt_example() -> anyhow::Result<()> {
+    let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    let receiver_public = [0u8; 32];
+    let plaintext = b"secret message";
+
+    // Encrypt
+    let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+
+    // Decrypt
+    let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    let decrypted = decrypt(&encrypted, &receiver_secret)?;
+
+    assert_eq!(plaintext, &decrypted[..]);
+    Ok(())
+}
+```
+
+### MQTT Configuration Example
+
+```rust
+use libcps::mqtt::Config as MqttConfig;
+
+let mqtt_config = MqttConfig {
+    broker: "mqtt://localhost:1883".to_string(),
+    username: Some("user".to_string()),
+    password: Some("pass".to_string()),
+    client_id: Some("my-client".to_string()),
+};
+```
+
+## 🚀 CLI Quick Start
 
 ### 1. Set up your environment
 

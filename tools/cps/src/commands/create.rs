@@ -1,6 +1,6 @@
-use crate::blockchain::{Client, Config};
+use libcps::blockchain::{Client, Config};
 use crate::display;
-use crate::types::NodeData;
+use libcps::types::NodeData;
 use anyhow::Result;
 use colored::*;
 

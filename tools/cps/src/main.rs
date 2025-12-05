@@ -1,12 +1,17 @@
+//! CPS CLI - Command-line interface for Robonomics CPS pallet.
+//!
+//! This binary provides a beautiful, user-friendly CLI for managing
+//! cyber-physical systems on the Robonomics blockchain.
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-mod blockchain;
+// Import from the library
+use libcps::{blockchain, mqtt, types};
+
+// CLI-specific modules (display and commands)
 mod commands;
-mod crypto;
 mod display;
-mod mqtt;
-mod types;
 
 #[derive(Parser)]
 #[command(name = "cps")]

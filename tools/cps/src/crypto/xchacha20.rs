@@ -1,3 +1,57 @@
+//! XChaCha20-Poly1305 encryption with sr25519 key derivation.
+//!
+//! This module implements the encryption scheme specified for Robonomics CPS:
+//! sr25519 keys → ECDH → HKDF-SHA256 → XChaCha20-Poly1305 AEAD
+//!
+//! # Encryption Scheme
+//!
+//! 1. **Key Agreement**: Derive shared secret from sender's secret and receiver's public key
+//! 2. **Key Derivation**: Use HKDF-SHA256 with info string `"robonomics-cps-xchacha20poly1305"`
+//! 3. **Encryption**: XChaCha20-Poly1305 AEAD with random 24-byte nonce
+//!
+//! # Message Format
+//!
+//! Encrypted messages are JSON-encoded with the following structure:
+//!
+//! ```json
+//! {
+//!   "version": 1,
+//!   "from": "5GrwvaEF...",
+//!   "nonce": "base64-encoded-24-bytes",
+//!   "ciphertext": "base64-encoded-data"
+//! }
+//! ```
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use libcps::crypto::{encrypt, decrypt};
+//! use schnorrkel::SecretKey;
+//!
+//! # fn example() -> anyhow::Result<()> {
+//! let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+//! let receiver_public = [0u8; 32];
+//! let plaintext = b"secret message";
+//!
+//! // Encrypt
+//! let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+//!
+//! // Decrypt
+//! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
+//! let decrypted = decrypt(&encrypted, &receiver_secret)?;
+//!
+//! assert_eq!(plaintext, &decrypted[..]);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Security
+//!
+//! - **AEAD**: XChaCha20-Poly1305 provides authenticated encryption
+//! - **Nonce**: 24-byte nonces from secure random source (OsRng)
+//! - **KDF**: HKDF-SHA256 ensures proper key derivation
+//! - **Info String**: Domain separation via fixed info string
+
 use anyhow::{anyhow, Result};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -8,31 +62,73 @@ use schnorrkel::{PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Encrypted message format stored on-chain
+/// Encrypted message format stored on-chain.
+///
+/// This structure is JSON-serialized for storage and transmission.
+///
+/// # Fields
+///
+/// * `version` - Message format version (currently 1)
+/// * `from` - Sender's public key in base58 encoding
+/// * `nonce` - XChaCha20 nonce in base64 encoding (24 bytes)
+/// * `ciphertext` - Encrypted data in base64 encoding
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedMessage {
+    /// Message format version
     pub version: u8,
+    /// Sender's sr25519 public key (base58-encoded)
     pub from: String,
+    /// XChaCha20 nonce (base64-encoded, 24 bytes)
     pub nonce: String,
+    /// Encrypted ciphertext (base64-encoded)
     pub ciphertext: String,
 }
 
+/// HKDF info string for domain separation
 const INFO: &[u8] = b"robonomics-cps-xchacha20poly1305";
 
-/// Encrypt data using sr25519 → XChaCha20-Poly1305 scheme
+/// Encrypt data using sr25519 → XChaCha20-Poly1305 scheme.
 ///
 /// # Process
-/// 1. Derive shared secret from sender's secret key and receiver's public key using DH
-/// 2. HKDF: Derive encryption key from shared secret using SHA256
-/// 3. XChaCha20-Poly1305: Encrypt plaintext with derived key and random nonce
 ///
-/// # Parameters
-/// - `plaintext`: Data to encrypt
-/// - `sender_secret`: Sender's sr25519 secret key
-/// - `receiver_public`: Receiver's sr25519 public key (32 bytes)
+/// 1. Derive shared secret from sender's secret key and receiver's public key
+/// 2. Use HKDF-SHA256 to derive 32-byte encryption key from shared secret
+/// 3. Encrypt plaintext with XChaCha20-Poly1305 using random 24-byte nonce
+/// 4. Return JSON-encoded message with version, sender, nonce, and ciphertext
+///
+/// # Arguments
+///
+/// * `plaintext` - Data to encrypt
+/// * `sender_secret` - Sender's sr25519 secret key
+/// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
 ///
 /// # Returns
-/// JSON-encoded EncryptedMessage with base64-encoded nonce and ciphertext
+///
+/// JSON-encoded [`EncryptedMessage`] with base64-encoded nonce and ciphertext
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Receiver's public key is invalid
+/// - HKDF expansion fails
+/// - Encryption fails
+/// - JSON serialization fails
+///
+/// # Examples
+///
+/// ```no_run
+/// use libcps::crypto::encrypt;
+/// use schnorrkel::SecretKey;
+///
+/// # fn example() -> anyhow::Result<()> {
+/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let receiver_public = [0u8; 32];
+/// let plaintext = b"secret message";
+///
+/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+/// # Ok(())
+/// # }
+/// ```
 pub fn encrypt(
     plaintext: &[u8],
     sender_secret: &SecretKey,
@@ -76,20 +172,53 @@ pub fn encrypt(
     serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
 }
 
-/// Decrypt data using sr25519 → XChaCha20-Poly1305 scheme
+/// Decrypt data using sr25519 → XChaCha20-Poly1305 scheme.
 ///
 /// # Process
-/// 1. Parse encrypted message
-/// 2. Derive shared secret from receiver's secret key and sender's public key
-/// 3. HKDF: Derive encryption key from shared secret
-/// 4. XChaCha20-Poly1305: Decrypt ciphertext
 ///
-/// # Parameters
-/// - `encrypted_data`: JSON-encoded EncryptedMessage
-/// - `receiver_secret`: Receiver's sr25519 secret key
+/// 1. Parse JSON-encoded encrypted message
+/// 2. Derive shared secret from receiver's secret key and sender's public key
+/// 3. Use HKDF-SHA256 to derive encryption key
+/// 4. Decrypt ciphertext with XChaCha20-Poly1305
+///
+/// # Arguments
+///
+/// * `encrypted_data` - JSON-encoded [`EncryptedMessage`]
+/// * `receiver_secret` - Receiver's sr25519 secret key
 ///
 /// # Returns
+///
 /// Decrypted plaintext bytes
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Cannot parse JSON message
+/// - Unsupported message version
+/// - Invalid sender public key
+/// - HKDF expansion fails
+/// - Cannot decode base64 nonce or ciphertext
+/// - Decryption fails (wrong key or corrupted data)
+///
+/// # Examples
+///
+/// ```no_run
+/// use libcps::crypto::{encrypt, decrypt};
+/// use schnorrkel::SecretKey;
+///
+/// # fn example() -> anyhow::Result<()> {
+/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let receiver_secret = SecretKey::from_bytes(&[1u8; 64])?;
+/// let receiver_public = receiver_secret.to_public().to_bytes();
+/// let plaintext = b"secret message";
+///
+/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+/// let decrypted = decrypt(&encrypted, &receiver_secret)?;
+///
+/// assert_eq!(plaintext, &decrypted[..]);
+/// # Ok(())
+/// # }
+/// ```
 pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec<u8>> {
     // Step 1: Parse message
     let message: EncryptedMessage = serde_json::from_slice(encrypted_data)

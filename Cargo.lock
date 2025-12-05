@@ -6383,6 +6383,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
 
 [[package]]
+name = "libcps"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.21.7",
+ "bs58",
+ "chacha20poly1305",
+ "clap",
+ "colored",
+ "hex",
+ "hkdf",
+ "parity-scale-codec",
+ "rumqttc",
+ "schnorrkel",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subxt 0.37.0",
+ "subxt-signer 0.37.0",
+ "tokio",
+]
+
+[[package]]
 name = "libloading"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11605,29 +11628,6 @@ dependencies = [
  "robonomics-runtime",
  "sp-genesis-builder",
  "substrate-build-script-utils",
-]
-
-[[package]]
-name = "robonomics-cps-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64 0.21.7",
- "bs58",
- "chacha20poly1305",
- "clap",
- "colored",
- "hex",
- "hkdf",
- "parity-scale-codec",
- "rumqttc",
- "schnorrkel",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "subxt 0.37.0",
- "subxt-signer 0.37.0",
- "tokio",
 ]
 
 [[package]]
