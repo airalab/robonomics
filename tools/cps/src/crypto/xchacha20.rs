@@ -104,90 +104,170 @@ pub struct EncryptedMessage {
 /// HKDF info string for domain separation
 const INFO: &[u8] = b"robonomics-cps-xchacha20poly1305";
 
-/// Derive shared secret from sr25519 keys using HKDF-based key agreement.
+/// A shared secret computed via ECDH on Ristretto255.
 ///
-/// Since sr25519 uses Ristretto255 group (not directly compatible with X25519),
-/// we use a secure hash-based key agreement scheme:
-/// 1. Compute ECDH-like operation: secret_scalar * public_point (on Ristretto255)
-/// 2. Hash the result with HKDF for key derivation
+/// This struct holds the shared secret derived from sr25519 key agreement
+/// using Ristretto255 curve operations. It provides methods for deriving
+/// encryption keys using HKDF.
 ///
-/// This provides forward secrecy and is cryptographically secure, though not
-/// standard X25519. Both parties must use the same derivation to get matching secrets.
+/// # Security
 ///
-/// # Arguments
+/// The shared secret should be treated as sensitive cryptographic material
+/// and not exposed directly. Use the provided methods to derive keys.
 ///
-/// * `secret_key` - The secret key for DH
-/// * `public_key` - The public key to compute shared secret with
+/// # Examples
 ///
-/// # Returns
+/// ```no_run
+/// use libcps::crypto::SharedSecret;
+/// use schnorrkel::{SecretKey, PublicKey};
 ///
-/// Returns 32-byte shared secret
+/// # fn example() -> anyhow::Result<()> {
+/// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
 ///
-/// # Errors
+/// // Derive shared secret
+/// let shared = SharedSecret::new(&my_secret, &their_public)?;
 ///
-/// Returns error if the operation fails
-fn derive_shared_secret(secret_key: &SecretKey, public_key: &PublicKey) -> Result<[u8; 32]> {
-    use curve25519_dalek::ristretto::RistrettoPoint;
-    use curve25519_dalek::scalar::Scalar;
-    use sha2::{Digest, Sha512};
-    
-    // Get secret scalar (first 32 bytes of secret key)
-    let secret_bytes = secret_key.to_bytes();
-    let mut scalar_bytes = [0u8; 32];
-    scalar_bytes.copy_from_slice(&secret_bytes[..32]);
-    
-    // Create scalar (schnorrkel uses SHA-512 internally, we replicate this)
-    let scalar = Scalar::from_bytes_mod_order(scalar_bytes);
-    
-    // Get public key as Ristretto point
-    // schnorrkel PublicKey is compressed Ristretto255
-    let public_compressed = curve25519_dalek::ristretto::CompressedRistretto(public_key.to_bytes());
-    let public_point = public_compressed
-        .decompress()
-        .ok_or_else(|| anyhow!("Failed to decompress Ristretto255 public key"))?;
-    
-    // Perform scalar multiplication on Ristretto255
-    let shared_point = scalar * public_point;
-    
-    // Compress the result and hash it for the shared secret
-    // This ensures both parties get the same result
-    let shared_compressed = shared_point.compress();
-    
-    // Use SHA-512 to derive a uniform 64-byte output, then take first 32 bytes
-    // This matches how Substrate typically handles key agreement
-    let mut hasher = Sha512::new();
-    hasher.update(b"robonomics-cps-ecdh");
-    hasher.update(shared_compressed.as_bytes());
-    let hash_output = hasher.finalize();
-    
-    let mut result = [0u8; 32];
-    result.copy_from_slice(&hash_output[..32]);
-    
-    Ok(result)
+/// // Derive encryption key
+/// let key = shared.derive_encryption_key()?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct SharedSecret([u8; 32]);
+
+impl SharedSecret {
+    /// Perform ECDH on Ristretto255 to compute a shared secret.
+    ///
+    /// Since sr25519 uses Ristretto255 group (not directly compatible with X25519),
+    /// we use Ristretto255-based key agreement:
+    /// 1. Compute scalar multiplication: secret_scalar * public_point
+    /// 2. Hash the compressed result for uniform distribution
+    ///
+    /// # Arguments
+    ///
+    /// * `secret_key` - Our secret key for DH
+    /// * `public_key` - Their public key to compute shared secret with
+    ///
+    /// # Returns
+    ///
+    /// Returns a `SharedSecret` wrapping the 32-byte shared secret
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the public key cannot be decompressed
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use libcps::crypto::SharedSecret;
+    /// use schnorrkel::{SecretKey, PublicKey};
+    ///
+    /// # fn example() -> anyhow::Result<()> {
+    /// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    /// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
+    ///
+    /// let shared = SharedSecret::new(&my_secret, &their_public)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(secret_key: &SecretKey, public_key: &PublicKey) -> Result<Self> {
+        use curve25519_dalek::ristretto::CompressedRistretto;
+        use curve25519_dalek::scalar::Scalar;
+        use sha2::{Digest, Sha512};
+        
+        // Get secret scalar (first 32 bytes of secret key)
+        let secret_bytes = secret_key.to_bytes();
+        let mut scalar_bytes = [0u8; 32];
+        scalar_bytes.copy_from_slice(&secret_bytes[..32]);
+        
+        // Create scalar (schnorrkel uses Ristretto255 internally)
+        let scalar = Scalar::from_bytes_mod_order(scalar_bytes);
+        
+        // Get public key as Ristretto point
+        // schnorrkel PublicKey is compressed Ristretto255
+        let public_compressed = CompressedRistretto(public_key.to_bytes());
+        let public_point = public_compressed
+            .decompress()
+            .ok_or_else(|| anyhow!("Failed to decompress Ristretto255 public key"))?;
+        
+        // Perform scalar multiplication on Ristretto255
+        let shared_point = scalar * public_point;
+        
+        // Compress the result and hash it for uniform distribution
+        // This ensures both parties get the same result
+        let shared_compressed = shared_point.compress();
+        
+        // Use SHA-512 to derive a uniform 64-byte output, then take first 32 bytes
+        // This matches how Substrate typically handles key agreement
+        let mut hasher = Sha512::new();
+        hasher.update(b"robonomics-cps-ecdh");
+        hasher.update(shared_compressed.as_bytes());
+        let hash_output = hasher.finalize();
+        
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash_output[..32]);
+        
+        Ok(Self(result))
+    }
+
+    /// Derive an encryption key from the shared secret using HKDF-SHA256.
+    ///
+    /// Uses HKDF (HMAC-based Key Derivation Function) with SHA256 to derive
+    /// a 32-byte encryption key suitable for XChaCha20-Poly1305.
+    ///
+    /// # Returns
+    ///
+    /// Returns 32-byte encryption key
+    ///
+    /// # Errors
+    ///
+    /// Returns error if HKDF expansion fails
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use libcps::crypto::SharedSecret;
+    /// use schnorrkel::{SecretKey, PublicKey};
+    ///
+    /// # fn example() -> anyhow::Result<()> {
+    /// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    /// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
+    ///
+    /// let shared = SharedSecret::new(&my_secret, &their_public)?;
+    /// let encryption_key = shared.derive_encryption_key()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn derive_encryption_key(&self) -> Result<[u8; 32]> {
+        let hkdf = Hkdf::<Sha256>::new(None, &self.0);
+        let mut okm = [0u8; 32];
+        hkdf.expand(INFO, &mut okm)
+            .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
+        Ok(okm)
+    }
+
+    /// Get a reference to the raw shared secret bytes.
+    ///
+    /// # Security Warning
+    ///
+    /// The shared secret should be treated as sensitive cryptographic material.
+    /// Prefer using `derive_encryption_key()` instead of accessing raw bytes.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
 }
 
-/// Derive encryption key from shared secret using HKDF-SHA256.
-///
-/// Uses HKDF (HMAC-based Key Derivation Function) with SHA256 to derive
-/// a 32-byte encryption key from the shared secret.
-///
-/// # Arguments
-///
-/// * `shared_secret` - The shared secret from ECDH
-///
-/// # Returns
-///
-/// Returns 32-byte encryption key
-///
-/// # Errors
-///
-/// Returns error if HKDF expansion fails
-fn derive_encryption_key(shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
-    let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
-    let mut okm = [0u8; 32];
-    hkdf.expand(INFO, &mut okm)
-        .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
-    Ok(okm)
+impl AsRef<[u8]> for SharedSecret {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for SharedSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SharedSecret([REDACTED])")
+    }
 }
 
 /// Encrypt data using sr25519 → XChaCha20-Poly1305 scheme.
@@ -242,10 +322,10 @@ pub fn encrypt(
         .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
     
     // Step 2: Derive shared secret using ECDH
-    let shared_secret = derive_shared_secret(sender_secret, &receiver_pubkey)?;
+    let shared_secret = SharedSecret::new(sender_secret, &receiver_pubkey)?;
     
     // Step 3: Derive encryption key using HKDF
-    let encryption_key = derive_encryption_key(&shared_secret)?;
+    let encryption_key = shared_secret.derive_encryption_key()?;
 
     // Step 4: Encrypt with XChaCha20-Poly1305
     let cipher = XChaCha20Poly1305::new(&encryption_key.into());
@@ -339,10 +419,10 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
     // Step 3: Derive shared secret using ECDH
-    let shared_secret = derive_shared_secret(receiver_secret, &sender_public)?;
+    let shared_secret = SharedSecret::new(receiver_secret, &sender_public)?;
     
     // Step 4: Derive encryption key using HKDF
-    let encryption_key = derive_encryption_key(&shared_secret)?;
+    let encryption_key = shared_secret.derive_encryption_key()?;
 
     // Step 5: Decode nonce and ciphertext
     let nonce_bytes = base64::decode(&message.nonce)
@@ -371,47 +451,49 @@ mod tests {
     }
     
     #[test]
-    fn test_derive_shared_secret() {
+    fn test_shared_secret_creation() {
         // Create two keypairs
         let alice = test_keypair(1);
         let bob = test_keypair(2);
         
         // Derive shared secrets from both sides
-        let shared_alice_bob = derive_shared_secret(&alice.secret, &bob.public).unwrap();
-        let shared_bob_alice = derive_shared_secret(&bob.secret, &alice.public).unwrap();
+        let shared_alice_bob = SharedSecret::new(&alice.secret, &bob.public).unwrap();
+        let shared_bob_alice = SharedSecret::new(&bob.secret, &alice.public).unwrap();
         
         // Shared secrets should be identical
-        assert_eq!(shared_alice_bob, shared_bob_alice);
+        assert_eq!(shared_alice_bob.as_bytes(), shared_bob_alice.as_bytes());
         
         // Shared secret should be 32 bytes
-        assert_eq!(shared_alice_bob.len(), 32);
+        assert_eq!(shared_alice_bob.as_bytes().len(), 32);
         
         // Shared secret should not be all zeros
-        assert_ne!(shared_alice_bob, [0u8; 32]);
+        assert_ne!(shared_alice_bob.as_bytes(), &[0u8; 32]);
     }
     
     #[test]
-    fn test_derive_shared_secret_different_pairs() {
+    fn test_shared_secret_different_pairs() {
         // Create three keypairs
         let alice = test_keypair(1);
         let bob = test_keypair(2);
         let charlie = test_keypair(3);
         
         // Derive different shared secrets
-        let shared_alice_bob = derive_shared_secret(&alice.secret, &bob.public).unwrap();
-        let shared_alice_charlie = derive_shared_secret(&alice.secret, &charlie.public).unwrap();
+        let shared_alice_bob = SharedSecret::new(&alice.secret, &bob.public).unwrap();
+        let shared_alice_charlie = SharedSecret::new(&alice.secret, &charlie.public).unwrap();
         
         // Different pairs should produce different shared secrets
-        assert_ne!(shared_alice_bob, shared_alice_charlie);
+        assert_ne!(shared_alice_bob.as_bytes(), shared_alice_charlie.as_bytes());
     }
     
     #[test]
     fn test_derive_encryption_key() {
-        let shared_secret = [42u8; 32];
+        let alice = test_keypair(1);
+        let bob = test_keypair(2);
+        let shared_secret = SharedSecret::new(&alice.secret, &bob.public).unwrap();
         
-        // Derive encryption key
-        let key1 = derive_encryption_key(&shared_secret).unwrap();
-        let key2 = derive_encryption_key(&shared_secret).unwrap();
+        // Derive encryption key twice
+        let key1 = shared_secret.derive_encryption_key().unwrap();
+        let key2 = shared_secret.derive_encryption_key().unwrap();
         
         // Same shared secret should produce same key
         assert_eq!(key1, key2);
@@ -420,16 +502,20 @@ mod tests {
         assert_eq!(key1.len(), 32);
         
         // Key should be different from shared secret (HKDF transforms it)
-        assert_ne!(key1, shared_secret);
+        assert_ne!(&key1, shared_secret.as_bytes());
     }
     
     #[test]
     fn test_derive_encryption_key_different_secrets() {
-        let shared_secret1 = [42u8; 32];
-        let shared_secret2 = [43u8; 32];
+        let alice = test_keypair(1);
+        let bob = test_keypair(2);
+        let charlie = test_keypair(3);
         
-        let key1 = derive_encryption_key(&shared_secret1).unwrap();
-        let key2 = derive_encryption_key(&shared_secret2).unwrap();
+        let shared_secret1 = SharedSecret::new(&alice.secret, &bob.public).unwrap();
+        let shared_secret2 = SharedSecret::new(&alice.secret, &charlie.public).unwrap();
+        
+        let key1 = shared_secret1.derive_encryption_key().unwrap();
+        let key2 = shared_secret2.derive_encryption_key().unwrap();
         
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);

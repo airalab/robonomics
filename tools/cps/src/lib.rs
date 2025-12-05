@@ -61,19 +61,24 @@
 //!
 //! ## Encryption
 //!
-//! The library implements **sr25519 → XChaCha20-Poly1305** encryption:
+//! The library implements **sr25519 → XChaCha20-Poly1305** encryption with proper ECDH:
 //!
 //! ```no_run
-//! use libcps::crypto::{encrypt, decrypt};
-//! use schnorrkel::SecretKey;
+//! use libcps::crypto::{SharedSecret, encrypt, decrypt};
+//! use schnorrkel::{SecretKey, PublicKey};
 //!
 //! # fn example() -> anyhow::Result<()> {
 //! let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
 //! let receiver_public = [0u8; 32];
 //! let plaintext = b"secret message";
 //!
-//! // Encrypt
+//! // Encrypt using high-level API
 //! let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+//!
+//! // Or use low-level SharedSecret API for key derivation
+//! let their_public = PublicKey::from_bytes(&receiver_public)?;
+//! let shared = SharedSecret::new(&sender_secret, &their_public)?;
+//! let encryption_key = shared.derive_encryption_key()?;
 //!
 //! // Decrypt
 //! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
