@@ -77,7 +77,7 @@ use chacha20poly1305::{
 use hkdf::Hkdf;
 use schnorrkel::{PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 
 /// Encrypted message format stored on-chain.
 ///
@@ -151,18 +151,38 @@ pub fn encrypt(
     sender_secret: &SecretKey,
     receiver_public: &[u8; 32],
 ) -> Result<Vec<u8>> {
-    // Step 1: Derive shared secret using Diffie-Hellman
+    // Step 1: Derive shared secret using proper ECDH (Curve25519)
     let receiver_pubkey = PublicKey::from_bytes(receiver_public)
         .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
     
-    // For now, use a simple hash-based approach for shared secret
-    // In production, this should use proper ECDH
-    let sender_public = sender_secret.to_public();
-    let mut shared_input = Vec::new();
-    shared_input.extend_from_slice(&sender_secret.to_bytes()[..32]);
-    shared_input.extend_from_slice(&receiver_pubkey.to_bytes());
+    // Perform X25519 Diffie-Hellman key agreement
+    // Extract the secret scalar from the secret key (first 32 bytes)
+    let secret_bytes = sender_secret.to_bytes();
+    let mut secret_scalar = [0u8; 32];
+    secret_scalar.copy_from_slice(&secret_bytes[..32]);
     
-    let shared_secret = sha2::Sha256::digest(&shared_input);
+    // Get receiver's public key bytes
+    let public_bytes = receiver_pubkey.to_bytes();
+    
+    // Perform X25519: shared_secret = scalar_mult(secret, public_point)
+    // Using curve25519-dalek's montgomery point for DH
+    use curve25519_dalek::montgomery::MontgomeryPoint;
+    use curve25519_dalek::scalar::Scalar;
+    
+    // Clamp the scalar for X25519 (set specific bits)
+    secret_scalar[0] &= 248;
+    secret_scalar[31] &= 127;
+    secret_scalar[31] |= 64;
+    
+    // Create Montgomery point from public key
+    let public_point = MontgomeryPoint(public_bytes);
+    
+    // Create scalar from clamped secret
+    let scalar = Scalar::from_bytes_mod_order(secret_scalar);
+    
+    // Perform scalar multiplication: shared_secret = secret_scalar * public_point
+    let shared_secret_point = &scalar * public_point;
+    let shared_secret = shared_secret_point.to_bytes();
 
     // Step 2: HKDF to derive encryption key
     let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
@@ -178,6 +198,7 @@ pub fn encrypt(
         .map_err(|e| anyhow!("Encryption failed: {e}"))?;
 
     // Step 4: Create message structure
+    let sender_public = sender_secret.to_public();
     let message = EncryptedMessage {
         version: 1,
         from: bs58::encode(sender_public.to_bytes()).into_string(),
@@ -260,12 +281,33 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
-    // Step 2: Derive shared secret
-    let mut shared_input = Vec::new();
-    shared_input.extend_from_slice(&receiver_secret.to_bytes()[..32]);
-    shared_input.extend_from_slice(&sender_public.to_bytes());
+    // Step 2: Derive shared secret using proper ECDH (Curve25519)
+    // Extract the secret scalar from the secret key (first 32 bytes)
+    let secret_bytes = receiver_secret.to_bytes();
+    let mut secret_scalar = [0u8; 32];
+    secret_scalar.copy_from_slice(&secret_bytes[..32]);
     
-    let shared_secret = sha2::Sha256::digest(&shared_input);
+    // Get sender's public key bytes
+    let public_bytes = sender_public.to_bytes();
+    
+    // Perform X25519: shared_secret = scalar_mult(secret, public_point)
+    use curve25519_dalek::montgomery::MontgomeryPoint;
+    use curve25519_dalek::scalar::Scalar;
+    
+    // Clamp the scalar for X25519
+    secret_scalar[0] &= 248;
+    secret_scalar[31] &= 127;
+    secret_scalar[31] |= 64;
+    
+    // Create Montgomery point from public key
+    let public_point = MontgomeryPoint(public_bytes);
+    
+    // Create scalar from clamped secret
+    let scalar = Scalar::from_bytes_mod_order(secret_scalar);
+    
+    // Perform scalar multiplication
+    let shared_secret_point = &scalar * public_point;
+    let shared_secret = shared_secret_point.to_bytes();
 
     // Step 3: HKDF to derive encryption key
     let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
