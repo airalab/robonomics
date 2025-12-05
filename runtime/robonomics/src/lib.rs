@@ -56,7 +56,7 @@ use sp_runtime::{
     impl_opaque_keys,
     traits::{BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    BoundedVec, FixedPointNumber, Perbill, Perquintill,
+    BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -356,6 +356,85 @@ impl pallet_multisig::Config for Runtime {
     type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
+/// Proxy type for delegating RWS subscription usage.
+#[derive(
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    parity_scale_codec::Encode,
+    parity_scale_codec::Decode,
+    parity_scale_codec::DecodeWithMemTracking,
+    sp_runtime::RuntimeDebug,
+    parity_scale_codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+    /// RWS subscription user - allows using a specific subscription via RWS::call
+    /// The parameter is the subscription_id that the proxy can use
+    RwsUser(u32),
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::RwsUser(allowed_subscription_id) => {
+                // Only allow RWS::call operations for the specific subscription
+                match c {
+                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call {
+                        subscription_id, ..
+                    }) => subscription_id == allowed_subscription_id,
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
+        }
+    }
+}
+
+parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 40);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const AnnouncementDepositBase: Balance = deposit(1, 48);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+}
+
+impl pallet_proxy::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = ConstU32<32>;
+    type MaxPending = ConstU32<32>;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+    type WeightInfo = ();
+    type BlockNumberProvider = frame_system::Pallet<Runtime>;
+}
+
 parameter_types! {
     pub ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
@@ -461,24 +540,26 @@ impl pallet_robonomics_launch::Config for Runtime {
 
 parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
-    pub const AuctionDuration: BlockNumber = 10;
-    pub const AuctionCost: Balance = 25000 * XRT;  // start subscription auction when amount locked
+    pub const AuctionDuration: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
     pub const MinimalBid: Balance = 1 * XRT;
+    pub const AssetToTpsRatio: Permill = Permill::from_parts(1);
+    pub const RwsId: PalletId = PalletId(*b"RwsStake");
 }
 
 impl pallet_robonomics_rws::Config for Runtime {
+    type Assets = Assets;
+    type LifetimeAssetId = ConstU32<42>;
+    type AssetToTpsRatio = AssetToTpsRatio;
+    type PalletId = RwsId;
     type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = u64;
-    type AuctionIndex = u32;
     type AuctionCurrency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type ReferenceCallWeight = ReferenceCallWeight;
     type AuctionDuration = AuctionDuration;
-    type AuctionCost = AuctionCost;
     type MinimalBid = MinimalBid;
-    type MaxDevicesAmount = ConstU32<32>;
-    type MaxAuctionIndexesAmount = ConstU32<4096>;
+    type StartAuctionOrigin = EnsureRoot<AccountId>;
     type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
 }
 
@@ -536,6 +617,7 @@ construct_runtime! {
         Utility: pallet_utility = 11,
         Timestamp: pallet_timestamp = 12,
         Multisig: pallet_multisig = 15,
+        Proxy: pallet_proxy = 14,
         MultiBlockMigrations: pallet_migrations = 16,
         StateTrieMigration: pallet_state_trie_migration = 17,
 
