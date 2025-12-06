@@ -15,16 +15,18 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! XChaCha20-Poly1305 encryption with sr25519 key derivation.
+//! Multi-algorithm AEAD encryption with sr25519 key derivation.
 //!
-//! This module implements the encryption scheme specified for Robonomics CPS:
-//! sr25519 keys → ECDH → HKDF-SHA256 → XChaCha20-Poly1305 AEAD
+//! This module implements encryption schemes for Robonomics CPS supporting multiple AEAD ciphers:
+//! - XChaCha20-Poly1305 (default, 24-byte nonce)
+//! - AES-256-GCM (12-byte nonce, hardware-accelerated)
+//! - ChaCha20-Poly1305 (12-byte nonce, portable)
 //!
 //! # Encryption Scheme
 //!
 //! 1. **Key Agreement**: Derive shared secret from sender's secret and receiver's public key
-//! 2. **Key Derivation**: Use HKDF-SHA256 with info string `"robonomics-cps-xchacha20poly1305"`
-//! 3. **Encryption**: XChaCha20-Poly1305 AEAD with random 24-byte nonce
+//! 2. **Key Derivation**: Use HKDF-SHA256 with algorithm-specific info string
+//! 3. **Encryption**: AEAD cipher with random nonce
 //!
 //! # Message Format
 //!
@@ -33,8 +35,9 @@
 //! ```json
 //! {
 //!   "version": 1,
+//!   "algorithm": "xchacha20",
 //!   "from": "5GrwvaEF...",
-//!   "nonce": "base64-encoded-24-bytes",
+//!   "nonce": "base64-encoded-nonce",
 //!   "ciphertext": "base64-encoded-data"
 //! }
 //! ```
@@ -42,7 +45,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use libcps::crypto::{encrypt, decrypt};
+//! use libcps::crypto::{encrypt_with_algorithm, decrypt, EncryptionAlgorithm};
 //! use schnorrkel::SecretKey;
 //!
 //! # fn example() -> anyhow::Result<()> {
@@ -50,10 +53,15 @@
 //! let receiver_public = [0u8; 32];
 //! let plaintext = b"secret message";
 //!
-//! // Encrypt
-//! let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+//! // Encrypt with specific algorithm
+//! let encrypted = encrypt_with_algorithm(
+//!     plaintext,
+//!     &sender_secret,
+//!     &receiver_public,
+//!     EncryptionAlgorithm::AesGcm256
+//! )?;
 //!
-//! // Decrypt
+//! // Decrypt (algorithm auto-detected)
 //! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
 //! let decrypted = decrypt(&encrypted, &receiver_secret)?;
 //!
@@ -64,15 +72,19 @@
 //!
 //! # Security
 //!
-//! - **AEAD**: XChaCha20-Poly1305 provides authenticated encryption
-//! - **Nonce**: 24-byte nonces from secure random source (OsRng)
+//! - **AEAD**: All algorithms provide authenticated encryption
+//! - **Nonce**: Random nonces from secure source (OsRng)
 //! - **KDF**: HKDF-SHA256 ensures proper key derivation
-//! - **Info String**: Domain separation via fixed info string
+//! - **Domain Separation**: Algorithm-specific info strings
 
 use anyhow::{anyhow, Result};
+use aes_gcm::{
+    aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
+    Aes256Gcm, Nonce as AesNonce,
+};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
-    XChaCha20Poly1305, XNonce,
+    ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
 use schnorrkel::{PublicKey, SecretKey};
@@ -86,23 +98,28 @@ use sha2::Sha256;
 /// # Fields
 ///
 /// * `version` - Message format version (currently 1)
+/// * `algorithm` - Encryption algorithm used (xchacha20, aesgcm256, or chacha20)
 /// * `from` - Sender's public key in base58 encoding
-/// * `nonce` - XChaCha20 nonce in base64 encoding (24 bytes)
+/// * `nonce` - AEAD nonce in base64 encoding (size depends on algorithm)
 /// * `ciphertext` - Encrypted data in base64 encoding
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedMessage {
     /// Message format version
     pub version: u8,
+    /// Encryption algorithm (for backward compat, defaults to xchacha20)
+    #[serde(default = "default_algorithm")]
+    pub algorithm: String,
     /// Sender's sr25519 public key (base58-encoded)
     pub from: String,
-    /// XChaCha20 nonce (base64-encoded, 24 bytes)
+    /// AEAD nonce (base64-encoded, size varies by algorithm)
     pub nonce: String,
     /// Encrypted ciphertext (base64-encoded)
     pub ciphertext: String,
 }
 
-/// HKDF info string for domain separation
-const INFO: &[u8] = b"robonomics-cps-xchacha20poly1305";
+fn default_algorithm() -> String {
+    "xchacha20".to_string()
+}
 
 /// A shared secret computed via ECDH on Ristretto255.
 ///
@@ -129,7 +146,7 @@ const INFO: &[u8] = b"robonomics-cps-xchacha20poly1305";
 /// let shared = SharedSecret::new(&my_secret, &their_public)?;
 ///
 /// // Derive encryption key
-/// let key = shared.derive_encryption_key()?;
+/// let key = shared.derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -214,7 +231,11 @@ impl SharedSecret {
     /// Derive an encryption key from the shared secret using HKDF-SHA256.
     ///
     /// Uses HKDF (HMAC-based Key Derivation Function) with SHA256 to derive
-    /// a 32-byte encryption key suitable for XChaCha20-Poly1305.
+    /// a 32-byte encryption key suitable for the specified algorithm.
+    ///
+    /// # Arguments
+    ///
+    /// * `algorithm` - The encryption algorithm to derive a key for
     ///
     /// # Returns
     ///
@@ -227,7 +248,7 @@ impl SharedSecret {
     /// # Examples
     ///
     /// ```no_run
-    /// use libcps::crypto::SharedSecret;
+    /// use libcps::crypto::{SharedSecret, EncryptionAlgorithm};
     /// use schnorrkel::{SecretKey, PublicKey};
     ///
     /// # fn example() -> anyhow::Result<()> {
@@ -235,14 +256,14 @@ impl SharedSecret {
     /// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
     ///
     /// let shared = SharedSecret::new(&my_secret, &their_public)?;
-    /// let encryption_key = shared.derive_encryption_key()?;
+    /// let encryption_key = shared.derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn derive_encryption_key(&self) -> Result<[u8; 32]> {
+    pub fn derive_encryption_key(&self, algorithm: crate::crypto::EncryptionAlgorithm) -> Result<[u8; 32]> {
         let hkdf = Hkdf::<Sha256>::new(None, &self.0);
         let mut okm = [0u8; 32];
-        hkdf.expand(INFO, &mut okm)
+        hkdf.expand(algorithm.info_string(), &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
         Ok(okm)
     }
@@ -317,6 +338,70 @@ pub fn encrypt(
     sender_secret: &SecretKey,
     receiver_public: &[u8; 32],
 ) -> Result<Vec<u8>> {
+    encrypt_with_algorithm(
+        plaintext,
+        sender_secret,
+        receiver_public,
+        crate::crypto::EncryptionAlgorithm::default(),
+    )
+}
+
+/// Encrypt data using sr25519 → AEAD scheme with specified algorithm.
+///
+/// # Process
+///
+/// 1. Derive shared secret from sender's secret key and receiver's public key
+/// 2. Use HKDF-SHA256 to derive 32-byte encryption key from shared secret
+/// 3. Encrypt plaintext with specified AEAD cipher using random nonce
+/// 4. Return JSON-encoded message with version, algorithm, sender, nonce, and ciphertext
+///
+/// # Arguments
+///
+/// * `plaintext` - Data to encrypt
+/// * `sender_secret` - Sender's sr25519 secret key
+/// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
+/// * `algorithm` - AEAD encryption algorithm to use
+///
+/// # Returns
+///
+/// JSON-encoded [`EncryptedMessage`] with base64-encoded nonce and ciphertext
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Receiver's public key is invalid
+/// - HKDF expansion fails
+/// - Encryption fails
+/// - JSON serialization fails
+///
+/// # Examples
+///
+/// ```no_run
+/// use libcps::crypto::{encrypt_with_algorithm, EncryptionAlgorithm};
+/// use schnorrkel::SecretKey;
+///
+/// # fn example() -> anyhow::Result<()> {
+/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let receiver_public = [0u8; 32];
+/// let plaintext = b"secret message";
+///
+/// let encrypted = encrypt_with_algorithm(
+///     plaintext,
+///     &sender_secret,
+///     &receiver_public,
+///     EncryptionAlgorithm::AesGcm256
+/// )?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn encrypt_with_algorithm(
+    plaintext: &[u8],
+    sender_secret: &SecretKey,
+    receiver_public: &[u8; 32],
+    algorithm: crate::crypto::EncryptionAlgorithm,
+) -> Result<Vec<u8>> {
+    use base64::{engine::general_purpose, Engine as _};
+
     // Step 1: Parse receiver's public key
     let receiver_pubkey = PublicKey::from_bytes(receiver_public)
         .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
@@ -325,36 +410,65 @@ pub fn encrypt(
     let shared_secret = SharedSecret::new(sender_secret, &receiver_pubkey)?;
     
     // Step 3: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key()?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
-    // Step 4: Encrypt with XChaCha20-Poly1305
-    let cipher = XChaCha20Poly1305::new(&encryption_key.into());
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let ciphertext = cipher
-        .encrypt(&nonce, plaintext)
-        .map_err(|e| anyhow!("Encryption failed: {e}"))?;
+    // Step 4: Encrypt with specified algorithm
+    let (nonce_bytes, ciphertext) = match algorithm {
+        crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
+            let cipher = XChaCha20Poly1305::new(&encryption_key.into());
+            let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+            let ct = cipher
+                .encrypt(&nonce, plaintext)
+                .map_err(|e| anyhow!("XChaCha20 encryption failed: {e}"))?;
+            (nonce.to_vec(), ct)
+        }
+        crate::crypto::EncryptionAlgorithm::AesGcm256 => {
+            let cipher = Aes256Gcm::new(&encryption_key.into());
+            let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+            let ct = cipher
+                .encrypt(&nonce, plaintext)
+                .map_err(|e| anyhow!("AES-GCM encryption failed: {e}"))?;
+            (nonce.to_vec(), ct)
+        }
+        crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305 => {
+            let cipher = ChaCha20Poly1305::new(&encryption_key.into());
+            let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+            let ct = cipher
+                .encrypt(&nonce, plaintext)
+                .map_err(|e| anyhow!("ChaCha20 encryption failed: {e}"))?;
+            (nonce.to_vec(), ct)
+        }
+    };
 
     // Step 5: Create message structure
     let sender_public = sender_secret.to_public();
+    let algorithm_str = match algorithm {
+        crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
+        crate::crypto::EncryptionAlgorithm::AesGcm256 => "aesgcm256",
+        crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305 => "chacha20",
+    };
+    
     let message = EncryptedMessage {
         version: 1,
+        algorithm: algorithm_str.to_string(),
         from: bs58::encode(sender_public.to_bytes()).into_string(),
-        nonce: base64::encode(nonce.as_slice()),
-        ciphertext: base64::encode(&ciphertext),
+        nonce: general_purpose::STANDARD.encode(&nonce_bytes),
+        ciphertext: general_purpose::STANDARD.encode(&ciphertext),
     };
 
     // Serialize to JSON
     serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
 }
 
-/// Decrypt data using sr25519 → XChaCha20-Poly1305 scheme.
+/// Decrypt data using sr25519 → AEAD scheme (algorithm auto-detected).
 ///
 /// # Process
 ///
 /// 1. Parse JSON-encoded encrypted message
-/// 2. Derive shared secret from receiver's secret key and sender's public key
-/// 3. Use HKDF-SHA256 to derive encryption key
-/// 4. Decrypt ciphertext with XChaCha20-Poly1305
+/// 2. Detect encryption algorithm from message
+/// 3. Derive shared secret from receiver's secret key and sender's public key
+/// 4. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
+/// 5. Decrypt ciphertext with appropriate AEAD cipher
 ///
 /// # Arguments
 ///
@@ -369,7 +483,7 @@ pub fn encrypt(
 ///
 /// Returns an error if:
 /// - Cannot parse JSON message
-/// - Unsupported message version
+/// - Unsupported message version or algorithm
 /// - Invalid sender public key
 /// - HKDF expansion fails
 /// - Cannot decode base64 nonce or ciphertext
@@ -395,6 +509,9 @@ pub fn encrypt(
 /// # }
 /// ```
 pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec<u8>> {
+    use base64::{engine::general_purpose, Engine as _};
+    use std::str::FromStr;
+
     // Step 1: Parse message
     let message: EncryptedMessage = serde_json::from_slice(encrypted_data)
         .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
@@ -403,7 +520,11 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
         return Err(anyhow!("Unsupported encryption version: {}", message.version));
     }
 
-    // Step 2: Decode sender's public key
+    // Step 2: Parse algorithm
+    let algorithm = crate::crypto::EncryptionAlgorithm::from_str(&message.algorithm)
+        .map_err(|e| anyhow!("Unsupported algorithm: {}", e))?;
+
+    // Step 3: Decode sender's public key
     let sender_public_bytes = bs58::decode(&message.from)
         .into_vec()
         .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
@@ -418,25 +539,54 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
-    // Step 3: Derive shared secret using ECDH
+    // Step 4: Derive shared secret using ECDH
     let shared_secret = SharedSecret::new(receiver_secret, &sender_public)?;
     
-    // Step 4: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key()?;
+    // Step 5: Derive encryption key using HKDF
+    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
-    // Step 5: Decode nonce and ciphertext
-    let nonce_bytes = base64::decode(&message.nonce)
+    // Step 6: Decode nonce and ciphertext
+    let nonce_bytes = general_purpose::STANDARD
+        .decode(&message.nonce)
         .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
-    let nonce = XNonce::from_slice(&nonce_bytes);
 
-    let ciphertext = base64::decode(&message.ciphertext)
+    let ciphertext = general_purpose::STANDARD
+        .decode(&message.ciphertext)
         .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
-    // Step 6: Decrypt
-    let cipher = XChaCha20Poly1305::new(&encryption_key.into());
-    cipher
-        .decrypt(nonce, ciphertext.as_ref())
-        .map_err(|e| anyhow!("Decryption failed: {e}"))
+    // Step 7: Decrypt with appropriate algorithm
+    match algorithm {
+        crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
+            if nonce_bytes.len() != 24 {
+                return Err(anyhow!("Invalid XChaCha20 nonce length: expected 24 bytes"));
+            }
+            let nonce = XNonce::from_slice(&nonce_bytes);
+            let cipher = XChaCha20Poly1305::new(&encryption_key.into());
+            cipher
+                .decrypt(nonce, ciphertext.as_ref())
+                .map_err(|e| anyhow!("XChaCha20 decryption failed: {e}"))
+        }
+        crate::crypto::EncryptionAlgorithm::AesGcm256 => {
+            if nonce_bytes.len() != 12 {
+                return Err(anyhow!("Invalid AES-GCM nonce length: expected 12 bytes"));
+            }
+            let nonce = AesNonce::from_slice(&nonce_bytes);
+            let cipher = Aes256Gcm::new(&encryption_key.into());
+            cipher
+                .decrypt(nonce, ciphertext.as_ref())
+                .map_err(|e| anyhow!("AES-GCM decryption failed: {e}"))
+        }
+        crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305 => {
+            if nonce_bytes.len() != 12 {
+                return Err(anyhow!("Invalid ChaCha20 nonce length: expected 12 bytes"));
+            }
+            let nonce = ChachaNonce::from_slice(&nonce_bytes);
+            let cipher = ChaCha20Poly1305::new(&encryption_key.into());
+            cipher
+                .decrypt(nonce, ciphertext.as_ref())
+                .map_err(|e| anyhow!("ChaCha20 decryption failed: {e}"))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -492,8 +642,8 @@ mod tests {
         let shared_secret = SharedSecret::new(&alice.secret, &bob.public).unwrap();
         
         // Derive encryption key twice
-        let key1 = shared_secret.derive_encryption_key().unwrap();
-        let key2 = shared_secret.derive_encryption_key().unwrap();
+        let key1 = shared_secret.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
+        let key2 = shared_secret.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
         
         // Same shared secret should produce same key
         assert_eq!(key1, key2);
@@ -514,8 +664,8 @@ mod tests {
         let shared_secret1 = SharedSecret::new(&alice.secret, &bob.public).unwrap();
         let shared_secret2 = SharedSecret::new(&alice.secret, &charlie.public).unwrap();
         
-        let key1 = shared_secret1.derive_encryption_key().unwrap();
-        let key2 = shared_secret2.derive_encryption_key().unwrap();
+        let key1 = shared_secret1.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
+        let key2 = shared_secret2.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
         
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);
