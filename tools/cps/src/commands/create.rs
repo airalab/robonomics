@@ -32,7 +32,7 @@ pub async fn execute(
     payload: Option<String>,
     encrypt: bool,
     cipher: &str,
-    keypair_type: &str,
+    keypair_type: libcps::crypto::KeypairType,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     

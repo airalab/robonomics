@@ -24,7 +24,7 @@ use anyhow::Result;
 use colored::*;
 use std::str::FromStr;
 
-pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str, keypair_type: &str) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str, keypair_type: libcps::crypto::KeypairType) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     
     let client = Client::new(config).await?;

@@ -97,8 +97,8 @@ enum Commands {
         cipher: String,
 
         /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519")]
-        keypair_type: String,
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
+        keypair_type: libcps::crypto::KeypairType,
     },
 
     /// Update node metadata
@@ -118,8 +118,8 @@ enum Commands {
         cipher: String,
 
         /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519")]
-        keypair_type: String,
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
+        keypair_type: libcps::crypto::KeypairType,
     },
 
     /// Update node payload
@@ -139,8 +139,8 @@ enum Commands {
         cipher: String,
 
         /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519")]
-        keypair_type: String,
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
+        keypair_type: libcps::crypto::KeypairType,
     },
 
     /// Move a node to a new parent
@@ -186,8 +186,8 @@ enum MqttCommands {
         cipher: String,
 
         /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519")]
-        keypair_type: String,
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
+        keypair_type: libcps::crypto::KeypairType,
     },
 
     /// Publish node payload changes to MQTT topic
@@ -235,7 +235,7 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::create::execute(&blockchain_config, parent, meta, payload, encrypt, &cipher, &keypair_type).await?;
+            commands::create::execute(&blockchain_config, parent, meta, payload, encrypt, &cipher, keypair_type).await?;
         }
         Commands::SetMeta {
             node_id,
@@ -244,7 +244,7 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::set_meta::execute(&blockchain_config, node_id, data, encrypt, &cipher, &keypair_type).await?;
+            commands::set_meta::execute(&blockchain_config, node_id, data, encrypt, &cipher, keypair_type).await?;
         }
         Commands::SetPayload {
             node_id,
@@ -253,7 +253,7 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::set_payload::execute(&blockchain_config, node_id, data, encrypt, &cipher, &keypair_type).await?;
+            commands::set_payload::execute(&blockchain_config, node_id, data, encrypt, &cipher, keypair_type).await?;
         }
         Commands::Move {
             node_id,
@@ -272,7 +272,7 @@ async fn main() -> Result<()> {
                 cipher,
                 keypair_type,
             } => {
-                commands::mqtt::subscribe(&blockchain_config, &mqtt_config, &topic, node_id, encrypt, &cipher, &keypair_type)
+                commands::mqtt::subscribe(&blockchain_config, &mqtt_config, &topic, node_id, encrypt, &cipher, keypair_type)
                     .await?;
             }
             MqttCommands::Publish {

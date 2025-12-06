@@ -32,7 +32,7 @@ pub async fn subscribe(
     node_id: u64,
     encrypt: bool,
     cipher: &str,
-    keypair_type: &str,
+    keypair_type: libcps::crypto::KeypairType,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
