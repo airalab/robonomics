@@ -83,7 +83,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce as AesNonce,
 };
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::OsRng,
     ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
@@ -840,5 +840,308 @@ mod tests {
         // Should fail due to unsupported version
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Unsupported encryption version"));
+    }
+
+    // ========== AES-GCM-256 Algorithm Tests ==========
+
+    #[test]
+    fn test_aesgcm256_encrypt_decrypt_roundtrip() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test message for AES-GCM-256";
+
+        // Encrypt using AES-GCM-256
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_message_structure() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test AES-GCM";
+
+        // Encrypt using AES-GCM-256
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Parse the encrypted message
+        let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+
+        // Check algorithm field
+        assert_eq!(message.algorithm, "aesgcm256");
+
+        // Check nonce is correct size for AES-GCM (12 bytes)
+        use base64::{engine::general_purpose, Engine as _};
+        let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
+        assert_eq!(nonce.len(), 12);
+    }
+
+    #[test]
+    fn test_aesgcm256_empty_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"";
+
+        // Encrypt empty message with AES-GCM-256
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+
+        // Should get empty message back
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_large_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = vec![0xAB; 50000]; // 50KB message
+
+        // Encrypt with AES-GCM-256
+        let encrypted = encrypt_with_algorithm(
+            &plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_wrong_key_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let wrong_receiver = test_keypair(3);
+
+        let plaintext = b"Secret AES-GCM message";
+
+        // Encrypt for receiver using AES-GCM-256
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Try to decrypt with wrong key
+        let result = decrypt(&encrypted, &wrong_receiver.secret);
+
+        // Should fail (authentication error)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aesgcm256_corrupted_data_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"AES-GCM test message";
+
+        // Encrypt with AES-GCM-256
+        let mut encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Corrupt the ciphertext
+        if encrypted.len() > 20 {
+            encrypted[20] ^= 0xFF;
+        }
+
+        // Try to decrypt corrupted data
+        let result = decrypt(&encrypted, &receiver.secret);
+
+        // Should fail (authentication tag will not verify)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aesgcm256_produces_different_ciphertexts() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Same AES-GCM message";
+
+        // Encrypt same message twice with AES-GCM-256
+        let encrypted1 = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+        let encrypted2 = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Should produce different ciphertexts due to random nonces
+        assert_ne!(encrypted1, encrypted2);
+
+        // But both should decrypt to the same plaintext
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret).unwrap();
+        assert_eq!(decrypted1, plaintext);
+        assert_eq!(decrypted2, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_nonce_size_validation() {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        // This test verifies that decrypt properly validates AES-GCM nonce size
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+
+        // Create a message with invalid nonce size
+        let message = EncryptedMessage {
+            version: 1,
+            algorithm: "aesgcm256".to_string(),
+            from: bs58::encode(sender.public.to_bytes()).into_string(),
+            nonce: general_purpose::STANDARD.encode([0u8; 24]), // Wrong size (should be 12)
+            ciphertext: general_purpose::STANDARD.encode(b"fake"),
+        };
+
+        let encrypted = serde_json::to_vec(&message).unwrap();
+
+        // Try to decrypt
+        let result = decrypt(&encrypted, &receiver.secret);
+
+        // Should fail due to invalid nonce size
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid AES-GCM nonce length"));
+    }
+
+    // ========== ChaCha20-Poly1305 Algorithm Tests ==========
+
+    #[test]
+    fn test_chacha20poly1305_encrypt_decrypt_roundtrip() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test message for ChaCha20-Poly1305";
+
+        // Encrypt using ChaCha20-Poly1305
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_chacha20poly1305_message_structure() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test ChaCha20";
+
+        // Encrypt using ChaCha20-Poly1305
+        let encrypted = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // Parse the encrypted message
+        let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+
+        // Check algorithm field
+        assert_eq!(message.algorithm, "chacha20");
+
+        // Check nonce is correct size for ChaCha20 (12 bytes)
+        use base64::{engine::general_purpose, Engine as _};
+        let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
+        assert_eq!(nonce.len(), 12);
+    }
+
+    // ========== Cross-Algorithm Compatibility Tests ==========
+
+    #[test]
+    fn test_different_algorithms_produce_different_outputs() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Cross-algorithm test";
+
+        // Encrypt with all three algorithms
+        let xchacha = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
+        let aesgcm = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        let chacha = encrypt_with_algorithm(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // All should be different due to different algorithms and nonces
+        assert_ne!(xchacha, aesgcm);
+        assert_ne!(xchacha, chacha);
+        assert_ne!(aesgcm, chacha);
+
+        // But all should decrypt correctly
+        assert_eq!(decrypt(&xchacha, &receiver.secret).unwrap(), plaintext);
+        assert_eq!(decrypt(&aesgcm, &receiver.secret).unwrap(), plaintext);
+        assert_eq!(decrypt(&chacha, &receiver.secret).unwrap(), plaintext);
     }
 }
