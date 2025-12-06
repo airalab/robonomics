@@ -186,7 +186,7 @@ where
     use base64::{engine::general_purpose, Engine as _};
 
     // Step 1: Derive shared secret using ECDH
-    let shared_secret = P::derive(sender, receiver_public)?;
+    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(sender, receiver_public)?;
     
     // Step 2: Derive encryption key using HKDF
     let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
@@ -220,7 +220,8 @@ where
     };
 
     // Step 3: Create message structure
-    let sender_public_bytes = sender.public().as_ref();
+    let sender_public = sender.public();
+    let sender_public_bytes = sender_public.as_ref();
     let algorithm_str = match algorithm {
         crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
         crate::crypto::EncryptionAlgorithm::AesGcm256 => "aesgcm256",
@@ -239,22 +240,26 @@ where
     serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
 }
 
-/// Decrypt data using sr25519 → AEAD scheme (algorithm auto-detected).
+/// Decrypt data using ECDH key agreement and AEAD cipher (algorithm auto-detected).
 ///
 /// # Process
 ///
 /// 1. Parse JSON-encoded encrypted message
 /// 2. Detect encryption algorithm from message
 /// 3. Optionally verify sender's public key matches expected sender (if provided)
-/// 4. Derive shared secret from receiver's secret key and sender's public key
+/// 4. Derive shared secret using ECDH (supports SR25519 and ED25519)
 /// 5. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
 /// 6. Decrypt ciphertext with appropriate AEAD cipher
+///
+/// # Type Parameters
+///
+/// * `P` - Keypair type implementing `Pair` + `DeriveSharedSecret` traits
 ///
 /// # Arguments
 ///
 /// * `encrypted_data` - JSON-encoded [`EncryptedMessage`]
-/// * `receiver_secret` - Receiver's sr25519 secret key
-/// * `expected_sender_public` - Optional expected sender's sr25519 public key (32 bytes) for verification.
+/// * `receiver` - Receiver's keypair
+/// * `expected_sender_public` - Optional expected sender's public key for verification.
 ///   If `Some`, verifies the message sender matches the expected sender.
 ///   If `None`, skips sender verification (decrypts from any sender).
 ///
@@ -269,6 +274,7 @@ where
 /// - Unsupported message version or algorithm
 /// - Invalid sender public key
 /// - Sender public key doesn't match expected sender (when `expected_sender_public` is `Some`)
+/// - ECDH key agreement fails
 /// - HKDF expansion fails
 /// - Cannot decode base64 nonce or ciphertext
 /// - Decryption fails (wrong key or corrupted data)
@@ -276,33 +282,35 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use libcps::crypto::{encrypt, decrypt};
-/// use schnorrkel::SecretKey;
+/// use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
+/// use sp_core::{Pair, sr25519};
 ///
 /// # fn example() -> anyhow::Result<()> {
-/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-/// let sender_public = sender_secret.to_public().to_bytes();
-/// let receiver_secret = SecretKey::from_bytes(&[1u8; 64])?;
-/// let receiver_public = receiver_secret.to_public().to_bytes();
+/// let (sender, _) = sr25519::Pair::generate();
+/// let (receiver, _) = sr25519::Pair::generate();
 /// let plaintext = b"secret message";
 ///
-/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public, EncryptionAlgorithm::default())?;
+/// let encrypted = encrypt(plaintext, &sender, &receiver.public(), EncryptionAlgorithm::XChaCha20Poly1305)?;
 ///
 /// // Decrypt with sender verification
-/// let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
+/// let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public()))?;
 /// assert_eq!(plaintext, &decrypted[..]);
 ///
 /// // Decrypt without sender verification (accepts from any sender)
-/// let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+/// let decrypted_any = decrypt(&encrypted, &receiver, None)?;
 /// assert_eq!(plaintext, &decrypted_any[..]);
 /// # Ok(())
 /// # }
 /// ```
-pub fn decrypt(
+pub fn decrypt<P>(
     encrypted_data: &[u8],
-    receiver_secret: &SecretKey,
-    expected_sender_public: Option<&[u8; 32]>,
-) -> Result<Vec<u8>> {
+    receiver: &P,
+    expected_sender_public: Option<&P::Public>,
+) -> Result<Vec<u8>>
+where
+    P: Pair + crate::crypto::DeriveSharedSecret,
+    P::Public: AsRef<[u8]> + sp_core::crypto::UncheckedFrom<[u8; 32]>,
+{
     use base64::{engine::general_purpose, Engine as _};
     use std::str::FromStr;
 
@@ -318,24 +326,25 @@ pub fn decrypt(
     let algorithm = crate::crypto::EncryptionAlgorithm::from_str(&message.algorithm)
         .map_err(|e| anyhow!("Unsupported algorithm: {}", e))?;
 
-    // Step 3: Decode sender's public key
+    // Step 3: Decode and parse sender's public key
     let sender_public_bytes = bs58::decode(&message.from)
         .into_vec()
         .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
     
     if sender_public_bytes.len() != 32 {
-        return Err(anyhow!("Invalid sender public key length"));
+        return Err(anyhow!("Invalid sender public key length: expected 32 bytes"));
     }
     
+    // Convert bytes to fixed-size array
     let mut sender_pk_array = [0u8; 32];
     sender_pk_array.copy_from_slice(&sender_public_bytes);
     
-    let sender_public = PublicKey::from_bytes(&sender_pk_array)
-        .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
+    // Use UncheckedFrom to construct the public key from raw bytes
+    let sender_public = <P::Public as sp_core::crypto::UncheckedFrom<[u8; 32]>>::unchecked_from(sender_pk_array);
 
     // Step 4: Optionally verify sender matches expected sender
     if let Some(expected_pk) = expected_sender_public {
-        if &sender_pk_array != expected_pk {
+        if sender_public.as_ref() != expected_pk.as_ref() {
             return Err(anyhow!(
                 "Sender public key mismatch: message from unexpected sender"
             ));
@@ -343,10 +352,10 @@ pub fn decrypt(
     }
 
     // Step 5: Derive shared secret using ECDH
-    let shared_secret = SharedSecret::new(receiver_secret, &sender_public)?;
+    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(receiver, &sender_public)?;
     
     // Step 6: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
     // Step 7: Decode nonce and ciphertext
     let nonce_bytes = general_purpose::STANDARD
