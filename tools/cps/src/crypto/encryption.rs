@@ -45,7 +45,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use libcps::crypto::{encrypt_with_algorithm, decrypt, EncryptionAlgorithm};
+//! use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
 //! use schnorrkel::SecretKey;
 //!
 //! # fn example() -> anyhow::Result<()> {
@@ -55,7 +55,7 @@
 //! let plaintext = b"secret message";
 //!
 //! // Encrypt with specific algorithm
-//! let encrypted = encrypt_with_algorithm(
+//! let encrypted = encrypt(
 //!     plaintext,
 //!     &sender_secret,
 //!     &receiver_public,
@@ -307,46 +307,6 @@ impl std::fmt::Debug for SharedSecret {
 /// * `sender_secret` - Sender's sr25519 secret key
 /// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
 ///
-/// # Returns
-///
-/// JSON-encoded [`EncryptedMessage`] with base64-encoded nonce and ciphertext
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - Receiver's public key is invalid
-/// - HKDF expansion fails
-/// - Encryption fails
-/// - JSON serialization fails
-///
-/// # Examples
-///
-/// ```no_run
-/// use libcps::crypto::encrypt;
-/// use schnorrkel::SecretKey;
-///
-/// # fn example() -> anyhow::Result<()> {
-/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-/// let receiver_public = [0u8; 32];
-/// let plaintext = b"secret message";
-///
-/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn encrypt(
-    plaintext: &[u8],
-    sender_secret: &SecretKey,
-    receiver_public: &[u8; 32],
-) -> Result<Vec<u8>> {
-    encrypt_with_algorithm(
-        plaintext,
-        sender_secret,
-        receiver_public,
-        crate::crypto::EncryptionAlgorithm::default(),
-    )
-}
-
 /// Encrypt data using sr25519 → AEAD scheme with specified algorithm.
 ///
 /// # Process
@@ -378,7 +338,7 @@ pub fn encrypt(
 /// # Examples
 ///
 /// ```no_run
-/// use libcps::crypto::{encrypt_with_algorithm, EncryptionAlgorithm};
+/// use libcps::crypto::{encrypt, EncryptionAlgorithm};
 /// use schnorrkel::SecretKey;
 ///
 /// # fn example() -> anyhow::Result<()> {
@@ -386,7 +346,7 @@ pub fn encrypt(
 /// let receiver_public = [0u8; 32];
 /// let plaintext = b"secret message";
 ///
-/// let encrypted = encrypt_with_algorithm(
+/// let encrypted = encrypt(
 ///     plaintext,
 ///     &sender_secret,
 ///     &receiver_public,
@@ -395,7 +355,7 @@ pub fn encrypt(
 /// # Ok(())
 /// # }
 /// ```
-pub fn encrypt_with_algorithm(
+pub fn encrypt(
     plaintext: &[u8],
     sender_secret: &SecretKey,
     receiver_public: &[u8; 32],
@@ -506,7 +466,7 @@ pub fn encrypt_with_algorithm(
 /// let receiver_public = receiver_secret.to_public().to_bytes();
 /// let plaintext = b"secret message";
 ///
-/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public, EncryptionAlgorithm::default())?;
 /// let decrypted = decrypt(&encrypted, &receiver_secret, &sender_public)?;
 ///
 /// assert_eq!(plaintext, &decrypted[..]);
@@ -608,6 +568,7 @@ pub fn decrypt(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::EncryptionAlgorithm;
     use schnorrkel::{Keypair, MiniSecretKey};
     
     /// Generate a test keypair from a seed
@@ -700,6 +661,7 @@ mod tests {
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
+            EncryptionAlgorithm::default(),
         ).unwrap();
         
         // Encrypted data should not be empty
@@ -722,8 +684,8 @@ mod tests {
         let plaintext = b"Same message";
         
         // Encrypt same message twice
-        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
-        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
+        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Should produce different ciphertexts due to random nonces
         assert_ne!(encrypted1, encrypted2);
@@ -744,7 +706,7 @@ mod tests {
         let plaintext = b"Secret message";
         
         // Encrypt for receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Try to decrypt with wrong key
         let result = decrypt(&encrypted, &wrong_receiver.secret, &sender.public.to_bytes());
@@ -760,7 +722,7 @@ mod tests {
         let plaintext = b"Test message";
         
         // Encrypt
-        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Corrupt the data
         if encrypted.len() > 10 {
@@ -781,7 +743,7 @@ mod tests {
         let plaintext = b"";
         
         // Encrypt empty message
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Decrypt
         let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
@@ -797,7 +759,7 @@ mod tests {
         let plaintext = vec![42u8; 10000]; // 10KB message
         
         // Encrypt
-        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Decrypt
         let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
@@ -813,7 +775,7 @@ mod tests {
         let plaintext = b"Test";
         
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Parse the encrypted message
         let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
@@ -843,7 +805,7 @@ mod tests {
         let plaintext = b"Test";
         
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Parse and modify version
         let mut message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
@@ -868,7 +830,7 @@ mod tests {
         let plaintext = b"Test message";
         
         // Encrypt from sender to receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Try to decrypt with wrong expected sender
         let result = decrypt(&encrypted, &receiver.secret, &wrong_sender.public.to_bytes());
@@ -887,7 +849,7 @@ mod tests {
         let plaintext = b"Test message for AES-GCM-256";
 
         // Encrypt using AES-GCM-256
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -909,7 +871,7 @@ mod tests {
         let plaintext = b"Test AES-GCM";
 
         // Encrypt using AES-GCM-256
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -936,7 +898,7 @@ mod tests {
         let plaintext = b"";
 
         // Encrypt empty message with AES-GCM-256
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -958,7 +920,7 @@ mod tests {
         let plaintext = vec![0xAB; 50000]; // 50KB message
 
         // Encrypt with AES-GCM-256
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             &plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -982,7 +944,7 @@ mod tests {
         let plaintext = b"Secret AES-GCM message";
 
         // Encrypt for receiver using AES-GCM-256
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1004,7 +966,7 @@ mod tests {
         let plaintext = b"AES-GCM test message";
 
         // Encrypt with AES-GCM-256
-        let mut encrypted = encrypt_with_algorithm(
+        let mut encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1031,14 +993,14 @@ mod tests {
         let plaintext = b"Same AES-GCM message";
 
         // Encrypt same message twice with AES-GCM-256
-        let encrypted1 = encrypt_with_algorithm(
+        let encrypted1 = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
-        let encrypted2 = encrypt_with_algorithm(
+        let encrypted2 = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1095,7 +1057,7 @@ mod tests {
         let plaintext = b"Test message for ChaCha20-Poly1305";
 
         // Encrypt using ChaCha20-Poly1305
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1117,7 +1079,7 @@ mod tests {
         let plaintext = b"Test ChaCha20";
 
         // Encrypt using ChaCha20-Poly1305
-        let encrypted = encrypt_with_algorithm(
+        let encrypted = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1146,7 +1108,7 @@ mod tests {
         let plaintext = b"Cross-algorithm test";
 
         // Encrypt with all three algorithms
-        let xchacha = encrypt_with_algorithm(
+        let xchacha = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1154,7 +1116,7 @@ mod tests {
         )
         .unwrap();
 
-        let aesgcm = encrypt_with_algorithm(
+        let aesgcm = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
@@ -1162,7 +1124,7 @@ mod tests {
         )
         .unwrap();
 
-        let chacha = encrypt_with_algorithm(
+        let chacha = encrypt(
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),

@@ -24,4 +24,4 @@ pub mod cipher;
 pub mod encryption;
 
 pub use cipher::EncryptionAlgorithm;
-pub use encryption::{decrypt, encrypt, encrypt_with_algorithm, EncryptedMessage, SharedSecret};
+pub use encryption::{decrypt, encrypt, EncryptedMessage, SharedSecret};
