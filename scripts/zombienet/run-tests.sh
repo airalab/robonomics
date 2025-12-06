@@ -20,7 +20,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Configuration
 ZOMBIENET_VERSION="v1.3.106"
-POLKADOT_VERSION="v1.15.2"
+POLKADOT_VERSION="stable2509-2"
 ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet"
 POLKADOT_BIN="${SCRIPT_DIR}/bin/polkadot"
 POLKADOT_PARACHAIN_BIN="${SCRIPT_DIR}/bin/polkadot-parachain"

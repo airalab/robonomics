@@ -51,7 +51,7 @@ jobs:
 
       - name: Install Polkadot binaries
         run: |
-          POLKADOT_VERSION="v1.15.2"
+          POLKADOT_VERSION="stable2509-2"
           
           # Download polkadot binary
           wget -q https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot || exit 1
