@@ -432,7 +432,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let ciphertext = base64::decode(&message.ciphertext)
         .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
-     // Step 6: Decrypt
+    // Step 6: Decrypt
     let cipher = XChaCha20Poly1305::new(&encryption_key.into());
     cipher
         .decrypt(nonce, ciphertext.as_ref())
