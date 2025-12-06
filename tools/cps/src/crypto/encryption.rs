@@ -50,6 +50,7 @@
 //!
 //! # fn example() -> anyhow::Result<()> {
 //! let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+//! let sender_public = sender_secret.to_public().to_bytes();
 //! let receiver_public = [0u8; 32];
 //! let plaintext = b"secret message";
 //!
@@ -61,9 +62,9 @@
 //!     EncryptionAlgorithm::AesGcm256
 //! )?;
 //!
-//! // Decrypt (algorithm auto-detected)
+//! // Decrypt (algorithm auto-detected, sender verified)
 //! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-//! let decrypted = decrypt(&encrypted, &receiver_secret)?;
+//! let decrypted = decrypt(&encrypted, &receiver_secret, &sender_public)?;
 //!
 //! assert_eq!(plaintext, &decrypted[..]);
 //! # Ok(())
@@ -466,14 +467,16 @@ pub fn encrypt_with_algorithm(
 ///
 /// 1. Parse JSON-encoded encrypted message
 /// 2. Detect encryption algorithm from message
-/// 3. Derive shared secret from receiver's secret key and sender's public key
-/// 4. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
-/// 5. Decrypt ciphertext with appropriate AEAD cipher
+/// 3. Verify sender's public key matches expected sender
+/// 4. Derive shared secret from receiver's secret key and sender's public key
+/// 5. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
+/// 6. Decrypt ciphertext with appropriate AEAD cipher
 ///
 /// # Arguments
 ///
 /// * `encrypted_data` - JSON-encoded [`EncryptedMessage`]
 /// * `receiver_secret` - Receiver's sr25519 secret key
+/// * `expected_sender_public` - Expected sender's sr25519 public key (32 bytes) for verification
 ///
 /// # Returns
 ///
@@ -485,6 +488,7 @@ pub fn encrypt_with_algorithm(
 /// - Cannot parse JSON message
 /// - Unsupported message version or algorithm
 /// - Invalid sender public key
+/// - Sender public key doesn't match expected sender
 /// - HKDF expansion fails
 /// - Cannot decode base64 nonce or ciphertext
 /// - Decryption fails (wrong key or corrupted data)
@@ -497,18 +501,23 @@ pub fn encrypt_with_algorithm(
 ///
 /// # fn example() -> anyhow::Result<()> {
 /// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let sender_public = sender_secret.to_public().to_bytes();
 /// let receiver_secret = SecretKey::from_bytes(&[1u8; 64])?;
 /// let receiver_public = receiver_secret.to_public().to_bytes();
 /// let plaintext = b"secret message";
 ///
 /// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
-/// let decrypted = decrypt(&encrypted, &receiver_secret)?;
+/// let decrypted = decrypt(&encrypted, &receiver_secret, &sender_public)?;
 ///
 /// assert_eq!(plaintext, &decrypted[..]);
 /// # Ok(())
 /// # }
 /// ```
-pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec<u8>> {
+pub fn decrypt(
+    encrypted_data: &[u8],
+    receiver_secret: &SecretKey,
+    expected_sender_public: &[u8; 32],
+) -> Result<Vec<u8>> {
     use base64::{engine::general_purpose, Engine as _};
     use std::str::FromStr;
 
@@ -539,13 +548,20 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
-    // Step 4: Derive shared secret using ECDH
+    // Step 4: Verify sender matches expected sender
+    if &sender_pk_array != expected_sender_public {
+        return Err(anyhow!(
+            "Sender public key mismatch: message from unexpected sender"
+        ));
+    }
+
+    // Step 5: Derive shared secret using ECDH
     let shared_secret = SharedSecret::new(receiver_secret, &sender_public)?;
     
-    // Step 5: Derive encryption key using HKDF
+    // Step 6: Derive encryption key using HKDF
     let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
-    // Step 6: Decode nonce and ciphertext
+    // Step 7: Decode nonce and ciphertext
     let nonce_bytes = general_purpose::STANDARD
         .decode(&message.nonce)
         .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
@@ -554,7 +570,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
         .decode(&message.ciphertext)
         .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
-    // Step 7: Decrypt with appropriate algorithm
+    // Step 8: Decrypt with appropriate algorithm
     match algorithm {
         crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
             if nonce_bytes.len() != 24 {
@@ -693,7 +709,7 @@ mod tests {
         let _: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
         
         // Decrypted should match original plaintext
         assert_eq!(decrypted, plaintext);
@@ -713,8 +729,8 @@ mod tests {
         assert_ne!(encrypted1, encrypted2);
         
         // But both should decrypt to the same plaintext
-        let decrypted1 = decrypt(&encrypted1, &receiver.secret).unwrap();
-        let decrypted2 = decrypt(&encrypted2, &receiver.secret).unwrap();
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret, &sender.public.to_bytes()).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret, &sender.public.to_bytes()).unwrap();
         assert_eq!(decrypted1, plaintext);
         assert_eq!(decrypted2, plaintext);
     }
@@ -731,7 +747,7 @@ mod tests {
         let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
         
         // Try to decrypt with wrong key
-        let result = decrypt(&encrypted, &wrong_receiver.secret);
+        let result = decrypt(&encrypted, &wrong_receiver.secret, &sender.public.to_bytes());
         
         // Should fail
         assert!(result.is_err());
@@ -752,7 +768,7 @@ mod tests {
         }
         
         // Try to decrypt corrupted data
-        let result = decrypt(&encrypted, &receiver.secret);
+        let result = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes());
         
         // Should fail (either parse error or authentication failure)
         assert!(result.is_err());
@@ -768,7 +784,7 @@ mod tests {
         let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
         
         // Should get empty message back
         assert_eq!(decrypted, plaintext);
@@ -784,7 +800,7 @@ mod tests {
         let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
         
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -835,11 +851,31 @@ mod tests {
         let modified = serde_json::to_vec(&message).unwrap();
         
         // Try to decrypt
-        let result = decrypt(&modified, &receiver.secret);
+        let result = decrypt(&modified, &receiver.secret, &sender.public.to_bytes());
         
         // Should fail due to unsupported version
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Unsupported encryption version"));
+    }
+
+    #[test]
+    fn test_decrypt_rejects_wrong_sender() {
+        // Create three keypairs
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let wrong_sender = test_keypair(3);
+        
+        let plaintext = b"Test message";
+        
+        // Encrypt from sender to receiver
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        
+        // Try to decrypt with wrong expected sender
+        let result = decrypt(&encrypted, &receiver.secret, &wrong_sender.public.to_bytes());
+        
+        // Should fail due to sender mismatch
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Sender public key mismatch"));
     }
 
     // ========== AES-GCM-256 Algorithm Tests ==========
@@ -860,7 +896,7 @@ mod tests {
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -909,7 +945,7 @@ mod tests {
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
 
         // Should get empty message back
         assert_eq!(decrypted, plaintext);
@@ -931,7 +967,7 @@ mod tests {
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -955,7 +991,7 @@ mod tests {
         .unwrap();
 
         // Try to decrypt with wrong key
-        let result = decrypt(&encrypted, &wrong_receiver.secret);
+        let result = decrypt(&encrypted, &wrong_receiver.secret, &sender.public.to_bytes());
 
         // Should fail (authentication error)
         assert!(result.is_err());
@@ -982,7 +1018,7 @@ mod tests {
         }
 
         // Try to decrypt corrupted data
-        let result = decrypt(&encrypted, &receiver.secret);
+        let result = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes());
 
         // Should fail (authentication tag will not verify)
         assert!(result.is_err());
@@ -1014,8 +1050,8 @@ mod tests {
         assert_ne!(encrypted1, encrypted2);
 
         // But both should decrypt to the same plaintext
-        let decrypted1 = decrypt(&encrypted1, &receiver.secret).unwrap();
-        let decrypted2 = decrypt(&encrypted2, &receiver.secret).unwrap();
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret, &sender.public.to_bytes()).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret, &sender.public.to_bytes()).unwrap();
         assert_eq!(decrypted1, plaintext);
         assert_eq!(decrypted2, plaintext);
     }
@@ -1040,7 +1076,7 @@ mod tests {
         let encrypted = serde_json::to_vec(&message).unwrap();
 
         // Try to decrypt
-        let result = decrypt(&encrypted, &receiver.secret);
+        let result = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes());
 
         // Should fail due to invalid nonce size
         assert!(result.is_err());
@@ -1068,7 +1104,7 @@ mod tests {
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, &sender.public.to_bytes()).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -1140,8 +1176,8 @@ mod tests {
         assert_ne!(aesgcm, chacha);
 
         // But all should decrypt correctly
-        assert_eq!(decrypt(&xchacha, &receiver.secret).unwrap(), plaintext);
-        assert_eq!(decrypt(&aesgcm, &receiver.secret).unwrap(), plaintext);
-        assert_eq!(decrypt(&chacha, &receiver.secret).unwrap(), plaintext);
+        assert_eq!(decrypt(&xchacha, &receiver.secret, &sender.public.to_bytes()).unwrap(), plaintext);
+        assert_eq!(decrypt(&aesgcm, &receiver.secret, &sender.public.to_bytes()).unwrap(), plaintext);
+        assert_eq!(decrypt(&chacha, &receiver.secret, &sender.public.to_bytes()).unwrap(), plaintext);
     }
 }
