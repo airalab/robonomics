@@ -30,6 +30,7 @@ use frame_support::{
     },
 };
 use frame_system::RawOrigin;
+use sp_runtime::traits::{One, Saturating};
 use sp_std::prelude::*;
 
 type AssetBalanceOf<T> =
@@ -76,14 +77,27 @@ mod benchmarks {
         let caller = funded_account::<T>("caller", 0);
         let auction_id = 0u32;
         let amount = T::MinimalBid::get() * 10u32.into();
+        
         assert_ok!(Pallet::<T>::bid(
             RawOrigin::Signed(caller.clone()).into(),
             auction_id,
             amount
         ));
 
-        // Fast forward time past auction duration
-        // Advance block number which will also advance timestamp in the runtime
+        // In benchmarks, we need to simulate the passage of time.
+        // We do this by directly manipulating the auction storage to set first_bid_time
+        // to a value that makes the auction claimable given the current timestamp.
+        // This is acceptable in benchmarks as we're measuring the claim extrinsic itself.
+        let mut auction = <Auction<T>>::get(auction_id).expect("auction exists");
+        let now = T::Time::now();
+        // Calculate a past time that makes the auction claimable
+        // We need: first_bid_time + AuctionDuration <= now
+        // So: first_bid_time <= now - AuctionDuration
+        let duration = T::AuctionDuration::get();
+        let past_time = now.saturating_sub(duration).saturating_sub(T::Moment::one());
+        auction.first_bid_time = Some(past_time);
+        <Auction<T>>::insert(auction_id, auction);
+        
         frame_system::Pallet::<T>::set_block_number(1000u32.into());
 
         #[extrinsic_call]
@@ -143,5 +157,5 @@ mod benchmarks {
         _(RawOrigin::Signed(caller), subscription_id);
     }
 
-    impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
+    impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

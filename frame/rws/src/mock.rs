@@ -155,8 +155,6 @@ impl pallet_assets::Config for Test {
     type RemoveItemsLimit = ConstU32<1000>;
     type CallbackHandle = ();
     type Holder = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type BenchmarkHelper = ();
 }
 
 impl pallet_timestamp::Config for Test {
@@ -232,6 +230,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| {
         System::set_block_number(1);
+        // Use a larger timestamp for benchmarks to avoid time-related issues
+        #[cfg(feature = "runtime-benchmarks")]
+        Timestamp::set_timestamp(1_000_000_000);
+        #[cfg(not(feature = "runtime-benchmarks"))]
         Timestamp::set_timestamp(1000);
 
         // Create the lifetime asset
