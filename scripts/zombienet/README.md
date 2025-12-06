@@ -54,11 +54,11 @@ The tests verify:
      chmod +x zombienet
      
      # Polkadot
-     curl -L -o polkadot https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.15.2/polkadot
+     curl -L -o polkadot https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2509-2/polkadot
      chmod +x polkadot
      
      # Polkadot-Parachain (for AssetHub)
-     curl -L -o polkadot-parachain https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.15.2/polkadot-parachain
+     curl -L -o polkadot-parachain https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2509-2/polkadot-parachain
      chmod +x polkadot-parachain
      ```
 
