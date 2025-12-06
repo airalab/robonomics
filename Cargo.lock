@@ -6394,6 +6394,7 @@ dependencies = [
  "clap",
  "colored",
  "curve25519-dalek",
+ "ed25519-dalek",
  "hex",
  "hkdf",
  "parity-scale-codec",
@@ -6405,6 +6406,7 @@ dependencies = [
  "subxt 0.37.0",
  "subxt-signer 0.37.0",
  "tokio",
+ "x25519-dalek",
 ]
 
 [[package]]
