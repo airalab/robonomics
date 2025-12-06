@@ -32,6 +32,7 @@ pub async fn execute(
     payload: Option<String>,
     encrypt: bool,
     cipher: &str,
+    keypair_type: &str,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     
@@ -47,6 +48,7 @@ pub async fn execute(
 
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
     }
 
     // Prepare metadata

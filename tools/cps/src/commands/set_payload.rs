@@ -24,7 +24,7 @@ use anyhow::Result;
 use colored::*;
 use std::str::FromStr;
 
-pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str, keypair_type: &str) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     
     let client = Client::new(config).await?;
@@ -39,6 +39,7 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool,
 
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
         display::tree::warning("Encryption not yet fully implemented (requires recipient public key)");
     }
 

@@ -32,6 +32,7 @@ pub async fn subscribe(
     node_id: u64,
     encrypt: bool,
     cipher: &str,
+    keypair_type: &str,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
@@ -45,6 +46,7 @@ pub async fn subscribe(
 
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
     }
 
     display::tree::progress("Connecting to MQTT broker...");
