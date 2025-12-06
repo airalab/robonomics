@@ -93,22 +93,32 @@ async fn main() -> anyhow::Result<()> {
 ### Encryption Example
 
 ```rust
-use libcps::crypto::{encrypt, decrypt};
+use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
 use schnorrkel::SecretKey;
 
 fn encrypt_example() -> anyhow::Result<()> {
     let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    let sender_public = sender_secret.to_public().to_bytes();
     let receiver_public = [0u8; 32];
     let plaintext = b"secret message";
 
-    // Encrypt
-    let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+    // Encrypt with specific algorithm
+    let encrypted = encrypt(
+        plaintext,
+        &sender_secret,
+        &receiver_public,
+        EncryptionAlgorithm::XChaCha20Poly1305
+    )?;
 
-    // Decrypt
+    // Decrypt with sender verification (recommended for security)
     let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    let decrypted = decrypt(&encrypted, &receiver_secret)?;
-
+    let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
     assert_eq!(plaintext, &decrypted[..]);
+
+    // Decrypt without sender verification (accepts from any sender)
+    let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+    assert_eq!(plaintext, &decrypted_any[..]);
+
     Ok(())
 }
 ```
@@ -340,37 +350,66 @@ cps --ws-url ws://localhost:9944 \
 
 ## 🔐 Encryption
 
-The CLI implements **sr25519 → XChaCha20-Poly1305** encryption:
+The CLI implements **sr25519 → Multi-Algorithm AEAD** encryption with optional sender verification:
+
+### Supported Algorithms
+
+- **XChaCha20-Poly1305** (default): 24-byte nonce, best for general purpose
+- **AES-256-GCM**: 12-byte nonce, hardware-accelerated (AES-NI)
+- **ChaCha20-Poly1305**: 12-byte nonce, portable performance
 
 ### How it works
 
 1. **Key Derivation (ECDH + HKDF)**
    - Derive shared secret using sr25519 ECDH
-   - Apply HKDF-SHA256 with info string: `"robonomics-cps-xchacha20poly1305"`
+   - Apply HKDF-SHA256 with algorithm-specific info string
 
-2. **Encryption (XChaCha20-Poly1305)**
+2. **Encryption**
    - Encrypt data with derived 32-byte key
-   - Generate random 24-byte nonce per message
+   - Generate random nonce per message (size varies by algorithm)
    - Add authentication tag (AEAD)
 
 3. **Message Format**
    ```json
    {
      "version": 1,
+     "algorithm": "xchacha20",
      "from": "5GrwvaEF...",
-     "nonce": "base64-encoded-24-bytes",
+     "nonce": "base64-encoded",
      "ciphertext": "base64-encoded"
    }
    ```
 
-### Usage
+### Sender Verification
+
+Decryption supports **optional sender verification** for enhanced security:
+
+- **With verification** (recommended): Verifies the message sender's identity before decrypting
+- **Without verification**: Decrypts messages from any sender (useful for anonymous scenarios)
 
 ```bash
 # Encrypt when creating node
-cps create --payload 'secret data' --encrypt
+cps create --payload 'secret data' --encrypt --cipher xchacha20
 
-# Decrypt when viewing
+# Decrypt with automatic sender verification (checks message sender)
 cps show 5 --decrypt
+
+# The CLI always performs sender verification when available
+```
+
+### Library Usage
+
+```rust
+use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
+
+// Encrypt
+let encrypted = encrypt(data, &sender_secret, &receiver_public, EncryptionAlgorithm::AesGcm256)?;
+
+// Decrypt with sender verification (recommended)
+let decrypted = decrypt(&encrypted, &receiver_secret, Some(&expected_sender_public))?;
+
+// Decrypt without sender verification (accepts from any sender)
+let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
 ```
 
 ## 📡 MQTT Bridge
