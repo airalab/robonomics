@@ -46,31 +46,28 @@
 //!
 //! ```no_run
 //! use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
-//! use schnorrkel::SecretKey;
+//! use sp_core::{Pair, sr25519};
 //!
 //! # fn example() -> anyhow::Result<()> {
-//! let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-//! let sender_public = sender_secret.to_public().to_bytes();
-//! let receiver_public = [0u8; 32];
+//! let (sender, _) = sr25519::Pair::generate();
+//! let (receiver, _) = sr25519::Pair::generate();
 //! let plaintext = b"secret message";
 //!
 //! // Encrypt with specific algorithm
 //! let encrypted = encrypt(
 //!     plaintext,
-//!     &sender_secret,
-//!     &receiver_public,
+//!     &sender,
+//!     &receiver.public(),
 //!     EncryptionAlgorithm::AesGcm256
 //! )?;
 //!
 //! // Decrypt (algorithm auto-detected)
-//! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-//! 
 //! // With sender verification (recommended)
-//! let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
+//! let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public()))?;
 //! assert_eq!(plaintext, &decrypted[..]);
 //!
 //! // Without sender verification (accepts from any sender)
-//! let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+//! let decrypted_any = decrypt(&encrypted, &receiver, None)?;
 //! assert_eq!(plaintext, &decrypted_any[..]);
 //! # Ok(())
 //! # }
@@ -92,10 +89,8 @@ use chacha20poly1305::{
     aead::OsRng,
     ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
-use hkdf::Hkdf;
-use schnorrkel::{PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sp_core::crypto::Pair;
 
 /// Encrypted message format stored on-chain.
 ///
@@ -127,205 +122,24 @@ fn default_algorithm() -> String {
     "xchacha20".to_string()
 }
 
-/// A shared secret computed via ECDH on Ristretto255.
-///
-/// This struct holds the shared secret derived from sr25519 key agreement
-/// using Ristretto255 curve operations. It provides methods for deriving
-/// encryption keys using HKDF.
-///
-/// # Security
-///
-/// The shared secret should be treated as sensitive cryptographic material
-/// and not exposed directly. Use the provided methods to derive keys.
-///
-/// # Examples
-///
-/// ```no_run
-/// use libcps::crypto::SharedSecret;
-/// use schnorrkel::{SecretKey, PublicKey};
-///
-/// # fn example() -> anyhow::Result<()> {
-/// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
-/// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
-///
-/// // Derive shared secret
-/// let shared = SharedSecret::new(&my_secret, &their_public)?;
-///
-/// // Derive encryption key
-/// let key = shared.derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)?;
-/// # Ok(())
-/// # }
-/// ```
-#[derive(Clone)]
-pub struct SharedSecret([u8; 32]);
-
-impl SharedSecret {
-    /// Perform ECDH on Ristretto255 to compute a shared secret.
-    ///
-    /// Since sr25519 uses Ristretto255 group (not directly compatible with X25519),
-    /// we use Ristretto255-based key agreement:
-    /// 1. Compute scalar multiplication: secret_scalar * public_point
-    /// 2. Hash the compressed result for uniform distribution
-    ///
-    /// # Arguments
-    ///
-    /// * `secret_key` - Our secret key for DH
-    /// * `public_key` - Their public key to compute shared secret with
-    ///
-    /// # Returns
-    ///
-    /// Returns a `SharedSecret` wrapping the 32-byte shared secret
-    ///
-    /// # Errors
-    ///
-    /// Returns error if the public key cannot be decompressed
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use libcps::crypto::SharedSecret;
-    /// use schnorrkel::{SecretKey, PublicKey};
-    ///
-    /// # fn example() -> anyhow::Result<()> {
-    /// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    /// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
-    ///
-    /// let shared = SharedSecret::new(&my_secret, &their_public)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(secret_key: &SecretKey, public_key: &PublicKey) -> Result<Self> {
-        use curve25519_dalek::ristretto::CompressedRistretto;
-        use curve25519_dalek::scalar::Scalar;
-        use sha2::{Digest, Sha512};
-        
-        // Get secret scalar (first 32 bytes of secret key)
-        let secret_bytes = secret_key.to_bytes();
-        let mut scalar_bytes = [0u8; 32];
-        scalar_bytes.copy_from_slice(&secret_bytes[..32]);
-        
-        // Create scalar (schnorrkel uses Ristretto255 internally)
-        let scalar = Scalar::from_bytes_mod_order(scalar_bytes);
-        
-        // Get public key as Ristretto point
-        // schnorrkel PublicKey is compressed Ristretto255
-        let public_compressed = CompressedRistretto(public_key.to_bytes());
-        let public_point = public_compressed
-            .decompress()
-            .ok_or_else(|| anyhow!("Failed to decompress Ristretto255 public key"))?;
-        
-        // Perform scalar multiplication on Ristretto255
-        let shared_point = scalar * public_point;
-        
-        // Compress the result and hash it for uniform distribution
-        // This ensures both parties get the same result
-        let shared_compressed = shared_point.compress();
-        
-        // Use SHA-512 to derive a uniform 64-byte output, then take first 32 bytes
-        // This matches how Substrate typically handles key agreement
-        let mut hasher = Sha512::new();
-        hasher.update(b"robonomics-cps-ecdh");
-        hasher.update(shared_compressed.as_bytes());
-        let hash_output = hasher.finalize();
-        
-        let mut result = [0u8; 32];
-        result.copy_from_slice(&hash_output[..32]);
-        
-        Ok(Self(result))
-    }
-
-    /// Derive an encryption key from the shared secret using HKDF-SHA256.
-    ///
-    /// Uses HKDF (HMAC-based Key Derivation Function) with SHA256 to derive
-    /// a 32-byte encryption key suitable for the specified algorithm.
-    ///
-    /// # Arguments
-    ///
-    /// * `algorithm` - The encryption algorithm to derive a key for
-    ///
-    /// # Returns
-    ///
-    /// Returns 32-byte encryption key
-    ///
-    /// # Errors
-    ///
-    /// Returns error if HKDF expansion fails
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use libcps::crypto::{SharedSecret, EncryptionAlgorithm};
-    /// use schnorrkel::{SecretKey, PublicKey};
-    ///
-    /// # fn example() -> anyhow::Result<()> {
-    /// let my_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    /// let their_public = PublicKey::from_bytes(&[0u8; 32])?;
-    ///
-    /// let shared = SharedSecret::new(&my_secret, &their_public)?;
-    /// let encryption_key = shared.derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn derive_encryption_key(&self, algorithm: crate::crypto::EncryptionAlgorithm) -> Result<[u8; 32]> {
-        let hkdf = Hkdf::<Sha256>::new(None, &self.0);
-        let mut okm = [0u8; 32];
-        hkdf.expand(algorithm.info_string(), &mut okm)
-            .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
-        Ok(okm)
-    }
-
-    /// Get a reference to the raw shared secret bytes.
-    ///
-    /// # Security Warning
-    ///
-    /// The shared secret should be treated as sensitive cryptographic material.
-    /// Prefer using `derive_encryption_key()` instead of accessing raw bytes.
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl AsRef<[u8]> for SharedSecret {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl std::fmt::Debug for SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("SharedSecret([REDACTED])")
-    }
-}
-
-/// Encrypt data using sr25519 → XChaCha20-Poly1305 scheme.
+/// Encrypt data using ECDH key agreement and AEAD cipher.
 ///
 /// # Process
 ///
-/// 1. Derive shared secret from sender's secret key and receiver's public key
-/// 2. Use HKDF-SHA256 to derive 32-byte encryption key from shared secret
-/// 3. Encrypt plaintext with XChaCha20-Poly1305 using random 24-byte nonce
-/// 4. Return JSON-encoded message with version, sender, nonce, and ciphertext
-///
-/// # Arguments
-///
-/// * `plaintext` - Data to encrypt
-/// * `sender_secret` - Sender's sr25519 secret key
-/// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
-///
-/// Encrypt data using sr25519 → AEAD scheme with specified algorithm.
-///
-/// # Process
-///
-/// 1. Derive shared secret from sender's secret key and receiver's public key
+/// 1. Derive shared secret using ECDH (support for both SR25519 and ED25519)
 /// 2. Use HKDF-SHA256 to derive 32-byte encryption key from shared secret
 /// 3. Encrypt plaintext with specified AEAD cipher using random nonce
 /// 4. Return JSON-encoded message with version, algorithm, sender, nonce, and ciphertext
 ///
+/// # Type Parameters
+///
+/// * `P` - Keypair type implementing `Pair` + `DeriveSharedSecret` traits
+///
 /// # Arguments
 ///
 /// * `plaintext` - Data to encrypt
-/// * `sender_secret` - Sender's sr25519 secret key
-/// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
+/// * `sender` - Sender's keypair (for signing and ECDH)
+/// * `receiver_public` - Receiver's public key
 /// * `algorithm` - AEAD encryption algorithm to use
 ///
 /// # Returns
@@ -335,7 +149,7 @@ impl std::fmt::Debug for SharedSecret {
 /// # Errors
 ///
 /// Returns an error if:
-/// - Receiver's public key is invalid
+/// - ECDH key agreement fails
 /// - HKDF expansion fails
 /// - Encryption fails
 /// - JSON serialization fails
@@ -344,39 +158,38 @@ impl std::fmt::Debug for SharedSecret {
 ///
 /// ```no_run
 /// use libcps::crypto::{encrypt, EncryptionAlgorithm};
-/// use schnorrkel::SecretKey;
+/// use sp_core::{Pair, sr25519};
 ///
 /// # fn example() -> anyhow::Result<()> {
-/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-/// let receiver_public = [0u8; 32];
+/// let (sender, _) = sr25519::Pair::generate();
+/// let (receiver, _) = sr25519::Pair::generate();
 /// let plaintext = b"secret message";
 ///
 /// let encrypted = encrypt(
 ///     plaintext,
-///     &sender_secret,
-///     &receiver_public,
+///     &sender,
+///     &receiver.public(),
 ///     EncryptionAlgorithm::AesGcm256
 /// )?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn encrypt(
+pub fn encrypt<P>(
     plaintext: &[u8],
-    sender_secret: &SecretKey,
-    receiver_public: &[u8; 32],
+    sender: &P,
+    receiver_public: &P::Public,
     algorithm: crate::crypto::EncryptionAlgorithm,
-) -> Result<Vec<u8>> {
+) -> Result<Vec<u8>>
+where
+    P: Pair + crate::crypto::DeriveSharedSecret,
+{
     use base64::{engine::general_purpose, Engine as _};
 
-    // Step 1: Parse receiver's public key
-    let receiver_pubkey = PublicKey::from_bytes(receiver_public)
-        .map_err(|e| anyhow!("Invalid receiver public key: {e}"))?;
+    // Step 1: Derive shared secret using ECDH
+    let shared_secret = P::derive(sender, receiver_public)?;
     
-    // Step 2: Derive shared secret using ECDH
-    let shared_secret = SharedSecret::new(sender_secret, &receiver_pubkey)?;
-    
-    // Step 3: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
+    // Step 2: Derive encryption key using HKDF
+    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
     // Step 4: Encrypt with specified algorithm
     let (nonce_bytes, ciphertext) = match algorithm {
@@ -406,8 +219,8 @@ pub fn encrypt(
         }
     };
 
-    // Step 5: Create message structure
-    let sender_public = sender_secret.to_public();
+    // Step 3: Create message structure
+    let sender_public_bytes = sender.public().as_ref();
     let algorithm_str = match algorithm {
         crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
         crate::crypto::EncryptionAlgorithm::AesGcm256 => "aesgcm256",
@@ -417,12 +230,12 @@ pub fn encrypt(
     let message = EncryptedMessage {
         version: 1,
         algorithm: algorithm_str.to_string(),
-        from: bs58::encode(sender_public.to_bytes()).into_string(),
+        from: bs58::encode(sender_public_bytes).into_string(),
         nonce: general_purpose::STANDARD.encode(&nonce_bytes),
         ciphertext: general_purpose::STANDARD.encode(&ciphertext),
     };
 
-    // Serialize to JSON
+    // Step 4: Serialize to JSON
     serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
 }
 
