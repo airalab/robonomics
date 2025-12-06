@@ -15,11 +15,12 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 ## ✨ Features
 
 - 🎨 **Beautiful colored output** with emojis and ASCII art (CLI)
-- 🔐 **XChaCha20-Poly1305 encryption** with sr25519 key derivation
+- 🔐 **Multi-algorithm AEAD encryption** (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
+- 🔑 **Dual keypair support** (SR25519 for Substrate, ED25519 for IoT/Home Assistant)
 - 📡 **MQTT bridge** for IoT device integration
 - 🌲 **Hierarchical tree visualization** of CPS nodes (CLI)
 - ⚙️ **Flexible configuration** via environment variables or CLI args
-- 🔒 **Secure by design** with proper key management
+- 🔒 **Secure by design** with proper key management and ECDH key agreement
 - 📚 **Comprehensive documentation** for library API
 - 🔧 **Type-safe blockchain integration** via subxt
 
@@ -92,11 +93,13 @@ async fn main() -> anyhow::Result<()> {
 
 ### Encryption Example
 
+#### SR25519 Encryption (Substrate Native)
+
 ```rust
 use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
 use schnorrkel::SecretKey;
 
-fn encrypt_example() -> anyhow::Result<()> {
+fn encrypt_sr25519_example() -> anyhow::Result<()> {
     let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
     let sender_public = sender_secret.to_public().to_bytes();
     let receiver_public = [0u8; 32];
@@ -119,6 +122,34 @@ fn encrypt_example() -> anyhow::Result<()> {
     let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
     assert_eq!(plaintext, &decrypted_any[..]);
 
+    Ok(())
+}
+```
+
+#### ED25519 Encryption (IoT / Home Assistant Compatible)
+
+```rust
+use libcps::crypto::{encrypt_with_algorithm_ed25519, decrypt_ed25519, EncryptionAlgorithm};
+use ed25519_dalek::SigningKey;
+
+fn encrypt_ed25519_example() -> anyhow::Result<()> {
+    let sender_secret = SigningKey::from_bytes(&[0u8; 32]);
+    let receiver_secret = SigningKey::from_bytes(&[1u8; 32]);
+    let receiver_public = receiver_secret.verifying_key().to_bytes();
+    let plaintext = b"secret message for home assistant";
+
+    // Encrypt with ED25519
+    let encrypted = encrypt_with_algorithm_ed25519(
+        plaintext,
+        &sender_secret,
+        &receiver_public,
+        EncryptionAlgorithm::XChaCha20Poly1305,
+    )?;
+
+    // Decrypt
+    let decrypted = decrypt_ed25519(&encrypted, &receiver_secret)?;
+
+    assert_eq!(plaintext, &decrypted[..]);
     Ok(())
 }
 ```
@@ -209,8 +240,14 @@ cps create --meta '{"type":"sensor"}' --payload '22.5C'
 # Create child node
 cps create --parent 0 --payload 'operational data'
 
-# Create with encryption
+# Create with encryption (SR25519, default)
 cps create --parent 0 --payload 'secret data' --encrypt
+
+# Create with ED25519 encryption
+cps create --parent 0 --payload 'secret data' --encrypt --keypair-type ed25519
+
+# Create with specific cipher
+cps create --parent 0 --payload 'secret data' --encrypt --cipher aesgcm256
 ```
 
 **Options:**
@@ -218,6 +255,8 @@ cps create --parent 0 --payload 'secret data' --encrypt
 - `--meta <data>`: Metadata (configuration data)
 - `--payload <data>`: Payload (operational data)
 - `--encrypt`: Encrypt the data
+- `--cipher <algorithm>`: Encryption algorithm (xchacha20, aesgcm256, chacha20) [default: xchacha20]
+- `--keypair-type <type>`: Keypair type (sr25519, ed25519) [default: sr25519]
 
 ### `set-meta <node_id> <data>`
 
@@ -229,6 +268,9 @@ cps set-meta 5 '{"name":"Updated Sensor"}'
 
 # Update with encryption
 cps set-meta 5 'private config' --encrypt
+
+# Update with ED25519 encryption
+cps set-meta 5 'private config' --encrypt --keypair-type ed25519
 ```
 
 ### `set-payload <node_id> <data>`
@@ -241,6 +283,9 @@ cps set-payload 5 '23.1C'
 
 # Update with encryption
 cps set-payload 5 'encrypted telemetry' --encrypt
+
+# Update with ED25519 and AES-GCM
+cps set-payload 5 'encrypted telemetry' --encrypt --keypair-type ed25519 --cipher aesgcm256
 ```
 
 ### `move <node_id> <new_parent_id>`
@@ -276,8 +321,14 @@ Subscribe to MQTT topic and update node payload with received messages.
 # Subscribe to sensor data
 cps mqtt subscribe "sensors/temp01" 5
 
-# Subscribe with encryption
+# Subscribe with encryption (SR25519)
 cps mqtt subscribe "sensors/temp01" 5 --encrypt
+
+# Subscribe with ED25519 encryption (Home Assistant compatible)
+cps mqtt subscribe "homeassistant/sensor/temp" 5 --encrypt --keypair-type ed25519
+
+# Subscribe with specific cipher
+cps mqtt subscribe "sensors/temp01" 5 --encrypt --cipher aesgcm256
 ```
 
 **Behavior:**
@@ -350,21 +401,51 @@ cps --ws-url ws://localhost:9944 \
 
 ## 🔐 Encryption
 
-The CLI implements **sr25519 → Multi-Algorithm AEAD** encryption with optional sender verification:
+The CLI supports multiple keypair types and AEAD encryption algorithms:
 
-### Supported Algorithms
+### Keypair Types
 
-- **XChaCha20-Poly1305** (default): 24-byte nonce, best for general purpose
-- **AES-256-GCM**: 12-byte nonce, hardware-accelerated (AES-NI)
-- **ChaCha20-Poly1305**: 12-byte nonce, portable performance
+The library supports two keypair types for encryption:
+
+#### **SR25519** (Default - Substrate Native)
+- Uses Ristretto255 curve for ECDH
+- Native to Substrate/Polkadot ecosystem
+- Best for: Substrate blockchain operations
+- Key agreement: Ristretto255 scalar multiplication
+
+#### **ED25519** (IoT Compatible)
+- Uses X25519 ECDH (ED25519 → Curve25519 conversion)
+- Compatible with standard ED25519 implementations
+- Best for: IoT devices, Home Assistant integration, standard cryptography
+- Key agreement: ED25519 → Curve25519 → X25519
+
+### Encryption Algorithms
+
+Three AEAD ciphers are supported:
+
+1. **XChaCha20-Poly1305** (Default)
+   - 24-byte nonce (collision-resistant)
+   - ~680 MB/s software performance
+   - Best for: General purpose, portable
+
+2. **AES-256-GCM**
+   - 12-byte nonce
+   - ~2-3 GB/s with AES-NI hardware acceleration
+   - Best for: High throughput with hardware support
+
+3. **ChaCha20-Poly1305**
+   - 12-byte nonce
+   - ~600 MB/s software performance
+   - Best for: Portable performance without hardware acceleration
 
 ### How it works
 
 1. **Key Derivation (ECDH + HKDF)**
-   - Derive shared secret using sr25519 ECDH
-   - Apply HKDF-SHA256 with algorithm-specific info string
+   - For SR25519: Derive shared secret using Ristretto255 ECDH
+   - For ED25519: Derive shared secret using X25519 ECDH
+   - Apply HKDF-SHA256 with algorithm and keypair-type specific info string
 
-2. **Encryption**
+2. **Encryption (AEAD)**
    - Encrypt data with derived 32-byte key
    - Generate random nonce per message (size varies by algorithm)
    - Add authentication tag (AEAD)
@@ -388,10 +469,19 @@ Decryption supports **optional sender verification** for enhanced security:
 - **Without verification**: Decrypts messages from any sender (useful for anonymous scenarios)
 
 ```bash
-# Encrypt when creating node
-cps create --payload 'secret data' --encrypt --cipher xchacha20
+# Encrypt with SR25519 (default) and XChaCha20 (default)
+cps create --payload 'secret data' --encrypt
 
-# Decrypt with automatic sender verification (checks message sender)
+# Encrypt with ED25519 keypair type
+cps create --payload 'secret data' --encrypt --keypair-type ed25519
+
+# Encrypt with different algorithm
+cps create --payload 'secret data' --encrypt --cipher aesgcm256
+
+# Combine keypair type and cipher selection
+cps create --payload 'secret data' --encrypt --keypair-type ed25519 --cipher aesgcm256
+
+# Decrypt when viewing
 cps show 5 --decrypt
 
 # The CLI always performs sender verification when available
@@ -410,6 +500,18 @@ let decrypted = decrypt(&encrypted, &receiver_secret, Some(&expected_sender_publ
 
 // Decrypt without sender verification (accepts from any sender)
 let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+```
+
+### Home Assistant Compatibility
+
+When using with Home Assistant Robonomics integration, use ED25519 keypair type:
+
+```bash
+# Subscribe to Home Assistant data with ED25519
+cps mqtt subscribe "homeassistant/sensor/temperature" 5 --encrypt --keypair-type ed25519
+
+# Update node with ED25519 encryption
+cps set-payload 5 "encrypted data" --encrypt --keypair-type ed25519
 ```
 
 ## 📡 MQTT Bridge

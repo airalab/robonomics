@@ -6398,13 +6398,14 @@ dependencies = [
  "hkdf",
  "parity-scale-codec",
  "rumqttc",
- "schnorrkel",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sp-core",
  "subxt 0.37.0",
  "subxt-signer 0.37.0",
  "tokio",
+ "x25519-dalek",
 ]
 
 [[package]]
