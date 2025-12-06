@@ -811,11 +811,12 @@ mod tests {
         assert_eq!(decoded_from.len(), 32);
         
         // Check nonce is base64 encoded and correct size
-        let nonce = base64::decode(&message.nonce).unwrap();
+        use base64::{engine::general_purpose, Engine as _};
+        let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
         assert_eq!(nonce.len(), 24); // XChaCha20 nonce size
         
         // Check ciphertext is base64 encoded
-        let ciphertext = base64::decode(&message.ciphertext).unwrap();
+        let ciphertext = general_purpose::STANDARD.decode(&message.ciphertext).unwrap();
         assert!(!ciphertext.is_empty());
     }
     
