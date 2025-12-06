@@ -18,11 +18,13 @@
 //! Set metadata command implementation.
 
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use std::str::FromStr;
 
-pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     
     let client = Client::new(config).await?;
@@ -31,7 +33,12 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool)
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Updating metadata for node {node_id}"));
 
+    // Parse cipher algorithm
+    let algorithm = EncryptionAlgorithm::from_str(cipher)
+        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+
     if encrypt {
+        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::warning("Encryption not yet fully implemented (requires recipient public key)");
     }
 

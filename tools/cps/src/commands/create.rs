@@ -20,8 +20,10 @@
 use libcps::blockchain::{Client, Config};
 use crate::display;
 use libcps::types::NodeData;
+use libcps::crypto::EncryptionAlgorithm;
 use anyhow::Result;
 use colored::*;
+use std::str::FromStr;
 
 pub async fn execute(
     config: &Config,
@@ -29,6 +31,7 @@ pub async fn execute(
     meta: Option<String>,
     payload: Option<String>,
     encrypt: bool,
+    cipher: &str,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     
@@ -37,6 +40,14 @@ pub async fn execute(
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Using account: {}", hex::encode(keypair.public_key().0)));
+
+    // Parse cipher algorithm
+    let algorithm = EncryptionAlgorithm::from_str(cipher)
+        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+
+    if encrypt {
+        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+    }
 
     // Prepare metadata
     let meta_data = if let Some(m) = meta {

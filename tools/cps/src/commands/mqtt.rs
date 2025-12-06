@@ -18,10 +18,12 @@
 //! MQTT bridge command implementations.
 
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
 use crate::display;
 use libcps::mqtt;
 use anyhow::Result;
 use colored::*;
+use std::str::FromStr;
 
 pub async fn subscribe(
     blockchain_config: &Config,
@@ -29,12 +31,22 @@ pub async fn subscribe(
     topic: &str,
     node_id: u64,
     encrypt: bool,
+    cipher: &str,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
     let keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
+    
+    // Parse cipher algorithm
+    let algorithm = EncryptionAlgorithm::from_str(cipher)
+        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+
+    if encrypt {
+        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+    }
+
     display::tree::progress("Connecting to MQTT broker...");
 
     // In a real implementation:

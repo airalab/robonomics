@@ -91,6 +91,10 @@ enum Commands {
         /// Encrypt the data
         #[arg(long)]
         encrypt: bool,
+
+        /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
+        #[arg(long, default_value = "xchacha20")]
+        cipher: String,
     },
 
     /// Update node metadata
@@ -104,6 +108,10 @@ enum Commands {
         /// Encrypt the data
         #[arg(long)]
         encrypt: bool,
+
+        /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
+        #[arg(long, default_value = "xchacha20")]
+        cipher: String,
     },
 
     /// Update node payload
@@ -117,6 +125,10 @@ enum Commands {
         /// Encrypt the data
         #[arg(long)]
         encrypt: bool,
+
+        /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
+        #[arg(long, default_value = "xchacha20")]
+        cipher: String,
     },
 
     /// Move a node to a new parent
@@ -156,6 +168,10 @@ enum MqttCommands {
         /// Encrypt messages before storing
         #[arg(long)]
         encrypt: bool,
+
+        /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
+        #[arg(long, default_value = "xchacha20")]
+        cipher: String,
     },
 
     /// Publish node payload changes to MQTT topic
@@ -200,22 +216,25 @@ async fn main() -> Result<()> {
             meta,
             payload,
             encrypt,
+            cipher,
         } => {
-            commands::create::execute(&blockchain_config, parent, meta, payload, encrypt).await?;
+            commands::create::execute(&blockchain_config, parent, meta, payload, encrypt, &cipher).await?;
         }
         Commands::SetMeta {
             node_id,
             data,
             encrypt,
+            cipher,
         } => {
-            commands::set_meta::execute(&blockchain_config, node_id, data, encrypt).await?;
+            commands::set_meta::execute(&blockchain_config, node_id, data, encrypt, &cipher).await?;
         }
         Commands::SetPayload {
             node_id,
             data,
             encrypt,
+            cipher,
         } => {
-            commands::set_payload::execute(&blockchain_config, node_id, data, encrypt).await?;
+            commands::set_payload::execute(&blockchain_config, node_id, data, encrypt, &cipher).await?;
         }
         Commands::Move {
             node_id,
@@ -231,8 +250,9 @@ async fn main() -> Result<()> {
                 topic,
                 node_id,
                 encrypt,
+                cipher,
             } => {
-                commands::mqtt::subscribe(&blockchain_config, &mqtt_config, &topic, node_id, encrypt)
+                commands::mqtt::subscribe(&blockchain_config, &mqtt_config, &topic, node_id, encrypt, &cipher)
                     .await?;
             }
             MqttCommands::Publish {
