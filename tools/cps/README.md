@@ -96,22 +96,32 @@ async fn main() -> anyhow::Result<()> {
 #### SR25519 Encryption (Substrate Native)
 
 ```rust
-use libcps::crypto::{encrypt, decrypt};
+use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
 use schnorrkel::SecretKey;
 
 fn encrypt_sr25519_example() -> anyhow::Result<()> {
     let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+    let sender_public = sender_secret.to_public().to_bytes();
     let receiver_public = [0u8; 32];
     let plaintext = b"secret message";
 
-    // Encrypt with SR25519
-    let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
+    // Encrypt with specific algorithm
+    let encrypted = encrypt(
+        plaintext,
+        &sender_secret,
+        &receiver_public,
+        EncryptionAlgorithm::XChaCha20Poly1305
+    )?;
 
-    // Decrypt
+    // Decrypt with sender verification (recommended for security)
     let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    let decrypted = decrypt(&encrypted, &receiver_secret)?;
-
+    let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
     assert_eq!(plaintext, &decrypted[..]);
+
+    // Decrypt without sender verification (accepts from any sender)
+    let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+    assert_eq!(plaintext, &decrypted_any[..]);
+
     Ok(())
 }
 ```
@@ -444,7 +454,6 @@ Three AEAD ciphers are supported:
    ```json
    {
      "version": 1,
-     "keypair_type": "sr25519",
      "algorithm": "xchacha20",
      "from": "5GrwvaEF...",
      "nonce": "base64-encoded",
@@ -452,7 +461,12 @@ Three AEAD ciphers are supported:
    }
    ```
 
-### Usage
+### Sender Verification
+
+Decryption supports **optional sender verification** for enhanced security:
+
+- **With verification** (recommended): Verifies the message sender's identity before decrypting
+- **Without verification**: Decrypts messages from any sender (useful for anonymous scenarios)
 
 ```bash
 # Encrypt with SR25519 (default) and XChaCha20 (default)
@@ -469,6 +483,23 @@ cps create --payload 'secret data' --encrypt --keypair-type ed25519 --cipher aes
 
 # Decrypt when viewing
 cps show 5 --decrypt
+
+# The CLI always performs sender verification when available
+```
+
+### Library Usage
+
+```rust
+use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
+
+// Encrypt
+let encrypted = encrypt(data, &sender_secret, &receiver_public, EncryptionAlgorithm::AesGcm256)?;
+
+// Decrypt with sender verification (recommended)
+let decrypted = decrypt(&encrypted, &receiver_secret, Some(&expected_sender_public))?;
+
+// Decrypt without sender verification (accepts from any sender)
+let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
 ```
 
 ### Home Assistant Compatibility

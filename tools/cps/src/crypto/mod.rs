@@ -26,4 +26,4 @@ pub mod xchacha20;
 
 pub use cipher::EncryptionAlgorithm;
 pub use shared_secret::{DeriveSharedSecret, SharedSecret};
-pub use xchacha20::{decrypt, encrypt, encrypt_with_algorithm, EncryptedMessage};
+pub use encryption::{decrypt, encrypt, EncryptedMessage, SharedSecret};

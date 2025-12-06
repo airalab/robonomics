@@ -45,16 +45,17 @@
 //! # Examples
 //!
 //! ```no_run
-//! use libcps::crypto::{encrypt_with_algorithm, decrypt, EncryptionAlgorithm};
+//! use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
 //! use schnorrkel::SecretKey;
 //!
 //! # fn example() -> anyhow::Result<()> {
 //! let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+//! let sender_public = sender_secret.to_public().to_bytes();
 //! let receiver_public = [0u8; 32];
 //! let plaintext = b"secret message";
 //!
 //! // Encrypt with specific algorithm
-//! let encrypted = encrypt_with_algorithm(
+//! let encrypted = encrypt(
 //!     plaintext,
 //!     &sender_secret,
 //!     &receiver_public,
@@ -63,9 +64,14 @@
 //!
 //! // Decrypt (algorithm auto-detected)
 //! let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-//! let decrypted = decrypt(&encrypted, &receiver_secret)?;
-//!
+//! 
+//! // With sender verification (recommended)
+//! let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
 //! assert_eq!(plaintext, &decrypted[..]);
+//!
+//! // Without sender verification (accepts from any sender)
+//! let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+//! assert_eq!(plaintext, &decrypted_any[..]);
 //! # Ok(())
 //! # }
 //! ```
@@ -83,7 +89,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce as AesNonce,
 };
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
+    aead::OsRng,
     ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
@@ -306,46 +312,6 @@ impl std::fmt::Debug for SharedSecret {
 /// * `sender_secret` - Sender's sr25519 secret key
 /// * `receiver_public` - Receiver's sr25519 public key (32 bytes)
 ///
-/// # Returns
-///
-/// JSON-encoded [`EncryptedMessage`] with base64-encoded nonce and ciphertext
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - Receiver's public key is invalid
-/// - HKDF expansion fails
-/// - Encryption fails
-/// - JSON serialization fails
-///
-/// # Examples
-///
-/// ```no_run
-/// use libcps::crypto::encrypt;
-/// use schnorrkel::SecretKey;
-///
-/// # fn example() -> anyhow::Result<()> {
-/// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-/// let receiver_public = [0u8; 32];
-/// let plaintext = b"secret message";
-///
-/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn encrypt(
-    plaintext: &[u8],
-    sender_secret: &SecretKey,
-    receiver_public: &[u8; 32],
-) -> Result<Vec<u8>> {
-    encrypt_with_algorithm(
-        plaintext,
-        sender_secret,
-        receiver_public,
-        crate::crypto::EncryptionAlgorithm::default(),
-    )
-}
-
 /// Encrypt data using sr25519 → AEAD scheme with specified algorithm.
 ///
 /// # Process
@@ -377,7 +343,7 @@ pub fn encrypt(
 /// # Examples
 ///
 /// ```no_run
-/// use libcps::crypto::{encrypt_with_algorithm, EncryptionAlgorithm};
+/// use libcps::crypto::{encrypt, EncryptionAlgorithm};
 /// use schnorrkel::SecretKey;
 ///
 /// # fn example() -> anyhow::Result<()> {
@@ -385,7 +351,7 @@ pub fn encrypt(
 /// let receiver_public = [0u8; 32];
 /// let plaintext = b"secret message";
 ///
-/// let encrypted = encrypt_with_algorithm(
+/// let encrypted = encrypt(
 ///     plaintext,
 ///     &sender_secret,
 ///     &receiver_public,
@@ -394,7 +360,7 @@ pub fn encrypt(
 /// # Ok(())
 /// # }
 /// ```
-pub fn encrypt_with_algorithm(
+pub fn encrypt(
     plaintext: &[u8],
     sender_secret: &SecretKey,
     receiver_public: &[u8; 32],
@@ -466,14 +432,18 @@ pub fn encrypt_with_algorithm(
 ///
 /// 1. Parse JSON-encoded encrypted message
 /// 2. Detect encryption algorithm from message
-/// 3. Derive shared secret from receiver's secret key and sender's public key
-/// 4. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
-/// 5. Decrypt ciphertext with appropriate AEAD cipher
+/// 3. Optionally verify sender's public key matches expected sender (if provided)
+/// 4. Derive shared secret from receiver's secret key and sender's public key
+/// 5. Use HKDF-SHA256 to derive encryption key with algorithm-specific info
+/// 6. Decrypt ciphertext with appropriate AEAD cipher
 ///
 /// # Arguments
 ///
 /// * `encrypted_data` - JSON-encoded [`EncryptedMessage`]
 /// * `receiver_secret` - Receiver's sr25519 secret key
+/// * `expected_sender_public` - Optional expected sender's sr25519 public key (32 bytes) for verification.
+///   If `Some`, verifies the message sender matches the expected sender.
+///   If `None`, skips sender verification (decrypts from any sender).
 ///
 /// # Returns
 ///
@@ -485,6 +455,7 @@ pub fn encrypt_with_algorithm(
 /// - Cannot parse JSON message
 /// - Unsupported message version or algorithm
 /// - Invalid sender public key
+/// - Sender public key doesn't match expected sender (when `expected_sender_public` is `Some`)
 /// - HKDF expansion fails
 /// - Cannot decode base64 nonce or ciphertext
 /// - Decryption fails (wrong key or corrupted data)
@@ -497,18 +468,28 @@ pub fn encrypt_with_algorithm(
 ///
 /// # fn example() -> anyhow::Result<()> {
 /// let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
+/// let sender_public = sender_secret.to_public().to_bytes();
 /// let receiver_secret = SecretKey::from_bytes(&[1u8; 64])?;
 /// let receiver_public = receiver_secret.to_public().to_bytes();
 /// let plaintext = b"secret message";
 ///
-/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public)?;
-/// let decrypted = decrypt(&encrypted, &receiver_secret)?;
+/// let encrypted = encrypt(plaintext, &sender_secret, &receiver_public, EncryptionAlgorithm::default())?;
 ///
+/// // Decrypt with sender verification
+/// let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
 /// assert_eq!(plaintext, &decrypted[..]);
+///
+/// // Decrypt without sender verification (accepts from any sender)
+/// let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+/// assert_eq!(plaintext, &decrypted_any[..]);
 /// # Ok(())
 /// # }
 /// ```
-pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec<u8>> {
+pub fn decrypt(
+    encrypted_data: &[u8],
+    receiver_secret: &SecretKey,
+    expected_sender_public: Option<&[u8; 32]>,
+) -> Result<Vec<u8>> {
     use base64::{engine::general_purpose, Engine as _};
     use std::str::FromStr;
 
@@ -539,13 +520,22 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
     let sender_public = PublicKey::from_bytes(&sender_pk_array)
         .map_err(|e| anyhow!("Invalid sender public key: {e}"))?;
 
-    // Step 4: Derive shared secret using ECDH
+    // Step 4: Optionally verify sender matches expected sender
+    if let Some(expected_pk) = expected_sender_public {
+        if &sender_pk_array != expected_pk {
+            return Err(anyhow!(
+                "Sender public key mismatch: message from unexpected sender"
+            ));
+        }
+    }
+
+    // Step 5: Derive shared secret using ECDH
     let shared_secret = SharedSecret::new(receiver_secret, &sender_public)?;
     
-    // Step 5: Derive encryption key using HKDF
+    // Step 6: Derive encryption key using HKDF
     let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
-    // Step 6: Decode nonce and ciphertext
+    // Step 7: Decode nonce and ciphertext
     let nonce_bytes = general_purpose::STANDARD
         .decode(&message.nonce)
         .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
@@ -554,7 +544,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
         .decode(&message.ciphertext)
         .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
 
-    // Step 7: Decrypt with appropriate algorithm
+    // Step 8: Decrypt with appropriate algorithm
     match algorithm {
         crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
             if nonce_bytes.len() != 24 {
@@ -592,6 +582,7 @@ pub fn decrypt(encrypted_data: &[u8], receiver_secret: &SecretKey) -> Result<Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::EncryptionAlgorithm;
     use schnorrkel::{Keypair, MiniSecretKey};
     
     /// Generate a test keypair from a seed
@@ -684,6 +675,7 @@ mod tests {
             plaintext,
             &sender.secret,
             &receiver.public.to_bytes(),
+            EncryptionAlgorithm::default(),
         ).unwrap();
         
         // Encrypted data should not be empty
@@ -693,7 +685,7 @@ mod tests {
         let _: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
         
         // Decrypted should match original plaintext
         assert_eq!(decrypted, plaintext);
@@ -706,15 +698,15 @@ mod tests {
         let plaintext = b"Same message";
         
         // Encrypt same message twice
-        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
-        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
+        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Should produce different ciphertexts due to random nonces
         assert_ne!(encrypted1, encrypted2);
         
         // But both should decrypt to the same plaintext
-        let decrypted1 = decrypt(&encrypted1, &receiver.secret).unwrap();
-        let decrypted2 = decrypt(&encrypted2, &receiver.secret).unwrap();
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
         assert_eq!(decrypted1, plaintext);
         assert_eq!(decrypted2, plaintext);
     }
@@ -728,10 +720,10 @@ mod tests {
         let plaintext = b"Secret message";
         
         // Encrypt for receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Try to decrypt with wrong key
-        let result = decrypt(&encrypted, &wrong_receiver.secret);
+        let result = decrypt(&encrypted, &wrong_receiver.secret, Some(&sender.public.to_bytes()));
         
         // Should fail
         assert!(result.is_err());
@@ -744,7 +736,7 @@ mod tests {
         let plaintext = b"Test message";
         
         // Encrypt
-        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Corrupt the data
         if encrypted.len() > 10 {
@@ -752,7 +744,7 @@ mod tests {
         }
         
         // Try to decrypt corrupted data
-        let result = decrypt(&encrypted, &receiver.secret);
+        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
         
         // Should fail (either parse error or authentication failure)
         assert!(result.is_err());
@@ -765,10 +757,10 @@ mod tests {
         let plaintext = b"";
         
         // Encrypt empty message
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
         
         // Should get empty message back
         assert_eq!(decrypted, plaintext);
@@ -781,10 +773,10 @@ mod tests {
         let plaintext = vec![42u8; 10000]; // 10KB message
         
         // Encrypt
-        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
         
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -797,7 +789,7 @@ mod tests {
         let plaintext = b"Test";
         
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Parse the encrypted message
         let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
@@ -827,7 +819,7 @@ mod tests {
         let plaintext = b"Test";
         
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes()).unwrap();
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
         
         // Parse and modify version
         let mut message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
@@ -835,10 +827,350 @@ mod tests {
         let modified = serde_json::to_vec(&message).unwrap();
         
         // Try to decrypt
-        let result = decrypt(&modified, &receiver.secret);
+        let result = decrypt(&modified, &receiver.secret, Some(&sender.public.to_bytes()));
         
         // Should fail due to unsupported version
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Unsupported encryption version"));
+    }
+
+    #[test]
+    fn test_decrypt_rejects_wrong_sender() {
+        // Create three keypairs
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let wrong_sender = test_keypair(3);
+        
+        let plaintext = b"Test message";
+        
+        // Encrypt from sender to receiver
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
+        
+        // Try to decrypt with wrong expected sender
+        let result = decrypt(&encrypted, &receiver.secret, Some(&wrong_sender.public.to_bytes()));
+        
+        // Should fail due to sender mismatch
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Sender public key mismatch"));
+    }
+
+    #[test]
+    fn test_decrypt_without_sender_verification() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        
+        let plaintext = b"Test message";
+        
+        // Encrypt from sender to receiver
+        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
+        
+        // Decrypt without sender verification (None)
+        let decrypted = decrypt(&encrypted, &receiver.secret, None).unwrap();
+        
+        // Should successfully decrypt without checking sender
+        assert_eq!(decrypted, plaintext);
+    }
+
+    // ========== AES-GCM-256 Algorithm Tests ==========
+
+    #[test]
+    fn test_aesgcm256_encrypt_decrypt_roundtrip() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test message for AES-GCM-256";
+
+        // Encrypt using AES-GCM-256
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_message_structure() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test AES-GCM";
+
+        // Encrypt using AES-GCM-256
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Parse the encrypted message
+        let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+
+        // Check algorithm field
+        assert_eq!(message.algorithm, "aesgcm256");
+
+        // Check nonce is correct size for AES-GCM (12 bytes)
+        use base64::{engine::general_purpose, Engine as _};
+        let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
+        assert_eq!(nonce.len(), 12);
+    }
+
+    #[test]
+    fn test_aesgcm256_empty_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"";
+
+        // Encrypt empty message with AES-GCM-256
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+
+        // Should get empty message back
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_large_message() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = vec![0xAB; 50000]; // 50KB message
+
+        // Encrypt with AES-GCM-256
+        let encrypted = encrypt(
+            &plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_wrong_key_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let wrong_receiver = test_keypair(3);
+
+        let plaintext = b"Secret AES-GCM message";
+
+        // Encrypt for receiver using AES-GCM-256
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Try to decrypt with wrong key
+        let result = decrypt(&encrypted, &wrong_receiver.secret, Some(&sender.public.to_bytes()));
+
+        // Should fail (authentication error)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aesgcm256_corrupted_data_fails() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"AES-GCM test message";
+
+        // Encrypt with AES-GCM-256
+        let mut encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Corrupt the ciphertext
+        if encrypted.len() > 20 {
+            encrypted[20] ^= 0xFF;
+        }
+
+        // Try to decrypt corrupted data
+        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
+
+        // Should fail (authentication tag will not verify)
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aesgcm256_produces_different_ciphertexts() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Same AES-GCM message";
+
+        // Encrypt same message twice with AES-GCM-256
+        let encrypted1 = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+        let encrypted2 = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        // Should produce different ciphertexts due to random nonces
+        assert_ne!(encrypted1, encrypted2);
+
+        // But both should decrypt to the same plaintext
+        let decrypted1 = decrypt(&encrypted1, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        assert_eq!(decrypted1, plaintext);
+        assert_eq!(decrypted2, plaintext);
+    }
+
+    #[test]
+    fn test_aesgcm256_nonce_size_validation() {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        // This test verifies that decrypt properly validates AES-GCM nonce size
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+
+        // Create a message with invalid nonce size
+        let message = EncryptedMessage {
+            version: 1,
+            algorithm: "aesgcm256".to_string(),
+            from: bs58::encode(sender.public.to_bytes()).into_string(),
+            nonce: general_purpose::STANDARD.encode([0u8; 24]), // Wrong size (should be 12)
+            ciphertext: general_purpose::STANDARD.encode(b"fake"),
+        };
+
+        let encrypted = serde_json::to_vec(&message).unwrap();
+
+        // Try to decrypt
+        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
+
+        // Should fail due to invalid nonce size
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid AES-GCM nonce length"));
+    }
+
+    // ========== ChaCha20-Poly1305 Algorithm Tests ==========
+
+    #[test]
+    fn test_chacha20poly1305_encrypt_decrypt_roundtrip() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test message for ChaCha20-Poly1305";
+
+        // Encrypt using ChaCha20-Poly1305
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // Decrypt
+        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+
+        // Should match
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_chacha20poly1305_message_structure() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Test ChaCha20";
+
+        // Encrypt using ChaCha20-Poly1305
+        let encrypted = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // Parse the encrypted message
+        let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
+
+        // Check algorithm field
+        assert_eq!(message.algorithm, "chacha20");
+
+        // Check nonce is correct size for ChaCha20 (12 bytes)
+        use base64::{engine::general_purpose, Engine as _};
+        let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
+        assert_eq!(nonce.len(), 12);
+    }
+
+    // ========== Cross-Algorithm Compatibility Tests ==========
+
+    #[test]
+    fn test_different_algorithms_produce_different_outputs() {
+        let sender = test_keypair(1);
+        let receiver = test_keypair(2);
+        let plaintext = b"Cross-algorithm test";
+
+        // Encrypt with all three algorithms
+        let xchacha = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
+        let aesgcm = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+        )
+        .unwrap();
+
+        let chacha = encrypt(
+            plaintext,
+            &sender.secret,
+            &receiver.public.to_bytes(),
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
+
+        // All should be different due to different algorithms and nonces
+        assert_ne!(xchacha, aesgcm);
+        assert_ne!(xchacha, chacha);
+        assert_ne!(aesgcm, chacha);
+
+        // But all should decrypt correctly
+        assert_eq!(decrypt(&xchacha, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
+        assert_eq!(decrypt(&aesgcm, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
+        assert_eq!(decrypt(&chacha, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
     }
 }
