@@ -25,11 +25,10 @@ required-features = ["cli"]
 subxt = "0.37"
 subxt-signer = "0.37"
 parity-scale-codec = "3.6"
+sp-core = { workspace = true, features = ["std"] }
 
 # Cryptography
-schnorrkel = "0.11"
 curve25519-dalek = "4.1"
-ed25519-dalek = "2.1"
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 chacha20poly1305 = "0.10"
 aes-gcm = "0.10"
