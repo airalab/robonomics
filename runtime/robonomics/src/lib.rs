@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 43,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -204,7 +204,7 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 impl pallet_timestamp::Config for Runtime {
     type Moment = u64;
-    type OnTimestampSet = Aura;
+    type OnTimestampSet = ();
     type MinimumPeriod = ConstU64<0>;
     type WeightInfo = ();
 }
@@ -751,25 +751,6 @@ impl_runtime_apis! {
         }
     }
 
-    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
-        fn can_build_upon(
-            included_hash: <Block as BlockT>::Hash,
-            slot: cumulus_primitives_aura::Slot,
-        ) -> bool {
-            ConsensusHook::can_build_upon(included_hash, slot)
-        }
-    }
-
-    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(MILLISECS_PER_BLOCK)
-        }
-
-        fn authorities() -> Vec<AuraId> {
-            pallet_aura::Authorities::<Runtime>::get().into_inner()
-        }
-    }
-
     impl sp_api::Metadata<Block> for Runtime {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
@@ -944,9 +925,30 @@ impl_runtime_apis! {
     }
 }
 
+struct CheckInherents;
+impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
+    fn check_inherents(
+        block: &Block,
+        relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
+    ) -> sp_inherents::CheckInherentsResult {
+        let relay_chain_slot = relay_state_proof
+            .read_slot()
+            .expect("Could not read the relay chain slot from the proof");
+        let inherent_data =
+            cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
+                relay_chain_slot,
+                sp_std::time::Duration::from_secs(6),
+            )
+            .create_inherent_data()
+            .expect("Could not create the timestamp inherent data");
+        inherent_data.check_extrinsics(block)
+    }
+}
+
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
-    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor<Runtime, Executive>,
+    BlockExecutor = Executive,
+    CheckInherents = CheckInherents
 }
 
 parameter_types! {
