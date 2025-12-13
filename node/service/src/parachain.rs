@@ -165,18 +165,12 @@ where
                 let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
                 let lighthouse =
                     pallet_robonomics_lighthouse::InherentDataProvider(encoded_account);
-                let slot_duration = sc_consensus_aura::SlotDuration::from_millis(6_000);
-                let slot =
-                    sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-                        *timestamp,
-                        slot_duration,
-                    );
                 let parachain = parachain_inherent.ok_or_else(|| {
                     Box::<dyn std::error::Error + Send + Sync>::from(
                         "Failed to create parachain inherent",
                     )
                 })?;
-                Ok((slot, timestamp, lighthouse, parachain))
+                Ok((timestamp, lighthouse, parachain))
             }
         },
     });
