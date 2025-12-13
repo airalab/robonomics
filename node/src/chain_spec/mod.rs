@@ -21,6 +21,7 @@ use sc_chain_spec::ChainSpecExtension;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use robonomics_primitives::Block;
 
 pub mod dev;
 pub mod mainnet;
