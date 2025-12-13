@@ -56,6 +56,8 @@ pub struct Extensions {
     pub relay_chain: String,
     /// The id of the Parachain.
     pub para_id: u32,
+    /// Known bad block hashes.
+    pub bad_blocks: sc_client_api::BadBlocks<Block>,
 }
 
 impl Extensions {
