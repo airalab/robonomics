@@ -75,7 +75,7 @@ use anyhow::{anyhow, Result};
 ///
 /// Once the blockchain integration is implemented, this will be:
 /// `subxt::blocks::ExtrinsicEvents<PolkadotConfig>`
-pub type ExtrinsicEvents = ();  // TODO: Replace with subxt::blocks::ExtrinsicEvents<PolkadotConfig>
+pub type ExtrinsicEvents = (); // TODO: Replace with subxt::blocks::ExtrinsicEvents<PolkadotConfig>
 
 /// Information about a CPS node.
 #[derive(Debug, Clone)]
@@ -146,7 +146,10 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub fn new(client: &'a Client, node_id: u64) -> Self {
-        Self { client, id: node_id }
+        Self {
+            client,
+            id: node_id,
+        }
     }
 
     /// Get the node ID.

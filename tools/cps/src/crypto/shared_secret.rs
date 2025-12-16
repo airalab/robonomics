@@ -244,7 +244,9 @@ mod tests {
 
         // Derive encryption key
         let key = shared
-            .derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305.info_string())
+            .derive_encryption_key(
+                crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305.info_string(),
+            )
             .unwrap();
 
         // Key should be 32 bytes

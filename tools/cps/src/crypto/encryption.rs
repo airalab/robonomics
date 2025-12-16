@@ -480,8 +480,12 @@ mod tests {
         let shared_secret2 = alice.derive_secret(&charlie.public()).unwrap();
 
         let algorithm = EncryptionAlgorithm::XChaCha20Poly1305;
-        let key1 = shared_secret1.derive_encryption_key(algorithm.info_string()).unwrap();
-        let key2 = shared_secret2.derive_encryption_key(algorithm.info_string()).unwrap();
+        let key1 = shared_secret1
+            .derive_encryption_key(algorithm.info_string())
+            .unwrap();
+        let key2 = shared_secret2
+            .derive_encryption_key(algorithm.info_string())
+            .unwrap();
 
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);

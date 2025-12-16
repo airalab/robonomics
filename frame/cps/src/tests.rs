@@ -114,26 +114,30 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
                         | RuntimeCall::Cps(pallet_cps::Call::delete_node { .. })
                         | RuntimeCall::Cps(pallet_cps::Call::create_node { .. })
                 );
-                
+
                 if !is_cps_call {
                     return false;
                 }
-                
+
                 // If no specific node restriction, allow all CPS calls
                 if allowed_node.is_none() {
                     return true;
                 }
-                
+
                 // Check if the call targets the allowed node or its descendants
                 let target_node = match c {
                     RuntimeCall::Cps(pallet_cps::Call::set_meta { node_id, .. }) => Some(*node_id),
-                    RuntimeCall::Cps(pallet_cps::Call::set_payload { node_id, .. }) => Some(*node_id),
+                    RuntimeCall::Cps(pallet_cps::Call::set_payload { node_id, .. }) => {
+                        Some(*node_id)
+                    }
                     RuntimeCall::Cps(pallet_cps::Call::move_node { node_id, .. }) => Some(*node_id),
-                    RuntimeCall::Cps(pallet_cps::Call::delete_node { node_id, .. }) => Some(*node_id),
+                    RuntimeCall::Cps(pallet_cps::Call::delete_node { node_id, .. }) => {
+                        Some(*node_id)
+                    }
                     RuntimeCall::Cps(pallet_cps::Call::create_node { parent_id, .. }) => *parent_id,
                     _ => None,
                 };
-                
+
                 // Allow if target matches allowed node or if creating under allowed node
                 if let (Some(allowed), Some(target)) = (allowed_node, target_node) {
                     // For now, simple equality check. In production, you might want to check
@@ -1066,9 +1070,7 @@ fn proxy_can_update_cps_node_payload() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(
-                b"sensor".to_vec().try_into().unwrap()
-            )),
+            Some(NodeData::Plain(b"sensor".to_vec().try_into().unwrap())),
             None,
         ));
 
@@ -1108,9 +1110,7 @@ fn proxy_can_update_cps_node_meta() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(
-                b"sensor".to_vec().try_into().unwrap()
-            )),
+            Some(NodeData::Plain(b"sensor".to_vec().try_into().unwrap())),
             None,
         ));
 
@@ -1293,15 +1293,14 @@ fn proxy_cannot_exceed_permissions() {
             RuntimeOrigin::signed(proxy),
             owner,
             None,
-            Box::new(RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-                dest,
-                value: 100,
-            }))
+            Box::new(RuntimeCall::Balances(
+                pallet_balances::Call::transfer_allow_death { dest, value: 100 },
+            )),
         );
 
         // Verify the call was rejected
         assert!(result.is_err(), "Proxy should not allow non-CPS operations");
-        
+
         // Verify balance didn't change
         assert_eq!(
             Balances::free_balance(&dest),
@@ -1393,10 +1392,12 @@ fn proxy_type_any_allows_all_operations() {
             RuntimeOrigin::signed(proxy),
             owner,
             None,
-            Box::new(RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-                dest: 3u64,
-                value: 100,
-            }))
+            Box::new(RuntimeCall::Balances(
+                pallet_balances::Call::transfer_allow_death {
+                    dest: 3u64,
+                    value: 100,
+                }
+            ))
         ));
     });
 }
@@ -1449,18 +1450,30 @@ fn proxy_type_filter_works_correctly() {
             node_id: NodeId(0),
             payload: None,
         });
-        assert!(ProxyType::CpsWrite(None).filter(&cps_call), "CpsWrite should allow CPS calls");
+        assert!(
+            ProxyType::CpsWrite(None).filter(&cps_call),
+            "CpsWrite should allow CPS calls"
+        );
 
-        // Test that CpsWrite filter rejects balance calls  
+        // Test that CpsWrite filter rejects balance calls
         let balance_call = RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
             dest: 3u64,
             value: 100,
         });
-        assert!(!ProxyType::CpsWrite(None).filter(&balance_call), "CpsWrite should reject balance calls");
+        assert!(
+            !ProxyType::CpsWrite(None).filter(&balance_call),
+            "CpsWrite should reject balance calls"
+        );
 
         // Test that Any filter allows all calls
-        assert!(ProxyType::Any.filter(&cps_call), "Any should allow CPS calls");
-        assert!(ProxyType::Any.filter(&balance_call), "Any should allow balance calls");
+        assert!(
+            ProxyType::Any.filter(&cps_call),
+            "Any should allow CPS calls"
+        );
+        assert!(
+            ProxyType::Any.filter(&balance_call),
+            "Any should allow balance calls"
+        );
     });
 }
 
@@ -1477,7 +1490,7 @@ fn proxy_with_node_restriction_works() {
             Some(NodeData::Plain(b"node_0".to_vec().try_into().unwrap())),
             None,
         ));
-        
+
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
@@ -1506,7 +1519,10 @@ fn proxy_with_node_restriction_works() {
 
         // Verify node 0 was updated
         let node = Nodes::<Runtime>::get(NodeId(0)).unwrap();
-        assert_eq!(node.payload, Some(NodeData::Plain(b"updated_0".to_vec().try_into().unwrap())));
+        assert_eq!(
+            node.payload,
+            Some(NodeData::Plain(b"updated_0".to_vec().try_into().unwrap()))
+        );
 
         // Note: Testing that proxy CANNOT update node 1 is currently not reliable
         // due to pallet-proxy v43 filter behavior. The filter logic itself is correct
@@ -1528,19 +1544,37 @@ fn proxy_node_restriction_filter_test() {
             node_id: NodeId(1),
             payload: None,
         });
-        assert!(unrestricted.filter(&call_node_0), "Unrestricted should allow node 0");
-        assert!(unrestricted.filter(&call_node_1), "Unrestricted should allow node 1");
+        assert!(
+            unrestricted.filter(&call_node_0),
+            "Unrestricted should allow node 0"
+        );
+        assert!(
+            unrestricted.filter(&call_node_1),
+            "Unrestricted should allow node 1"
+        );
 
         // Test restricted CpsWrite only allows specific node
         let restricted_to_0 = ProxyType::CpsWrite(Some(NodeId(0)));
         assert!(restricted_to_0.filter(&call_node_0), "Should allow node 0");
-        assert!(!restricted_to_0.filter(&call_node_1), "Should reject node 1");
+        assert!(
+            !restricted_to_0.filter(&call_node_1),
+            "Should reject node 1"
+        );
 
         // Test is_superset logic
-        assert!(unrestricted.is_superset(&restricted_to_0), "Unrestricted is superset of restricted");
-        assert!(!restricted_to_0.is_superset(&unrestricted), "Restricted is not superset of unrestricted");
-        
+        assert!(
+            unrestricted.is_superset(&restricted_to_0),
+            "Unrestricted is superset of restricted"
+        );
+        assert!(
+            !restricted_to_0.is_superset(&unrestricted),
+            "Restricted is not superset of unrestricted"
+        );
+
         let restricted_to_1 = ProxyType::CpsWrite(Some(NodeId(1)));
-        assert!(!restricted_to_0.is_superset(&restricted_to_1), "Different restrictions are not supersets");
+        assert!(
+            !restricted_to_0.is_superset(&restricted_to_1),
+            "Different restrictions are not supersets"
+        );
     });
 }

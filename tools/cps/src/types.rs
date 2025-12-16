@@ -563,7 +563,9 @@ mod tests {
         let node = Node {
             owner: [1u8; 32],
             parent: None,
-            meta: Some(NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3]))),
+            meta: Some(NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![
+                1, 2, 3,
+            ]))),
             payload: Some(NodeData::plain("public payload")),
             path: vec![NodeId(0)],
         };

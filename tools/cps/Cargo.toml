@@ -8,7 +8,13 @@ homepage.workspace = true
 repository.workspace = true
 description = "Library for interacting with Robonomics CPS (Cyber-Physical Systems) pallet"
 readme = "README.md"
-keywords = ["robonomics", "blockchain", "iot", "cyber-physical-systems", "encryption"]
+keywords = [
+  "robonomics",
+  "blockchain",
+  "iot",
+  "cyber-physical-systems",
+  "encryption",
+]
 categories = ["cryptography", "network-programming", "web-programming"]
 
 [lib]
