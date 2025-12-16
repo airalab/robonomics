@@ -188,7 +188,7 @@ where
     let shared_secret = sender.derive_secret(receiver_public)?;
 
     // Step 2: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
     // Step 4: Encrypt with specified algorithm
     let (nonce_bytes, ciphertext) = match algorithm {
@@ -360,7 +360,7 @@ where
     let shared_secret = receiver.derive_secret(&sender_public)?;
 
     // Step 6: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
     // Step 7: Decode nonce and ciphertext
     let nonce_bytes = general_purpose::STANDARD
@@ -454,10 +454,10 @@ mod tests {
 
         // Derive encryption key twice with same algorithm
         let key1 = shared_secret
-            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
             .unwrap();
         let key2 = shared_secret
-            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
             .unwrap();
 
         // Same shared secret should produce same key
@@ -480,8 +480,8 @@ mod tests {
         let shared_secret2 = alice.derive_secret(&charlie.public()).unwrap();
 
         let algorithm = EncryptionAlgorithm::XChaCha20Poly1305;
-        let key1 = shared_secret1.derive_encryption_key(algorithm).unwrap();
-        let key2 = shared_secret2.derive_encryption_key(algorithm).unwrap();
+        let key1 = shared_secret1.derive_encryption_key(algorithm.info_string()).unwrap();
+        let key2 = shared_secret2.derive_encryption_key(algorithm.info_string()).unwrap();
 
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);

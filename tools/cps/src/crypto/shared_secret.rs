@@ -53,7 +53,7 @@ impl SharedSecret {
     ///
     /// # Arguments
     ///
-    /// * `algorithm` - Encryption algorithm for which to derive the key
+    /// * `info` - Application-specific context and purpose for the derived key
     ///
     /// # Returns
     ///
@@ -62,13 +62,13 @@ impl SharedSecret {
     /// # Errors
     ///
     /// Returns error if HKDF expansion fails
-    pub fn derive_encryption_key(&self, algorithm: crate::crypto::EncryptionAlgorithm) -> Result<[u8; 32]> {
+    pub fn derive_encryption_key(&self, info: &[u8]) -> Result<[u8; 32]> {
         use hkdf::Hkdf;
         use sha2::Sha256;
 
         let hkdf = Hkdf::<Sha256>::new(None, &self.0);
         let mut okm = [0u8; 32];
-        hkdf.expand(algorithm.info_string(), &mut okm)
+        hkdf.expand(info, &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
         Ok(okm)
     }
@@ -244,7 +244,7 @@ mod tests {
 
         // Derive encryption key
         let key = shared
-            .derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305)
+            .derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305.info_string())
             .unwrap();
 
         // Key should be 32 bytes
