@@ -417,7 +417,6 @@ impl<'a> Node<'a> {
     /// let node = Node::new(&client, 5);
     ///
     /// let params = UpdateNodeParams {
-    ///     node_id: 5,
     ///     data: b"new metadata".to_vec(),
     ///     encrypt: false,
     ///     algorithm: EncryptionAlgorithm::XChaCha20Poly1305,
@@ -468,7 +467,6 @@ impl<'a> Node<'a> {
     /// let node = Node::new(&client, 5);
     ///
     /// let params = UpdateNodeParams {
-    ///     node_id: 5,
     ///     data: b"23.1C".to_vec(),
     ///     encrypt: false,
     ///     algorithm: EncryptionAlgorithm::XChaCha20Poly1305,
