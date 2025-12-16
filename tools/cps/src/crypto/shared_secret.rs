@@ -201,7 +201,6 @@ impl DeriveSharedSecret for sp_core::ed25519::Pair {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sp_core::Pair as _;
 
     #[test]
     fn test_sr25519_shared_secret() {

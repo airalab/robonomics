@@ -86,6 +86,30 @@ serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
+anyhow = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+
+# Cryptography (for libcps)
+curve25519-dalek = "4.1"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+
+# Blockchain (for libcps)
+subxt = "0.37"
+subxt-signer = "0.37"
+
+# Serialization (for libcps)
+base64 = "0.21"
+hex = "0.4"
+
+# MQTT (for libcps)
+rumqttc = "0.24"
+
+# CLI (for libcps)
+colored = "2.1"
 
 # Substrate
 # (wasm)
