@@ -19,7 +19,6 @@
 
 use crate::display;
 use anyhow::Result;
-use colored::*;
 use libcps::blockchain::{Client, Config};
 use libcps::node::Node;
 
@@ -36,14 +35,8 @@ pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()
     let node_info = node.query().await?;
 
     // Display node information
-    let meta_str = node_info
-        .meta
-        .as_ref()
-        .and_then(|m| String::from_utf8(m.clone()).ok());
-    let payload_str = node_info
-        .payload
-        .as_ref()
-        .and_then(|p| String::from_utf8(p.clone()).ok());
+    let meta_str = String::from_utf8(node_info.meta.as_bytes().to_vec()).ok();
+    let payload_str = String::from_utf8(node_info.payload.as_bytes().to_vec()).ok();
 
     display::tree::print_tree(
         node_id,

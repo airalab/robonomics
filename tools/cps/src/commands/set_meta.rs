@@ -53,7 +53,6 @@ pub async fn execute(
     // Update metadata using Node API
     let node = Node::new(&client, node_id);
     let params = UpdateNodeParams {
-        node_id,
         data: data.into_bytes(),
         encrypt,
         algorithm,

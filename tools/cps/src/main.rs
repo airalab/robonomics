@@ -24,7 +24,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 // Import from the library
-use libcps::{blockchain, mqtt, types};
+use libcps::{blockchain, mqtt};
 
 // CLI-specific modules (display and commands)
 mod commands;

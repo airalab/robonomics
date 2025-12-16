@@ -68,7 +68,6 @@ pub async fn execute(
 
     // Prepare parameters for the library operation
     let params = UpdateNodeParams {
-        node_id,
         data: data.as_bytes().to_vec(),
         encrypt,
         algorithm,
@@ -86,15 +85,16 @@ pub async fn execute(
                     "Payload updated for node {}",
                     node_id.to_string().bright_cyan()
                 ));
-                if let Some(msg) = result.message {
-                    display::tree::info(&msg);
+                if let Some(msg) = &result.message {
+                    display::tree::info(msg);
                 }
             } else {
                 display::tree::error("Operation failed");
-                if let Some(msg) = result.message {
-                    display::tree::error(&msg);
+                if let Some(msg) = &result.message {
+                    display::tree::error(msg);
                 }
             }
+            Ok(())
         }
         Err(e) => {
             // CLI display: present error nicely

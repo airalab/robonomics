@@ -27,7 +27,7 @@ use std::str::FromStr;
 
 pub async fn subscribe(
     blockchain_config: &Config,
-    mqtt_config: &mqtt::Config,
+    _mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
     encrypt: bool,
@@ -36,7 +36,7 @@ pub async fn subscribe(
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
-    let keypair = client.require_keypair()?;
+    let _keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
 
@@ -139,13 +139,13 @@ pub async fn subscribe(
 
 pub async fn publish(
     blockchain_config: &Config,
-    mqtt_config: &mqtt::Config,
+    _mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
     interval: u64,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    let client = Client::new(blockchain_config).await?;
+    let _client = Client::new(blockchain_config).await?;
 
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
     display::tree::progress("Connecting to MQTT broker...");
