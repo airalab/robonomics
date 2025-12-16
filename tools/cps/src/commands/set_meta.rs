@@ -22,7 +22,8 @@ use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::EncryptionAlgorithm;
-use libcps::node::{Node, UpdateNodeParams};
+use libcps::node::Node;
+use libcps::types::NodeData;
 use std::str::FromStr;
 
 pub async fn execute(
@@ -48,20 +49,15 @@ pub async fn execute(
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        display::tree::warning("Encryption not yet implemented - updating with plain data");
     }
 
-    // Update metadata using Node API
+    // Update metadata using Node API with NodeData
     let node = Node::new(&client, node_id);
-    let params = UpdateNodeParams {
-        data: data.into_bytes(),
-        encrypt,
-        algorithm,
-        keypair_type,
-        recipient_public: None, // TODO: Add CLI option for recipient
-    };
+    let meta_data = NodeData::from(data);
 
     display::tree::progress("Updating metadata...");
-    node.set_meta(params).await?;
+    let _events = node.set_meta(Some(meta_data)).await?;
 
     display::tree::success(&format!(
         "Metadata updated for node {}",

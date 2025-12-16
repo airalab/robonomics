@@ -26,7 +26,8 @@ use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::EncryptionAlgorithm;
-use libcps::node::{Node, UpdateNodeParams};
+use libcps::node::Node;
+use libcps::types::NodeData;
 use std::str::FromStr;
 
 /// Execute the set-payload command with CLI display output.
@@ -61,39 +62,19 @@ pub async fn execute(
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning(
-            "Encryption not yet fully implemented (requires recipient public key)",
-        );
+        display::tree::warning("Encryption not yet implemented - updating with plain data");
     }
-
-    // Prepare parameters for the library operation
-    let params = UpdateNodeParams {
-        data: data.as_bytes().to_vec(),
-        encrypt,
-        algorithm,
-        keypair_type,
-        recipient_public: None, // TODO: Add recipient selection
-    };
 
     // Create a Node handle and delegate to node operation (business logic)
     let node = Node::new(&client, node_id);
+    let payload_data = NodeData::from(data);
 
-    match node.set_payload(params).await {
-        Ok(result) => {
-            if result.success {
-                display::tree::success(&format!(
-                    "Payload updated for node {}",
-                    node_id.to_string().bright_cyan()
-                ));
-                if let Some(msg) = &result.message {
-                    display::tree::info(msg);
-                }
-            } else {
-                display::tree::error("Operation failed");
-                if let Some(msg) = &result.message {
-                    display::tree::error(msg);
-                }
-            }
+    match node.set_payload(Some(payload_data)).await {
+        Ok(_events) => {
+            display::tree::success(&format!(
+                "Payload updated for node {}",
+                node_id.to_string().bright_cyan()
+            ));
             Ok(())
         }
         Err(e) => {
