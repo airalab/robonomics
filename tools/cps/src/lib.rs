@@ -58,6 +58,7 @@
 //! - [`crypto`]: Encryption and key derivation utilities
 //! - [`mqtt`]: MQTT bridge configuration and types
 //! - [`types`]: CPS pallet type definitions
+//! - [`operations`]: Reusable CPS pallet operations (create, update, query nodes)
 //!
 //! ## Encryption
 //!
@@ -131,6 +132,7 @@ pub mod blockchain;
 pub mod crypto;
 pub mod mqtt;
 pub mod types;
+pub mod operations;
 
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};
