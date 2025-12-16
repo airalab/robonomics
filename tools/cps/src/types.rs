@@ -39,7 +39,7 @@
 //! let plain = NodeData::plain("sensor reading: 23.5C");
 //!
 //! // Create encrypted data
-//! let encrypted = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+//! let encrypted = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3, 4]));
 //!
 //! // Check if data is encrypted
 //! assert!(!plain.is_encrypted());
@@ -113,13 +113,13 @@ pub enum EncryptedData {
 /// # Examples
 ///
 /// ```
-/// use libcps::types::NodeData;
+/// use libcps::types::{NodeData, EncryptedData};
 ///
 /// // Plain text data
 /// let plain = NodeData::plain("temperature: 22.5C");
 ///
 /// // Encrypted data
-/// let encrypted = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+/// let encrypted = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3, 4]));
 ///
 /// // Check type
 /// assert!(!plain.is_encrypted());
@@ -174,17 +174,18 @@ impl NodeData {
         Self::Plain(data.into())
     }
 
-    /// Create encrypted data using XChaCha20-Poly1305.
+    /// Create encrypted data with specified encryption type.
     ///
     /// # Examples
     ///
     /// ```
-    /// use libcps::types::NodeData;
+    /// use libcps::types::{NodeData, EncryptedData};
     ///
-    /// let encrypted = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+    /// let encrypted = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3, 4]));
+    /// let encrypted = NodeData::encrypted(EncryptedData::AesGcm256(vec![1, 2, 3]));
     /// ```
-    pub fn encrypted_xchacha(data: impl Into<Vec<u8>>) -> Self {
-        Self::Encrypted(EncryptedData::XChaCha20Poly1305(data.into()))
+    pub fn encrypted(data: EncryptedData) -> Self {
+        Self::Encrypted(data)
     }
 
     /// Get the underlying bytes regardless of encryption status.
@@ -214,10 +215,10 @@ impl NodeData {
     /// # Examples
     ///
     /// ```
-    /// use libcps::types::NodeData;
+    /// use libcps::types::{NodeData, EncryptedData};
     ///
     /// let plain = NodeData::plain("hello");
-    /// let encrypted = NodeData::encrypted_xchacha(vec![1, 2, 3]);
+    /// let encrypted = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3]));
     ///
     /// assert!(!plain.is_encrypted());
     /// assert!(encrypted.is_encrypted());
@@ -338,7 +339,7 @@ mod tests {
     #[test]
     fn test_nodedata_encrypted_xchacha() {
         let encrypted_bytes = vec![1, 2, 3, 4];
-        let data = NodeData::encrypted_xchacha(encrypted_bytes.clone());
+        let data = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(encrypted_bytes.clone()));
         assert!(data.is_encrypted());
         assert_eq!(data.as_bytes(), &encrypted_bytes[..]);
     }
@@ -376,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_xchacha_is_encrypted() {
-        let data = NodeData::encrypted_xchacha(vec![1, 2, 3]);
+        let data = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3]));
         assert!(data.is_encrypted());
     }
 
@@ -405,7 +406,7 @@ mod tests {
     #[test]
     fn test_as_bytes_encrypted_xchacha() {
         let bytes = vec![1, 2, 3, 4, 5];
-        let data = NodeData::encrypted_xchacha(bytes.clone());
+        let data = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(bytes.clone()));
         assert_eq!(data.as_bytes(), &bytes[..]);
     }
 
@@ -475,7 +476,7 @@ mod tests {
     fn test_nodedata_encode_decode_encrypted() {
         use subxt::ext::codec::{Decode, Encode};
 
-        let original = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+        let original = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3, 4]));
         let encoded = original.encode();
         let decoded = NodeData::decode(&mut &encoded[..]).unwrap();
         assert_eq!(original, decoded);
@@ -515,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_nodedata_json_serialization_encrypted() {
-        let data = NodeData::encrypted_xchacha(vec![1, 2, 3]);
+        let data = NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3]));
         let json = serde_json::to_string(&data).unwrap();
         let deserialized: NodeData = serde_json::from_str(&json).unwrap();
         assert_eq!(data, deserialized);
@@ -552,7 +553,7 @@ mod tests {
         let node = Node {
             owner: [1u8; 32],
             parent: None,
-            meta: Some(NodeData::encrypted_xchacha(vec![1, 2, 3])),
+            meta: Some(NodeData::encrypted(EncryptedData::XChaCha20Poly1305(vec![1, 2, 3]))),
             payload: Some(NodeData::plain("public payload")),
             path: vec![NodeId(0)],
         };

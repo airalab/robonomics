@@ -185,10 +185,10 @@ where
     use base64::{engine::general_purpose, Engine as _};
 
     // Step 1: Derive shared secret using ECDH
-    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(sender, receiver_public)?;
+    let shared_secret = sender.derive_secret(receiver_public)?;
 
     // Step 2: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
     // Step 4: Encrypt with specified algorithm
     let (nonce_bytes, ciphertext) = match algorithm {
@@ -357,10 +357,10 @@ where
     }
 
     // Step 5: Derive shared secret using ECDH
-    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(receiver, &sender_public)?;
+    let shared_secret = receiver.derive_secret(&sender_public)?;
 
     // Step 6: Derive encryption key using HKDF
-    let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
+    let encryption_key = shared_secret.derive_encryption_key(algorithm)?;
 
     // Step 7: Decode nonce and ciphertext
     let nonce_bytes = general_purpose::STANDARD
@@ -418,10 +418,8 @@ mod tests {
         let (bob, _) = sp_core::sr25519::Pair::generate();
 
         // Derive shared secrets from both sides
-        let shared_alice_bob =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public()).unwrap();
-        let shared_bob_alice =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&bob, &alice.public()).unwrap();
+        let shared_alice_bob = alice.derive_secret(&bob.public()).unwrap();
+        let shared_bob_alice = bob.derive_secret(&alice.public()).unwrap();
 
         // Shared secrets should be identical
         assert_eq!(shared_alice_bob.as_bytes(), shared_bob_alice.as_bytes());
@@ -441,11 +439,8 @@ mod tests {
         let (charlie, _) = sp_core::sr25519::Pair::generate();
 
         // Derive different shared secrets
-        let shared_alice_bob =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public()).unwrap();
-        let shared_alice_charlie =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &charlie.public())
-                .unwrap();
+        let shared_alice_bob = alice.derive_secret(&bob.public()).unwrap();
+        let shared_alice_charlie = alice.derive_secret(&charlie.public()).unwrap();
 
         // Different pairs should produce different shared secrets
         assert_ne!(shared_alice_bob.as_bytes(), shared_alice_charlie.as_bytes());
@@ -455,15 +450,14 @@ mod tests {
     fn test_derive_encryption_key() {
         let (alice, _) = sp_core::sr25519::Pair::generate();
         let (bob, _) = sp_core::sr25519::Pair::generate();
-        let shared_secret =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public()).unwrap();
+        let shared_secret = alice.derive_secret(&bob.public()).unwrap();
 
         // Derive encryption key twice with same algorithm
         let key1 = shared_secret
-            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)
             .unwrap();
         let key2 = shared_secret
-            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305)
             .unwrap();
 
         // Same shared secret should produce same key
@@ -482,15 +476,12 @@ mod tests {
         let (bob, _) = sp_core::sr25519::Pair::generate();
         let (charlie, _) = sp_core::sr25519::Pair::generate();
 
-        let shared_secret1 =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public()).unwrap();
-        let shared_secret2 =
-            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &charlie.public())
-                .unwrap();
+        let shared_secret1 = alice.derive_secret(&bob.public()).unwrap();
+        let shared_secret2 = alice.derive_secret(&charlie.public()).unwrap();
 
-        let info = EncryptionAlgorithm::XChaCha20Poly1305.info_string();
-        let key1 = shared_secret1.derive_encryption_key(info).unwrap();
-        let key2 = shared_secret2.derive_encryption_key(info).unwrap();
+        let algorithm = EncryptionAlgorithm::XChaCha20Poly1305;
+        let key1 = shared_secret1.derive_encryption_key(algorithm).unwrap();
+        let key2 = shared_secret2.derive_encryption_key(algorithm).unwrap();
 
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);
