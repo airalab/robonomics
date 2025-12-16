@@ -417,6 +417,7 @@ pub use weights::WeightInfo;
 
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use sp_runtime::RuntimeDebug;
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
@@ -551,6 +552,7 @@ pub type MaxDataSize = ConstU32<2048>;
     PartialOrd,
     Ord,
     Default,
+    RuntimeDebug,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
 
@@ -604,7 +606,7 @@ impl NodeId {
 /// );
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, RuntimeDebug)]
 pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///
@@ -686,7 +688,7 @@ pub enum DefaultEncryptedData {
 ///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
 #[scale_info(skip_type_params(EncryptedData))]
 #[allow(clippy::multiple_bound_locations)]
 /// Type parameter for encrypted payloads stored in `NodeData`.

@@ -11667,6 +11667,7 @@ dependencies = [
  "pallet-migrations",
  "pallet-multisig",
  "pallet-preimage",
+ "pallet-robonomics-cps",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
