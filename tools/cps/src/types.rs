@@ -35,7 +35,11 @@
 //! // Create a node ID
 //! let node_id = NodeId(42);
 //!
-//! // Create plain data
+//! // Create plain data using From trait
+//! let plain: NodeData = "sensor reading: 23.5C".into();
+//! // Or explicitly
+//! let plain = NodeData::from("sensor reading: 23.5C");
+//! // Or using plain() method
 //! let plain = NodeData::plain("sensor reading: 23.5C");
 //!
 //! // Create encrypted data
@@ -115,7 +119,11 @@ pub enum EncryptedData {
 /// ```
 /// use libcps::types::{NodeData, EncryptedData};
 ///
-/// // Plain text data
+/// // Create plain data using From trait
+/// let plain: NodeData = "temperature: 22.5C".into();
+/// let plain = NodeData::from(vec![1, 2, 3]);
+///
+/// // Or using plain() method
 /// let plain = NodeData::plain("temperature: 22.5C");
 ///
 /// // Encrypted data
@@ -137,29 +145,6 @@ pub enum NodeData {
 }
 
 impl NodeData {
-    /// Create NodeData from various types (builder-style).
-    ///
-    /// This is the starting point for the fluent API. You can then chain
-    /// encryption methods if needed.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use libcps::types::NodeData;
-    ///
-    /// // From string
-    /// let data = NodeData::from("hello");
-    ///
-    /// // From bytes
-    /// let data = NodeData::from(vec![1, 2, 3]);
-    ///
-    /// // From string slice
-    /// let data = NodeData::from("sensor data");
-    /// ```
-    pub fn from(data: impl Into<Vec<u8>>) -> Self {
-        Self::Plain(data.into())
-    }
-
     /// Create plain (unencrypted) data.
     ///
     /// # Examples
@@ -225,6 +210,31 @@ impl NodeData {
     /// ```
     pub fn is_encrypted(&self) -> bool {
         matches!(self, Self::Encrypted(_))
+    }
+}
+
+// From trait implementations for ergonomic NodeData creation
+impl From<Vec<u8>> for NodeData {
+    fn from(data: Vec<u8>) -> Self {
+        Self::Plain(data)
+    }
+}
+
+impl From<&[u8]> for NodeData {
+    fn from(data: &[u8]) -> Self {
+        Self::Plain(data.to_vec())
+    }
+}
+
+impl From<String> for NodeData {
+    fn from(data: String) -> Self {
+        Self::Plain(data.into_bytes())
+    }
+}
+
+impl From<&str> for NodeData {
+    fn from(data: &str) -> Self {
+        Self::Plain(data.as_bytes().to_vec())
     }
 }
 
