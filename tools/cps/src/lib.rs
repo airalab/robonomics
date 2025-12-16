@@ -58,7 +58,7 @@
 //! - [`crypto`]: Encryption and key derivation utilities
 //! - [`mqtt`]: MQTT bridge configuration and types
 //! - [`types`]: CPS pallet type definitions
-//! - [`operations`]: Reusable CPS pallet operations (create, update, query nodes)
+//! - [`node`]: Node-oriented API with async/sync methods for CPS operations
 //!
 //! ## Encryption
 //!
@@ -132,8 +132,8 @@ pub mod blockchain;
 pub mod crypto;
 pub mod mqtt;
 pub mod types;
-pub mod operations;
+pub mod node;
 
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};
-pub use types::{EncryptedData, Node, NodeData, NodeId};
+pub use types::{EncryptedData, NodeData, NodeId};

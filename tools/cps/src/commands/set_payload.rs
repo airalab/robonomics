@@ -17,13 +17,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set payload command implementation (CLI interface).
 //!
-//! This module provides the CLI command wrapper for the library's set_node_payload operation.
+//! This module provides the CLI command wrapper for the library's node operations.
 //! It handles display formatting and user interaction while delegating business logic to the
-//! operations module.
+//! node module.
 
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::EncryptionAlgorithm;
-use libcps::operations::{self, UpdateNodeParams};
+use libcps::node::{Node, UpdateNodeParams};
 use crate::display;
 use anyhow::Result;
 use colored::*;
@@ -34,7 +34,7 @@ use std::str::FromStr;
 /// This function serves as a CLI wrapper that:
 /// - Handles user-facing progress messages and formatting
 /// - Parses and validates CLI arguments
-/// - Delegates business logic to libcps::operations
+/// - Delegates business logic to libcps::node
 /// - Presents results with colored output and emojis
 pub async fn execute(
     config: &Config,
@@ -74,8 +74,10 @@ pub async fn execute(
         recipient_public: None, // TODO: Add recipient selection
     };
 
-    // Delegate to library operation (business logic)
-    match operations::set_node_payload(&client, params).await {
+    // Create a Node handle and delegate to node operation (business logic)
+    let node = Node::new(&client, node_id);
+    
+    match node.set_payload(params).await {
         Ok(result) => {
             if result.success {
                 display::tree::success(&format!(
