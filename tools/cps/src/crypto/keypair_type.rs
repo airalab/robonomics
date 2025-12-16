@@ -118,12 +118,14 @@ impl fmt::Display for KeypairType {
 
 impl FromStr for KeypairType {
     type Err = anyhow::Error;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "sr25519" | "sr" => Ok(KeypairType::Sr25519),
             "ed25519" | "ed" => Ok(KeypairType::Ed25519),
-            _ => Err(anyhow::anyhow!("Invalid keypair type: '{}'. Supported: sr25519, ed25519", s)),
+            _ => Err(anyhow::anyhow!(
+                "Invalid keypair type: '{s}'. Supported: sr25519, ed25519"
+            )),
         }
     }
 }
@@ -138,18 +140,12 @@ mod tests {
             KeypairType::from_str("sr25519").unwrap(),
             KeypairType::Sr25519
         );
-        assert_eq!(
-            KeypairType::from_str("sr").unwrap(),
-            KeypairType::Sr25519
-        );
+        assert_eq!(KeypairType::from_str("sr").unwrap(), KeypairType::Sr25519);
         assert_eq!(
             KeypairType::from_str("ed25519").unwrap(),
             KeypairType::Ed25519
         );
-        assert_eq!(
-            KeypairType::from_str("ed").unwrap(),
-            KeypairType::Ed25519
-        );
+        assert_eq!(KeypairType::from_str("ed").unwrap(), KeypairType::Ed25519);
         assert_eq!(
             KeypairType::from_str("SR25519").unwrap(),
             KeypairType::Sr25519

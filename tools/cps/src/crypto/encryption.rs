@@ -80,14 +80,13 @@
 //! - **KDF**: HKDF-SHA256 ensures proper key derivation
 //! - **Domain Separation**: Algorithm-specific info strings
 
-use anyhow::{anyhow, Result};
 use aes_gcm::{
     aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
     Aes256Gcm, Nonce as AesNonce,
 };
+use anyhow::{anyhow, Result};
 use chacha20poly1305::{
-    aead::OsRng,
-    ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
+    aead::OsRng, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Pair;
@@ -186,8 +185,8 @@ where
     use base64::{engine::general_purpose, Engine as _};
 
     // Step 1: Derive shared secret using ECDH
-    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(sender, receiver_public)?;
-    
+    let shared_secret = sender.derive_secret(receiver_public)?;
+
     // Step 2: Derive encryption key using HKDF
     let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
@@ -227,7 +226,7 @@ where
         crate::crypto::EncryptionAlgorithm::AesGcm256 => "aesgcm256",
         crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305 => "chacha20",
     };
-    
+
     let message = EncryptedMessage {
         version: 1,
         algorithm: algorithm_str.to_string(),
@@ -319,28 +318,34 @@ where
         .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
 
     if message.version != 1 {
-        return Err(anyhow!("Unsupported encryption version: {}", message.version));
+        return Err(anyhow!(
+            "Unsupported encryption version: {}",
+            message.version
+        ));
     }
 
     // Step 2: Parse algorithm
     let algorithm = crate::crypto::EncryptionAlgorithm::from_str(&message.algorithm)
-        .map_err(|e| anyhow!("Unsupported algorithm: {}", e))?;
+        .map_err(|e| anyhow!("Unsupported algorithm: {e}"))?;
 
     // Step 3: Decode and parse sender's public key
     let sender_public_bytes = bs58::decode(&message.from)
         .into_vec()
         .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
-    
+
     if sender_public_bytes.len() != 32 {
-        return Err(anyhow!("Invalid sender public key length: expected 32 bytes"));
+        return Err(anyhow!(
+            "Invalid sender public key length: expected 32 bytes"
+        ));
     }
-    
+
     // Convert bytes to fixed-size array
     let mut sender_pk_array = [0u8; 32];
     sender_pk_array.copy_from_slice(&sender_public_bytes);
-    
+
     // Use UncheckedFrom to construct the public key from raw bytes
-    let sender_public = <P::Public as sp_core::crypto::UncheckedFrom<[u8; 32]>>::unchecked_from(sender_pk_array);
+    let sender_public =
+        <P::Public as sp_core::crypto::UncheckedFrom<[u8; 32]>>::unchecked_from(sender_pk_array);
 
     // Step 4: Optionally verify sender matches expected sender
     if let Some(expected_pk) = expected_sender_public {
@@ -352,8 +357,8 @@ where
     }
 
     // Step 5: Derive shared secret using ECDH
-    let shared_secret = <P as crate::crypto::DeriveSharedSecret>::derive(receiver, &sender_public)?;
-    
+    let shared_secret = receiver.derive_secret(&sender_public)?;
+
     // Step 6: Derive encryption key using HKDF
     let encryption_key = shared_secret.derive_encryption_key(algorithm.info_string())?;
 
@@ -404,291 +409,358 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::EncryptionAlgorithm;
-    use schnorrkel::{Keypair, MiniSecretKey};
-    
-    /// Generate a test keypair from a seed
-    fn test_keypair(seed: u8) -> Keypair {
-        let mini_secret = MiniSecretKey::from_bytes(&[seed; 32]).unwrap();
-        mini_secret.expand_to_keypair(schnorrkel::ExpansionMode::Ed25519)
-    }
-    
+    use crate::crypto::{DeriveSharedSecret, EncryptionAlgorithm};
+
     #[test]
-    fn test_shared_secret_creation() {
-        // Create two keypairs
-        let alice = test_keypair(1);
-        let bob = test_keypair(2);
-        
+    fn test_shared_secret_derivation() {
+        // Create two SR25519 keypairs
+        let (alice, _) = sp_core::sr25519::Pair::generate();
+        let (bob, _) = sp_core::sr25519::Pair::generate();
+
         // Derive shared secrets from both sides
-        let shared_alice_bob = SharedSecret::new(&alice.secret, &bob.public).unwrap();
-        let shared_bob_alice = SharedSecret::new(&bob.secret, &alice.public).unwrap();
-        
+        let shared_alice_bob = alice.derive_secret(&bob.public()).unwrap();
+        let shared_bob_alice = bob.derive_secret(&alice.public()).unwrap();
+
         // Shared secrets should be identical
         assert_eq!(shared_alice_bob.as_bytes(), shared_bob_alice.as_bytes());
-        
+
         // Shared secret should be 32 bytes
         assert_eq!(shared_alice_bob.as_bytes().len(), 32);
-        
+
         // Shared secret should not be all zeros
         assert_ne!(shared_alice_bob.as_bytes(), &[0u8; 32]);
     }
-    
+
     #[test]
     fn test_shared_secret_different_pairs() {
         // Create three keypairs
-        let alice = test_keypair(1);
-        let bob = test_keypair(2);
-        let charlie = test_keypair(3);
-        
+        let (alice, _) = sp_core::sr25519::Pair::generate();
+        let (bob, _) = sp_core::sr25519::Pair::generate();
+        let (charlie, _) = sp_core::sr25519::Pair::generate();
+
         // Derive different shared secrets
-        let shared_alice_bob = SharedSecret::new(&alice.secret, &bob.public).unwrap();
-        let shared_alice_charlie = SharedSecret::new(&alice.secret, &charlie.public).unwrap();
-        
+        let shared_alice_bob = alice.derive_secret(&bob.public()).unwrap();
+        let shared_alice_charlie = alice.derive_secret(&charlie.public()).unwrap();
+
         // Different pairs should produce different shared secrets
         assert_ne!(shared_alice_bob.as_bytes(), shared_alice_charlie.as_bytes());
     }
-    
+
     #[test]
     fn test_derive_encryption_key() {
-        let alice = test_keypair(1);
-        let bob = test_keypair(2);
-        let shared_secret = SharedSecret::new(&alice.secret, &bob.public).unwrap();
-        
-        // Derive encryption key twice
-        let key1 = shared_secret.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
-        let key2 = shared_secret.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
-        
+        let (alice, _) = sp_core::sr25519::Pair::generate();
+        let (bob, _) = sp_core::sr25519::Pair::generate();
+        let shared_secret = alice.derive_secret(&bob.public()).unwrap();
+
+        // Derive encryption key twice with same algorithm
+        let key1 = shared_secret
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
+            .unwrap();
+        let key2 = shared_secret
+            .derive_encryption_key(EncryptionAlgorithm::XChaCha20Poly1305.info_string())
+            .unwrap();
+
         // Same shared secret should produce same key
         assert_eq!(key1, key2);
-        
+
         // Key should be 32 bytes
         assert_eq!(key1.len(), 32);
-        
+
         // Key should be different from shared secret (HKDF transforms it)
         assert_ne!(&key1, shared_secret.as_bytes());
     }
-    
+
     #[test]
     fn test_derive_encryption_key_different_secrets() {
-        let alice = test_keypair(1);
-        let bob = test_keypair(2);
-        let charlie = test_keypair(3);
-        
-        let shared_secret1 = SharedSecret::new(&alice.secret, &bob.public).unwrap();
-        let shared_secret2 = SharedSecret::new(&alice.secret, &charlie.public).unwrap();
-        
-        let key1 = shared_secret1.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
-        let key2 = shared_secret2.derive_encryption_key(crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
-        
+        let (alice, _) = sp_core::sr25519::Pair::generate();
+        let (bob, _) = sp_core::sr25519::Pair::generate();
+        let (charlie, _) = sp_core::sr25519::Pair::generate();
+
+        let shared_secret1 = alice.derive_secret(&bob.public()).unwrap();
+        let shared_secret2 = alice.derive_secret(&charlie.public()).unwrap();
+
+        let algorithm = EncryptionAlgorithm::XChaCha20Poly1305;
+        let key1 = shared_secret1.derive_encryption_key(algorithm.info_string()).unwrap();
+        let key2 = shared_secret2.derive_encryption_key(algorithm.info_string()).unwrap();
+
         // Different shared secrets should produce different keys
         assert_ne!(key1, key2);
     }
-    
+
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
         // Create sender and receiver keypairs
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
-        
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
+
         let plaintext = b"Hello, Robonomics CPS!";
-        
+
         // Encrypt
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
-            EncryptionAlgorithm::default(),
-        ).unwrap();
-        
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Encrypted data should not be empty
         assert!(!encrypted.is_empty());
-        
+
         // Encrypted data should be valid JSON
         let _: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
-        
-        // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
-        
+
+        // Decrypt with sender verification
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
+
         // Decrypted should match original plaintext
         assert_eq!(decrypted, plaintext);
     }
-    
+
     #[test]
     fn test_encrypt_produces_different_ciphertexts() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Same message";
-        
+
         // Encrypt same message twice
-        let encrypted1 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        let encrypted2 = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted1 = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+        let encrypted2 = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Should produce different ciphertexts due to random nonces
         assert_ne!(encrypted1, encrypted2);
-        
+
         // But both should decrypt to the same plaintext
-        let decrypted1 = decrypt(&encrypted1, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
-        let decrypted2 = decrypt(&encrypted2, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted1 = decrypt(&encrypted1, &receiver, Some(&sender.public())).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver, Some(&sender.public())).unwrap();
         assert_eq!(decrypted1, plaintext);
         assert_eq!(decrypted2, plaintext);
     }
-    
+
     #[test]
     fn test_decrypt_with_wrong_key_fails() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
-        let wrong_receiver = test_keypair(3);
-        
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
+        let (wrong_receiver, _) = sp_core::sr25519::Pair::generate();
+
         let plaintext = b"Secret message";
-        
+
         // Encrypt for receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Try to decrypt with wrong key
-        let result = decrypt(&encrypted, &wrong_receiver.secret, Some(&sender.public.to_bytes()));
-        
+        let result = decrypt(&encrypted, &wrong_receiver, Some(&sender.public()));
+
         // Should fail
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_decrypt_with_corrupted_data_fails() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test message";
-        
+
         // Encrypt
-        let mut encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let mut encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Corrupt the data
         if encrypted.len() > 10 {
             encrypted[10] ^= 0xFF;
         }
-        
+
         // Try to decrypt corrupted data
-        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
-        
+        let result = decrypt(&encrypted, &receiver, Some(&sender.public()));
+
         // Should fail (either parse error or authentication failure)
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_encrypt_empty_message() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"";
-        
+
         // Encrypt empty message
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
-        
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
+
         // Should get empty message back
         assert_eq!(decrypted, plaintext);
     }
-    
+
     #[test]
     fn test_encrypt_large_message() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = vec![42u8; 10000]; // 10KB message
-        
+
         // Encrypt
-        let encrypted = encrypt(&plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            &plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
-        
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
+
         // Should match
         assert_eq!(decrypted, plaintext);
     }
-    
+
     #[test]
     fn test_encrypted_message_structure() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test";
-        
+
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Parse the encrypted message
         let message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
-        
+
         // Check version
         assert_eq!(message.version, 1);
-        
+
         // Check sender public key is encoded
         assert!(!message.from.is_empty());
         let decoded_from = bs58::decode(&message.from).into_vec().unwrap();
         assert_eq!(decoded_from.len(), 32);
-        
+
         // Check nonce is base64 encoded and correct size
         use base64::{engine::general_purpose, Engine as _};
         let nonce = general_purpose::STANDARD.decode(&message.nonce).unwrap();
         assert_eq!(nonce.len(), 24); // XChaCha20 nonce size
-        
+
         // Check ciphertext is base64 encoded
-        let ciphertext = general_purpose::STANDARD.decode(&message.ciphertext).unwrap();
+        let ciphertext = general_purpose::STANDARD
+            .decode(&message.ciphertext)
+            .unwrap();
         assert!(!ciphertext.is_empty());
     }
-    
+
     #[test]
     fn test_decrypt_rejects_wrong_version() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test";
-        
+
         // Encrypt
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Parse and modify version
         let mut message: EncryptedMessage = serde_json::from_slice(&encrypted).unwrap();
         message.version = 2;
         let modified = serde_json::to_vec(&message).unwrap();
-        
+
         // Try to decrypt
-        let result = decrypt(&modified, &receiver.secret, Some(&sender.public.to_bytes()));
-        
+        let result = decrypt(&modified, &receiver, Some(&sender.public()));
+
         // Should fail due to unsupported version
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported encryption version"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported encryption version"));
     }
 
     #[test]
     fn test_decrypt_rejects_wrong_sender() {
         // Create three keypairs
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
-        let wrong_sender = test_keypair(3);
-        
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
+        let (wrong_sender, _) = sp_core::sr25519::Pair::generate();
+
         let plaintext = b"Test message";
-        
+
         // Encrypt from sender to receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Try to decrypt with wrong expected sender
-        let result = decrypt(&encrypted, &receiver.secret, Some(&wrong_sender.public.to_bytes()));
-        
+        let result = decrypt(&encrypted, &receiver, Some(&wrong_sender.public()));
+
         // Should fail due to sender mismatch
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Sender public key mismatch"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Sender public key mismatch"));
     }
 
     #[test]
     fn test_decrypt_without_sender_verification() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
-        
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
+
         let plaintext = b"Test message";
-        
+
         // Encrypt from sender to receiver
-        let encrypted = encrypt(plaintext, &sender.secret, &receiver.public.to_bytes(), EncryptionAlgorithm::default()).unwrap();
-        
+        let encrypted = encrypt(
+            plaintext,
+            &sender,
+            &receiver.public(),
+            EncryptionAlgorithm::XChaCha20Poly1305,
+        )
+        .unwrap();
+
         // Decrypt without sender verification (None)
-        let decrypted = decrypt(&encrypted, &receiver.secret, None).unwrap();
-        
+        let decrypted = decrypt(&encrypted, &receiver, None).unwrap();
+
         // Should successfully decrypt without checking sender
         assert_eq!(decrypted, plaintext);
     }
@@ -697,21 +769,21 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_encrypt_decrypt_roundtrip() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test message for AES-GCM-256";
 
         // Encrypt using AES-GCM-256
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -719,15 +791,15 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_message_structure() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test AES-GCM";
 
         // Encrypt using AES-GCM-256
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
@@ -746,21 +818,21 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_empty_message() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"";
 
         // Encrypt empty message with AES-GCM-256
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
 
         // Should get empty message back
         assert_eq!(decrypted, plaintext);
@@ -768,21 +840,21 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_large_message() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = vec![0xAB; 50000]; // 50KB message
 
         // Encrypt with AES-GCM-256
         let encrypted = encrypt(
             &plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -790,23 +862,23 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_wrong_key_fails() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
-        let wrong_receiver = test_keypair(3);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
+        let (wrong_receiver, _) = sp_core::sr25519::Pair::generate();
 
         let plaintext = b"Secret AES-GCM message";
 
         // Encrypt for receiver using AES-GCM-256
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
 
         // Try to decrypt with wrong key
-        let result = decrypt(&encrypted, &wrong_receiver.secret, Some(&sender.public.to_bytes()));
+        let result = decrypt(&encrypted, &wrong_receiver, Some(&sender.public()));
 
         // Should fail (authentication error)
         assert!(result.is_err());
@@ -814,15 +886,15 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_corrupted_data_fails() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"AES-GCM test message";
 
         // Encrypt with AES-GCM-256
         let mut encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
@@ -833,7 +905,7 @@ mod tests {
         }
 
         // Try to decrypt corrupted data
-        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
+        let result = decrypt(&encrypted, &receiver, Some(&sender.public()));
 
         // Should fail (authentication tag will not verify)
         assert!(result.is_err());
@@ -841,22 +913,22 @@ mod tests {
 
     #[test]
     fn test_aesgcm256_produces_different_ciphertexts() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Same AES-GCM message";
 
         // Encrypt same message twice with AES-GCM-256
         let encrypted1 = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
         let encrypted2 = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
@@ -865,8 +937,8 @@ mod tests {
         assert_ne!(encrypted1, encrypted2);
 
         // But both should decrypt to the same plaintext
-        let decrypted1 = decrypt(&encrypted1, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
-        let decrypted2 = decrypt(&encrypted2, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted1 = decrypt(&encrypted1, &receiver, Some(&sender.public())).unwrap();
+        let decrypted2 = decrypt(&encrypted2, &receiver, Some(&sender.public())).unwrap();
         assert_eq!(decrypted1, plaintext);
         assert_eq!(decrypted2, plaintext);
     }
@@ -874,16 +946,16 @@ mod tests {
     #[test]
     fn test_aesgcm256_nonce_size_validation() {
         use base64::{engine::general_purpose, Engine as _};
-        
+
         // This test verifies that decrypt properly validates AES-GCM nonce size
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
 
         // Create a message with invalid nonce size
         let message = EncryptedMessage {
             version: 1,
             algorithm: "aesgcm256".to_string(),
-            from: bs58::encode(sender.public.to_bytes()).into_string(),
+            from: bs58::encode(sender.public().as_ref() as &[u8]).into_string(),
             nonce: general_purpose::STANDARD.encode([0u8; 24]), // Wrong size (should be 12)
             ciphertext: general_purpose::STANDARD.encode(b"fake"),
         };
@@ -891,7 +963,7 @@ mod tests {
         let encrypted = serde_json::to_vec(&message).unwrap();
 
         // Try to decrypt
-        let result = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes()));
+        let result = decrypt(&encrypted, &receiver, Some(&sender.public()));
 
         // Should fail due to invalid nonce size
         assert!(result.is_err());
@@ -905,21 +977,21 @@ mod tests {
 
     #[test]
     fn test_chacha20poly1305_encrypt_decrypt_roundtrip() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test message for ChaCha20-Poly1305";
 
         // Encrypt using ChaCha20-Poly1305
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
         )
         .unwrap();
 
         // Decrypt
-        let decrypted = decrypt(&encrypted, &receiver.secret, Some(&sender.public.to_bytes())).unwrap();
+        let decrypted = decrypt(&encrypted, &receiver, Some(&sender.public())).unwrap();
 
         // Should match
         assert_eq!(decrypted, plaintext);
@@ -927,15 +999,15 @@ mod tests {
 
     #[test]
     fn test_chacha20poly1305_message_structure() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Test ChaCha20";
 
         // Encrypt using ChaCha20-Poly1305
         let encrypted = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
         )
         .unwrap();
@@ -956,31 +1028,31 @@ mod tests {
 
     #[test]
     fn test_different_algorithms_produce_different_outputs() {
-        let sender = test_keypair(1);
-        let receiver = test_keypair(2);
+        let (sender, _) = sp_core::sr25519::Pair::generate();
+        let (receiver, _) = sp_core::sr25519::Pair::generate();
         let plaintext = b"Cross-algorithm test";
 
         // Encrypt with all three algorithms
         let xchacha = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
         )
         .unwrap();
 
         let aesgcm = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
         )
         .unwrap();
 
         let chacha = encrypt(
             plaintext,
-            &sender.secret,
-            &receiver.public.to_bytes(),
+            &sender,
+            &receiver.public(),
             crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
         )
         .unwrap();
@@ -991,8 +1063,17 @@ mod tests {
         assert_ne!(aesgcm, chacha);
 
         // But all should decrypt correctly
-        assert_eq!(decrypt(&xchacha, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
-        assert_eq!(decrypt(&aesgcm, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
-        assert_eq!(decrypt(&chacha, &receiver.secret, Some(&sender.public.to_bytes())).unwrap(), plaintext);
+        assert_eq!(
+            decrypt(&xchacha, &receiver, Some(&sender.public())).unwrap(),
+            plaintext
+        );
+        assert_eq!(
+            decrypt(&aesgcm, &receiver, Some(&sender.public())).unwrap(),
+            plaintext
+        );
+        assert_eq!(
+            decrypt(&chacha, &receiver, Some(&sender.public())).unwrap(),
+            plaintext
+        );
     }
 }

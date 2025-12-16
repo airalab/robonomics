@@ -24,7 +24,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 // Import from the library
-use libcps::{blockchain, mqtt, types};
+use libcps::{blockchain, mqtt};
 
 // CLI-specific modules (display and commands)
 mod commands;
@@ -43,7 +43,11 @@ struct Cli {
     suri: Option<String>,
 
     /// MQTT broker URL
-    #[arg(long, env = "ROBONOMICS_MQTT_BROKER", default_value = "mqtt://localhost:1883")]
+    #[arg(
+        long,
+        env = "ROBONOMICS_MQTT_BROKER",
+        default_value = "mqtt://localhost:1883"
+    )]
     mqtt_broker: String,
 
     /// MQTT username
@@ -68,7 +72,7 @@ enum Commands {
     Show {
         /// Node ID to display
         node_id: u64,
-        
+
         /// Attempt to decrypt encrypted data
         #[arg(long)]
         decrypt: bool,
@@ -235,7 +239,16 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::create::execute(&blockchain_config, parent, meta, payload, encrypt, &cipher, keypair_type).await?;
+            commands::create::execute(
+                &blockchain_config,
+                parent,
+                meta,
+                payload,
+                encrypt,
+                &cipher,
+                keypair_type,
+            )
+            .await?;
         }
         Commands::SetMeta {
             node_id,
@@ -244,7 +257,15 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::set_meta::execute(&blockchain_config, node_id, data, encrypt, &cipher, keypair_type).await?;
+            commands::set_meta::execute(
+                &blockchain_config,
+                node_id,
+                data,
+                encrypt,
+                &cipher,
+                keypair_type,
+            )
+            .await?;
         }
         Commands::SetPayload {
             node_id,
@@ -253,7 +274,15 @@ async fn main() -> Result<()> {
             cipher,
             keypair_type,
         } => {
-            commands::set_payload::execute(&blockchain_config, node_id, data, encrypt, &cipher, keypair_type).await?;
+            commands::set_payload::execute(
+                &blockchain_config,
+                node_id,
+                data,
+                encrypt,
+                &cipher,
+                keypair_type,
+            )
+            .await?;
         }
         Commands::Move {
             node_id,
@@ -272,16 +301,30 @@ async fn main() -> Result<()> {
                 cipher,
                 keypair_type,
             } => {
-                commands::mqtt::subscribe(&blockchain_config, &mqtt_config, &topic, node_id, encrypt, &cipher, keypair_type)
-                    .await?;
+                commands::mqtt::subscribe(
+                    &blockchain_config,
+                    &mqtt_config,
+                    &topic,
+                    node_id,
+                    encrypt,
+                    &cipher,
+                    keypair_type,
+                )
+                .await?;
             }
             MqttCommands::Publish {
                 topic,
                 node_id,
                 interval,
             } => {
-                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id, interval)
-                    .await?;
+                commands::mqtt::publish(
+                    &blockchain_config,
+                    &mqtt_config,
+                    &topic,
+                    node_id,
+                    interval,
+                )
+                .await?;
             }
         },
     }

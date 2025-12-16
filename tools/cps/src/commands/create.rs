@@ -17,12 +17,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Create command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, CreateNodeParams};
 use crate::display;
-use libcps::crypto::EncryptionAlgorithm;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
+use libcps::node::Node;
+use libcps::types::NodeData;
 use std::str::FromStr;
 
 pub async fn execute(
@@ -35,12 +36,15 @@ pub async fn execute(
     keypair_type: libcps::crypto::KeypairType,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Using account: {}", hex::encode(keypair.public_key().0)));
+    display::tree::info(&format!(
+        "Using account: {}",
+        hex::encode(keypair.public_key().0)
+    ));
 
     // Parse cipher algorithm
     let algorithm = EncryptionAlgorithm::from_str(cipher)
@@ -49,29 +53,29 @@ pub async fn execute(
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        display::tree::warning("Encryption not yet implemented - creating plain data");
     }
 
     if parent.is_some() {
-        display::tree::info(&format!("Creating child node under parent {}", parent.unwrap()));
+        display::tree::info(&format!(
+            "Creating child node under parent {}",
+            parent.unwrap()
+        ));
     } else {
         display::tree::info("Creating root node");
     }
 
-    // Create node using Node API
-    let params = CreateNodeParams {
-        parent,
-        meta: meta.map(|m| m.into_bytes()),
-        payload: payload.map(|p| p.into_bytes()),
-        encrypt,
-        algorithm,
-        keypair_type,
-        recipient_public: None, // TODO: Add CLI option for recipient
-    };
+    // Convert strings to NodeData using From trait
+    let meta_data = meta.map(|m| NodeData::from(m));
+    let payload_data = payload.map(|p| NodeData::from(p));
 
     display::tree::progress("Creating node...");
-    let result = Node::create(&client, params).await?;
+    let node = Node::create(&client, parent, meta_data, payload_data).await?;
 
-    display::tree::success(&format!("Node created with ID: {}", result.node_id.to_string().bright_cyan()));
+    display::tree::success(&format!(
+        "Node created with ID: {}",
+        node.id().to_string().bright_cyan()
+    ));
 
     Ok(())
 }

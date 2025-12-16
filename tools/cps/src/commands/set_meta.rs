@@ -17,17 +17,25 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set metadata command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, UpdateNodeParams};
-use libcps::crypto::EncryptionAlgorithm;
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
+use libcps::node::Node;
+use libcps::types::NodeData;
 use std::str::FromStr;
 
-pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str, keypair_type: libcps::crypto::KeypairType) -> Result<()> {
+pub async fn execute(
+    config: &Config,
+    node_id: u64,
+    data: String,
+    encrypt: bool,
+    cipher: &str,
+    keypair_type: libcps::crypto::KeypairType,
+) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
@@ -41,23 +49,20 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool,
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        display::tree::warning("Encryption not yet implemented - updating with plain data");
     }
 
-    // Update metadata using Node API
+    // Update metadata using Node API with NodeData
     let node = Node::new(&client, node_id);
-    let params = UpdateNodeParams {
-        node_id,
-        data: data.into_bytes(),
-        encrypt,
-        algorithm,
-        keypair_type,
-        recipient_public: None, // TODO: Add CLI option for recipient
-    };
+    let meta_data = NodeData::from(data);
 
     display::tree::progress("Updating metadata...");
-    node.set_meta(params).await?;
+    let _events = node.set_meta(Some(meta_data)).await?;
 
-    display::tree::success(&format!("Metadata updated for node {}", node_id.to_string().bright_cyan()));
+    display::tree::success(&format!(
+        "Metadata updated for node {}",
+        node_id.to_string().bright_cyan()
+    ));
 
     Ok(())
 }

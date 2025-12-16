@@ -159,14 +159,11 @@ impl FromStr for EncryptionAlgorithm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "xchacha20" | "xchacha20poly1305" | "xchacha20-poly1305" => {
-                Ok(Self::XChaCha20Poly1305)
-            }
+            "xchacha20" | "xchacha20poly1305" | "xchacha20-poly1305" => Ok(Self::XChaCha20Poly1305),
             "aesgcm256" | "aes-256-gcm" | "aes256gcm" | "aesgcm" => Ok(Self::AesGcm256),
             "chacha20" | "chacha20poly1305" | "chacha20-poly1305" => Ok(Self::ChaCha20Poly1305),
             _ => Err(format!(
-                "Unknown encryption algorithm: '{}'. Supported: xchacha20, aesgcm256, chacha20",
-                s
+                "Unknown encryption algorithm: '{s}'. Supported: xchacha20, aesgcm256, chacha20"
             )),
         }
     }

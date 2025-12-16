@@ -22,36 +22,36 @@ required-features = ["cli"]
 
 [dependencies]
 # Blockchain
-subxt = "0.37"
-subxt-signer = "0.37"
-parity-scale-codec = "3.6"
+subxt = { workspace = true }
+subxt-signer = { workspace = true }
+parity-scale-codec = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 
 # Cryptography
-curve25519-dalek = "4.1"
-x25519-dalek = { version = "2.0", features = ["static_secrets"] }
-chacha20poly1305 = "0.10"
-aes-gcm = "0.10"
-hkdf = "0.12"
-sha2 = "0.10"
+curve25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
 
 # MQTT
-rumqttc = "0.24"
+rumqttc = { workspace = true }
 
 # CLI & Output
-clap = { version = "4.5", features = ["derive", "env"], optional = true }
-colored = { version = "2.1", optional = true }
+clap = { workspace = true, features = ["env"], optional = true }
+colored = { workspace = true, optional = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-base64 = "0.21"
-bs58 = "0.5"
-hex = "0.4"
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true, features = ["std"] }
+base64 = { workspace = true }
+bs58 = { workspace = true }
+hex = { workspace = true }
 
 # Async
-tokio = { version = "1.40", features = ["full"] }
-anyhow = "1.0"
+tokio = { workspace = true }
+anyhow = { workspace = true }
 
 [features]
 default = ["cli"]

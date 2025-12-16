@@ -131,8 +131,8 @@
 pub mod blockchain;
 pub mod crypto;
 pub mod mqtt;
-pub mod types;
 pub mod node;
+pub mod types;
 
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};

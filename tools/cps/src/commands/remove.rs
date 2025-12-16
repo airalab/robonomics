@@ -17,16 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Remove node command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::Node;
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::node::Node;
 use std::io::{self, Write};
 
 pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
@@ -35,7 +35,7 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     // Check if node has children (query first)
     let node = Node::new(&client, node_id);
     let node_info = node.query().await?;
-    
+
     if !node_info.children.is_empty() && !force {
         return Err(anyhow::anyhow!(
             "Cannot delete node with {} children. Remove children first or use --force",
@@ -44,15 +44,16 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     }
 
     if !force {
-        print!("{} Are you sure you want to delete node {}? (y/N): ", 
-            "⚠️".yellow(), 
+        print!(
+            "{} Are you sure you want to delete node {}? (y/N): ",
+            "⚠️".yellow(),
             node_id.to_string().bright_cyan()
         );
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        
+
         if !input.trim().eq_ignore_ascii_case("y") {
             display::tree::info("Deletion cancelled");
             return Ok(());
@@ -64,7 +65,10 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     // Delete node using Node API
     node.delete().await?;
 
-    display::tree::success(&format!("Node {} deleted", node_id.to_string().bright_cyan()));
+    display::tree::success(&format!(
+        "Node {} deleted",
+        node_id.to_string().bright_cyan()
+    ));
 
     Ok(())
 }
