@@ -18,6 +18,7 @@
 //! Set metadata command implementation.
 
 use libcps::blockchain::{Client, Config};
+use libcps::node::{Node, UpdateNodeParams};
 use libcps::crypto::EncryptionAlgorithm;
 use crate::display;
 use anyhow::Result;
@@ -28,7 +29,7 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool,
     display::tree::progress("Connecting to blockchain...");
     
     let client = Client::new(config).await?;
-    let keypair = client.require_keypair()?;
+    let _keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Updating metadata for node {node_id}"));
@@ -40,29 +41,22 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool,
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet fully implemented (requires recipient public key)");
     }
 
-    // In a real implementation:
-    // let set_meta_call = robonomics::tx().cps().set_meta(
-    //     NodeId(node_id),
-    //     Some(NodeData::plain(data.as_bytes())),
-    // );
-    // 
-    // client.api
-    //     .tx()
-    //     .sign_and_submit_then_watch_default(&set_meta_call, keypair)
-    //     .await?
-    //     .wait_for_finalized_success()
-    //     .await?;
+    // Update metadata using Node API
+    let node = Node::new(&client, node_id);
+    let params = UpdateNodeParams {
+        node_id,
+        data: data.into_bytes(),
+        encrypt,
+        algorithm,
+        keypair_type,
+        recipient_public: None, // TODO: Add CLI option for recipient
+    };
 
-    display::tree::error(&format!(
-        "Extrinsic submission not implemented yet. Requires running node and metadata.\n\
-         See {} command for details.",
-        "create".bright_cyan()
-    ));
+    display::tree::progress("Updating metadata...");
+    node.set_meta(params).await?;
 
-    println!("\n{}", "Example output (with live node):".bright_yellow());
     display::tree::success(&format!("Metadata updated for node {}", node_id.to_string().bright_cyan()));
 
     Ok(())

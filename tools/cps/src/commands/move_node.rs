@@ -18,6 +18,7 @@
 //! Move node command implementation.
 
 use libcps::blockchain::{Client, Config};
+use libcps::node::{Node, MoveNodeParams};
 use crate::display;
 use anyhow::Result;
 use colored::*;
@@ -26,31 +27,21 @@ pub async fn execute(config: &Config, node_id: u64, new_parent_id: u64) -> Resul
     display::tree::progress("Connecting to blockchain...");
     
     let client = Client::new(config).await?;
-    let keypair = client.require_keypair()?;
+    let _keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Moving node {node_id} to parent {new_parent_id}"));
 
-    // In a real implementation:
-    // let move_call = robonomics::tx().cps().move_node(
-    //     NodeId(node_id),
-    //     NodeId(new_parent_id),
-    // );
-    // 
-    // client.api
-    //     .tx()
-    //     .sign_and_submit_then_watch_default(&move_call, keypair)
-    //     .await?
-    //     .wait_for_finalized_success()
-    //     .await?;
+    // Move node using Node API
+    let node = Node::new(&client, node_id);
+    let params = MoveNodeParams {
+        node_id,
+        new_parent: new_parent_id,
+    };
 
-    display::tree::error(&format!(
-        "Extrinsic submission not implemented yet. Requires running node and metadata.\n\
-         See {} command for details.",
-        "create".bright_cyan()
-    ));
+    display::tree::progress("Moving node...");
+    node.move_to(params).await?;
 
-    println!("\n{}", "Example output (with live node):".bright_yellow());
     display::tree::success(&format!(
         "Node {} moved to parent {}",
         node_id.to_string().bright_cyan(),
