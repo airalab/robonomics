@@ -347,30 +347,21 @@ mod tests {
     fn test_encrypted_data_xchacha20() {
         let bytes = vec![1, 2, 3];
         let encrypted = EncryptedData::XChaCha20Poly1305(bytes.clone());
-        assert_eq!(
-            encrypted,
-            EncryptedData::XChaCha20Poly1305(bytes)
-        );
+        assert_eq!(encrypted, EncryptedData::XChaCha20Poly1305(bytes));
     }
 
     #[test]
     fn test_encrypted_data_aesgcm256() {
         let bytes = vec![4, 5, 6];
         let encrypted = EncryptedData::AesGcm256(bytes.clone());
-        assert_eq!(
-            encrypted,
-            EncryptedData::AesGcm256(bytes)
-        );
+        assert_eq!(encrypted, EncryptedData::AesGcm256(bytes));
     }
 
     #[test]
     fn test_encrypted_data_chacha20() {
         let bytes = vec![7, 8, 9];
         let encrypted = EncryptedData::ChaCha20Poly1305(bytes.clone());
-        assert_eq!(
-            encrypted,
-            EncryptedData::ChaCha20Poly1305(bytes)
-        );
+        assert_eq!(encrypted, EncryptedData::ChaCha20Poly1305(bytes));
     }
 
     // ========================================================================
@@ -473,7 +464,7 @@ mod tests {
     #[test]
     fn test_nodedata_encode_decode_plain() {
         use subxt::ext::codec::{Decode, Encode};
-        
+
         let original = NodeData::plain("test data");
         let encoded = original.encode();
         let decoded = NodeData::decode(&mut &encoded[..]).unwrap();
@@ -483,7 +474,7 @@ mod tests {
     #[test]
     fn test_nodedata_encode_decode_encrypted() {
         use subxt::ext::codec::{Decode, Encode};
-        
+
         let original = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
         let encoded = original.encode();
         let decoded = NodeData::decode(&mut &encoded[..]).unwrap();
@@ -493,7 +484,7 @@ mod tests {
     #[test]
     fn test_encrypted_data_encode_decode() {
         use subxt::ext::codec::{Decode, Encode};
-        
+
         let original = EncryptedData::AesGcm256(vec![5, 6, 7]);
         let encoded = original.encode();
         let decoded = EncryptedData::decode(&mut &encoded[..]).unwrap();
@@ -503,7 +494,7 @@ mod tests {
     #[test]
     fn test_node_id_encode_decode() {
         use subxt::ext::codec::{Decode, Encode};
-        
+
         let original = NodeId(12345);
         let encoded = original.encode();
         let decoded = NodeId::decode(&mut &encoded[..]).unwrap();
@@ -551,7 +542,7 @@ mod tests {
             payload: Some(NodeData::plain("payload")),
             path: vec![NodeId(0), NodeId(1)],
         };
-        
+
         assert_eq!(node.parent, Some(NodeId(0)));
         assert_eq!(node.path.len(), 2);
     }
@@ -565,7 +556,7 @@ mod tests {
             payload: Some(NodeData::plain("public payload")),
             path: vec![NodeId(0)],
         };
-        
+
         assert!(node.meta.as_ref().unwrap().is_encrypted());
         assert!(!node.payload.as_ref().unwrap().is_encrypted());
     }
@@ -573,7 +564,7 @@ mod tests {
     #[test]
     fn test_node_encode_decode() {
         use subxt::ext::codec::{Decode, Encode};
-        
+
         let original = Node {
             owner: [42u8; 32],
             parent: Some(NodeId(5)),
@@ -581,10 +572,10 @@ mod tests {
             payload: Some(NodeData::plain("payload")),
             path: vec![NodeId(1), NodeId(5)],
         };
-        
+
         let encoded = original.encode();
         let decoded = Node::decode(&mut &encoded[..]).unwrap();
-        
+
         assert_eq!(original.owner, decoded.owner);
         assert_eq!(original.parent, decoded.parent);
         assert_eq!(original.path, decoded.path);

@@ -21,12 +21,12 @@
 //! It handles display formatting and user interaction while delegating business logic to the
 //! node module.
 
-use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
-use libcps::node::{Node, UpdateNodeParams};
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
+use libcps::node::{Node, UpdateNodeParams};
 use std::str::FromStr;
 
 /// Execute the set-payload command with CLI display output.
@@ -46,7 +46,7 @@ pub async fn execute(
 ) -> Result<()> {
     // CLI display: show connection progress
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
@@ -61,7 +61,9 @@ pub async fn execute(
     if encrypt {
         display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet fully implemented (requires recipient public key)");
+        display::tree::warning(
+            "Encryption not yet fully implemented (requires recipient public key)",
+        );
     }
 
     // Prepare parameters for the library operation
@@ -76,7 +78,7 @@ pub async fn execute(
 
     // Create a Node handle and delegate to node operation (business logic)
     let node = Node::new(&client, node_id);
-    
+
     match node.set_payload(params).await {
         Ok(result) => {
             if result.success {

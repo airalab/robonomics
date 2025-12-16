@@ -106,9 +106,9 @@
 //! ```
 
 use crate::blockchain::Client;
-use crate::types::NodeData;
 use crate::crypto::{EncryptionAlgorithm, KeypairType};
-use anyhow::{Result, anyhow};
+use crate::types::NodeData;
+use anyhow::{anyhow, Result};
 use sp_core::Pair;
 
 /// Parameters for creating a new CPS node.
@@ -139,13 +139,35 @@ pub struct CreateNodeResult {
     pub success: bool,
     /// Optional message describing the result
     pub message: Option<String>,
+    /// Optional extrinsic hash of the transaction
+    pub extrinsic_hash: Option<String>,
+}
+
+impl CreateNodeResult {
+    /// Get the extrinsic hash of the transaction.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::node::CreateNodeResult;
+    /// # let result = CreateNodeResult {
+    /// #     node_id: 0,
+    /// #     success: true,
+    /// #     message: None,
+    /// #     extrinsic_hash: Some("0x1234".to_string()),
+    /// # };
+    /// if let Some(hash) = result.extrinsic_hash() {
+    ///     println!("Tx: {}", hash);
+    /// }
+    /// ```
+    pub fn extrinsic_hash(&self) -> Option<&str> {
+        self.extrinsic_hash.as_deref()
+    }
 }
 
 /// Parameters for updating node metadata or payload.
 #[derive(Debug, Clone)]
 pub struct UpdateNodeParams {
-    /// The node ID to update
-    pub node_id: u64,
     /// The data to set
     pub data: Vec<u8>,
     /// Whether to encrypt the data
@@ -165,6 +187,29 @@ pub struct UpdateNodeResult {
     pub success: bool,
     /// Optional message describing the result
     pub message: Option<String>,
+    /// Optional extrinsic hash of the transaction
+    pub extrinsic_hash: Option<String>,
+}
+
+impl UpdateNodeResult {
+    /// Get the extrinsic hash of the transaction.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::node::UpdateNodeResult;
+    /// # let result = UpdateNodeResult {
+    /// #     success: true,
+    /// #     message: None,
+    /// #     extrinsic_hash: Some("0x5678".to_string()),
+    /// # };
+    /// if let Some(hash) = result.extrinsic_hash() {
+    ///     println!("Tx: {}", hash);
+    /// }
+    /// ```
+    pub fn extrinsic_hash(&self) -> Option<&str> {
+        self.extrinsic_hash.as_deref()
+    }
 }
 
 /// Information about a CPS node.
@@ -202,6 +247,7 @@ pub struct NodeInfo {
 /// - Async: `query()`, `set_meta()`, `set_payload()`, `move_to()`, `delete()`
 /// - Blocking: `query_blocking()`, `set_meta_blocking()`, etc.
 pub struct Node<'a> {
+    #[allow(dead_code)]
     client: &'a Client,
     id: u64,
 }
@@ -492,6 +538,7 @@ impl<'a> Node<'a> {
 
     /// Delete this node from the tree.
     ///
+    /// This method consumes the Node handle, preventing further use after deletion.
     /// The node must have no children to be deleted.
     ///
     /// # Returns
@@ -511,12 +558,13 @@ impl<'a> Node<'a> {
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
     ///
-    /// // Delete the node (must have no children)
+    /// // Delete the node (consumes self, must have no children)
     /// node.delete().await?;
+    /// // node is no longer accessible here
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn delete(&self) -> Result<()> {
+    pub async fn delete(self) -> Result<()> {
         // TODO: Implement actual node deletion
         Err(anyhow!(
             "Node deletion not yet implemented. Requires running node with CPS pallet and generated metadata."
@@ -525,8 +573,8 @@ impl<'a> Node<'a> {
 
     /// Delete this node from the tree (blocking).
     ///
-    /// This is the blocking variant of `delete()`.
-    pub fn delete_blocking(&self) -> Result<()> {
+    /// This is the blocking variant of `delete()`. It consumes the Node handle.
+    pub fn delete_blocking(self) -> Result<()> {
         tokio::runtime::Handle::current().block_on(self.delete())
     }
 }
@@ -560,21 +608,21 @@ where
     if should_encrypt {
         let recipient = recipient_public
             .ok_or_else(|| anyhow!("Recipient public key required for encryption"))?;
-        
+
         let encrypted_json_bytes = crate::crypto::encrypt(data, sender, recipient, algorithm)?;
-        
+
         // The encrypt function returns JSON as Vec<u8>
         // Store it in the appropriate EncryptedData variant based on algorithm
         Ok(match algorithm {
-            EncryptionAlgorithm::XChaCha20Poly1305 => {
-                NodeData::Encrypted(crate::types::EncryptedData::XChaCha20Poly1305(encrypted_json_bytes))
-            }
+            EncryptionAlgorithm::XChaCha20Poly1305 => NodeData::Encrypted(
+                crate::types::EncryptedData::XChaCha20Poly1305(encrypted_json_bytes),
+            ),
             EncryptionAlgorithm::AesGcm256 => {
                 NodeData::Encrypted(crate::types::EncryptedData::AesGcm256(encrypted_json_bytes))
             }
-            EncryptionAlgorithm::ChaCha20Poly1305 => {
-                NodeData::Encrypted(crate::types::EncryptedData::ChaCha20Poly1305(encrypted_json_bytes))
-            }
+            EncryptionAlgorithm::ChaCha20Poly1305 => NodeData::Encrypted(
+                crate::types::EncryptedData::ChaCha20Poly1305(encrypted_json_bytes),
+            ),
         })
     } else {
         Ok(NodeData::plain(data))
@@ -589,7 +637,7 @@ mod tests {
     fn test_prepare_plain_node_data() {
         let data = b"test data";
         let node_data = NodeData::plain(data);
-        
+
         // Verify it's plain data
         assert!(matches!(node_data, NodeData::Plain(_)));
     }
@@ -605,7 +653,7 @@ mod tests {
             keypair_type: KeypairType::Sr25519,
             recipient_public: None,
         };
-        
+
         assert_eq!(params.parent, Some(0));
         assert_eq!(params.encrypt, false);
     }
@@ -617,5 +665,66 @@ mod tests {
         // let client = Client::new(&test_config).await?;
         // let node = Node::new(&client, 42);
         // assert_eq!(node.id(), 42);
+    }
+
+    #[test]
+    fn test_create_node_result_extrinsic_hash() {
+        let result = CreateNodeResult {
+            node_id: 42,
+            success: true,
+            message: Some("Node created".to_string()),
+            extrinsic_hash: Some("0x1234567890abcdef".to_string()),
+        };
+
+        assert_eq!(result.extrinsic_hash(), Some("0x1234567890abcdef"));
+    }
+
+    #[test]
+    fn test_create_node_result_no_extrinsic_hash() {
+        let result = CreateNodeResult {
+            node_id: 42,
+            success: true,
+            message: None,
+            extrinsic_hash: None,
+        };
+
+        assert_eq!(result.extrinsic_hash(), None);
+    }
+
+    #[test]
+    fn test_update_node_result_extrinsic_hash() {
+        let result = UpdateNodeResult {
+            success: true,
+            message: Some("Node updated".to_string()),
+            extrinsic_hash: Some("0xfedcba0987654321".to_string()),
+        };
+
+        assert_eq!(result.extrinsic_hash(), Some("0xfedcba0987654321"));
+    }
+
+    #[test]
+    fn test_update_node_result_no_extrinsic_hash() {
+        let result = UpdateNodeResult {
+            success: false,
+            message: Some("Update failed".to_string()),
+            extrinsic_hash: None,
+        };
+
+        assert_eq!(result.extrinsic_hash(), None);
+    }
+
+    #[test]
+    fn test_update_node_params() {
+        let params = UpdateNodeParams {
+            data: b"updated data".to_vec(),
+            encrypt: true,
+            algorithm: EncryptionAlgorithm::AesGcm256,
+            keypair_type: KeypairType::Ed25519,
+            recipient_public: Some(vec![1, 2, 3]),
+        };
+
+        assert_eq!(params.data, b"updated data");
+        assert_eq!(params.encrypt, true);
+        assert_eq!(params.algorithm, EncryptionAlgorithm::AesGcm256);
     }
 }

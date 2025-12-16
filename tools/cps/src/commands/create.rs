@@ -17,12 +17,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Create command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, CreateNodeParams};
 use crate::display;
-use libcps::crypto::EncryptionAlgorithm;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
+use libcps::node::{CreateNodeParams, Node};
 use std::str::FromStr;
 
 pub async fn execute(
@@ -35,12 +35,15 @@ pub async fn execute(
     keypair_type: libcps::crypto::KeypairType,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Using account: {}", hex::encode(keypair.public_key().0)));
+    display::tree::info(&format!(
+        "Using account: {}",
+        hex::encode(keypair.public_key().0)
+    ));
 
     // Parse cipher algorithm
     let algorithm = EncryptionAlgorithm::from_str(cipher)
@@ -52,7 +55,10 @@ pub async fn execute(
     }
 
     if parent.is_some() {
-        display::tree::info(&format!("Creating child node under parent {}", parent.unwrap()));
+        display::tree::info(&format!(
+            "Creating child node under parent {}",
+            parent.unwrap()
+        ));
     } else {
         display::tree::info("Creating root node");
     }
@@ -71,7 +77,10 @@ pub async fn execute(
     display::tree::progress("Creating node...");
     let result = Node::create(&client, params).await?;
 
-    display::tree::success(&format!("Node created with ID: {}", result.node_id.to_string().bright_cyan()));
+    display::tree::success(&format!(
+        "Node created with ID: {}",
+        result.node_id.to_string().bright_cyan()
+    ));
 
     Ok(())
 }

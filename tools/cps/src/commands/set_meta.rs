@@ -17,17 +17,24 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Set metadata command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, UpdateNodeParams};
-use libcps::crypto::EncryptionAlgorithm;
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::EncryptionAlgorithm;
+use libcps::node::{Node, UpdateNodeParams};
 use std::str::FromStr;
 
-pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool, cipher: &str, keypair_type: libcps::crypto::KeypairType) -> Result<()> {
+pub async fn execute(
+    config: &Config,
+    node_id: u64,
+    data: String,
+    encrypt: bool,
+    cipher: &str,
+    keypair_type: libcps::crypto::KeypairType,
+) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
@@ -57,7 +64,10 @@ pub async fn execute(config: &Config, node_id: u64, data: String, encrypt: bool,
     display::tree::progress("Updating metadata...");
     node.set_meta(params).await?;
 
-    display::tree::success(&format!("Metadata updated for node {}", node_id.to_string().bright_cyan()));
+    display::tree::success(&format!(
+        "Metadata updated for node {}",
+        node_id.to_string().bright_cyan()
+    ));
 
     Ok(())
 }

@@ -17,17 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Show command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::Node;
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::node::Node;
 
 pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
-    
+
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::progress(&format!("Fetching node {node_id}..."));
 
@@ -36,9 +36,13 @@ pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()
     let node_info = node.query().await?;
 
     // Display node information
-    let meta_str = node_info.meta.as_ref()
+    let meta_str = node_info
+        .meta
+        .as_ref()
         .and_then(|m| String::from_utf8(m.clone()).ok());
-    let payload_str = node_info.payload.as_ref()
+    let payload_str = node_info
+        .payload
+        .as_ref()
         .and_then(|p| String::from_utf8(p.clone()).ok());
 
     display::tree::print_tree(

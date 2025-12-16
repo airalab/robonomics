@@ -17,15 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Move node command implementation.
 
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, MoveNodeParams};
 use crate::display;
 use anyhow::Result;
 use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::node::{MoveNodeParams, Node};
 
 pub async fn execute(config: &Config, node_id: u64, new_parent_id: u64) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 

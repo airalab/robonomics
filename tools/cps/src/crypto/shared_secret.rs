@@ -154,7 +154,7 @@ impl DeriveSharedSecret for sp_core::ed25519::Pair {
     fn derive(sender: &Self, destination: &Self::Public) -> Result<SharedSecret> {
         // Convert ED25519 keys to X25519 for ECDH
         // ED25519 and Curve25519 are birationally equivalent curves
-        
+
         // Get the secret key seed (first 32 bytes)
         let secret_bytes = sender.to_raw_vec();
         let mut secret_seed = [0u8; 32];
@@ -163,12 +163,12 @@ impl DeriveSharedSecret for sp_core::ed25519::Pair {
         // For ED25519, we need to hash and clamp the seed to get the scalar
         use sha2::{Digest, Sha512};
         let mut hasher = Sha512::new();
-        hasher.update(&secret_seed);
+        hasher.update(secret_seed);
         let hash = hasher.finalize();
-        
+
         let mut scalar_bytes = [0u8; 32];
         scalar_bytes.copy_from_slice(&hash[..32]);
-        
+
         // Clamp the scalar for X25519
         scalar_bytes[0] &= 248;
         scalar_bytes[31] &= 127;
@@ -179,7 +179,7 @@ impl DeriveSharedSecret for sp_core::ed25519::Pair {
         // Convert ED25519 public key to X25519 public key
         // The Montgomery u-coordinate can be derived from the Edwards y-coordinate
         let ed_public_bytes: [u8; 32] = destination.0;
-        
+
         // Convert Edwards point to Montgomery point
         // This is a standard conversion: u = (1 + y) / (1 - y)
         use curve25519_dalek::edwards::CompressedEdwardsY;
@@ -187,7 +187,7 @@ impl DeriveSharedSecret for sp_core::ed25519::Pair {
         let edwards_point = compressed_edwards
             .decompress()
             .ok_or_else(|| anyhow!("Failed to decompress ED25519 public key"))?;
-        
+
         let montgomery_point = edwards_point.to_montgomery();
         let their_x25519_public = x25519_dalek::PublicKey::from(montgomery_point.to_bytes());
 
@@ -245,13 +245,11 @@ mod tests {
         let (alice, _) = sp_core::sr25519::Pair::generate();
         let (bob, _) = sp_core::sr25519::Pair::generate();
 
-        let shared = <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public())
-            .unwrap();
+        let shared =
+            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&alice, &bob.public()).unwrap();
 
         // Derive encryption key
-        let key = shared
-            .derive_encryption_key(b"test-info-string")
-            .unwrap();
+        let key = shared.derive_encryption_key(b"test-info-string").unwrap();
 
         // Key should be 32 bytes
         assert_eq!(key.len(), 32);
@@ -264,15 +262,19 @@ mod tests {
     fn test_different_keypair_types_different_secrets() {
         // Use same seed for both types
         let seed = [42u8; 32];
-        
+
         let sr_alice = sp_core::sr25519::Pair::from_seed(&seed);
         let sr_bob = sp_core::sr25519::Pair::from_seed(&[43u8; 32]);
-        
+
         let ed_alice = sp_core::ed25519::Pair::from_seed(&seed);
         let ed_bob = sp_core::ed25519::Pair::from_seed(&[43u8; 32]);
 
-        let shared_sr = <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&sr_alice, &sr_bob.public()).unwrap();
-        let shared_ed = <sp_core::ed25519::Pair as DeriveSharedSecret>::derive(&ed_alice, &ed_bob.public()).unwrap();
+        let shared_sr =
+            <sp_core::sr25519::Pair as DeriveSharedSecret>::derive(&sr_alice, &sr_bob.public())
+                .unwrap();
+        let shared_ed =
+            <sp_core::ed25519::Pair as DeriveSharedSecret>::derive(&ed_alice, &ed_bob.public())
+                .unwrap();
 
         // Different curve operations should produce different shared secrets
         assert_ne!(shared_sr.as_bytes(), shared_ed.as_bytes());
