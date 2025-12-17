@@ -76,6 +76,10 @@ enum Commands {
         /// Attempt to decrypt encrypted data
         #[arg(long)]
         decrypt: bool,
+
+        /// Keypair type for decryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
+        keypair_type: libcps::crypto::KeypairType,
     },
 
     /// Create a new node (root or child)
@@ -228,8 +232,8 @@ async fn main() -> Result<()> {
 
     // Execute commands
     match cli.command {
-        Commands::Show { node_id, decrypt } => {
-            commands::show::execute(&blockchain_config, node_id, decrypt).await?;
+        Commands::Show { node_id, decrypt, keypair_type } => {
+            commands::show::execute(&blockchain_config, node_id, decrypt, keypair_type).await?;
         }
         Commands::Create {
             parent,

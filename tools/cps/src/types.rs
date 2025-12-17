@@ -173,6 +173,31 @@ impl NodeData {
         Self::Encrypted(data)
     }
 
+    /// Create encrypted data from bytes using the specified algorithm.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libcps::types::NodeData;
+    /// use libcps::crypto::EncryptionAlgorithm;
+    ///
+    /// let encrypted = NodeData::encrypted_bytes(vec![1, 2, 3, 4], EncryptionAlgorithm::XChaCha20Poly1305);
+    /// assert!(encrypted.is_encrypted());
+    /// ```
+    pub fn encrypted_bytes(data: Vec<u8>, algorithm: crate::crypto::EncryptionAlgorithm) -> Self {
+        match algorithm {
+            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
+                Self::Encrypted(EncryptedData::XChaCha20Poly1305(data))
+            }
+            crate::crypto::EncryptionAlgorithm::AesGcm256 => {
+                Self::Encrypted(EncryptedData::AesGcm256(data))
+            }
+            crate::crypto::EncryptionAlgorithm::ChaCha20Poly1305 => {
+                Self::Encrypted(EncryptedData::ChaCha20Poly1305(data))
+            }
+        }
+    }
+
     /// Get the underlying bytes regardless of encryption status.
     ///
     /// For encrypted data, this returns the raw encrypted bytes,

@@ -18,12 +18,13 @@
 //! Create command implementation.
 
 use crate::display;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
+use libcps::crypto::{encrypt, EncryptionAlgorithm, KeypairType};
 use libcps::node::Node;
 use libcps::types::NodeData;
+use sp_core::Pair;
 use std::str::FromStr;
 
 pub async fn execute(
@@ -50,12 +51,6 @@ pub async fn execute(
     let algorithm = EncryptionAlgorithm::from_str(cipher)
         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
 
-    if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
-        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet implemented - creating plain data");
-    }
-
     if parent.is_some() {
         display::tree::info(&format!(
             "Creating child node under parent {}",
@@ -65,9 +60,30 @@ pub async fn execute(
         display::tree::info("Creating root node");
     }
 
-    // Convert strings to NodeData using From trait
-    let meta_data = meta.map(|m| NodeData::from(m));
-    let payload_data = payload.map(|p| NodeData::from(p));
+    // Convert strings to NodeData, applying encryption if requested
+    let meta_data = if encrypt && meta.is_some() {
+        display::tree::info(&format!("🔐 Encrypting metadata with {}", algorithm));
+        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        
+        let plaintext = meta.unwrap();
+        let encrypted_bytes = encrypt_data(plaintext.as_bytes(), config, algorithm, keypair_type)?;
+        Some(NodeData::encrypted_bytes(encrypted_bytes, algorithm))
+    } else {
+        meta.map(|m| NodeData::from(m))
+    };
+
+    let payload_data = if encrypt && payload.is_some() {
+        if meta.is_none() {
+            display::tree::info(&format!("🔐 Encrypting payload with {}", algorithm));
+            display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        }
+        
+        let plaintext = payload.unwrap();
+        let encrypted_bytes = encrypt_data(plaintext.as_bytes(), config, algorithm, keypair_type)?;
+        Some(NodeData::encrypted_bytes(encrypted_bytes, algorithm))
+    } else {
+        payload.map(|p| NodeData::from(p))
+    };
 
     display::tree::progress("Creating node...");
     let node = Node::create(&client, parent, meta_data, payload_data).await?;
@@ -78,4 +94,34 @@ pub async fn execute(
     ));
 
     Ok(())
+}
+
+/// Helper function to encrypt data using the specified algorithm and keypair type.
+fn encrypt_data(
+    plaintext: &[u8],
+    config: &Config,
+    algorithm: EncryptionAlgorithm,
+    keypair_type: KeypairType,
+) -> Result<Vec<u8>> {
+    let suri = config
+        .suri
+        .as_ref()
+        .ok_or_else(|| anyhow!("SURI required for encryption"))?;
+
+    match keypair_type {
+        KeypairType::Sr25519 => {
+            let pair = sp_core::sr25519::Pair::from_string(suri, None)
+                .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
+            // Encrypt to self (for storage)
+            let public = pair.public();
+            encrypt(plaintext, &pair, &public, algorithm)
+        }
+        KeypairType::Ed25519 => {
+            let pair = sp_core::ed25519::Pair::from_string(suri, None)
+                .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
+            // Encrypt to self (for storage)
+            let public = pair.public();
+            encrypt(plaintext, &pair, &public, algorithm)
+        }
+    }
 }

@@ -22,12 +22,13 @@
 //! node module.
 
 use crate::display;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
+use libcps::crypto::{encrypt, EncryptionAlgorithm, KeypairType};
 use libcps::node::Node;
 use libcps::types::NodeData;
+use sp_core::Pair;
 use std::str::FromStr;
 
 /// Execute the set-payload command with CLI display output.
@@ -58,41 +59,56 @@ pub async fn execute(
     let algorithm = EncryptionAlgorithm::from_str(cipher)
         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
 
-    // CLI display: show encryption settings
-    if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
+    // Convert data to NodeData, applying encryption if requested
+    let payload_data = if encrypt {
+        display::tree::info(&format!("🔐 Encrypting payload with {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet implemented - updating with plain data");
-    }
+        
+        let encrypted_bytes = encrypt_data(data.as_bytes(), config, algorithm, keypair_type)?;
+        NodeData::encrypted_bytes(encrypted_bytes, algorithm)
+    } else {
+        NodeData::from(data)
+    };
 
     // Create a Node handle and delegate to node operation (business logic)
     let node = Node::new(&client, node_id);
-    let payload_data = NodeData::from(data);
 
-    match node.set_payload(Some(payload_data)).await {
-        Ok(_events) => {
-            display::tree::success(&format!(
-                "Payload updated for node {}",
-                node_id.to_string().bright_cyan()
-            ));
-            Ok(())
+    let _events = node.set_payload(Some(payload_data)).await?;
+    
+    display::tree::success(&format!(
+        "Payload updated for node {}",
+        node_id.to_string().bright_cyan()
+    ));
+    
+    Ok(())
+}
+
+/// Helper function to encrypt data using the specified algorithm and keypair type.
+fn encrypt_data(
+    plaintext: &[u8],
+    config: &Config,
+    algorithm: EncryptionAlgorithm,
+    keypair_type: KeypairType,
+) -> Result<Vec<u8>> {
+    let suri = config
+        .suri
+        .as_ref()
+        .ok_or_else(|| anyhow!("SURI required for encryption"))?;
+
+    match keypair_type {
+        KeypairType::Sr25519 => {
+            let pair = sp_core::sr25519::Pair::from_string(suri, None)
+                .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
+            // Encrypt to self (for storage)
+            let public = pair.public();
+            encrypt(plaintext, &pair, &public, algorithm)
         }
-        Err(e) => {
-            // CLI display: present error nicely
-            display::tree::error(&format!(
-                "Extrinsic submission not implemented yet. Requires running node and metadata.\n\
-                 See {} command for details.",
-                "create".bright_cyan()
-            ));
-
-            println!("\n{}", "Example output (with live node):".bright_yellow());
-            display::tree::success(&format!(
-                "Payload updated for node {}",
-                node_id.to_string().bright_cyan()
-            ));
-
-            // Return actual error for debugging
-            Err(e)
+        KeypairType::Ed25519 => {
+            let pair = sp_core::ed25519::Pair::from_string(suri, None)
+                .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
+            // Encrypt to self (for storage)
+            let public = pair.public();
+            encrypt(plaintext, &pair, &public, algorithm)
         }
     }
 }
