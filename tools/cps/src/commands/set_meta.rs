@@ -53,7 +53,7 @@ pub async fn execute(
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
         
         let encrypted_bytes = encrypt_data(data.as_bytes(), config, algorithm, keypair_type)?;
-        NodeData::encrypted_bytes(encrypted_bytes, algorithm)
+        NodeData::from_encrypted_bytes(encrypted_bytes, algorithm)
     } else {
         NodeData::from(data)
     };

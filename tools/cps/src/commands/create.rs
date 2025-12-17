@@ -61,26 +61,24 @@ pub async fn execute(
     }
 
     // Convert strings to NodeData, applying encryption if requested
-    let meta_data = if encrypt && meta.is_some() {
+    let meta_data = if let (true, Some(m)) = (encrypt, meta) {
         display::tree::info(&format!("🔐 Encrypting metadata with {}", algorithm));
         display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
         
-        let plaintext = meta.unwrap();
-        let encrypted_bytes = encrypt_data(plaintext.as_bytes(), config, algorithm, keypair_type)?;
-        Some(NodeData::encrypted_bytes(encrypted_bytes, algorithm))
+        let encrypted_bytes = encrypt_data(m.as_bytes(), config, algorithm, keypair_type)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, algorithm))
     } else {
         meta.map(|m| NodeData::from(m))
     };
 
-    let payload_data = if encrypt && payload.is_some() {
-        if meta.is_none() {
+    let payload_data = if let (true, Some(p)) = (encrypt, payload) {
+        if meta_data.is_none() {
             display::tree::info(&format!("🔐 Encrypting payload with {}", algorithm));
             display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
         }
         
-        let plaintext = payload.unwrap();
-        let encrypted_bytes = encrypt_data(plaintext.as_bytes(), config, algorithm, keypair_type)?;
-        Some(NodeData::encrypted_bytes(encrypted_bytes, algorithm))
+        let encrypted_bytes = encrypt_data(p.as_bytes(), config, algorithm, keypair_type)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, algorithm))
     } else {
         payload.map(|p| NodeData::from(p))
     };

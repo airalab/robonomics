@@ -25,7 +25,7 @@ use libcps::node::Node;
 use libcps::types::NodeData;
 use sp_core::Pair;
 
-pub async fn execute(config: &Config, node_id: u64, decrypt_flag: bool, keypair_type: KeypairType) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, decrypt: bool, keypair_type: KeypairType) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
@@ -38,7 +38,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt_flag: bool, keypair_
     let node_info = node.query().await?;
 
     // Try to decrypt if requested and data is encrypted
-    let meta_str = if decrypt_flag && node_info.meta.is_encrypted() {
+    let meta_str = if decrypt && node_info.meta.is_encrypted() {
         display::tree::info("🔓 Decrypting metadata...");
         match try_decrypt(&node_info.meta, config, keypair_type) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
@@ -51,7 +51,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt_flag: bool, keypair_
         String::from_utf8(node_info.meta.as_bytes().to_vec()).ok()
     };
 
-    let payload_str = if decrypt_flag && node_info.payload.is_encrypted() {
+    let payload_str = if decrypt && node_info.payload.is_encrypted() {
         display::tree::info("🔓 Decrypting payload...");
         match try_decrypt(&node_info.payload, config, keypair_type) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),

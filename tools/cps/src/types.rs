@@ -173,7 +173,10 @@ impl NodeData {
         Self::Encrypted(data)
     }
 
-    /// Create encrypted data from bytes using the specified algorithm.
+    /// Wrap already-encrypted bytes with the specified algorithm type.
+    ///
+    /// Note: This function does NOT perform encryption - it wraps bytes that
+    /// have already been encrypted by the crypto module.
     ///
     /// # Examples
     ///
@@ -181,10 +184,12 @@ impl NodeData {
     /// use libcps::types::NodeData;
     /// use libcps::crypto::EncryptionAlgorithm;
     ///
-    /// let encrypted = NodeData::encrypted_bytes(vec![1, 2, 3, 4], EncryptionAlgorithm::XChaCha20Poly1305);
+    /// // encrypted_bytes should already be encrypted
+    /// let encrypted_bytes = vec![1, 2, 3, 4];
+    /// let encrypted = NodeData::from_encrypted_bytes(encrypted_bytes, EncryptionAlgorithm::XChaCha20Poly1305);
     /// assert!(encrypted.is_encrypted());
     /// ```
-    pub fn encrypted_bytes(data: Vec<u8>, algorithm: crate::crypto::EncryptionAlgorithm) -> Self {
+    pub fn from_encrypted_bytes(data: Vec<u8>, algorithm: crate::crypto::EncryptionAlgorithm) -> Self {
         match algorithm {
             crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305 => {
                 Self::Encrypted(EncryptedData::XChaCha20Poly1305(data))

@@ -292,7 +292,7 @@ impl<'a> Node<'a> {
 
         Ok(NodeInfo {
             id: self.id,
-            owner: node.owner.0.to_vec(), // Convert AccountId32 to Vec<u8>
+            owner: node.owner.as_ref().to_vec(), // Convert AccountId32 to Vec<u8>
             parent: node.parent.map(|p| p.0),
             meta: node.meta.unwrap_or(NodeData::Plain(vec![])),
             payload: node.payload.unwrap_or(NodeData::Plain(vec![])),
