@@ -77,9 +77,9 @@ enum Commands {
         #[arg(long)]
         decrypt: bool,
 
-        /// Keypair type for decryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for decryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Create a new node (root or child)
@@ -104,9 +104,9 @@ enum Commands {
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Update node metadata
@@ -125,9 +125,9 @@ enum Commands {
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Update node payload
@@ -146,9 +146,9 @@ enum Commands {
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Move a node to a new parent
@@ -193,9 +193,9 @@ enum MqttCommands {
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Publish node payload changes to MQTT topic
@@ -241,7 +241,7 @@ async fn main() -> Result<()> {
             payload,
             encrypt,
             cipher,
-            keypair_type,
+            scheme,
         } => {
             commands::create::execute(
                 &blockchain_config,
@@ -250,7 +250,7 @@ async fn main() -> Result<()> {
                 payload,
                 encrypt,
                 &cipher,
-                keypair_type,
+                scheme,
             )
             .await?;
         }
@@ -259,7 +259,7 @@ async fn main() -> Result<()> {
             data,
             encrypt,
             cipher,
-            keypair_type,
+            scheme,
         } => {
             commands::set_meta::execute(
                 &blockchain_config,
@@ -267,7 +267,7 @@ async fn main() -> Result<()> {
                 data,
                 encrypt,
                 &cipher,
-                keypair_type,
+                scheme,
             )
             .await?;
         }
@@ -276,7 +276,7 @@ async fn main() -> Result<()> {
             data,
             encrypt,
             cipher,
-            keypair_type,
+            scheme,
         } => {
             commands::set_payload::execute(
                 &blockchain_config,
@@ -284,7 +284,7 @@ async fn main() -> Result<()> {
                 data,
                 encrypt,
                 &cipher,
-                keypair_type,
+                scheme,
             )
             .await?;
         }
@@ -303,7 +303,7 @@ async fn main() -> Result<()> {
                 node_id,
                 encrypt,
                 cipher,
-                keypair_type,
+                scheme,
             } => {
                 commands::mqtt::subscribe(
                     &blockchain_config,
@@ -312,7 +312,7 @@ async fn main() -> Result<()> {
                     node_id,
                     encrypt,
                     &cipher,
-                    keypair_type,
+                    scheme,
                 )
                 .await?;
             }

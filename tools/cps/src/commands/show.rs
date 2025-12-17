@@ -20,12 +20,11 @@
 use crate::display;
 use anyhow::{anyhow, Result};
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::{decrypt, KeypairType};
+use libcps::crypto::{CryptoScheme, Decrypt};
 use libcps::node::Node;
 use libcps::types::NodeData;
-use sp_core::Pair;
 
-pub async fn execute(config: &Config, node_id: u64, decrypt: bool, keypair_type: KeypairType) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, decrypt: bool, scheme: CryptoScheme) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
@@ -40,7 +39,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt: bool, keypair_type:
     // Try to decrypt if requested and data is encrypted
     let meta_str = if decrypt && node_info.meta.is_encrypted() {
         display::tree::info("🔓 Decrypting metadata...");
-        match try_decrypt(&node_info.meta, config, keypair_type) {
+        match config.decrypt(node_info.meta.as_bytes(), scheme, None) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
             Err(e) => {
                 display::tree::warning(&format!("Failed to decrypt metadata: {}", e));
@@ -53,7 +52,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt: bool, keypair_type:
 
     let payload_str = if decrypt && node_info.payload.is_encrypted() {
         display::tree::info("🔓 Decrypting payload...");
-        match try_decrypt(&node_info.payload, config, keypair_type) {
+        match config.decrypt(node_info.payload.as_bytes(), scheme, None) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
             Err(e) => {
                 display::tree::warning(&format!("Failed to decrypt payload: {}", e));
@@ -73,37 +72,4 @@ pub async fn execute(config: &Config, node_id: u64, decrypt: bool, keypair_type:
     );
 
     Ok(())
-}
-
-/// Helper function to decrypt data.
-fn try_decrypt(
-    data: &NodeData,
-    config: &Config,
-    keypair_type: KeypairType,
-) -> Result<Vec<u8>> {
-    if !data.is_encrypted() {
-        return Err(anyhow!("Data is not encrypted"));
-    }
-
-    let suri = config
-        .suri
-        .as_ref()
-        .ok_or_else(|| anyhow!("SURI required for decryption"))?;
-
-    let encrypted_bytes = data.as_bytes();
-
-    match keypair_type {
-        KeypairType::Sr25519 => {
-            let pair = sp_core::sr25519::Pair::from_string(suri, None)
-                .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-            // Decrypt (sender verification disabled with None)
-            decrypt(encrypted_bytes, &pair, None)
-        }
-        KeypairType::Ed25519 => {
-            let pair = sp_core::ed25519::Pair::from_string(suri, None)
-                .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-            // Decrypt (sender verification disabled with None)
-            decrypt(encrypted_bytes, &pair, None)
-        }
-    }
 }
