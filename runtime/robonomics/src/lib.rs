@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 43,
+    spec_version: 40,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -925,9 +925,39 @@ impl_runtime_apis! {
     }
 }
 
+/// Recovery block executor that pass blocks when authorities list is empty.
+pub struct BlockExecutor<T, I>(core::marker::PhantomData<(T, I)>);
+
+impl<Block, T, I> frame_support::traits::ExecuteBlock<Block> for BlockExecutor<T, I>
+where
+    Block: BlockT,
+    T: cumulus_pallet_aura_ext::Config,
+    I: frame_support::traits::ExecuteBlock<Block>,
+{
+    fn execute_block(block: Block) {
+        if pallet_aura::Authorities::<T>::get().len() > 0 {
+            // Execute block with aura pallet
+            cumulus_pallet_aura_ext::BlockExecutor::<T, I>::execute_block(block);
+        } else {
+            // Workaround because we don't have authorities
+            use sp_consensus_aura::digests::CompatibleDigestItem;
+            use sp_runtime::{traits::Header, RuntimeAppPublic};
+
+            // Filter aura digests befor pass block to executor
+            let (mut header, extrinsics) = block.deconstruct();
+            header.digest_mut().logs.retain(|s|
+                CompatibleDigestItem::<<T::AuthorityId as RuntimeAppPublic>::Signature>::as_aura_seal(s)
+                    .is_none()
+            );
+
+            I::execute_block(Block::new(header, extrinsics));
+        }
+    }
+}
+
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
-    BlockExecutor = Executive,
+    BlockExecutor = BlockExecutor<Runtime, Executive>,
 }
 
 parameter_types! {
