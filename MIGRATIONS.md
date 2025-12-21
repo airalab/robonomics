@@ -6,8 +6,8 @@ This guide explains how to upgrade your Robonomics node to **version 4.x**.
 
 Download the official v4.0 binary from GitHub:
 
-* **Release:** `v4.0.0`
-* Link: [https://github.com/airalab/robonomics/releases/tag/v4.0.0](https://github.com/airalab/robonomics/releases/tag/v4.0.0)
+* **Release:** `v4.0.4`
+* Link: [https://github.com/airalab/robonomics/releases/tag/v4.0.4](https://github.com/airalab/robonomics/releases/tag/v4.0.4)
 
 Replace your existing node binary with the new one.
 
