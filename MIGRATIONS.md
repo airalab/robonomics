@@ -43,7 +43,7 @@ To generate session keys:
    ```
    curl -H "Content-Type: application/json" \
      -d '{"id":1,"jsonrpc":"2.0","method":"author_rotateKeys","params":[]}' \
-     http://127.0.0.1:9933
+     http://127.0.0.1:9944
    ```
 2. The command returns a hex-encoded public key bundle.
 3. Copy this value and store it — you will need it for on-chain registration.
@@ -58,16 +58,30 @@ Restart the node after generating the keys to ensure they are active.
 
 ## 5. Register Your Collator On-Chain
 
-Once the node is running with the new session keys, you must register (or re-register) your collator in the **Collator Selection pallet**.
+Once the node is running with the new session keys, you must provide the session keys (which you generated earlier) and register your collator in the **Collator Selection pallet**.
 
 Typical steps:
 
-1. Use your collator account (the controller account).
-2. Submit the extrinsic:
+1. Prepare your collator account (the controller account):
+
+   Use the account you intend to register as collator (this is the **controller** account).  
+   Import it using the **seed phrase** from the keystore file generated in **Step 4** (default location: `<your-base-path>/keystore` or `<your-base-path>/chains/<chain-name>/keystore`).
+
+2. First Submit the extrinsic:
+
+   ```
+   session.setKeys(keys, proof)
+   ```
+   
+   - In the **"keys"** field paste the full hex string from `author_rotateKeys` (the one you generated earlier).
+
+   - In the **"proof"** field enter `0x00` (or "space" key).
+
+3. Then Submit the extrinsic:
 
    ```
    collatorSelection.registerAsCandidate()
    ```
-3. Provide the session keys you generated earlier.
+
 4. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
 
