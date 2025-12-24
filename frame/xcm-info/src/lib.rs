@@ -79,13 +79,13 @@ pub use pallet::*;
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
+    use frame_support::traits::StorageVersion;
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
     use xcm::latest::prelude::*;
 
     /// The current storage version
-    const STORAGE_VERSION: frame_support::traits::StorageVersion =
-        frame_support::traits::StorageVersion::new(1);
+    pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     /// Configuration trait for the XCM Info pallet.
     ///
@@ -337,9 +337,7 @@ mod tests {
             ));
 
             // Check that event was emitted
-            System::assert_has_event(
-                Event::RelayNetworkChanged(NetworkId::Polkadot).into()
-            );
+            System::assert_has_event(Event::RelayNetworkChanged(NetworkId::Polkadot).into());
         })
     }
 
@@ -423,9 +421,7 @@ mod tests {
             ));
 
             // Check that event was emitted
-            System::assert_has_event(
-                Event::AssetLinkAdded(asset_id, location).into()
-            );
+            System::assert_has_event(Event::AssetLinkAdded(asset_id, location).into());
         })
     }
 
@@ -573,7 +569,7 @@ mod tests {
             assert_eq!(XcmInfo::assetid_of(&location_2), Some(asset_id));
 
             // Note: This demonstrates expected behavior - location_1 -> asset_id mapping
-            // still exists in AssetIdOf storage. The extrinsic doesn't clean up old 
+            // still exists in AssetIdOf storage. The extrinsic doesn't clean up old
             // reverse mappings to avoid expensive storage scans. If this becomes an issue,
             // consider using a migration to clean up stale mappings or implementing a
             // dedicated removal extrinsic.

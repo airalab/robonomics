@@ -18,19 +18,12 @@
 //! Storage migrations for pallet-xcm-info
 
 use super::*;
-use frame_support::{
-    pallet_prelude::*,
-    traits::{OnRuntimeUpgrade, StorageVersion},
-    weights::Weight,
-};
+use frame_support::{pallet_prelude::*, traits::OnRuntimeUpgrade, weights::Weight};
 
 #[cfg(feature = "try-runtime")]
 use parity_scale_codec::{Decode, Encode};
 #[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
-
-/// The current storage version
-pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 /// Migration from v3::MultiLocation to v5::Location
 pub mod v1 {

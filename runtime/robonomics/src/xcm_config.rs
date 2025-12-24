@@ -26,9 +26,9 @@ use frame_support::{
     traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess},
     weights::Weight,
 };
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
-use polkadot_parachain_primitives::primitives::Sibling;
 
 // Polkadot imports
 use xcm::latest::prelude::*;
@@ -102,10 +102,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
 >;
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (
-    CurrencyTransactor,
-    FungiblesTransactor,
-);
+pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
