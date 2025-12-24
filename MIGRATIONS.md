@@ -62,11 +62,7 @@ Once the node is running with the new session keys, you must provide the session
 
 Typical steps:
 
-1. Prepare your collator account (the controller account):
-
-   Use the account you intend to register as collator (this is the **controller** account).  
-   Import it using the **seed phrase** from the keystore file generated in **Step 4**  
-   (default location: `<your-base-path>/keystore` or `<your-base-path>/chains/<chain-name>/keystore`).
+1. Use your collator account (the controller account).
 
 2. First Submit the extrinsic:
 
