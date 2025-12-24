@@ -85,6 +85,6 @@ Typical steps:
    ```
    collatorSelection.registerAsCandidate()
    ```
-   **Requirement:** The collator account needs **> 32 XRT** in free balance to register as a candidate.
+   **Requirement:** The collator account needs **> 32 XRT** free balance to register as a candidate.
 
 3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
