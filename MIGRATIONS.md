@@ -47,28 +47,30 @@ To generate session keys:
    ```
 2. The command returns a hex-encoded public key bundle.
 3. Copy this value and store it — you will need it for on-chain registration.
-4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).
-   If needed, you can manually insert keys using:
+4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).    
+   You can verify this using the following command:
 
    ```
-   author_insertKey
+   curl --silent --location --request POST 'http://localhost:9944' \
+   --header 'Content-Type: application/json' \
+   --data-raw '{
+    "jsonrpc": "2.0",
+    "method": "author_hasSessionKeys",
+    "params": ["'"ROTATE_KEYS_RESULT"'"],
+    "id": 1
+   }' | jq
    ```
+   NOTE: Replace `ROTATE_KEYS_RESULT` with the hex-encoded public key you just received from `author_rotateKeys`.
 
 Restart the node after generating the keys to ensure they are active.
 
 ## 5. Register Your Collator On-Chain
 
-Once the node is running with the new session keys, you must provide the session keys (which you generated earlier) and register your collator in the **Collator Selection pallet**.
+Once the node is running with the new session keys, you must register your collator.
 
 Typical steps:
 
-1. Prepare your collator account (the controller account):
-
-   Use the account you intend to register as collator (this is the **controller** account).  
-   Import it using the **seed phrase** from the keystore file generated in **Step 4**  
-   (default location: `<your-base-path>/keystore` or `<your-base-path>/chains/<chain-name>/keystore`).
-
-2. First Submit the extrinsic:
+1. Submit the extrinsic using your pre-generated collator account:
 
    ```
    session.setKeys(keys, proof)
@@ -76,13 +78,12 @@ Typical steps:
    
    - In the **"keys"** field paste the full hex string from `author_rotateKeys` (the one you generated earlier).
 
-   - In the **"proof"** field enter `0x00` (or "space" key).
+   - In the **"proof"** field you can enter "spacebar" key.
 
-3. Then Submit the extrinsic:
+2. Then Submit the extrinsic:
 
    ```
    collatorSelection.registerAsCandidate()
    ```
 
-4. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
-
+3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
