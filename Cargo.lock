@@ -8139,22 +8139,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-state-trie-migration"
-version = "48.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec3fffb516a1425627e207517e7cf3518ef8f09ae6886d22d67d27132e606d21"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-sudo"
 version = "43.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11186,7 +11170,6 @@ dependencies = [
  "pallet-robonomics-rws",
  "pallet-scheduler",
  "pallet-session",
- "pallet-state-trie-migration",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",

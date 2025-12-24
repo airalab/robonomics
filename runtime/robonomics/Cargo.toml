@@ -43,7 +43,6 @@ frame-metadata-hash-extension.workspace = true
 pallet-identity.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
-pallet-state-trie-migration.workspace = true
 pallet-treasury.workspace = true
 pallet-membership.workspace = true
 pallet-migrations.workspace = true
@@ -199,7 +198,6 @@ try-runtime = [
   "pallet-migrations/try-runtime",
   "pallet-multisig/try-runtime",
   "pallet-session/try-runtime",
-  "pallet-state-trie-migration/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
   "pallet-utility/try-runtime",
