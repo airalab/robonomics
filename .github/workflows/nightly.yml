@@ -32,24 +32,12 @@ jobs:
     strategy:
       matrix:
         platform:
-          - os-name: Ubuntu-x86_64
-            runs-on: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os-name: Alpine-x86_64
+          - os-name: Linux-x86_64
             runs-on: ubuntu-latest
             target: x86_64-unknown-linux-musl
-          - os-name: Ubuntu-aarch64
-            runs-on: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-          - os-name: Alpine-aarch64
+          - os-name: Linux-aarch64
             runs-on: ubuntu-latest
             target: aarch64-unknown-linux-musl
-          - os-name: Linux-riscv64
-            runs-on: ubuntu-latest
-            target: riscv64gc-unknown-linux-gnu
-          - os-name: Windows-x86_64
-            runs-on: windows-latest
-            target: x86_64-pc-windows-msvc
           - os-name: macOS-x86_64
             runs-on: macOS-latest
             target: x86_64-apple-darwin
@@ -57,6 +45,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Protoc
+        if: ${{ matrix.platform.runs-on != 'ubuntu-latest' }}
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,17 +54,14 @@ jobs:
         with:
           command: build
           toolchain: "1.88.0"
+          force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           use-rust-cache: true
+          strip: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           target: ${{ matrix.platform.target }}
           args: "--locked --profile production"
-          strip: true
-      - name: Set artifact name
-        env:
-          TARGET: ${{ matrix.platform.target }}
-        run: echo "::set-output name=name::robonomics-${TARGET%%-*}"
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifact-name.outputs.name }}
+          name: robonomics-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/production/robonomics
 
   docker:

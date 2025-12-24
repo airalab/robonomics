@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 43,
+    spec_version: 41,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -537,7 +537,7 @@ construct_runtime! {
         Timestamp: pallet_timestamp = 12,
         Multisig: pallet_multisig = 15,
         MultiBlockMigrations: pallet_migrations = 16,
-        StateTrieMigration: pallet_state_trie_migration = 17,
+        // Ex: StateTrieMigration: pallet_state_trie_migration = 17,
 
         // Parachain systems.
         ParachainSystem: cumulus_pallet_parachain_system = 21,
@@ -627,103 +627,9 @@ pub type Executive = frame_executive::Executive<
 >;
 
 /// Migrations to apply on runtime upgrade.
-pub type Migrations = (
-    pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-    // XCM migrations
-    pallet_xcm_info::migration::v1::MigrateToV1<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-    pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-    InitMigrationStorage,
-    // permanent
-);
-
-pub struct InitMigrationStorage;
-impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
-    fn on_runtime_upgrade() -> Weight {
-        use sp_core::crypto::Ss58Codec;
-        use sp_keyring::Sr25519Keyring;
-
-        // setup sudo
-        if let Ok(sudo_key) =
-            AccountId::from_ss58check("5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF")
-        {
-            let _ = Sudo::set_key(RuntimeOrigin::root(), sudo_key.into());
-        }
-
-        // setup collators
-        use pallet_collator_selection::{CandidacyBond, DesiredCandidates, Invulnerables};
-        let desired_candidates = 25;
-        let candidacy_bond = 32 * XRT;
-        let invulnerables: Vec<AccountId> = vec![
-            Sr25519Keyring::Alice.to_account_id(),
-            Sr25519Keyring::Bob.to_account_id(),
-        ];
-
-        let bounded_invulnerables: BoundedVec<
-            _,
-            <Runtime as pallet_collator_selection::Config>::MaxInvulnerables,
-        > = invulnerables
-            .clone()
-            .try_into()
-            .expect("genesis invulnerables are more than T::MaxInvulnerables");
-
-        DesiredCandidates::<Runtime>::put(desired_candidates);
-        CandidacyBond::<Runtime>::put(candidacy_bond);
-        Invulnerables::<Runtime>::put(bounded_invulnerables);
-
-        // Genesis init pallet_session
-        use pallet_session::{NextKeys, QueuedKeys, SessionHandler, SessionManager, Validators};
-
-        // insert genesis keys
-        NextKeys::<Runtime>::insert(
-            Sr25519Keyring::Alice.to_account_id(),
-            SessionKeys {
-                aura: Sr25519Keyring::Alice.public().into(),
-            },
-        );
-        NextKeys::<Runtime>::insert(
-            Sr25519Keyring::Bob.to_account_id(),
-            SessionKeys {
-                aura: Sr25519Keyring::Bob.public().into(),
-            },
-        );
-
-        // init validators
-        let initial_validators_0 =
-            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(0)
-                .unwrap_or_else(|| {
-                    frame_support::print(
-                        "No initial validator provided by `SessionManager`, use \
-                    session config keys to generate initial validator set.",
-                    );
-                    invulnerables
-                });
-
-        let initial_validators_1 =
-            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(1)
-                .unwrap_or_else(|| initial_validators_0.clone());
-
-        let queued_keys: Vec<_> = initial_validators_1
-            .into_iter()
-            .filter_map(|v| pallet_session::Pallet::<Runtime>::load_keys(&v).map(|k| (v, k)))
-            .collect();
-
-        <Runtime as pallet_session::Config>::SessionHandler::on_genesis_session::<
-            <Runtime as pallet_session::Config>::Keys,
-        >(&queued_keys);
-
-        Validators::<Runtime>::put(initial_validators_0);
-        QueuedKeys::<Runtime>::put(queued_keys);
-
-        <Runtime as pallet_session::Config>::SessionManager::start_session(0);
-
-        Default::default()
-    }
-}
+pub type Migrations = ();
 
 #[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
 extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -753,25 +659,6 @@ impl_runtime_apis! {
 
         fn initialize_block(header: &<Block as BlockT>::Header) -> sp_runtime::ExtrinsicInclusionMode {
             Executive::initialize_block(header)
-        }
-    }
-
-    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
-        fn can_build_upon(
-            included_hash: <Block as BlockT>::Hash,
-            slot: cumulus_primitives_aura::Slot,
-        ) -> bool {
-            ConsensusHook::can_build_upon(included_hash, slot)
-        }
-    }
-
-    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(MILLISECS_PER_BLOCK)
-        }
-
-        fn authorities() -> Vec<AuraId> {
-            pallet_aura::Authorities::<Runtime>::get().into_inner()
         }
     }
 
@@ -879,6 +766,24 @@ impl_runtime_apis! {
         }
     }
 
+    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
+        fn can_build_upon(
+            included_hash: <Block as BlockT>::Hash,
+            slot: cumulus_primitives_aura::Slot,
+        ) -> bool {
+            ConsensusHook::can_build_upon(included_hash, slot)
+        }
+    }
+
+    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> sp_consensus_aura::SlotDuration {
+            sp_consensus_aura::SlotDuration::from_millis(MILLISECS_PER_BLOCK)
+        }
+        fn authorities() -> Vec<AuraId> {
+            pallet_aura::Authorities::<Runtime>::get().into_inner()
+        }
+    }
+
     #[cfg(feature = "try-runtime")]
     impl frame_try_runtime::TryRuntime<Block> for Runtime {
         fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
@@ -951,34 +856,5 @@ impl_runtime_apis! {
 
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
-    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor<Runtime, Executive>,
-}
-
-parameter_types! {
-    // The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-    pub const MigrationSignedDepositPerItem: Balance = COASE;
-    pub const MigrationSignedDepositBase: Balance = 2_000 * COASE;
-    pub const MigrationMaxKeyLen: u32 = 512;
-}
-
-impl pallet_state_trie_migration::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type RuntimeHoldReason = RuntimeHoldReason;
-    type SignedDepositPerItem = MigrationSignedDepositPerItem;
-    type SignedDepositBase = MigrationSignedDepositBase;
-    // An origin that can control the whole pallet: should be Root, or a part of your council.
-    type ControlOrigin = frame_system::EnsureSignedBy<RootMigController, AccountId>;
-    // specific account for the migration, can trigger the signed migrations.
-    type SignedFilter = frame_system::EnsureSignedBy<MigController, AccountId>;
-
-    // Replace this with weight based on your runtime.
-    type WeightInfo = pallet_state_trie_migration::weights::SubstrateWeight<Runtime>;
-
-    type MaxKeyLen = MigrationMaxKeyLen;
-}
-
-frame_support::ord_parameter_types! {
-    pub const MigController: AccountId = AccountId::from(hex_literal::hex!("16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"));
-    pub const RootMigController: AccountId = AccountId::from(hex_literal::hex!("16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"));
+    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }

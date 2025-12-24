@@ -12,7 +12,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [workspace.package]
-version = "4.0.2"
+version = "4.0.4"
 edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
@@ -45,14 +45,6 @@ assert_cmd = "2.0.14"
 
 [build-dependencies]
 substrate-build-script-utils = { version = "11.0.0", default-features = true }
-
-[features]
-default = []
-runtime-benchmarks = [
-  "polkadot-omni-node-lib/runtime-benchmarks",
-  "robonomics-runtime/runtime-benchmarks",
-]
-try-runtime = ["polkadot-omni-node-lib/try-runtime"]
 
 [workspace]
 members = [
@@ -169,7 +161,6 @@ pallet-migrations = { version = "13.0.0", default-features = false }
 pallet-preimage = { version = "43.0.0", default-features = false }
 pallet-scheduler = { version = "44.0.0", default-features = false }
 pallet-session = { version = "43.0.0", default-features = false }
-pallet-state-trie-migration = { version = "48.0.0", default-features = false }
 pallet-treasury = { version = "42.0.0", default-features = false }
 pallet-utility = { version = "43.0.0", default-features = false }
 pallet-vesting = { version = "43.0.0", default-features = false }

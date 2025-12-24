@@ -22,11 +22,13 @@
 use super::*;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
-use xcm::latest::prelude::*;
+use sp_std::prelude::*;
 
 #[benchmarks]
 mod benchmarks {
     use super::*;
+    use xcm::opaque::v3::MultiLocation;
+    use xcm::v5::NetworkId;
 
     #[benchmark]
     fn set_relay_network() {
