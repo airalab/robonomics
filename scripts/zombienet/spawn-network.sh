@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet"
+ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet-linux-x64"
 CONFIG_FILE="${SCRIPT_DIR}/robonomics-local.toml"
 
 log_info() {

@@ -20,8 +20,8 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Configuration
 ZOMBIENET_VERSION="v1.3.106"
-POLKADOT_VERSION="stable2509-2"
-ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet"
+POLKADOT_VERSION="stable2512"
+ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet-linux-x64"
 POLKADOT_BIN="${SCRIPT_DIR}/bin/polkadot"
 POLKADOT_PARACHAIN_BIN="${SCRIPT_DIR}/bin/polkadot-parachain"
 # Check for production profile binary first, fall back to release
@@ -105,42 +105,28 @@ setup_environment() {
         platform="linux-x64"
     fi
     
-    # Download zombienet if not present
+    # Check if zombienet binary exists 
     if [ ! -f "$ZOMBIENET_BIN" ]; then
-        log_info "Downloading zombienet ${ZOMBIENET_VERSION} for ${platform}..."
-        local zombienet_url="https://github.com/paritytech/zombienet/releases/download/${ZOMBIENET_VERSION}/zombienet-${platform}"
-        download_if_missing "$zombienet_url" "$ZOMBIENET_BIN"
+        log_error "Zombienet binary not found at ${ZOMBIENET_BIN}"
+        exit 1
     fi
     
-    # Download polkadot if not present
-    # Note: The polkadot binary from releases is universal (works on Linux and macOS)
+    # Check if Polkadot binary exists 
     if [ ! -f "$POLKADOT_BIN" ]; then
-        log_info "Downloading polkadot ${POLKADOT_VERSION}..."
-        local polkadot_url="https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot"
-        download_if_missing "$polkadot_url" "$POLKADOT_BIN"
+        log_error "Polkadot binary not found at ${POLKADOT_BIN}"
+        exit 1
     fi
     
-    # Download polkadot-parachain for AssetHub if not present
+    # Check if polkadot-parachain binary exists 
     if [ ! -f "$POLKADOT_PARACHAIN_BIN" ]; then
-        log_info "Downloading polkadot-parachain ${POLKADOT_VERSION}..."
-        local polkadot_parachain_url="https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot-parachain"
-        download_if_missing "$polkadot_parachain_url" "$POLKADOT_PARACHAIN_BIN"
+        log_error "polkadot-parachain binary not found at ${POLKADOT_PARACHAIN_BIN}"
+        exit 1
     fi
     
     # Check if robonomics binary exists
     if [ ! -f "$ROBONOMICS_BIN" ]; then
-        log_warn "Robonomics binary not found at ${ROBONOMICS_BIN}"
-        log_info "Building robonomics with production profile..."
-        cd "$PROJECT_ROOT"
-        cargo build --profile production
-        
-        # Update binary path after build
-        ROBONOMICS_BIN="${PROJECT_ROOT}/target/production/robonomics"
-        
-        if [ ! -f "$ROBONOMICS_BIN" ]; then
-            log_error "Failed to build robonomics binary"
-            exit 1
-        fi
+        log_error "Robonomics binary not found at ${ROBONOMICS_BIN}"
+        exit 1
     fi
     
     log_info "Robonomics binary: ${ROBONOMICS_BIN}"

@@ -25,47 +25,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y pkg-config protobuf-compiler
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
+      - name: Build Robonomics binary
+        uses: houseabsolute/actions-rust-cross@v1
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          command: build
+          toolchain: "1.88.0"
+          force-use-cross: true
+          use-rust-cache: true
+          strip: true
+          target: x86_64-unknown-linux-musl
+          args: "--locked --profile production"
 
-      - name: Build Robonomics
-        run: cargo build --profile production
+      - name: Download polkadot binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/polkadot-sdk" 
+          tag: "polkadot-stable2512"
+          fileName: "polkadot"
+          out-file-path: "scripts/zombienet/bin"
 
-      - name: Install Polkadot binaries
-        run: |
-          POLKADOT_VERSION="stable2509-2"
-          
-          # Download polkadot binary
-          wget -q https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot || exit 1
-          chmod +x polkadot
-          sudo mv polkadot /usr/local/bin/
-          
-          # Download polkadot-parachain binary
-          wget -q https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-${POLKADOT_VERSION}/polkadot-parachain || exit 1
-          chmod +x polkadot-parachain
-          sudo mv polkadot-parachain /usr/local/bin/
-          
-          # Verify installations
-          polkadot --version
-          polkadot-parachain --version
+      - name: Download polkadot-parachain binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/polkadot-sdk" 
+          tag: "polkadot-stable2512"
+          fileName: "polkadot-parachain"
+          out-file-path: "scripts/zombienet/bin"
+
+      - name: Download zombienet binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/zombienet" 
+          tag: "v1.3.138"
+          fileName: "zombienet-linux-x64"
+          out-file-path: "scripts/zombienet/bin"
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -81,9 +74,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Run Zombienet integration tests
-        run: |
-          cd scripts/zombienet
-          ./run-tests.sh
+        run: cd scripts/zombienet && ./run-tests.sh
 
       - name: Upload test artifacts on failure
         if: failure()
