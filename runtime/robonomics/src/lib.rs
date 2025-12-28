@@ -28,7 +28,7 @@ extern crate alloc;
 
 use cumulus_primitives_core::AggregateMessageOrigin;
 use frame_support::{
-    construct_runtime, derive_impl,
+    derive_impl,
     dispatch::DispatchClass,
     genesis_builder_helper::{build_state, get_preset},
     parameter_types,
@@ -61,6 +61,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use xcm::latest::prelude::Location;
 
 mod common;
 use common::{currency::*, time::*, *};
@@ -506,6 +507,34 @@ impl pallet_robonomics_liability::Config for Runtime {
 }
 
 parameter_types! {
+    /// MultiLocation of Robonomics native token (XRT) as foreign asset on Asset Hub.
+    /// This should be updated to match the actual foreign asset ID assigned on Asset Hub.
+    /// Format: Location::new(1, [Parachain(ROBONOMICS_PARA_ID), GeneralIndex(FOREIGN_ASSET_ID)])
+    pub ForeignAssetLocation: Location = Location::new(
+        1,
+        [
+            xcm::latest::prelude::Parachain(2048),  // Robonomics parachain ID
+            xcm::latest::prelude::GeneralIndex(0),   // Placeholder - update with actual foreign asset ID
+        ],
+    );
+    
+    /// Asset Hub location (typically Parachain 1000 on Kusama, 1001 on Polkadot).
+    pub AssetHubLocation: Location = Location::new(1, [xcm::latest::prelude::Parachain(1000)]);
+    
+    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
+    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
+    pub const XcmFeeAmount: u128 = 10_000_000_000;
+}
+
+impl pallet_wrapped_native::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type NativeCurrency = Balances;
+    type ForeignAssetLocation = ForeignAssetLocation;
+    type AssetHubLocation = AssetHubLocation;
+    type XcmFeeAmount = XcmFeeAmount;
+}
+
+parameter_types! {
     pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -613,6 +642,9 @@ mod runtime {
 
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
+
+    #[runtime::pallet_index(57)]
+    pub type WrappedNative = pallet_wrapped_native;
 
     //
     // XCM support pallets.

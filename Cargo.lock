@@ -10181,6 +10181,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
+ "pallet-wrapped-native",
  "pallet-xcm",
  "pallet-xcm-info",
  "parity-scale-codec",
