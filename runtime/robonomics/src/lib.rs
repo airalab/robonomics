@@ -28,7 +28,7 @@ extern crate alloc;
 
 use cumulus_primitives_core::AggregateMessageOrigin;
 use frame_support::{
-    construct_runtime, derive_impl,
+    derive_impl,
     dispatch::DispatchClass,
     genesis_builder_helper::{build_state, get_preset},
     parameter_types,
