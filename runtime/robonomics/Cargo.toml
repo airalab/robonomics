@@ -67,6 +67,7 @@ pallet-robonomics-digital-twin.workspace = true
 pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
+pallet-wrapped-native.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -142,6 +143,7 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
+  "pallet-wrapped-native/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -177,6 +179,7 @@ runtime-benchmarks = [
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
+  "pallet-wrapped-native/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
