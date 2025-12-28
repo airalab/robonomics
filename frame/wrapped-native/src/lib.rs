@@ -86,6 +86,7 @@ pub mod pallet {
         },
     };
     use frame_system::pallet_prelude::*;
+    use parity_scale_codec::Encode;
     use sp_runtime::{traits::Zero, Saturating};
     use sp_std::prelude::*;
     use xcm::latest::prelude::*;
@@ -266,7 +267,10 @@ pub mod pallet {
                     weight_limit: Unlimited,
                 },
                 DepositAsset {
-                    assets: Wild(All),
+                    assets: Wild(AllOf {
+                        id: AssetId(foreign_asset_location),
+                        fun: WildFungibility::Fungible,
+                    }),
                     beneficiary: destination.clone(),
                 },
             ]);
@@ -312,7 +316,7 @@ pub mod pallet {
             let amount_balance = Self::u128_to_balance(amount)?;
 
             // Mint native tokens to beneficiary
-            let _ = T::NativeCurrency::deposit_creating(&beneficiary, amount_balance);
+            let _imbalance = T::NativeCurrency::deposit_creating(&beneficiary, amount_balance);
 
             // Increment TotalWrapped
             TotalWrapped::<T>::mutate(|total| {
