@@ -47,6 +47,7 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot, EnsureSigned,
 };
+use hex_literal::hex;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
@@ -58,10 +59,11 @@ use sp_runtime::{
     BoundedVec, FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
+use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use xcm::latest::prelude::Location;
 
 mod common;
 use common::{currency::*, time::*, *};
@@ -507,20 +509,18 @@ impl pallet_robonomics_liability::Config for Runtime {
 }
 
 parameter_types! {
-    /// MultiLocation of Robonomics native token (XRT) as foreign asset on Asset Hub.
-    /// This should be updated to match the actual foreign asset ID assigned on Asset Hub.
-    /// Format: Location::new(1, [Parachain(ROBONOMICS_PARA_ID), GeneralIndex(FOREIGN_ASSET_ID)])
+    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
     pub ForeignAssetLocation: Location = Location::new(
-        1,
+        2,
         [
-            xcm::latest::prelude::Parachain(2048),  // Robonomics parachain ID
-            xcm::latest::prelude::GeneralIndex(0),   // Placeholder - update with actual foreign asset ID
+            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
+            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
         ],
     );
-    
-    /// Asset Hub location (typically Parachain 1000 on Kusama, 1001 on Polkadot).
-    pub AssetHubLocation: Location = Location::new(1, [xcm::latest::prelude::Parachain(1000)]);
-    
+
+    /// Asset Hub location
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+
     /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
     /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
     pub const XcmFeeAmount: u128 = 10_000_000_000;
@@ -624,6 +624,9 @@ mod runtime {
     #[runtime::pallet_index(34)]
     pub type Assets = pallet_assets;
 
+    #[runtime::pallet_index(35)]
+    pub type WrappedXRT = pallet_wrapped_native;
+
     //
     // Robonomics Network pallets.
     //
@@ -642,9 +645,6 @@ mod runtime {
 
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
-
-    #[runtime::pallet_index(57)]
-    pub type WrappedNative = pallet_wrapped_native;
 
     //
     // XCM support pallets.
@@ -942,7 +942,6 @@ impl_runtime_apis! {
             use frame_benchmarking::BenchmarkBatch;
             use frame_support::traits::TrackedStorageKey;
             use frame_system_benchmarking::Pallet as SystemBench;
-            use hex_literal::hex;
 
             #[allow(non_local_definitions)]
             impl frame_system_benchmarking::Config for Runtime {}
