@@ -38,7 +38,7 @@ fn test_successful_unwrap() {
         assert_eq!(WrappedNative::total_wrapped(), 100);
 
         // Verify event emitted
-        System::assert_last_event(
+        System::assert_has_event(
             Event::NativeUnwrapped {
                 who: ALICE,
                 amount: 100,
