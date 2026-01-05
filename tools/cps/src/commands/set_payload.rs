@@ -28,14 +28,13 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
-use sp_core::Pair;
 
 pub async fn execute(
     config: &Config,
     cypher: Option<&Cypher>,
     node_id: u64,
     data: String,
-    encrypt: bool,
+    receiver_public: Option<Vec<u8>>,
 ) -> Result<()> {
     // CLI display: show connection progress
     display::tree::progress("Connecting to blockchain...");
@@ -47,27 +46,12 @@ pub async fn execute(
     display::tree::info(&format!("Updating payload for node {node_id}"));
 
     // Convert data to NodeData, applying encryption if requested
-    let payload_data = if encrypt {
+    let payload_data = if let Some(ref receiver_pub) = receiver_public {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
         display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));
+        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
         
-        // Get own public key for encryption
-        let own_public = match cypher.scheme() {
-            libcps::crypto::CryptoScheme::Sr25519 => {
-                let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
-                let pair = sp_core::sr25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse keypair: {:?}", e))?;
-                pair.public().0.to_vec()
-            }
-            libcps::crypto::CryptoScheme::Ed25519 => {
-                let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
-                let pair = sp_core::ed25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse keypair: {:?}", e))?;
-                pair.public().0.to_vec()
-            }
-        };
-        
-        let encrypted_bytes = cypher.encrypt(data.as_bytes(), &own_public)?;
+        let encrypted_bytes = cypher.encrypt(data.as_bytes(), receiver_pub)?;
         NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm())
     } else {
         NodeData::from(data)

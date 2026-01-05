@@ -97,9 +97,9 @@ enum Commands {
         #[arg(long)]
         payload: Option<String>,
 
-        /// Encrypt the data
+        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, data will be encrypted.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
@@ -118,9 +118,9 @@ enum Commands {
         /// New metadata
         data: String,
 
-        /// Encrypt the data
+        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, data will be encrypted.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
@@ -139,9 +139,9 @@ enum Commands {
         /// New payload
         data: String,
 
-        /// Encrypt the data
+        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, data will be encrypted.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
@@ -186,9 +186,9 @@ enum MqttCommands {
         /// Node ID to update
         node_id: u64,
 
-        /// Encrypt messages before storing
+        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, messages will be encrypted.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
@@ -241,7 +241,7 @@ async fn main() -> Result<()> {
                     suri,
                     libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Auto-detect from encrypted data
                     scheme,
-                ))
+                )?)
             } else {
                 None
             };
@@ -251,16 +251,23 @@ async fn main() -> Result<()> {
             parent,
             meta,
             payload,
-            encrypt,
+            receiver_public,
             cipher,
             scheme,
         } => {
+            // Parse receiver public key if provided
+            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
+                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            } else {
+                None
+            };
+
             // Create cypher if encryption is requested
-            let cypher = if encrypt {
+            let cypher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
             } else {
                 None
             };
@@ -270,23 +277,30 @@ async fn main() -> Result<()> {
                 parent,
                 meta,
                 payload,
-                encrypt,
+                receiver_pub_bytes,
             )
             .await?;
         }
         Commands::SetMeta {
             node_id,
             data,
-            encrypt,
+            receiver_public,
             cipher,
             scheme,
         } => {
+            // Parse receiver public key if provided
+            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
+                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            } else {
+                None
+            };
+
             // Create cypher if encryption is requested
-            let cypher = if encrypt {
+            let cypher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
             } else {
                 None
             };
@@ -295,23 +309,30 @@ async fn main() -> Result<()> {
                 cypher.as_ref(),
                 node_id,
                 data,
-                encrypt,
+                receiver_pub_bytes,
             )
             .await?;
         }
         Commands::SetPayload {
             node_id,
             data,
-            encrypt,
+            receiver_public,
             cipher,
             scheme,
         } => {
+            // Parse receiver public key if provided
+            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
+                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            } else {
+                None
+            };
+
             // Create cypher if encryption is requested
-            let cypher = if encrypt {
+            let cypher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
             } else {
                 None
             };
@@ -320,7 +341,7 @@ async fn main() -> Result<()> {
                 cypher.as_ref(),
                 node_id,
                 data,
-                encrypt,
+                receiver_pub_bytes,
             )
             .await?;
         }
@@ -337,16 +358,23 @@ async fn main() -> Result<()> {
             MqttCommands::Subscribe {
                 topic,
                 node_id,
-                encrypt,
+                receiver_public,
                 cipher,
                 scheme,
             } => {
+                // Parse receiver public key if provided
+                let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
+                    Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+                } else {
+                    None
+                };
+
                 // Create cypher if encryption is requested
-                let cypher = if encrypt {
+                let cypher = if receiver_public.is_some() {
                     let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                     let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                    Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+                    Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
                 } else {
                     None
                 };
@@ -356,7 +384,7 @@ async fn main() -> Result<()> {
                     &mqtt_config,
                     &topic,
                     node_id,
-                    encrypt,
+                    receiver_pub_bytes,
                 )
                 .await?;
             }

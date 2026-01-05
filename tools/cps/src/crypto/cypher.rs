@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Cypher configuration and encryption/decryption operations.
 //!
-//! This module provides the `Cypher` struct which encapsulates cryptographic
+//! This module provides the `Cypher` enum which encapsulates cryptographic
 //! configuration and operations, separating crypto concerns from blockchain config.
 
 use anyhow::{anyhow, Result};
@@ -25,14 +25,13 @@ use sp_core::Pair;
 
 /// Cypher configuration for encryption and decryption operations.
 ///
-/// This struct holds the cryptographic configuration including the secret key,
-/// algorithm, and scheme. It provides methods to encrypt and decrypt data.
+/// This enum holds the cryptographic keypair and algorithm. The keypair is
+/// created once during construction to avoid repeated parsing overhead.
 ///
-/// # Fields
+/// # Variants
 ///
-/// * `suri` - Secret URI for the keypair (required for crypto operations)
-/// * `algorithm` - The AEAD encryption algorithm to use
-/// * `scheme` - The cryptographic scheme (SR25519 or ED25519)
+/// * `Sr25519` - SR25519 keypair with encryption algorithm
+/// * `Ed25519` - ED25519 keypair with encryption algorithm
 ///
 /// # Examples
 ///
@@ -43,25 +42,34 @@ use sp_core::Pair;
 ///     "//Alice".to_string(),
 ///     EncryptionAlgorithm::XChaCha20Poly1305,
 ///     CryptoScheme::Sr25519,
-/// );
+/// ).unwrap();
 ///
 /// let plaintext = b"secret message";
 /// let receiver_public = &[0u8; 32]; // receiver's public key
 /// let encrypted = cypher.encrypt(plaintext, receiver_public).unwrap();
 /// let decrypted = cypher.decrypt(&encrypted, None).unwrap();
 /// ```
-#[derive(Clone)]
-pub struct Cypher {
-    /// Secret URI for the keypair (required)
-    suri: String,
-    /// Encryption algorithm
-    algorithm: crate::crypto::EncryptionAlgorithm,
-    /// Cryptographic scheme
-    scheme: crate::crypto::CryptoScheme,
+pub enum Cypher {
+    /// SR25519 cryptographic scheme
+    Sr25519 {
+        /// The keypair
+        pair: sp_core::sr25519::Pair,
+        /// Encryption algorithm
+        algorithm: crate::crypto::EncryptionAlgorithm,
+    },
+    /// ED25519 cryptographic scheme
+    Ed25519 {
+        /// The keypair
+        pair: sp_core::ed25519::Pair,
+        /// Encryption algorithm
+        algorithm: crate::crypto::EncryptionAlgorithm,
+    },
 }
 
 impl Cypher {
     /// Create a new Cypher configuration.
+    ///
+    /// The keypair is created once during construction to avoid repeated parsing overhead.
     ///
     /// # Arguments
     ///
@@ -69,37 +77,58 @@ impl Cypher {
     /// * `algorithm` - Encryption algorithm to use
     /// * `scheme` - Cryptographic scheme to use
     ///
+    /// # Returns
+    ///
+    /// Returns a Cypher instance with the parsed keypair
+    ///
+    /// # Errors
+    ///
+    /// Returns error if keypair parsing fails
+    ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use libcps::crypto::{Cypher, EncryptionAlgorithm, CryptoScheme};
     ///
     /// let cypher = Cypher::new(
     ///     "//Alice".to_string(),
     ///     EncryptionAlgorithm::XChaCha20Poly1305,
     ///     CryptoScheme::Sr25519,
-    /// );
+    /// ).unwrap();
     /// ```
     pub fn new(
         suri: String,
         algorithm: crate::crypto::EncryptionAlgorithm,
         scheme: crate::crypto::CryptoScheme,
-    ) -> Self {
-        Self {
-            suri,
-            algorithm,
-            scheme,
+    ) -> Result<Self> {
+        match scheme {
+            crate::crypto::CryptoScheme::Sr25519 => {
+                let pair = sp_core::sr25519::Pair::from_string(&suri, None)
+                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
+                Ok(Cypher::Sr25519 { pair, algorithm })
+            }
+            crate::crypto::CryptoScheme::Ed25519 => {
+                let pair = sp_core::ed25519::Pair::from_string(&suri, None)
+                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
+                Ok(Cypher::Ed25519 { pair, algorithm })
+            }
         }
     }
 
     /// Get the encryption algorithm.
     pub fn algorithm(&self) -> crate::crypto::EncryptionAlgorithm {
-        self.algorithm
+        match self {
+            Cypher::Sr25519 { algorithm, .. } => *algorithm,
+            Cypher::Ed25519 { algorithm, .. } => *algorithm,
+        }
     }
 
     /// Get the cryptographic scheme.
     pub fn scheme(&self) -> crate::crypto::CryptoScheme {
-        self.scheme
+        match self {
+            Cypher::Sr25519 { .. } => crate::crypto::CryptoScheme::Sr25519,
+            Cypher::Ed25519 { .. } => crate::crypto::CryptoScheme::Ed25519,
+        }
     }
 
     /// Encrypt data for a specific receiver.
@@ -121,7 +150,6 @@ impl Cypher {
     /// # Errors
     ///
     /// Returns error if:
-    /// - Keypair parsing fails
     /// - Receiver public key is invalid
     /// - Encryption fails
     pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8]) -> Result<Vec<u8>> {
@@ -130,30 +158,24 @@ impl Cypher {
             return Err(anyhow!("Invalid receiver public key length: expected 32 bytes, got {}", receiver_public.len()));
         }
 
-        match self.scheme {
-            crate::crypto::CryptoScheme::Sr25519 => {
-                let pair = sp_core::sr25519::Pair::from_string(&self.suri, None)
-                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-                
+        match self {
+            Cypher::Sr25519 { pair, algorithm } => {
                 // Parse receiver public key
                 let mut public_bytes = [0u8; 32];
                 public_bytes.copy_from_slice(receiver_public);
                 let receiver = sp_core::sr25519::Public::from_raw(public_bytes);
                 
                 // Call the existing encrypt function from encryption module
-                super::encryption::encrypt(plaintext, &pair, &receiver, self.algorithm)
+                super::encryption::encrypt(plaintext, pair, &receiver, *algorithm)
             }
-            crate::crypto::CryptoScheme::Ed25519 => {
-                let pair = sp_core::ed25519::Pair::from_string(&self.suri, None)
-                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-                
+            Cypher::Ed25519 { pair, algorithm } => {
                 // Parse receiver public key
                 let mut public_bytes = [0u8; 32];
                 public_bytes.copy_from_slice(receiver_public);
                 let receiver = sp_core::ed25519::Public::from_raw(public_bytes);
                 
                 // Call the existing encrypt function from encryption module
-                super::encryption::encrypt(plaintext, &pair, &receiver, self.algorithm)
+                super::encryption::encrypt(plaintext, pair, &receiver, *algorithm)
             }
         }
     }
@@ -172,16 +194,12 @@ impl Cypher {
     /// # Errors
     ///
     /// Returns error if:
-    /// - Keypair parsing fails
     /// - Expected sender public key is invalid
     /// - Decryption fails
     /// - Sender verification fails (if expected_sender provided)
     pub fn decrypt(&self, ciphertext: &[u8], expected_sender: Option<&[u8]>) -> Result<Vec<u8>> {
-        match self.scheme {
-            crate::crypto::CryptoScheme::Sr25519 => {
-                let pair = sp_core::sr25519::Pair::from_string(&self.suri, None)
-                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-
+        match self {
+            Cypher::Sr25519 { pair, .. } => {
                 // Convert expected_sender to proper type if provided
                 let expected_public = if let Some(sender_bytes) = expected_sender {
                     if sender_bytes.len() != 32 {
@@ -195,12 +213,9 @@ impl Cypher {
                 };
 
                 // Call the existing decrypt function from encryption module
-                super::encryption::decrypt(ciphertext, &pair, expected_public.as_ref())
+                super::encryption::decrypt(ciphertext, pair, expected_public.as_ref())
             }
-            crate::crypto::CryptoScheme::Ed25519 => {
-                let pair = sp_core::ed25519::Pair::from_string(&self.suri, None)
-                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-
+            Cypher::Ed25519 { pair, .. } => {
                 // Convert expected_sender to proper type if provided
                 let expected_public = if let Some(sender_bytes) = expected_sender {
                     if sender_bytes.len() != 32 {
@@ -214,7 +229,7 @@ impl Cypher {
                 };
 
                 // Call the existing decrypt function from encryption module
-                super::encryption::decrypt(ciphertext, &pair, expected_public.as_ref())
+                super::encryption::decrypt(ciphertext, pair, expected_public.as_ref())
             }
         }
     }
@@ -230,7 +245,7 @@ mod tests {
             "//Alice".to_string(),
             crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
             crate::crypto::CryptoScheme::Sr25519,
-        );
+        ).unwrap();
         
         assert_eq!(cypher.algorithm(), crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305);
         assert_eq!(cypher.scheme(), crate::crypto::CryptoScheme::Sr25519);
@@ -242,7 +257,7 @@ mod tests {
             "//Alice".to_string(),
             crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
             crate::crypto::CryptoScheme::Sr25519,
-        );
+        ).unwrap();
 
         // Get Alice's public key for self-encryption
         let pair = sp_core::sr25519::Pair::from_string("//Alice", None).unwrap();
@@ -261,7 +276,7 @@ mod tests {
             "//Alice".to_string(),
             crate::crypto::EncryptionAlgorithm::AesGcm256,
             crate::crypto::CryptoScheme::Ed25519,
-        );
+        ).unwrap();
 
         // Get Alice's public key for self-encryption
         let pair = sp_core::ed25519::Pair::from_string("//Alice", None).unwrap();
@@ -280,7 +295,7 @@ mod tests {
             "//Alice".to_string(),
             crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
             crate::crypto::CryptoScheme::Sr25519,
-        );
+        ).unwrap();
 
         let plaintext = b"test";
         let invalid_key = &[0u8; 16]; // Wrong length
