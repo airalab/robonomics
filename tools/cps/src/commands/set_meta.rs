@@ -21,12 +21,14 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 use sp_core::Pair;
 
 pub async fn execute(
     config: &Config,
+    cypher: Option<&Cypher>,
     node_id: u64,
     data: String,
     encrypt: bool,
@@ -41,10 +43,11 @@ pub async fn execute(
 
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if encrypt {
-        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", config.algorithm, config.scheme));
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
         
         // Get own public key for encryption
-        let own_public = match config.scheme {
+        let own_public = match cypher.scheme() {
             libcps::crypto::CryptoScheme::Sr25519 => {
                 let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
                 let pair = sp_core::sr25519::Pair::from_string(suri, None)
@@ -59,8 +62,8 @@ pub async fn execute(
             }
         };
         
-        let encrypted_bytes = config.encrypt(data.as_bytes(), &own_public)?;
-        NodeData::from_encrypted_bytes(encrypted_bytes, config.algorithm)
+        let encrypted_bytes = cypher.encrypt(data.as_bytes(), &own_public)?;
+        NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm())
     } else {
         NodeData::from(data)
     };

@@ -43,147 +43,19 @@
 use anyhow::{anyhow, Result};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::{sr25519::Keypair, SecretUri};
-use sp_core::Pair;
 
-/// Configuration for blockchain connection and encryption.
+/// Configuration for blockchain connection.
 ///
 /// # Fields
 ///
 /// * `ws_url` - WebSocket URL of the blockchain node (e.g., "ws://localhost:9944")
 /// * `suri` - Optional secret URI for account (e.g., "//Alice" or a seed phrase)
-/// * `algorithm` - Encryption algorithm to use (set once on node launch)
-/// * `scheme` - Cryptographic scheme to use (sr25519 or ed25519, set once on node launch)
 #[derive(Clone)]
 pub struct Config {
     /// WebSocket URL of the blockchain node
     pub ws_url: String,
     /// Optional secret URI for signing transactions
     pub suri: Option<String>,
-    /// Encryption algorithm (set once on node launch)
-    pub algorithm: crate::crypto::EncryptionAlgorithm,
-    /// Cryptographic scheme (set once on node launch)
-    pub scheme: crate::crypto::CryptoScheme,
-}
-
-impl Config {
-    /// Encrypt data using the configured algorithm and scheme.
-    ///
-    /// # Arguments
-    ///
-    /// * `plaintext` - The data to encrypt
-    /// * `receiver_public` - The recipient's public key for encryption
-    ///
-    /// # Returns
-    ///
-    /// Returns encrypted bytes in JSON format
-    ///
-    /// # Errors
-    ///
-    /// Returns error if:
-    /// - SURI is not configured
-    /// - Keypair parsing fails
-    /// - Encryption fails
-    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8]) -> Result<Vec<u8>> {
-        let suri = self
-            .suri
-            .as_ref()
-            .ok_or_else(|| anyhow!("SURI required for encryption"))?;
-
-        match self.scheme {
-            crate::crypto::CryptoScheme::Sr25519 => {
-                let pair = sp_core::sr25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-                
-                // Parse receiver public key
-                if receiver_public.len() != 32 {
-                    return Err(anyhow!("Invalid receiver public key length"));
-                }
-                let mut public_bytes = [0u8; 32];
-                public_bytes.copy_from_slice(receiver_public);
-                let receiver = sp_core::sr25519::Public::from_raw(public_bytes);
-                
-                crate::crypto::encrypt(plaintext, &pair, &receiver, self.algorithm)
-            }
-            crate::crypto::CryptoScheme::Ed25519 => {
-                let pair = sp_core::ed25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-                
-                // Parse receiver public key
-                if receiver_public.len() != 32 {
-                    return Err(anyhow!("Invalid receiver public key length"));
-                }
-                let mut public_bytes = [0u8; 32];
-                public_bytes.copy_from_slice(receiver_public);
-                let receiver = sp_core::ed25519::Public::from_raw(public_bytes);
-                
-                crate::crypto::encrypt(plaintext, &pair, &receiver, self.algorithm)
-            }
-        }
-    }
-
-    /// Decrypt data using the configured scheme.
-    ///
-    /// # Arguments
-    ///
-    /// * `ciphertext` - JSON-formatted encrypted data
-    /// * `expected_sender` - Optional sender public key for verification
-    ///
-    /// # Returns
-    ///
-    /// Returns decrypted plaintext bytes
-    ///
-    /// # Errors
-    ///
-    /// Returns error if:
-    /// - SURI is not configured
-    /// - Keypair parsing fails
-    /// - Decryption fails
-    /// - Sender verification fails (if expected_sender provided)
-    pub fn decrypt(&self, ciphertext: &[u8], expected_sender: Option<&[u8]>) -> Result<Vec<u8>> {
-        let suri = self
-            .suri
-            .as_ref()
-            .ok_or_else(|| anyhow!("SURI required for decryption"))?;
-
-        match self.scheme {
-            crate::crypto::CryptoScheme::Sr25519 => {
-                let pair = sp_core::sr25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-
-                // Convert expected_sender to proper type if provided
-                let expected_public = if let Some(sender_bytes) = expected_sender {
-                    if sender_bytes.len() != 32 {
-                        return Err(anyhow!("Invalid sender public key length"));
-                    }
-                    let mut arr = [0u8; 32];
-                    arr.copy_from_slice(sender_bytes);
-                    Some(sp_core::sr25519::Public::from_raw(arr))
-                } else {
-                    None
-                };
-
-                crate::crypto::decrypt(ciphertext, &pair, expected_public.as_ref())
-            }
-            crate::crypto::CryptoScheme::Ed25519 => {
-                let pair = sp_core::ed25519::Pair::from_string(suri, None)
-                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-
-                // Convert expected_sender to proper type if provided
-                let expected_public = if let Some(sender_bytes) = expected_sender {
-                    if sender_bytes.len() != 32 {
-                        return Err(anyhow!("Invalid sender public key length"));
-                    }
-                    let mut arr = [0u8; 32];
-                    arr.copy_from_slice(sender_bytes);
-                    Some(sp_core::ed25519::Public::from_raw(arr))
-                } else {
-                    None
-                };
-
-                crate::crypto::decrypt(ciphertext, &pair, expected_public.as_ref())
-            }
-        }
-    }
 }
 
 /// Blockchain client for interacting with Robonomics CPS pallet.

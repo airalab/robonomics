@@ -217,6 +217,12 @@ enum MqttCommands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Create blockchain config (crypto-free)
+    let blockchain_config = blockchain::Config {
+        ws_url: cli.ws_url.clone(),
+        suri: cli.suri.clone(),
+    };
+
     // Create MQTT config
     let mqtt_config = mqtt::Config {
         broker: cli.mqtt_broker.clone(),
@@ -228,14 +234,18 @@ async fn main() -> Result<()> {
     // Execute commands
     match cli.command {
         Commands::Show { node_id, decrypt, scheme } => {
-            // For show command, create config with scheme (algorithm not needed for decryption auto-detect)
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm: libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Default, not used for decrypt
-                scheme,
+            // Create cypher if decryption is requested
+            let cypher = if decrypt {
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
+                Some(libcps::crypto::Cypher::new(
+                    suri,
+                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Auto-detect from encrypted data
+                    scheme,
+                ))
+            } else {
+                None
             };
-            commands::show::execute(&config, node_id, decrypt).await?;
+            commands::show::execute(&blockchain_config, cypher.as_ref(), node_id, decrypt).await?;
         }
         Commands::Create {
             parent,
@@ -245,16 +255,18 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
-                .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm,
-                scheme,
+            // Create cypher if encryption is requested
+            let cypher = if encrypt {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+            } else {
+                None
             };
             commands::create::execute(
-                &config,
+                &blockchain_config,
+                cypher.as_ref(),
                 parent,
                 meta,
                 payload,
@@ -269,16 +281,18 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
-                .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm,
-                scheme,
+            // Create cypher if encryption is requested
+            let cypher = if encrypt {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+            } else {
+                None
             };
             commands::set_meta::execute(
-                &config,
+                &blockchain_config,
+                cypher.as_ref(),
                 node_id,
                 data,
                 encrypt,
@@ -292,16 +306,18 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
-                .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm,
-                scheme,
+            // Create cypher if encryption is requested
+            let cypher = if encrypt {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+            } else {
+                None
             };
             commands::set_payload::execute(
-                &config,
+                &blockchain_config,
+                cypher.as_ref(),
                 node_id,
                 data,
                 encrypt,
@@ -312,22 +328,10 @@ async fn main() -> Result<()> {
             node_id,
             new_parent_id,
         } => {
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm: libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Not used for move
-                scheme: libcps::crypto::CryptoScheme::Sr25519, // Not used for move
-            };
-            commands::move_node::execute(&config, node_id, new_parent_id).await?;
+            commands::move_node::execute(&blockchain_config, node_id, new_parent_id).await?;
         }
         Commands::Remove { node_id, force } => {
-            let config = blockchain::Config {
-                ws_url: cli.ws_url.clone(),
-                suri: cli.suri.clone(),
-                algorithm: libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Not used for remove
-                scheme: libcps::crypto::CryptoScheme::Sr25519, // Not used for remove
-            };
-            commands::remove::execute(&config, node_id, force).await?;
+            commands::remove::execute(&blockchain_config, node_id, force).await?;
         }
         Commands::Mqtt(mqtt_cmd) => match mqtt_cmd {
             MqttCommands::Subscribe {
@@ -337,16 +341,18 @@ async fn main() -> Result<()> {
                 cipher,
                 scheme,
             } => {
-                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
-                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-                let config = blockchain::Config {
-                    ws_url: cli.ws_url.clone(),
-                    suri: cli.suri.clone(),
-                    algorithm,
-                    scheme,
+                // Create cypher if encryption is requested
+                let cypher = if encrypt {
+                    let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                    let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                    Some(libcps::crypto::Cypher::new(suri, algorithm, scheme))
+                } else {
+                    None
                 };
                 commands::mqtt::subscribe(
-                    &config,
+                    &blockchain_config,
+                    cypher.as_ref(),
                     &mqtt_config,
                     &topic,
                     node_id,
@@ -359,14 +365,8 @@ async fn main() -> Result<()> {
                 node_id,
                 interval,
             } => {
-                let config = blockchain::Config {
-                    ws_url: cli.ws_url.clone(),
-                    suri: cli.suri.clone(),
-                    algorithm: libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Not used for publish
-                    scheme: libcps::crypto::CryptoScheme::Sr25519, // Not used for publish
-                };
                 commands::mqtt::publish(
-                    &config,
+                    &blockchain_config,
                     &mqtt_config,
                     &topic,
                     node_id,

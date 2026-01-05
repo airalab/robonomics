@@ -21,12 +21,14 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 use sp_core::Pair;
 
 pub async fn execute(
     config: &Config,
+    cypher: Option<&Cypher>,
     parent: Option<u64>,
     meta: Option<String>,
     payload: Option<String>,
@@ -54,10 +56,11 @@ pub async fn execute(
 
     // Convert strings to NodeData, applying encryption if requested
     let meta_data = if let (true, Some(m)) = (encrypt, meta) {
-        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", config.algorithm, config.scheme));
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
         
         // Get own public key for encryption (encrypting for self-storage)
-        let own_public = match config.scheme {
+        let own_public = match cypher.scheme() {
             libcps::crypto::CryptoScheme::Sr25519 => {
                 let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
                 let pair = sp_core::sr25519::Pair::from_string(suri, None)
@@ -72,19 +75,20 @@ pub async fn execute(
             }
         };
         
-        let encrypted_bytes = config.encrypt(m.as_bytes(), &own_public)?;
-        Some(NodeData::from_encrypted_bytes(encrypted_bytes, config.algorithm))
+        let encrypted_bytes = cypher.encrypt(m.as_bytes(), &own_public)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
     } else {
         meta.map(|m| NodeData::from(m))
     };
 
     let payload_data = if let (true, Some(p)) = (encrypt, payload) {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
         if meta_data.is_none() {
-            display::tree::info(&format!("🔐 Encrypting payload with {} using {}", config.algorithm, config.scheme));
+            display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));
         }
         
         // Get own public key for encryption (encrypting for self-storage)
-        let own_public = match config.scheme {
+        let own_public = match cypher.scheme() {
             libcps::crypto::CryptoScheme::Sr25519 => {
                 let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
                 let pair = sp_core::sr25519::Pair::from_string(suri, None)
@@ -99,8 +103,8 @@ pub async fn execute(
             }
         };
         
-        let encrypted_bytes = config.encrypt(p.as_bytes(), &own_public)?;
-        Some(NodeData::from_encrypted_bytes(encrypted_bytes, config.algorithm))
+        let encrypted_bytes = cypher.encrypt(p.as_bytes(), &own_public)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
     } else {
         payload.map(|p| NodeData::from(p))
     };

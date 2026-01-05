@@ -20,10 +20,12 @@
 use crate::display;
 use anyhow::Result;
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::Cypher;
 use libcps::mqtt;
 
 pub async fn subscribe(
     blockchain_config: &Config,
+    cypher: Option<&Cypher>,
     _mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
@@ -38,7 +40,9 @@ pub async fn subscribe(
     display::tree::info(&format!("Node: {node_id}"));
 
     if encrypt {
-        display::tree::info(&format!("🔐 Using encryption: {} with {}", blockchain_config.algorithm, blockchain_config.scheme));
+        if let Some(cypher) = cypher {
+            display::tree::info(&format!("🔐 Using encryption: {} with {}", cypher.algorithm(), cypher.scheme()));
+        }
     }
 
     display::tree::error(
