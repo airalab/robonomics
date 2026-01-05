@@ -18,13 +18,11 @@
 //! Show command implementation.
 
 use crate::display;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::{CryptoScheme, Decrypt};
 use libcps::node::Node;
-use libcps::types::NodeData;
 
-pub async fn execute(config: &Config, node_id: u64, decrypt: bool, scheme: CryptoScheme) -> Result<()> {
+pub async fn execute(config: &Config, node_id: u64, decrypt: bool) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
@@ -39,7 +37,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt: bool, scheme: Crypt
     // Try to decrypt if requested and data is encrypted
     let meta_str = if decrypt && node_info.meta.is_encrypted() {
         display::tree::info("🔓 Decrypting metadata...");
-        match config.decrypt(node_info.meta.as_bytes(), scheme, None) {
+        match config.decrypt(node_info.meta.as_bytes(), None) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
             Err(e) => {
                 display::tree::warning(&format!("Failed to decrypt metadata: {}", e));
@@ -52,7 +50,7 @@ pub async fn execute(config: &Config, node_id: u64, decrypt: bool, scheme: Crypt
 
     let payload_str = if decrypt && node_info.payload.is_encrypted() {
         display::tree::info("🔓 Decrypting payload...");
-        match config.decrypt(node_info.payload.as_bytes(), scheme, None) {
+        match config.decrypt(node_info.payload.as_bytes(), None) {
             Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
             Err(e) => {
                 display::tree::warning(&format!("Failed to decrypt payload: {}", e));

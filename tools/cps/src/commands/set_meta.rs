@@ -21,18 +21,15 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::{CryptoScheme, Encrypt, EncryptionAlgorithm};
 use libcps::node::Node;
 use libcps::types::NodeData;
-use std::str::FromStr;
+use sp_core::Pair;
 
 pub async fn execute(
     config: &Config,
     node_id: u64,
     data: String,
     encrypt: bool,
-    cipher: &str,
-    scheme: CryptoScheme,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -42,17 +39,28 @@ pub async fn execute(
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Updating metadata for node {node_id}"));
 
-    // Parse cipher algorithm
-    let algorithm = EncryptionAlgorithm::from_str(cipher)
-        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if encrypt {
-        display::tree::info(&format!("🔐 Encrypting metadata with {}", algorithm));
-        display::tree::info(&format!("🔑 Using scheme: {}", scheme));
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", config.algorithm, config.scheme));
         
-        let encrypted_bytes = config.encrypt(data.as_bytes(), algorithm, scheme)?;
-        NodeData::from_encrypted_bytes(encrypted_bytes, algorithm)
+        // Get own public key for encryption
+        let own_public = match config.scheme {
+            libcps::crypto::CryptoScheme::Sr25519 => {
+                let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
+                let pair = sp_core::sr25519::Pair::from_string(suri, None)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse keypair: {:?}", e))?;
+                pair.public().0.to_vec()
+            }
+            libcps::crypto::CryptoScheme::Ed25519 => {
+                let suri = config.suri.as_ref().ok_or_else(|| anyhow::anyhow!("SURI required"))?;
+                let pair = sp_core::ed25519::Pair::from_string(suri, None)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse keypair: {:?}", e))?;
+                pair.public().0.to_vec()
+            }
+        };
+        
+        let encrypted_bytes = config.encrypt(data.as_bytes(), &own_public)?;
+        NodeData::from_encrypted_bytes(encrypted_bytes, config.algorithm)
     } else {
         NodeData::from(data)
     };

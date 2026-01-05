@@ -19,11 +19,8 @@
 
 use crate::display;
 use anyhow::Result;
-use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
 use libcps::mqtt;
-use std::str::FromStr;
 
 pub async fn subscribe(
     blockchain_config: &Config,
@@ -31,103 +28,52 @@ pub async fn subscribe(
     topic: &str,
     node_id: u64,
     encrypt: bool,
-    cipher: &str,
-    keypair_type: libcps::crypto::KeypairType,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
     let _keypair = client.require_keypair()?;
 
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
-
-    // Parse cipher algorithm
-    let algorithm = EncryptionAlgorithm::from_str(cipher)
-        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+    display::tree::info(&format!("Topic: {topic}"));
+    display::tree::info(&format!("Node: {node_id}"));
 
     if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
-        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
+        display::tree::info(&format!("🔐 Using encryption: {} with {}", blockchain_config.algorithm, blockchain_config.scheme));
     }
 
-    display::tree::progress("Connecting to MQTT broker...");
+    display::tree::error(
+        "MQTT bridge not yet implemented. This requires:\n\
+         1. Connecting to MQTT broker\n\
+         2. Subscribing to topic\n\
+         3. On message received: encrypt if needed, update node payload\n\
+         4. Handle connection lifecycle",
+    );
 
-    // In a real implementation:
-    // use rumqttc::{AsyncClient, MqttOptions, QoS};
-    //
-    // let mut mqttoptions = MqttOptions::new(
-    //     mqtt_config.client_id.clone().unwrap_or_else(|| format!("cps-sub-{}", node_id)),
-    //     &mqtt_config.broker,
-    //     1883,
-    // );
-    //
-    // if let Some(username) = &mqtt_config.username {
-    //     mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
-    // }
-    //
-    // let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    // client.subscribe(topic, QoS::AtMostOnce).await?;
-    //
-    // println!("{} Connected to {}", "✅".green(), mqtt_config.broker.bright_white());
-    // println!("{} Subscribed to topic: {}", "📥".blue(), topic.bright_cyan());
-    // println!("{} Listening for messages...", "🔄".cyan());
-    //
-    // loop {
-    //     let notification = eventloop.poll().await?;
-    //     if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(p)) = notification {
-    //         let data = String::from_utf8_lossy(&p.payload);
-    //         println!("[{}] {} Received: {}",
-    //             chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-    //             "📨".bright_blue(),
-    //             data.bright_white()
-    //         );
-    //
-    //         // Submit to blockchain
-    //         let payload_data = if encrypt {
-    //             // Encrypt data here
-    //             NodeData::plain(data.as_bytes())
-    //         } else {
-    //             NodeData::plain(data.as_bytes())
-    //         };
-    //
-    //         let set_payload_call = robonomics::tx().cps().set_payload(
-    //             NodeId(node_id),
-    //             Some(payload_data),
-    //         );
-    //
-    //         client.api
-    //             .tx()
-    //             .sign_and_submit_then_watch_default(&set_payload_call, keypair)
-    //             .await?
-    //             .wait_for_finalized_success()
-    //             .await?;
-    //
-    //         println!("{} Updated node {} payload", "✅".green(), node_id);
-    //     }
-    // }
+    Err(anyhow::anyhow!("MQTT subscribe not implemented yet"))
+}
 
-    display::tree::error(&format!(
-        "MQTT bridge not fully implemented yet. This requires:\n\
-         1. A running Robonomics node with CPS pallet\n\
-         2. A running MQTT broker\n\
-         3. Generated subxt metadata\n\
-         \n\
-         Example usage would be:\n\
-         {}\n\
-         \n\
-         The bridge would:\n\
-         • Subscribe to MQTT topic {}\n\
-         • On each message, update node {} payload\n\
-         • {}",
-        format!(
-            "cps mqtt subscribe {} {} {}",
-            topic.bright_cyan(),
-            node_id,
-            if encrypt { "--encrypt" } else { "" }
-        )
-        .bright_green(),
-        topic.bright_cyan(),
-        node_id.to_string().bright_cyan(),
-        if encrypt {
+pub async fn publish(
+    _blockchain_config: &Config,
+    _mqtt_config: &mqtt::Config,
+    topic: &str,
+    node_id: u64,
+    interval: u64,
+) -> Result<()> {
+    display::tree::progress("Setting up MQTT publisher...");
+    display::tree::info(&format!("Topic: {topic}"));
+    display::tree::info(&format!("Node: {node_id}"));
+    display::tree::info(&format!("Interval: {}s", interval));
+
+    display::tree::error(
+        "MQTT publish not yet implemented. This requires:\n\
+         1. Connecting to MQTT broker\n\
+         2. Polling node payload\n\
+         3. Publishing changes to topic\n\
+         4. Handle connection lifecycle",
+    );
+
+    Err(anyhow::anyhow!("MQTT publish not implemented yet"))
+}
             "Encrypt messages before storing"
         } else {
             "Store messages as plain text"
