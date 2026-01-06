@@ -21,19 +21,17 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
-use std::str::FromStr;
 
 pub async fn execute(
     config: &Config,
+    cypher: Option<&Cypher>,
     parent: Option<u64>,
     meta: Option<String>,
     payload: Option<String>,
-    encrypt: bool,
-    cipher: &str,
-    keypair_type: libcps::crypto::KeypairType,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -46,16 +44,6 @@ pub async fn execute(
         hex::encode(keypair.public_key().0)
     ));
 
-    // Parse cipher algorithm
-    let algorithm = EncryptionAlgorithm::from_str(cipher)
-        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-
-    if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
-        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet implemented - creating plain data");
-    }
-
     if parent.is_some() {
         display::tree::info(&format!(
             "Creating child node under parent {}",
@@ -65,9 +53,30 @@ pub async fn execute(
         display::tree::info("Creating root node");
     }
 
-    // Convert strings to NodeData using From trait
-    let meta_data = meta.map(|m| NodeData::from(m));
-    let payload_data = payload.map(|p| NodeData::from(p));
+    // Convert strings to NodeData, applying encryption if requested
+    let meta_data = if let (Some(receiver_pub), Some(m)) = (receiver_public.as_ref(), meta) {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
+        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        
+        let encrypted_bytes = cypher.encrypt(m.as_bytes(), receiver_pub)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
+    } else {
+        meta.map(|m| NodeData::from(m))
+    };
+
+    let payload_data = if let (Some(receiver_pub), Some(p)) = (receiver_public.as_ref(), payload) {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        if meta_data.is_none() {
+            display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));
+            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        }
+        
+        let encrypted_bytes = cypher.encrypt(p.as_bytes(), receiver_pub)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
+    } else {
+        payload.map(|p| NodeData::from(p))
+    };
 
     display::tree::progress("Creating node...");
     let node = Node::create(&client, parent, meta_data, payload_data).await?;

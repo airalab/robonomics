@@ -25,25 +25,16 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
-use std::str::FromStr;
 
-/// Execute the set-payload command with CLI display output.
-///
-/// This function serves as a CLI wrapper that:
-/// - Handles user-facing progress messages and formatting
-/// - Parses and validates CLI arguments
-/// - Delegates business logic to libcps::node
-/// - Presents results with colored output and emojis
 pub async fn execute(
     config: &Config,
+    cypher: Option<&Cypher>,
     node_id: u64,
     data: String,
-    encrypt: bool,
-    cipher: &str,
-    keypair_type: libcps::crypto::KeypairType,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     // CLI display: show connection progress
     display::tree::progress("Connecting to blockchain...");
@@ -54,45 +45,27 @@ pub async fn execute(
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Updating payload for node {node_id}"));
 
-    // Parse cipher algorithm (CLI validation)
-    let algorithm = EncryptionAlgorithm::from_str(cipher)
-        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-
-    // CLI display: show encryption settings
-    if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
-        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet implemented - updating with plain data");
-    }
+    // Convert data to NodeData, applying encryption if requested
+    let payload_data = if let Some(receiver_pub) = receiver_public.as_ref() {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));
+        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        
+        let encrypted_bytes = cypher.encrypt(data.as_bytes(), receiver_pub)?;
+        NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm())
+    } else {
+        NodeData::from(data)
+    };
 
     // Create a Node handle and delegate to node operation (business logic)
     let node = Node::new(&client, node_id);
-    let payload_data = NodeData::from(data);
 
-    match node.set_payload(Some(payload_data)).await {
-        Ok(_events) => {
-            display::tree::success(&format!(
-                "Payload updated for node {}",
-                node_id.to_string().bright_cyan()
-            ));
-            Ok(())
-        }
-        Err(e) => {
-            // CLI display: present error nicely
-            display::tree::error(&format!(
-                "Extrinsic submission not implemented yet. Requires running node and metadata.\n\
-                 See {} command for details.",
-                "create".bright_cyan()
-            ));
-
-            println!("\n{}", "Example output (with live node):".bright_yellow());
-            display::tree::success(&format!(
-                "Payload updated for node {}",
-                node_id.to_string().bright_cyan()
-            ));
-
-            // Return actual error for debugging
-            Err(e)
-        }
-    }
+    let _events = node.set_payload(Some(payload_data)).await?;
+    
+    display::tree::success(&format!(
+        "Payload updated for node {}",
+        node_id.to_string().bright_cyan()
+    ));
+    
+    Ok(())
 }

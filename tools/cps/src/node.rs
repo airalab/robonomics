@@ -68,14 +68,13 @@
 //! ```
 
 use crate::blockchain::Client;
-use crate::types::NodeData;
+use crate::robonomics_runtime;
+use crate::types::{NodeData, NodeId as CpsNodeId};
 use anyhow::{anyhow, Result};
+use subxt::PolkadotConfig;
 
-/// Placeholder type for ExtrinsicEvents - will be replaced with actual subxt type when available.
-///
-/// Once the blockchain integration is implemented, this will be:
-/// `subxt::blocks::ExtrinsicEvents<PolkadotConfig>`
-pub type ExtrinsicEvents = (); // TODO: Replace with subxt::blocks::ExtrinsicEvents<PolkadotConfig>
+/// Type for extrinsic events from blockchain transactions.
+pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
 
 /// Information about a CPS node.
 #[derive(Debug, Clone)]
@@ -193,15 +192,44 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn create(
-        _client: &'a Client,
-        _parent: Option<u64>,
-        _meta: Option<NodeData>,
-        _payload: Option<NodeData>,
+        client: &'a Client,
+        parent: Option<u64>,
+        meta: Option<NodeData>,
+        payload: Option<NodeData>,
     ) -> Result<Self> {
-        // TODO: Implement actual node creation once metadata is available
-        Err(anyhow!(
-            "Node creation not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+        let keypair = client.require_keypair()?;
+
+        // Convert parent to NodeId type
+        let parent_id = parent.map(CpsNodeId);
+
+        // Build the create_node transaction
+        let create_call = robonomics_runtime::api::tx()
+            .cps()
+            .create_node(parent_id, meta, payload);
+
+        // Submit and watch the transaction
+        let events = client
+            .api
+            .tx()
+            .sign_and_submit_then_watch_default(&create_call, keypair)
+            .await
+            .map_err(|e| anyhow!("Failed to submit create_node transaction: {}", e))?
+            .wait_for_finalized_success()
+            .await
+            .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        // Extract the created node ID from the NodeCreated event
+        let node_created_event = events
+            .find_first::<robonomics_runtime::api::cps::events::NodeCreated>()
+            .map_err(|e| anyhow!("Failed to find NodeCreated event: {}", e))?
+            .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?;
+
+        let node_id = node_created_event.0 .0; // Extract u64 from NodeId(u64)
+
+        Ok(Self {
+            client,
+            id: node_id,
+        })
     }
 
     /// Query information about this node from the blockchain.
@@ -228,10 +256,48 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
-        // TODO: Implement actual blockchain query once metadata is available
-        Err(anyhow!(
-            "Node query not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+        // Query the node from storage
+        let node_id = CpsNodeId(self.id);
+        let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
+
+        let node = self
+            .client
+            .api
+            .storage()
+            .at_latest()
+            .await
+            .map_err(|e| anyhow!("Failed to fetch latest block: {}", e))?
+            .fetch(&nodes_query)
+            .await
+            .map_err(|e| anyhow!("Failed to query node storage: {}", e))?
+            .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
+
+        // Query children
+        let children_query = robonomics_runtime::api::storage().cps().nodes_by_parent(node_id);
+
+        let children = self
+            .client
+            .api
+            .storage()
+            .at_latest()
+            .await
+            .map_err(|e| anyhow!("Failed to fetch latest block for children: {}", e))?
+            .fetch(&children_query)
+            .await
+            .map_err(|e| anyhow!("Failed to query children: {}", e))?
+            .unwrap_or_default()
+            .iter()
+            .map(|id| id.0)
+            .collect();
+
+        Ok(NodeInfo {
+            id: self.id,
+            owner: node.owner.as_ref().to_vec(), // Convert AccountId32 to Vec<u8>
+            parent: node.parent.map(|p| p.0),
+            meta: node.meta.unwrap_or(NodeData::Plain(vec![])),
+            payload: node.payload.unwrap_or(NodeData::Plain(vec![])),
+            children,
+        })
     }
 
     /// Query information about this node from the blockchain (blocking).
@@ -272,11 +338,26 @@ impl<'a> Node<'a> {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn set_meta(&self, _meta: Option<NodeData>) -> Result<ExtrinsicEvents> {
-        // TODO: Implement actual metadata update
-        Err(anyhow!(
-            "Metadata update not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+    pub async fn set_meta(&self, meta: Option<NodeData>) -> Result<ExtrinsicEvents> {
+        let keypair = self.client.require_keypair()?;
+        let node_id = CpsNodeId(self.id);
+
+        // Build the set_meta transaction
+        let set_meta_call = robonomics_runtime::api::tx().cps().set_meta(node_id, meta);
+
+        // Submit and watch the transaction
+        let events = self
+            .client
+            .api
+            .tx()
+            .sign_and_submit_then_watch_default(&set_meta_call, keypair)
+            .await
+            .map_err(|e| anyhow!("Failed to submit set_meta transaction: {}", e))?
+            .wait_for_finalized_success()
+            .await
+            .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        Ok(events)
     }
 
     /// Update the payload of this node.
@@ -310,11 +391,26 @@ impl<'a> Node<'a> {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn set_payload(&self, _payload: Option<NodeData>) -> Result<ExtrinsicEvents> {
-        // TODO: Implement actual payload update
-        Err(anyhow!(
-            "Payload update not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+    pub async fn set_payload(&self, payload: Option<NodeData>) -> Result<ExtrinsicEvents> {
+        let keypair = self.client.require_keypair()?;
+        let node_id = CpsNodeId(self.id);
+
+        // Build the set_payload transaction
+        let set_payload_call = robonomics_runtime::api::tx().cps().set_payload(node_id, payload);
+
+        // Submit and watch the transaction
+        let events = self
+            .client
+            .api
+            .tx()
+            .sign_and_submit_then_watch_default(&set_payload_call, keypair)
+            .await
+            .map_err(|e| anyhow!("Failed to submit set_payload transaction: {}", e))?
+            .wait_for_finalized_success()
+            .await
+            .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        Ok(events)
     }
 
     /// Move this node to a new parent in the tree.
@@ -348,11 +444,29 @@ impl<'a> Node<'a> {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn move_to(&self, _new_parent: u64) -> Result<ExtrinsicEvents> {
-        // TODO: Implement actual node move
-        Err(anyhow!(
-            "Node move not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+    pub async fn move_to(&self, new_parent: u64) -> Result<ExtrinsicEvents> {
+        let keypair = self.client.require_keypair()?;
+        let node_id = CpsNodeId(self.id);
+        let new_parent_id = CpsNodeId(new_parent);
+
+        // Build the move_node transaction
+        let move_node_call = robonomics_runtime::api::tx()
+            .cps()
+            .move_node(node_id, new_parent_id);
+
+        // Submit and watch the transaction
+        let events = self
+            .client
+            .api
+            .tx()
+            .sign_and_submit_then_watch_default(&move_node_call, keypair)
+            .await
+            .map_err(|e| anyhow!("Failed to submit move_node transaction: {}", e))?
+            .wait_for_finalized_success()
+            .await
+            .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        Ok(events)
     }
 
     /// Delete this node from the tree.
@@ -387,10 +501,25 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn delete(self) -> Result<ExtrinsicEvents> {
-        // TODO: Implement actual node deletion
-        Err(anyhow!(
-            "Node deletion not yet implemented. Requires running node with CPS pallet and generated metadata."
-        ))
+        let keypair = self.client.require_keypair()?;
+        let node_id = CpsNodeId(self.id);
+
+        // Build the delete_node transaction
+        let delete_node_call = robonomics_runtime::api::tx().cps().delete_node(node_id);
+
+        // Submit and watch the transaction
+        let events = self
+            .client
+            .api
+            .tx()
+            .sign_and_submit_then_watch_default(&delete_node_call, keypair)
+            .await
+            .map_err(|e| anyhow!("Failed to submit delete_node transaction: {}", e))?
+            .wait_for_finalized_success()
+            .await
+            .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        Ok(events)
     }
 }
 

@@ -21,18 +21,16 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::EncryptionAlgorithm;
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 use libcps::types::NodeData;
-use std::str::FromStr;
 
 pub async fn execute(
     config: &Config,
+    cypher: Option<&Cypher>,
     node_id: u64,
     data: String,
-    encrypt: bool,
-    cipher: &str,
-    keypair_type: libcps::crypto::KeypairType,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -42,19 +40,20 @@ pub async fn execute(
     display::tree::info(&format!("Connected to {}", config.ws_url));
     display::tree::info(&format!("Updating metadata for node {node_id}"));
 
-    // Parse cipher algorithm
-    let algorithm = EncryptionAlgorithm::from_str(cipher)
-        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-
-    if encrypt {
-        display::tree::info(&format!("🔐 Using encryption algorithm: {}", algorithm));
-        display::tree::info(&format!("🔑 Using keypair type: {}", keypair_type));
-        display::tree::warning("Encryption not yet implemented - updating with plain data");
-    }
+    // Convert data to NodeData, applying encryption if requested
+    let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
+        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        
+        let encrypted_bytes = cypher.encrypt(data.as_bytes(), receiver_pub)?;
+        NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm())
+    } else {
+        NodeData::from(data)
+    };
 
     // Update metadata using Node API with NodeData
     let node = Node::new(&client, node_id);
-    let meta_data = NodeData::from(data);
 
     display::tree::progress("Updating metadata...");
     let _events = node.set_meta(Some(meta_data)).await?;

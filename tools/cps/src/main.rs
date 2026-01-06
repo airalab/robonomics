@@ -22,6 +22,8 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use sp_core::crypto::Ss58Codec;
+use std::str::FromStr;
 
 // Import from the library
 use libcps::{blockchain, mqtt};
@@ -29,6 +31,32 @@ use libcps::{blockchain, mqtt};
 // CLI-specific modules (display and commands)
 mod commands;
 mod display;
+
+/// Helper function to parse receiver public key from SS58 address or hex encoding.
+/// Uses AccountId32 which supports both Sr25519 and Ed25519 (same 32-byte public key length).
+fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
+    // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
+    if let Ok(account_id) = sp_core::crypto::AccountId32::from_ss58check(addr_or_hex) {
+        let bytes: &[u8; 32] = account_id.as_ref();
+        return Ok(*bytes);
+    }
+
+    // Fall back to hex decoding
+    let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+    let bytes = hex::decode(hex_str)
+        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not valid SS58 or hex): {}", e))?;
+    
+    if bytes.len() != 32 {
+        return Err(anyhow::anyhow!(
+            "Invalid receiver public key: expected 32 bytes, got {}",
+            bytes.len()
+        ));
+    }
+
+    let mut array = [0u8; 32];
+    array.copy_from_slice(&bytes);
+    Ok(array)
+}
 
 #[derive(Parser)]
 #[command(name = "cps")]
@@ -76,6 +104,10 @@ enum Commands {
         /// Attempt to decrypt encrypted data
         #[arg(long)]
         decrypt: bool,
+
+        /// Cryptographic scheme for decryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Create a new node (root or child)
@@ -92,17 +124,18 @@ enum Commands {
         #[arg(long)]
         payload: Option<String>,
 
-        /// Encrypt the data
+        /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Update node metadata
@@ -113,17 +146,18 @@ enum Commands {
         /// New metadata
         data: String,
 
-        /// Encrypt the data
+        /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Update node payload
@@ -134,17 +168,18 @@ enum Commands {
         /// New payload
         data: String,
 
-        /// Encrypt the data
+        /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Move a node to a new parent
@@ -181,17 +216,18 @@ enum MqttCommands {
         /// Node ID to update
         node_id: u64,
 
-        /// Encrypt messages before storing
+        /// Receiver public key or SS58 address for encryption. If provided, messages will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
-        encrypt: bool,
+        receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
         #[arg(long, default_value = "xchacha20")]
         cipher: String,
 
-        /// Keypair type for encryption (sr25519, ed25519)
-        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::KeypairType))]
-        keypair_type: libcps::crypto::KeypairType,
+        /// Cryptographic scheme for encryption (sr25519, ed25519)
+        #[arg(long, default_value = "sr25519", value_parser = clap::value_parser!(libcps::crypto::CryptoScheme))]
+        scheme: libcps::crypto::CryptoScheme,
     },
 
     /// Publish node payload changes to MQTT topic
@@ -212,7 +248,7 @@ enum MqttCommands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Create blockchain config
+    // Create blockchain config (crypto-free)
     let blockchain_config = blockchain::Config {
         ws_url: cli.ws_url.clone(),
         suri: cli.suri.clone(),
@@ -228,59 +264,115 @@ async fn main() -> Result<()> {
 
     // Execute commands
     match cli.command {
-        Commands::Show { node_id, decrypt } => {
-            commands::show::execute(&blockchain_config, node_id, decrypt).await?;
+        Commands::Show { node_id, decrypt, scheme } => {
+            // Create cypher if decryption is requested
+            let cypher = if decrypt {
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
+                Some(libcps::crypto::Cypher::new(
+                    suri,
+                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Placeholder; actual algorithm auto-detected in Cypher::decrypt
+                    scheme,
+                )?)
+            } else {
+                None
+            };
+            commands::show::execute(&blockchain_config, cypher.as_ref(), node_id, decrypt).await?;
         }
         Commands::Create {
             parent,
             meta,
             payload,
-            encrypt,
+            receiver_public,
             cipher,
-            keypair_type,
+            scheme,
         } => {
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                Some(parse_receiver_public_key(addr_or_hex)?)
+            } else {
+                None
+            };
+
+            // Create cypher if encryption is requested
+            let cypher = if receiver_public.is_some() {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
+            } else {
+                None
+            };
             commands::create::execute(
                 &blockchain_config,
+                cypher.as_ref(),
                 parent,
                 meta,
                 payload,
-                encrypt,
-                &cipher,
-                keypair_type,
+                receiver_pub_bytes,
             )
             .await?;
         }
         Commands::SetMeta {
             node_id,
             data,
-            encrypt,
+            receiver_public,
             cipher,
-            keypair_type,
+            scheme,
         } => {
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                Some(parse_receiver_public_key(addr_or_hex)?)
+            } else {
+                None
+            };
+
+            // Create cypher if encryption is requested
+            let cypher = if receiver_public.is_some() {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
+            } else {
+                None
+            };
             commands::set_meta::execute(
                 &blockchain_config,
+                cypher.as_ref(),
                 node_id,
                 data,
-                encrypt,
-                &cipher,
-                keypair_type,
+                receiver_pub_bytes,
             )
             .await?;
         }
         Commands::SetPayload {
             node_id,
             data,
-            encrypt,
+            receiver_public,
             cipher,
-            keypair_type,
+            scheme,
         } => {
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                Some(parse_receiver_public_key(addr_or_hex)?)
+            } else {
+                None
+            };
+
+            // Create cypher if encryption is requested
+            let cypher = if receiver_public.is_some() {
+                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
+            } else {
+                None
+            };
             commands::set_payload::execute(
                 &blockchain_config,
+                cypher.as_ref(),
                 node_id,
                 data,
-                encrypt,
-                &cipher,
-                keypair_type,
+                receiver_pub_bytes,
             )
             .await?;
         }
@@ -297,18 +389,33 @@ async fn main() -> Result<()> {
             MqttCommands::Subscribe {
                 topic,
                 node_id,
-                encrypt,
+                receiver_public,
                 cipher,
-                keypair_type,
+                scheme,
             } => {
+                // Parse receiver public key if provided (supports both SS58 address and hex)
+                let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                    Some(parse_receiver_public_key(addr_or_hex)?)
+                } else {
+                    None
+                };
+
+                // Create cypher if encryption is requested
+                let cypher = if receiver_public.is_some() {
+                    let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                        .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
+                    let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                    Some(libcps::crypto::Cypher::new(suri, algorithm, scheme)?)
+                } else {
+                    None
+                };
                 commands::mqtt::subscribe(
                     &blockchain_config,
+                    cypher.as_ref(),
                     &mqtt_config,
                     &topic,
                     node_id,
-                    encrypt,
-                    &cipher,
-                    keypair_type,
+                    receiver_pub_bytes,
                 )
                 .await?;
             }

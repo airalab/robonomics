@@ -20,9 +20,10 @@
 use crate::display;
 use anyhow::Result;
 use libcps::blockchain::{Client, Config};
+use libcps::crypto::Cypher;
 use libcps::node::Node;
 
-pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()> {
+pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, decrypt: bool) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
@@ -34,9 +35,26 @@ pub async fn execute(config: &Config, node_id: u64, _decrypt: bool) -> Result<()
     let node = Node::new(&client, node_id);
     let node_info = node.query().await?;
 
-    // Display node information
-    let meta_str = String::from_utf8(node_info.meta.as_bytes().to_vec()).ok();
-    let payload_str = String::from_utf8(node_info.payload.as_bytes().to_vec()).ok();
+    // Try to decrypt if requested and data is encrypted
+    let meta_str = if decrypt && node_info.meta.is_encrypted() {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
+        display::tree::info("🔓 Decrypting metadata...");
+        let decrypted = cypher.decrypt(node_info.meta.as_bytes(), None)
+            .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
+        Some(String::from_utf8_lossy(&decrypted).to_string())
+    } else {
+        String::from_utf8(node_info.meta.as_bytes().to_vec()).ok()
+    };
+
+    let payload_str = if decrypt && node_info.payload.is_encrypted() {
+        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
+        display::tree::info("🔓 Decrypting payload...");
+        let decrypted = cypher.decrypt(node_info.payload.as_bytes(), None)
+            .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
+        Some(String::from_utf8_lossy(&decrypted).to_string())
+    } else {
+        String::from_utf8(node_info.payload.as_bytes().to_vec()).ok()
+    };
 
     display::tree::print_tree(
         node_id,

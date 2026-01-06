@@ -134,6 +134,12 @@ pub mod mqtt;
 pub mod node;
 pub mod types;
 
+// Generated runtime metadata from subxt
+#[allow(dead_code, unused_imports, non_camel_case_types, unreachable_patterns)]
+#[allow(clippy::all)]
+#[allow(rustdoc::broken_intra_doc_links)]
+mod robonomics_runtime;
+
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};
 pub use types::{EncryptedData, NodeData, NodeId};
