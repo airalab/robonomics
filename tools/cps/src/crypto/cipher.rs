@@ -20,7 +20,16 @@
 //! This module provides types for selecting and configuring different AEAD
 //! encryption algorithms supported by the CPS pallet.
 
+use aes_gcm::{
+    aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
+    Aes256Gcm, Nonce as AesNonce,
+};
+use anyhow::{anyhow, Result};
+use chacha20poly1305::{
+    aead::OsRng, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
+};
 use serde::{Deserialize, Serialize};
+use sp_core::Pair;
 use std::fmt;
 use std::str::FromStr;
 
@@ -220,16 +229,6 @@ mod tests {
         );
     }
 }
-
-use aes_gcm::{
-    aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
-    Aes256Gcm, Nonce as AesNonce,
-};
-use anyhow::{anyhow, Result};
-use chacha20poly1305::{
-    aead::OsRng, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
-};
-use sp_core::Pair;
 
 /// Encrypted message format stored on-chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
