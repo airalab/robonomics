@@ -21,13 +21,13 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::Cypher;
+use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 
 pub async fn execute(
     config: &Config,
-    cypher: Option<&Cypher>,
+    cipher: Option<&Cipher>,
     parent: Option<u64>,
     meta: Option<String>,
     payload: Option<String>,
@@ -55,25 +55,25 @@ pub async fn execute(
 
     // Convert strings to NodeData, applying encryption if requested
     let meta_data = if let (Some(receiver_pub), Some(m)) = (receiver_public.as_ref(), meta) {
-        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
-        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
+        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cipher.algorithm(), cipher.scheme()));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
         
-        let encrypted_bytes = cypher.encrypt(m.as_bytes(), receiver_pub)?;
-        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
+        let encrypted_bytes = cipher.encrypt(m.as_bytes(), receiver_pub)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm()))
     } else {
         meta.map(|m| NodeData::from(m))
     };
 
     let payload_data = if let (Some(receiver_pub), Some(p)) = (receiver_public.as_ref(), payload) {
-        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
+        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
         if meta_data.is_none() {
-            display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));
+            display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cipher.algorithm(), cipher.scheme()));
             display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
         }
         
-        let encrypted_bytes = cypher.encrypt(p.as_bytes(), receiver_pub)?;
-        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm()))
+        let encrypted_bytes = cipher.encrypt(p.as_bytes(), receiver_pub)?;
+        Some(NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm()))
     } else {
         payload.map(|p| NodeData::from(p))
     };

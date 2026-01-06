@@ -21,13 +21,13 @@ use crate::display;
 use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::Cypher;
+use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 
 pub async fn execute(
     config: &Config,
-    cypher: Option<&Cypher>,
+    cipher: Option<&Cipher>,
     node_id: u64,
     data: String,
     receiver_public: Option<[u8; 32]>,
@@ -42,12 +42,12 @@ pub async fn execute(
 
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
-        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
-        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
+        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+        display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cipher.algorithm(), cipher.scheme()));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
         
-        let encrypted_bytes = cypher.encrypt(data.as_bytes(), receiver_pub)?;
-        NodeData::from_encrypted_bytes(encrypted_bytes, cypher.algorithm())
+        let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub)?;
+        NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm())
     } else {
         NodeData::from(data)
     };
