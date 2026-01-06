@@ -25,5 +25,5 @@ pub mod cypher;
 pub mod scheme;
 
 pub use cipher::EncryptionAlgorithm;
-pub use cypher::Cypher;
+pub use cypher::{Cypher, EncryptedMessage};
 pub use scheme::CryptoScheme;

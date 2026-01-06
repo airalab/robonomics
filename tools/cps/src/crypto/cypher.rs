@@ -33,7 +33,7 @@ use sp_core::Pair;
 
 /// Encrypted message format stored on-chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct EncryptedMessage {
+pub struct EncryptedMessage {
     version: u8,
     #[serde(default = "default_algorithm")]
     algorithm: String,
@@ -72,6 +72,8 @@ fn default_algorithm() -> String {
 pub struct Cypher {
     /// 32-byte secret key
     secret: [u8; 32],
+    /// Cached public key (derived once in constructor)
+    public_key: [u8; 32],
     /// Encryption algorithm
     algorithm: crate::crypto::EncryptionAlgorithm,
     /// Cryptographic scheme
@@ -113,14 +115,16 @@ impl Cypher {
         algorithm: crate::crypto::EncryptionAlgorithm,
         scheme: crate::crypto::CryptoScheme,
     ) -> Result<Self> {
-        let secret = match scheme {
+        let (secret, public_key) = match scheme {
             crate::crypto::CryptoScheme::Sr25519 => {
                 let pair = sp_core::sr25519::Pair::from_string(&suri, None)
                     .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
                 let secret_bytes = pair.to_raw_vec();
                 let mut secret = [0u8; 32];
                 secret.copy_from_slice(&secret_bytes[..32]);
-                secret
+                // Derive public key using Pair interface
+                let public_key = pair.public().0;
+                (secret, public_key)
             }
             crate::crypto::CryptoScheme::Ed25519 => {
                 let pair = sp_core::ed25519::Pair::from_string(&suri, None)
@@ -128,11 +132,14 @@ impl Cypher {
                 let secret_bytes = pair.to_raw_vec();
                 let mut secret = [0u8; 32];
                 secret.copy_from_slice(&secret_bytes[..32]);
-                secret
+                // Derive public key using Pair interface
+                let public_key = pair.public().0;
+                (secret, public_key)
             }
         };
         Ok(Cypher {
             secret,
+            public_key,
             algorithm,
             scheme,
         })
@@ -241,37 +248,10 @@ impl Cypher {
     }
 
     /// Get sender's public key.
-    fn public_key(&self) -> Result<[u8; 32]> {
-        match self.scheme {
-            crate::crypto::CryptoScheme::Sr25519 => {
-                // Derive public key from secret for SR25519
-                use curve25519_dalek::ristretto::RistrettoPoint;
-                use curve25519_dalek::scalar::Scalar;
-
-                let scalar = Scalar::from_bytes_mod_order(self.secret);
-                let public_point = RistrettoPoint::mul_base(&scalar);
-                Ok(public_point.compress().to_bytes())
-            }
-            crate::crypto::CryptoScheme::Ed25519 => {
-                // Derive public key from secret for ED25519
-                use sha2::{Digest, Sha512};
-
-                let mut hasher = Sha512::new();
-                hasher.update(&self.secret);
-                let hash = hasher.finalize();
-
-                let mut scalar_bytes = [0u8; 32];
-                scalar_bytes.copy_from_slice(&hash[..32]);
-                scalar_bytes[0] &= 248;
-                scalar_bytes[31] &= 127;
-                scalar_bytes[31] |= 64;
-
-                let scalar = curve25519_dalek::scalar::Scalar::from_bytes_mod_order(scalar_bytes);
-                let public_point = curve25519_dalek::constants::ED25519_BASEPOINT_TABLE * &scalar;
-
-                Ok(public_point.compress().to_bytes())
-            }
-        }
+    /// 
+    /// Returns the cached public key that was derived in the constructor.
+    pub fn public_key(&self) -> [u8; 32] {
+        self.public_key
     }
 
     /// Encrypt data for a specific receiver with inlined AEAD.
@@ -489,7 +469,7 @@ mod tests {
         ).unwrap();
 
         // Get Alice's public key for self-encryption
-        let public_key = cypher.public_key().unwrap();
+        let public_key = cypher.public_key();
 
         let plaintext = b"Hello, World!";
         let encrypted = cypher.encrypt(plaintext, &public_key).unwrap();
@@ -507,7 +487,7 @@ mod tests {
         ).unwrap();
 
         // Get Alice's public key for self-encryption
-        let public_key = cypher.public_key().unwrap();
+        let public_key = cypher.public_key();
 
         let plaintext = b"Hello, World!";
         let encrypted = cypher.encrypt(plaintext, &public_key).unwrap();
@@ -530,8 +510,8 @@ mod tests {
             crate::crypto::CryptoScheme::Sr25519,
         ).unwrap();
 
-        let bob_public = bob.public_key().unwrap();
-        let alice_public = alice.public_key().unwrap();
+        let bob_public = bob.public_key();
+        let alice_public = alice.public_key();
 
         let plaintext = b"Secret from Alice to Bob";
         let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
@@ -560,8 +540,8 @@ mod tests {
             crate::crypto::CryptoScheme::Sr25519,
         ).unwrap();
 
-        let bob_public = bob.public_key().unwrap();
-        let charlie_public = charlie.public_key().unwrap();
+        let bob_public = bob.public_key();
+        let charlie_public = charlie.public_key();
 
         let plaintext = b"From Alice";
         let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
@@ -570,5 +550,55 @@ mod tests {
         let result = bob.decrypt(&encrypted, Some(&charlie_public));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("mismatch"));
+    }
+
+    #[test]
+    fn test_derive_shared_secret_sr25519() {
+        let alice = Cypher::new(
+            "//Alice".to_string(),
+            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+            crate::crypto::CryptoScheme::Sr25519,
+        ).unwrap();
+
+        let bob = Cypher::new(
+            "//Bob".to_string(),
+            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+            crate::crypto::CryptoScheme::Sr25519,
+        ).unwrap();
+
+        let bob_public = bob.public_key();
+        let alice_public = alice.public_key();
+
+        // Derive shared secrets
+        let alice_shared = alice.derive_shared_secret(&bob_public).unwrap();
+        let bob_shared = bob.derive_shared_secret(&alice_public).unwrap();
+
+        // Shared secrets should match (Diffie-Hellman property)
+        assert_eq!(alice_shared, bob_shared);
+    }
+
+    #[test]
+    fn test_derive_shared_secret_ed25519() {
+        let alice = Cypher::new(
+            "//Alice".to_string(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+            crate::crypto::CryptoScheme::Ed25519,
+        ).unwrap();
+
+        let bob = Cypher::new(
+            "//Bob".to_string(),
+            crate::crypto::EncryptionAlgorithm::AesGcm256,
+            crate::crypto::CryptoScheme::Ed25519,
+        ).unwrap();
+
+        let bob_public = bob.public_key();
+        let alice_public = alice.public_key();
+
+        // Derive shared secrets
+        let alice_shared = alice.derive_shared_secret(&bob_public).unwrap();
+        let bob_shared = bob.derive_shared_secret(&alice_public).unwrap();
+
+        // Shared secrets should match (Diffie-Hellman property)
+        assert_eq!(alice_shared, bob_shared);
     }
 }
