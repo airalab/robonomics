@@ -1,0 +1,86 @@
+name: Zombienet Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'release/*'
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zombienet-tests:
+    name: Run Zombienet Tests
+    runs-on: ubuntu-latest
+    # Timeout accounts for: build time (~30min), binary downloads (~5min),
+    # network initialization (~5min), and test execution (~10min) with buffer
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Robonomics binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          toolchain: "1.88.0"
+          force-use-cross: true
+          use-rust-cache: true
+          strip: true
+          target: x86_64-unknown-linux-musl
+          args: "--locked --profile production"
+
+      - name: Download polkadot binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/polkadot-sdk" 
+          tag: "polkadot-stable2512"
+          fileName: "polkadot"
+          out-file-path: "scripts/zombienet/bin"
+
+      - name: Download polkadot-parachain binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/polkadot-sdk" 
+          tag: "polkadot-stable2512"
+          fileName: "polkadot-parachain"
+          out-file-path: "scripts/zombienet/bin"
+
+      - name: Download zombienet binary
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: "paritytech/zombienet" 
+          tag: "v1.3.138"
+          fileName: "zombienet-linux-x64"
+          out-file-path: "scripts/zombienet/bin"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache Node.js modules
+        uses: actions/cache@v4
+        with:
+          path: scripts/zombienet/tests/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('scripts/zombienet/tests/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Run Zombienet integration tests
+        run: cd scripts/zombienet && ./run-tests.sh
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zombienet-logs
+          path: |
+            /tmp/zombie-*
+          retention-days: 7
