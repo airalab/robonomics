@@ -248,7 +248,7 @@ impl Cypher {
     }
 
     /// Get sender's public key.
-    /// 
+    ///
     /// Returns the cached public key that was derived in the constructor.
     pub fn public_key(&self) -> [u8; 32] {
         self.public_key
