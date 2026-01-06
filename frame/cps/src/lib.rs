@@ -418,8 +418,10 @@ pub use weights::WeightInfo;
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
+
+#[cfg(not(feature = "std"))]
+use sp_runtime::RuntimeDebug;
 
 /// Callback trait invoked when a payload is set on a node.
 ///
@@ -539,6 +541,7 @@ pub type MaxDataSize = ConstU32<2048>;
 /// let next_id = node_id.saturating_add(1);  // NodeId(43)
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
 #[derive(
     Encode,
     Decode,
@@ -552,7 +555,6 @@ pub type MaxDataSize = ConstU32<2048>;
     PartialOrd,
     Ord,
     Default,
-    RuntimeDebug,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
 
@@ -606,6 +608,7 @@ impl NodeId {
 /// );
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
+#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
 #[derive(
     Encode,
     Decode,
@@ -615,7 +618,6 @@ impl NodeId {
     Clone,
     PartialEq,
     Eq,
-    RuntimeDebug,
 )]
 pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
@@ -698,7 +700,8 @@ pub enum DefaultEncryptedData {
 ///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, RuntimeDebug)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
+#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
 #[scale_info(skip_type_params(EncryptedData))]
 #[allow(clippy::multiple_bound_locations)]
 /// Type parameter for encrypted payloads stored in `NodeData`.
