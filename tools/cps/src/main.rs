@@ -270,7 +270,7 @@ async fn main() -> Result<()> {
                 let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
                 Some(libcps::crypto::Cypher::new(
                     suri,
-                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Auto-detect from encrypted data
+                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Placeholder; actual algorithm auto-detected in Cypher::decrypt
                     scheme,
                 )?)
             } else {

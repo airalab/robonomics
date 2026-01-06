@@ -39,13 +39,9 @@ pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, dec
     let meta_str = if decrypt && node_info.meta.is_encrypted() {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
         display::tree::info("🔓 Decrypting metadata...");
-        match cypher.decrypt(node_info.meta.as_bytes(), None) {
-            Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
-            Err(e) => {
-                display::tree::warning(&format!("Failed to decrypt metadata: {}", e));
-                String::from_utf8(node_info.meta.as_bytes().to_vec()).ok()
-            }
-        }
+        let decrypted = cypher.decrypt(node_info.meta.as_bytes(), None)
+            .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
+        Some(String::from_utf8_lossy(&decrypted).to_string())
     } else {
         String::from_utf8(node_info.meta.as_bytes().to_vec()).ok()
     };
@@ -53,13 +49,9 @@ pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, dec
     let payload_str = if decrypt && node_info.payload.is_encrypted() {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
         display::tree::info("🔓 Decrypting payload...");
-        match cypher.decrypt(node_info.payload.as_bytes(), None) {
-            Ok(decrypted) => Some(String::from_utf8_lossy(&decrypted).to_string()),
-            Err(e) => {
-                display::tree::warning(&format!("Failed to decrypt payload: {}", e));
-                String::from_utf8(node_info.payload.as_bytes().to_vec()).ok()
-            }
-        }
+        let decrypted = cypher.decrypt(node_info.payload.as_bytes(), None)
+            .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
+        Some(String::from_utf8_lossy(&decrypted).to_string())
     } else {
         String::from_utf8(node_info.payload.as_bytes().to_vec()).ok()
     };

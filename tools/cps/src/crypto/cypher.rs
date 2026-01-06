@@ -268,7 +268,7 @@ impl Cypher {
 
                 let scalar = curve25519_dalek::scalar::Scalar::from_bytes_mod_order(scalar_bytes);
                 let public_point = curve25519_dalek::constants::ED25519_BASEPOINT_TABLE * &scalar;
-                
+
                 Ok(public_point.compress().to_bytes())
             }
         }

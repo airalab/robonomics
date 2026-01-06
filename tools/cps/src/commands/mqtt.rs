@@ -79,14 +79,6 @@ pub async fn publish(
 
     Err(anyhow::anyhow!("MQTT publish not implemented yet"))
 }
-            "Encrypt messages before storing"
-        } else {
-            "Store messages as plain text"
-        }
-    ));
-
-    Ok(())
-}
 
 pub async fn publish(
     blockchain_config: &Config,

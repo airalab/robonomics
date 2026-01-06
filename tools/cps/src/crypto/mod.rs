@@ -23,9 +23,7 @@
 pub mod cipher;
 pub mod cypher;
 pub mod scheme;
-pub mod shared_secret;
 
 pub use cipher::EncryptionAlgorithm;
 pub use cypher::Cypher;
 pub use scheme::CryptoScheme;
-pub use shared_secret::{DeriveSharedSecret, SharedSecret};
