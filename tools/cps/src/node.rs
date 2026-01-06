@@ -71,24 +71,24 @@ use crate::blockchain::Client;
 use crate::robonomics_runtime;
 use crate::types::{NodeData, NodeId as CpsNodeId};
 use anyhow::{anyhow, Result};
-use subxt::PolkadotConfig;
+use subxt::{utils::AccountId32, PolkadotConfig};
 
 /// Type for extrinsic events from blockchain transactions.
 pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
 
 /// Information about a CPS node.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NodeInfo {
     /// Node ID
     pub id: u64,
     /// Node owner account
-    pub owner: Vec<u8>,
+    pub owner: AccountId32,
     /// Optional parent node ID
     pub parent: Option<u64>,
     /// Node metadata
-    pub meta: NodeData,
+    pub meta: Option<NodeData>,
     /// Node payload
-    pub payload: NodeData,
+    pub payload: Option<NodeData>,
     /// Child node IDs
     pub children: Vec<u64>,
 }
@@ -257,8 +257,9 @@ impl<'a> Node<'a> {
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
         // Query the node from storage
-        let node_id = CpsNodeId(self.id);
-        let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
+        let nodes_query = robonomics_runtime::api::storage()
+            .cps()
+            .nodes(CpsNodeId(self.id));
 
         let node = self
             .client
@@ -273,7 +274,9 @@ impl<'a> Node<'a> {
             .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
 
         // Query children
-        let children_query = robonomics_runtime::api::storage().cps().nodes_by_parent(node_id);
+        let children_query = robonomics_runtime::api::storage()
+            .cps()
+            .nodes_by_parent(CpsNodeId(self.id));
 
         let children = self
             .client
@@ -285,18 +288,17 @@ impl<'a> Node<'a> {
             .fetch(&children_query)
             .await
             .map_err(|e| anyhow!("Failed to query children: {}", e))?
-            .unwrap_or_default()
-            .iter()
-            .map(|id| id.0)
-            .collect();
+            .map(|v| v.0)
+            .unwrap_or(vec![]);
+
 
         Ok(NodeInfo {
             id: self.id,
-            owner: node.owner.as_ref().to_vec(), // Convert AccountId32 to Vec<u8>
+            owner: node.owner,
             parent: node.parent.map(|p| p.0),
-            meta: node.meta.unwrap_or(NodeData::Plain(vec![])),
-            payload: node.payload.unwrap_or(NodeData::Plain(vec![])),
-            children,
+            meta: node.meta,
+            payload: node.payload,
+            children: children.iter().map(|id| id.0).collect(),
         })
     }
 

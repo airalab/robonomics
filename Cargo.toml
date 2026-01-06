@@ -98,8 +98,8 @@ hkdf = "0.12"
 sha2 = "0.10"
 
 # Blockchain (for libcps)
-subxt = "0.37"
-subxt-signer = "0.37"
+subxt = "0.44"
+subxt-signer = "0.44"
 
 # Serialization (for libcps)
 base64 = "0.21"
