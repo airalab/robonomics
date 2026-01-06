@@ -136,7 +136,7 @@ impl Cypher {
     /// # Arguments
     ///
     /// * `plaintext` - The data to encrypt
-    /// * `receiver_public` - The recipient's public key (32 bytes)
+    /// * `receiver_public` - The recipient's public key (exactly 32 bytes, enforced at compile time)
     ///
     /// # Returns
     ///
@@ -149,32 +149,15 @@ impl Cypher {
     ///
     /// # Errors
     ///
-    /// Returns error if:
-    /// - Receiver public key is invalid
-    /// - Encryption fails
-    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8]) -> Result<Vec<u8>> {
-        // Validate receiver public key length
-        if receiver_public.len() != 32 {
-            return Err(anyhow!("Invalid receiver public key length: expected 32 bytes, got {}", receiver_public.len()));
-        }
-
+    /// Returns error if encryption fails
+    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32]) -> Result<Vec<u8>> {
         match self {
             Cypher::Sr25519 { pair, algorithm } => {
-                // Parse receiver public key
-                let mut public_bytes = [0u8; 32];
-                public_bytes.copy_from_slice(receiver_public);
-                let receiver = sp_core::sr25519::Public::from_raw(public_bytes);
-                
-                // Call the existing encrypt function from encryption module
+                let receiver = sp_core::sr25519::Public::from_raw(*receiver_public);
                 super::encryption::encrypt(plaintext, pair, &receiver, *algorithm)
             }
             Cypher::Ed25519 { pair, algorithm } => {
-                // Parse receiver public key
-                let mut public_bytes = [0u8; 32];
-                public_bytes.copy_from_slice(receiver_public);
-                let receiver = sp_core::ed25519::Public::from_raw(public_bytes);
-                
-                // Call the existing encrypt function from encryption module
+                let receiver = sp_core::ed25519::Public::from_raw(*receiver_public);
                 super::encryption::encrypt(plaintext, pair, &receiver, *algorithm)
             }
         }
@@ -185,7 +168,7 @@ impl Cypher {
     /// # Arguments
     ///
     /// * `ciphertext` - JSON-formatted encrypted data
-    /// * `expected_sender` - Optional sender public key for verification (32 bytes)
+    /// * `expected_sender` - Optional sender public key for verification (exactly 32 bytes, enforced at compile time)
     ///
     /// # Returns
     ///
@@ -194,41 +177,16 @@ impl Cypher {
     /// # Errors
     ///
     /// Returns error if:
-    /// - Expected sender public key is invalid
     /// - Decryption fails
     /// - Sender verification fails (if expected_sender provided)
-    pub fn decrypt(&self, ciphertext: &[u8], expected_sender: Option<&[u8]>) -> Result<Vec<u8>> {
+    pub fn decrypt(&self, ciphertext: &[u8], expected_sender: Option<&[u8; 32]>) -> Result<Vec<u8>> {
         match self {
             Cypher::Sr25519 { pair, .. } => {
-                // Convert expected_sender to proper type if provided
-                let expected_public = if let Some(sender_bytes) = expected_sender {
-                    if sender_bytes.len() != 32 {
-                        return Err(anyhow!("Invalid sender public key length: expected 32 bytes, got {}", sender_bytes.len()));
-                    }
-                    let mut arr = [0u8; 32];
-                    arr.copy_from_slice(sender_bytes);
-                    Some(sp_core::sr25519::Public::from_raw(arr))
-                } else {
-                    None
-                };
-
-                // Call the existing decrypt function from encryption module
+                let expected_public = expected_sender.map(|bytes| sp_core::sr25519::Public::from_raw(*bytes));
                 super::encryption::decrypt(ciphertext, pair, expected_public.as_ref())
             }
             Cypher::Ed25519 { pair, .. } => {
-                // Convert expected_sender to proper type if provided
-                let expected_public = if let Some(sender_bytes) = expected_sender {
-                    if sender_bytes.len() != 32 {
-                        return Err(anyhow!("Invalid sender public key length: expected 32 bytes, got {}", sender_bytes.len()));
-                    }
-                    let mut arr = [0u8; 32];
-                    arr.copy_from_slice(sender_bytes);
-                    Some(sp_core::ed25519::Public::from_raw(arr))
-                } else {
-                    None
-                };
-
-                // Call the existing decrypt function from encryption module
+                let expected_public = expected_sender.map(|bytes| sp_core::ed25519::Public::from_raw(*bytes));
                 super::encryption::decrypt(ciphertext, pair, expected_public.as_ref())
             }
         }
@@ -287,19 +245,5 @@ mod tests {
         let decrypted = cypher.decrypt(&encrypted, None).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
-    }
-
-    #[test]
-    fn test_invalid_receiver_public_key_length() {
-        let cypher = Cypher::new(
-            "//Alice".to_string(),
-            crate::crypto::EncryptionAlgorithm::XChaCha20Poly1305,
-            crate::crypto::CryptoScheme::Sr25519,
-        ).unwrap();
-
-        let plaintext = b"test";
-        let invalid_key = &[0u8; 16]; // Wrong length
-        
-        assert!(cypher.encrypt(plaintext, invalid_key).is_err());
     }
 }

@@ -31,7 +31,7 @@ pub async fn execute(
     parent: Option<u64>,
     meta: Option<String>,
     payload: Option<String>,
-    receiver_public: Option<Vec<u8>>,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -54,7 +54,7 @@ pub async fn execute(
     }
 
     // Convert strings to NodeData, applying encryption if requested
-    let meta_data = if let (Some(ref receiver_pub), Some(m)) = (&receiver_public, meta) {
+    let meta_data = if let (Some(receiver_pub), Some(m)) = (receiver_public.as_ref(), meta) {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
         display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
@@ -65,7 +65,7 @@ pub async fn execute(
         meta.map(|m| NodeData::from(m))
     };
 
-    let payload_data = if let (Some(ref receiver_pub), Some(p)) = (&receiver_public, payload) {
+    let payload_data = if let (Some(receiver_pub), Some(p)) = (receiver_public.as_ref(), payload) {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
         if meta_data.is_none() {
             display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cypher.algorithm(), cypher.scheme()));

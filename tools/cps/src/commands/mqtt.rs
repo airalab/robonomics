@@ -29,7 +29,7 @@ pub async fn subscribe(
     _mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
-    receiver_public: Option<Vec<u8>>,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
@@ -39,7 +39,7 @@ pub async fn subscribe(
     display::tree::info(&format!("Topic: {topic}"));
     display::tree::info(&format!("Node: {node_id}"));
 
-    if let Some(ref receiver_pub) = receiver_public {
+    if let Some(receiver_pub) = receiver_public.as_ref() {
         if let Some(cypher) = cypher {
             display::tree::info(&format!("🔐 Using encryption: {} with {}", cypher.algorithm(), cypher.scheme()));
             display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));

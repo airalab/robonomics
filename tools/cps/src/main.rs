@@ -22,6 +22,7 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use sp_core::crypto::Ss58Codec;
 use std::str::FromStr;
 
 // Import from the library
@@ -118,7 +119,8 @@ enum Commands {
         /// New metadata
         data: String,
 
-        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, data will be encrypted.
+        /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
         receiver_public: Option<String>,
 
@@ -139,7 +141,8 @@ enum Commands {
         /// New payload
         data: String,
 
-        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, data will be encrypted.
+        /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
         receiver_public: Option<String>,
 
@@ -186,7 +189,8 @@ enum MqttCommands {
         /// Node ID to update
         node_id: u64,
 
-        /// Receiver public key for encryption (hex-encoded, 32 bytes). If provided, messages will be encrypted.
+        /// Receiver public key or SS58 address for encryption. If provided, messages will be encrypted.
+        /// Supports both SS58 addresses and hex-encoded public keys.
         #[arg(long)]
         receiver_public: Option<String>,
 
@@ -255,9 +259,25 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            // Parse receiver public key if provided
-            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
-                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                // Try SS58 first
+                if let Ok(account) = sp_core::sr25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else if let Ok(account) = sp_core::ed25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else {
+                    // Fall back to hex decoding
+                    let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+                    let bytes = hex::decode(hex_str)
+                        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not SS58 or hex): {}", e))?;
+                    if bytes.len() != 32 {
+                        return Err(anyhow::anyhow!("Invalid receiver public key: expected 32 bytes, got {}", bytes.len()));
+                    }
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    Some(arr)
+                }
             } else {
                 None
             };
@@ -288,9 +308,25 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            // Parse receiver public key if provided
-            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
-                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                // Try SS58 first
+                if let Ok(account) = sp_core::sr25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else if let Ok(account) = sp_core::ed25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else {
+                    // Fall back to hex decoding
+                    let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+                    let bytes = hex::decode(hex_str)
+                        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not SS58 or hex): {}", e))?;
+                    if bytes.len() != 32 {
+                        return Err(anyhow::anyhow!("Invalid receiver public key: expected 32 bytes, got {}", bytes.len()));
+                    }
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    Some(arr)
+                }
             } else {
                 None
             };
@@ -320,9 +356,25 @@ async fn main() -> Result<()> {
             cipher,
             scheme,
         } => {
-            // Parse receiver public key if provided
-            let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
-                Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+            // Parse receiver public key if provided (supports both SS58 address and hex)
+            let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                // Try SS58 first
+                if let Ok(account) = sp_core::sr25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else if let Ok(account) = sp_core::ed25519::Public::from_ss58check(addr_or_hex) {
+                    Some(account.0)
+                } else {
+                    // Fall back to hex decoding
+                    let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+                    let bytes = hex::decode(hex_str)
+                        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not SS58 or hex): {}", e))?;
+                    if bytes.len() != 32 {
+                        return Err(anyhow::anyhow!("Invalid receiver public key: expected 32 bytes, got {}", bytes.len()));
+                    }
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&bytes);
+                    Some(arr)
+                }
             } else {
                 None
             };
@@ -362,9 +414,25 @@ async fn main() -> Result<()> {
                 cipher,
                 scheme,
             } => {
-                // Parse receiver public key if provided
-                let receiver_pub_bytes = if let Some(ref hex_str) = receiver_public {
-                    Some(hex::decode(hex_str).map_err(|e| anyhow::anyhow!("Invalid receiver public key hex: {}", e))?)
+                // Parse receiver public key if provided (supports both SS58 address and hex)
+                let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                    // Try SS58 first
+                    if let Ok(account) = sp_core::sr25519::Public::from_ss58check(addr_or_hex) {
+                        Some(account.0)
+                    } else if let Ok(account) = sp_core::ed25519::Public::from_ss58check(addr_or_hex) {
+                        Some(account.0)
+                    } else {
+                        // Fall back to hex decoding
+                        let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+                        let bytes = hex::decode(hex_str)
+                            .map_err(|e| anyhow::anyhow!("Invalid receiver address (not SS58 or hex): {}", e))?;
+                        if bytes.len() != 32 {
+                            return Err(anyhow::anyhow!("Invalid receiver public key: expected 32 bytes, got {}", bytes.len()));
+                        }
+                        let mut arr = [0u8; 32];
+                        arr.copy_from_slice(&bytes);
+                        Some(arr)
+                    }
                 } else {
                     None
                 };

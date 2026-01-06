@@ -30,7 +30,7 @@ pub async fn execute(
     cypher: Option<&Cypher>,
     node_id: u64,
     data: String,
-    receiver_public: Option<Vec<u8>>,
+    receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -41,7 +41,7 @@ pub async fn execute(
     display::tree::info(&format!("Updating metadata for node {node_id}"));
 
     // Convert data to NodeData, applying encryption if requested
-    let meta_data = if let Some(ref receiver_pub) = receiver_public {
+    let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for encryption"))?;
         display::tree::info(&format!("🔐 Encrypting metadata with {} using {}", cypher.algorithm(), cypher.scheme()));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
