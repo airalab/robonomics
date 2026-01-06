@@ -20,10 +20,10 @@
 use crate::display;
 use anyhow::Result;
 use libcps::blockchain::{Client, Config};
-use libcps::crypto::Cypher;
+use libcps::crypto::Cipher;
 use libcps::node::Node;
 
-pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, decrypt: bool) -> Result<()> {
+pub async fn execute(config: &Config, cipher: Option<&Cipher>, node_id: u64, decrypt: bool) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
@@ -37,9 +37,9 @@ pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, dec
 
     // Try to decrypt if requested and data is encrypted
     let meta_str = if decrypt && node_info.meta.is_encrypted() {
-        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
+        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
         display::tree::info("🔓 Decrypting metadata...");
-        let decrypted = cypher.decrypt(node_info.meta.as_bytes(), None)
+        let decrypted = cipher.decrypt(node_info.meta.as_bytes(), None)
             .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
         Some(String::from_utf8_lossy(&decrypted).to_string())
     } else {
@@ -47,9 +47,9 @@ pub async fn execute(config: &Config, cypher: Option<&Cypher>, node_id: u64, dec
     };
 
     let payload_str = if decrypt && node_info.payload.is_encrypted() {
-        let cypher = cypher.ok_or_else(|| anyhow::anyhow!("Cypher required for decryption"))?;
+        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
         display::tree::info("🔓 Decrypting payload...");
-        let decrypted = cypher.decrypt(node_info.payload.as_bytes(), None)
+        let decrypted = cipher.decrypt(node_info.payload.as_bytes(), None)
             .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
         Some(String::from_utf8_lossy(&decrypted).to_string())
     } else {
