@@ -261,11 +261,7 @@ impl Cipher {
     ///     CryptoScheme::Sr25519,
     /// ).unwrap();
     /// ```
-    pub fn new(
-        suri: String,
-        algorithm: EncryptionAlgorithm,
-        scheme: CryptoScheme,
-    ) -> Result<Self> {
+    pub fn new(suri: String, algorithm: EncryptionAlgorithm, scheme: CryptoScheme) -> Result<Self> {
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
                 let pair = sp_core::sr25519::Pair::from_string(&suri, None)
@@ -377,7 +373,8 @@ impl Cipher {
                     .ok_or_else(|| anyhow!("Failed to decompress ED25519 public key"))?;
 
                 let montgomery_point = edwards_point.to_montgomery();
-                let their_x25519_public = x25519_dalek::PublicKey::from(montgomery_point.to_bytes());
+                let their_x25519_public =
+                    x25519_dalek::PublicKey::from(montgomery_point.to_bytes());
 
                 // Perform X25519 ECDH
                 let shared_secret = my_x25519_secret.diffie_hellman(&their_x25519_public);
@@ -492,7 +489,11 @@ impl Cipher {
     /// # Errors
     ///
     /// Returns error if decryption fails or sender verification fails
-    pub fn decrypt(&self, ciphertext: &[u8], expected_sender: Option<&[u8; 32]>) -> Result<Vec<u8>> {
+    pub fn decrypt(
+        &self,
+        ciphertext: &[u8],
+        expected_sender: Option<&[u8; 32]>,
+    ) -> Result<Vec<u8>> {
         use base64::{engine::general_purpose, Engine as _};
 
         // Step 1: Parse message
@@ -646,8 +647,9 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         assert_eq!(cipher.algorithm(), EncryptionAlgorithm::XChaCha20Poly1305);
         assert_eq!(cipher.scheme(), CryptoScheme::Sr25519);
     }
@@ -658,7 +660,8 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Get Alice's public key for self-encryption
         let public_key = cipher.public_key();
@@ -676,7 +679,8 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Get Alice's public key for self-encryption
         let public_key = cipher.public_key();
@@ -694,13 +698,15 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();
@@ -718,19 +724,22 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let charlie = Cipher::new(
             "//Charlie".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob_public = bob.public_key();
         let charlie_public = charlie.public_key();
@@ -750,13 +759,15 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
             EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();
@@ -775,13 +786,15 @@ mod tests {
             "//Alice".to_string(),
             EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
             EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
-        ).unwrap();
+        )
+        .unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();

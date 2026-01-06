@@ -41,7 +41,11 @@ pub async fn subscribe(
 
     if let Some(receiver_pub) = receiver_public.as_ref() {
         if let Some(cipher) = cipher {
-            display::tree::info(&format!("🔐 Using encryption: {} with {}", cipher.algorithm(), cipher.scheme()));
+            display::tree::info(&format!(
+                "🔐 Using encryption: {} with {}",
+                cipher.algorithm(),
+                cipher.scheme()
+            ));
             display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
         }
     }

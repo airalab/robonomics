@@ -17,5 +17,5 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Type definitions for CPS pallet integration.
 pub use crate::robonomics_runtime::api::runtime_types::pallet_robonomics_cps::{
-    NodeId, NodeData, DefaultEncryptedData as EncryptedData,
+    DefaultEncryptedData as EncryptedData, NodeData, NodeId,
 };

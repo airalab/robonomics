@@ -45,7 +45,7 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
     let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
     let bytes = hex::decode(hex_str)
         .map_err(|e| anyhow::anyhow!("Invalid receiver address (not valid SS58 or hex): {}", e))?;
-    
+
     if bytes.len() != 32 {
         return Err(anyhow::anyhow!(
             "Invalid receiver public key: expected 32 bytes, got {}",
@@ -264,10 +264,16 @@ async fn main() -> Result<()> {
 
     // Execute commands
     match cli.command {
-        Commands::Show { node_id, decrypt, scheme } => {
+        Commands::Show {
+            node_id,
+            decrypt,
+            scheme,
+        } => {
             // Create cipher if decryption is requested
             let cipher = if decrypt {
-                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
+                let suri = cli
+                    .suri
+                    .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
                 Some(libcps::crypto::Cipher::new(
                     suri,
                     libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Placeholder; actual algorithm auto-detected in Cipher::decrypt
@@ -297,7 +303,9 @@ async fn main() -> Result<()> {
             let cipher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                let suri = cli
+                    .suri
+                    .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
                 Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
             } else {
                 None
@@ -330,7 +338,9 @@ async fn main() -> Result<()> {
             let cipher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                let suri = cli
+                    .suri
+                    .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
                 Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
             } else {
                 None
@@ -362,7 +372,9 @@ async fn main() -> Result<()> {
             let cipher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-                let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                let suri = cli
+                    .suri
+                    .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
                 Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
             } else {
                 None
@@ -404,7 +416,9 @@ async fn main() -> Result<()> {
                 let cipher = if receiver_public.is_some() {
                     let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
-                    let suri = cli.suri.ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
+                    let suri = cli
+                        .suri
+                        .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
                     Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
                 } else {
                     None

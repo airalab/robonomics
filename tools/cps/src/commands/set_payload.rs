@@ -48,9 +48,13 @@ pub async fn execute(
     // Convert data to NodeData, applying encryption if requested
     let payload_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-        display::tree::info(&format!("🔐 Encrypting payload with {} using {}", cipher.algorithm(), cipher.scheme()));
+        display::tree::info(&format!(
+            "🔐 Encrypting payload with {} using {}",
+            cipher.algorithm(),
+            cipher.scheme()
+        ));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
-        
+
         let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub)?;
         NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm())
     } else {
@@ -61,11 +65,11 @@ pub async fn execute(
     let node = Node::new(&client, node_id);
 
     let _events = node.set_payload(Some(payload_data)).await?;
-    
+
     display::tree::success(&format!(
         "Payload updated for node {}",
         node_id.to_string().bright_cyan()
     ));
-    
+
     Ok(())
 }

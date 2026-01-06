@@ -77,7 +77,7 @@ use subxt::{utils::AccountId32, PolkadotConfig};
 pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
 
 /// Information about a CPS node.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NodeInfo {
     /// Node ID
     pub id: u64,
@@ -257,9 +257,8 @@ impl<'a> Node<'a> {
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
         // Query the node from storage
-        let nodes_query = robonomics_runtime::api::storage()
-            .cps()
-            .nodes(CpsNodeId(self.id));
+        let node_id = CpsNodeId(self.id);
+        let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
 
         let node = self
             .client
@@ -276,7 +275,7 @@ impl<'a> Node<'a> {
         // Query children
         let children_query = robonomics_runtime::api::storage()
             .cps()
-            .nodes_by_parent(CpsNodeId(self.id));
+            .nodes_by_parent(node_id);
 
         let children = self
             .client
@@ -290,7 +289,6 @@ impl<'a> Node<'a> {
             .map_err(|e| anyhow!("Failed to query children: {}", e))?
             .map(|v| v.0)
             .unwrap_or(vec![]);
-
 
         Ok(NodeInfo {
             id: self.id,
@@ -398,7 +396,9 @@ impl<'a> Node<'a> {
         let node_id = CpsNodeId(self.id);
 
         // Build the set_payload transaction
-        let set_payload_call = robonomics_runtime::api::tx().cps().set_payload(node_id, payload);
+        let set_payload_call = robonomics_runtime::api::tx()
+            .cps()
+            .set_payload(node_id, payload);
 
         // Submit and watch the transaction
         let events = self

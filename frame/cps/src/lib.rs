@@ -609,16 +609,7 @@ impl NodeId {
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
 #[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
-#[derive(
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    TypeInfo,
-    MaxEncodedLen,
-    Clone,
-    PartialEq,
-    Eq,
-)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 pub enum DefaultEncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption.
     ///

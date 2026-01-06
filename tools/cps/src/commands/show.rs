@@ -23,7 +23,12 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 
-pub async fn execute(config: &Config, cipher: Option<&Cipher>, node_id: u64, decrypt: bool) -> Result<()> {
+pub async fn execute(
+    config: &Config,
+    cipher: Option<&Cipher>,
+    node_id: u64,
+    decrypt: bool,
+) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
