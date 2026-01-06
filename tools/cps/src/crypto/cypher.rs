@@ -306,7 +306,7 @@ impl Cypher {
         };
 
         // Step 4: Get sender's public key
-        let sender_public = self.public_key()?;
+        let sender_public = self.public_key();
 
         // Step 5: Create message structure
         let algorithm_str = match self.algorithm {
