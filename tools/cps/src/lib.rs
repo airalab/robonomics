@@ -105,14 +105,14 @@
 //!
 //! ## Type Definitions
 //!
-//! The library provides types that match the CPS pallet:
+//! The library provides SCALE-compatible types that match the CPS pallet:
 //!
 //! ```
 //! use libcps::types::{NodeId, NodeData, EncryptedData};
 //!
 //! let node_id = NodeId(42);
 //! let plain_data = NodeData::plain("sensor reading");
-//! let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+//! let encrypted = NodeData::from_encrypted_bytes(vec![1, 2, 3, 4], libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305);
 //! ```
 //!
 //! ## Crates.io Metadata

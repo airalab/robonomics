@@ -15,10 +15,10 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Type definitions for CPS pallet integration.
+//! SCALE-compatible type definitions for CPS pallet integration.
 //!
 //! This module provides type definitions that match the Robonomics CPS pallet
-//! for use with subxt blockchain integration.
+//! for use with subxt blockchain integration with guaranteed SCALE compatibility.
 //!
 //! # Overview
 //!
@@ -26,7 +26,34 @@
 //! - Match on-chain storage types exactly for SCALE encoding/decoding
 //! - Provide a convenient API for application developers
 //! - Support both plain and encrypted data storage
+//! - Use explicit `#[codec(index = N)]` attributes for enum variants
 //!
+//! # Why Manual Types?
+//!
+//! While subxt can generate types from chain metadata (`robonomics_runtime.rs`),
+//! this module provides manually maintained SCALE-compatible types because:
+//!
+//! 1. **Generated Code Issues**: The current subxt-generated runtime types have
+//!    compilation errors that prevent their use
+//! 2. **Ergonomic API**: These manual types provide helper methods (`.plain()`,
+//!    `.from()` conversions) that make the API more intuitive
+//! 3. **SCALE Compatibility**: Explicit `#[codec(index = N)]` attributes ensure
+//!    the SCALE encoding exactly matches the on-chain types
+//! 4. **Stability**: Decouples the client API from metadata regeneration cycles
+//!
+//! # SCALE Encoding Guarantee
+//!
+//! All types use the same SCALE encoding as on-chain types, verified through:
+//! - Matching `#[codec(index = N)]` on all enum variants (matches pallet definitions)
+//! - Matching `#[codec(compact)]` on numeric types
+//! - Unit tests for encode/decode roundtrip
+//! - Integration tests with actual blockchain
+//! - Same parity-scale-codec derive macros as the pallet
+//!
+//! # Maintenance Note
+//!
+//! When the on-chain CPS pallet types change, these types MUST be updated to match.
+//! The codec index values and struct layouts must remain synchronized with the pallet.
 //! # Examples
 //!
 //! ```
@@ -90,6 +117,11 @@ impl From<NodeId> for u64 {
 /// - **AesGcm256**: Hardware-accelerated on most modern processors
 /// - **ChaCha20Poly1305**: Standard ChaCha20-Poly1305 with 96-bit nonce
 ///
+/// # SCALE Encoding
+///
+/// This enum uses `#[codec(index = N)]` to ensure SCALE compatibility with the
+/// on-chain `DefaultEncryptedData` enum. The indices must match exactly.
+///
 /// # Examples
 ///
 /// ```
@@ -100,10 +132,13 @@ impl From<NodeId> for u64 {
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, Serialize, Deserialize)]
 pub enum EncryptedData {
     /// XChaCha20-Poly1305 AEAD encryption (24-byte nonce)
+    #[codec(index = 0)]
     XChaCha20Poly1305(Vec<u8>),
     /// AES-256-GCM AEAD encryption (12-byte nonce)
+    #[codec(index = 1)]
     AesGcm256(Vec<u8>),
     /// ChaCha20-Poly1305 AEAD encryption (12-byte nonce)
+    #[codec(index = 2)]
     ChaCha20Poly1305(Vec<u8>),
 }
 
@@ -113,6 +148,13 @@ pub enum EncryptedData {
 /// - Public metadata with encrypted payload
 /// - Encrypted metadata with public payload
 /// - Both encrypted or both plain
+///
+/// # SCALE Encoding
+///
+/// This enum uses `#[codec(index = N)]` to ensure SCALE compatibility with the
+/// on-chain `NodeData` enum. The indices and structure must match exactly:
+/// - Index 0: Plain data as Vec<u8>
+/// - Index 1: Encrypted data as EncryptedData enum
 ///
 /// # Examples
 ///
@@ -139,8 +181,10 @@ pub enum EncryptedData {
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, Serialize, Deserialize)]
 pub enum NodeData {
     /// Plain (unencrypted) data
+    #[codec(index = 0)]
     Plain(Vec<u8>),
     /// Encrypted data with specified algorithm
+    #[codec(index = 1)]
     Encrypted(EncryptedData),
 }
 
