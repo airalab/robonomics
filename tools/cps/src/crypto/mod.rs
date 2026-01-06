@@ -21,11 +21,13 @@
 //! with sr25519 key agreement and HKDF key derivation.
 
 pub mod cipher;
+pub mod cypher;
 pub mod encryption;
 pub mod keypair_type;
 pub mod shared_secret;
 
 pub use cipher::EncryptionAlgorithm;
+pub use cypher::{CryptoScheme, Cypher};
 pub use encryption::{decrypt, encrypt, EncryptedMessage};
 pub use keypair_type::KeypairType;
 pub use shared_secret::{DeriveSharedSecret, SharedSecret};
