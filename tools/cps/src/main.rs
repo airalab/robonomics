@@ -32,29 +32,19 @@ use libcps::{blockchain, mqtt};
 mod commands;
 mod display;
 
-/// Helper function to parse receiver public key from SS58 address or hex encoding
-fn parse_receiver_public_key(
-    addr_or_hex: &str,
-    scheme: libcps::crypto::CryptoScheme,
-) -> Result<[u8; 32]> {
-    // Try SS58 first based on scheme
-    let ss58_result = match scheme {
-        libcps::crypto::CryptoScheme::Sr25519 => {
-            sp_core::sr25519::Public::from_ss58check(addr_or_hex).map(|p| p.0)
-        }
-        libcps::crypto::CryptoScheme::Ed25519 => {
-            sp_core::ed25519::Public::from_ss58check(addr_or_hex).map(|p| p.0)
-        }
-    };
-
-    if let Ok(public_key) = ss58_result {
-        return Ok(public_key);
+/// Helper function to parse receiver public key from SS58 address or hex encoding.
+/// Uses AccountId32 which supports both Sr25519 and Ed25519 (same 32-byte public key length).
+fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
+    // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
+    if let Ok(account_id) = sp_core::crypto::AccountId32::from_ss58check(addr_or_hex) {
+        let bytes: &[u8; 32] = account_id.as_ref();
+        return Ok(*bytes);
     }
 
     // Fall back to hex decoding
     let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
     let bytes = hex::decode(hex_str)
-        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not valid SS58 for {} or hex): {}", scheme, e))?;
+        .map_err(|e| anyhow::anyhow!("Invalid receiver address (not valid SS58 or hex): {}", e))?;
     
     if bytes.len() != 32 {
         return Err(anyhow::anyhow!(
@@ -298,7 +288,7 @@ async fn main() -> Result<()> {
         } => {
             // Parse receiver public key if provided (supports both SS58 address and hex)
             let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
-                Some(parse_receiver_public_key(addr_or_hex, scheme)?)
+                Some(parse_receiver_public_key(addr_or_hex)?)
             } else {
                 None
             };
@@ -331,7 +321,7 @@ async fn main() -> Result<()> {
         } => {
             // Parse receiver public key if provided (supports both SS58 address and hex)
             let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
-                Some(parse_receiver_public_key(addr_or_hex, scheme)?)
+                Some(parse_receiver_public_key(addr_or_hex)?)
             } else {
                 None
             };
@@ -363,7 +353,7 @@ async fn main() -> Result<()> {
         } => {
             // Parse receiver public key if provided (supports both SS58 address and hex)
             let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
-                Some(parse_receiver_public_key(addr_or_hex, scheme)?)
+                Some(parse_receiver_public_key(addr_or_hex)?)
             } else {
                 None
             };
@@ -405,7 +395,7 @@ async fn main() -> Result<()> {
             } => {
                 // Parse receiver public key if provided (supports both SS58 address and hex)
                 let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
-                    Some(parse_receiver_public_key(addr_or_hex, scheme)?)
+                    Some(parse_receiver_public_key(addr_or_hex)?)
                 } else {
                     None
                 };

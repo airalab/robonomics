@@ -461,6 +461,11 @@ impl Cypher {
 
 #[cfg(test)]
 mod tests {
+    //! Comprehensive test suite for Cypher module.
+    //! 
+    //! Tests adapted and expanded from the deprecated encryption module.
+    //! Covers all three AEAD algorithms (XChaCha20, AES-GCM, ChaCha20) and
+    //! both cryptographic schemes (Sr25519, Ed25519).
     use super::*;
 
     #[test]

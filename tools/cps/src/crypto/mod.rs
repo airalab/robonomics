@@ -22,12 +22,17 @@
 
 pub mod cipher;
 pub mod cypher;
+#[deprecated(
+    since = "0.1.0",
+    note = "Use `Cypher` struct instead. This module is deprecated in favor of the optimized Cypher implementation which provides better performance, smaller memory footprint, and inlined encryption logic."
+)]
 pub mod encryption;
 pub mod scheme;
 pub mod shared_secret;
 
 pub use cipher::EncryptionAlgorithm;
 pub use cypher::Cypher;
+#[allow(deprecated)]
 pub use encryption::{decrypt, encrypt, EncryptedMessage};
 pub use scheme::CryptoScheme;
 pub use shared_secret::{DeriveSharedSecret, SharedSecret};
