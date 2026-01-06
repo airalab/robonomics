@@ -7,6 +7,7 @@ chain = "rococo-local"
   name = "alice"
   validator = true
   args = ["-lparachain=debug"]
+  rpc_port = 9944
 
   [[relaychain.nodes]]
   name = "bob"
@@ -21,6 +22,7 @@ cumulus_based = true
   [[parachains.collators]]
   name = "assethub-collator"
   command = "polkadot-parachain"
+  rpc_port = 9910
 
 [[parachains]]
 id = 2000
@@ -31,6 +33,7 @@ cumulus_based = true
   name = "collator-01"
   command = "robonomics"
   args = ["-lparachain=debug"]
+  rpc_port = 9988
 
   [[parachains.collators]]
   name = "collator-02"

@@ -80,10 +80,7 @@ pub use pallet::*;
 pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
-        traits::{
-            fungible::Mutate as FungibleMutate,
-            Currency, ExistenceRequirement,
-        },
+        traits::{fungible::Mutate as FungibleMutate, Currency, ExistenceRequirement},
     };
     use frame_system::pallet_prelude::*;
     use parity_scale_codec::Encode;
@@ -356,9 +353,7 @@ pub mod pallet {
 
         // Helper function to convert Balance to u128
         fn balance_to_u128(balance: BalanceOf<T>) -> Result<u128, Error<T>> {
-            balance
-                .try_into()
-                .map_err(|_| Error::<T>::AmountOverflow)
+            balance.try_into().map_err(|_| Error::<T>::AmountOverflow)
         }
 
         // Helper function to convert u128 to Balance

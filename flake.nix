@@ -20,8 +20,9 @@
           version = "4.1.0";
           src = pkgs.lib.cleanSource ./.;
           cargoLock.lockFile = ./Cargo.lock;
-          buildInputs = [toolchain pkg-config clang openssl taplo];
-          ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+          nativeBuildInputs = [toolchain clang pkg-config protobuf];
+          buildInputs = [openssl];
+          #ROCKSDB_LIB_DIR = "${rocksdb}/lib";
           LIBCLANG_PATH = "${libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
         }; 

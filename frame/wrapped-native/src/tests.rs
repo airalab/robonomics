@@ -33,7 +33,7 @@ fn test_successful_unwrap() {
 
         // Verify native tokens minted
         assert_eq!(Balances::free_balance(ALICE), 1100);
-        
+
         // Verify TotalWrapped incremented
         assert_eq!(WrappedNative::total_wrapped(), 100);
 
@@ -65,7 +65,7 @@ fn test_successful_wrap_and_send() {
 
         // Verify 50 native tokens burned
         assert_eq!(Balances::free_balance(ALICE), 1050);
-        
+
         // Verify TotalWrapped decremented
         assert_eq!(WrappedNative::total_wrapped(), 50);
 

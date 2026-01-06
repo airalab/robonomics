@@ -223,7 +223,7 @@ async function testExtrinsicSubmission() {
  * Main test runner
  */
 async function runTests() {
-  log.info('Starting Robonomics Zombienet Integration Tests');
+  log.info('Starting Robonomics Integration Tests');
   log.info('='.repeat(50));
   
   try {
