@@ -203,7 +203,7 @@ async function testXcmDownwardMessage(testResults) {
     const dest = {
       V4: {
         parents: 0,
-        interior: { X1: { Parachain: parachainId.toString() } }
+        interior: { X1: { Parachain: parachainId.toNumber() } }
       }
     };
     
@@ -364,7 +364,7 @@ async function testAssetHubTransfer(testResults) {
     const dest = {
       V4: {
         parents: 1,
-        interior: { X1: { Parachain: '1000' } }
+        interior: { X1: { Parachain: 1000 } }
       }
     };
     
@@ -372,7 +372,7 @@ async function testAssetHubTransfer(testResults) {
     const beneficiary = {
       V4: {
         parents: 0,
-        interior: { X1: [{ AccountId32: { network: null, id: alice.publicKey } }] }
+        interior: { X1: { AccountId32: { network: null, id: alice.publicKey } } }
       }
     };
     

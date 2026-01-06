@@ -318,7 +318,7 @@ await api.tx.sudo.sudo(tx).signAndSend(sudo);
 
 ## XCM Testing Examples
 
-The test suite includes XCM (Cross-Consensus Messaging) v5 tests demonstrating cross-chain communication patterns.
+The test suite includes XCM (Cross-Consensus Messaging) v4 tests demonstrating cross-chain communication patterns.
 
 ### Testing XCM Upward Messages (Parachain → Relay Chain)
 
@@ -523,7 +523,7 @@ async function testAssetHubTransfer(testResults) {
 
 ### Key Points for XCM Tests
 
-1. **Use XCM v5 Types**: Always use `Location` (not `MultiLocation`) and the v5 API
+1. **Use XCM v4 Types**: Use the `Location` type (v4+) instead of the legacy v3 `MultiLocation`; the examples above use XCM v4 enums (e.g. `V4` variants).
 2. **Event Monitoring**: Subscribe to events on both source and destination chains
 3. **Timeouts**: XCM messages may take time to process; use appropriate timeouts
 4. **Weight Limits**: Specify weight limits for execution (Unlimited for testing)

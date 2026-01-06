@@ -170,7 +170,7 @@ const TESTS_CONFIG = {
 
 ### XCM Tests
 
-The XCM test suite uses XCM v5 with the new `Location` types. All tests verify cross-chain message passing and execution.
+The XCM test suite uses XCM v4 with the new `Location` types. All tests verify cross-chain message passing and execution.
 
 #### 4. XCM Upward Message Test
 - **Purpose**: Tests XCM messages from parachain to relay chain

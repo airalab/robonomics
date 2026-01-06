@@ -145,8 +145,8 @@ impl Contains<Location> for ParentOrParentsPlurality {
         }
         match &location.interior {
             Here => true,
-            Junctions::X1(arc) => {
-                matches!(arc.as_ref(), [Junction::Plurality { .. }])
+            Junctions::X1(junction) => {
+                matches!(junction, Junction::Plurality { .. })
             }
             _ => false,
         }

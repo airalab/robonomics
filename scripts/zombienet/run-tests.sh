@@ -19,7 +19,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Configuration
+# NOTE: These version strings are pinned to specific upstream releases for compatibility
+# with this repository's zombienet test setup. When updating, ensure the new versions
+# remain compatible with the network configuration files in this directory.
+# Latest zombienet releases: https://github.com/paritytech/zombienet/releases
 ZOMBIENET_VERSION="v1.3.106"
+# Latest Polkadot node releases: https://github.com/paritytech/polkadot-sdk/releases
+# Use a version that matches the relay chain configuration used by these tests.
 POLKADOT_VERSION="stable2512"
 ZOMBIENET_BIN="${SCRIPT_DIR}/bin/zombienet-linux-x64"
 POLKADOT_BIN="${SCRIPT_DIR}/bin/polkadot"
