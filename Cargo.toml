@@ -54,7 +54,9 @@ members = [
   "frame/liability",
   "frame/digital-twin",
   "frame/xcm-info",
+  "frame/cps",
   "runtime/robonomics",
+  "tools/cps",
 ]
 
 [workspace.dependencies]
@@ -84,6 +86,30 @@ serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
+anyhow = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+
+# Cryptography (for libcps)
+curve25519-dalek = "4.1"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+
+# Blockchain (for libcps)
+subxt = "0.44"
+subxt-signer = "0.44"
+
+# Serialization (for libcps)
+base64 = "0.21"
+hex = "0.4"
+
+# MQTT (for libcps)
+rumqttc = "0.24"
+
+# CLI (for libcps)
+colored = "2.1"
 
 # Substrate
 # (wasm)
@@ -157,6 +183,7 @@ pallet-democracy = { version = "43.0.0", default-features = false }
 pallet-membership = { version = "43.0.0", default-features = false }
 pallet-message-queue = { version = "46.0.0", default-features = false }
 pallet-multisig = { version = "43.0.0", default-features = false }
+pallet-proxy = { version = "43.0.0", default-features = false }
 pallet-migrations = { version = "13.0.0", default-features = false }
 pallet-preimage = { version = "43.0.0", default-features = false }
 pallet-scheduler = { version = "44.0.0", default-features = false }
@@ -227,3 +254,4 @@ pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-featur
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
