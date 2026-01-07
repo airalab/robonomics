@@ -40,25 +40,56 @@ pub async fn execute(
     let node = Node::new(&client, node_id);
     let node_info = node.query().await?;
 
+    // Helper function to extract bytes from NodeData
+    fn extract_bytes(node_data: &libcps::types::NodeData) -> Vec<u8> {
+        match node_data {
+            libcps::types::NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
+            libcps::types::NodeData::Encrypted(encrypted) => {
+                match encrypted {
+                    libcps::types::EncryptedData::XChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
+                    libcps::types::EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
+                    libcps::types::EncryptedData::ChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
+                }
+            }
+        }
+    }
+
+    // Helper function to check if NodeData is encrypted
+    fn is_encrypted(node_data: &libcps::types::NodeData) -> bool {
+        matches!(node_data, libcps::types::NodeData::Encrypted(_))
+    }
+
     // Try to decrypt if requested and data is encrypted
-    let meta_str = if decrypt && node_info.meta.is_encrypted() {
-        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
-        display::tree::info("🔓 Decrypting metadata...");
-        let decrypted = cipher.decrypt(node_info.meta.as_bytes(), None)
-            .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
-        Some(String::from_utf8_lossy(&decrypted).to_string())
+    let meta_str = if let Some(ref meta) = node_info.meta {
+        if decrypt && is_encrypted(meta) {
+            let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
+            display::tree::info("🔓 Decrypting metadata...");
+            let bytes = extract_bytes(meta);
+            let decrypted = cipher.decrypt(&bytes, None)
+                .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
+            Some(String::from_utf8_lossy(&decrypted).to_string())
+        } else {
+            let bytes = extract_bytes(meta);
+            String::from_utf8(bytes).ok()
+        }
     } else {
-        String::from_utf8(node_info.meta.as_bytes().to_vec()).ok()
+        None
     };
 
-    let payload_str = if decrypt && node_info.payload.is_encrypted() {
-        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
-        display::tree::info("🔓 Decrypting payload...");
-        let decrypted = cipher.decrypt(node_info.payload.as_bytes(), None)
-            .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
-        Some(String::from_utf8_lossy(&decrypted).to_string())
+    let payload_str = if let Some(ref payload) = node_info.payload {
+        if decrypt && is_encrypted(payload) {
+            let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
+            display::tree::info("🔓 Decrypting payload...");
+            let bytes = extract_bytes(payload);
+            let decrypted = cipher.decrypt(&bytes, None)
+                .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
+            Some(String::from_utf8_lossy(&decrypted).to_string())
+        } else {
+            let bytes = extract_bytes(payload);
+            String::from_utf8(bytes).ok()
+        }
     } else {
-        String::from_utf8(node_info.payload.as_bytes().to_vec()).ok()
+        None
     };
 
     display::tree::print_tree(

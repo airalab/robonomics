@@ -110,6 +110,7 @@ rumqttc = "0.24"
 
 # CLI (for libcps)
 colored = "2.1"
+chrono = "0.4"
 
 # Substrate
 # (wasm)

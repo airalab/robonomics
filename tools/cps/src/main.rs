@@ -237,10 +237,6 @@ enum MqttCommands {
 
         /// Node ID to monitor
         node_id: u64,
-
-        /// Polling interval in seconds
-        #[arg(long, default_value = "5")]
-        interval: u64,
     },
 }
 
@@ -439,14 +435,12 @@ async fn main() -> Result<()> {
             MqttCommands::Publish {
                 topic,
                 node_id,
-                interval,
             } => {
                 commands::mqtt::publish(
                     &blockchain_config,
                     &mqtt_config,
                     &topic,
                     node_id,
-                    interval,
                 )
                 .await?;
             }
