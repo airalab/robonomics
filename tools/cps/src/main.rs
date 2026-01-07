@@ -299,7 +299,10 @@ async fn main() -> Result<()> {
                 None
             };
 
-            // Create cipher if encryption is requested
+            // Encryption requires BOTH sender SURI and receiver public key.
+            // - SURI (sender's seed phrase): Used to derive the sender's keypair for ECDH
+            // - receiver_public: The recipient's public key for deriving the shared secret
+            // If receiver_public is None, data will be stored as plaintext (no encryption).
             let cipher = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
