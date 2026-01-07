@@ -24,7 +24,7 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::mqtt;
 use libcps::node::Node;
-use libcps::types::NodeData;
+use libcps::types::{EncryptedData, NodeData};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::time::{sleep, Duration};
 
@@ -47,6 +47,23 @@ fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
     } else {
         // Default to port 1883 if not specified
         Ok((url.to_string(), 1883))
+    }
+}
+
+// Constants for reconnection and display
+const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
+const MAX_DISPLAY_LENGTH: usize = 100;
+const TRUNCATE_LENGTH: usize = 97;
+
+/// Helper to extract raw bytes from NodeData for comparison
+fn node_data_to_bytes(node_data: &NodeData) -> Vec<u8> {
+    match node_data {
+        NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
+        NodeData::Encrypted(encrypted) => match encrypted {
+            EncryptedData::XChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
+            EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
+            EncryptedData::ChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
+        },
     }
 }
 
@@ -174,7 +191,7 @@ pub async fn subscribe(
             }
             Err(e) => {
                 display::tree::warning(&format!("Connection error: {}. Reconnecting...", e));
-                sleep(Duration::from_secs(5)).await;
+                sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
             }
         }
     }
@@ -218,6 +235,8 @@ pub async fn publish(
     let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     // Spawn task to handle MQTT events (for auto-reconnect)
+    // Note: This task runs indefinitely. In production, consider adding
+    // a shutdown mechanism or graceful termination signal.
     tokio::spawn(async move {
         loop {
             if let Err(e) = eventloop.poll().await {
@@ -227,7 +246,7 @@ pub async fn publish(
                     "⚠️".yellow(),
                     e.to_string().yellow()
                 );
-                sleep(Duration::from_secs(5)).await;
+                sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
             }
         }
     });
@@ -251,8 +270,8 @@ pub async fn publish(
         match node.query().await {
             Ok(node_info) => {
                 if let Some(payload) = node_info.payload {
-                    // Convert NodeData to bytes for comparison
-                    let payload_bytes = format!("{:?}", payload).into_bytes();
+                    // Extract raw bytes for reliable comparison
+                    let payload_bytes = node_data_to_bytes(&payload);
 
                     if last_payload.as_ref() != Some(&payload_bytes) {
                         // Payload changed, publish to MQTT
@@ -270,8 +289,8 @@ pub async fn publish(
                                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                                     "📤".bright_blue(),
                                     topic.bright_cyan(),
-                                    if data.len() > 100 {
-                                        format!("{}...", &data[..97])
+                                    if data.len() > MAX_DISPLAY_LENGTH {
+                                        format!("{}...", &data[..TRUNCATE_LENGTH])
                                     } else {
                                         data.clone()
                                     }
@@ -306,27 +325,24 @@ pub async fn publish(
 
 /// Extract readable data from NodeData
 fn extract_node_data(node_data: &NodeData) -> String {
-    // NodeData is an enum with Plain(BoundedVec<u8>) and Encrypted variants
-    // We'll use debug format and try to extract the actual data
-    let debug_str = format!("{:?}", node_data);
-    
-    // Try to extract bytes from Plain variant
-    if debug_str.starts_with("Plain(") {
-        // Try to parse as UTF-8
-        if let Some(start) = debug_str.find('[') {
-            if let Some(end) = debug_str.rfind(']') {
-                let bytes_str = &debug_str[start + 1..end];
-                let bytes: Vec<u8> = bytes_str
-                    .split(',')
-                    .filter_map(|s| s.trim().parse::<u8>().ok())
-                    .collect();
-                if let Ok(s) = String::from_utf8(bytes) {
-                    return s;
+    match node_data {
+        NodeData::Plain(bounded_vec) => {
+            // Try to convert bytes to UTF-8 string
+            String::from_utf8(bounded_vec.0.clone())
+                .unwrap_or_else(|_| format!("[Binary data: {} bytes]", bounded_vec.0.len()))
+        }
+        NodeData::Encrypted(encrypted) => {
+            // For encrypted data, indicate it's encrypted
+            let (algo, size) = match encrypted {
+                EncryptedData::XChaCha20Poly1305(bounded_vec) => {
+                    ("XChaCha20Poly1305", bounded_vec.0.len())
                 }
-            }
+                EncryptedData::AesGcm256(bounded_vec) => ("AES-GCM-256", bounded_vec.0.len()),
+                EncryptedData::ChaCha20Poly1305(bounded_vec) => {
+                    ("ChaCha20Poly1305", bounded_vec.0.len())
+                }
+            };
+            format!("[Encrypted with {}: {} bytes]", algo, size)
         }
     }
-    
-    // For encrypted or unparseable data, return as-is
-    debug_str
 }
