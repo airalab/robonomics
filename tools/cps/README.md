@@ -409,6 +409,53 @@ cps --ws-url ws://localhost:9944 \
     show 0
 ```
 
+## 🔐 Encryption Requirements
+
+### What You Need
+
+To encrypt data, you **MUST provide BOTH**:
+
+1. **Sender's Seed Phrase** (your account):
+   - Via `--suri` CLI argument, OR
+   - Via `ROBONOMICS_SURI` environment variable
+   - Example: `//Alice`, `//Bob`, or a 12/24-word seed phrase
+
+2. **Receiver's Public Key** (who can decrypt):
+   - Via `--receiver-public` CLI argument
+   - Supports SS58 addresses or hex-encoded public keys
+   - Example: `5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty`
+
+### Quick Example
+
+```bash
+# Setup sender credentials
+export ROBONOMICS_SURI="//Alice"
+
+# Encrypt payload for Bob
+cps create \
+  --payload 'secret data' \
+  --receiver-public 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
+```
+
+### What Happens Without Encryption
+
+If you **omit** `--receiver-public`, data is stored as **plaintext** (no encryption):
+
+```bash
+# This creates plaintext data (visible to everyone)
+cps create --payload 'public data'
+```
+
+### Error Messages
+
+- `"SURI required for encryption"` → Set `--suri` or `ROBONOMICS_SURI`
+- `"Invalid receiver address"` → Check the SS58 address or hex format
+
+### See Also
+
+- [Examples directory](examples/) for working scripts
+- [Encryption section](#encryption) for algorithm details
+
 ## 🔐 Encryption
 
 The CLI supports multiple cryptographic schemes and AEAD encryption algorithms:
