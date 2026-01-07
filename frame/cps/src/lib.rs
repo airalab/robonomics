@@ -78,8 +78,8 @@
 //! ```ignore
 //! use pallet_robonomics_cps::{NodeData, NodeId, DefaultEncryptedData};
 //!
-//! // Encrypted payload
-//! let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+//! // Encrypted payload with self-describing algorithm tag inside JSON
+//! let encrypted = DefaultEncryptedData::Aead(
 //!     BoundedVec::try_from(encrypted_bytes).unwrap()
 //! );
 //! let payload = Some(NodeData::Encrypted(encrypted));
@@ -586,59 +586,71 @@ impl NodeId {
     }
 }
 
-/// Default encrypted data implementation supporting multiple encryption algorithms.
+/// Default encrypted data implementation using AEAD ciphers.
 ///
-/// This enum provides a standard implementation that runtimes can use for the
-/// `EncryptedData` associated type. Each variant represents a different encryption
-/// scheme with its encrypted payload.
+/// AEAD (Authenticated Encryption with Associated Data) provides:
+/// - **Confidentiality**: Data is encrypted
+/// - **Integrity**: Tampering is detected via authentication tag
+/// - **Authentication**: Sender verification via ECDH key agreement
 ///
-/// Currently supports:
-/// - XChaCha20-Poly1305: AEAD cipher with 256-bit keys and 192-bit nonces
-/// - AES-GCM-256: AEAD cipher with 256-bit keys
-/// - ChaCha20-Poly1305: AEAD cipher with 256-bit keys
+/// # Self-Describing Format
 ///
-/// Additional algorithms can be added as enum variants while maintaining backward
-/// compatibility with existing encrypted data.
+/// The encrypted bytes contain a JSON structure with embedded algorithm metadata:
+/// ```json
+/// {
+///   "version": 1,
+///   "algorithm": "xchacha20",  // Auto-detected during decryption
+///   "from": "sender_public_key_bs58",
+///   "nonce": "base64_nonce",
+///   "ciphertext": "base64_encrypted_data_with_auth_tag"
+/// }
+/// ```
+///
+/// # Why Single Variant?
+///
+/// Unlike traditional enums with per-algorithm variants, we use a single `Aead` variant because:
+/// - The algorithm tag is **embedded in the JSON payload** (self-describing)
+/// - Decryption **auto-detects** the algorithm without compile-time knowledge
+/// - **Forward compatible**: New algorithms don't require pallet upgrades
+/// - **No redundancy**: Algorithm isn't duplicated in both enum variant and payload
+///
+/// # Supported Algorithms
+///
+/// Currently implemented in `libcps`:
+/// - **XChaCha20-Poly1305** (recommended): 24-byte nonce, software-optimized
+/// - **AES-256-GCM**: 12-byte nonce, hardware-accelerated (AES-NI)
+/// - **ChaCha20-Poly1305**: 12-byte nonce, portable performance
+///
+/// Additional algorithms can be added to `libcps` without changing this pallet.
 ///
 /// # Example
 ///
 /// ```ignore
-/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+/// // libcps encrypts data and produces self-describing JSON, then serializes to bytes
+/// let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public)?; // Returns serialized JSON as bytes
+///
+/// // Store in pallet (algorithm tag is inside the bytes)
+/// let encrypted = DefaultEncryptedData::Aead(
 ///     BoundedVec::try_from(encrypted_bytes).unwrap()
 /// );
+/// let payload = NodeData::Encrypted(encrypted);
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
 #[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
 pub enum DefaultEncryptedData {
-    /// XChaCha20-Poly1305 AEAD encryption.
+    /// AEAD (Authenticated Encryption with Associated Data) encrypted payload.
     ///
-    /// Recommended for most use cases due to:
-    /// - High performance (software-optimized)
-    /// - Large nonce space (192 bits prevents reuse concerns)
-    /// - Strong security guarantees (256-bit keys, authenticated encryption)
+    /// The bytes contain a self-describing JSON structure with:
+    /// - `version`: Protocol version (currently 1)
+    /// - `algorithm`: AEAD cipher used (e.g., "xchacha20", "aesgcm256", "chacha20")
+    /// - `from`: Sender's public key (bs58-encoded, for ECDH key agreement)
+    /// - `nonce`: Random nonce (base64, size varies: 24 bytes for XChaCha20, 12 for others)
+    /// - `ciphertext`: Encrypted data + authentication tag (base64)
     ///
-    /// Resources:
-    /// - RFC 8439: ChaCha20-Poly1305
-    /// - XChaCha20 extends nonce to 192 bits
-    XChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
-
-    /// AES-256-GCM AEAD encryption.
-    ///
-    /// Hardware-accelerated on most modern processors (AES-NI).
-    /// Provides:
-    /// - 256-bit key security
-    /// - 96-bit nonce (requires careful management)
-    /// - Authentication tag for integrity
-    AesGcm256(BoundedVec<u8, MaxDataSize>),
-
-    /// ChaCha20-Poly1305 AEAD encryption.
-    ///
-    /// Standard ChaCha20-Poly1305 (96-bit nonce):
-    /// - High performance on platforms without AES-NI
-    /// - 256-bit key security
-    /// - Requires nonce management
-    ChaCha20Poly1305(BoundedVec<u8, MaxDataSize>),
+    /// Decryption automatically detects the algorithm from the embedded tag,
+    /// eliminating the need for separate enum variants per algorithm.
+    Aead(BoundedVec<u8, MaxDataSize>),
 }
 
 /// Node data container supporting both plain and encrypted storage.
@@ -673,8 +685,8 @@ pub enum DefaultEncryptedData {
 /// ## Encrypted Data
 ///
 /// ```ignore
-/// // Using DefaultEncryptedData
-/// let encrypted = DefaultEncryptedData::XChaCha20Poly1305(
+/// // Using DefaultEncryptedData with self-describing algorithm tag
+/// let encrypted = DefaultEncryptedData::Aead(
 ///     BoundedVec::try_from(encrypted_bytes).unwrap()
 /// );
 /// let payload = NodeData::Encrypted(encrypted);

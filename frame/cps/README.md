@@ -814,6 +814,89 @@ Customize the pallet for your use case:
 - **Shallow hierarchies**: Reduce MaxTreeDepth to 10-15
 - **Enterprise multi-site**: Increase MaxRootNodes to 1000+
 
+## 🔐 Encryption Format
+
+### AEAD (Authenticated Encryption with Associated Data)
+
+The CPS pallet supports **self-describing AEAD encryption** for secure data storage.
+
+**What is AEAD?**
+
+AEAD ciphers provide three guarantees:
+- ✅ **Confidentiality** - Data is encrypted, unreadable without the key
+- ✅ **Integrity** - Tampering is detected via authentication tag
+- ✅ **Authentication** - Sender identity verified via ECDH key agreement
+
+### Encrypted Message Format
+
+Encrypted data is stored as **self-describing JSON**:
+
+```json
+{
+  "version": 1,
+  "algorithm": "xchacha20",           // Auto-detected during decryption
+  "from": "5GrwvaEF5zXb26Fz...",      // Sender's public key (bs58)
+  "nonce": "Zm9vYmFy...",              // Random nonce (base64)
+  "ciphertext": "ZW5jcnlwdGVk..."    // Encrypted data + auth tag (base64)
+}
+```
+
+**Key Insight**: The algorithm tag is **embedded in the JSON payload**, not in the pallet's type system. This enables:
+- Algorithm auto-detection during decryption
+- Forward compatibility with new ciphers
+- No pallet upgrades needed for algorithm additions
+
+### Supported Algorithms
+
+| Algorithm | Nonce Size | Best For | Performance |
+|-----------|------------|----------|-------------|
+| **XChaCha20-Poly1305** (default) | 24 bytes | General purpose, large nonce space | ~680 MB/s (software) |
+| **AES-256-GCM** | 12 bytes | Hardware acceleration | ~2-3 GB/s (with AES-NI) |
+| **ChaCha20-Poly1305** | 12 bytes | Portable without hardware | ~600 MB/s (software) |
+
+All algorithms use:
+- **256-bit keys** (derived via ECDH + HKDF-SHA256)
+- **Authenticated encryption** (AEAD with authentication tag)
+- **Sender verification** (optional during decryption)
+
+### How Encryption Works
+
+```rust
+// 1. Key Agreement (ECDH)
+let shared_secret = ecdh(sender_private, receiver_public);
+
+// 2. Key Derivation (HKDF-SHA256)
+let encryption_key = hkdf(shared_secret, "robonomics-cps-{algorithm}");
+
+// 3. AEAD Encryption
+let nonce = random_bytes(nonce_size);  // 24 or 12 bytes
+let ciphertext = aead_encrypt(plaintext, encryption_key, nonce);
+
+// 4. Self-Describing JSON (constructed as object, then serialized)
+let message = Message {
+  version: 1,
+  algorithm: "xchacha20",
+  from: sender_public_key_bs58,
+  nonce: base64(nonce),
+  ciphertext: base64(ciphertext)
+};
+
+// 5. Serialize to bytes and store on-chain
+let encrypted_bytes = serde_json::to_vec(&message)?;
+let encrypted = DefaultEncryptedData::Aead(encrypted_bytes);
+```
+
+### Storage Type
+
+```rust
+pub enum DefaultEncryptedData {
+    /// AEAD encrypted payload with self-describing algorithm tag.
+    Aead(BoundedVec<u8, MaxDataSize>),
+}
+```
+
+The `Aead` variant contains the complete self-describing JSON structure, eliminating the need for separate enum variants per algorithm.
+
 ## Security & Trust
 
 ### What's Protected
