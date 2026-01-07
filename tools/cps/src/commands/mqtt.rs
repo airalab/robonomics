@@ -202,7 +202,7 @@ pub async fn publish(
     mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
-    interval: u64,
+    _interval: u64,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
@@ -253,9 +253,8 @@ pub async fn publish(
 
     display::tree::success(&format!("Connected to {}", mqtt_config.broker.bright_white()));
     display::tree::info(&format!(
-        "🔄 Monitoring node {} payload every {} seconds...",
-        node_id.to_string().bright_cyan(),
-        interval
+        "🔄 Monitoring node {} payload on each block...",
+        node_id.to_string().bright_cyan()
     ));
 
     // Create Node handle for querying
@@ -263,10 +262,30 @@ pub async fn publish(
 
     let mut last_payload: Option<Vec<u8>> = None;
 
-    loop {
-        sleep(Duration::from_secs(interval)).await;
+    // Subscribe to finalized blocks
+    let mut blocks_sub = client
+        .api
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
 
-        // Query node information
+    // Monitor each block for payload changes
+    while let Some(block_result) = blocks_sub.next().await {
+        let block = match block_result {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!(
+                    "[{}] {} Failed to get block: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    "❌".red(),
+                    e.to_string().red()
+                );
+                continue;
+            }
+        };
+
+        // Query node information at this block
         match node.query().await {
             Ok(node_info) => {
                 if let Some(payload) = node_info.payload {
@@ -285,10 +304,11 @@ pub async fn publish(
                         {
                             Ok(_) => {
                                 println!(
-                                    "[{}] {} Published to {}: {}",
+                                    "[{}] {} Published to {} at block #{}: {}",
                                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
                                     "📤".bright_blue(),
                                     topic.bright_cyan(),
+                                    block.number().to_string().bright_white(),
                                     if data.len() > MAX_DISPLAY_LENGTH {
                                         format!("{}...", &data[..TRUNCATE_LENGTH])
                                     } else {
@@ -321,6 +341,8 @@ pub async fn publish(
             }
         }
     }
+
+    Ok(())
 }
 
 /// Extract readable data from NodeData

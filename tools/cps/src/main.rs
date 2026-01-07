@@ -238,7 +238,7 @@ enum MqttCommands {
         /// Node ID to monitor
         node_id: u64,
 
-        /// Polling interval in seconds
+        /// (Deprecated) Polling interval in seconds - now monitors each block instead
         #[arg(long, default_value = "5")]
         interval: u64,
     },
