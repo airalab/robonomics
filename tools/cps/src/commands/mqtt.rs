@@ -202,7 +202,6 @@ pub async fn publish(
     mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
-    _interval: u64,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
     let client = Client::new(blockchain_config).await?;
@@ -285,8 +284,8 @@ pub async fn publish(
             }
         };
 
-        // Query node information at this block
-        match node.query().await {
+        // Query node information at this finalized block
+        match node.query_at(block.hash()).await {
             Ok(node_info) => {
                 if let Some(payload) = node_info.payload {
                     // Extract raw bytes for reliable comparison

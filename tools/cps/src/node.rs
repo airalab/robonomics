@@ -300,6 +300,77 @@ impl<'a> Node<'a> {
         })
     }
 
+    /// Query information about this node at a specific block hash.
+    ///
+    /// This is useful when you need to query the node state at a specific point in time.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_hash` - The block hash to query at
+    ///
+    /// # Returns
+    ///
+    /// Node information including metadata, payload, parent, and children at the specified block.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use libcps::{Client, Config, node::Node};
+    ///
+    /// # async fn example() -> anyhow::Result<()> {
+    /// # let config = Config {
+    /// #     ws_url: "ws://localhost:9944".to_string(),
+    /// #     suri: Some("//Alice".to_string()),
+    /// # };
+    /// # let client = Client::new(&config).await?;
+    /// let node = Node::new(&client, 5);
+    /// let block_hash = subxt::utils::H256::random();
+    /// let info = node.query_at(block_hash).await?;
+    /// println!("Node owner: {:?}", info.owner);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn query_at(&self, block_hash: subxt::utils::H256) -> Result<NodeInfo> {
+        // Query the node from storage at specific block
+        let node_id = CpsNodeId(self.id);
+        let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
+
+        let node = self
+            .client
+            .api
+            .storage()
+            .at(block_hash)
+            .fetch(&nodes_query)
+            .await
+            .map_err(|e| anyhow!("Failed to query node storage at block: {}", e))?
+            .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
+
+        // Query children
+        let children_query = robonomics_runtime::api::storage()
+            .cps()
+            .nodes_by_parent(node_id);
+
+        let children = self
+            .client
+            .api
+            .storage()
+            .at(block_hash)
+            .fetch(&children_query)
+            .await
+            .map_err(|e| anyhow!("Failed to query children at block: {}", e))?
+            .map(|v| v.0)
+            .unwrap_or(vec![]);
+
+        Ok(NodeInfo {
+            id: self.id,
+            owner: node.owner,
+            parent: node.parent.map(|p| p.0),
+            meta: node.meta,
+            payload: node.payload,
+            children: children.iter().map(|id| id.0).collect(),
+        })
+    }
+
     /// Query information about this node from the blockchain (blocking).
     ///
     /// This is the blocking variant of `query()`.
