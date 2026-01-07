@@ -58,10 +58,11 @@ hex = { workspace = true }
 # Async
 tokio = { workspace = true }
 anyhow = { workspace = true }
+chrono = { version = "0.4", optional = true }
 
 [features]
 default = ["cli"]
-cli = ["clap", "colored"]
+cli = ["clap", "colored", "chrono"]
 
 [package.metadata.docs.rs]
 all-features = true
