@@ -96,30 +96,35 @@ async fn main() -> anyhow::Result<()> {
 #### SR25519 Encryption (Substrate Native)
 
 ```rust
-use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
-use schnorrkel::SecretKey;
+use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
 
 fn encrypt_sr25519_example() -> anyhow::Result<()> {
-    let sender_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    let sender_public = sender_secret.to_public().to_bytes();
-    let receiver_public = [0u8; 32];
-    let plaintext = b"secret message";
-
-    // Encrypt with specific algorithm
-    let encrypted = encrypt(
-        plaintext,
-        &sender_secret,
-        &receiver_public,
-        EncryptionAlgorithm::XChaCha20Poly1305
+    // Create cipher with SR25519 scheme
+    let sender_cipher = Cipher::new(
+        "//Alice".to_string(),
+        EncryptionAlgorithm::XChaCha20Poly1305,
+        CryptoScheme::Sr25519
     )?;
 
+    let receiver_cipher = Cipher::new(
+        "//Bob".to_string(),
+        EncryptionAlgorithm::XChaCha20Poly1305,
+        CryptoScheme::Sr25519
+    )?;
+
+    let plaintext = b"secret message";
+    let receiver_public = receiver_cipher.public_key();
+
+    // Encrypt with specific algorithm
+    let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
+
     // Decrypt with sender verification (recommended for security)
-    let receiver_secret = SecretKey::from_bytes(&[0u8; 64])?;
-    let decrypted = decrypt(&encrypted, &receiver_secret, Some(&sender_public))?;
+    let sender_public = sender_cipher.public_key();
+    let decrypted = receiver_cipher.decrypt(&encrypted, Some(&sender_public))?;
     assert_eq!(plaintext, &decrypted[..]);
 
     // Decrypt without sender verification (accepts from any sender)
-    let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+    let decrypted_any = receiver_cipher.decrypt(&encrypted, None)?;
     assert_eq!(plaintext, &decrypted_any[..]);
 
     Ok(())
@@ -129,25 +134,30 @@ fn encrypt_sr25519_example() -> anyhow::Result<()> {
 #### ED25519 Encryption (IoT / Home Assistant Compatible)
 
 ```rust
-use libcps::crypto::{encrypt_with_algorithm_ed25519, decrypt_ed25519, EncryptionAlgorithm};
-use ed25519_dalek::SigningKey;
+use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
 
 fn encrypt_ed25519_example() -> anyhow::Result<()> {
-    let sender_secret = SigningKey::from_bytes(&[0u8; 32]);
-    let receiver_secret = SigningKey::from_bytes(&[1u8; 32]);
-    let receiver_public = receiver_secret.verifying_key().to_bytes();
-    let plaintext = b"secret message for home assistant";
-
-    // Encrypt with ED25519
-    let encrypted = encrypt_with_algorithm_ed25519(
-        plaintext,
-        &sender_secret,
-        &receiver_public,
-        EncryptionAlgorithm::XChaCha20Poly1305,
+    // Create cipher with ED25519 scheme
+    let sender_cipher = Cipher::new(
+        "//Alice".to_string(),
+        EncryptionAlgorithm::AesGcm256,
+        CryptoScheme::Ed25519
     )?;
 
+    let receiver_cipher = Cipher::new(
+        "//Bob".to_string(),
+        EncryptionAlgorithm::AesGcm256,
+        CryptoScheme::Ed25519
+    )?;
+
+    let plaintext = b"secret message for home assistant";
+    let receiver_public = receiver_cipher.public_key();
+
+    // Encrypt with ED25519
+    let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
+
     // Decrypt
-    let decrypted = decrypt_ed25519(&encrypted, &receiver_secret)?;
+    let decrypted = receiver_cipher.decrypt(&encrypted, None)?;
 
     assert_eq!(plaintext, &decrypted[..]);
     Ok(())
@@ -241,22 +251,22 @@ cps create --meta '{"type":"sensor"}' --payload '22.5C'
 cps create --parent 0 --payload 'operational data'
 
 # Create with encryption (SR25519, default)
-cps create --parent 0 --payload 'secret data' --encrypt
+cps create --parent 0 --payload 'secret data' --receiver-public <RECEIVER_ADDRESS>
 
 # Create with ED25519 encryption
-cps create --parent 0 --payload 'secret data' --encrypt --keypair-type ed25519
+cps create --parent 0 --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 
 # Create with specific cipher
-cps create --parent 0 --payload 'secret data' --encrypt --cipher aesgcm256
+cps create --parent 0 --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --cipher aesgcm256
 ```
 
 **Options:**
 - `--parent <id>`: Parent node ID (omit for root node)
 - `--meta <data>`: Metadata (configuration data)
 - `--payload <data>`: Payload (operational data)
-- `--encrypt`: Encrypt the data
+- `--receiver-public <address>`: Receiver public key or SS58 address for encryption (required to encrypt data)
 - `--cipher <algorithm>`: Encryption algorithm (xchacha20, aesgcm256, chacha20) [default: xchacha20]
-- `--keypair-type <type>`: Keypair type (sr25519, ed25519) [default: sr25519]
+- `--scheme <type>`: Cryptographic scheme (sr25519, ed25519) [default: sr25519]
 
 ### `set-meta <node_id> <data>`
 
@@ -267,10 +277,10 @@ Update node metadata.
 cps set-meta 5 '{"name":"Updated Sensor"}'
 
 # Update with encryption
-cps set-meta 5 'private config' --encrypt
+cps set-meta 5 'private config' --receiver-public <RECEIVER_ADDRESS>
 
 # Update with ED25519 encryption
-cps set-meta 5 'private config' --encrypt --keypair-type ed25519
+cps set-meta 5 'private config' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 ```
 
 ### `set-payload <node_id> <data>`
@@ -282,10 +292,10 @@ Update node payload (operational data).
 cps set-payload 5 '23.1C'
 
 # Update with encryption
-cps set-payload 5 'encrypted telemetry' --encrypt
+cps set-payload 5 'encrypted telemetry' --receiver-public <RECEIVER_ADDRESS>
 
 # Update with ED25519 and AES-GCM
-cps set-payload 5 'encrypted telemetry' --encrypt --keypair-type ed25519 --cipher aesgcm256
+cps set-payload 5 'encrypted telemetry' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519 --cipher aesgcm256
 ```
 
 ### `move <node_id> <new_parent_id>`
@@ -322,13 +332,13 @@ Subscribe to MQTT topic and update node payload with received messages.
 cps mqtt subscribe "sensors/temp01" 5
 
 # Subscribe with encryption (SR25519)
-cps mqtt subscribe "sensors/temp01" 5 --encrypt
+cps mqtt subscribe "sensors/temp01" 5 --receiver-public <RECEIVER_ADDRESS>
 
 # Subscribe with ED25519 encryption (Home Assistant compatible)
-cps mqtt subscribe "homeassistant/sensor/temp" 5 --encrypt --keypair-type ed25519
+cps mqtt subscribe "homeassistant/sensor/temp" 5 --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 
 # Subscribe with specific cipher
-cps mqtt subscribe "sensors/temp01" 5 --encrypt --cipher aesgcm256
+cps mqtt subscribe "sensors/temp01" 5 --receiver-public <RECEIVER_ADDRESS> --cipher aesgcm256
 ```
 
 **Behavior:**
@@ -401,11 +411,11 @@ cps --ws-url ws://localhost:9944 \
 
 ## 🔐 Encryption
 
-The CLI supports multiple keypair types and AEAD encryption algorithms:
+The CLI supports multiple cryptographic schemes and AEAD encryption algorithms:
 
-### Keypair Types
+### Cryptographic Schemes
 
-The library supports two keypair types for encryption:
+The library supports two cryptographic schemes for encryption:
 
 #### **SR25519** (Default - Substrate Native)
 - Uses Ristretto255 curve for ECDH
@@ -443,7 +453,7 @@ Three AEAD ciphers are supported:
 1. **Key Derivation (ECDH + HKDF)**
    - For SR25519: Derive shared secret using Ristretto255 ECDH
    - For ED25519: Derive shared secret using X25519 ECDH
-   - Apply HKDF-SHA256 with algorithm and keypair-type specific info string
+   - Apply HKDF-SHA256 with algorithm-specific info string
 
 2. **Encryption (AEAD)**
    - Encrypt data with derived 32-byte key
@@ -470,19 +480,19 @@ Decryption supports **optional sender verification** for enhanced security:
 
 ```bash
 # Encrypt with SR25519 (default) and XChaCha20 (default)
-cps create --payload 'secret data' --encrypt
+cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS>
 
-# Encrypt with ED25519 keypair type
-cps create --payload 'secret data' --encrypt --keypair-type ed25519
+# Encrypt with ED25519 cryptographic scheme
+cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 
 # Encrypt with different algorithm
-cps create --payload 'secret data' --encrypt --cipher aesgcm256
+cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --cipher aesgcm256
 
-# Combine keypair type and cipher selection
-cps create --payload 'secret data' --encrypt --keypair-type ed25519 --cipher aesgcm256
+# Combine scheme and cipher selection
+cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519 --cipher aesgcm256
 
 # Decrypt when viewing
-cps show 5 --decrypt
+cps show 5 --decrypt --scheme sr25519
 
 # The CLI always performs sender verification when available
 ```
@@ -490,28 +500,37 @@ cps show 5 --decrypt
 ### Library Usage
 
 ```rust
-use libcps::crypto::{encrypt, decrypt, EncryptionAlgorithm};
+use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
 
-// Encrypt
-let encrypted = encrypt(data, &sender_secret, &receiver_public, EncryptionAlgorithm::AesGcm256)?;
+// Create a Cipher instance
+let cipher = Cipher::new(
+    "//Alice".to_string(),
+    EncryptionAlgorithm::XChaCha20Poly1305,
+    CryptoScheme::Sr25519,
+)?;
 
-// Decrypt with sender verification (recommended)
-let decrypted = decrypt(&encrypted, &receiver_secret, Some(&expected_sender_public))?;
+// Get public key
+let my_public = cipher.public_key();
 
-// Decrypt without sender verification (accepts from any sender)
-let decrypted_any = decrypt(&encrypted, &receiver_secret, None)?;
+// Encrypt data
+let plaintext = b"Hello, World!";
+let receiver_public = [0u8; 32]; // receiver's public key
+let encrypted = cipher.encrypt(plaintext, &receiver_public)?;
+
+// Decrypt data
+let decrypted = cipher.decrypt(&encrypted, None)?;
 ```
 
 ### Home Assistant Compatibility
 
-When using with Home Assistant Robonomics integration, use ED25519 keypair type:
+When using with Home Assistant Robonomics integration, use ED25519 cryptographic scheme:
 
 ```bash
 # Subscribe to Home Assistant data with ED25519
-cps mqtt subscribe "homeassistant/sensor/temperature" 5 --encrypt --keypair-type ed25519
+cps mqtt subscribe "homeassistant/sensor/temperature" 5 --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 
 # Update node with ED25519 encryption
-cps set-payload 5 "encrypted data" --encrypt --keypair-type ed25519
+cps set-payload 5 "encrypted data" --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
 ```
 
 ## 📡 MQTT Bridge
@@ -581,7 +600,7 @@ cps create --parent 0 --meta '{"type":"line","name":"Assembly Line 1"}'
 cps create --parent 1 --meta '{"type":"machine","id":"CNC-001"}'
 
 # Monitor machine data with encryption
-cps mqtt subscribe "machines/cnc001/telemetry" 2 --encrypt
+cps mqtt subscribe "machines/cnc001/telemetry" 2 --receiver-public <RECEIVER_ADDRESS>
 ```
 
 ## 🛠️ Development

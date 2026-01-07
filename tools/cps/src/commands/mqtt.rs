@@ -62,29 +62,6 @@ pub async fn subscribe(
 }
 
 pub async fn publish(
-    _blockchain_config: &Config,
-    _mqtt_config: &mqtt::Config,
-    topic: &str,
-    node_id: u64,
-    interval: u64,
-) -> Result<()> {
-    display::tree::progress("Setting up MQTT publisher...");
-    display::tree::info(&format!("Topic: {topic}"));
-    display::tree::info(&format!("Node: {node_id}"));
-    display::tree::info(&format!("Interval: {}s", interval));
-
-    display::tree::error(
-        "MQTT publish not yet implemented. This requires:\n\
-         1. Connecting to MQTT broker\n\
-         2. Polling node payload\n\
-         3. Publishing changes to topic\n\
-         4. Handle connection lifecycle",
-    );
-
-    Err(anyhow::anyhow!("MQTT publish not implemented yet"))
-}
-
-pub async fn publish(
     blockchain_config: &Config,
     _mqtt_config: &mqtt::Config,
     topic: &str,
