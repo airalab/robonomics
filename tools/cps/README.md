@@ -454,7 +454,7 @@ cps create --payload 'public data'
 ### See Also
 
 - [Examples directory](examples/) for working scripts
-- [Encryption section](#-encryption) for algorithm details
+- [Encryption section](#encryption) for algorithm details
 
 ## 🔐 Encryption
 
