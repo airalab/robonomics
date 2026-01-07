@@ -626,12 +626,12 @@ impl NodeId {
 /// # Example
 ///
 /// ```ignore
-/// // libcps encrypts data and produces self-describing JSON
-/// let encrypted_json = cipher.encrypt(plaintext, &receiver_public)?;
+/// // libcps encrypts data and produces self-describing JSON, then serializes to bytes
+/// let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public)?; // Returns serialized JSON as bytes
 ///
 /// // Store in pallet (algorithm tag is inside the bytes)
 /// let encrypted = DefaultEncryptedData::Aead(
-///     BoundedVec::try_from(encrypted_json).unwrap()
+///     BoundedVec::try_from(encrypted_bytes).unwrap()
 /// );
 /// let payload = NodeData::Encrypted(encrypted);
 /// ```

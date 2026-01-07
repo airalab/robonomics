@@ -872,17 +872,18 @@ let encryption_key = hkdf(shared_secret, "robonomics-cps-{algorithm}");
 let nonce = random_bytes(nonce_size);  // 24 or 12 bytes
 let ciphertext = aead_encrypt(plaintext, encryption_key, nonce);
 
-// 4. Self-Describing JSON
-let message = {
-  "version": 1,
-  "algorithm": "xchacha20",
-  "from": sender_public_key_bs58,
-  "nonce": base64(nonce),
-  "ciphertext": base64(ciphertext)
+// 4. Self-Describing JSON (constructed as object, then serialized)
+let message = Message {
+  version: 1,
+  algorithm: "xchacha20",
+  from: sender_public_key_bs58,
+  nonce: base64(nonce),
+  ciphertext: base64(ciphertext)
 };
 
-// 5. Store on-chain
-let encrypted = DefaultEncryptedData::Aead(message.to_bytes());
+// 5. Serialize to bytes and store on-chain
+let encrypted_bytes = serde_json::to_vec(&message)?;
+let encrypted = DefaultEncryptedData::Aead(encrypted_bytes);
 ```
 
 ### Storage Type
