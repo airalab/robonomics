@@ -233,23 +233,28 @@ pub async fn publish(
     // Create MQTT client
     let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
+    // Create shutdown channel for graceful termination of background task
+    let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
+
     // Spawn task to handle MQTT events (for auto-reconnect)
-    // WARNING: This background task runs indefinitely without a shutdown mechanism.
-    // If the main function exits early or encounters an error, this task will continue
-    // running. In production, consider implementing graceful shutdown using:
-    // - tokio::sync::CancellationToken
-    // - tokio::sync::oneshot channel
-    // - or similar coordination mechanism
-    tokio::spawn(async move {
+    let eventloop_handle = tokio::spawn(async move {
         loop {
-            if let Err(e) = eventloop.poll().await {
-                eprintln!(
-                    "[{}] {} MQTT connection error: {}",
-                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                    "⚠️".yellow(),
-                    e.to_string().yellow()
-                );
-                sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+            tokio::select! {
+                _ = shutdown_rx.recv() => {
+                    // Shutdown signal received, exit gracefully
+                    break;
+                }
+                result = eventloop.poll() => {
+                    if let Err(e) = result {
+                        eprintln!(
+                            "[{}] {} MQTT connection error: {}",
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                            "⚠️".yellow(),
+                            e.to_string().yellow()
+                        );
+                        sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+                    }
+                }
             }
         }
     });
@@ -345,6 +350,15 @@ pub async fn publish(
             }
         }
     }
+
+    // Signal shutdown to the background MQTT event loop task
+    let _ = shutdown_tx.send(());
+    
+    // Wait for the background task to finish (with timeout to avoid hanging)
+    let _ = tokio::time::timeout(
+        Duration::from_secs(5),
+        eventloop_handle
+    ).await;
 
     Ok(())
 }
