@@ -324,7 +324,8 @@ impl<'a> Node<'a> {
     /// # };
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
-    /// let block_hash = subxt::utils::H256::random();
+    /// // Get the finalized block hash
+    /// let block_hash = client.api.backend().latest_finalized_block_ref().await?.hash();
     /// let info = node.query_at(block_hash).await?;
     /// println!("Node owner: {:?}", info.owner);
     /// # Ok(())

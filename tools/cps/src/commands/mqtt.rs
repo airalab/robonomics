@@ -234,8 +234,12 @@ pub async fn publish(
     let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     // Spawn task to handle MQTT events (for auto-reconnect)
-    // Note: This task runs indefinitely. In production, consider adding
-    // a shutdown mechanism or graceful termination signal.
+    // WARNING: This background task runs indefinitely without a shutdown mechanism.
+    // If the main function exits early or encounters an error, this task will continue
+    // running. In production, consider implementing graceful shutdown using:
+    // - tokio::sync::CancellationToken
+    // - tokio::sync::oneshot channel
+    // - or similar coordination mechanism
     tokio::spawn(async move {
         loop {
             if let Err(e) = eventloop.poll().await {
@@ -308,8 +312,9 @@ pub async fn publish(
                                     "📤".bright_blue(),
                                     topic.bright_cyan(),
                                     block.number().to_string().bright_white(),
-                                    if data.len() > MAX_DISPLAY_LENGTH {
-                                        format!("{}...", &data[..TRUNCATE_LENGTH])
+                                    if data.chars().count() > MAX_DISPLAY_LENGTH {
+                                        let truncated: String = data.chars().take(TRUNCATE_LENGTH).collect();
+                                        format!("{}...", truncated)
                                     } else {
                                         data.clone()
                                     }
