@@ -25,6 +25,7 @@ use libcps::crypto::Cipher;
 use libcps::mqtt;
 use libcps::node::Node;
 use libcps::types::{EncryptedData, NodeData};
+use libcps::PayloadSet;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use tokio::time::{sleep, Duration};
 
@@ -54,18 +55,6 @@ fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
 const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 const MAX_DISPLAY_LENGTH: usize = 100;
 const TRUNCATE_LENGTH: usize = 97;
-
-/// Helper to extract raw bytes from NodeData for comparison
-fn node_data_to_bytes(node_data: &NodeData) -> Vec<u8> {
-    match node_data {
-        NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
-        NodeData::Encrypted(encrypted) => match encrypted {
-            EncryptedData::XChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
-            EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
-            EncryptedData::ChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
-        },
-    }
-}
 
 pub async fn subscribe(
     blockchain_config: &Config,
@@ -268,8 +257,6 @@ pub async fn publish(
     // Create Node handle for querying
     let node = Node::new(&client, node_id);
 
-    let mut last_payload: Option<Vec<u8>> = None;
-
     // Subscribe to finalized blocks
     let mut blocks_sub = client
         .api
@@ -278,7 +265,7 @@ pub async fn publish(
         .await
         .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
 
-    // Monitor each block for payload changes
+    // Monitor each block for PayloadSet events
     while let Some(block_result) = blocks_sub.next().await {
         let block = match block_result {
             Ok(b) => b,
@@ -293,17 +280,50 @@ pub async fn publish(
             }
         };
 
-        // Query node information at this finalized block
-        match node.query_at(block.hash()).await {
-            Ok(node_info) => {
-                if let Some(payload) = node_info.payload {
-                    // Extract raw bytes for reliable comparison
-                    let payload_bytes = node_data_to_bytes(&payload);
+        // Check events in this block for PayloadSet events related to our node
+        let events = match block.events().await {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!(
+                    "[{}] {} Failed to get block events: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    "❌".red(),
+                    e.to_string().red()
+                );
+                continue;
+            }
+        };
 
-                    if last_payload.as_ref() != Some(&payload_bytes) {
-                        // Payload changed, publish to MQTT
-                        
-                        // Try to extract the actual data from NodeData
+        // Look for PayloadSet events for our node
+        let payload_set_events = events.find::<PayloadSet>();
+        
+        let mut payload_updated = false;
+        for event in payload_set_events {
+            match event {
+                Ok(payload_event) => {
+                    // Check if this event is for our node
+                    if payload_event.0 .0 == node_id {
+                        payload_updated = true;
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[{}] {} Failed to decode PayloadSet event: {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        "⚠️".yellow(),
+                        e.to_string().yellow()
+                    );
+                }
+            }
+        }
+
+        // Only query and publish if the payload was actually updated
+        if payload_updated {
+            match node.query_at(block.hash()).await {
+                Ok(node_info) => {
+                    if let Some(payload) = node_info.payload {
+                        // Extract the actual data from NodeData
                         let data = extract_node_data(&payload);
 
                         match mqtt_client
@@ -317,11 +337,14 @@ pub async fn publish(
                                     "📤".bright_blue(),
                                     topic.bright_cyan(),
                                     block.number().to_string().bright_white(),
-                                    if data.chars().count() > MAX_DISPLAY_LENGTH {
-                                        let truncated: String = data.chars().take(TRUNCATE_LENGTH).collect();
-                                        format!("{}...", truncated)
-                                    } else {
-                                        data.clone()
+                                    {
+                                        let char_count = data.chars().take(MAX_DISPLAY_LENGTH + 1).count();
+                                        if char_count > MAX_DISPLAY_LENGTH {
+                                            let truncated: String = data.chars().take(TRUNCATE_LENGTH).collect();
+                                            format!("{}...", truncated)
+                                        } else {
+                                            data.clone()
+                                        }
                                     }
                                     .bright_white()
                                 );
@@ -335,18 +358,16 @@ pub async fn publish(
                                 );
                             }
                         }
-
-                        last_payload = Some(payload_bytes);
                     }
                 }
-            }
-            Err(e) => {
-                eprintln!(
-                    "[{}] {} Failed to query node: {}",
-                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-                    "❌".red(),
-                    e.to_string().red()
-                );
+                Err(e) => {
+                    eprintln!(
+                        "[{}] {} Failed to query node: {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        "❌".red(),
+                        e.to_string().red()
+                    );
+                }
             }
         }
     }

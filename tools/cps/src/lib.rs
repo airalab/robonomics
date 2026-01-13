@@ -144,7 +144,10 @@ pub mod types;
 #[allow(dead_code, unused_imports, non_camel_case_types, unreachable_patterns, missing_docs)]
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
-mod robonomics_runtime;
+pub(crate) mod robonomics_runtime;
+
+// Re-export event types for CLI usage
+pub use robonomics_runtime::api::cps::events::PayloadSet;
 
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};

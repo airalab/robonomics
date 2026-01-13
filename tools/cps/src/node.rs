@@ -256,48 +256,16 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
-        // Query the node from storage
-        let node_id = CpsNodeId(self.id);
-        let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
-
-        let node = self
+        // Get the latest finalized block and query at that block
+        let block_hash = self
             .client
             .api
-            .storage()
-            .at_latest()
-            .await
-            .map_err(|e| anyhow!("Failed to fetch latest block: {}", e))?
-            .fetch(&nodes_query)
-            .await
-            .map_err(|e| anyhow!("Failed to query node storage: {}", e))?
-            .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
-
-        // Query children
-        let children_query = robonomics_runtime::api::storage()
-            .cps()
-            .nodes_by_parent(node_id);
-
-        let children = self
-            .client
-            .api
-            .storage()
-            .at_latest()
-            .await
-            .map_err(|e| anyhow!("Failed to fetch latest block for children: {}", e))?
-            .fetch(&children_query)
-            .await
-            .map_err(|e| anyhow!("Failed to query children: {}", e))?
-            .map(|v| v.0)
-            .unwrap_or(vec![]);
-
-        Ok(NodeInfo {
-            id: self.id,
-            owner: node.owner,
-            parent: node.parent.map(|p| p.0),
-            meta: node.meta,
-            payload: node.payload,
-            children: children.iter().map(|id| id.0).collect(),
-        })
+            .backend()
+            .latest_finalized_block_ref()
+            .await?
+            .hash();
+        
+        self.query_at(block_hash).await
     }
 
     /// Query information about this node at a specific block hash.
