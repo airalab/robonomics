@@ -355,11 +355,18 @@ pub async fn publish(
     let _ = shutdown_tx.send(());
     
     // Wait for the background task to finish (with timeout to avoid hanging)
-    let _ = tokio::time::timeout(
+    let shutdown_result = tokio::time::timeout(
         Duration::from_secs(5),
         eventloop_handle
     ).await;
 
+    if shutdown_result.is_err() {
+        eprintln!(
+            "[{}] {} MQTT event loop did not shut down within 5 seconds. It may have failed to terminate gracefully.",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            "⚠".yellow(),
+        );
+    }
     Ok(())
 }
 
