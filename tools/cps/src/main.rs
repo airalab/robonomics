@@ -97,6 +97,17 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Display node information and its children in a beautiful tree format
+    #[command(long_about = "Display node information and its children in a beautiful tree format.
+
+EXAMPLES:
+    # Show node 0
+    cps show 0
+
+    # Show node with decryption attempt (using SR25519)
+    cps show 5 --decrypt
+
+    # Show node with ED25519 decryption
+    cps show 5 --decrypt --scheme ed25519")]
     Show {
         /// Node ID to display
         node_id: u64,
@@ -111,6 +122,28 @@ enum Commands {
     },
 
     /// Create a new node (root or child)
+    #[command(long_about = "Create a new node (root or child).
+
+EXAMPLES:
+    # Create root node
+    cps create --meta '{\"type\":\"sensor\"}' --payload '22.5C'
+
+    # Create child node
+    cps create --parent 0 --payload 'operational data'
+
+    # Create with encryption (SR25519, default)
+    cps create --parent 0 --payload 'secret data' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+
+    # Create with ED25519 encryption (Home Assistant compatible)
+    cps create --parent 0 --payload 'secret data' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --scheme ed25519
+
+    # Create with specific cipher
+    cps create --parent 0 --payload 'secret data' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --cipher aesgcm256")]
     Create {
         /// Parent node ID (omit for root node)
         #[arg(long)]
@@ -139,6 +172,20 @@ enum Commands {
     },
 
     /// Update node metadata
+    #[command(long_about = "Update node metadata.
+
+EXAMPLES:
+    # Update metadata
+    cps set-meta 5 '{\"name\":\"Updated Sensor\"}'
+
+    # Update with encryption
+    cps set-meta 5 'private config' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+
+    # Update with ED25519 encryption
+    cps set-meta 5 'private config' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --scheme ed25519")]
     SetMeta {
         /// Node ID
         node_id: u64,
@@ -161,6 +208,20 @@ enum Commands {
     },
 
     /// Update node payload
+    #[command(long_about = "Update node payload (operational data).
+
+EXAMPLES:
+    # Update temperature reading
+    cps set-payload 5 '23.1C'
+
+    # Update with encryption
+    cps set-payload 5 'encrypted telemetry' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+
+    # Update with ED25519 and AES-GCM
+    cps set-payload 5 'encrypted telemetry' \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --scheme ed25519 --cipher aesgcm256")]
     SetPayload {
         /// Node ID
         node_id: u64,
@@ -183,6 +244,15 @@ enum Commands {
     },
 
     /// Move a node to a new parent
+    #[command(long_about = "Move a node to a new parent.
+
+EXAMPLES:
+    # Move node 5 under node 3
+    cps move 5 3
+
+FEATURES:
+    - Automatic cycle detection (prevents moving a node under its own descendant)
+    - Path validation")]
     Move {
         /// Node ID to move
         node_id: u64,
@@ -192,6 +262,14 @@ enum Commands {
     },
 
     /// Delete a node (must have no children)
+    #[command(long_about = "Delete a node (must have no children).
+
+EXAMPLES:
+    # Remove node with confirmation
+    cps remove 5
+
+    # Remove without confirmation
+    cps remove 5 --force")]
     Remove {
         /// Node ID to remove
         node_id: u64,
@@ -209,6 +287,35 @@ enum Commands {
 #[derive(Subcommand)]
 enum MqttCommands {
     /// Subscribe to MQTT topic and update node payload with received messages
+    #[command(long_about = "Subscribe to MQTT topic and update node payload with received messages.
+
+Connects to MQTT broker, subscribes to a topic, and updates the blockchain node payload 
+with each received message. Supports real-time encryption for secure IoT integration.
+
+EXAMPLES:
+    # Subscribe to sensor data
+    cps mqtt subscribe 'sensors/temp01' 5
+
+    # Subscribe with encryption (SR25519)
+    cps mqtt subscribe 'sensors/temp01' 5 \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+
+    # Subscribe with ED25519 encryption (Home Assistant compatible)
+    cps mqtt subscribe 'homeassistant/sensor/temp' 5 \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --scheme ed25519
+
+    # Subscribe with specific cipher
+    cps mqtt subscribe 'sensors/temp01' 5 \\
+        --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \\
+        --cipher aesgcm256
+
+BEHAVIOR:
+    - Connects to MQTT broker
+    - Subscribes to specified topic
+    - On each message: updates node payload on blockchain
+    - Displays colorful logs with timestamps for each update
+    - Auto-reconnects on connection failures")]
     Subscribe {
         /// MQTT topic to subscribe to
         topic: String,
@@ -231,16 +338,39 @@ enum MqttCommands {
     },
 
     /// Publish node payload changes to MQTT topic
+    #[command(long_about = "Publish node payload changes to MQTT topic.
+
+Monitors blockchain node for PayloadSet events and publishes payload changes to MQTT topic
+in real-time. Event-driven approach ensures efficient operation without unnecessary queries.
+
+EXAMPLES:
+    # Publish node changes
+    cps mqtt publish 'actuators/valve01' 10
+
+    # With explicit broker configuration
+    cps mqtt publish 'actuators/valve01' 10 \\
+        --mqtt-broker mqtt://broker.local:1883 \\
+        --mqtt-username user \\
+        --mqtt-password pass
+
+BEHAVIOR:
+    - Subscribes to finalized blockchain blocks
+    - Monitors PayloadSet events for the specified node
+    - Only queries and publishes when payload actually changes
+    - Automatically decrypts encrypted payloads
+    - Displays colorful logs with timestamps and block numbers
+    - Auto-reconnects on connection failures
+
+TECHNICAL DETAILS:
+    - Event-driven monitoring (no polling)
+    - Real-time payload change detection
+    - Graceful shutdown on exit")]
     Publish {
         /// MQTT topic to publish to
         topic: String,
 
         /// Node ID to monitor
         node_id: u64,
-
-        /// Polling interval in seconds
-        #[arg(long, default_value = "5")]
-        interval: u64,
     },
 }
 
@@ -439,14 +569,12 @@ async fn main() -> Result<()> {
             MqttCommands::Publish {
                 topic,
                 node_id,
-                interval,
             } => {
                 commands::mqtt::publish(
                     &blockchain_config,
                     &mqtt_config,
                     &topic,
                     node_id,
-                    interval,
                 )
                 .await?;
             }

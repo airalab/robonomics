@@ -256,7 +256,51 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
-        // Query the node from storage
+        // Get the latest finalized block and query at that block
+        let block_hash = self
+            .client
+            .api
+            .backend()
+            .latest_finalized_block_ref()
+            .await?
+            .hash();
+        
+        self.query_at(block_hash).await
+    }
+
+    /// Query information about this node at a specific block hash.
+    ///
+    /// This is useful when you need to query the node state at a specific point in time.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_hash` - The block hash to query at
+    ///
+    /// # Returns
+    ///
+    /// Node information including metadata, payload, parent, and children at the specified block.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use libcps::{Client, Config, node::Node};
+    ///
+    /// # async fn example() -> anyhow::Result<()> {
+    /// # let config = Config {
+    /// #     ws_url: "ws://localhost:9944".to_string(),
+    /// #     suri: Some("//Alice".to_string()),
+    /// # };
+    /// # let client = Client::new(&config).await?;
+    /// let node = Node::new(&client, 5);
+    /// // Get the finalized block hash
+    /// let block_hash = client.api.backend().latest_finalized_block_ref().await?.hash();
+    /// let info = node.query_at(block_hash).await?;
+    /// println!("Node owner: {:?}", info.owner);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn query_at(&self, block_hash: subxt::utils::H256) -> Result<NodeInfo> {
+        // Query the node from storage at specific block
         let node_id = CpsNodeId(self.id);
         let nodes_query = robonomics_runtime::api::storage().cps().nodes(node_id);
 
@@ -264,12 +308,10 @@ impl<'a> Node<'a> {
             .client
             .api
             .storage()
-            .at_latest()
-            .await
-            .map_err(|e| anyhow!("Failed to fetch latest block: {}", e))?
+            .at(block_hash)
             .fetch(&nodes_query)
             .await
-            .map_err(|e| anyhow!("Failed to query node storage: {}", e))?
+            .map_err(|e| anyhow!("Failed to query node storage at block: {}", e))?
             .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
 
         // Query children
@@ -281,12 +323,10 @@ impl<'a> Node<'a> {
             .client
             .api
             .storage()
-            .at_latest()
-            .await
-            .map_err(|e| anyhow!("Failed to fetch latest block for children: {}", e))?
+            .at(block_hash)
             .fetch(&children_query)
             .await
-            .map_err(|e| anyhow!("Failed to query children: {}", e))?
+            .map_err(|e| anyhow!("Failed to query children at block: {}", e))?
             .map(|v| v.0)
             .unwrap_or(vec![]);
 

@@ -54,7 +54,7 @@ pub async fn execute(
     }
 
     // Convert strings to NodeData, applying encryption if requested
-    let meta_data = if let (Some(receiver_pub), Some(m)) = (receiver_public.as_ref(), meta) {
+    let meta_data = if let (Some(receiver_pub), Some(ref m)) = (receiver_public.as_ref(), meta.as_ref()) {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
         display::tree::info(&format!(
             "🔐 Encrypting metadata with {} using {}",
@@ -72,7 +72,7 @@ pub async fn execute(
         meta.map(|m| NodeData::from(m))
     };
 
-    let payload_data = if let (Some(receiver_pub), Some(p)) = (receiver_public.as_ref(), payload) {
+    let payload_data = if let (Some(receiver_pub), Some(ref p)) = (receiver_public.as_ref(), payload.as_ref()) {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
         if meta_data.is_none() {
             display::tree::info(&format!(
