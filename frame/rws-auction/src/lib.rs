@@ -397,6 +397,7 @@ pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
+pub use extension::ChargeRwsTransaction;
 
 #[cfg(test)]
 mod tests;

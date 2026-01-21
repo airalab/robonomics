@@ -45,10 +45,10 @@
 //! (`proxy.proxy` or `proxy.proxy_announced`), the extension extracts the real account
 //! (subscription owner) and validates their subscription.
 
-use parity_scale_codec::{Decode, Encode};
+use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{
-    traits::{DispatchInfoOf, SignedExtension},
+    traits::SignedExtension,
     transaction_validity::{
         InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
     },
@@ -57,14 +57,15 @@ use sp_std::prelude::*;
 
 use crate::pallet::{Config, Pallet};
 use frame_support::{
-    dispatch::{DispatchResult, GetDispatchInfo, PostDispatchInfoOf},
+    dispatch::{DispatchInfo, DispatchResult, GetDispatchInfo, PostDispatchInfo},
+    weights::Weight,
 };
 
 /// Transaction extension for RWS fee-less execution.
 ///
 /// Users can explicitly choose to use their RWS subscription for fee-less transactions
 /// or pay normal fees.
-#[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
     /// Use RWS subscription for fee-less execution.
@@ -183,7 +184,7 @@ where
         &self,
         who: &Self::AccountId,
         call: &Self::Call,
-        _info: &DispatchInfoOf<Self::Call>,
+        _info: &DispatchInfo,
         _len: usize,
     ) -> TransactionValidity {
         match self {
@@ -205,7 +206,7 @@ where
         self,
         who: &Self::AccountId,
         call: &Self::Call,
-        info: &DispatchInfoOf<Self::Call>,
+        info: &DispatchInfo,
         len: usize,
     ) -> Result<Self::Pre, TransactionValidityError> {
         // Re-validate to ensure nothing changed between validate and pre_dispatch
@@ -231,8 +232,8 @@ where
 
     fn post_dispatch(
         pre: Option<Self::Pre>,
-        info: &DispatchInfoOf<Self::Call>,
-        post_info: &PostDispatchInfoOf<Self::Call>,
+        info: &DispatchInfo,
+        post_info: &PostDispatchInfo,
         _len: usize,
         result: &DispatchResult,
     ) -> Result<(), TransactionValidityError> {
@@ -242,7 +243,7 @@ where
                     (pre.subscription_owner, pre.subscription_id)
                 {
                     // Record transaction usage
-                    let weight = post_info.actual_weight.unwrap_or(info.weight);
+                    let weight = post_info.actual_weight.unwrap_or(info.call_weight);
                     Pallet::<T>::record_transaction(&owner, subscription_id, weight, result.is_ok());
                 }
             }
