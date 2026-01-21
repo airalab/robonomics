@@ -535,34 +535,192 @@ cps set-payload 5 "encrypted data" --receiver-public <RECEIVER_ADDRESS> --scheme
 
 ## 📡 MQTT Bridge
 
-The MQTT bridge enables seamless IoT integration:
+The MQTT bridge enables seamless IoT integration with real-time, event-driven synchronization:
 
 ### Subscribe: MQTT → Blockchain
 
+Subscribe to MQTT topics and automatically update blockchain node payload with received messages.
+
 ```bash
+# Basic subscription
 cps mqtt subscribe "sensors/temperature" 5
+
+# With SR25519 encryption (default)
+cps mqtt subscribe "sensors/temperature" 5 \
+    --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+
+# With ED25519 encryption (Home Assistant compatible)
+cps mqtt subscribe "homeassistant/sensor/temperature" 5 \
+    --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+    --scheme ed25519
+
+# With AES-GCM cipher
+cps mqtt subscribe "sensors/temperature" 5 \
+    --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY \
+    --cipher aesgcm256
 ```
 
-Flow:
+**Features:**
+- ✅ Real-time message processing
+- ✅ Auto-reconnect on connection failures
+- ✅ Optional encryption support (SR25519/ED25519)
+- ✅ Colorful console output with timestamps
+- ✅ Multiple cipher algorithm support
+
+**Flow:**
 ```
 MQTT Topic → CPS CLI → Blockchain Node
     ↓             ↓            ↓
 "22.5C"      Receive      Update Payload
+                         (encrypted if configured)
 ```
 
 ### Publish: Blockchain → MQTT
 
+Monitor blockchain node for payload changes and publish to MQTT topic in real-time.
+
 ```bash
-cps mqtt publish "actuators/valve" 10 --interval 5
+# Basic publishing
+cps mqtt publish "actuators/valve" 10
+
+# With custom broker configuration
+cps mqtt publish "actuators/valve" 10 \
+    --mqtt-broker mqtt://broker.example.com:1883 \
+    --mqtt-username myuser \
+    --mqtt-password mypass
 ```
 
-Flow:
+**Features:**
+- ✅ Event-driven monitoring (no polling overhead)
+- ✅ Monitors `PayloadSet` events in finalized blocks
+- ✅ Only queries and publishes when payload actually changes
+- ✅ Automatic decryption of encrypted payloads
+- ✅ Auto-reconnect on connection failures
+- ✅ Graceful shutdown handling
+- ✅ Block number tracking in logs
+
+**Flow:**
 ```
-Blockchain Node → CPS CLI → MQTT Topic
-       ↓             ↓           ↓
-  Payload      Poll every   Publish on
-   Change       5 seconds     change
+Blockchain PayloadSet Event → CPS CLI → MQTT Topic
+           ↓                      ↓           ↓
+    Payload Changed          Query Node   Publish
+    (detected via event)     at block     changed data
 ```
+
+**Technical Implementation:**
+- Subscribes to finalized blockchain blocks
+- Filters `PayloadSet` events for target node
+- Queries node state only when event detected
+- Publishes to MQTT with QoS 0 (At Most Once)
+- Background event loop for MQTT auto-reconnection
+
+### Example Output
+
+**Subscribe Command:**
+```
+📡 Connecting to MQTT broker...
+✅ Connected to mqtt://localhost:1883
+📥 Subscribed to topic: sensors/temp01
+🔄 Listening for messages...
+
+[2025-12-04 10:30:15] 📨 Received: 22.5C
+🔐 Encrypting with XChaCha20-Poly1305 using SR25519
+✅ Updated node 5 payload
+
+[2025-12-04 10:30:45] 📨 Received: 23.1C
+🔐 Encrypting with XChaCha20-Poly1305 using SR25519
+✅ Updated node 5 payload
+```
+
+**Publish Command:**
+```
+📡 Connecting to blockchain...
+✅ Connected to ws://localhost:9944
+📡 Connecting to MQTT broker localhost:1883...
+✅ Connected to mqtt://localhost:1883
+🔄 Monitoring node 10 payload on each block...
+
+[2025-12-04 10:31:20] 📤 Published to actuators/valve01 at block #1234: open
+[2025-12-04 10:31:50] 📤 Published to actuators/valve01 at block #1240: closed
+```
+
+### Authentication
+
+Configure MQTT credentials via environment variables or CLI flags:
+
+```bash
+# Environment variables
+export ROBONOMICS_MQTT_BROKER=mqtt://broker.example.com:1883
+export ROBONOMICS_MQTT_USERNAME=myuser
+export ROBONOMICS_MQTT_PASSWORD=mypassword
+export ROBONOMICS_MQTT_CLIENT_ID=cps-client-01
+
+# Or via CLI flags
+cps mqtt subscribe "topic" 5 \
+    --mqtt-broker mqtt://broker.example.com:1883 \
+    --mqtt-username myuser \
+    --mqtt-password mypassword
+```
+
+### Integration Examples
+
+#### Home Assistant Integration
+
+```bash
+# Subscribe to Home Assistant sensor (ED25519 compatible)
+cps mqtt subscribe "homeassistant/sensor/living_room/temperature" 100 \
+    --receiver-public <HOME_ASSISTANT_PUBLIC_KEY> \
+    --scheme ed25519 \
+    --cipher aesgcm256
+
+# Publish to Home Assistant actuator
+cps mqtt publish "homeassistant/switch/kitchen/light" 101
+```
+
+#### Industrial IoT
+
+```bash
+# Monitor encrypted machine telemetry
+cps mqtt subscribe "factory/line1/cnc001/telemetry" 200 \
+    --receiver-public <MACHINE_PUBLIC_KEY> \
+    --cipher xchacha20
+
+# Publish control commands
+cps mqtt publish "factory/line1/controller/commands" 201
+```
+
+#### Smart Building
+
+```bash
+# Create building hierarchy
+cps create --meta '{"type":"building","name":"HQ"}'               # Node 0
+cps create --parent 0 --meta '{"type":"floor","number":1}'       # Node 1
+cps create --parent 1 --meta '{"type":"room","name":"Server"}'   # Node 2
+
+# Bridge temperature sensor
+cps mqtt subscribe "building/floor1/server-room/temp" 2
+
+# Monitor and publish HVAC status
+cps mqtt publish "building/floor1/server-room/hvac" 2
+```
+
+### Error Handling
+
+The MQTT bridge handles various error scenarios gracefully:
+
+- **Connection Failures**: Auto-reconnect with 5-second delay
+- **Invalid Messages**: Logged and skipped
+- **Blockchain Errors**: Logged with timestamps
+- **Encryption Errors**: Descriptive error messages
+- **Graceful Shutdown**: Background tasks cleaned up on exit
+
+### Performance Considerations
+
+- **Event-Driven**: No unnecessary blockchain queries
+- **Efficient**: Only processes blocks with relevant events  
+- **Low Latency**: Real-time event detection
+- **Resource Efficient**: Minimal memory footprint
+- **Scalable**: Multiple instances can run simultaneously
 
 ## 🎯 Use Cases
 
