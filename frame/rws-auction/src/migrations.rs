@@ -171,6 +171,9 @@ pub mod v2 {
                         last_update: old_ledger.last_update,
                         mode,
                         expiration_time,
+                        transactions_used: 0,
+                        transactions_limit: None,
+                        is_active: true,
                     };
                     crate::Subscription::<T>::insert(&account, 0u32, new_ledger);
                     migrated_subscriptions += 1;
@@ -499,7 +502,7 @@ pub mod v3 {
     impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
         fn on_runtime_upgrade() -> Weight {
             let on_chain_version = Pallet::<T>::on_chain_storage_version();
-            let current_version = Pallet::<T>::current_storage_version();
+            let current_version = Pallet::<T>::in_code_storage_version();
 
             log::info!(
                 "🔧 RWS pallet migration: on-chain version: {:?}, current version: {:?}",

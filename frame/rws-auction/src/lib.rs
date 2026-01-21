@@ -1259,4 +1259,117 @@ pub mod pallet {
             Ok(().into())
         }
     }
+
+    // Helper methods for transaction extension
+    impl<T: Config> Pallet<T> {
+        /// Check if subscription is active and valid for use.
+        ///
+        /// A subscription is considered active if:
+        /// - It exists in storage
+        /// - `is_active` flag is true
+        /// - It hasn't expired (for Daily subscriptions)
+        ///
+        /// # Parameters
+        ///
+        /// * `who` - The account that owns the subscription
+        /// * `subscription_id` - The subscription ID to check
+        ///
+        /// # Returns
+        ///
+        /// `true` if the subscription is active and valid, `false` otherwise.
+        pub fn is_subscription_active(who: &T::AccountId, subscription_id: u32) -> bool {
+            if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
+                // Check is_active flag
+                if !subscription.is_active {
+                    return false;
+                }
+
+                // Check expiration for Daily subscriptions
+                let now = T::Time::now();
+                match subscription.mode {
+                    SubscriptionMode::Daily { .. } => {
+                        if let Some(ref expiration_time) = subscription.expiration_time {
+                            if now >= *expiration_time {
+                                return false;
+                            }
+                        }
+                    }
+                    SubscriptionMode::Lifetime { .. } => {
+                        // Lifetime subscriptions never expire
+                    }
+                }
+
+                true
+            } else {
+                false
+            }
+        }
+
+        /// Check if subscription has available transaction quota.
+        ///
+        /// If the subscription has no limit (`transactions_limit` is `None`), this returns `true`.
+        /// If there is a limit, checks if `transactions_used` < `transactions_limit`.
+        ///
+        /// # Parameters
+        ///
+        /// * `who` - The account that owns the subscription
+        /// * `subscription_id` - The subscription ID to check
+        ///
+        /// # Returns
+        ///
+        /// `true` if quota is available (or unlimited), `false` if quota is exhausted.
+        pub fn has_transaction_quota(who: &T::AccountId, subscription_id: u32) -> bool {
+            if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
+                match subscription.transactions_limit {
+                    None => true, // No limit
+                    Some(limit) => subscription.transactions_used < limit,
+                }
+            } else {
+                false
+            }
+        }
+
+        /// Record transaction usage for a subscription.
+        ///
+        /// This method should be called from the transaction extension's `post_dispatch`
+        /// to track subscription usage. It:
+        /// - Increments `transactions_used` counter
+        /// - Emits `SubscriptionUsed` event
+        /// - Deactivates subscription if quota limit is reached
+        ///
+        /// # Parameters
+        ///
+        /// * `who` - The account that owns the subscription
+        /// * `subscription_id` - The subscription ID
+        /// * `weight` - The weight consumed by the transaction
+        /// * `success` - Whether the transaction succeeded
+        pub fn record_transaction(
+            who: &T::AccountId,
+            subscription_id: u32,
+            weight: Weight,
+            success: bool,
+        ) {
+            <Subscription<T>>::mutate(who, subscription_id, |maybe_sub| {
+                if let Some(ref mut subscription) = maybe_sub {
+                    // Increment usage counter
+                    subscription.transactions_used = subscription.transactions_used.saturating_add(1);
+
+                    // Check if limit is reached and deactivate if necessary
+                    if let Some(limit) = subscription.transactions_limit {
+                        if subscription.transactions_used >= limit {
+                            subscription.is_active = false;
+                        }
+                    }
+
+                    // Emit event
+                    Self::deposit_event(Event::SubscriptionUsed(
+                        who.clone(),
+                        subscription_id,
+                        weight,
+                        success,
+                    ));
+                }
+            });
+        }
+    }
 }
