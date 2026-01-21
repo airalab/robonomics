@@ -471,3 +471,156 @@ mod tests {
         });
     }
 }
+
+/// Migration from v2 to v3 storage format.
+pub mod v3 {
+    use super::*;
+
+    /// V2 SubscriptionLedger structure (without new transaction tracking fields).
+    #[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+    pub struct SubscriptionLedgerV2<Moment: HasCompact + MaxEncodedLen> {
+        /// Free execution weights accumulator.
+        #[codec(compact)]
+        pub free_weight: u64,
+        /// Subscription creation timestamp.
+        #[codec(compact)]
+        pub issue_time: Moment,
+        /// Moment of time for last subscription update (used for TPS estimation).
+        #[codec(compact)]
+        pub last_update: Moment,
+        /// Type of subscription (lifetime, daily, etc).
+        pub mode: SubscriptionMode,
+        /// Expiration timestamp for Daily subscriptions.
+        pub expiration_time: Option<Moment>,
+    }
+
+    pub struct MigrateToV3<T>(PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = Pallet::<T>::on_chain_storage_version();
+            let current_version = Pallet::<T>::current_storage_version();
+
+            log::info!(
+                "🔧 RWS pallet migration: on-chain version: {:?}, current version: {:?}",
+                on_chain_version,
+                current_version
+            );
+
+            if on_chain_version < 3 {
+                log::info!("🔧 Migrating RWS pallet from v{:?} to v3", on_chain_version);
+
+                let mut migrated_count = 0u32;
+                let mut reads = 0u64;
+                let mut writes = 0u64;
+
+                // Migrate all subscriptions to add new fields
+                crate::Subscription::<T>::translate::<SubscriptionLedgerV2<<T::Time as Time>::Moment>, _>(
+                    |owner, subscription_id, old_sub| {
+                        reads += 1;
+                        writes += 1;
+                        migrated_count += 1;
+
+                        log::info!(
+                            "🔧 Migrating subscription for owner {:?}, id: {}",
+                            owner,
+                            subscription_id
+                        );
+
+                        Some(SubscriptionLedger {
+                            free_weight: old_sub.free_weight,
+                            issue_time: old_sub.issue_time,
+                            last_update: old_sub.last_update,
+                            mode: old_sub.mode,
+                            expiration_time: old_sub.expiration_time,
+                            transactions_used: 0,
+                            transactions_limit: None,
+                            is_active: true,
+                        })
+                    },
+                );
+
+                log::info!(
+                    "✅ RWS pallet migration complete: migrated {} subscriptions",
+                    migrated_count
+                );
+
+                // Update storage version
+                current_version.put::<Pallet<T>>();
+                writes += 1;
+
+                T::DbWeight::get().reads_writes(reads, writes)
+            } else {
+                log::info!("✅ RWS pallet already at v3, no migration needed");
+                T::DbWeight::get().reads(1)
+            }
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::DispatchError> {
+            use parity_scale_codec::Encode;
+
+            let on_chain_version = Pallet::<T>::on_chain_storage_version();
+            ensure!(on_chain_version < 3, "Migration not needed");
+
+            let mut count = 0u32;
+            for (owner, subscription_id, _) in crate::Subscription::<T>::iter() {
+                count += 1;
+                log::info!(
+                    "Pre-upgrade: subscription for {:?}, id: {}",
+                    owner,
+                    subscription_id
+                );
+            }
+
+            log::info!("Pre-upgrade: found {} subscriptions to migrate", count);
+            Ok(count.encode())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::DispatchError> {
+            use parity_scale_codec::Decode;
+
+            let pre_count: u32 = Decode::decode(&mut &state[..])
+                .map_err(|_| "Failed to decode pre-upgrade state")?;
+
+            let mut post_count = 0u32;
+            for (owner, subscription_id, sub) in crate::Subscription::<T>::iter() {
+                post_count += 1;
+
+                // Verify new fields have default values
+                ensure!(
+                    sub.transactions_used == 0,
+                    "transactions_used not initialized"
+                );
+                ensure!(
+                    sub.transactions_limit.is_none(),
+                    "transactions_limit not initialized"
+                );
+                ensure!(sub.is_active, "is_active not initialized");
+
+                log::info!(
+                    "Post-upgrade: subscription for {:?}, id: {}, active: {}",
+                    owner,
+                    subscription_id,
+                    sub.is_active
+                );
+            }
+
+            ensure!(
+                pre_count == post_count,
+                "Subscription count mismatch after migration"
+            );
+
+            let new_version = Pallet::<T>::on_chain_storage_version();
+            ensure!(new_version == 3, "Storage version not updated");
+
+            log::info!(
+                "Post-upgrade: verified {} subscriptions migrated to v3",
+                post_count
+            );
+
+            Ok(())
+        }
+    }
+}

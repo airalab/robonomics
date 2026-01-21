@@ -642,6 +642,30 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// When present, calls via this subscription fail with `SubscriptionIsOver`
     /// error after the current time exceeds this timestamp.
     expiration_time: Option<Moment>,
+
+    /// Number of transactions that have used this subscription.
+    ///
+    /// This counter is incremented each time the subscription is successfully used
+    /// for a fee-less transaction via the transaction extension.
+    #[codec(compact)]
+    pub transactions_used: u32,
+
+    /// Optional transaction quota limit.
+    ///
+    /// If set, the subscription can only be used for this many transactions.
+    /// Once `transactions_used` reaches this limit, the subscription becomes inactive.
+    /// `None` means unlimited transactions (subject to TPS/weight constraints).
+    pub transactions_limit: Option<u32>,
+
+    /// Whether the subscription is currently active.
+    ///
+    /// A subscription may be inactive due to:
+    /// - Manual deactivation
+    /// - Reaching transaction quota limit
+    /// - Other administrative actions
+    ///
+    /// Inactive subscriptions cannot be used for fee-less transactions.
+    pub is_active: bool,
 }
 
 impl<Moment> SubscriptionLedger<Moment>
@@ -663,6 +687,9 @@ where
             last_update,
             mode,
             expiration_time,
+            transactions_used: 0,
+            transactions_limit: None,
+            is_active: true,
         }
     }
 }
@@ -696,7 +723,7 @@ pub mod pallet {
     type AssetIdOf<T> =
         <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -776,6 +803,10 @@ pub mod pallet {
         InvalidSubscriptionState,
         /// Invalid auction state detected (data inconsistency from migration).
         InvalidAuctionState,
+        /// Subscription is not active.
+        SubscriptionNotActive,
+        /// Subscription transaction quota exceeded.
+        TransactionQuotaExceeded,
     }
 
     #[pallet::event]
@@ -793,6 +824,9 @@ pub mod pallet {
         SubscriptionActivated(T::AccountId, u32),
         /// RWS subscription stopped and assets unlocked.
         SubscriptionStopped(T::AccountId, u32),
+        /// RWS subscription used for fee-less transaction.
+        /// (account_id, subscription_id, weight_consumed, success)
+        SubscriptionUsed(T::AccountId, u32, Weight, bool),
     }
 
     #[pallet::storage]
@@ -831,18 +865,26 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> Weight {
-            migrations::v2::MigrateToV2::<T>::on_runtime_upgrade()
+            let mut weight = Weight::zero();
+            
+            // Run v2 migration if needed
+            weight = weight.saturating_add(migrations::v2::MigrateToV2::<T>::on_runtime_upgrade());
+            
+            // Run v3 migration if needed
+            weight = weight.saturating_add(migrations::v3::MigrateToV3::<T>::on_runtime_upgrade());
+            
+            weight
         }
 
         #[cfg(feature = "try-runtime")]
         fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
-            migrations::v2::MigrateToV2::<T>::pre_upgrade()
+            migrations::v3::MigrateToV3::<T>::pre_upgrade()
                 .map_err(|e| sp_runtime::TryRuntimeError::from(e))
         }
 
         #[cfg(feature = "try-runtime")]
         fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
-            migrations::v2::MigrateToV2::<T>::post_upgrade(state)
+            migrations::v3::MigrateToV3::<T>::post_upgrade(state)
                 .map_err(|e| sp_runtime::TryRuntimeError::from(e))
         }
     }

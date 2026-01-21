@@ -8058,7 +8058,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-robonomics-rws"
+name = "pallet-robonomics-rws-auction"
 version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
@@ -11197,7 +11197,7 @@ dependencies = [
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
- "pallet-robonomics-rws",
+ "pallet-robonomics-rws-auction",
  "pallet-scheduler",
  "pallet-session",
  "pallet-state-trie-migration",
