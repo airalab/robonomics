@@ -239,7 +239,7 @@ where
         info: &DispatchInfo,
         post_info: &PostDispatchInfo,
         _len: usize,
-        result: &DispatchResult,
+        _result: &DispatchResult,
     ) -> Result<(), TransactionValidityError> {
         if let Some(pre) = pre {
             if pre.pays_no_fee {
@@ -248,7 +248,7 @@ where
                 {
                     // Consume free weight from the subscription
                     let weight = post_info.actual_weight.unwrap_or(info.call_weight);
-                    let _ = Pallet::<T>::consume_weight(&owner, subscription_id, weight, result.is_ok());
+                    let _ = Pallet::<T>::consume_weight(&owner, subscription_id, weight);
                     // Ignore errors in post_dispatch - transaction has already executed
                 }
             }

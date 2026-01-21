@@ -777,10 +777,6 @@ pub mod pallet {
         InvalidSubscriptionState,
         /// Invalid auction state detected (data inconsistency from migration).
         InvalidAuctionState,
-        /// Subscription is not active.
-        SubscriptionNotActive,
-        /// Subscription transaction quota exceeded.
-        TransactionQuotaExceeded,
     }
 
     #[pallet::event]
@@ -789,6 +785,11 @@ pub mod pallet {
         /// New subscription auction bid received.
         NewBid(u32, T::AccountId, BalanceOf<T>),
         /// Runtime method executed using RWS subscription.
+        /// **DEPRECATED**: Use SubscriptionUsed event instead.
+        #[deprecated(
+            since = "4.0.0",
+            note = "Use SubscriptionUsed event from transaction extension instead"
+        )]
         RwsCall(T::AccountId, u32, DispatchResult),
         /// Subscription auction has been started.
         AuctionStarted(u32),
@@ -799,8 +800,8 @@ pub mod pallet {
         /// RWS subscription stopped and assets unlocked.
         SubscriptionStopped(T::AccountId, u32),
         /// RWS subscription used for fee-less transaction.
-        /// (account_id, subscription_id, weight_consumed, success)
-        SubscriptionUsed(T::AccountId, u32, Weight, bool),
+        /// (account_id, subscription_id, weight_consumed)
+        SubscriptionUsed(T::AccountId, u32, Weight),
     }
 
     #[pallet::storage]
@@ -841,84 +842,6 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Authenticates the RWS staker and dispatches a free function call.
-        ///
-        /// **DEPRECATED**: This method is deprecated in favor of using the transaction extension.
-        /// Use `ChargeRwsTransaction::Enabled { subscription_id }` instead when signing transactions.
-        ///
-        /// The dispatch origin for this call must be _Signed_.
-        ///
-        /// # <weight>
-        /// - Depends of call method.
-        /// - Basically this should be free by concept.
-        /// # </weight>
-        #[pallet::call_index(0)]
-        #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
-        #[deprecated(
-            since = "4.0.0",
-            note = "Use transaction extension ChargeRwsTransaction::Enabled instead"
-        )]
-        pub fn call(
-            origin: OriginFor<T>,
-            subscription_id: u32,
-            call: Box<<T as Config>::Call>,
-        ) -> DispatchResultWithPostInfo {
-            // This is a public call, so we ensure that the origin is some signed account.
-            let sender = ensure_signed(origin)?;
-
-            // Ensure that subscription owner or any of subscription devices call this method
-            let mut subscription = <Subscription<T>>::get(&sender, subscription_id)
-                .ok_or(Error::<T>::NoSubscription)?;
-
-            let now = T::Time::now();
-            let utps = match subscription.mode {
-                SubscriptionMode::Lifetime { tps } => tps,
-                SubscriptionMode::Daily { .. } => {
-                    // Use cached expiration_time instead of recalculating
-                    if let Some(ref expiration_time) = subscription.expiration_time {
-                        // If subscription active then 0.01 TPS else throw an error
-                        if now < *expiration_time {
-                            10_000 // μTPS
-                        } else {
-                            Err(Error::<T>::SubscriptionIsOver)?
-                        }
-                    } else {
-                        // This should never happen as Daily subscriptions always have expiration_time
-                        // This represents a data inconsistency
-                        Err(Error::<T>::InvalidSubscriptionState)?
-                    }
-                }
-            };
-
-            // Reference call weight * TPS * seconds passed from last update
-            let delta: u64 = (now.clone() - subscription.last_update).into();
-            subscription.last_update = now;
-            subscription.free_weight += T::ReferenceCallWeight::get()
-                .saturating_mul(utps as u64)
-                .saturating_mul(delta)
-                .saturating_div(1_000_000_000);
-
-            let call_weight = call.get_dispatch_info().call_weight;
-            // Ensure than free weight is enough for call
-            if subscription.free_weight < call_weight.ref_time() {
-                <Subscription<T>>::set(&sender, subscription_id, Some(subscription));
-                Err(Error::<T>::FreeWeightIsNotEnough)?
-            } else {
-                subscription.free_weight -= call_weight.ref_time();
-                <Subscription<T>>::set(&sender, subscription_id, Some(subscription));
-            }
-
-            let res =
-                call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(sender.clone()).into());
-
-            Self::deposit_event(Event::RwsCall(
-                sender,
-                subscription_id,
-                res.map(|_| ()).map_err(|e| e.error),
-            ));
-            res
-        }
-
         /// Plasce a bid for live subscription auction.
         ///
         /// # <weight>
@@ -926,7 +849,7 @@ pub mod pallet {
         /// - writes auction bid
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
-        #[pallet::call_index(1)]
+        #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::bid())]
         pub fn bid(
             origin: OriginFor<T>,
@@ -982,7 +905,7 @@ pub mod pallet {
         /// - writes auction bid
         /// - AuctionCurrency reserve & unreserve
         /// # </weight>
-        #[pallet::call_index(2)]
+        #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::claim())]
         pub fn claim(
             origin: OriginFor<T>,
@@ -1053,7 +976,7 @@ pub mod pallet {
         /// - Limited storage reads.
         /// - One DB change.
         /// # </weight>
-        #[pallet::call_index(4)]
+        #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::start_auction())]
         pub fn start_auction(
             origin: OriginFor<T>,
@@ -1094,7 +1017,7 @@ pub mod pallet {
         /// - Asset hold operation
         /// - Storage writes
         /// # </weight>
-        #[pallet::call_index(5)]
+        #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::start_lifetime())]
         pub fn start_lifetime(
             origin: OriginFor<T>,
@@ -1177,7 +1100,7 @@ pub mod pallet {
         /// - Asset release operation
         /// - Storage removals
         /// # </weight>
-        #[pallet::call_index(6)]
+        #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::stop_lifetime())]
         pub fn stop_lifetime(
             origin: OriginFor<T>,
@@ -1321,7 +1244,6 @@ pub mod pallet {
         /// * `who` - The account that owns the subscription
         /// * `subscription_id` - The subscription ID
         /// * `weight` - The weight to consume
-        /// * `success` - Whether the transaction succeeded
         ///
         /// # Returns
         ///
@@ -1330,7 +1252,6 @@ pub mod pallet {
             who: &T::AccountId,
             subscription_id: u32,
             weight: Weight,
-            success: bool,
         ) -> Result<(), Error<T>> {
             <Subscription<T>>::try_mutate(who, subscription_id, |maybe_sub| {
                 let subscription = maybe_sub.as_mut().ok_or(Error::<T>::NoSubscription)?;
@@ -1375,7 +1296,6 @@ pub mod pallet {
                     who.clone(),
                     subscription_id,
                     weight,
-                    success,
                 ));
 
                 Ok(())

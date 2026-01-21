@@ -57,7 +57,6 @@ const LIFETIME_ASSET_ID: AssetId = 1;
 )]
 pub enum ProxyType {
     Any,
-    RwsUser(u32),
 }
 
 impl Default for ProxyType {
@@ -67,26 +66,15 @@ impl Default for ProxyType {
 }
 
 impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
-    fn filter(&self, c: &RuntimeCall) -> bool {
+    fn filter(&self, _c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::RwsUser(allowed_subscription_id) => {
-                // Only allow RWS::call operations for the specific subscription
-                match c {
-                    RuntimeCall::RWS(pallet_rws_auction::Call::call {
-                        subscription_id, ..
-                    }) => subscription_id == allowed_subscription_id,
-                    _ => false,
-                }
-            }
         }
     }
 
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
             (ProxyType::Any, _) => true,
-            (_, ProxyType::Any) => false,
-            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
         }
     }
 }
