@@ -390,7 +390,7 @@ use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod migrations;
+pub mod extension;
 #[cfg(test)]
 pub mod mock;
 pub mod weights;
@@ -642,30 +642,6 @@ pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// When present, calls via this subscription fail with `SubscriptionIsOver`
     /// error after the current time exceeds this timestamp.
     expiration_time: Option<Moment>,
-
-    /// Number of transactions that have used this subscription.
-    ///
-    /// This counter is incremented each time the subscription is successfully used
-    /// for a fee-less transaction via the transaction extension.
-    #[codec(compact)]
-    pub transactions_used: u32,
-
-    /// Optional transaction quota limit.
-    ///
-    /// If set, the subscription can only be used for this many transactions.
-    /// Once `transactions_used` reaches this limit, the subscription becomes inactive.
-    /// `None` means unlimited transactions (subject to TPS/weight constraints).
-    pub transactions_limit: Option<u32>,
-
-    /// Whether the subscription is currently active.
-    ///
-    /// A subscription may be inactive due to:
-    /// - Manual deactivation
-    /// - Reaching transaction quota limit
-    /// - Other administrative actions
-    ///
-    /// Inactive subscriptions cannot be used for fee-less transactions.
-    pub is_active: bool,
 }
 
 impl<Moment> SubscriptionLedger<Moment>
@@ -687,9 +663,6 @@ where
             last_update,
             mode,
             expiration_time,
-            transactions_used: 0,
-            transactions_limit: None,
-            is_active: true,
         }
     }
 }
@@ -723,7 +696,7 @@ pub mod pallet {
     type AssetIdOf<T> =
         <<T as Config>::Assets as Inspect<<T as frame_system::Config>::AccountId>>::AssetId;
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -858,36 +831,30 @@ pub mod pallet {
     pub(super) type LockedAssets<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, AssetBalanceOf<T>>;
 
+    #[pallet::storage]
+    /// Transaction usage counter for subscriptions (used by transaction extension).
+    /// Tracks how many times each subscription has been used for fee-less transactions.
+    pub(super) type TransactionsUsed<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, u32, ValueQuery>;
+
+    #[pallet::storage]
+    /// Optional transaction quota limit for subscriptions.
+    /// If set, subscription can only be used for this many transactions.
+    pub(super) type TransactionsLimit<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, u32>;
+
+    #[pallet::storage]
+    /// Active status flag for subscriptions.
+    /// Defaults to true for all subscriptions. Can be set to false to temporarily disable.
+    pub(super) type SubscriptionActive<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, bool, ValueQuery>;
+
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_runtime_upgrade() -> Weight {
-            let mut weight = Weight::zero();
-            
-            // Run v2 migration if needed
-            weight = weight.saturating_add(migrations::v2::MigrateToV2::<T>::on_runtime_upgrade());
-            
-            // Run v3 migration if needed
-            weight = weight.saturating_add(migrations::v3::MigrateToV3::<T>::on_runtime_upgrade());
-            
-            weight
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<Vec<u8>, sp_runtime::TryRuntimeError> {
-            migrations::v3::MigrateToV3::<T>::pre_upgrade()
-                .map_err(|e| sp_runtime::TryRuntimeError::from(e))
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn post_upgrade(state: Vec<u8>) -> Result<(), sp_runtime::TryRuntimeError> {
-            migrations::v3::MigrateToV3::<T>::post_upgrade(state)
-                .map_err(|e| sp_runtime::TryRuntimeError::from(e))
-        }
-    }
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -1266,7 +1233,7 @@ pub mod pallet {
         ///
         /// A subscription is considered active if:
         /// - It exists in storage
-        /// - `is_active` flag is true
+        /// - `SubscriptionActive` flag is true (defaults to true if not set)
         /// - It hasn't expired (for Daily subscriptions)
         ///
         /// # Parameters
@@ -1279,8 +1246,9 @@ pub mod pallet {
         /// `true` if the subscription is active and valid, `false` otherwise.
         pub fn is_subscription_active(who: &T::AccountId, subscription_id: u32) -> bool {
             if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
-                // Check is_active flag
-                if !subscription.is_active {
+                // Check is_active flag (defaults to true if not explicitly set to false)
+                let is_active = <SubscriptionActive<T>>::get(who, subscription_id);
+                if !is_active {
                     return false;
                 }
 
@@ -1307,8 +1275,8 @@ pub mod pallet {
 
         /// Check if subscription has available transaction quota.
         ///
-        /// If the subscription has no limit (`transactions_limit` is `None`), this returns `true`.
-        /// If there is a limit, checks if `transactions_used` < `transactions_limit`.
+        /// If the subscription has no limit (`TransactionsLimit` is not set), this returns `true`.
+        /// If there is a limit, checks if `TransactionsUsed` < `TransactionsLimit`.
         ///
         /// # Parameters
         ///
@@ -1319,10 +1287,14 @@ pub mod pallet {
         ///
         /// `true` if quota is available (or unlimited), `false` if quota is exhausted.
         pub fn has_transaction_quota(who: &T::AccountId, subscription_id: u32) -> bool {
-            if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
-                match subscription.transactions_limit {
-                    None => true, // No limit
-                    Some(limit) => subscription.transactions_used < limit,
+            if <Subscription<T>>::contains_key(who, subscription_id) {
+                // Check if there's a limit set
+                if let Some(limit) = <TransactionsLimit<T>>::get(who, subscription_id) {
+                    let used = <TransactionsUsed<T>>::get(who, subscription_id);
+                    used < limit
+                } else {
+                    // No limit set - unlimited
+                    true
                 }
             } else {
                 false
@@ -1333,7 +1305,7 @@ pub mod pallet {
         ///
         /// This method should be called from the transaction extension's `post_dispatch`
         /// to track subscription usage. It:
-        /// - Increments `transactions_used` counter
+        /// - Increments `TransactionsUsed` counter
         /// - Emits `SubscriptionUsed` event
         /// - Deactivates subscription if quota limit is reached
         ///
@@ -1349,27 +1321,25 @@ pub mod pallet {
             weight: Weight,
             success: bool,
         ) {
-            <Subscription<T>>::mutate(who, subscription_id, |maybe_sub| {
-                if let Some(ref mut subscription) = maybe_sub {
-                    // Increment usage counter
-                    subscription.transactions_used = subscription.transactions_used.saturating_add(1);
+            // Increment usage counter
+            <TransactionsUsed<T>>::mutate(who, subscription_id, |used| {
+                *used = used.saturating_add(1);
 
-                    // Check if limit is reached and deactivate if necessary
-                    if let Some(limit) = subscription.transactions_limit {
-                        if subscription.transactions_used >= limit {
-                            subscription.is_active = false;
-                        }
+                // Check if limit is reached and deactivate if necessary
+                if let Some(limit) = <TransactionsLimit<T>>::get(who, subscription_id) {
+                    if *used >= limit {
+                        <SubscriptionActive<T>>::insert(who, subscription_id, false);
                     }
-
-                    // Emit event
-                    Self::deposit_event(Event::SubscriptionUsed(
-                        who.clone(),
-                        subscription_id,
-                        weight,
-                        success,
-                    ));
                 }
             });
+
+            // Emit event
+            Self::deposit_event(Event::SubscriptionUsed(
+                who.clone(),
+                subscription_id,
+                weight,
+                success,
+            ));
         }
     }
 }

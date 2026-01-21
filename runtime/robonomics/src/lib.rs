@@ -67,6 +67,8 @@ mod common;
 use common::{currency::*, time::*, *};
 
 mod genesis_config_presets;
+mod rws_transaction_extension;
+pub use rws_transaction_extension::ChargeRwsTransaction;
 //pub mod xcm_config;
 
 /// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
