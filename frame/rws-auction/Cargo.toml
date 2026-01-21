@@ -1,6 +1,6 @@
 [package]
-name = "pallet-robonomics-rws"
-description = "Robonomics Web Services subscription runtime module."
+name = "pallet-robonomics-rws-auction"
+description = "Robonomics Web Services auction-based subscription runtime module."
 version = "2.0.0"
 authors.workspace = true
 edition.workspace = true

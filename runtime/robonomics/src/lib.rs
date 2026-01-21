@@ -392,7 +392,7 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
             ProxyType::RwsUser(allowed_subscription_id) => {
                 // Only allow RWS::call operations for the specific subscription
                 match c {
-                    RuntimeCall::RWS(pallet_robonomics_rws::Call::call {
+                    RuntimeCall::RWS(pallet_robonomics_rws_auction::Call::call {
                         subscription_id, ..
                     }) => subscription_id == allowed_subscription_id,
                     _ => false,
@@ -546,7 +546,7 @@ parameter_types! {
     pub const RwsId: PalletId = PalletId(*b"RwsStake");
 }
 
-impl pallet_robonomics_rws::Config for Runtime {
+impl pallet_robonomics_rws_auction::Config for Runtime {
     type Assets = Assets;
     type LifetimeAssetId = ConstU32<42>;
     type AssetToTpsRatio = AssetToTpsRatio;
@@ -560,7 +560,7 @@ impl pallet_robonomics_rws::Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
     type StartAuctionOrigin = EnsureRoot<AccountId>;
-    type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = pallet_robonomics_rws_auction::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
@@ -644,7 +644,7 @@ construct_runtime! {
         Datalog: pallet_robonomics_datalog = 51,
         Launch: pallet_robonomics_launch = 52,
         DigitalTwin: pallet_robonomics_digital_twin = 54,
-        RWS: pallet_robonomics_rws = 55,
+        RWS: pallet_robonomics_rws_auction = 55,
         Liability: pallet_robonomics_liability = 56,
 
         // XCM support.
@@ -814,7 +814,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
-    [pallet_robonomics_rws, RWS]
+    [pallet_robonomics_rws_auction, RWS]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.

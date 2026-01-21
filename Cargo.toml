@@ -48,7 +48,7 @@ substrate-build-script-utils = { version = "11.0.0", default-features = true }
 
 [workspace]
 members = [
-  "frame/rws",
+  "frame/rws-auction",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
@@ -228,4 +228,4 @@ pallet-robonomics-datalog = { path = "./frame/datalog", default-features = false
 pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-features = false }
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
-pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-rws-auction = { path = "./frame/rws-auction", default-features = false }
