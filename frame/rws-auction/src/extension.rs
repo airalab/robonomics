@@ -142,10 +142,13 @@ where
     }
 
     /// Validate the subscription and check if it's usable.
+    ///
+    /// This performs lightweight validation without mutating state.
     fn validate_subscription(
         who: &T::AccountId,
         subscription_id: u32,
         call: &<T as Config>::Call,
+        info: &DispatchInfo,
     ) -> Result<T::AccountId, TransactionValidityError> {
         // Extract the subscription owner (may be different from signer if using proxy)
         let owner = Self::get_subscription_owner(who, call)?;
@@ -155,9 +158,10 @@ where
             return Err(InvalidTransaction::Payment.into());
         }
 
-        // Check if subscription has transaction quota available
-        if !Pallet::<T>::has_transaction_quota(&owner, subscription_id) {
-            return Err(InvalidTransaction::ExhaustsResources.into());
+        // Check if subscription has sufficient weight
+        let required_weight = info.call_weight.ref_time();
+        if !Pallet::<T>::has_sufficient_weight(&owner, subscription_id, required_weight) {
+            return Err(InvalidTransaction::Payment.into());
         }
 
         Ok(owner)
@@ -184,13 +188,13 @@ where
         &self,
         who: &Self::AccountId,
         call: &Self::Call,
-        _info: &DispatchInfo,
+        info: &DispatchInfo,
         _len: usize,
     ) -> TransactionValidity {
         match self {
             Self::Enabled { subscription_id } => {
                 // Validate subscription
-                Self::validate_subscription(who, *subscription_id, call)?;
+                Self::validate_subscription(who, *subscription_id, call, info)?;
 
                 Ok(ValidTransaction::default())
             }
@@ -242,9 +246,10 @@ where
                 if let (Some(owner), Some(subscription_id)) =
                     (pre.subscription_owner, pre.subscription_id)
                 {
-                    // Record transaction usage
+                    // Consume free weight from the subscription
                     let weight = post_info.actual_weight.unwrap_or(info.call_weight);
-                    Pallet::<T>::record_transaction(&owner, subscription_id, weight, result.is_ok());
+                    let _ = Pallet::<T>::consume_weight(&owner, subscription_id, weight, result.is_ok());
+                    // Ignore errors in post_dispatch - transaction has already executed
                 }
             }
         }

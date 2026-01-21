@@ -832,24 +832,6 @@ pub mod pallet {
     pub(super) type LockedAssets<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, AssetBalanceOf<T>>;
 
-    #[pallet::storage]
-    /// Transaction usage counter for subscriptions (used by transaction extension).
-    /// Tracks how many times each subscription has been used for fee-less transactions.
-    pub(super) type TransactionsUsed<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, u32, ValueQuery>;
-
-    #[pallet::storage]
-    /// Optional transaction quota limit for subscriptions.
-    /// If set, subscription can only be used for this many transactions.
-    pub(super) type TransactionsLimit<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, u32>;
-
-    #[pallet::storage]
-    /// Active status flag for subscriptions.
-    /// Defaults to true for all subscriptions. Can be set to false to temporarily disable.
-    pub(super) type SubscriptionActive<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, bool, ValueQuery>;
-
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
@@ -861,6 +843,9 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Authenticates the RWS staker and dispatches a free function call.
         ///
+        /// **DEPRECATED**: This method is deprecated in favor of using the transaction extension.
+        /// Use `ChargeRwsTransaction::Enabled { subscription_id }` instead when signing transactions.
+        ///
         /// The dispatch origin for this call must be _Signed_.
         ///
         /// # <weight>
@@ -869,6 +854,10 @@ pub mod pallet {
         /// # </weight>
         #[pallet::call_index(0)]
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
+        #[deprecated(
+            since = "4.0.0",
+            note = "Use transaction extension ChargeRwsTransaction::Enabled instead"
+        )]
         pub fn call(
             origin: OriginFor<T>,
             subscription_id: u32,
@@ -1234,8 +1223,8 @@ pub mod pallet {
         ///
         /// A subscription is considered active if:
         /// - It exists in storage
-        /// - `SubscriptionActive` flag is true (defaults to true if not set)
         /// - It hasn't expired (for Daily subscriptions)
+        /// - It has sufficient free weight for transactions
         ///
         /// # Parameters
         ///
@@ -1247,12 +1236,6 @@ pub mod pallet {
         /// `true` if the subscription is active and valid, `false` otherwise.
         pub fn is_subscription_active(who: &T::AccountId, subscription_id: u32) -> bool {
             if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
-                // Check is_active flag (defaults to true if not explicitly set to false)
-                let is_active = <SubscriptionActive<T>>::get(who, subscription_id);
-                if !is_active {
-                    return false;
-                }
-
                 // Check expiration for Daily subscriptions
                 let now = T::Time::now();
                 match subscription.mode {
@@ -1274,73 +1257,129 @@ pub mod pallet {
             }
         }
 
-        /// Check if subscription has available transaction quota.
+        /// Check if subscription has sufficient free weight for a transaction.
         ///
-        /// If the subscription has no limit (`TransactionsLimit` is not set), this returns `true`.
-        /// If there is a limit, checks if `TransactionsUsed` < `TransactionsLimit`.
+        /// This accumulates free weight based on time elapsed and TPS, then checks
+        /// if it's sufficient for the requested weight.
         ///
         /// # Parameters
         ///
         /// * `who` - The account that owns the subscription
         /// * `subscription_id` - The subscription ID to check
+        /// * `required_weight` - The weight required for the transaction
         ///
         /// # Returns
         ///
-        /// `true` if quota is available (or unlimited), `false` if quota is exhausted.
-        pub fn has_transaction_quota(who: &T::AccountId, subscription_id: u32) -> bool {
-            if <Subscription<T>>::contains_key(who, subscription_id) {
-                // Check if there's a limit set
-                if let Some(limit) = <TransactionsLimit<T>>::get(who, subscription_id) {
-                    let used = <TransactionsUsed<T>>::get(who, subscription_id);
-                    used < limit
-                } else {
-                    // No limit set - unlimited
-                    true
-                }
+        /// `true` if sufficient free weight is available, `false` otherwise.
+        pub fn has_sufficient_weight(
+            who: &T::AccountId,
+            subscription_id: u32,
+            required_weight: u64,
+        ) -> bool {
+            if let Some(mut subscription) = <Subscription<T>>::get(who, subscription_id) {
+                let now = T::Time::now();
+
+                // Get TPS based on subscription mode
+                let utps = match subscription.mode {
+                    SubscriptionMode::Lifetime { tps } => tps,
+                    SubscriptionMode::Daily { .. } => {
+                        // Check expiration first
+                        if let Some(ref expiration_time) = subscription.expiration_time {
+                            if now >= *expiration_time {
+                                return false;
+                            }
+                        }
+                        10_000 // μTPS (0.01 TPS)
+                    }
+                };
+
+                // Accumulate free weight based on time elapsed
+                let delta: u64 = (now - subscription.last_update.clone()).into();
+                let accumulated_weight = T::ReferenceCallWeight::get()
+                    .saturating_mul(utps as u64)
+                    .saturating_mul(delta)
+                    .saturating_div(1_000_000_000);
+
+                let total_available = subscription.free_weight.saturating_add(accumulated_weight);
+
+                total_available >= required_weight
             } else {
                 false
             }
         }
 
-        /// Record transaction usage for a subscription.
+        /// Consume free weight from a subscription for a transaction.
         ///
-        /// This method should be called from the transaction extension's `post_dispatch`
-        /// to track subscription usage. It:
-        /// - Increments `TransactionsUsed` counter
-        /// - Emits `SubscriptionUsed` event
-        /// - Deactivates subscription if quota limit is reached
+        /// This method:
+        /// - Accumulates free weight based on time elapsed
+        /// - Deducts the consumed weight
+        /// - Updates the last_update timestamp
+        /// - Emits a SubscriptionUsed event
         ///
         /// # Parameters
         ///
         /// * `who` - The account that owns the subscription
         /// * `subscription_id` - The subscription ID
-        /// * `weight` - The weight consumed by the transaction
+        /// * `weight` - The weight to consume
         /// * `success` - Whether the transaction succeeded
-        pub fn record_transaction(
+        ///
+        /// # Returns
+        ///
+        /// `Ok(())` if weight was successfully consumed, `Err` if insufficient weight or invalid subscription.
+        pub fn consume_weight(
             who: &T::AccountId,
             subscription_id: u32,
             weight: Weight,
             success: bool,
-        ) {
-            // Increment usage counter
-            <TransactionsUsed<T>>::mutate(who, subscription_id, |used| {
-                *used = used.saturating_add(1);
+        ) -> Result<(), Error<T>> {
+            <Subscription<T>>::try_mutate(who, subscription_id, |maybe_sub| {
+                let subscription = maybe_sub.as_mut().ok_or(Error::<T>::NoSubscription)?;
 
-                // Check if limit is reached and deactivate if necessary
-                if let Some(limit) = <TransactionsLimit<T>>::get(who, subscription_id) {
-                    if *used >= limit {
-                        <SubscriptionActive<T>>::insert(who, subscription_id, false);
+                let now = T::Time::now();
+
+                // Get TPS based on subscription mode
+                let utps = match subscription.mode {
+                    SubscriptionMode::Lifetime { tps } => tps,
+                    SubscriptionMode::Daily { .. } => {
+                        // Check expiration first
+                        if let Some(ref expiration_time) = subscription.expiration_time {
+                            if now >= *expiration_time {
+                                return Err(Error::<T>::SubscriptionIsOver);
+                            }
+                        }
+                        10_000 // μTPS (0.01 TPS)
                     }
-                }
-            });
+                };
 
-            // Emit event
-            Self::deposit_event(Event::SubscriptionUsed(
-                who.clone(),
-                subscription_id,
-                weight,
-                success,
-            ));
+                // Accumulate free weight based on time elapsed
+                let delta: u64 = (now.clone() - subscription.last_update.clone()).into();
+                subscription.last_update = now;
+                subscription.free_weight = subscription.free_weight.saturating_add(
+                    T::ReferenceCallWeight::get()
+                        .saturating_mul(utps as u64)
+                        .saturating_mul(delta)
+                        .saturating_div(1_000_000_000),
+                );
+
+                // Check if enough weight is available
+                let required_weight = weight.ref_time();
+                if subscription.free_weight < required_weight {
+                    return Err(Error::<T>::FreeWeightIsNotEnough);
+                }
+
+                // Deduct the weight
+                subscription.free_weight = subscription.free_weight.saturating_sub(required_weight);
+
+                // Emit event
+                Self::deposit_event(Event::SubscriptionUsed(
+                    who.clone(),
+                    subscription_id,
+                    weight,
+                    success,
+                ));
+
+                Ok(())
+            })
         }
     }
 }
