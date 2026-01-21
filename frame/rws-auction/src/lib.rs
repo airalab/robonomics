@@ -15,18 +15,19 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # Robonomics Web Services (RWS) Pallet
+//! # Robonomics Web Services (RWS) Auction Pallet
 //!
-//! The RWS pallet provides a subscription-based fee mechanism for the Robonomics Network.
-//! It allows users to acquire subscriptions through an auction system and then use those
-//! subscriptions to make free (feeless) transactions up to their allocated capacity.
+//! The RWS Auction pallet provides a subscription-based fee mechanism for the Robonomics Network.
+//! Users acquire subscriptions through an auction system or asset locking, then use those
+//! subscriptions to make fee-less transactions up to their allocated capacity.
 //!
 //! ## Overview
 //!
-//! The RWS pallet implements a subscription model where users can:
-//! - Participate in auctions to acquire subscriptions
-//! - Use their subscriptions to execute transactions without paying per-transaction fees
-//! - Choose between different subscription types based on their needs
+//! The RWS Auction pallet implements a subscription model where users can:
+//! - Participate in auctions to acquire time-limited subscriptions
+//! - Lock assets to create perpetual lifetime subscriptions
+//! - Use transaction extensions to execute any extrinsic without paying fees
+//! - Manage multiple subscriptions per account
 //!
 //! This system is particularly useful for IoT devices and automated systems that need to
 //! make many transactions without managing individual transaction fees.
@@ -38,6 +39,7 @@
 //! ### Lifetime Subscription
 //!
 //! A lifetime subscription with custom TPS (Transactions Per Second) allocation that never expires.
+//! Can be created by winning an auction or locking assets.
 //!
 //! ```ignore
 //! SubscriptionMode::Lifetime { tps: 10_000 } // 0.01 TPS (10,000 microTPS)
@@ -46,10 +48,12 @@
 //! - **TPS**: Specified in microTPS (μTPS), where 1 TPS = 1,000,000 μTPS
 //! - **Duration**: Never expires
 //! - **Use case**: Long-term users who need consistent transaction capacity
+//! - **Creation**: Via auction or asset locking (`start_lifetime`)
 //!
 //! ### Daily Subscription
 //!
 //! A time-limited subscription with a fixed TPS allocation of 0.01 TPS.
+//! Created by winning an auction.
 //!
 //! ```ignore
 //! SubscriptionMode::Daily { days: 30 } // Fixed 0.01 TPS for 30 days
@@ -58,6 +62,112 @@
 //! - **TPS**: Fixed at 10,000 μTPS (0.01 TPS)
 //! - **Duration**: Expires after the specified number of days
 //! - **Use case**: Short-term or trial users
+//! - **Creation**: Via auction only
+//!
+//! ## Using Subscriptions: Transaction Extension
+//!
+//! The pallet provides a **transaction extension** (`ChargeRwsTransaction`) that enables
+//! fee-less transactions for subscription holders. This is the modern, flexible approach
+//! that works with any extrinsic.
+//!
+//! ### How Transaction Extensions Work
+//!
+//! A transaction extension is a Substrate mechanism that wraps around transactions to:
+//! - Validate transactions before execution
+//! - Modify transaction behavior (like fee payment)
+//! - Track transaction usage
+//!
+//! ### Usage Examples
+//!
+//! #### JavaScript/TypeScript (Polkadot.js)
+//!
+//! ```typescript
+//! import { ApiPromise, WsProvider } from '@polkadot/api';
+//!
+//! const api = await ApiPromise.create({
+//!   provider: new WsProvider('wss://kusama.rpc.robonomics.network')
+//! });
+//!
+//! // Option 1: Use subscription for fee-less transaction
+//! await api.tx.datalog
+//!   .record('sensor_data')
+//!   .signAndSend(account, {
+//!     rwsAuction: {
+//!       Enabled: { subscriptionId: 0 }  // Use subscription #0
+//!     }
+//!   });
+//!
+//! // Option 2: Pay normal fees (or omit parameter entirely)
+//! await api.tx.datalog
+//!   .record('sensor_data')
+//!   .signAndSend(account, {
+//!     rwsAuction: 'Disabled'
+//!   });
+//!
+//! // Option 3: Default behavior (pay fees)
+//! await api.tx.datalog
+//!   .record('sensor_data')
+//!   .signAndSend(account);  // Equivalent to Disabled
+//! ```
+//!
+//! #### Rust (Node/Runtime)
+//!
+//! ```rust,ignore
+//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//!
+//! // Create transaction with RWS extension
+//! let call = RuntimeCall::Datalog(
+//!     pallet_robonomics_datalog::Call::record { 
+//!         record: b"sensor_data".to_vec() 
+//!     }
+//! );
+//!
+//! // Enable RWS subscription
+//! let rws_extension = ChargeRwsTransaction::Enabled {
+//!     subscription_id: 0,
+//! };
+//!
+//! // Include in signed extra tuple
+//! let extra = (
+//!     // ... other extensions ...
+//!     rws_extension,
+//!     pallet_transaction_payment::ChargeTransactionPayment::from(0),
+//! );
+//! ```
+//!
+//! ### Benefits Over Wrapper Extrinsics
+//!
+//! The transaction extension approach is superior to the old `call()` wrapper extrinsic:
+//! - **Universal**: Works with ANY extrinsic, not just specific call types
+//! - **Explicit**: Clear opt-in per transaction
+//! - **Flexible**: Can switch between fee-less and paid per transaction
+//! - **Transparent**: Visible in transaction signature
+//! - **Standard**: Uses Substrate's native extension mechanism
+//!
+//! ## Free Weight Mechanism
+//!
+//! Subscriptions accumulate "free weight" over time based on their TPS allocation:
+//!
+//! ```text
+//! free_weight += ReferenceCallWeight × μTPS × Δt_seconds / 1,000,000,000
+//! ```
+//!
+//! Where:
+//! - `ReferenceCallWeight`: Standard transaction weight (configurable)
+//! - `μTPS`: Subscription's transactions per second in micro-units
+//! - `Δt_seconds`: Time elapsed since last update
+//!
+//! When a transaction executes using a subscription:
+//! 1. **Accumulation**: Free weight accumulates based on time elapsed
+//! 2. **Validation**: Checks if accumulated weight ≥ transaction weight
+//! 3. **Deduction**: Deducts transaction weight from free weight
+//! 4. **Update**: Records new `last_update` timestamp
+//!
+//! Example:
+//! - Subscription with 10,000 μTPS (0.01 TPS)
+//! - After 10 seconds: accumulates enough for ~0.1 standard transactions
+//! - Transaction uses weight → deducted from accumulated free weight
+//! - Next transaction waits for more accumulation
 //!
 //! ## Auction Lifecycle
 //!

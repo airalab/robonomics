@@ -23,27 +23,210 @@
 //!
 //! This extension allows users to opt-in per-transaction to use their RWS subscription
 //! for fee-less execution. Users can choose between using their subscription or paying
-//! normal transaction fees.
+//! normal transaction fees on a per-transaction basis.
+//!
+//! ## What is a Transaction Extension?
+//!
+//! A **transaction extension** is a Substrate mechanism that wraps around transactions to:
+//! - **Validate** transactions before they execute (check eligibility)
+//! - **Modify** transaction behavior (e.g., disable fee payment)
+//! - **Track** transaction execution (record usage)
+//! - Work with **any** pallet's extrinsics
+//!
+//! Unlike wrapper extrinsics (like the old `call()` method), transaction extensions:
+//! - Are transparent and visible in the transaction signature
+//! - Work universally with all extrinsics
+//! - Allow per-transaction opt-in/opt-out
+//! - Are part of Substrate's native extension system
 //!
 //! ## Design
 //!
+//! The extension provides a simple two-variant enum:
+//!
 //! ```rust,ignore
-//! ChargeRwsTransaction::Enabled { subscription_id } → fee-less if valid subscription
-//! ChargeRwsTransaction::Disabled → normal transaction fees
+//! pub enum ChargeRwsTransaction<T> {
+//!     // Use subscription for fee-less transaction
+//!     Enabled { subscription_id: u32 },
+//!     
+//!     // Pay normal transaction fees
+//!     Disabled,
+//! }
 //! ```
 //!
 //! ## Validation Flow
 //!
-//! 1. `validate()`: Check subscription exists, is active, and has quota
-//! 2. `pre_dispatch()`: Final pre-dispatch check, returns RwsPreDispatch info
-//! 3. Transaction executes (or not)
-//! 4. `post_dispatch()`: Record usage if fee-less and successful
+//! ```text
+//! ┌──────────────────────────────────────────────────────────┐
+//! │ 1. validate()                                            │
+//! │    - Check subscription exists                           │
+//! │    - Check subscription is active (not expired)          │
+//! │    - Check sufficient free_weight available              │
+//! │    → Result: Accept or Reject transaction                │
+//! └──────────────────────────────────────────────────────────┘
+//!                         │
+//!                         ▼
+//! ┌──────────────────────────────────────────────────────────┐
+//! │ 2. pre_dispatch()                                        │
+//! │    - Re-validate subscription (prevent race conditions)  │
+//! │    - Prepare RwsPreDispatch info (owner, sub_id)         │
+//! │    → Returns: Pre-dispatch state                         │
+//! └──────────────────────────────────────────────────────────┘
+//!                         │
+//!                         ▼
+//! ┌──────────────────────────────────────────────────────────┐
+//! │ 3. [Transaction Executes]                                │
+//! │    - Extrinsic runs normally                             │
+//! │    - No fees charged (Pays::No)                          │
+//! └──────────────────────────────────────────────────────────┘
+//!                         │
+//!                         ▼
+//! ┌──────────────────────────────────────────────────────────┐
+//! │ 4. post_dispatch()                                       │
+//! │    - Accumulate free_weight (TPS × time)                 │
+//! │    - Deduct consumed weight                              │
+//! │    - Update last_update timestamp                        │
+//! │    - Emit SubscriptionUsed event                         │
+//! └──────────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Usage Examples
+//!
+//! ### JavaScript/TypeScript (Polkadot.js)
+//!
+//! The most common way to use the extension is via Polkadot.js API:
+//!
+//! ```typescript
+//! import { ApiPromise, WsProvider } from '@polkadot/api';
+//!
+//! const api = await ApiPromise.create({
+//!   provider: new WsProvider('wss://kusama.rpc.robonomics.network')
+//! });
+//!
+//! // Fee-less transaction using subscription
+//! await api.tx.datalog
+//!   .record('sensor_data')
+//!   .signAndSend(account, {
+//!     rwsAuction: {
+//!       Enabled: { subscriptionId: 0 }
+//!     }
+//!   });
+//!
+//! // Pay normal fees
+//! await api.tx.datalog
+//!   .record('sensor_data')
+//!   .signAndSend(account, {
+//!     rwsAuction: 'Disabled'  // or omit entirely
+//!   });
+//! ```
+//!
+//! ### Multiple Subscriptions
+//!
+//! Users can have multiple subscriptions (indexed 0, 1, 2, ...) and choose which to use:
+//!
+//! ```typescript
+//! // Use subscription 0 (e.g., Daily subscription)
+//! await api.tx.launch
+//!   .launch(target, param)
+//!   .signAndSend(account, {
+//!     rwsAuction: { Enabled: { subscriptionId: 0 } }
+//!   });
+//!
+//! // Use subscription 1 (e.g., Lifetime subscription)
+//! await api.tx.datalog
+//!   .record(data)
+//!   .signAndSend(account, {
+//!     rwsAuction: { Enabled: { subscriptionId: 1 } }
+//!   });
+//! ```
+//!
+//! ### Error Handling
+//!
+//! ```typescript
+//! try {
+//!   await api.tx.datalog.record(data).signAndSend(account, {
+//!     rwsAuction: { Enabled: { subscriptionId: 0 } }
+//!   });
+//! } catch (error) {
+//!   if (error.message.includes('Payment')) {
+//!     // Subscription invalid, expired, or insufficient weight
+//!     console.log('Falling back to normal paid transaction');
+//!     await api.tx.datalog.record(data).signAndSend(account);
+//!   }
+//! }
+//! ```
+//!
+//! ### Rust (Node/Runtime)
+//!
+//! For runtime or node development:
+//!
+//! ```rust,ignore
+//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//!
+//! // Create the call
+//! let call = RuntimeCall::Datalog(
+//!     pallet_robonomics_datalog::Call::record { 
+//!         record: b"sensor_data".to_vec() 
+//!     }
+//! );
+//!
+//! // Create RWS extension (fee-less)
+//! let rws_ext = ChargeRwsTransaction::Enabled {
+//!     subscription_id: 0,
+//! };
+//!
+//! // Include in signed extra
+//! let extra = (
+//!     frame_system::CheckNonZeroSender::new(),
+//!     frame_system::CheckSpecVersion::new(),
+//!     // ... other extensions ...
+//!     rws_ext,  // BEFORE ChargeTransactionPayment
+//!     pallet_transaction_payment::ChargeTransactionPayment::from(0),
+//! );
+//! ```
+//!
+//! ## Error Codes
+//!
+//! The extension can reject transactions with these errors:
+//!
+//! - `InvalidTransaction::Payment`: Subscription doesn't exist, is expired, or has insufficient free_weight
+//! - `InvalidTransaction::ExhaustsResources`: Not currently used (reserved for future quota limits)
 //!
 //! ## Proxy Support
 //!
-//! The extension supports Substrate's proxy pallet. If the transaction is a proxy call
-//! (`proxy.proxy` or `proxy.proxy_announced`), the extension extracts the real account
-//! (subscription owner) and validates their subscription.
+//! The extension is designed to support Substrate's proxy pallet, allowing delegates to use
+//! the owner's subscription. Implementation note: Proxy pattern matching needs to be completed
+//! when integrating with the runtime's `RuntimeCall` type.
+//!
+//! ```rust,ignore
+//! // TODO: Implement in get_subscription_owner()
+//! match call {
+//!     RuntimeCall::Proxy(pallet_proxy::Call::proxy { real, .. }) => {
+//!         // Validate 'real' account's subscription
+//!         Ok(real.clone())
+//!     }
+//!     _ => Ok(who.clone())
+//! }
+//! ```
+//!
+//! ## Integration Requirements
+//!
+//! To integrate this extension into a runtime:
+//!
+//! 1. Add to `TxExtension` tuple **BEFORE** `ChargeTransactionPayment`:
+//!    ```rust,ignore
+//!    pub type TxExtension = (
+//!        // ... other extensions ...
+//!        ChargeRwsTransaction<Runtime>,
+//!        pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+//!    );
+//!    ```
+//!
+//! 2. Import from pallet:
+//!    ```rust,ignore
+//!    pub use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//!    ```
+//!
+//! 3. Ensure pallet is properly configured in runtime with required associated types.
 
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
@@ -63,17 +246,36 @@ use frame_support::{
 
 /// Transaction extension for RWS fee-less execution.
 ///
-/// Users can explicitly choose to use their RWS subscription for fee-less transactions
-/// or pay normal fees.
+/// Users explicitly choose to use their RWS subscription for fee-less transactions
+/// or pay normal fees. This choice is made per-transaction.
+///
+/// # Examples
+///
+/// ```typescript
+/// // Fee-less using subscription
+/// await tx.signAndSend(account, {
+///   rwsAuction: { Enabled: { subscriptionId: 0 } }
+/// });
+///
+/// // Normal paid transaction
+/// await tx.signAndSend(account, {
+///   rwsAuction: 'Disabled'
+/// });
+/// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
     /// Use RWS subscription for fee-less execution.
     ///
     /// If the subscription is valid and active, the transaction will execute without fees.
-    /// Otherwise, the transaction is rejected.
+    /// Otherwise, the transaction is rejected with `InvalidTransaction::Payment`.
+    ///
+    /// # Requirements
+    /// - Subscription must exist
+    /// - Subscription must be active (not expired for Daily mode)
+    /// - Sufficient free_weight must be available
     Enabled {
-        /// The subscription ID to use
+        /// The subscription ID to use (0, 1, 2, ...)
         subscription_id: u32,
     },
     /// Pay normal transaction fees.

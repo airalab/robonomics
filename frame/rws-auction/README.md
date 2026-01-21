@@ -38,6 +38,324 @@ The Robonomics Web Services (RWS) Pallet provides a decentralized auction system
 
 ---
 
+## 🔌 Transaction Extension: Fee-less Transactions
+
+### What is a Transaction Extension?
+
+A **transaction extension** is a Substrate mechanism that allows customization of transaction validation and execution without modifying individual pallets. It wraps around transactions and can:
+- Validate transactions before they execute
+- Modify transaction behavior (like fee payment)
+- Track transaction execution
+- Work with any pallet's extrinsics
+
+The RWS Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less transactions** for subscription holders.
+
+---
+
+### Why Use Transaction Extension?
+
+**Traditional Approach (Wrapper Extrinsic):**
+```rust
+// ❌ Old way: Wrap every call in RWS::call()
+RWS::call(subscription_id: 0, 
+    call: Box::new(datalog::record(data))
+)
+```
+- Requires wrapping every call
+- Limited to specific call types
+- More complexity for users
+
+**Transaction Extension Approach:**
+```rust
+// ✅ New way: Sign any transaction with RWS extension
+datalog::record(data)
+    .sign_with_rws(subscription_id: 0)
+```
+- Works with ANY extrinsic
+- Clean API
+- Per-transaction opt-in
+- Fully transparent
+
+---
+
+### How It Works
+
+```
+╔════════════════════════════════════════════════════════════════════╗
+║              TRANSACTION EXTENSION FLOW                            ║
+╚════════════════════════════════════════════════════════════════════╝
+
+STEP 1: USER SIGNS TRANSACTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ User creates transaction           │
+│ • Any extrinsic (datalog, launch)  │
+│ • Adds RWS extension parameter     │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ ChargeRwsTransaction::Enabled      │
+│ { subscription_id: 0 }             │
+└────────────────────────────────────┘
+         │
+         │ Transaction submitted to network
+         ▼
+
+
+STEP 2: VALIDATION (validate)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ Extension checks:                  │
+│ ✓ Subscription exists?             │
+│ ✓ Subscription active?             │
+│ ✓ Not expired?                     │
+│ ✓ Sufficient free_weight?          │
+└────────────────────────────────────┘
+         │
+         │ ✓ Valid → Continue
+         │ ✗ Invalid → Reject (InvalidTransaction::Payment)
+         ▼
+
+
+STEP 3: PRE-DISPATCH (pre_dispatch)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ Final check before execution       │
+│ • Re-validates subscription        │
+│ • Records owner & subscription_id  │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Returns: RwsPreDispatch            │
+│ • pays_no_fee: true                │
+│ • subscription_owner: Alice        │
+│ • subscription_id: 0               │
+└────────────────────────────────────┘
+         │
+         ▼
+
+
+STEP 4: TRANSACTION EXECUTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ Extrinsic runs normally            │
+│ • No fees charged (Pays::No)       │
+│ • Standard execution               │
+└────────────────────────────────────┘
+         │
+         ▼
+
+
+STEP 5: POST-DISPATCH (post_dispatch)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌────────────────────────────────────┐
+│ After execution:                   │
+│ • Accumulate free_weight           │
+│ • Deduct used weight               │
+│ • Update last_update timestamp     │
+│ • Emit SubscriptionUsed event      │
+└────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────┐
+│ Transaction Complete ✓             │
+└────────────────────────────────────┘
+```
+
+---
+
+### Usage Examples
+
+#### Example 1: JavaScript/TypeScript (Polkadot.js)
+
+```typescript
+import { ApiPromise, WsProvider } from '@polkadot/api';
+
+// Connect to Robonomics
+const api = await ApiPromise.create({
+  provider: new WsProvider('wss://kusama.rpc.robonomics.network')
+});
+
+// Get account
+const alice = /* ... keyring account ... */;
+
+// ✅ OPTION A: Use subscription for fee-less transaction
+await api.tx.datalog
+  .record('Temperature: 23.5°C')
+  .signAndSend(alice, {
+    // Enable RWS subscription
+    rwsAuction: {
+      Enabled: {
+        subscriptionId: 0  // Use subscription #0
+      }
+    }
+  });
+
+// ✅ OPTION B: Pay normal fees
+await api.tx.datalog
+  .record('Temperature: 23.5°C')
+  .signAndSend(alice, {
+    // Disable RWS, pay fees normally
+    rwsAuction: 'Disabled'
+  });
+
+// ✅ OPTION C: Omit extension (default = Disabled)
+await api.tx.datalog
+  .record('Temperature: 23.5°C')
+  .signAndSend(alice);  // Normal paid transaction
+```
+
+#### Example 2: Multiple Subscriptions
+
+```typescript
+// User can have multiple subscriptions (0, 1, 2, ...)
+// Choose which one to use per transaction
+
+// Use subscription 0 (Daily)
+await api.tx.launch
+  .launch(target, parameter)
+  .signAndSend(alice, {
+    rwsAuction: { Enabled: { subscriptionId: 0 } }
+  });
+
+// Use subscription 1 (Lifetime)
+await api.tx.datalog
+  .record(data)
+  .signAndSend(alice, {
+    rwsAuction: { Enabled: { subscriptionId: 1 } }
+  });
+```
+
+#### Example 3: Rust (Node/Runtime)
+
+```rust
+use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+
+// Creating a transaction with RWS extension
+let call = RuntimeCall::Datalog(
+    pallet_robonomics_datalog::Call::record { 
+        record: b"sensor_data".to_vec() 
+    }
+);
+
+// Enable RWS subscription
+let rws_extension = ChargeRwsTransaction::Enabled {
+    subscription_id: 0,
+};
+
+// Build signed extra tuple
+let extra = (
+    // ... other extensions ...
+    rws_extension,
+    // ... ChargeTransactionPayment comes after ...
+);
+
+// Create and submit transaction
+let xt = UncheckedExtrinsic::new_signed(
+    call,
+    account,
+    signature,
+    extra,
+);
+```
+
+#### Example 4: Error Handling
+
+```typescript
+try {
+  await api.tx.datalog.record(data).signAndSend(alice, {
+    rwsAuction: { Enabled: { subscriptionId: 0 } }
+  });
+} catch (error) {
+  // Common errors:
+  // - InvalidTransaction::Payment: No subscription or expired
+  // - InvalidTransaction::ExhaustsResources: Insufficient free_weight
+  // - NoSubscription: Subscription doesn't exist
+  
+  if (error.message.includes('Payment')) {
+    console.log('Subscription invalid or expired');
+    // Fall back to normal paid transaction
+    await api.tx.datalog.record(data).signAndSend(alice);
+  }
+}
+```
+
+---
+
+### Key Differences: Old vs New
+
+| Aspect | Old (call extrinsic) | New (Transaction Extension) |
+|--------|---------------------|----------------------------|
+| **Usage** | `RWS::call(id, Box::new(call))` | Any extrinsic + RWS parameter |
+| **Flexibility** | Limited to compatible calls | Works with ANY extrinsic |
+| **API** | Wrapper required | Direct transaction signing |
+| **Opt-in** | Per-call basis (implicit) | Per-transaction (explicit) |
+| **Transparency** | Hidden in wrapper | Clear in signature |
+| **Proxy Support** | Custom ProxyType needed | Standard proxy works |
+| **Removal** | ❌ Removed in v4.0 | ✅ Recommended approach |
+
+---
+
+### Migration Guide
+
+If you were using the old `RWS::call()` extrinsic:
+
+**Before (Deprecated):**
+```typescript
+// ❌ Old way - NO LONGER WORKS
+await api.tx.rws
+  .call(
+    0,  // subscription_id
+    api.tx.datalog.record(data)
+  )
+  .signAndSend(alice);
+```
+
+**After (Transaction Extension):**
+```typescript
+// ✅ New way - RECOMMENDED
+await api.tx.datalog
+  .record(data)
+  .signAndSend(alice, {
+    rwsAuction: {
+      Enabled: { subscriptionId: 0 }
+    }
+  });
+```
+
+**Benefits of migration:**
+- Cleaner code
+- Works with all extrinsics
+- Better type safety
+- More explicit control
+
+---
+
+### Monitoring & Events
+
+Track subscription usage via events:
+
+```typescript
+// Subscribe to subscription usage events
+api.query.system.events((events) => {
+  events.forEach((record) => {
+    const { event } = record;
+    
+    if (api.events.rwsAuction.SubscriptionUsed.is(event)) {
+      const [account, subId, weight] = event.data;
+      console.log(`Subscription ${subId} used by ${account}`);
+      console.log(`Weight consumed: ${weight}`);
+    }
+  });
+});
+```
+
+
+
+---
+
 ## 🎯 Auction Lifecycle
 
 ```
@@ -691,19 +1009,6 @@ Claim a won auction and activate subscription.
 - Marks auction as claimed
 
 ---
-
-#### `call(subscription_id, call)`
-Execute a free transaction using a subscription.
-
-**Requirements:**
-- Caller must own the subscription (indexed by caller + subscription_id)
-- Subscription must not be expired (for Daily mode)
-- Sufficient `free_weight` accumulated
-
-**Effects:**
-- Updates `free_weight` (accumulates then deducts)
-- Executes `call` with `Pays::No`
-- Updates `last_update` timestamp
 
 ---
 
