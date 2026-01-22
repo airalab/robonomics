@@ -182,24 +182,18 @@ const api = await ApiPromise.create({
 const alice = /* ... keyring account ... */;
 
 // ✅ OPTION A: Use subscription for fee-less transaction
-await api.tx.datalog
-  .record('Temperature: 23.5°C')
-  .signAndSend(alice, {
-    // Enable RWS subscription
-    rwsAuction: {
-      Enabled: {
-        subscriptionId: 0  // Use subscription #0
-      }
-    }
-  });
+// Create the transaction
+const tx = api.tx.datalog.record('Temperature: 23.5°C');
 
-// ✅ OPTION B: Pay normal fees
-await api.tx.datalog
-  .record('Temperature: 23.5°C')
-  .signAndSend(alice, {
-    // Disable RWS, pay fees normally
-    rwsAuction: 'Disabled'
-  });
+// Sign with RWS extension enabled
+const signedTx = await tx.signAsync(alice, { nonce: -1 });
+// Note: RWS extension parameters (Enabled/Disabled with owner/subscription_id) 
+// are encoded in the transaction extension data when signing
+
+// ✅ OPTION B: Pay normal fees  
+// When RWS extension is Disabled, normal fees apply
+const tx = api.tx.datalog.record('Temperature: 23.5°C');
+const signedTx = await tx.signAsync(alice, { nonce: -1 });
 
 // ✅ OPTION C: Omit extension (default = Disabled)
 await api.tx.datalog
@@ -293,45 +287,10 @@ try {
 | **API** | Wrapper required | Direct transaction signing |
 | **Opt-in** | Per-call basis (implicit) | Per-transaction (explicit) |
 | **Transparency** | Hidden in wrapper | Clear in signature |
-| **Proxy Support** | Custom ProxyType needed | Standard proxy works |
 | **Removal** | ❌ Removed in v4.0 | ✅ Recommended approach |
 
 ---
 
-### Migration Guide
-
-If you were using the old `RWS::call()` extrinsic:
-
-**Before (Deprecated):**
-```typescript
-// ❌ Old way - NO LONGER WORKS
-await api.tx.rws
-  .call(
-    0,  // subscription_id
-    api.tx.datalog.record(data)
-  )
-  .signAndSend(alice);
-```
-
-**After (Transaction Extension):**
-```typescript
-// ✅ New way - RECOMMENDED
-await api.tx.datalog
-  .record(data)
-  .signAndSend(alice, {
-    rwsAuction: {
-      Enabled: { subscriptionId: 0 }
-    }
-  });
-```
-
-**Benefits of migration:**
-- Cleaner code
-- Works with all extrinsics
-- Better type safety
-- More explicit control
-
----
 
 ### Monitoring & Events
 

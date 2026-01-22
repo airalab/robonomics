@@ -191,23 +191,7 @@
 //! - `InvalidTransaction::Payment`: Subscription doesn't exist, is expired, or has insufficient free_weight
 //! - `InvalidTransaction::ExhaustsResources`: Not currently used (reserved for future quota limits)
 //!
-//! ## Proxy Support
-//!
-//! The extension is designed to support Substrate's proxy pallet, allowing delegates to use
-//! the owner's subscription. Implementation note: Proxy pattern matching needs to be completed
-//! when integrating with the runtime's `RuntimeCall` type.
-//!
-//! ```rust,ignore
-//! // TODO: Implement in get_subscription_owner()
-//! match call {
-//!     RuntimeCall::Proxy(pallet_proxy::Call::proxy { real, .. }) => {
-//!         // Validate 'real' account's subscription
-//!         Ok(real.clone())
-//!     }
-//!     _ => Ok(who.clone())
-//! }
-//! ```
-//!
+
 //! ## Integration Requirements
 //!
 //! To integrate this extension into a runtime:
@@ -253,14 +237,18 @@ use frame_support::{
 ///
 /// ```typescript
 /// // Fee-less using subscription
-/// await tx.signAndSend(account, {
-///   rwsAuction: { Enabled: { subscriptionId: 0 } }
+/// const tx = api.tx.datalog.record('data');
+/// const signedTx = await tx.signAsync(account, {
+///   assetId: {
+///     parents: 0,
+///     interior: {
+///       X1: [{ 
+///         PalletInstance: 55,  // RwsAuction pallet index
+///       }]
+///     }
+///   }
 /// });
-///
-/// // Normal paid transaction
-/// await tx.signAndSend(account, {
-///   rwsAuction: 'Disabled'
-/// });
+/// // Then modify signedTx to include Enabled { owner, subscription_id }
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
@@ -271,11 +259,14 @@ pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
     /// Otherwise, the transaction is rejected with `InvalidTransaction::Payment`.
     ///
     /// # Requirements
-    /// - Subscription must exist
+    /// - Subscription must exist for the specified owner
+    /// - Signer must have permission to use the subscription (either owner or granted access)
     /// - Subscription must be active (not expired for Daily mode)
     /// - Sufficient free_weight must be available
     Enabled {
-        /// The subscription ID to use (0, 1, 2, ...)
+        /// The account that owns the subscription
+        subscription_owner: T::AccountId,
+        /// The subscription ID (0, 1, 2, ...)
         subscription_id: u32,
     },
     /// Pay normal transaction fees.
@@ -312,7 +303,7 @@ impl<T: Config + Send + Sync> Default for ChargeRwsTransaction<T> {
 pub struct RwsPreDispatch<AccountId> {
     /// Whether this transaction is using a subscription (fee-less)
     pub pays_no_fee: bool,
-    /// The account that owns the subscription (may differ from signer if using proxy)
+    /// The account that owns the subscription
     pub subscription_owner: Option<AccountId>,
     /// The subscription ID being used
     pub subscription_id: Option<u32>,
@@ -322,51 +313,33 @@ impl<T> ChargeRwsTransaction<T>
 where
     T: Config + Send + Sync,
 {
-    /// Extract the subscription owner from the transaction.
-    ///
-    /// For direct calls, returns the signer.
-    /// For proxy calls, this would extract the 'real' account from proxy calls.
-    /// Currently returns the signer directly (proxy support to be added based on runtime integration).
-    fn get_subscription_owner(
-        who: &T::AccountId,
-        _call: &<T as Config>::Call,
-    ) -> Result<T::AccountId, TransactionValidityError> {
-        // Direct call - signer is the subscription owner
-        // TODO: Add proxy pattern matching when integrated with runtime
-        // match call {
-        //     RuntimeCall::Proxy(pallet_proxy::Call::proxy { real, .. })
-        //     | RuntimeCall::Proxy(pallet_proxy::Call::proxy_announced { real, .. }) => {
-        //         Ok(real.clone())
-        //     }
-        //     _ => Ok(who.clone())
-        // }
-        Ok(who.clone())
-    }
-
-    /// Validate the subscription and check if it's usable.
+    /// Validate the subscription and check if the signer has permission to use it.
     ///
     /// This performs lightweight validation without mutating state.
     fn validate_subscription(
         who: &T::AccountId,
+        subscription_owner: &T::AccountId,
         subscription_id: u32,
-        call: &<T as Config>::Call,
         info: &DispatchInfo,
-    ) -> Result<T::AccountId, TransactionValidityError> {
-        // Extract the subscription owner (may be different from signer if using proxy)
-        let owner = Self::get_subscription_owner(who, call)?;
+    ) -> Result<(), TransactionValidityError> {
+        // Check if signer has permission to use this subscription
+        if !Pallet::<T>::has_permission(who, subscription_owner, subscription_id) {
+            return Err(InvalidTransaction::BadSigner.into());
+        }
 
         // Check if subscription exists and is active
-        if !Pallet::<T>::is_subscription_active(&owner, subscription_id) {
+        if !Pallet::<T>::is_subscription_active(subscription_owner, subscription_id) {
             return Err(InvalidTransaction::Payment.into());
         }
 
         // Check if subscription has sufficient weight
         let required_weight = info.call_weight.ref_time();
-        if !Pallet::<T>::has_sufficient_weight(&owner, subscription_id, required_weight) {
+        if !Pallet::<T>::has_sufficient_weight(subscription_owner, subscription_id, required_weight)
+        {
             return Err(InvalidTransaction::Payment.into());
         }
 
-        Ok(owner)
+        Ok(())
     }
 }
 
@@ -389,14 +362,17 @@ where
     fn validate(
         &self,
         who: &Self::AccountId,
-        call: &Self::Call,
+        _call: &Self::Call,
         info: &DispatchInfo,
         _len: usize,
     ) -> TransactionValidity {
         match self {
-            Self::Enabled { subscription_id } => {
-                // Validate subscription
-                Self::validate_subscription(who, *subscription_id, call, info)?;
+            Self::Enabled {
+                subscription_owner,
+                subscription_id,
+            } => {
+                // Validate subscription and permissions
+                Self::validate_subscription(who, subscription_owner, *subscription_id, info)?;
 
                 Ok(ValidTransaction::default())
             }
@@ -419,12 +395,13 @@ where
         self.validate(who, call, info, len)?;
 
         match self {
-            Self::Enabled { subscription_id } => {
-                let owner = Self::get_subscription_owner(who, call)?;
-
+            Self::Enabled {
+                subscription_owner,
+                subscription_id,
+            } => {
                 Ok(RwsPreDispatch {
                     pays_no_fee: true,
-                    subscription_owner: Some(owner),
+                    subscription_owner: Some(subscription_owner),
                     subscription_id: Some(subscription_id),
                 })
             }

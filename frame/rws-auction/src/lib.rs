@@ -88,26 +88,17 @@
 //!   provider: new WsProvider('wss://kusama.rpc.robonomics.network')
 //! });
 //!
-//! // Option 1: Use subscription for fee-less transaction
-//! await api.tx.datalog
-//!   .record('sensor_data')
-//!   .signAndSend(account, {
-//!     rwsAuction: {
-//!       Enabled: { subscriptionId: 0 }  // Use subscription #0
-//!     }
-//!   });
+//! // Fee-less transaction using subscription
+//! // User must specify both subscription owner and ID in the extension
+//! const tx = api.tx.datalog.record('sensor_data');
+//! const signedTx = await tx.signAsync(account, { nonce: -1 });
+//! // Extension data includes: { Enabled: { owner: account, subscriptionId: 0 } }
+//! await api.rpc.author.submitExtrinsic(signedTx);
 //!
-//! // Option 2: Pay normal fees (or omit parameter entirely)
-//! await api.tx.datalog
-//!   .record('sensor_data')
-//!   .signAndSend(account, {
-//!     rwsAuction: 'Disabled'
-//!   });
-//!
-//! // Option 3: Default behavior (pay fees)
-//! await api.tx.datalog
-//!   .record('sensor_data')
-//!   .signAndSend(account);  // Equivalent to Disabled
+//! // Normal paid transaction (extension Disabled)
+//! const tx2 = api.tx.datalog.record('sensor_data');
+//! const signedTx2 = await tx2.signAsync(account, { nonce: -1 });
+//! await api.rpc.author.submitExtrinsic(signedTx2);
 //! ```
 //!
 //! #### Rust (Node/Runtime)
@@ -122,8 +113,9 @@
 //!     }
 //! );
 //!
-//! // Enable RWS subscription
-//! let rws_extension = ChargeRwsTransaction::Enabled {
+//! // Enable RWS subscription - user specifies owner and ID
+//! let rws_ext = ChargeRwsTransaction::Enabled {
+//!     subscription_owner: owner_account,
 //!     subscription_id: 0,
 //! };
 //!
@@ -133,6 +125,30 @@
 //!     rws_extension,
 //!     pallet_transaction_payment::ChargeTransactionPayment::from(0),
 //! );
+//! ```
+//!
+//!
+//! ### Permission System
+//!
+//! The pallet includes a permission system that allows subscription owners to grant
+//! access to other accounts:
+//!
+//! - **Owner**: Always has permission to use their own subscriptions
+//! - **Delegates**: Can be granted permission via `grant_access()` extrinsic
+//! - **Validation**: Extension checks permissions before allowing fee-less execution
+//!
+//! ```rust,ignore
+//! // Owner grants access to a delegate
+//! RwsAuction::grant_access(origin, subscription_id: 0, delegate: bob);
+//!
+//! // Now bob can use alice's subscription by specifying:
+//! // ChargeRwsTransaction::Enabled { 
+//! //     subscription_owner: alice, 
+//! //     subscription_id: 0 
+//! // }
+//!
+//! // Owner can revoke access
+//! RwsAuction::revoke_access(origin, subscription_id: 0, delegate: bob);
 //! ```
 //!
 //! ### Benefits Over Wrapper Extrinsics
@@ -943,6 +959,21 @@ pub mod pallet {
     pub(super) type LockedAssets<T: Config> =
         StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, u32, AssetBalanceOf<T>>;
 
+    #[pallet::storage]
+    /// Permissions for accounts to use subscriptions.
+    /// Maps (subscription_owner, subscription_id) => delegate_account => has_permission
+    /// When true, the delegate account can use the subscription for fee-less transactions.
+    pub(super) type SubscriptionPermissions<T: Config> = StorageNMap<
+        _,
+        (
+            NMapKey<Blake2_128Concat, T::AccountId>, // subscription_owner
+            NMapKey<Twox64Concat, u32>,              // subscription_id
+            NMapKey<Blake2_128Concat, T::AccountId>, // delegate_account
+        ),
+        bool,
+        ValueQuery,
+    >;
+
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(PhantomData<T>);
@@ -1248,10 +1279,125 @@ pub mod pallet {
             Self::deposit_event(Event::SubscriptionStopped(sender, subscription_id));
             Ok(().into())
         }
+
+        /// Grant permission to another account to use this subscription.
+        ///
+        /// The dispatch origin for this call must be _Signed_ and must be the subscription owner.
+        ///
+        /// # Parameters
+        ///
+        /// * `subscription_id` - The subscription ID to grant access to
+        /// * `delegate` - The account to grant permission to
+        ///
+        /// # Behavior
+        ///
+        /// 1. Verifies caller owns the subscription
+        /// 2. Grants permission to the delegate account
+        /// 3. Delegate can now use the subscription for fee-less transactions
+        ///
+        /// # Errors
+        ///
+        /// * `NoSubscription` - Subscription not found
+        ///
+        /// # <weight>
+        /// - Single storage write
+        /// # </weight>
+        #[pallet::call_index(5)]
+        #[pallet::weight(T::DbWeight::get().writes(1))]
+        pub fn grant_access(
+            origin: OriginFor<T>,
+            subscription_id: u32,
+            delegate: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            // Verify subscription exists
+            ensure!(
+                <Subscription<T>>::contains_key(&sender, subscription_id),
+                Error::<T>::NoSubscription
+            );
+
+            // Grant permission
+            <SubscriptionPermissions<T>>::insert((&sender, subscription_id, &delegate), true);
+
+            Ok(().into())
+        }
+
+        /// Revoke permission from an account to use this subscription.
+        ///
+        /// The dispatch origin for this call must be _Signed_ and must be the subscription owner.
+        ///
+        /// # Parameters
+        ///
+        /// * `subscription_id` - The subscription ID to revoke access from
+        /// * `delegate` - The account to revoke permission from
+        ///
+        /// # Behavior
+        ///
+        /// 1. Verifies caller owns the subscription
+        /// 2. Revokes permission from the delegate account
+        /// 3. Delegate can no longer use the subscription for fee-less transactions
+        ///
+        /// # Errors
+        ///
+        /// * `NoSubscription` - Subscription not found
+        ///
+        /// # <weight>
+        /// - Single storage removal
+        /// # </weight>
+        #[pallet::call_index(6)]
+        #[pallet::weight(T::DbWeight::get().writes(1))]
+        pub fn revoke_access(
+            origin: OriginFor<T>,
+            subscription_id: u32,
+            delegate: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+
+            // Verify subscription exists
+            ensure!(
+                <Subscription<T>>::contains_key(&sender, subscription_id),
+                Error::<T>::NoSubscription
+            );
+
+            // Revoke permission
+            <SubscriptionPermissions<T>>::remove((&sender, subscription_id, &delegate));
+
+            Ok(().into())
+        }
     }
 
     // Helper methods for transaction extension
     impl<T: Config> Pallet<T> {
+        /// Check if an account has permission to use a subscription.
+        ///
+        /// Returns `true` if:
+        /// - The account is the subscription owner, OR
+        /// - The account has been granted permission by the owner
+        ///
+        /// # Parameters
+        ///
+        /// * `who` - The account to check permission for
+        /// * `owner` - The subscription owner
+        /// * `subscription_id` - The subscription ID
+        ///
+        /// # Returns
+        ///
+        /// `true` if the account has permission, `false` otherwise.
+        pub fn has_permission(
+            who: &T::AccountId,
+            owner: &T::AccountId,
+            subscription_id: u32,
+        ) -> bool {
+            // Owner always has permission
+            if who == owner {
+                return true;
+            }
+
+            // Check if delegate has been granted permission
+            <SubscriptionPermissions<T>>::get((owner, subscription_id, who))
+        }
+
         /// Check if subscription is active and valid for use.
         ///
         /// A subscription is considered active if:
