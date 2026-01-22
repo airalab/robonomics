@@ -74,7 +74,7 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
 
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
-            (ProxyType::Any, _) => true,
+            (ProxyType::Any, ProxyType::Any) => true,
         }
     }
 }

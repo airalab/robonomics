@@ -56,8 +56,8 @@ The RWS Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less
 
 **Traditional Approach (Wrapper Extrinsic):**
 ```rust
-// ❌ Old way: Wrap every call in RWS::call() (old pallet had no subscription_id)
-RWS::call(call: Box::new(datalog::record(data)))
+// ❌ Old way: Wrap every call in RWS::call(subscription_id, call)
+RWS::call(subscription_id: 0, call: Box::new(datalog::record(data)))
 ```
 - Requires wrapping every call
 - Limited to specific call types
@@ -66,9 +66,11 @@ RWS::call(call: Box::new(datalog::record(data)))
 **Transaction Extension Approach:**
 ```rust
 // ✅ New way: Sign any transaction with RWS extension
-// New extension requires subscription_owner and subscription_id parameters
+// Extension is configured during signing with subscription_owner and subscription_id
+// The extension is encoded in the SignedExtra tuple, not through a method chain
 datalog::record(data)
-    .sign_with_rws(owner: alice, subscription_id: 0)
+    // When signing, ChargeRwsTransaction is set to:
+    // Enabled { subscription_owner: alice, subscription_id: 0 }
 ```
 - Works with ANY extrinsic
 - Clean API
