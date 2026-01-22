@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Mock runtime for testing RWS pallet.
 
-use crate::{self as pallet_rws};
+use crate::{self as pallet_rws_auction};
 use frame_support::{
     assert_ok, derive_impl, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64},
@@ -57,7 +57,6 @@ const LIFETIME_ASSET_ID: AssetId = 1;
 )]
 pub enum ProxyType {
     Any,
-    RwsUser(u32),
 }
 
 impl Default for ProxyType {
@@ -67,26 +66,15 @@ impl Default for ProxyType {
 }
 
 impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
-    fn filter(&self, c: &RuntimeCall) -> bool {
+    fn filter(&self, _c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::RwsUser(allowed_subscription_id) => {
-                // Only allow RWS::call operations for the specific subscription
-                match c {
-                    RuntimeCall::RWS(pallet_rws::Call::call {
-                        subscription_id, ..
-                    }) => subscription_id == allowed_subscription_id,
-                    _ => false,
-                }
-            }
         }
     }
 
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
-            (ProxyType::Any, _) => true,
-            (_, ProxyType::Any) => false,
-            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
+            (ProxyType::Any, ProxyType::Any) => true,
         }
     }
 }
@@ -100,7 +88,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         Assets: pallet_assets,
         Proxy: pallet_proxy,
-        RWS: pallet_rws,
+        RWS: pallet_rws_auction,
     }
 );
 
@@ -199,7 +187,7 @@ parameter_types! {
     pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 
-impl pallet_rws::Config for Test {
+impl pallet_rws_auction::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Call = RuntimeCall;
     type Time = Timestamp;
