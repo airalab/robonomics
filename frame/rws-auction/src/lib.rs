@@ -910,13 +910,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// New subscription auction bid received.
         NewBid(u32, T::AccountId, BalanceOf<T>),
-        /// Runtime method executed using RWS subscription.
-        /// **DEPRECATED**: Use SubscriptionUsed event instead.
-        #[deprecated(
-            since = "4.0.0",
-            note = "Use SubscriptionUsed event from transaction extension instead"
-        )]
-        RwsCall(T::AccountId, u32, DispatchResult),
         /// Subscription auction has been started.
         AuctionStarted(u32),
         /// Subscription auction finished.
@@ -961,15 +954,12 @@ pub mod pallet {
 
     #[pallet::storage]
     /// Permissions for accounts to use subscriptions.
-    /// Maps (subscription_owner, subscription_id) => delegate_account => has_permission
+    /// Maps (subscription_owner, subscription_id, delegate_account) => has_permission
     /// When true, the delegate account can use the subscription for fee-less transactions.
-    pub(super) type SubscriptionPermissions<T: Config> = StorageNMap<
+    pub(super) type SubscriptionPermissions<T: Config> = StorageMap<
         _,
-        (
-            NMapKey<Blake2_128Concat, T::AccountId>, // subscription_owner
-            NMapKey<Twox64Concat, u32>,              // subscription_id
-            NMapKey<Blake2_128Concat, T::AccountId>, // delegate_account
-        ),
+        Blake2_128Concat,
+        (T::AccountId, u32, T::AccountId),
         bool,
         ValueQuery,
     >;
@@ -1303,7 +1293,7 @@ pub mod pallet {
         /// - Single storage write
         /// # </weight>
         #[pallet::call_index(5)]
-        #[pallet::weight(T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::grant_access())]
         pub fn grant_access(
             origin: OriginFor<T>,
             subscription_id: u32,
@@ -1346,7 +1336,7 @@ pub mod pallet {
         /// - Single storage removal
         /// # </weight>
         #[pallet::call_index(6)]
-        #[pallet::weight(T::DbWeight::get().writes(1))]
+        #[pallet::weight(<T as Config>::WeightInfo::revoke_access())]
         pub fn revoke_access(
             origin: OriginFor<T>,
             subscription_id: u32,

@@ -54,6 +54,8 @@ pub trait WeightInfo {
 	fn start_auction() -> Weight;
 	fn start_lifetime() -> Weight;
 	fn stop_lifetime() -> Weight;
+	fn grant_access() -> Weight;
+	fn revoke_access() -> Weight;
 }
 
 /// Weights for `pallet_robonomics_rws` using the Substrate node and recommended hardware.
@@ -117,6 +119,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+	fn grant_access() -> Weight {
+		// Placeholder weight - should be benchmarked
+		// 1 read (subscription existence check) + 1 write (permission)
+		Weight::from_parts(20_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn revoke_access() -> Weight {
+		// Placeholder weight - should be benchmarked
+		// 1 read (subscription existence check) + 1 write (permission removal)
+		Weight::from_parts(20_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
 
 // For backwards compatibility and tests.
@@ -171,5 +187,19 @@ impl WeightInfo for () {
 		Weight::from_parts(45_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	fn grant_access() -> Weight {
+		// Placeholder weight - should be benchmarked
+		// 1 read (subscription existence check) + 1 write (permission)
+		Weight::from_parts(20_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn revoke_access() -> Weight {
+		// Placeholder weight - should be benchmarked
+		// 1 read (subscription existence check) + 1 write (permission removal)
+		Weight::from_parts(20_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

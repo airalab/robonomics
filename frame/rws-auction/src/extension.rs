@@ -273,18 +273,15 @@ pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
     ///
     /// The transaction will be processed through the standard fee payment mechanism.
     Disabled,
-    #[codec(skip)]
-    _Phantom(sp_std::marker::PhantomData<T>),
 }
 
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeRwsTransaction<T> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
-            Self::Enabled { subscription_id } => {
+            Self::Enabled { subscription_id, .. } => {
                 write!(f, "ChargeRwsTransaction::Enabled({})", subscription_id)
             }
             Self::Disabled => write!(f, "ChargeRwsTransaction::Disabled"),
-            Self::_Phantom(_) => write!(f, "ChargeRwsTransaction::_Phantom"),
         }
     }
 }
@@ -380,7 +377,6 @@ where
                 // No validation needed for normal fee payment
                 Ok(ValidTransaction::default())
             }
-            Self::_Phantom(_) => Ok(ValidTransaction::default()),
         }
     }
 
@@ -405,7 +401,7 @@ where
                     subscription_id: Some(subscription_id),
                 })
             }
-            Self::Disabled | Self::_Phantom(_) => Ok(RwsPreDispatch {
+            Self::Disabled => Ok(RwsPreDispatch {
                 pays_no_fee: false,
                 subscription_owner: None,
                 subscription_id: None,
