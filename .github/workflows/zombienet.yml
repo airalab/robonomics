@@ -25,45 +25,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Robonomics binary
-        uses: houseabsolute/actions-rust-cross@v1
+      - name: Spawn Zombienet local network
+        uses: JarvusInnovations/background-action@v1
         with:
-          command: build
-          toolchain: "1.88.0"
-          force-use-cross: true
-          use-rust-cache: true
-          strip: true
-          target: x86_64-unknown-linux-musl
-          args: "--locked --profile production"
-
-      - name: Download polkadot binary
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: "paritytech/polkadot-sdk" 
-          tag: "polkadot-stable2512"
-          fileName: "polkadot"
-          out-file-path: "scripts/zombienet/bin"
-
-      - name: Download polkadot-parachain binary
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: "paritytech/polkadot-sdk" 
-          tag: "polkadot-stable2512"
-          fileName: "polkadot-parachain"
-          out-file-path: "scripts/zombienet/bin"
-
-      - name: Download zombienet binary
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: "paritytech/zombienet" 
-          tag: "v1.3.138"
-          fileName: "zombienet-linux-x64"
-          out-file-path: "scripts/zombienet/bin"
+          run: nix develop .#local-testnet --command ./scripts/zombienet/spawn-network.sh 
+          wait-on: |
+            tcp:localhost:9944
+            tcp:localhost:9910
+            tcp:localhost:9988
+          wait-for: 5m
+          tail: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
+        uses: actions/setup-node@v4 
+          with: 
+            node-version: '18' 
 
       - name: Cache Node.js modules
         uses: actions/cache@v4
@@ -73,8 +49,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Run Zombienet integration tests
-        run: cd scripts/zombienet && ./run-tests.sh
+      - name: Run integration tests
+        run: ./scripts/zombienet/run-tests.sh 
 
       - name: Upload test artifacts on failure
         if: failure()
