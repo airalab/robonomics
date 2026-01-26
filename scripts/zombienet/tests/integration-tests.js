@@ -19,9 +19,9 @@ const TESTS_CONFIG = {
   relayWsUrl: 'ws://127.0.0.1:9944',
   parachainWsUrl: 'ws://127.0.0.1:9988',
   timeout: 300000, // 5 minutes
-  blockProductionWaitTime: 60000, // 1 minute
+  blockProductionWaitTime: 10000, // 10 seconds
   transactionTimeout: 60000, // 1 minute
-  networkStabilizationTime: 30000, // 30 seconds
+  networkStabilizationTime: 3000, // 3 seconds
 };
 
 // Test results tracking

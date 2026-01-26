@@ -1,38 +1,37 @@
 {
-  description = "Robonomics Network Node";
+  description = "Robonomics Network Flakes";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
-  inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.rust-overlay.url = "github:oxalica/rust-overlay";
+  nixConfig = {
+    extra-substituters = [
+      "https://polkadot.cachix.org"
+      "https://aira.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "polkadot.cachix.org-1:qOFthM8M0DTotg8A48wWTZBgJD6h1rV9Jaszt6QE/N0="
+      "aira.cachix.org-1:4mMjRo4HgJ8/i/lzXZPjmnndcdf5P2RZJi04359ykrE="
+    ];
+  };
+
+  inputs = {
+    systems.url = "github:nix-systems/default";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+
+    rust-flake.url = "github:juspay/rust-flake";
+    rust-flake.inputs.nixpkgs.follows = "nixpkgs";
+
+    polkadot.url = "github:andresilva/polkadot.nix";
+    polkadot.inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs = inputs:
-    inputs.flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        overlays = [(import inputs.rust-overlay)];
-        pkgs = import inputs.nixpkgs {
-          inherit system overlays;
-        };
-        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-      in with pkgs; {
-        packages.default = rustPlatform.buildRustPackage rec {
-          pname = "robonomics";
-          version = "4.1.0";
-          src = pkgs.lib.cleanSource ./.;
-          cargoLock.lockFile = ./Cargo.lock;
-          nativeBuildInputs = [toolchain clang pkg-config protobuf];
-          buildInputs = [openssl];
-          #ROCKSDB_LIB_DIR = "${rocksdb}/lib";
-          LIBCLANG_PATH = "${libclang.lib}/lib";
-          PROTOC = "${protobuf}/bin/protoc";
-        }; 
-        devShells.default = mkShell {
-          buildInputs = [toolchain pkg-config clang openssl taplo];
-          ROCKSDB_LIB_DIR = "${rocksdb}/lib";
-          LIBCLANG_PATH = "${libclang.lib}/lib";
-          PROTOC = "${protobuf}/bin/protoc";
-        };
-      }
-    );
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
+      imports = with builtins;
+        map
+          (fn: ./nix/modules/flake/${fn})
+          (attrNames (readDir ./nix/modules/flake));
+  };
 }
-

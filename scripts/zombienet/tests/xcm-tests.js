@@ -12,7 +12,7 @@ const { Keyring } = require('@polkadot/keyring');
 const XCM_TESTS_CONFIG = {
   relayWsUrl: 'ws://127.0.0.1:9944',
   parachainWsUrl: 'ws://127.0.0.1:9988',
-  assetHubWsUrl: 'ws://127.0.0.1:9910',  // AssetHub parachain
+  assetHubWsUrl: 'ws://127.0.0.1:9910',
   timeout: 120000, // 2 minutes
   blockWaitTime: 30000, // 30 seconds
 };
@@ -63,13 +63,17 @@ async function testXcmUpwardMessage(testResults) {
     
     // Create an XCM message - a simple remark to the relay chain
     // Using XCM v4 versioned format (the latest stable version in the implementation)
-    const dest = { V4: { parents: 1, interior: 'Here' } };
+    const dest = { V5: { parents: 1, interior: 'Here' } };
     
     // Create a simple XCM message with Transact instruction
     const message = {
-      V4: [
+      V5: [
         {
-          UnpaidExecution: {
+          BuyExecution: {
+            fees: {
+                id: { parents: 1, interior: 'Here' },
+                fun: { Fungible: '1000000000000' },
+            },
             weight_limit: 'Unlimited'
           }
         },
@@ -201,7 +205,7 @@ async function testXcmDownwardMessage(testResults) {
     
     // Create destination (parachain 2000)
     const dest = {
-      V4: {
+      V5: {
         parents: 0,
         interior: { X1: { Parachain: parachainId.toString() } }
       }
@@ -209,7 +213,7 @@ async function testXcmDownwardMessage(testResults) {
     
     // Create a simple XCM message to send to parachain
     const message = {
-      V4: [
+      V5: [
         {
           UnpaidExecution: {
             weight_limit: 'Unlimited'
@@ -362,7 +366,7 @@ async function testAssetHubTransfer(testResults) {
     
     // Create destination (AssetHub - parachain 1000)
     const dest = {
-      V4: {
+      V5: {
         parents: 1,
         interior: { X1: { Parachain: '1000' } }
       }
@@ -370,7 +374,7 @@ async function testAssetHubTransfer(testResults) {
     
     // Create beneficiary (Alice on AssetHub)
     const beneficiary = {
-      V4: {
+      V5: {
         parents: 0,
         interior: { X1: [{ AccountId32: { network: null, id: alice.publicKey } }] }
       }
@@ -379,7 +383,7 @@ async function testAssetHubTransfer(testResults) {
     // Define assets to transfer (native token)
     // Amount: 1 token = 1_000_000_000_000 (10^12 units, 12 decimal places)
     const assets = {
-      V4: [
+      V5: [
         {
           id: { parents: 0, interior: 'Here' },
           fun: { Fungible: '1000000000000' } // 1 token (12 decimals)

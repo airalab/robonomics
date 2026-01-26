@@ -1,5 +1,6 @@
 [package]
 name = "robonomics-runtime"
+description = "Robonomics Network WASM runtime"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -219,3 +220,6 @@ metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller, like logging for example.
 on-chain-release-build = ["metadata-hash"]
+
+# Use development timings in runtime parameters
+fast-runtime = []

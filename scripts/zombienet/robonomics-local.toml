@@ -39,3 +39,4 @@ cumulus_based = true
   name = "collator-02"
   command = "robonomics"
   args = ["-lparachain=debug"]
+  rpc_port = 9989
