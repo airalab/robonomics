@@ -22,5 +22,5 @@ jobs:
         with:
           name: robonomics
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build
-      - run: nix develop --command bash -c "echo OK"
+      - run: nix build --accept-flake-config
+      - run: nix develop --accept-flake-config --command bash -c "echo OK"
