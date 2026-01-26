@@ -1,6 +1,4 @@
 name: Cachix
-permissions:
-  contents: read
 
 on:
   push:
@@ -9,8 +7,12 @@ on:
     - 'release/*'
     - 'feat/*'
 
+permissions:
+  contents: read
+
 jobs:
   cachix-upload:
+    name: Upload to Cachix
     runs-on: ubuntu-latest
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
