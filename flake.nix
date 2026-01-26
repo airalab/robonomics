@@ -4,11 +4,11 @@
   nixConfig = {
     extra-substituters = [
       "https://polkadot.cachix.org"
-      "https://aira.cachix.org"
+      "https://robonomics.cachix.org"
     ];
     extra-trusted-public-keys = [
       "polkadot.cachix.org-1:qOFthM8M0DTotg8A48wWTZBgJD6h1rV9Jaszt6QE/N0="
-      "aira.cachix.org-1:4mMjRo4HgJ8/i/lzXZPjmnndcdf5P2RZJi04359ykrE="
+      "robonomics.cachix.org-1:H3FwZ3khWXfEZ2OlPEiqRenpW1pDMAgRRRXMoksO2Bw="
     ];
   };
 
