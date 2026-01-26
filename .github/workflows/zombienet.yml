@@ -28,7 +28,7 @@ jobs:
       - name: Spawn Zombienet local network
         uses: JarvusInnovations/background-action@v1
         with:
-          run: nix develop .#local-testnet --command ./scripts/zombienet/spawn-network.sh 
+          run: nix develop --accept-flake-config .#local-testnet --command ./scripts/zombienet/spawn-network.sh 
           wait-on: |
             tcp:localhost:9944
             tcp:localhost:9910
@@ -38,8 +38,8 @@ jobs:
 
       - name: Install Node.js
         uses: actions/setup-node@v4 
-          with: 
-            node-version: '18' 
+        with: 
+          node-version: '18' 
 
       - name: Cache Node.js modules
         uses: actions/cache@v4
