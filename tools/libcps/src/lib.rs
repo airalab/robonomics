@@ -117,7 +117,7 @@
 //! use libcps::types::{NodeId, NodeData, EncryptedData};
 //!
 //! let node_id = NodeId(42);
-//! let plain_data = NodeData::plain("sensor reading");
+//! let plain_data = NodeData::plain_from_bytes(b"sensor reading");
 //! let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
 //! ```
 //!

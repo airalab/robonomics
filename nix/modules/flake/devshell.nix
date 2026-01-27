@@ -14,10 +14,11 @@
         PROTOC = "${lib.makeBinPath [ protobuf ]}/protoc";
       };
 
-    devShells.local-testnet = with pkgs; mkShell {
-      buildInputs =
+    devShells.local-testnet =
         let robonomics = config.rust-project.crates."robonomics".crane.outputs.drv.crate;
-        in [ polkadot polkadot-parachain zombienet robonomics ];
-    };
+            libcps = config.rust-project.crates."libcps".crane.outputs.drv.crate;
+        in with pkgs; mkShell {
+          buildInputs = [ polkadot polkadot-parachain zombienet robonomics libcps ];
+        };
   };
 }

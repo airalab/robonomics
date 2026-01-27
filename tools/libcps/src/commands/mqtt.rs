@@ -148,7 +148,7 @@ pub async fn subscribe(
                 let node_data = if let Some(receiver_pub) = receiver_public.as_ref() {
                     if let Some(cipher) = cipher {
                         let encrypted_bytes = cipher.encrypt(&publish.payload, receiver_pub)?;
-                        NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm())
+                        NodeData::aead_from(encrypted_bytes)
                     } else {
                         NodeData::from(payload_str.to_string())
                     }
@@ -405,18 +405,10 @@ fn extract_node_data(node_data: &NodeData) -> String {
             String::from_utf8(bounded_vec.0.clone())
                 .unwrap_or_else(|_| format!("[Binary data: {} bytes]", bounded_vec.0.len()))
         }
-        NodeData::Encrypted(encrypted) => {
+        NodeData::Encrypted(EncryptedData::Aead(bounded_vec)) => {
             // For encrypted data, indicate it's encrypted
-            let (algo, size) = match encrypted {
-                EncryptedData::XChaCha20Poly1305(bounded_vec) => {
-                    ("XChaCha20Poly1305", bounded_vec.0.len())
-                }
-                EncryptedData::AesGcm256(bounded_vec) => ("AES-GCM-256", bounded_vec.0.len()),
-                EncryptedData::ChaCha20Poly1305(bounded_vec) => {
-                    ("ChaCha20Poly1305", bounded_vec.0.len())
-                }
-            };
-            format!("[Encrypted with {}: {} bytes]", algo, size)
+            let size = bounded_vec.0.len();
+            format!("[Encrypted data: {} bytes]", size)
         }
     }
 }

@@ -71,7 +71,8 @@ use crate::blockchain::Client;
 use crate::robonomics_runtime;
 use crate::types::{NodeData, NodeId as CpsNodeId};
 use anyhow::{anyhow, Result};
-use subxt::{utils::AccountId32, PolkadotConfig};
+use sp_core::crypto::AccountId32;
+use subxt::PolkadotConfig;
 
 /// Type for extrinsic events from blockchain transactions.
 pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
@@ -331,7 +332,7 @@ impl<'a> Node<'a> {
 
         Ok(NodeInfo {
             id: self.id,
-            owner: node.owner,
+            owner: node.owner.0.into(),
             parent: node.parent.map(|p| p.0),
             meta: node.meta,
             payload: node.payload,

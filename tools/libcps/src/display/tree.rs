@@ -18,11 +18,12 @@
 //! Tree visualization utilities.
 
 use colored::*;
+use sp_core::crypto::{AccountId32, Ss58Codec};
 
 /// Print a beautiful tree structure for a CPS node
 pub fn print_tree(
     node_id: u64,
-    owner: &str,
+    owner: AccountId32,
     meta: Option<&str>,
     payload: Option<&str>,
     children: &[u64],
@@ -38,7 +39,7 @@ pub fn print_tree(
         "{}  {} {}",
         "├─".bright_black(),
         "📝 Owner:".bright_yellow(),
-        owner.bright_white()
+        owner.to_ss58check().bright_white()
     );
 
     // Metadata
@@ -129,9 +130,11 @@ pub fn success(msg: &str) {
     println!("{} {}", "✅".green(), msg.green());
 }
 
+/*
 pub fn error(msg: &str) {
     eprintln!("{} {}", "❌".red(), msg.red());
 }
+*/
 
 pub fn info(msg: &str) {
     println!("{} {}", "ℹ️".blue(), msg.bright_blue());

@@ -22,6 +22,7 @@ use anyhow::Result;
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
+use libcps::types::{EncryptedData, NodeData};
 
 pub async fn execute(
     config: &Config,
@@ -43,16 +44,8 @@ pub async fn execute(
     // Helper function to extract bytes from NodeData
     fn extract_bytes(node_data: &libcps::types::NodeData) -> Vec<u8> {
         match node_data {
-            libcps::types::NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
-            libcps::types::NodeData::Encrypted(encrypted) => match encrypted {
-                libcps::types::EncryptedData::XChaCha20Poly1305(bounded_vec) => {
-                    bounded_vec.0.clone()
-                }
-                libcps::types::EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
-                libcps::types::EncryptedData::ChaCha20Poly1305(bounded_vec) => {
-                    bounded_vec.0.clone()
-                }
-            },
+            NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
+            NodeData::Encrypted(EncryptedData::Aead(bounded_vec)) => bounded_vec.0.clone(),
         }
     }
 
@@ -96,7 +89,7 @@ pub async fn execute(
 
     display::tree::print_tree(
         node_id,
-        &hex::encode(&node_info.owner),
+        node_info.owner,
         meta_str.as_deref(),
         payload_str.as_deref(),
         &node_info.children,

@@ -56,7 +56,7 @@ pub async fn execute(
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
 
         let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub)?;
-        NodeData::from_encrypted_bytes(encrypted_bytes, cipher.algorithm())
+        NodeData::aead_from(encrypted_bytes)
     } else {
         NodeData::from(data)
     };
