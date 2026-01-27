@@ -40,56 +40,7 @@ const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
 const LIFETIME_ASSET_ID: AssetId = 1;
 
-/// Proxy type for testing
-#[derive(
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    RuntimeDebug,
-    MaxEncodedLen,
-    TypeInfo,
-)]
-pub enum ProxyType {
-    Any,
-    RwsUser(u32),
-}
 
-impl Default for ProxyType {
-    fn default() -> Self {
-        Self::Any
-    }
-}
-
-impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
-    fn filter(&self, c: &RuntimeCall) -> bool {
-        match self {
-            ProxyType::Any => true,
-            ProxyType::RwsUser(subscription_id) => {
-                // RwsUser can only call subscription-specific methods
-                match c {
-                    RuntimeCall::Subscription(call) => {
-                        matches!(call, crate::Call::call { subscription_id: id, .. } if id == subscription_id)
-                    }
-                    _ => false,
-                }
-            }
-        }
-    }
-
-    fn is_superset(&self, o: &Self) -> bool {
-        match (self, o) {
-            (ProxyType::Any, _) => true,
-            (ProxyType::RwsUser(a), ProxyType::RwsUser(b)) => a == b,
-            _ => false,
-        }
-    }
-}
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -99,7 +50,6 @@ frame_support::construct_runtime!(
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
         Assets: pallet_assets,
-        Proxy: pallet_proxy,
         Subscription: pallet_subscription,
     }
 );
@@ -164,29 +114,6 @@ impl pallet_timestamp::Config for Test {
     type OnTimestampSet = ();
     type MinimumPeriod = ConstU64<1>;
     type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const ProxyDepositBase: Balance = 1;
-    pub const ProxyDepositFactor: Balance = 1;
-    pub const AnnouncementDepositBase: Balance = 1;
-    pub const AnnouncementDepositFactor: Balance = 1;
-}
-
-impl pallet_proxy::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
-    type Currency = Balances;
-    type ProxyType = ProxyType;
-    type ProxyDepositBase = ProxyDepositBase;
-    type ProxyDepositFactor = ProxyDepositFactor;
-    type MaxProxies = frame_support::traits::ConstU32<32>;
-    type MaxPending = frame_support::traits::ConstU32<32>;
-    type CallHasher = BlakeTwo256;
-    type AnnouncementDepositBase = AnnouncementDepositBase;
-    type AnnouncementDepositFactor = AnnouncementDepositFactor;
-    type WeightInfo = ();
-    type BlockNumberProvider = System;
 }
 
 parameter_types! {

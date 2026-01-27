@@ -7366,7 +7366,6 @@ dependencies = [
  "log",
  "pallet-assets",
  "pallet-balances",
- "pallet-proxy",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
