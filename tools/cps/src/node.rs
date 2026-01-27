@@ -111,7 +111,6 @@ pub struct NodeInfo {
 /// - Async: `query()`, `set_meta()`, `set_payload()`, `move_to()`, `delete()`
 /// - Blocking: `query_blocking()`, `set_meta_blocking()`, etc.
 pub struct Node<'a> {
-    #[allow(dead_code)]
     client: &'a Client,
     id: u64,
 }
