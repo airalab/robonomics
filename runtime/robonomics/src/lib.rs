@@ -551,7 +551,6 @@ impl pallet_robonomics_rws::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimalBid: Balance = 1 * XRT;
     pub const AuctionDurationMs: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
     pub const AssetToTpsRatio: Permill = Permill::from_parts(1);
     pub const SubscriptionPalletId: PalletId = PalletId(*b"RwsStake");
@@ -698,6 +697,9 @@ mod runtime {
 
     #[runtime::pallet_index(16)]
     pub type MultiBlockMigrations = pallet_migrations;
+
+    #[runtime::pallet_index(17)]
+    pub type Proxy = pallet_proxy;
 
     //
     // Parachain core pallets

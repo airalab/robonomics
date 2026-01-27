@@ -802,14 +802,13 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{
             fungibles::{Inspect, Mutate},
-            Currency, Imbalance, OnRuntimeUpgrade, ReservableCurrency, Time,
-            UnfilteredDispatchable,
+            Currency, Imbalance, ReservableCurrency, Time, UnfilteredDispatchable,
         },
     };
     use frame_system::pallet_prelude::*;
     use sp_runtime::{
         traits::{AccountIdConversion, AtLeast32Bit},
-        DispatchResult, Permill,
+        Permill,
     };
     use sp_std::prelude::*;
 
