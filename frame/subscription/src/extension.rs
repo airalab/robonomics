@@ -215,7 +215,7 @@
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{
-    traits::{TransactionExtension, Dispatchable, DispatchOriginOf, DispatchInfoOf, AsSystemOriginSigner},
+    traits::{TransactionExtension, Dispatchable, DispatchOriginOf, DispatchInfoOf, AsSystemOriginSigner, Get},
     transaction_validity::{
         InvalidTransaction, TransactionValidityError, ValidTransaction, TransactionSource,
     },
@@ -359,8 +359,24 @@ where
     }
 
     fn weight(&self, _call: &<T as Config>::Call) -> Weight {
-        // The extension itself has minimal weight overhead
-        Weight::from_parts(10_000, 0)
+        // Weight calculation based on validate_subscription operations:
+        // - SubscriptionPermissions read (if not owner): 1 DB read
+        // - Subscription read: 1 DB read
+        // - Time calculations and comparisons: ~5 microseconds computational overhead
+        // 
+        // Worst case: 2 DB reads + computational overhead
+        // Standard DB read: ~25 microseconds (25_000_000 picoseconds)
+        match self {
+            Self::Enabled { .. } => {
+                // Performs validation: 2 DB reads + computation
+                Weight::from_parts(55_000_000, 0)
+                    .saturating_add(T::DbWeight::get().reads(2))
+            }
+            Self::Disabled => {
+                // No validation performed, minimal overhead
+                Weight::from_parts(1_000, 0)
+            }
+        }
     }
 
     fn validate(
