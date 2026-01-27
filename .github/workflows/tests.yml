@@ -34,6 +34,8 @@ jobs:
           experimental-features = nix-command flakes
           accept-flake-config = true
 
+    - uses: Swatinem/rust-cache@v2
+
     - name: Run all workspace tests
       run: nix develop --command cargo test --workspace --locked
 
@@ -52,6 +54,8 @@ jobs:
         extra_nix_config: |
           experimental-features = nix-command flakes
           accept-flake-config = true
+
+    - uses: Swatinem/rust-cache@v2
 
     - name: Build runtime with benchmarks
       run: nix develop --command cargo build -p robonomics-runtime --features runtime-benchmarks --locked
