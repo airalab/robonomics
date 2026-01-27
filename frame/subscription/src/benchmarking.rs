@@ -143,5 +143,54 @@ mod benchmarks {
         _(RawOrigin::Signed(caller), subscription_id);
     }
 
+    #[benchmark]
+    fn grant_access() {
+        // Setup: Create a subscription first
+        let caller: T::AccountId = whitelisted_caller();
+        let delegate: T::AccountId = account("delegate", 0, SEED);
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        let asset_id = T::LifetimeAssetId::get();
+
+        // Mint assets and create subscription
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+        assert_ok!(Pallet::<T>::start_lifetime(
+            RawOrigin::Signed(caller.clone()).into(),
+            amount
+        ));
+
+        let subscription_id = 0u32;
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id, delegate);
+    }
+
+    #[benchmark]
+    fn revoke_access() {
+        // Setup: Create a subscription and grant access first
+        let caller: T::AccountId = whitelisted_caller();
+        let delegate: T::AccountId = account("delegate", 0, SEED);
+        let amount: AssetBalanceOf<T> = 1000u32.into();
+        let asset_id = T::LifetimeAssetId::get();
+
+        // Mint assets and create subscription
+        let _ = T::Assets::mint_into(asset_id, &caller, amount * 10u32.into());
+        assert_ok!(Pallet::<T>::start_lifetime(
+            RawOrigin::Signed(caller.clone()).into(),
+            amount
+        ));
+
+        let subscription_id = 0u32;
+
+        // Grant access first
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller.clone()).into(),
+            subscription_id,
+            delegate.clone()
+        ));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), subscription_id, delegate);
+    }
+
     impl_benchmark_test_suite!(Rws, crate::tests::new_test_ext(), crate::tests::Runtime);
 }

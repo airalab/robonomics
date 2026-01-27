@@ -343,7 +343,11 @@ where
 impl<T> SignedExtension for ChargeSubscriptionTransaction<T>
 where
     T: Config + Send + Sync,
-    <T as Config>::Call: GetDispatchInfo,
+    <T as Config>::Call: GetDispatchInfo
+        + sp_runtime::traits::Dispatchable<
+            Info = DispatchInfo,
+            PostInfo = PostDispatchInfo,
+        >,
 {
     type AccountId = T::AccountId;
     type Call = <T as Config>::Call;

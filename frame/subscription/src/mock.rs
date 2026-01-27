@@ -25,8 +25,8 @@ use frame_support::{
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
-    BuildStorage, Permill, RuntimeDebug,
+    traits::IdentityLookup,
+    BuildStorage, Permill,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -105,6 +105,7 @@ impl pallet_assets::Config for Test {
     type RemoveItemsLimit = ConstU32<1000>;
     type CallbackHandle = ();
     type Holder = ();
+    type ReserveData = ();
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = ();
 }
