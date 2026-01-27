@@ -384,11 +384,19 @@ impl Cipher {
     }
 
     /// Derive encryption key from shared secret using HKDF-SHA256.
+    ///
+    /// # Security
+    ///
+    /// Uses HKDF with a constant salt for additional security.
+    /// The salt provides domain separation and additional entropy beyond
+    /// the shared secret derived from ECDH.
     fn derive_encryption_key(&self, shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
         use hkdf::Hkdf;
         use sha2::Sha256;
 
-        let hkdf = Hkdf::<Sha256>::new(None, shared_secret);
+        // Use constant salt for additional security
+        let salt = b"libcps";
+        let hkdf = Hkdf::<Sha256>::new(Some(salt), shared_secret);
         let mut okm = [0u8; 32];
         hkdf.expand(self.algorithm.info_string(), &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
@@ -422,7 +430,7 @@ impl Cipher {
         // Step 1: Derive shared secret using direct ECDH
         let shared_secret = self.derive_shared_secret(receiver_public)?;
 
-        // Step 2: Derive encryption key using HKDF
+        // Step 2: Derive encryption key using HKDF with salt
         let encryption_key = self.derive_encryption_key(&shared_secret)?;
 
         // Step 3: Encrypt with specified algorithm
@@ -537,10 +545,12 @@ impl Cipher {
         // Step 5: Derive shared secret using direct ECDH
         let shared_secret = self.derive_shared_secret(&sender_pk_array)?;
 
-        // Step 6: Derive encryption key using HKDF
+        // Step 6: Derive encryption key using HKDF with salt
         use hkdf::Hkdf;
         use sha2::Sha256;
-        let hkdf = Hkdf::<Sha256>::new(None, &shared_secret);
+
+        let salt = b"libcps";
+        let hkdf = Hkdf::<Sha256>::new(Some(salt), &shared_secret);
         let mut encryption_key = [0u8; 32];
         hkdf.expand(algorithm.info_string(), &mut encryption_key)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
