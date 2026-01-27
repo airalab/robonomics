@@ -3375,46 +3375,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethbloom"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c321610643004cf908ec0f5f2aa0d8f1f8e14b540562a2887a1111ff1ecbf7b"
-dependencies = [
- "crunchy",
- "fixed-hash",
- "impl-codec 0.7.1",
- "impl-rlp",
- "impl-serde",
- "scale-info",
- "tiny-keccak",
-]
-
-[[package]]
-name = "ethereum-standards"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5bb19a698ceb837a145395f230f1ee1c4ec751bc8038dfc616a669cfb4a01de"
-dependencies = [
- "alloy-core",
-]
-
-[[package]]
-name = "ethereum-types"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ab15ed80916029f878e0267c3a9f92b67df55e79af370bf66199059ae2b4ee3"
-dependencies = [
- "ethbloom",
- "fixed-hash",
- "impl-codec 0.7.1",
- "impl-rlp",
- "impl-serde",
- "primitive-types 0.13.1",
- "scale-info",
- "uint 0.10.0",
-]
-
-[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6835,28 +6795,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_enum"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a973b4e44ce6cad84ce69d797acf9a044532e4184c4f267913d1b546a0727b7a"
-dependencies = [
- "num_enum_derive",
- "rustversion",
-]
-
-[[package]]
-name = "num_enum_derive"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77e878c846a8abae00dd069496dbe8751b16ac1c3d6bd2a7283a938e8228f90d"
-dependencies = [
- "proc-macro-crate 3.3.0",
- "proc-macro2",
- "quote",
- "syn 2.0.103",
-]
-
-[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7325,9 +7263,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-preimage"
-version = "43.0.0"
+version = "45.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4426b05c265cca148c9b5df1e809f9b453e62f1c86fd68467286c04a5797b11a"
+checksum = "c2d614776ca7e0411dd2d1a6cba525d389b4d81c4595a82db3f9d697bedfd367"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7342,30 +7280,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-proxy"
-version = "43.1.0"
+version = "45.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "090573858ca4497a914fecd5ffd07c2cb702b6720f8b7b437b92466530783b4c"
+checksum = "c105e47d4eedf14e4df1748c9e565494f5ad13b325ca288207838c4f2fb4defc"
 dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
-]
-
-[[package]]
-name = "pallet-revive"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2d614776ca7e0411dd2d1a6cba525d389b4d81c4595a82db3f9d697bedfd367"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
@@ -7436,7 +7357,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-robonomics-rws-auction"
+name = "pallet-robonomics-subscription"
 version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
@@ -10264,7 +10185,7 @@ dependencies = [
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
- "pallet-robonomics-rws-auction",
+ "pallet-robonomics-subscription",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",

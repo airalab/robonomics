@@ -1445,7 +1445,7 @@ pub mod pallet {
             subscription_id: u32,
             required_weight: u64,
         ) -> bool {
-            if let Some(mut subscription) = <Subscription<T>>::get(who, subscription_id) {
+            if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
                 let now = T::Time::now();
 
                 // Get TPS based on subscription mode
