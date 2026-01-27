@@ -48,7 +48,7 @@ A **transaction extension** is a Substrate mechanism that allows customization o
 - Track transaction execution
 - Work with any pallet's extrinsics
 
-The Subscription Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less transactions** for subscription holders.
+The Subscription Transaction Extension (`ChargeSubscriptionTransaction`) enables **opt-in fee-less transactions** for subscription holders.
 
 ---
 
@@ -69,7 +69,7 @@ Subscription::call(subscription_id: 0, call: Box::new(datalog::record(data)))
 // Extension is configured during signing with subscription_owner and subscription_id
 // The extension is encoded in the SignedExtra tuple, not through a method chain
 datalog::record(data)
-    // When signing, ChargeRwsTransaction is set to:
+    // When signing, ChargeSubscriptionTransaction is set to:
     // Enabled { subscription_owner: alice, subscription_id: 0 }
 ```
 - Works with ANY extrinsic
@@ -96,7 +96,7 @@ STEP 1: USER SIGNS TRANSACTION
          │
          ▼
 ┌────────────────────────────────────┐
-│ ChargeRwsTransaction::Enabled      │
+│ ChargeSubscriptionTransaction::Enabled      │
 │ { owner: alice,                    │
 │   subscription_id: 0 }             │
 └────────────────────────────────────┘
@@ -227,7 +227,7 @@ await api.tx.datalog
 #### Example 3: Rust (Node/Runtime)
 
 ```rust
-use pallet_robonomics_subscription::ChargeRwsTransaction;
+use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 
 // Creating a transaction with RWS extension
 let call = RuntimeCall::Datalog(
@@ -237,7 +237,7 @@ let call = RuntimeCall::Datalog(
 );
 
 // Enable RWS subscription
-let rws_extension = ChargeRwsTransaction::Enabled {
+let rws_extension = ChargeSubscriptionTransaction::Enabled {
     subscription_id: 0,
 };
 

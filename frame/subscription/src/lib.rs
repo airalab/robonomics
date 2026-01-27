@@ -66,7 +66,7 @@
 //!
 //! ## Using Subscriptions: Transaction Extension
 //!
-//! The pallet provides a **transaction extension** (`ChargeRwsTransaction`) that enables
+//! The pallet provides a **transaction extension** (`ChargeSubscriptionTransaction`) that enables
 //! fee-less transactions for subscription holders. This is the modern, flexible approach
 //! that works with any extrinsic.
 //!
@@ -104,7 +104,7 @@
 //! #### Rust (Node/Runtime)
 //!
 //! ```rust,ignore
-//! use pallet_robonomics_subscription::ChargeRwsTransaction;
+//! use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 //!
 //! // Create transaction with RWS extension
 //! let call = RuntimeCall::Datalog(
@@ -114,7 +114,7 @@
 //! );
 //!
 //! // Enable RWS subscription - user specifies owner and ID
-//! let rws_ext = ChargeRwsTransaction::Enabled {
+//! let rws_ext = ChargeSubscriptionTransaction::Enabled {
 //!     subscription_owner: owner_account,
 //!     subscription_id: 0,
 //! };
@@ -142,7 +142,7 @@
 //! Subscription::grant_access(origin, subscription_id: 0, delegate: bob);
 //!
 //! // Now bob can use alice's subscription by specifying:
-//! // ChargeRwsTransaction::Enabled { 
+//! // ChargeSubscriptionTransaction::Enabled { 
 //! //     subscription_owner: alice, 
 //! //     subscription_id: 0 
 //! // }
@@ -523,7 +523,7 @@ pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
-pub use extension::ChargeRwsTransaction;
+pub use extension::ChargeSubscriptionTransaction;
 
 #[cfg(test)]
 mod tests;

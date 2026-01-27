@@ -60,7 +60,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
-use pallet_robonomics_subscription::ChargeRwsTransaction;
+use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -777,7 +777,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
-        ChargeRwsTransaction<Runtime>,
+        ChargeSubscriptionTransaction<Runtime>,
         pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),
