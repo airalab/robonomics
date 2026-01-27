@@ -1,0 +1,414 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+///////////////////////////////////////////////////////////////////////////////
+//! MQTT bridge command implementations.
+
+use crate::display;
+use anyhow::{anyhow, Result};
+use colored::*;
+use libcps::blockchain::{Client, Config};
+use libcps::crypto::Cipher;
+use libcps::mqtt;
+use libcps::node::Node;
+use libcps::types::{EncryptedData, NodeData};
+use libcps::PayloadSet;
+use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
+use tokio::time::{sleep, Duration};
+
+/// Parse MQTT broker URL to extract host and port
+fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
+    let url = url.trim();
+
+    // Remove mqtt:// or mqtts:// prefix if present
+    let url = url
+        .strip_prefix("mqtt://")
+        .or_else(|| url.strip_prefix("mqtts://"))
+        .unwrap_or(url);
+
+    // Split host and port
+    if let Some((host, port_str)) = url.split_once(':') {
+        let port = port_str
+            .parse::<u16>()
+            .map_err(|_| anyhow!("Invalid port in MQTT URL: {}", port_str))?;
+        Ok((host.to_string(), port))
+    } else {
+        // Default to port 1883 if not specified
+        Ok((url.to_string(), 1883))
+    }
+}
+
+// Constants for reconnection and display
+const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
+
+/// Maximum length of values when displayed in logs/output.
+const MAX_DISPLAY_LENGTH: usize = 100;
+
+/// Ellipsis appended to truncated values (length must be accounted for).
+const TRUNCATE_ELLIPSIS: &str = "...";
+
+/// Number of characters to keep before appending the ellipsis so that
+/// `TRUNCATE_LENGTH + TRUNCATE_ELLIPSIS.len() == MAX_DISPLAY_LENGTH`.
+const TRUNCATE_LENGTH: usize = MAX_DISPLAY_LENGTH - TRUNCATE_ELLIPSIS.len();
+pub async fn subscribe(
+    blockchain_config: &Config,
+    cipher: Option<&Cipher>,
+    mqtt_config: &mqtt::Config,
+    topic: &str,
+    node_id: u64,
+    receiver_public: Option<[u8; 32]>,
+) -> Result<()> {
+    display::tree::progress("Connecting to blockchain...");
+    let client = Client::new(blockchain_config).await?;
+    let _keypair = client.require_keypair()?;
+
+    display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
+    display::tree::info(&format!("Topic: {}", topic.bright_cyan()));
+    display::tree::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
+
+    if let Some(receiver_pub) = receiver_public.as_ref() {
+        if let Some(cipher) = cipher {
+            display::tree::info(&format!(
+                "🔐 Using encryption: {} with {}",
+                cipher.algorithm(),
+                cipher.scheme()
+            ));
+            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        }
+    }
+
+    // Parse MQTT broker URL
+    let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
+
+    display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
+
+    // Configure MQTT client
+    let client_id = mqtt_config
+        .client_id
+        .clone()
+        .unwrap_or_else(|| format!("cps-sub-{}", node_id));
+
+    let mut mqttoptions = MqttOptions::new(client_id, host, port);
+    mqttoptions.set_keep_alive(Duration::from_secs(30));
+
+    // Set credentials if provided
+    if let Some(username) = &mqtt_config.username {
+        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
+    }
+
+    // Create MQTT client with eventloop
+    let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+
+    // Subscribe to topic
+    mqtt_client
+        .subscribe(topic, QoS::AtMostOnce)
+        .await
+        .map_err(|e| anyhow!("Failed to subscribe to topic: {}", e))?;
+
+    display::tree::success(&format!(
+        "Connected to {}",
+        mqtt_config.broker.bright_white()
+    ));
+    display::tree::info(&format!(
+        "📡 Listening for messages on {}...",
+        topic.bright_cyan()
+    ));
+
+    // Create Node handle for updates
+    let node = Node::new(&client, node_id);
+
+    // Process MQTT events
+    loop {
+        match eventloop.poll().await {
+            Ok(Event::Incoming(Packet::Publish(publish))) => {
+                let payload_str = String::from_utf8_lossy(&publish.payload);
+
+                println!(
+                    "[{}] {} Received from {}: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    "📥".bright_green(),
+                    topic.bright_cyan(),
+                    payload_str.bright_white()
+                );
+
+                // Prepare node data (encrypt if needed)
+                let node_data = if let Some(receiver_pub) = receiver_public.as_ref() {
+                    if let Some(cipher) = cipher {
+                        let encrypted_bytes = cipher.encrypt(&publish.payload, receiver_pub)?;
+                        NodeData::aead_from(encrypted_bytes)
+                    } else {
+                        NodeData::from(payload_str.to_string())
+                    }
+                } else {
+                    NodeData::from(payload_str.to_string())
+                };
+
+                // Update node payload on blockchain
+                match node.set_payload(Some(node_data)).await {
+                    Ok(_) => {
+                        println!(
+                            "[{}] {} Updated blockchain node {}",
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                            "✅".green(),
+                            node_id.to_string().bright_cyan()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "[{}] {} Failed to update node: {}",
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                            "❌".red(),
+                            e.to_string().red()
+                        );
+                    }
+                }
+            }
+            Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                display::tree::info(&format!("📡 Connected to MQTT broker"));
+            }
+            Ok(Event::Incoming(Packet::SubAck(_))) => {
+                // Subscription acknowledged
+            }
+            Ok(_) => {
+                // Other events, ignore
+            }
+            Err(e) => {
+                display::tree::warning(&format!("Connection error: {}. Reconnecting...", e));
+                sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+            }
+        }
+    }
+}
+
+pub async fn publish(
+    blockchain_config: &Config,
+    mqtt_config: &mqtt::Config,
+    topic: &str,
+    node_id: u64,
+) -> Result<()> {
+    display::tree::progress("Connecting to blockchain...");
+    let client = Client::new(blockchain_config).await?;
+
+    display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
+
+    // Parse MQTT broker URL
+    let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
+
+    display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
+
+    // Configure MQTT client
+    let client_id = mqtt_config
+        .client_id
+        .clone()
+        .unwrap_or_else(|| format!("cps-pub-{}", node_id));
+
+    let mut mqttoptions = MqttOptions::new(client_id, host, port);
+    mqttoptions.set_keep_alive(Duration::from_secs(30));
+
+    // Set credentials if provided
+    if let Some(username) = &mqtt_config.username {
+        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
+    }
+
+    // Create MQTT client
+    let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+
+    // Create shutdown channel for graceful termination of background task
+    let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
+
+    // Spawn task to handle MQTT events (for auto-reconnect)
+    let eventloop_handle = tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = shutdown_rx.recv() => {
+                    // Shutdown signal received, exit gracefully
+                    break;
+                }
+                result = eventloop.poll() => {
+                    if let Err(e) = result {
+                        eprintln!(
+                            "[{}] {} MQTT connection error: {}",
+                            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                            "⚠️".yellow(),
+                            e.to_string().yellow()
+                        );
+                        sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+                    }
+                }
+            }
+        }
+    });
+
+    display::tree::success(&format!(
+        "Connected to {}",
+        mqtt_config.broker.bright_white()
+    ));
+    display::tree::info(&format!(
+        "🔄 Monitoring node {} payload on each block...",
+        node_id.to_string().bright_cyan()
+    ));
+
+    // Create Node handle for querying
+    let node = Node::new(&client, node_id);
+
+    // Subscribe to finalized blocks
+    let mut blocks_sub = client
+        .api
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
+
+    // Monitor each block for PayloadSet events
+    while let Some(block_result) = blocks_sub.next().await {
+        let block = match block_result {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!(
+                    "[{}] {} Failed to get block: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    "❌".red(),
+                    e.to_string().red()
+                );
+                continue;
+            }
+        };
+
+        // Check events in this block for PayloadSet events related to our node
+        let events = match block.events().await {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!(
+                    "[{}] {} Failed to get block events: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                    "❌".red(),
+                    e.to_string().red()
+                );
+                continue;
+            }
+        };
+
+        // Look for PayloadSet events for our node
+        let payload_set_events = events.find::<PayloadSet>();
+
+        let mut payload_updated = false;
+        for event in payload_set_events {
+            match event {
+                Ok(payload_event) => {
+                    // Check if this event is for our node
+                    if payload_event.0 .0 == node_id {
+                        payload_updated = true;
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[{}] {} Failed to decode PayloadSet event: {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        "⚠️".yellow(),
+                        e.to_string().yellow()
+                    );
+                }
+            }
+        }
+
+        // Only query and publish if the payload was actually updated
+        if payload_updated {
+            match node.query_at(block.hash()).await {
+                Ok(node_info) => {
+                    if let Some(payload) = node_info.payload {
+                        // Extract the actual data from NodeData
+                        let data = extract_node_data(&payload);
+
+                        match mqtt_client
+                            .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
+                            .await
+                        {
+                            Ok(_) => {
+                                println!(
+                                    "[{}] {} Published to {} at block #{}: {}",
+                                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                                    "📤".bright_blue(),
+                                    topic.bright_cyan(),
+                                    block.number().to_string().bright_white(),
+                                    {
+                                        let char_count =
+                                            data.chars().take(MAX_DISPLAY_LENGTH + 1).count();
+                                        if char_count > MAX_DISPLAY_LENGTH {
+                                            let truncated: String =
+                                                data.chars().take(TRUNCATE_LENGTH).collect();
+                                            format!("{}...", truncated)
+                                        } else {
+                                            data.clone()
+                                        }
+                                    }
+                                    .bright_white()
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "[{}] {} Failed to publish: {}",
+                                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                                    "❌".red(),
+                                    e.to_string().red()
+                                );
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[{}] {} Failed to query node: {}",
+                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        "❌".red(),
+                        e.to_string().red()
+                    );
+                }
+            }
+        }
+    }
+
+    // Signal shutdown to the background MQTT event loop task
+    let _ = shutdown_tx.send(());
+
+    // Wait for the background task to finish (with timeout to avoid hanging)
+    let shutdown_result = tokio::time::timeout(Duration::from_secs(5), eventloop_handle).await;
+
+    if shutdown_result.is_err() {
+        eprintln!(
+            "[{}] {} MQTT event loop did not shut down within 5 seconds. It may have failed to terminate gracefully.",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            "⚠".yellow(),
+        );
+    }
+    Ok(())
+}
+
+/// Extract readable data from NodeData
+fn extract_node_data(node_data: &NodeData) -> String {
+    match node_data {
+        NodeData::Plain(bounded_vec) => {
+            // Try to convert bytes to UTF-8 string
+            String::from_utf8(bounded_vec.0.clone())
+                .unwrap_or_else(|_| format!("[Binary data: {} bytes]", bounded_vec.0.len()))
+        }
+        NodeData::Encrypted(EncryptedData::Aead(bounded_vec)) => {
+            // For encrypted data, indicate it's encrypted
+            let size = bounded_vec.0.len();
+            format!("[Encrypted data: {} bytes]", size)
+        }
+    }
+}

@@ -3,40 +3,40 @@ default_command = "polkadot"
 default_args = ["-lparachain=debug"]
 chain = "rococo-local"
 
-  [[relaychain.nodes]]
-  name = "alice"
-  validator = true
-  args = ["-lparachain=debug"]
-  rpc_port = 9944
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+args = ["-lparachain=debug"]
+rpc_port = 9944
 
-  [[relaychain.nodes]]
-  name = "bob"
-  validator = true
-  args = ["-lparachain=debug"]
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+args = ["-lparachain=debug"]
 
 [[parachains]]
 id = 1000
 chain = "asset-hub-rococo-local"
 cumulus_based = true
 
-  [[parachains.collators]]
-  name = "assethub-collator"
-  command = "polkadot-parachain"
-  rpc_port = 9910
+[[parachains.collators]]
+name = "assethub-collator"
+command = "polkadot-parachain"
+rpc_port = 9910
 
 [[parachains]]
 id = 2000
 chain = "dev"
 cumulus_based = true
 
-  [[parachains.collators]]
-  name = "collator-01"
-  command = "robonomics"
-  args = ["-lparachain=debug"]
-  rpc_port = 9988
+[[parachains.collators]]
+name = "collator-01"
+command = "robonomics"
+args = ["-lparachain=debug"]
+rpc_port = 9988
 
-  [[parachains.collators]]
-  name = "collator-02"
-  command = "robonomics"
-  args = ["-lparachain=debug"]
-  rpc_port = 9989
+[[parachains.collators]]
+name = "collator-02"
+command = "robonomics"
+args = ["-lparachain=debug"]
+rpc_port = 9989

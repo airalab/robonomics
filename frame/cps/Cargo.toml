@@ -1,0 +1,44 @@
+[package]
+name = "pallet-robonomics-cps"
+description = "Robonomics Network Cyber-Physical System Substrate runtime module"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license = "Apache-2.0"
+
+[dependencies]
+scale-info = { workspace = true }
+parity-scale-codec = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+pallet-balances = { workspace = true, features = ["std"] }
+pallet-proxy = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "sp-core/std",
+  "frame-system/std",
+  "frame-support/std",
+  "frame-benchmarking?/std",
+  "scale-info/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+]

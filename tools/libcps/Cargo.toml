@@ -1,0 +1,69 @@
+[package]
+name = "libcps"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Library for interacting with Robonomics CPS (Cyber-Physical Systems) pallet"
+readme = "README.md"
+keywords = [
+  "robonomics",
+  "blockchain",
+  "iot",
+  "cyber-physical-systems",
+  "encryption",
+]
+categories = ["cryptography", "network-programming", "web-programming"]
+
+[lib]
+name = "libcps"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cps"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+# Blockchain
+subxt = { workspace = true }
+subxt-signer = { workspace = true }
+parity-scale-codec = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
+
+# Cryptography
+curve25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+
+# MQTT
+rumqttc = { workspace = true }
+
+# CLI & Output
+clap = { workspace = true, features = ["env"], optional = true }
+colored = { workspace = true, optional = true }
+
+# Serialization
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true, features = ["std"] }
+base64 = { workspace = true }
+bs58 = { workspace = true }
+hex = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true, optional = true }
+
+[features]
+default = ["cli"]
+cli = ["clap", "colored", "chrono"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

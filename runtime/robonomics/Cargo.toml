@@ -68,6 +68,7 @@ pallet-robonomics-digital-twin.workspace = true
 pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
+pallet-robonomics-cps.workspace = true
 pallet-wrapped-native.workspace = true
 
 # cumulus dependencies
