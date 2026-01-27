@@ -85,29 +85,29 @@
 //! ```text
 //! Sender (Alice)                               Receiver (Bob)
 //! ==============                               ===============
-//! 
+//!
 //! 1. ECDH Key Agreement:
 //!    alice_secret + bob_public    ───────────────────>
 //!    shared_secret = ECDH(alice_secret, bob_public)
-//! 
+//!
 //! 2. HKDF Key Derivation:
 //!    salt = "robonomics-network"
 //!    info = "robonomics-cps-xchacha20poly1305"
 //!    encryption_key = HKDF(salt, shared_secret, info, 32)
-//! 
+//!
 //! 3. AEAD Encryption:
 //!    nonce = random(24 bytes)
 //!    ciphertext = XChaCha20Poly1305(encryption_key, nonce, plaintext)
-//! 
+//!
 //! 4. Transmit message:
 //!    {from: alice_public, algorithm: "xchacha20poly1305",
 //!     nonce: base64(nonce), ciphertext: base64(ciphertext)}
 //!                           ───────────────────>
-//! 
+//!
 //! 5. Receiver verifies and derives same key:
 //!    shared_secret = ECDH(bob_secret, alice_public)
 //!    encryption_key = HKDF(salt, shared_secret, info, 32)
-//! 
+//!
 //! 6. AEAD Decryption:
 //!    plaintext = XChaCha20Poly1305_Decrypt(encryption_key, nonce, ciphertext)
 //! ```
