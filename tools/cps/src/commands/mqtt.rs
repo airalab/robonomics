@@ -53,9 +53,16 @@ fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
 
 // Constants for reconnection and display
 const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
-const MAX_DISPLAY_LENGTH: usize = 100;
-const TRUNCATE_LENGTH: usize = 97;
 
+/// Maximum length of values when displayed in logs/output.
+const MAX_DISPLAY_LENGTH: usize = 100;
+
+/// Ellipsis appended to truncated values (length must be accounted for).
+const TRUNCATE_ELLIPSIS: &str = "...";
+
+/// Number of characters to keep before appending the ellipsis so that
+/// `TRUNCATE_LENGTH + TRUNCATE_ELLIPSIS.len() == MAX_DISPLAY_LENGTH`.
+const TRUNCATE_LENGTH: usize = MAX_DISPLAY_LENGTH - TRUNCATE_ELLIPSIS.len();
 pub async fn subscribe(
     blockchain_config: &Config,
     cipher: Option<&Cipher>,
