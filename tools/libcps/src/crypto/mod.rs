@@ -396,15 +396,29 @@ impl Cipher {
     /// Uses HKDF with a constant salt for additional security.
     /// The salt provides domain separation and additional entropy beyond
     /// the shared secret derived from ECDH.
-    fn derive_encryption_key(&self, shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
+    fn derive_encryption_key_with_algorithm(
+        shared_secret: &[u8; 32],
+        algorithm: &EncryptionAlgorithm,
+    ) -> Result<[u8; 32]> {
         use hkdf::Hkdf;
         use sha2::Sha256;
 
         let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), shared_secret);
         let mut okm = [0u8; 32];
-        hkdf.expand(self.algorithm.info_string(), &mut okm)
+        hkdf.expand(algorithm.info_string(), &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
         Ok(okm)
+    }
+
+    /// Derive encryption key from shared secret using HKDF-SHA256.
+    ///
+    /// # Security
+    ///
+    /// Uses HKDF with a constant salt for additional security.
+    /// The salt provides domain separation and additional entropy beyond
+    /// the shared secret derived from ECDH.
+    fn derive_encryption_key(&self, shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
+        Self::derive_encryption_key_with_algorithm(shared_secret, &self.algorithm)
     }
 
     /// Get sender's public key.
@@ -550,13 +564,8 @@ impl Cipher {
         let shared_secret = self.derive_shared_secret(&sender_pk_array)?;
 
         // Step 6: Derive encryption key using HKDF with salt
-        use hkdf::Hkdf;
-        use sha2::Sha256;
-
-        let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), &shared_secret);
-        let mut encryption_key = [0u8; 32];
-        hkdf.expand(algorithm.info_string(), &mut encryption_key)
-            .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
+        let encryption_key =
+            Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)?;
 
         // Step 7: Decode nonce and ciphertext
         let nonce_bytes = general_purpose::STANDARD
