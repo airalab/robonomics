@@ -215,18 +215,19 @@
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{
-    traits::SignedExtension,
+    traits::{TransactionExtension, Dispatchable, DispatchOriginOf, DispatchInfoOf, AsSystemOriginSigner, Get},
     transaction_validity::{
-        InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
+        InvalidTransaction, TransactionValidityError, ValidTransaction, TransactionSource,
     },
 };
 use sp_std::prelude::*;
 
 use crate::pallet::{Config, Pallet};
 use frame_support::{
-    dispatch::{DispatchInfo, DispatchResult, GetDispatchInfo, PostDispatchInfo},
+    dispatch::{DispatchInfo, DispatchResult, PostDispatchInfo},
     weights::Weight,
 };
+use sp_runtime::traits::{Implication, PostDispatchInfoOf};
 
 /// Transaction extension for RWS fee-less execution.
 ///
@@ -340,33 +341,61 @@ where
     }
 }
 
-impl<T> SignedExtension for ChargeSubscriptionTransaction<T>
+impl<T> TransactionExtension<<T as Config>::Call> for ChargeSubscriptionTransaction<T>
 where
     T: Config + Send + Sync,
-    <T as Config>::Call: GetDispatchInfo
-        + sp_runtime::traits::Dispatchable<
-            Info = DispatchInfo,
-            PostInfo = PostDispatchInfo,
-        >,
+    <T as Config>::Call: Dispatchable<Info = DispatchInfo, PostInfo = PostDispatchInfo>,
+    <<T as Config>::Call as Dispatchable>::RuntimeOrigin:
+        sp_runtime::traits::AsSystemOriginSigner<T::AccountId> + Clone,
 {
-    type AccountId = T::AccountId;
-    type Call = <T as Config>::Call;
-    type AdditionalSigned = ();
-    type Pre = RwsPreDispatch<T::AccountId>;
-
     const IDENTIFIER: &'static str = "ChargeSubscriptionTransaction";
 
-    fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
+    type Implicit = ();
+    type Val = ();
+    type Pre = RwsPreDispatch<T::AccountId>;
+
+    fn implicit(&self) -> Result<Self::Implicit, TransactionValidityError> {
         Ok(())
+    }
+
+    fn weight(&self, _call: &<T as Config>::Call) -> Weight {
+        // Weight calculation based on validate_subscription operations:
+        // - SubscriptionPermissions read (if not owner): 1 DB read
+        // - Subscription read: 1 DB read
+        // - Time calculations and comparisons: ~5 microseconds computational overhead
+        //
+        // Worst case: 2 DB reads + computational overhead
+        // Standard DB read: ~25 microseconds (25_000_000 picoseconds)
+        // => Total worst‑case time ≈ 2 × 25µs (DB reads) + 5µs (computation) = 55µs
+        match self {
+            Self::Enabled { .. } => {
+                // Performs validation: 2 DB reads + computation (total ≈ 55µs = 55_000_000 ps)
+                Weight::from_parts(55_000_000, 0)
+                    .saturating_add(T::DbWeight::get().reads(2))
+            }
+            Self::Disabled => {
+                // No validation performed, minimal overhead
+                Weight::from_parts(1_000, 0)
+            }
+        }
     }
 
     fn validate(
         &self,
-        who: &Self::AccountId,
-        _call: &Self::Call,
-        info: &DispatchInfo,
+        origin: DispatchOriginOf<<T as Config>::Call>,
+        _call: &<T as Config>::Call,
+        info: &DispatchInfoOf<<T as Config>::Call>,
         _len: usize,
-    ) -> TransactionValidity {
+        _self_implicit: Self::Implicit,
+        _inherited_implication: &impl Implication,
+        _source: TransactionSource,
+    ) -> Result<(ValidTransaction, Self::Val, DispatchOriginOf<<T as Config>::Call>), TransactionValidityError> {
+        // Extract the account ID from the origin
+        let Some(who) = origin.as_system_origin_signer() else {
+            // If not a signed origin, this extension is not applicable
+            return Err(InvalidTransaction::BadSigner.into());
+        };
+
         match self {
             Self::Enabled {
                 subscription_owner,
@@ -375,25 +404,23 @@ where
                 // Validate subscription and permissions
                 Self::validate_subscription(who, subscription_owner, *subscription_id, info)?;
 
-                Ok(ValidTransaction::default())
+                Ok((ValidTransaction::default(), (), origin))
             }
             Self::Disabled => {
                 // No validation needed for normal fee payment
-                Ok(ValidTransaction::default())
+                Ok((ValidTransaction::default(), (), origin))
             }
         }
     }
 
-    fn pre_dispatch(
+    fn prepare(
         self,
-        who: &Self::AccountId,
-        call: &Self::Call,
-        info: &DispatchInfo,
-        len: usize,
+        _val: Self::Val,
+        origin: &DispatchOriginOf<<T as Config>::Call>,
+        _call: &<T as Config>::Call,
+        _info: &DispatchInfoOf<<T as Config>::Call>,
+        _len: usize,
     ) -> Result<Self::Pre, TransactionValidityError> {
-        // Re-validate to ensure nothing changed between validate and pre_dispatch
-        self.validate(who, call, info, len)?;
-
         match self {
             Self::Enabled {
                 subscription_owner,
@@ -413,26 +440,24 @@ where
         }
     }
 
-    fn post_dispatch(
-        pre: Option<Self::Pre>,
-        info: &DispatchInfo,
-        post_info: &PostDispatchInfo,
+    fn post_dispatch_details(
+        pre: Self::Pre,
+        info: &DispatchInfoOf<<T as Config>::Call>,
+        post_info: &PostDispatchInfoOf<<T as Config>::Call>,
         _len: usize,
         _result: &DispatchResult,
-    ) -> Result<(), TransactionValidityError> {
-        if let Some(pre) = pre {
-            if pre.pays_no_fee {
-                if let (Some(owner), Some(subscription_id)) =
-                    (pre.subscription_owner, pre.subscription_id)
-                {
-                    // Consume free weight from the subscription
-                    let weight = post_info.actual_weight.unwrap_or(info.call_weight);
-                    let _ = Pallet::<T>::consume_weight(&owner, subscription_id, weight);
-                    // Ignore errors in post_dispatch - transaction has already executed
-                }
+    ) -> Result<Weight, TransactionValidityError> {
+        if pre.pays_no_fee {
+            if let (Some(owner), Some(subscription_id)) =
+                (pre.subscription_owner, pre.subscription_id)
+            {
+                // Consume free weight from the subscription
+                let weight = post_info.actual_weight.unwrap_or(info.call_weight);
+                let _ = Pallet::<T>::consume_weight(&owner, subscription_id, weight);
+                // Ignore errors in post_dispatch - transaction has already executed
             }
         }
 
-        Ok(())
+        Ok(Weight::zero())
     }
 }

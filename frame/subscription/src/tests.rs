@@ -19,7 +19,11 @@
 
 use crate::{mock::*, *};
 use frame_support::{assert_err, assert_ok};
-use sp_runtime::{traits::SignedExtension, DispatchError};
+use sp_runtime::{
+    traits::{TransactionExtension, Implication},
+    transaction_validity::TransactionSource,
+    DispatchError,
+};
 
 // Import the mock `Subscription` pallet with an explicit alias to distinguish it
 // from other `Subscription` items re-exported from `crate` in these tests.
@@ -1043,10 +1047,20 @@ fn test_extension_validation_disabled() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed even without subscription
-        let result = extension.validate(&ALICE, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should succeed even without subscription        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(ALICE).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_ok());
     });
 }
@@ -1078,10 +1092,20 @@ fn test_extension_validation_enabled_success() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with valid subscription
-        let result = extension.validate(&ALICE, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should succeed with valid subscription        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(ALICE).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_ok());
     });
 }
@@ -1113,10 +1137,20 @@ fn test_extension_validation_no_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with BadSigner
-        let result = extension.validate(&BOB, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should fail with BadSigner        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(BOB).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_err());
     });
 }
@@ -1155,10 +1189,20 @@ fn test_extension_validation_with_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with permission
-        let result = extension.validate(&BOB, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should succeed with permission        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(BOB).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_ok());
     });
 }
@@ -1187,10 +1231,20 @@ fn test_extension_validation_insufficient_weight() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (insufficient weight)
-        let result = extension.validate(&ALICE, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should fail with Payment error (insufficient weight)        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(ALICE).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_err());
     });
 }
@@ -1224,10 +1278,20 @@ fn test_extension_validation_expired_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (expired)
-        let result = extension.validate(&ALICE, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should fail with Payment error (expired)        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(ALICE).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_err());
     });
 }
@@ -1250,10 +1314,20 @@ fn test_extension_validation_non_existent_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error
-        let result = extension.validate(&ALICE, &RuntimeCall::System(
-            frame_system::Call::remark { remark: vec![] }
-        ), &info, 0);
+        // Validate should fail with Payment error        
+        let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
+        let origin = frame_system::RawOrigin::Signed(ALICE).into();
+        let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
+        
+        let result = extension.validate(
+            origin,
+            &call,
+            &info,
+            0,
+            (),  // self_implicit
+            &implication,
+            TransactionSource::External,
+        );
         assert!(result.is_err());
     });
 }
