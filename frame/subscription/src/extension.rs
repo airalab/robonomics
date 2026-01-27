@@ -363,12 +363,13 @@ where
         // - SubscriptionPermissions read (if not owner): 1 DB read
         // - Subscription read: 1 DB read
         // - Time calculations and comparisons: ~5 microseconds computational overhead
-        // 
+        //
         // Worst case: 2 DB reads + computational overhead
         // Standard DB read: ~25 microseconds (25_000_000 picoseconds)
+        // => Total worst‑case time ≈ 2 × 25µs (DB reads) + 5µs (computation) = 55µs
         match self {
             Self::Enabled { .. } => {
-                // Performs validation: 2 DB reads + computation
+                // Performs validation: 2 DB reads + computation (total ≈ 55µs = 55_000_000 ps)
                 Weight::from_parts(55_000_000, 0)
                     .saturating_add(T::DbWeight::get().reads(2))
             }
