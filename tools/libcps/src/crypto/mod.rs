@@ -37,6 +37,12 @@ pub mod scheme;
 
 pub use scheme::CryptoScheme;
 
+/// HKDF salt for key derivation.
+///
+/// Constant salt used in HKDF for deriving encryption keys from shared secrets.
+/// Provides domain separation and additional entropy as recommended in RFC 5869.
+const HKDF_SALT: &[u8] = b"robonomics-network";
+
 /// Supported AEAD encryption algorithms.
 ///
 /// Each algorithm provides authenticated encryption with associated data (AEAD),
@@ -394,9 +400,7 @@ impl Cipher {
         use hkdf::Hkdf;
         use sha2::Sha256;
 
-        // Use constant salt for additional security
-        let salt = b"libcps";
-        let hkdf = Hkdf::<Sha256>::new(Some(salt), shared_secret);
+        let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), shared_secret);
         let mut okm = [0u8; 32];
         hkdf.expand(self.algorithm.info_string(), &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
@@ -549,8 +553,7 @@ impl Cipher {
         use hkdf::Hkdf;
         use sha2::Sha256;
 
-        let salt = b"libcps";
-        let hkdf = Hkdf::<Sha256>::new(Some(salt), &shared_secret);
+        let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), &shared_secret);
         let mut encryption_key = [0u8; 32];
         hkdf.expand(algorithm.info_string(), &mut encryption_key)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
