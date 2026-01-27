@@ -606,8 +606,8 @@ fn test_lifetime_subscription_insufficient_weight() {
         );
 
         // Wait a bit (1 second = 1_000 ms)
-        // Expected weight (conceptually): 70_952_000 * 100 * 1_000 / 1_000_000_000 = 7_095.2,
-        // but the actual integer division used by the pallet truncates this to 7_095 units
+        // Expected weight in floating-point terms: 70_952_000 * 100 * 1_000 / 1_000_000_000 = 7_095.2,
+        // but the actual integer arithmetic used by the pallet evaluates this expression directly to 7_095 units
         Timestamp::set_timestamp(1_000_000 + 1_000);
 
         // Still not enough weight
