@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics Web Services pallet tests.
+//! Robonomics Subscription pallet tests.
 
 use crate::{mock::*, *};
 use frame_support::{assert_err, assert_ok, traits::InstanceFilter};
