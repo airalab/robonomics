@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for RWS Pallet v2.0
+// Benchmarks for Subscription Pallet v2.0
 
 #![cfg(feature = "runtime-benchmarks")]
 

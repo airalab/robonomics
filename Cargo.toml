@@ -18,7 +18,7 @@ codegen-units = 1
 [workspace]
 members = [
   "bin/robonomics",
-  "frame/rws-auction",
+  "frame/subscription",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
@@ -134,6 +134,7 @@ pallet-message-queue = { version = "48.0.0", default-features = false }
 pallet-multisig = { version = "45.0.0", default-features = false }
 pallet-migrations = { version = "15.0.0", default-features = false }
 pallet-preimage = { version = "45.0.0", default-features = false }
+pallet-proxy = { version = "45.0.0", default-features = false }
 pallet-scheduler = { version = "46.0.0", default-features = false }
 pallet-session = { version = "45.0.0", default-features = false }
 pallet-treasury = { version = "44.0.0", default-features = false }
@@ -202,6 +203,7 @@ pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-featur
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-subscription = { path = "./frame/subscription", default-features = false }
 pallet-wrapped-native = { path = "./frame/wrapped-native", default-features = false }
 
 # Robonomics runtimes

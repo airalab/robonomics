@@ -15,13 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # RWS Transaction Extension
+//! # Subscription Transaction Extension
 //!
-//! Transaction extension that enables fee-less transactions for RWS subscription holders.
+//! Transaction extension that enables fee-less transactions for subscription holders.
 //!
 //! ## Overview
 //!
-//! This extension allows users to opt-in per-transaction to use their RWS subscription
+//! This extension allows users to opt-in per-transaction to use their subscription
 //! for fee-less execution. Users can choose between using their subscription or paying
 //! normal transaction fees on a per-transaction basis.
 //!
@@ -44,7 +44,7 @@
 //! The extension provides a simple two-variant enum:
 //!
 //! ```rust,ignore
-//! pub enum ChargeRwsTransaction<T> {
+//! pub enum ChargeSubscriptionTransaction<T> {
 //!     // Use subscription for fee-less transaction
 //!     Enabled { subscription_id: u32 },
 //!     
@@ -160,7 +160,7 @@
 //! For runtime or node development:
 //!
 //! ```rust,ignore
-//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//! use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 //!
 //! // Create the call
 //! let call = RuntimeCall::Datalog(
@@ -170,7 +170,7 @@
 //! );
 //!
 //! // Create RWS extension (fee-less)
-//! let rws_ext = ChargeRwsTransaction::Enabled {
+//! let rws_ext = ChargeSubscriptionTransaction::Enabled {
 //!     subscription_id: 0,
 //! };
 //!
@@ -200,14 +200,14 @@
 //!    ```rust,ignore
 //!    pub type TxExtension = (
 //!        // ... other extensions ...
-//!        ChargeRwsTransaction<Runtime>,
+//!        ChargeSubscriptionTransaction<Runtime>,
 //!        pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 //!    );
 //!    ```
 //!
 //! 2. Import from pallet:
 //!    ```rust,ignore
-//!    pub use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//!    pub use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 //!    ```
 //!
 //! 3. Ensure pallet is properly configured in runtime with required associated types.
@@ -243,7 +243,7 @@ use frame_support::{
 ///     parents: 0,
 ///     interior: {
 ///       X1: [{ 
-///         PalletInstance: 55,  // RwsAuction pallet index
+///         PalletInstance: 55,  // Subscription pallet index
 ///       }]
 ///     }
 ///   }
@@ -252,7 +252,7 @@ use frame_support::{
 /// ```
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
+pub enum ChargeSubscriptionTransaction<T: Config + Send + Sync> {
     /// Use RWS subscription for fee-less execution.
     ///
     /// If the subscription is valid and active, the transaction will execute without fees.
@@ -275,18 +275,18 @@ pub enum ChargeRwsTransaction<T: Config + Send + Sync> {
     Disabled,
 }
 
-impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeRwsTransaction<T> {
+impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeSubscriptionTransaction<T> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
             Self::Enabled { subscription_id, .. } => {
-                write!(f, "ChargeRwsTransaction::Enabled({})", subscription_id)
+                write!(f, "ChargeSubscriptionTransaction::Enabled({})", subscription_id)
             }
-            Self::Disabled => write!(f, "ChargeRwsTransaction::Disabled"),
+            Self::Disabled => write!(f, "ChargeSubscriptionTransaction::Disabled"),
         }
     }
 }
 
-impl<T: Config + Send + Sync> Default for ChargeRwsTransaction<T> {
+impl<T: Config + Send + Sync> Default for ChargeSubscriptionTransaction<T> {
     fn default() -> Self {
         Self::Disabled
     }
@@ -306,7 +306,7 @@ pub struct RwsPreDispatch<AccountId> {
     pub subscription_id: Option<u32>,
 }
 
-impl<T> ChargeRwsTransaction<T>
+impl<T> ChargeSubscriptionTransaction<T>
 where
     T: Config + Send + Sync,
 {
@@ -340,7 +340,7 @@ where
     }
 }
 
-impl<T> SignedExtension for ChargeRwsTransaction<T>
+impl<T> SignedExtension for ChargeSubscriptionTransaction<T>
 where
     T: Config + Send + Sync,
     <T as Config>::Call: GetDispatchInfo,
@@ -350,7 +350,7 @@ where
     type AdditionalSigned = ();
     type Pre = RwsPreDispatch<T::AccountId>;
 
-    const IDENTIFIER: &'static str = "ChargeRwsTransaction";
+    const IDENTIFIER: &'static str = "ChargeSubscriptionTransaction";
 
     fn additional_signed(&self) -> Result<Self::AdditionalSigned, TransactionValidityError> {
         Ok(())

@@ -15,15 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # Robonomics Web Services (RWS) Auction Pallet
+//! # Robonomics Subscription Pallet
 //!
-//! The RWS Auction pallet provides a subscription-based fee mechanism for the Robonomics Network.
+//! The Subscription pallet provides a subscription-based fee mechanism for the Robonomics Network.
 //! Users acquire subscriptions through an auction system or asset locking, then use those
 //! subscriptions to make fee-less transactions up to their allocated capacity.
 //!
 //! ## Overview
 //!
-//! The RWS Auction pallet implements a subscription model where users can:
+//! The Subscription pallet implements a subscription model where users can:
 //! - Participate in auctions to acquire time-limited subscriptions
 //! - Lock assets to create perpetual lifetime subscriptions
 //! - Use transaction extensions to execute any extrinsic without paying fees
@@ -66,7 +66,7 @@
 //!
 //! ## Using Subscriptions: Transaction Extension
 //!
-//! The pallet provides a **transaction extension** (`ChargeRwsTransaction`) that enables
+//! The pallet provides a **transaction extension** (`ChargeSubscriptionTransaction`) that enables
 //! fee-less transactions for subscription holders. This is the modern, flexible approach
 //! that works with any extrinsic.
 //!
@@ -104,7 +104,7 @@
 //! #### Rust (Node/Runtime)
 //!
 //! ```rust,ignore
-//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//! use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 //!
 //! // Create transaction with RWS extension
 //! let call = RuntimeCall::Datalog(
@@ -114,7 +114,7 @@
 //! );
 //!
 //! // Enable RWS subscription - user specifies owner and ID
-//! let rws_ext = ChargeRwsTransaction::Enabled {
+//! let rws_ext = ChargeSubscriptionTransaction::Enabled {
 //!     subscription_owner: owner_account,
 //!     subscription_id: 0,
 //! };
@@ -139,16 +139,16 @@
 //!
 //! ```rust,ignore
 //! // Owner grants access to a delegate
-//! RwsAuction::grant_access(origin, subscription_id: 0, delegate: bob);
+//! Subscription::grant_access(origin, subscription_id: 0, delegate: bob);
 //!
 //! // Now bob can use alice's subscription by specifying:
-//! // ChargeRwsTransaction::Enabled { 
+//! // ChargeSubscriptionTransaction::Enabled { 
 //! //     subscription_owner: alice, 
 //! //     subscription_id: 0 
 //! // }
 //!
 //! // Owner can revoke access
-//! RwsAuction::revoke_access(origin, subscription_id: 0, delegate: bob);
+//! Subscription::revoke_access(origin, subscription_id: 0, delegate: bob);
 //! ```
 //!
 //! ### Benefits Over Wrapper Extrinsics
@@ -523,7 +523,7 @@ pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
-pub use extension::ChargeRwsTransaction;
+pub use extension::ChargeSubscriptionTransaction;
 
 #[cfg(test)]
 mod tests;
@@ -1445,7 +1445,7 @@ pub mod pallet {
             subscription_id: u32,
             required_weight: u64,
         ) -> bool {
-            if let Some(mut subscription) = <Subscription<T>>::get(who, subscription_id) {
+            if let Some(subscription) = <Subscription<T>>::get(who, subscription_id) {
                 let now = T::Time::now();
 
                 // Get TPS based on subscription mode

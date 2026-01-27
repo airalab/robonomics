@@ -15,9 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Mock runtime for testing RWS pallet.
+//! Mock runtime for testing Subscription pallet.
 
-use crate::{self as pallet_rws_auction};
+use crate::{self as pallet_subscription};
 use frame_support::{
     assert_ok, derive_impl, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64},
@@ -40,44 +40,7 @@ const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
 const LIFETIME_ASSET_ID: AssetId = 1;
 
-/// Proxy type for testing
-#[derive(
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    RuntimeDebug,
-    MaxEncodedLen,
-    TypeInfo,
-)]
-pub enum ProxyType {
-    Any,
-}
 
-impl Default for ProxyType {
-    fn default() -> Self {
-        Self::Any
-    }
-}
-
-impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
-    fn filter(&self, _c: &RuntimeCall) -> bool {
-        match self {
-            ProxyType::Any => true,
-        }
-    }
-
-    fn is_superset(&self, o: &Self) -> bool {
-        match (self, o) {
-            (ProxyType::Any, ProxyType::Any) => true,
-        }
-    }
-}
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -87,8 +50,7 @@ frame_support::construct_runtime!(
         Timestamp: pallet_timestamp,
         Balances: pallet_balances,
         Assets: pallet_assets,
-        Proxy: pallet_proxy,
-        RWS: pallet_rws_auction,
+        Subscription: pallet_subscription,
     }
 );
 
@@ -155,29 +117,6 @@ impl pallet_timestamp::Config for Test {
 }
 
 parameter_types! {
-    pub const ProxyDepositBase: Balance = 1;
-    pub const ProxyDepositFactor: Balance = 1;
-    pub const AnnouncementDepositBase: Balance = 1;
-    pub const AnnouncementDepositFactor: Balance = 1;
-}
-
-impl pallet_proxy::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
-    type Currency = Balances;
-    type ProxyType = ProxyType;
-    type ProxyDepositBase = ProxyDepositBase;
-    type ProxyDepositFactor = ProxyDepositFactor;
-    type MaxProxies = frame_support::traits::ConstU32<32>;
-    type MaxPending = frame_support::traits::ConstU32<32>;
-    type CallHasher = BlakeTwo256;
-    type AnnouncementDepositBase = AnnouncementDepositBase;
-    type AnnouncementDepositFactor = AnnouncementDepositFactor;
-    type WeightInfo = ();
-    type BlockNumberProvider = System;
-}
-
-parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;
     pub const AuctionDuration: u64 = 100_000; // 100 seconds in milliseconds
     pub const MinimalBid: u128 = 100;
@@ -187,7 +126,7 @@ parameter_types! {
     pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 
-impl pallet_rws_auction::Config for Test {
+impl pallet_subscription::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Call = RuntimeCall;
     type Time = Timestamp;

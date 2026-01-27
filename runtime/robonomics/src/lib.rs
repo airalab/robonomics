@@ -60,6 +60,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
+use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -536,7 +537,7 @@ parameter_types! {
     pub const RwsId: PalletId = PalletId(*b"RwsStake");
 }
 
-impl pallet_robonomics_rws_auction::Config for Runtime {
+impl pallet_robonomics_subscription::Config for Runtime {
     type Assets = Assets;
     type LifetimeAssetId = ConstU32<42>;
     type AssetToTpsRatio = AssetToTpsRatio;
@@ -550,7 +551,7 @@ impl pallet_robonomics_rws_auction::Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
     type StartAuctionOrigin = EnsureRoot<AccountId>;
-    type WeightInfo = pallet_robonomics_rws_auction::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
@@ -776,7 +777,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
-        ChargeRwsTransaction<Runtime>,
+        ChargeSubscriptionTransaction<Runtime>,
         pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),
@@ -824,7 +825,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
-    [pallet_robonomics_rws_auction, RwsAuction]
+    [pallet_robonomics_subscription, Subscription]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
 );

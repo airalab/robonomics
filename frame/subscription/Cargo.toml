@@ -1,6 +1,6 @@
 [package]
-name = "pallet-robonomics-rws-auction"
-description = "Robonomics Web Services auction-based subscription runtime module."
+name = "pallet-robonomics-subscription"
+description = "Robonomics subscription runtime module."
 version = "2.0.0"
 authors.workspace = true
 edition.workspace = true
@@ -23,7 +23,6 @@ sp-core = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-assets = { workspace = true }
-pallet-proxy = { workspace = true }
 
 [features]
 default = ["std"]
@@ -40,7 +39,6 @@ std = [
   "pallet-balances/std",
   "pallet-timestamp/std",
   "pallet-assets/std",
-  "pallet-proxy/std",
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
