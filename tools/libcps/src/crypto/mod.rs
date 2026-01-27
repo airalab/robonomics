@@ -57,7 +57,7 @@
 //! ### Salt Purpose
 //! The constant salt `"robonomics-network"` provides:
 //! - **Domain Separation**: Keys derived for Robonomics network are distinct from other systems
-//! - **Additional Entropy**: Adds a layer of randomness independent of the shared secret
+//! - **Additional Structure**: Adds a fixed input to the key derivation process independent of the shared secret
 //! - **Defense in Depth**: Provides security even if the shared secret has low entropy
 //!
 //! Note: The salt doesn't need to be secret or random. A constant application-specific
