@@ -405,20 +405,19 @@ cps mqtt subscribe "sensors/temp01" 5 --receiver-public <RECEIVER_ADDRESS> --cip
 
 ### `mqtt publish <topic> <node_id>`
 
-Monitor node payload and publish changes to MQTT topic.
+Monitor node payload and publish changes to MQTT topic using event-driven architecture.
 
 ```bash
 # Publish node changes
 cps mqtt publish "actuators/valve01" 10
-
-# Publish with custom polling interval (seconds)
-cps mqtt publish "actuators/valve01" 10 --interval 5
 ```
 
 **Behavior:**
-- Polls node payload every N seconds (default: 5)
-- Publishes to MQTT when payload changes
+- Event-driven monitoring (subscribes to blockchain events)
+- Only queries and publishes when payload actually changes
 - Automatically decrypts encrypted payloads
+
+See [MQTT Bridge](#-mqtt-bridge) section for detailed technical implementation.
 
 ## ⚙️ Configuration
 
