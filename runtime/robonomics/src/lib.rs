@@ -536,7 +536,7 @@ parameter_types! {
     pub const RwsId: PalletId = PalletId(*b"RwsStake");
 }
 
-impl pallet_robonomics_rws_auction::Config for Runtime {
+impl pallet_robonomics_subscription::Config for Runtime {
     type Assets = Assets;
     type LifetimeAssetId = ConstU32<42>;
     type AssetToTpsRatio = AssetToTpsRatio;
@@ -550,7 +550,7 @@ impl pallet_robonomics_rws_auction::Config for Runtime {
     type AuctionDuration = AuctionDuration;
     type MinimalBid = MinimalBid;
     type StartAuctionOrigin = EnsureRoot<AccountId>;
-    type WeightInfo = pallet_robonomics_rws_auction::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {
@@ -824,7 +824,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
-    [pallet_robonomics_rws_auction, RwsAuction]
+    [pallet_robonomics_subscription, Subscription]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
 );

@@ -18,7 +18,7 @@ codegen-units = 1
 [workspace]
 members = [
   "bin/robonomics",
-  "frame/rws-auction",
+  "frame/subscription",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
@@ -202,6 +202,7 @@ pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-featur
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-subscription = { path = "./frame/subscription", default-features = false }
 pallet-wrapped-native = { path = "./frame/wrapped-native", default-features = false }
 
 # Robonomics runtimes
