@@ -375,8 +375,8 @@ where
     ) -> Result<(ValidTransaction, Self::Val, DispatchOriginOf<<T as Config>::Call>), TransactionValidityError> {
         // Extract the account ID from the origin
         let Some(who) = origin.as_system_origin_signer() else {
-            // If not a signed origin, just pass through
-            return Ok((ValidTransaction::default(), (), origin));
+            // If not a signed origin, this extension is not applicable
+            return Err(InvalidTransaction::BadSigner.into());
         };
 
         match self {
