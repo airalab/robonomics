@@ -19,7 +19,11 @@
 
 use crate::{mock::*, *};
 use frame_support::{assert_err, assert_ok};
-use sp_runtime::{traits::TransactionExtension, DispatchError};
+use sp_runtime::{
+    traits::{TransactionExtension, Implication},
+    transaction_validity::TransactionSource,
+    DispatchError,
+};
 
 // Import the mock `Subscription` pallet with an explicit alias to distinguish it
 // from other `Subscription` items re-exported from `crate` in these tests.
@@ -1043,10 +1047,7 @@ fn test_extension_validation_disabled() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed even without subscription
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should succeed even without subscription        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1091,10 +1092,7 @@ fn test_extension_validation_enabled_success() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with valid subscription
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should succeed with valid subscription        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1139,10 +1137,7 @@ fn test_extension_validation_no_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with BadSigner
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should fail with BadSigner        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(BOB).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1194,10 +1189,7 @@ fn test_extension_validation_with_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with permission
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should succeed with permission        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(BOB).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1239,10 +1231,7 @@ fn test_extension_validation_insufficient_weight() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (insufficient weight)
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should fail with Payment error (insufficient weight)        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1289,10 +1278,7 @@ fn test_extension_validation_expired_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (expired)
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should fail with Payment error (expired)        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
@@ -1328,10 +1314,7 @@ fn test_extension_validation_non_existent_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error
-        use sp_runtime::traits::Implication;
-        use sp_runtime::transaction_validity::TransactionSource;
-        
+        // Validate should fail with Payment error        
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
