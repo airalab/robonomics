@@ -21,7 +21,7 @@ jobs:
       release_url: ${{ steps.create-release.outputs.html_url }}
       upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Download runtime
       uses: actions/download-artifact@v4
@@ -66,25 +66,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: ["ubuntu", "macOS"]
+        platform: ["unknown-linux-musl", "apple-darwin"]
         arch: ["x86_64", "aarch64"]
         exclude:
-        - os: macOS
+        - platform: apple-darwin 
           arch: aarch64
     steps:
     - name: Create download folder
       run: |
-        mkdir -p ${{ matrix.os }}-${{ matrix.arch }}-bin
+        mkdir -p ${{ matrix.arch }}-${{ matrix.platform }}-bin
 
     - name: Download pre-built collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-${{ matrix.os }}-latest-${{ matrix.arch }}
-        path: ${{ matrix.os }}-${{ matrix.arch }}-bin
+        name: robonomics-${{ matrix.arch }}-${{ matrix.platform }}
+        path: ${{ matrix.arch }}-${{ matrix.platform }}-bin
 
     - name: Make binary executable and tar gzip
       run: |
-        cd ${{ matrix.os }}-${{ matrix.arch }}-bin
+        cd ${{ matrix.arch }}-${{ matrix.platform }}-bin
         chmod +x robonomics
         tar zcvf robonomics.tar.gz robonomics
 
@@ -94,8 +94,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.os }}-${{ matrix.arch }}-bin/robonomics.tar.gz
-        asset_name: robonomics-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+        asset_path: ${{ matrix.arch }}-${{ matrix.platform }}-bin/robonomics.tar.gz
+        asset_name: robonomics-${{ github.ref_name }}-${{ matrix.arch }}-${{ matrix.platform }}.tar.gz
         asset_content_type: application/gzip
 
   upload-runtimes:
