@@ -263,7 +263,7 @@ impl<'a> Node<'a> {
             .latest_finalized_block_ref()
             .await?
             .hash();
-        
+
         self.query_at(block_hash).await
     }
 

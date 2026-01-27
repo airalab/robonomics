@@ -32,13 +32,13 @@ use tokio::time::{sleep, Duration};
 /// Parse MQTT broker URL to extract host and port
 fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
     let url = url.trim();
-    
+
     // Remove mqtt:// or mqtts:// prefix if present
     let url = url
         .strip_prefix("mqtt://")
         .or_else(|| url.strip_prefix("mqtts://"))
         .unwrap_or(url);
-    
+
     // Split host and port
     if let Some((host, port_str)) = url.split_once(':') {
         let port = port_str
@@ -92,7 +92,7 @@ pub async fn subscribe(
 
     // Parse MQTT broker URL
     let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
-    
+
     display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
 
     // Configure MQTT client
@@ -100,16 +100,13 @@ pub async fn subscribe(
         .client_id
         .clone()
         .unwrap_or_else(|| format!("cps-sub-{}", node_id));
-    
+
     let mut mqttoptions = MqttOptions::new(client_id, host, port);
     mqttoptions.set_keep_alive(Duration::from_secs(30));
-    
+
     // Set credentials if provided
     if let Some(username) = &mqtt_config.username {
-        mqttoptions.set_credentials(
-            username,
-            mqtt_config.password.as_deref().unwrap_or(""),
-        );
+        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
     }
 
     // Create MQTT client with eventloop
@@ -121,7 +118,10 @@ pub async fn subscribe(
         .await
         .map_err(|e| anyhow!("Failed to subscribe to topic: {}", e))?;
 
-    display::tree::success(&format!("Connected to {}", mqtt_config.broker.bright_white()));
+    display::tree::success(&format!(
+        "Connected to {}",
+        mqtt_config.broker.bright_white()
+    ));
     display::tree::info(&format!(
         "📡 Listening for messages on {}...",
         topic.bright_cyan()
@@ -135,7 +135,7 @@ pub async fn subscribe(
         match eventloop.poll().await {
             Ok(Event::Incoming(Packet::Publish(publish))) => {
                 let payload_str = String::from_utf8_lossy(&publish.payload);
-                
+
                 println!(
                     "[{}] {} Received from {}: {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
@@ -203,10 +203,10 @@ pub async fn publish(
     let client = Client::new(blockchain_config).await?;
 
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
-    
+
     // Parse MQTT broker URL
     let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
-    
+
     display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
 
     // Configure MQTT client
@@ -214,16 +214,13 @@ pub async fn publish(
         .client_id
         .clone()
         .unwrap_or_else(|| format!("cps-pub-{}", node_id));
-    
+
     let mut mqttoptions = MqttOptions::new(client_id, host, port);
     mqttoptions.set_keep_alive(Duration::from_secs(30));
-    
+
     // Set credentials if provided
     if let Some(username) = &mqtt_config.username {
-        mqttoptions.set_credentials(
-            username,
-            mqtt_config.password.as_deref().unwrap_or(""),
-        );
+        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
     }
 
     // Create MQTT client
@@ -255,7 +252,10 @@ pub async fn publish(
         }
     });
 
-    display::tree::success(&format!("Connected to {}", mqtt_config.broker.bright_white()));
+    display::tree::success(&format!(
+        "Connected to {}",
+        mqtt_config.broker.bright_white()
+    ));
     display::tree::info(&format!(
         "🔄 Monitoring node {} payload on each block...",
         node_id.to_string().bright_cyan()
@@ -303,7 +303,7 @@ pub async fn publish(
 
         // Look for PayloadSet events for our node
         let payload_set_events = events.find::<PayloadSet>();
-        
+
         let mut payload_updated = false;
         for event in payload_set_events {
             match event {
@@ -345,9 +345,11 @@ pub async fn publish(
                                     topic.bright_cyan(),
                                     block.number().to_string().bright_white(),
                                     {
-                                        let char_count = data.chars().take(MAX_DISPLAY_LENGTH + 1).count();
+                                        let char_count =
+                                            data.chars().take(MAX_DISPLAY_LENGTH + 1).count();
                                         if char_count > MAX_DISPLAY_LENGTH {
-                                            let truncated: String = data.chars().take(TRUNCATE_LENGTH).collect();
+                                            let truncated: String =
+                                                data.chars().take(TRUNCATE_LENGTH).collect();
                                             format!("{}...", truncated)
                                         } else {
                                             data.clone()
@@ -381,12 +383,9 @@ pub async fn publish(
 
     // Signal shutdown to the background MQTT event loop task
     let _ = shutdown_tx.send(());
-    
+
     // Wait for the background task to finish (with timeout to avoid hanging)
-    let shutdown_result = tokio::time::timeout(
-        Duration::from_secs(5),
-        eventloop_handle
-    ).await;
+    let shutdown_result = tokio::time::timeout(Duration::from_secs(5), eventloop_handle).await;
 
     if shutdown_result.is_err() {
         eprintln!(

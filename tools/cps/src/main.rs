@@ -114,7 +114,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Display node information and its children in a beautiful tree format
-    #[command(long_about = "Display node information and its children in a beautiful tree format.
+    #[command(
+        long_about = "Display node information and its children in a beautiful tree format.
 
 EXAMPLES:
     # Show node 0
@@ -124,7 +125,8 @@ EXAMPLES:
     cps show 5 --decrypt
 
     # Show node with ED25519 decryption
-    cps show 5 --decrypt --scheme ed25519")]
+    cps show 5 --decrypt --scheme ed25519"
+    )]
     Show {
         /// Node ID to display
         node_id: u64,
@@ -304,7 +306,8 @@ EXAMPLES:
 #[derive(Subcommand)]
 enum MqttCommands {
     /// Subscribe to MQTT topic and update node payload with received messages
-    #[command(long_about = "Subscribe to MQTT topic and update node payload with received messages.
+    #[command(
+        long_about = "Subscribe to MQTT topic and update node payload with received messages.
 
 Connects to MQTT broker, subscribes to a topic, and updates the blockchain node payload 
 with each received message. Supports real-time encryption for secure IoT integration.
@@ -332,7 +335,8 @@ BEHAVIOR:
     - Subscribes to specified topic
     - On each message: updates node payload on blockchain
     - Displays colorful logs with timestamps for each update
-    - Auto-reconnects on connection failures")]
+    - Auto-reconnects on connection failures"
+    )]
     Subscribe {
         /// MQTT topic to subscribe to
         topic: String,
@@ -583,17 +587,8 @@ async fn main() -> Result<()> {
                 )
                 .await?;
             }
-            MqttCommands::Publish {
-                topic,
-                node_id,
-            } => {
-                commands::mqtt::publish(
-                    &blockchain_config,
-                    &mqtt_config,
-                    &topic,
-                    node_id,
-                )
-                .await?;
+            MqttCommands::Publish { topic, node_id } => {
+                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id).await?;
             }
         },
     }

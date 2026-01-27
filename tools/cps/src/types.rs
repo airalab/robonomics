@@ -35,19 +35,13 @@ impl NodeData {
     /// Create an encrypted NodeData from encrypted bytes and algorithm info
     pub fn from_encrypted_bytes(encrypted_bytes: Vec<u8>, algorithm: EncryptionAlgorithm) -> Self {
         let bounded_vec = BoundedVec(encrypted_bytes);
-        
+
         let encrypted_data = match algorithm {
-            EncryptionAlgorithm::XChaCha20Poly1305 => {
-                EncryptedData::XChaCha20Poly1305(bounded_vec)
-            }
-            EncryptionAlgorithm::AesGcm256 => {
-                EncryptedData::AesGcm256(bounded_vec)
-            }
-            EncryptionAlgorithm::ChaCha20Poly1305 => {
-                EncryptedData::ChaCha20Poly1305(bounded_vec)
-            }
+            EncryptionAlgorithm::XChaCha20Poly1305 => EncryptedData::XChaCha20Poly1305(bounded_vec),
+            EncryptionAlgorithm::AesGcm256 => EncryptedData::AesGcm256(bounded_vec),
+            EncryptionAlgorithm::ChaCha20Poly1305 => EncryptedData::ChaCha20Poly1305(bounded_vec),
         };
-        
+
         NodeData::Encrypted(encrypted_data)
     }
 }
@@ -65,4 +59,3 @@ impl From<&str> for NodeData {
         NodeData::plain_from_bytes(s.as_bytes().to_vec())
     }
 }
-

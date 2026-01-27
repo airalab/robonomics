@@ -292,9 +292,9 @@ fn create_node_with_encrypted_data_works() {
         let account = 1u64;
 
         // Encrypted metadata with self-describing algorithm tag inside JSON
-        let meta = Some(NodeData::Encrypted(
-            DefaultEncryptedData::Aead(BoundedVec::try_from(vec![7, 8, 9]).unwrap()),
-        ));
+        let meta = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
+            BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
+        )));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -314,11 +314,9 @@ fn create_node_with_encrypted_payload_works() {
         let account = 1u64;
 
         // Encrypted payload with self-describing algorithm tag inside JSON
-        let payload = Some(NodeData::Encrypted(
-            DefaultEncryptedData::Aead(
-                BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
-            ),
-        ));
+        let payload = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
+            BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
+        )));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -338,13 +336,13 @@ fn create_node_with_both_encrypted_works() {
         let account = 1u64;
 
         // Both metadata and payload encrypted with self-describing algorithm tags
-        let meta = Some(NodeData::Encrypted(
-            DefaultEncryptedData::Aead(BoundedVec::try_from(vec![1, 2, 3]).unwrap()),
-        ));
+        let meta = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
+            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
+        )));
 
-        let payload = Some(NodeData::Encrypted(
-            DefaultEncryptedData::Aead(BoundedVec::try_from(vec![4, 5, 6]).unwrap()),
-        ));
+        let payload = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
+            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
+        )));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -916,8 +914,7 @@ fn debug_formatting_works() {
         let account = 1u64;
 
         // Create a node with encrypted data (self-describing format)
-        let encrypted =
-            DefaultEncryptedData::Aead(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
+        let encrypted = DefaultEncryptedData::Aead(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
         let meta = Some(NodeData::Encrypted(encrypted));
 
         assert_ok!(Cps::create_node(

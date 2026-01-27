@@ -54,43 +54,45 @@ pub async fn execute(
     }
 
     // Convert strings to NodeData, applying encryption if requested
-    let meta_data = if let (Some(receiver_pub), Some(ref m)) = (receiver_public.as_ref(), meta.as_ref()) {
-        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-        display::tree::info(&format!(
-            "🔐 Encrypting metadata with {} using {}",
-            cipher.algorithm(),
-            cipher.scheme()
-        ));
-        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
-
-        let encrypted_bytes = cipher.encrypt(m.as_bytes(), receiver_pub)?;
-        Some(NodeData::from_encrypted_bytes(
-            encrypted_bytes,
-            cipher.algorithm(),
-        ))
-    } else {
-        meta.map(|m| NodeData::from(m))
-    };
-
-    let payload_data = if let (Some(receiver_pub), Some(ref p)) = (receiver_public.as_ref(), payload.as_ref()) {
-        let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-        if meta_data.is_none() {
+    let meta_data =
+        if let (Some(receiver_pub), Some(ref m)) = (receiver_public.as_ref(), meta.as_ref()) {
+            let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
             display::tree::info(&format!(
-                "🔐 Encrypting payload with {} using {}",
+                "🔐 Encrypting metadata with {} using {}",
                 cipher.algorithm(),
                 cipher.scheme()
             ));
             display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
-        }
 
-        let encrypted_bytes = cipher.encrypt(p.as_bytes(), receiver_pub)?;
-        Some(NodeData::from_encrypted_bytes(
-            encrypted_bytes,
-            cipher.algorithm(),
-        ))
-    } else {
-        payload.map(|p| NodeData::from(p))
-    };
+            let encrypted_bytes = cipher.encrypt(m.as_bytes(), receiver_pub)?;
+            Some(NodeData::from_encrypted_bytes(
+                encrypted_bytes,
+                cipher.algorithm(),
+            ))
+        } else {
+            meta.map(|m| NodeData::from(m))
+        };
+
+    let payload_data =
+        if let (Some(receiver_pub), Some(ref p)) = (receiver_public.as_ref(), payload.as_ref()) {
+            let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+            if meta_data.is_none() {
+                display::tree::info(&format!(
+                    "🔐 Encrypting payload with {} using {}",
+                    cipher.algorithm(),
+                    cipher.scheme()
+                ));
+                display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+            }
+
+            let encrypted_bytes = cipher.encrypt(p.as_bytes(), receiver_pub)?;
+            Some(NodeData::from_encrypted_bytes(
+                encrypted_bytes,
+                cipher.algorithm(),
+            ))
+        } else {
+            payload.map(|p| NodeData::from(p))
+        };
 
     display::tree::progress("Creating node...");
     let node = Node::create(&client, parent, meta_data, payload_data).await?;

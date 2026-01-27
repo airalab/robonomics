@@ -50,8 +50,7 @@ impl CliConfigT for CliConfig {
 
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
-        robonomics_runtime::WASM_BINARY
-            .ok_or("wasm not available")?,
+        robonomics_runtime::WASM_BINARY.ok_or("wasm not available")?,
         Extensions::new("westend-local".into(), 2048),
     )
     .with_name("Robonomics Local Develoment")

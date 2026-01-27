@@ -141,7 +141,13 @@ pub mod node;
 pub mod types;
 
 // Generated runtime metadata from subxt
-#[allow(dead_code, unused_imports, non_camel_case_types, unreachable_patterns, missing_docs)]
+#[allow(
+    dead_code,
+    unused_imports,
+    non_camel_case_types,
+    unreachable_patterns,
+    missing_docs
+)]
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
 pub(crate) mod robonomics_runtime;

@@ -44,13 +44,15 @@ pub async fn execute(
     fn extract_bytes(node_data: &libcps::types::NodeData) -> Vec<u8> {
         match node_data {
             libcps::types::NodeData::Plain(bounded_vec) => bounded_vec.0.clone(),
-            libcps::types::NodeData::Encrypted(encrypted) => {
-                match encrypted {
-                    libcps::types::EncryptedData::XChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
-                    libcps::types::EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
-                    libcps::types::EncryptedData::ChaCha20Poly1305(bounded_vec) => bounded_vec.0.clone(),
+            libcps::types::NodeData::Encrypted(encrypted) => match encrypted {
+                libcps::types::EncryptedData::XChaCha20Poly1305(bounded_vec) => {
+                    bounded_vec.0.clone()
                 }
-            }
+                libcps::types::EncryptedData::AesGcm256(bounded_vec) => bounded_vec.0.clone(),
+                libcps::types::EncryptedData::ChaCha20Poly1305(bounded_vec) => {
+                    bounded_vec.0.clone()
+                }
+            },
         }
     }
 

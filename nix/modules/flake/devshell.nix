@@ -3,7 +3,7 @@
     devShells.default = with pkgs; mkShell.override { stdenv = clangStdenv; } {
         inputsFrom = [ self'.devShells.rust ];
         buildInputs = [
-          openssl taplo actionlint
+          openssl rustfmt taplo actionlint
           subxt-cli srtool-cli psvm frame-omni-bencher
         ]
         ++ lib.optionals stdenv.hostPlatform.isLinux [ rust-jemalloc-sys ];
