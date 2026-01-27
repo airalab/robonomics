@@ -50,7 +50,8 @@ impl CliConfigT for CliConfig {
 
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
-        robonomics_runtime::WASM_BINARY.ok_or("wasm not available")?,
+        robonomics_runtime::WASM_BINARY
+            .ok_or("wasm not available")?,
         Extensions::new("westend-local".into(), 2048),
     )
     .with_name("Robonomics Local Develoment")
@@ -67,10 +68,10 @@ impl LoadSpec for RobonomicsChainSpecLoader {
     fn load_spec(&self, path: &str) -> Result<Box<dyn ChainSpec>, String> {
         Ok(Box::new(match path {
             "" | "polkadot" => GenericChainSpec::from_json_bytes(
-                &include_bytes!("../chains/polkadot-parachain.raw.json")[..],
+                &include_bytes!("../../../chains/polkadot-parachain.raw.json")[..],
             )?,
             "kusama" => GenericChainSpec::from_json_bytes(
-                &include_bytes!("../chains/kusama-parachain.raw.json")[..],
+                &include_bytes!("../../../chains/kusama-parachain.raw.json")[..],
             )?,
             "dev" => robonomics_development_config()?,
             path => GenericChainSpec::from_json_file(path.into())?,

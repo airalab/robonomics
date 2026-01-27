@@ -6,12 +6,21 @@ This guide explains how to upgrade your Robonomics node to **version 4.x**.
 
 Download the official v4.0 binary from GitHub:
 
-* **Release:** `v4.0.0`
-* Link: [https://github.com/airalab/robonomics/releases/tag/v4.0.0](https://github.com/airalab/robonomics/releases/tag/v4.0.0)
+* **Release:** `v4.0.4`
+* Link: [https://github.com/airalab/robonomics/releases/tag/v4.0.4](https://github.com/airalab/robonomics/releases/tag/v4.0.4)
 
 Replace your existing node binary with the new one.
 
-## 2. Remove the Deprecated `--lighthouse-account` Flag
+## 2. Download Parachain Snapshot
+
+Download parachain snapsot from:
+
+* Link: [https://snapshots.robonomics.network/](https://snapshots.robonomics.network/)
+
+Clear your parachain base and extract from archive to ```/path/to/your/parachain/database```.
+Fix permissions if necessary.
+
+## 3. Remove the Deprecated `--lighthouse-account` Flag
 
 Starting from v4.0, the `--lighthouse-account` CLI flag is no longer supported.
 
@@ -23,7 +32,7 @@ If your systemd service or startup script contains:
 
 Remove this line entirely before restarting the node.
 
-## 3. Generate New Session Keys
+## 4. Generate New Session Keys
 
 Robonomics v4.0 follows the updated Polkadot SDK requirements, so collators must generate fresh session keys.
 
@@ -47,7 +56,7 @@ To generate session keys:
 
 Restart the node after generating the keys to ensure they are active.
 
-## 4. Register Your Collator On-Chain
+## 5. Register Your Collator On-Chain
 
 Once the node is running with the new session keys, you must register (or re-register) your collator in the **Collator Selection pallet**.
 

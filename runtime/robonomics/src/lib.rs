@@ -26,10 +26,9 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 extern crate alloc;
 
-use alloc::{vec, vec::Vec};
 use cumulus_primitives_core::AggregateMessageOrigin;
 use frame_support::{
-    construct_runtime, derive_impl,
+    derive_impl,
     dispatch::DispatchClass,
     genesis_builder_helper::{build_state, get_preset},
     parameter_types,
@@ -48,6 +47,7 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot, EnsureSigned,
 };
+use hex_literal::hex;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
@@ -59,6 +59,8 @@ use sp_runtime::{
     BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
+use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -67,8 +69,7 @@ mod common;
 use common::{currency::*, time::*, *};
 
 mod genesis_config_presets;
-pub use pallet_robonomics_rws_auction::ChargeRwsTransaction;
-//pub mod xcm_config;
+pub mod xcm_config;
 
 /// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
 /// relay chain.
@@ -85,10 +86,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 41,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 2,
+    transaction_version: 3,
     system_version: 1,
 };
 
@@ -188,6 +189,7 @@ impl frame_system::Config for Runtime {
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
     type MaxConsumers = frame_support::traits::ConstU32<16>;
     type MultiBlockMigrator = MultiBlockMigrations;
+    type SingleBlockMigrations = SingleBlockMigrations;
 }
 
 impl cumulus_pallet_weight_reclaim::Config for Runtime {
@@ -335,6 +337,7 @@ impl pallet_assets::Config for Runtime {
     type RemoveItemsLimit = ConstU32<1000>;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
     type CallbackHandle = ();
+    type ReserveData = u128;
     #[cfg(feature = "runtime-benchmarks")]
     type BenchmarkHelper = ();
 }
@@ -440,8 +443,8 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
     type DmpQueue = frame_support::traits::EnqueueWithOrigin<(), RelayOrigin>;
-    type OutboundXcmpMessageSource = ();
-    type XcmpMessageHandler = ();
+    type OutboundXcmpMessageSource = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
+    type XcmpMessageHandler = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
     type ReservedDmpWeight = ReservedDmpWeight;
     type ReservedXcmpWeight = ReservedXcmpWeight;
     type CheckAssociatedRelayNumber =
@@ -573,6 +576,32 @@ impl pallet_robonomics_liability::Config for Runtime {
 }
 
 parameter_types! {
+    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
+    pub ForeignAssetLocation: Location = Location::new(
+        2,
+        [
+            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
+            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
+        ],
+    );
+
+    /// Asset Hub location
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+
+    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
+    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
+    pub const XcmFeeAmount: u128 = 10_000_000_000;
+}
+
+impl pallet_wrapped_native::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type NativeCurrency = Balances;
+    type ForeignAssetLocation = ForeignAssetLocation;
+    type AssetHubLocation = AssetHubLocation;
+    type XcmFeeAmount = XcmFeeAmount;
+}
+
+parameter_types! {
     pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -597,61 +626,131 @@ impl pallet_sudo::Config for Runtime {
     type WeightInfo = ();
 }
 
-construct_runtime! {
-    pub enum Runtime {
-        // Basic stuff.
-        System: frame_system = 10,
-        Utility: pallet_utility = 11,
-        Timestamp: pallet_timestamp = 12,
-        Multisig: pallet_multisig = 15,
-        Proxy: pallet_proxy = 14,
-        MultiBlockMigrations: pallet_migrations = 16,
-        StateTrieMigration: pallet_state_trie_migration = 17,
+#[frame_support::runtime(legacy_ordering)]
+mod runtime {
+    #[runtime::runtime]
+    #[runtime::derive(
+        RuntimeCall,
+        RuntimeEvent,
+        RuntimeError,
+        RuntimeOrigin,
+        RuntimeFreezeReason,
+        RuntimeHoldReason,
+        RuntimeSlashReason,
+        RuntimeLockId,
+        RuntimeTask,
+        RuntimeViewFunction
+    )]
+    pub struct Runtime;
 
-        // Parachain systems.
-        ParachainSystem: cumulus_pallet_parachain_system = 21,
-        ParachainInfo: parachain_info = 22,
-        WeightReclaim: cumulus_pallet_weight_reclaim = 23,
+    //
+    // Basic pallets
+    //
 
-        // Native currency and accounts.
-        Balances: pallet_balances = 31,
-        TransactionPayment: pallet_transaction_payment = 32,
-        Vesting: pallet_vesting = 33,
-        Assets: pallet_assets = 34,
+    #[runtime::pallet_index(10)]
+    pub type System = frame_system;
 
-        // Governance staff.
-        //Treasury: pallet_treasury = 40,
-        //Scheduler: pallet_scheduler = 41,
-        //TechnicalCommittee: pallet_collective::<Instance2> = 42,
-        //TechnicalMembership: pallet_membership::<Instance1> = 43,
-        //Democracy: pallet_democracy = 44,
-        //Preimage: pallet_preimage = 45,
+    #[runtime::pallet_index(11)]
+    pub type Utility = pallet_utility;
 
-        // Robonomics Network pallets.
-        Datalog: pallet_robonomics_datalog = 51,
-        Launch: pallet_robonomics_launch = 52,
-        DigitalTwin: pallet_robonomics_digital_twin = 54,
-        RwsAuction: pallet_robonomics_rws_auction = 55,
-        Liability: pallet_robonomics_liability = 56,
+    #[runtime::pallet_index(12)]
+    pub type Timestamp = pallet_timestamp;
 
-        // XCM support.
-        //XcmpQueue: cumulus_pallet_xcmp_queue = 70,
-        //PolkadotXcm: pallet_xcm = 71,
-        //CumulusXcm: cumulus_pallet_xcm = 72,
-        //DmpQueue: cumulus_pallet_dmp_queue = 73,
-        //XcmInfo: pallet_xcm_info = 74,
+    #[runtime::pallet_index(15)]
+    pub type Multisig = pallet_multisig;
 
-        // Elastic scaling consensus
-        Authorship: pallet_authorship = 80,
-        CollatorSelection: pallet_collator_selection = 81,
-        Session: pallet_session = 82,
-        Aura: pallet_aura = 83,
-        AuraExt: cumulus_pallet_aura_ext = 84,
+    #[runtime::pallet_index(16)]
+    pub type MultiBlockMigrations = pallet_migrations;
 
+    //
+    // Parachain core pallets
+    //
 
-        // TODO: remove when democracy enabled
-        Sudo: pallet_sudo = 99,
-    }
+    #[runtime::pallet_index(21)]
+    pub type ParachainSystem = cumulus_pallet_parachain_system;
+
+    #[runtime::pallet_index(22)]
+    pub type ParachainInfo = parachain_info;
+
+    #[runtime::pallet_index(23)]
+    pub type WeightReclaim = cumulus_pallet_weight_reclaim;
+
+    //
+    // Finance pallets
+    //
+
+    #[runtime::pallet_index(31)]
+    pub type Balances = pallet_balances;
+
+    #[runtime::pallet_index(32)]
+    pub type TransactionPayment = pallet_transaction_payment;
+
+    #[runtime::pallet_index(33)]
+    pub type Vesting = pallet_vesting;
+
+    #[runtime::pallet_index(34)]
+    pub type Assets = pallet_assets;
+
+    #[runtime::pallet_index(35)]
+    pub type WrappedXRT = pallet_wrapped_native;
+
+    //
+    // Robonomics Network pallets.
+    //
+
+    #[runtime::pallet_index(51)]
+    pub type Datalog = pallet_robonomics_datalog;
+
+    #[runtime::pallet_index(52)]
+    pub type Launch = pallet_robonomics_launch;
+
+    #[runtime::pallet_index(54)]
+    pub type DigitalTwin = pallet_robonomics_digital_twin;
+
+    #[runtime::pallet_index(55)]
+    pub type RWS = pallet_robonomics_rws;
+
+    #[runtime::pallet_index(56)]
+    pub type Liability = pallet_robonomics_liability;
+
+    //
+    // XCM support pallets.
+    //
+
+    #[runtime::pallet_index(70)]
+    pub type XcmpQueue = cumulus_pallet_xcmp_queue;
+
+    #[runtime::pallet_index(71)]
+    pub type PolkadotXcm = pallet_xcm;
+
+    #[runtime::pallet_index(72)]
+    pub type CumulusXcm = cumulus_pallet_xcm;
+
+    #[runtime::pallet_index(74)]
+    pub type XcmInfo = pallet_xcm_info;
+
+    //
+    // Elastic scaling consensus pallets.
+    //
+
+    #[runtime::pallet_index(80)]
+    pub type Authorship = pallet_authorship;
+
+    #[runtime::pallet_index(81)]
+    pub type CollatorSelection = pallet_collator_selection;
+
+    #[runtime::pallet_index(82)]
+    pub type Session = pallet_session;
+
+    #[runtime::pallet_index(83)]
+    pub type Aura = pallet_aura;
+
+    #[runtime::pallet_index(84)]
+    pub type AuraExt = cumulus_pallet_aura_ext;
+
+    // TODO: remove when democracy enabled
+    #[runtime::pallet_index(99)]
+    pub type Sudo = pallet_sudo;
 }
 
 /// The address format for describing accounts.
@@ -694,102 +793,25 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    Migrations,
 >;
 
-/// Migrations to apply on runtime upgrade.
-pub type Migrations = (
-    pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
-    //cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-    //cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
-    InitMigrationStorage,
-    // permanent
-    //pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-);
-
-pub struct InitMigrationStorage;
-impl frame_support::traits::OnRuntimeUpgrade for InitMigrationStorage {
-    fn on_runtime_upgrade() -> Weight {
-        use sp_core::crypto::Ss58Codec;
-        use sp_keyring::Sr25519Keyring;
-
-        // setup sudo
-        if let Ok(sudo_key) =
-            AccountId::from_ss58check("5Cakru1BpXPiezeD2LRZh3pJamHcbX9yZ13KLBxuqdTpgnYF")
-        {
-            let _ = Sudo::set_key(RuntimeOrigin::root(), sudo_key.into());
-        }
-
-        // setup collators
-        use pallet_collator_selection::{CandidacyBond, DesiredCandidates, Invulnerables};
-        let desired_candidates = 25;
-        let candidacy_bond = 32 * XRT;
-        let invulnerables: Vec<AccountId> = vec![
-            Sr25519Keyring::Alice.to_account_id(),
-            Sr25519Keyring::Bob.to_account_id(),
-        ];
-
-        let bounded_invulnerables: BoundedVec<
-            _,
-            <Runtime as pallet_collator_selection::Config>::MaxInvulnerables,
-        > = invulnerables
-            .clone()
-            .try_into()
-            .expect("genesis invulnerables are more than T::MaxInvulnerables");
-
-        DesiredCandidates::<Runtime>::put(desired_candidates);
-        CandidacyBond::<Runtime>::put(candidacy_bond);
-        Invulnerables::<Runtime>::put(bounded_invulnerables);
-
-        // Genesis init pallet_session
-        use pallet_session::{NextKeys, QueuedKeys, SessionHandler, SessionManager, Validators};
-
-        // insert genesis keys
-        NextKeys::<Runtime>::insert(
-            Sr25519Keyring::Alice.to_account_id(),
-            SessionKeys {
-                aura: Sr25519Keyring::Alice.public().into(),
-            },
-        );
-        NextKeys::<Runtime>::insert(
-            Sr25519Keyring::Bob.to_account_id(),
-            SessionKeys {
-                aura: Sr25519Keyring::Bob.public().into(),
-            },
-        );
-
-        // init validators
-        let initial_validators_0 =
-            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(0)
-                .unwrap_or_else(|| {
-                    frame_support::print(
-                        "No initial validator provided by `SessionManager`, use \
-                    session config keys to generate initial validator set.",
-                    );
-                    invulnerables
-                });
-
-        let initial_validators_1 =
-            <Runtime as pallet_session::Config>::SessionManager::new_session_genesis(1)
-                .unwrap_or_else(|| initial_validators_0.clone());
-
-        let queued_keys: Vec<_> = initial_validators_1
-            .into_iter()
-            .filter_map(|v| pallet_session::Pallet::<Runtime>::load_keys(&v).map(|k| (v, k)))
-            .collect();
-
-        <Runtime as pallet_session::Config>::SessionHandler::on_genesis_session::<
-            <Runtime as pallet_session::Config>::Keys,
-        >(&queued_keys);
-
-        Validators::<Runtime>::put(initial_validators_0);
-        QueuedKeys::<Runtime>::put(queued_keys);
-
-        <Runtime as pallet_session::Config>::SessionManager::start_session(0);
-
-        Default::default()
-    }
+parameter_types! {
+    pub StartAssetId: AssetId = AssetId::from(1000u32);
 }
+
+/// Migrations to apply on runtime upgrade.
+type SingleBlockMigrations = (
+    // Assets
+    pallet_assets::migration::v1::MigrateToV1<Runtime>,
+    pallet_assets::migration::next_asset_id::SetNextAssetId<StartAssetId, Runtime>,
+    // XCM
+    pallet_xcm::migration::v1::MigrateToV1<Runtime>,
+    pallet_xcm_info::migration::v1::MigrateToV1<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
+    // Permanent
+    pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+);
 
 #[cfg(feature = "runtime-benchmarks")]
 extern crate frame_benchmarking;
@@ -803,6 +825,8 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws_auction, RwsAuction]
+    // XCM pallets
+    [cumulus_pallet_xcmp_queue, XcmpQueue]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
@@ -812,31 +836,12 @@ impl_runtime_apis! {
             VERSION
         }
 
-        fn execute_block(block: Block) {
+        fn execute_block(block: <Block as BlockT>::LazyBlock) {
             Executive::execute_block(block)
         }
 
         fn initialize_block(header: &<Block as BlockT>::Header) -> sp_runtime::ExtrinsicInclusionMode {
             Executive::initialize_block(header)
-        }
-    }
-
-    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
-        fn can_build_upon(
-            included_hash: <Block as BlockT>::Hash,
-            slot: cumulus_primitives_aura::Slot,
-        ) -> bool {
-            ConsensusHook::can_build_upon(included_hash, slot)
-        }
-    }
-
-    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
-        fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(MILLISECS_PER_BLOCK)
-        }
-
-        fn authorities() -> Vec<AuraId> {
-            pallet_aura::Authorities::<Runtime>::get().into_inner()
         }
     }
 
@@ -873,7 +878,7 @@ impl_runtime_apis! {
             data.create_extrinsics()
         }
 
-        fn check_inherents(block: Block, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
+        fn check_inherents(block: <Block as BlockT>::LazyBlock, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
             data.check_extrinsics(&block)
         }
     }
@@ -944,6 +949,24 @@ impl_runtime_apis! {
         }
     }
 
+    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
+        fn can_build_upon(
+            included_hash: <Block as BlockT>::Hash,
+            slot: cumulus_primitives_aura::Slot,
+        ) -> bool {
+            ConsensusHook::can_build_upon(included_hash, slot)
+        }
+    }
+
+    impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+        fn slot_duration() -> sp_consensus_aura::SlotDuration {
+            sp_consensus_aura::SlotDuration::from_millis(MILLISECS_PER_BLOCK)
+        }
+        fn authorities() -> Vec<AuraId> {
+            pallet_aura::Authorities::<Runtime>::get().into_inner()
+        }
+    }
+
     #[cfg(feature = "try-runtime")]
     impl frame_try_runtime::TryRuntime<Block> for Runtime {
         fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
@@ -987,7 +1010,6 @@ impl_runtime_apis! {
             use frame_benchmarking::BenchmarkBatch;
             use frame_support::traits::TrackedStorageKey;
             use frame_system_benchmarking::Pallet as SystemBench;
-            use hex_literal::hex;
 
             #[allow(non_local_definitions)]
             impl frame_system_benchmarking::Config for Runtime {}
@@ -1016,34 +1038,5 @@ impl_runtime_apis! {
 
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
-    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor<Runtime, Executive>,
-}
-
-parameter_types! {
-    // The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-    pub const MigrationSignedDepositPerItem: Balance = COASE;
-    pub const MigrationSignedDepositBase: Balance = 2_000 * COASE;
-    pub const MigrationMaxKeyLen: u32 = 512;
-}
-
-impl pallet_state_trie_migration::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type RuntimeHoldReason = RuntimeHoldReason;
-    type SignedDepositPerItem = MigrationSignedDepositPerItem;
-    type SignedDepositBase = MigrationSignedDepositBase;
-    // An origin that can control the whole pallet: should be Root, or a part of your council.
-    type ControlOrigin = frame_system::EnsureSignedBy<RootMigController, AccountId>;
-    // specific account for the migration, can trigger the signed migrations.
-    type SignedFilter = frame_system::EnsureSignedBy<MigController, AccountId>;
-
-    // Replace this with weight based on your runtime.
-    type WeightInfo = pallet_state_trie_migration::weights::SubstrateWeight<Runtime>;
-
-    type MaxKeyLen = MigrationMaxKeyLen;
-}
-
-frame_support::ord_parameter_types! {
-    pub const MigController: AccountId = AccountId::from(hex_literal::hex!("16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"));
-    pub const RootMigController: AccountId = AccountId::from(hex_literal::hex!("16eb796bee0c857db3d646ee7070252707aec0c7d82b2eda856632f6a2306a58"));
+    BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }

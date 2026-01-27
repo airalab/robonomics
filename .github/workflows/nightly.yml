@@ -29,6 +29,8 @@ jobs:
     needs: tests
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
+    outputs:
+      status: ${{ job.status }}
     strategy:
       matrix:
         platform:
@@ -38,9 +40,6 @@ jobs:
           - os-name: Linux-aarch64
             runs-on: ubuntu-latest
             target: aarch64-unknown-linux-musl
-          - os-name: Windows-x86_64
-            runs-on: windows-latest
-            target: x86_64-pc-windows-msvc
           - os-name: macOS-x86_64
             runs-on: macOS-latest
             target: x86_64-apple-darwin
@@ -59,16 +58,12 @@ jobs:
           toolchain: "1.88.0"
           force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           use-rust-cache: true
+          strip: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
           target: ${{ matrix.platform.target }}
           args: "--locked --profile production"
-          strip: true
-      - name: Set artifact name
-        env:
-          TARGET: ${{ matrix.platform.target }}
-        run: echo "::set-output name=name::robonomics-${TARGET%%-*}"
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifact-name.outputs.name }}
+          name: robonomics-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/production/robonomics
 
   docker:
@@ -130,7 +125,7 @@ jobs:
       status: ${{ job.status }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Srtool build
       id: srtool_build
