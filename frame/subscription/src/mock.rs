@@ -15,9 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Mock runtime for testing RWS pallet.
+//! Mock runtime for testing Subscription pallet.
 
-use crate::{self as pallet_rws_auction};
+use crate::{self as pallet_subscription};
 use frame_support::{
     assert_ok, derive_impl, parameter_types,
     traits::{ConstU128, ConstU32, ConstU64},
@@ -88,7 +88,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         Assets: pallet_assets,
         Proxy: pallet_proxy,
-        RWS: pallet_rws_auction,
+        Subscription: pallet_subscription,
     }
 );
 
@@ -187,7 +187,7 @@ parameter_types! {
     pub const RwsPalletId: frame_support::PalletId = frame_support::PalletId(*b"rws/lock");
 }
 
-impl pallet_rws_auction::Config for Test {
+impl pallet_subscription::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Call = RuntimeCall;
     type Time = Timestamp;

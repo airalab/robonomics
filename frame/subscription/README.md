@@ -1,8 +1,8 @@
-# RWS Pallet 2.0 - Technical Guide
+# Subscription Pallet 2.0 - Technical Guide
 
 ## Overview
 
-The Robonomics Web Services (RWS) Pallet provides a decentralized auction system for obtaining subscriptions that enable free transaction execution on the Robonomics Network. Users bid on subscriptions, and winning bidders receive the ability to execute transactions without paying fees, metered by computational weight and time.
+The Subscription Pallet provides a decentralized auction system for obtaining subscriptions that enable free transaction execution on the Robonomics Network. Users bid on subscriptions, and winning bidders receive the ability to execute transactions without paying fees, metered by computational weight and time.
 
 ---
 
@@ -48,7 +48,7 @@ A **transaction extension** is a Substrate mechanism that allows customization o
 - Track transaction execution
 - Work with any pallet's extrinsics
 
-The RWS Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less transactions** for subscription holders.
+The Subscription Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less transactions** for subscription holders.
 
 ---
 
@@ -56,8 +56,8 @@ The RWS Transaction Extension (`ChargeRwsTransaction`) enables **opt-in fee-less
 
 **Traditional Approach (Wrapper Extrinsic):**
 ```rust
-// ❌ Old way: Wrap every call in RWS::call(subscription_id, call)
-RWS::call(subscription_id: 0, call: Box::new(datalog::record(data)))
+// ❌ Old way: Wrap every call in Subscription::call(subscription_id, call)
+Subscription::call(subscription_id: 0, call: Box::new(datalog::record(data)))
 ```
 - Requires wrapping every call
 - Limited to specific call types
@@ -227,7 +227,7 @@ await api.tx.datalog
 #### Example 3: Rust (Node/Runtime)
 
 ```rust
-use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+use pallet_robonomics_subscription::ChargeRwsTransaction;
 
 // Creating a transaction with RWS extension
 let call = RuntimeCall::Datalog(
@@ -284,7 +284,7 @@ try {
 
 | Aspect | Old (call extrinsic) | New (Transaction Extension) |
 |--------|---------------------|----------------------------|
-| **Usage** | `RWS::call(id, Box::new(call))` | Any extrinsic + RWS parameter |
+| **Usage** | `Subscription::call(id, Box::new(call))` | Any extrinsic + RWS parameter |
 | **Flexibility** | Limited to compatible calls | Works with ANY extrinsic |
 | **API** | Wrapper required | Direct transaction signing |
 | **Opt-in** | Per-call basis (implicit) | Per-transaction (explicit) |
@@ -608,7 +608,7 @@ PHASE 3: STOP & UNLOCK
 // She needs: 50,000 / 100 = 500 tokens
 
 // STEP 1: Alice locks assets to create subscription
-RWS::start_lifetime(
+Subscription::start_lifetime(
     RuntimeOrigin::signed(alice),
     500 // amount of assets to lock
 )?;
@@ -618,7 +618,7 @@ RWS::start_lifetime(
 // → Emits: SubscriptionActivated(alice, 0)
 
 // STEP 2: Alice uses subscription for feeless transactions
-RWS::call(
+Subscription::call(
     RuntimeOrigin::signed(alice),
     0, // subscription_id
     Box::new(RuntimeCall::Datalog(
@@ -632,7 +632,7 @@ RWS::call(
 // → Alice's 500 tokens remain locked
 
 // STEP 3: Alice stops subscription to recover assets
-RWS::stop_lifetime(
+Subscription::stop_lifetime(
     RuntimeOrigin::signed(alice),
     0 // subscription_id
 )?;
@@ -647,33 +647,33 @@ RWS::stop_lifetime(
 // Bob wants multiple subscriptions with different capacities
 
 // Subscription 0: Low TPS for monitoring (0.01 TPS = 10,000 μTPS)
-RWS::start_lifetime(
+Subscription::start_lifetime(
     RuntimeOrigin::signed(bob),
     100 // 100 × 100 = 10,000 μTPS
 )?;
 
 // Subscription 1: High TPS for active operations (0.5 TPS = 500,000 μTPS)
-RWS::start_lifetime(
+Subscription::start_lifetime(
     RuntimeOrigin::signed(bob),
     5000 // 5000 × 100 = 500,000 μTPS
 )?;
 
 // Bob uses subscription 0 for monitoring
-RWS::call(
+Subscription::call(
     RuntimeOrigin::signed(bob),
     0,
     Box::new(monitor_call)
 )?;
 
 // Bob uses subscription 1 for heavy operations
-RWS::call(
+Subscription::call(
     RuntimeOrigin::signed(bob),
     1,
     Box::new(heavy_operation_call)
 )?;
 
 // Bob can stop specific subscriptions independently
-RWS::stop_lifetime(
+Subscription::stop_lifetime(
     RuntimeOrigin::signed(bob),
     0 // Stop only subscription 0, subscription 1 remains active
 )?;
@@ -693,7 +693,7 @@ let device_accounts: Vec<AccountId> = (0..10)
 for (device_id, device_account) in device_accounts.iter().enumerate() {
     // Each device gets 0.02 TPS (20,000 μTPS)
     // Required: 20,000 / 100 = 200 tokens per device
-    RWS::start_lifetime(
+    Subscription::start_lifetime(
         RuntimeOrigin::signed(device_account.clone()),
         200
     )?;
@@ -703,7 +703,7 @@ for (device_id, device_account) in device_accounts.iter().enumerate() {
 
 // Each device operates independently
 for device_account in &device_accounts {
-    RWS::call(
+    Subscription::call(
         RuntimeOrigin::signed(device_account.clone()),
         0, // Each device's first subscription
         Box::new(device_operation.clone())
@@ -711,7 +711,7 @@ for device_account in &device_accounts {
 }
 
 // Decommission device 5 (index 5 in the array)
-RWS::stop_lifetime(
+Subscription::stop_lifetime(
     RuntimeOrigin::signed(device_accounts[5].clone()),
     0
 )?;
@@ -1122,12 +1122,12 @@ call(
 
 ## 🔐 Proxy-Based Subscription Sharing
 
-The RWS pallet integrates with `pallet-proxy` to enable **subscription sharing**. This allows subscription owners to delegate usage of their subscriptions to other accounts without transferring ownership.
+The Subscription pallet integrates with `pallet-proxy` to enable **subscription sharing**. This allows subscription owners to delegate usage of their subscriptions to other accounts without transferring ownership.
 
 ### Overview
 
 The `ProxyType::RwsUser(subscription_id)` variant allows controlled delegation:
-- **Single Purpose**: Only allows using a specific subscription via `RWS::call`
+- **Single Purpose**: Only allows using a specific subscription via `Subscription::call`
 - **No Management Access**: Proxies cannot bid on auctions, claim subscriptions, or perform other management operations
 - **Subscription-Specific**: Each proxy is limited to a single subscription ID
 - **Revocable**: The subscription owner can remove proxy access at any time
@@ -1148,7 +1148,7 @@ The runtime defines a `ProxyType::RwsUser` variant for subscription sharing:
 pub enum ProxyType {
     /// Allow all calls
     Any,
-    /// RWS subscription user - allows using a specific subscription via RWS::call
+    /// RWS subscription user - allows using a specific subscription via Subscription::call
     /// The parameter is the subscription_id that the proxy can use
     RwsUser(u32),
 }
@@ -1158,7 +1158,7 @@ impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
         match self {
             ProxyType::Any => true,
             ProxyType::RwsUser(allowed_subscription_id) => {
-                // Only allow RWS::call operations for the specific subscription
+                // Only allow Subscription::call operations for the specific subscription
                 match c {
                     RuntimeCall::RWS(pallet_rws::Call::call { subscription_id, .. }) => {
                         subscription_id == allowed_subscription_id
@@ -1195,13 +1195,13 @@ This example demonstrates how Alice shares her subscription with an IoT device.
 Timestamp::set_timestamp(1_000_000);
 
 // Root starts auction for lifetime subscription
-RWS::start_auction(
+Subscription::start_auction(
     RuntimeOrigin::root(),
     SubscriptionMode::Lifetime { tps: 1_000_000 }  // 1 TPS
 )?;
 
 // Alice bids and wins
-RWS::bid(RuntimeOrigin::signed(ALICE), 0, 100 * XRT)?;
+Subscription::bid(RuntimeOrigin::signed(ALICE), 0, 100 * XRT)?;
 // → Alice is winning bidder
 // → 100 XRT reserved from Alice's balance
 
@@ -1209,7 +1209,7 @@ RWS::bid(RuntimeOrigin::signed(ALICE), 0, 100 * XRT)?;
 Timestamp::set_timestamp(1_000_000 + AuctionDuration::get() + 1);
 
 // Alice claims the subscription
-RWS::claim(RuntimeOrigin::signed(ALICE), 0, None)?;
+Subscription::claim(RuntimeOrigin::signed(ALICE), 0, None)?;
 // → Subscription 0 created for Alice
 // → 100 XRT burned
 // → Alice can now use subscription for free transactions
@@ -1272,7 +1272,7 @@ Proxy::remove_proxy(
 
 // STEP 5: Alice retains full control
 // ──────────────────────────────────────────────────
-RWS::call(
+Subscription::call(
     RuntimeOrigin::signed(ALICE),
     0,  // subscription_id
     Box::new(RuntimeCall::Datalog(
@@ -1293,9 +1293,9 @@ Combine with multisig for team-managed subscription sharing:
 let team_account = TEAM_MULTISIG;
 
 // Team multisig wins auction and claims subscription
-RWS::bid(RuntimeOrigin::signed(TEAM_MULTISIG), 0, 200 * XRT)?;
+Subscription::bid(RuntimeOrigin::signed(TEAM_MULTISIG), 0, 200 * XRT)?;
 // ... auction ends ...
-RWS::claim(RuntimeOrigin::signed(TEAM_MULTISIG), 0, None)?;
+Subscription::claim(RuntimeOrigin::signed(TEAM_MULTISIG), 0, None)?;
 
 // Team adds individual members as RwsUser proxies
 Proxy::add_proxy(
@@ -1327,7 +1327,7 @@ Proxy::proxy(
 ### Security Considerations
 
 #### Type Safety
-- **Restricted Call Space**: `ProxyType::RwsUser` only allows `RWS::call` for a specific subscription
+- **Restricted Call Space**: `ProxyType::RwsUser` only allows `Subscription::call` for a specific subscription
 - **No Management Operations**: Proxies cannot bid on auctions, claim subscriptions, or perform other management tasks
 - **Compile-Time Guarantees**: Substrate's type system enforces restrictions
 

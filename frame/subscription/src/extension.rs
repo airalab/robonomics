@@ -15,13 +15,13 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # RWS Transaction Extension
+//! # Subscription Transaction Extension
 //!
-//! Transaction extension that enables fee-less transactions for RWS subscription holders.
+//! Transaction extension that enables fee-less transactions for subscription holders.
 //!
 //! ## Overview
 //!
-//! This extension allows users to opt-in per-transaction to use their RWS subscription
+//! This extension allows users to opt-in per-transaction to use their subscription
 //! for fee-less execution. Users can choose between using their subscription or paying
 //! normal transaction fees on a per-transaction basis.
 //!

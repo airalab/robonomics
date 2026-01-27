@@ -15,15 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # Robonomics Web Services (RWS) Auction Pallet
+//! # Robonomics Subscription Pallet
 //!
-//! The RWS Auction pallet provides a subscription-based fee mechanism for the Robonomics Network.
+//! The Subscription pallet provides a subscription-based fee mechanism for the Robonomics Network.
 //! Users acquire subscriptions through an auction system or asset locking, then use those
 //! subscriptions to make fee-less transactions up to their allocated capacity.
 //!
 //! ## Overview
 //!
-//! The RWS Auction pallet implements a subscription model where users can:
+//! The Subscription pallet implements a subscription model where users can:
 //! - Participate in auctions to acquire time-limited subscriptions
 //! - Lock assets to create perpetual lifetime subscriptions
 //! - Use transaction extensions to execute any extrinsic without paying fees
@@ -104,7 +104,7 @@
 //! #### Rust (Node/Runtime)
 //!
 //! ```rust,ignore
-//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//! use pallet_robonomics_subscription::ChargeRwsTransaction;
 //!
 //! // Create transaction with RWS extension
 //! let call = RuntimeCall::Datalog(

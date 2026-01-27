@@ -60,6 +60,7 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
+use pallet_robonomics_subscription::ChargeRwsTransaction;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
