@@ -60,7 +60,6 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
-use pallet_robonomics_subscription::ChargeSubscriptionTransaction;
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -361,7 +360,6 @@ impl pallet_multisig::Config for Runtime {
     type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
-/// Proxy type for delegating RWS subscription usage.
 #[derive(
     Copy,
     Clone,
@@ -531,24 +529,47 @@ impl pallet_robonomics_launch::Config for Runtime {
 
 parameter_types! {
     pub const ReferenceCallWeight: u64 = 70_952_000;  // let it be transfer call weight
-    pub const AuctionDuration: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
+    pub const AuctionDuration: BlockNumber = 10;
+    pub const AuctionCost: Balance = 25000 * XRT;  // start subscription auction when amount locked
     pub const MinimalBid: Balance = 1 * XRT;
+}
+
+impl pallet_robonomics_rws::Config for Runtime {
+    type Call = RuntimeCall;
+    type Time = Timestamp;
+    type Moment = u64;
+    type AuctionIndex = u32;
+    type AuctionCurrency = Balances;
+    type RuntimeEvent = RuntimeEvent;
+    type ReferenceCallWeight = ReferenceCallWeight;
+    type AuctionDuration = AuctionDuration;
+    type AuctionCost = AuctionCost;
+    type MinimalBid = MinimalBid;
+    type MaxDevicesAmount = ConstU32<32>;
+    type MaxAuctionIndexesAmount = ConstU32<4096>;
+    type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
+}
+
+
+parameter_types! {
+    pub const MinimalBid: Balance = 1 * XRT;
+    pub const AuctionDurationMs: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
     pub const AssetToTpsRatio: Permill = Permill::from_parts(1);
-    pub const RwsId: PalletId = PalletId(*b"RwsStake");
+    pub const SubscriptionPalletId: PalletId = PalletId(*b"RwsStake");
 }
 
 impl pallet_robonomics_subscription::Config for Runtime {
     type Assets = Assets;
     type LifetimeAssetId = ConstU32<42>;
     type AssetToTpsRatio = AssetToTpsRatio;
-    type PalletId = RwsId;
+    type PalletId = SubscriptionPalletId;
     type Call = RuntimeCall;
     type Time = Timestamp;
     type Moment = u64;
     type AuctionCurrency = Balances;
     type RuntimeEvent = RuntimeEvent;
     type ReferenceCallWeight = ReferenceCallWeight;
-    type AuctionDuration = AuctionDuration;
+    type AuctionDuration = AuctionDurationMs;
     type MinimalBid = MinimalBid;
     type StartAuctionOrigin = EnsureRoot<AccountId>;
     type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
@@ -714,6 +735,9 @@ mod runtime {
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
 
+    #[runtime::pallet_index(57)]
+    pub type Subscription = pallet_robonomics_subscription;
+
     //
     // XCM support pallets.
     //
@@ -777,7 +801,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
-        ChargeSubscriptionTransaction<Runtime>,
+        pallet_robonomics_subscription::ChargeSubscriptionTransaction<Runtime>,
         pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),

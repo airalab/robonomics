@@ -7357,6 +7357,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-robonomics-rws"
+version = "1.6.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-robonomics-datalog",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-robonomics-subscription"
 version = "2.0.0"
 dependencies = [
@@ -10184,6 +10202,7 @@ dependencies = [
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
  "pallet-robonomics-liability",
+ "pallet-robonomics-rws",
  "pallet-robonomics-subscription",
  "pallet-scheduler",
  "pallet-session",

@@ -68,6 +68,7 @@ pallet-robonomics-datalog.workspace = true
 pallet-robonomics-digital-twin.workspace = true
 pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
+pallet-robonomics-rws.workspace = true
 pallet-robonomics-subscription.workspace = true
 pallet-wrapped-native.workspace = true
 
@@ -145,6 +146,7 @@ std = [
   "pallet-robonomics-digital-twin/std",
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
+  "pallet-robonomics-rws/std",
   "pallet-robonomics-subscription/std",
   "pallet-wrapped-native/std",
   "pallet-sudo/std",
@@ -182,6 +184,7 @@ runtime-benchmarks = [
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-liability/runtime-benchmarks",
+  "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-subscription/runtime-benchmarks",
   "pallet-wrapped-native/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",

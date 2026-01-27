@@ -18,6 +18,7 @@ codegen-units = 1
 [workspace]
 members = [
   "bin/robonomics",
+  "frame/rws",
   "frame/subscription",
   "frame/launch",
   "frame/datalog",
