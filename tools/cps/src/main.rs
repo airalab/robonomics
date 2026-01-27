@@ -32,8 +32,25 @@ use libcps::{blockchain, mqtt};
 mod commands;
 mod display;
 
-/// Helper function to parse receiver public key from SS58 address or hex encoding.
-/// Uses AccountId32 which supports both Sr25519 and Ed25519 (same 32-byte public key length).
+/// Parses a receiver public key from either an SS58 address or a hex-encoded 32-byte key.
+///
+/// # Supported formats
+/// - **SS58 address**: A valid Substrate SS58-encoded account ID. Decoding is attempted first
+///   using `sp_core::crypto::AccountId32::from_ss58check`, which supports both Sr25519 and
+///   Ed25519 (they share the same 32-byte public key length).
+/// - **Hex string**: A 64-hex-character string representing a 32-byte public key. An optional
+///   `0x` prefix is allowed (e.g. `0xdeadbeef...` or `deadbeef...`).
+///
+/// # Conversion process
+/// 1. Try to decode `addr_or_hex` as an SS58 address. On success, the underlying 32-byte
+///    account ID is returned.
+/// 2. If SS58 decoding fails, strip a leading `0x` (if present) and attempt to decode the
+///    remaining string as hex.
+///
+/// # Errors
+/// - Returns an error if the value is neither a valid SS58 address nor a valid hex string.
+/// - Returns an error if the hex decoding succeeds but the resulting byte length is not
+///   exactly 32 bytes.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
     if let Ok(account_id) = sp_core::crypto::AccountId32::from_ss58check(addr_or_hex) {
