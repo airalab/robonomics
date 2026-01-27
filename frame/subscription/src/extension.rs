@@ -160,7 +160,7 @@
 //! For runtime or node development:
 //!
 //! ```rust,ignore
-//! use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//! use pallet_robonomics_subscription::ChargeRwsTransaction;
 //!
 //! // Create the call
 //! let call = RuntimeCall::Datalog(
@@ -207,7 +207,7 @@
 //!
 //! 2. Import from pallet:
 //!    ```rust,ignore
-//!    pub use pallet_robonomics_rws_auction::ChargeRwsTransaction;
+//!    pub use pallet_robonomics_subscription::ChargeRwsTransaction;
 //!    ```
 //!
 //! 3. Ensure pallet is properly configured in runtime with required associated types.
@@ -243,7 +243,7 @@ use frame_support::{
 ///     parents: 0,
 ///     interior: {
 ///       X1: [{ 
-///         PalletInstance: 55,  // RwsAuction pallet index
+///         PalletInstance: 55,  // Subscription pallet index
 ///       }]
 ///     }
 ///   }

@@ -139,7 +139,7 @@
 //!
 //! ```rust,ignore
 //! // Owner grants access to a delegate
-//! RwsAuction::grant_access(origin, subscription_id: 0, delegate: bob);
+//! Subscription::grant_access(origin, subscription_id: 0, delegate: bob);
 //!
 //! // Now bob can use alice's subscription by specifying:
 //! // ChargeRwsTransaction::Enabled { 
@@ -148,7 +148,7 @@
 //! // }
 //!
 //! // Owner can revoke access
-//! RwsAuction::revoke_access(origin, subscription_id: 0, delegate: bob);
+//! Subscription::revoke_access(origin, subscription_id: 0, delegate: bob);
 //! ```
 //!
 //! ### Benefits Over Wrapper Extrinsics
