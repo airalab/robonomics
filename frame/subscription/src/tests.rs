@@ -19,15 +19,18 @@
 
 use crate::{mock::*, *};
 use frame_support::{assert_err, assert_ok};
-use sp_runtime::DispatchError;
+use sp_runtime::{traits::SignedExtension, DispatchError};
 
-// Import the pallet explicitly to avoid ambiguity
+// Import the mock `Subscription` pallet with an explicit alias to distinguish it
+// from other `Subscription` items re-exported from `crate` in these tests.
 use crate::mock::Subscription as SubscriptionPallet;
+use crate::ChargeSubscriptionTransaction;
 
 const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
 const LIFETIME_ASSET_ID: u32 = 1;
+const MILLIS_PER_DAY: u64 = 86_400_000; // 24 * 60 * 60 * 1000
 
 // ========== Auction Lifecycle Tests ==========
 
@@ -567,7 +570,7 @@ fn test_lifetime_subscription_weight_accumulation() {
         assert_eq!(subscription.last_update, 1_000_000);
 
         // Wait for weight to accumulate (10 seconds = 10_000 ms)
-        // Expected weight: ReferenceCallWeight * μTPS * delta_ms / 1_000_000_000
+        // Expected weight: reference_call_weight * μTPS * delta_ms / 1_000_000_000
         // 70_952_000 * 500_000 * 10_000 / 1_000_000_000 = 354_760_000
         Timestamp::set_timestamp(1_000_000 + 10_000);
 
@@ -603,7 +606,8 @@ fn test_lifetime_subscription_insufficient_weight() {
         );
 
         // Wait a bit (1 second = 1_000 ms)
-        // Expected weight: 70_952_000 * 100 * 1_000 / 1_000_000_000 = 7_095.2 ≈ 7_095
+        // Expected weight (conceptually): 70_952_000 * 100 * 1_000 / 1_000_000_000 = 7_095.2,
+        // but the actual integer division used by the pallet truncates this to 7_095 units
         Timestamp::set_timestamp(1_000_000 + 1_000);
 
         // Still not enough weight
@@ -678,7 +682,7 @@ fn test_active_daily_subscription_usage() {
         // Verify subscription has 10_000 μTPS (0.01 TPS) and correct expiration
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
         assert_eq!(subscription.mode, SubscriptionMode::Daily { days: 30 });
-        // Expiration: issue_time + days * 86_400_000 ms
+        // Expiration: issue_time + days * MILLIS_PER_DAY
         // (1_000_000 + 100_000) + 30 * 86_400_000 = 1_100_000 + 2_592_000_000 = 2_593_100_000
         assert_eq!(subscription.expiration_time, Some(2_593_100_000));
 
@@ -712,7 +716,7 @@ fn test_daily_subscription_expiration() {
 
         // Verify subscription
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
-        // Expiration: (1_000_000 + 100_000) + 1 * 86_400_000 = 87_500_000
+        // Expiration: (1_000_000 + 100_000) + 1 * MILLIS_PER_DAY = 87_500_000
         assert_eq!(subscription.expiration_time, Some(87_500_000));
 
         // Advance time beyond subscription period (1 day + extra)
@@ -742,7 +746,7 @@ fn test_daily_subscription_expiration_boundary() {
         assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
 
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
-        // Expiration: (1_000_000 + 100_000) + 2 * 86_400_000 = 1_100_000 + 172_800_000 = 173_900_000
+        // Expiration: (1_000_000 + 100_000) + 2 * MILLIS_PER_DAY = 1_100_000 + 172_800_000 = 173_900_000
         assert_eq!(subscription.expiration_time, Some(173_900_000));
 
         // Test call just before expiration (should succeed)
@@ -856,4 +860,402 @@ fn test_weight_calculation_accuracy() {
         assert_ok!(Pallet::<Test>::consume_weight(&ALICE, 0, call_weight4));
     });
 }
+
+// ========== Transaction Extension Helper Method Tests ==========
+
+#[test]
+fn test_has_permission_owner() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription for ALICE
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // Owner always has permission
+        assert!(Pallet::<Test>::has_permission(&ALICE, &ALICE, 0));
+
+        // Other accounts do not have permission by default
+        assert!(!Pallet::<Test>::has_permission(&BOB, &ALICE, 0));
+        assert!(!Pallet::<Test>::has_permission(&CHARLIE, &ALICE, 0));
+    });
+}
+
+#[test]
+fn test_has_permission_delegate() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription for ALICE
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // BOB initially has no permission
+        assert!(!Pallet::<Test>::has_permission(&BOB, &ALICE, 0));
+
+        // ALICE grants permission to BOB
+        assert_ok!(SubscriptionPallet::grant_access(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            BOB
+        ));
+
+        // BOB now has permission
+        assert!(Pallet::<Test>::has_permission(&BOB, &ALICE, 0));
+
+        // CHARLIE still has no permission
+        assert!(!Pallet::<Test>::has_permission(&CHARLIE, &ALICE, 0));
+
+        // ALICE revokes BOB's permission
+        assert_ok!(SubscriptionPallet::revoke_access(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            BOB
+        ));
+
+        // BOB no longer has permission
+        assert!(!Pallet::<Test>::has_permission(&BOB, &ALICE, 0));
+    });
+}
+
+#[test]
+fn test_is_subscription_active_lifetime() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Non-existent subscription is not active
+        assert!(!Pallet::<Test>::is_subscription_active(&ALICE, 0));
+
+        // Create lifetime subscription
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // Lifetime subscription is always active (never expires)
+        assert!(Pallet::<Test>::is_subscription_active(&ALICE, 0));
+
+        // Even after a long time, lifetime subscription remains active
+        Timestamp::set_timestamp(1_000_000_000_000);
+        assert!(Pallet::<Test>::is_subscription_active(&ALICE, 0));
+    });
+}
+
+#[test]
+fn test_is_subscription_active_daily() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create daily subscription (2 days)
+        assert_ok!(SubscriptionPallet::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 2 }
+        ));
+        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Subscription is active immediately after creation
+        assert!(Pallet::<Test>::is_subscription_active(&ALICE, 0));
+
+        // Still active before expiration
+        Timestamp::set_timestamp(173_899_999); // 1ms before expiration
+        assert!(Pallet::<Test>::is_subscription_active(&ALICE, 0));
+
+        // Not active at expiration time
+        Timestamp::set_timestamp(173_900_000);
+        assert!(!Pallet::<Test>::is_subscription_active(&ALICE, 0));
+
+        // Not active after expiration
+        Timestamp::set_timestamp(173_900_001);
+        assert!(!Pallet::<Test>::is_subscription_active(&ALICE, 0));
+    });
+}
+
+#[test]
+fn test_has_sufficient_weight_lifetime() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription with 100_000 μTPS
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // Initially has 0 weight
+        assert!(!Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 70_952_000));
+
+        // Wait 10 seconds: 70_952_000 * 100_000 * 10_000 / 1_000_000_000 = 70_952_000
+        Timestamp::set_timestamp(1_000_000 + 10_000);
+
+        // Now has sufficient weight for one call
+        assert!(Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 70_952_000));
+
+        // But not for two calls
+        assert!(!Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 141_904_000));
+    });
+}
+
+#[test]
+fn test_has_sufficient_weight_daily_expired() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create short daily subscription (1 day)
+        assert_ok!(SubscriptionPallet::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 1 }
+        ));
+        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Wait to accumulate weight
+        Timestamp::set_timestamp(1_100_000 + 10_000);
+        assert!(Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 7_095_000));
+
+        // After expiration, subscription has no weight
+        Timestamp::set_timestamp(87_500_001);
+        assert!(!Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 7_095_000));
+    });
+}
+
+// ========== Transaction Extension Validation Tests ==========
+
+#[test]
+fn test_extension_validation_disabled() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create extension with Disabled variant
+        let extension = ChargeSubscriptionTransaction::<Test>::Disabled;
+
+        // Disabled extension should always validate successfully
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::Yes,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should succeed even without subscription
+        let result = extension.validate(&ALICE, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_ok());
+    });
+}
+
+#[test]
+fn test_extension_validation_enabled_success() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription for ALICE
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // Wait for weight to accumulate
+        Timestamp::set_timestamp(1_000_000 + 10_000);
+
+        // Create extension with Enabled variant
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 0,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should succeed with valid subscription
+        let result = extension.validate(&ALICE, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_ok());
+    });
+}
+
+#[test]
+fn test_extension_validation_no_permission() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription for ALICE
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // Wait for weight
+        Timestamp::set_timestamp(1_000_000 + 10_000);
+
+        // BOB tries to use ALICE's subscription without permission
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 0,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should fail with BadSigner
+        let result = extension.validate(&BOB, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_err());
+    });
+}
+
+#[test]
+fn test_extension_validation_with_permission() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription for ALICE
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1000
+        ));
+
+        // ALICE grants permission to BOB
+        assert_ok!(SubscriptionPallet::grant_access(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            BOB
+        ));
+
+        // Wait for weight
+        Timestamp::set_timestamp(1_000_000 + 10_000);
+
+        // BOB uses ALICE's subscription with permission
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 0,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should succeed with permission
+        let result = extension.validate(&BOB, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_ok());
+    });
+}
+
+#[test]
+fn test_extension_validation_insufficient_weight() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create subscription with low TPS
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            1 // 100 μTPS
+        ));
+
+        // Don't wait - subscription has no weight yet
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 0,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should fail with Payment error (insufficient weight)
+        let result = extension.validate(&ALICE, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_err());
+    });
+}
+
+#[test]
+fn test_extension_validation_expired_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Create short daily subscription
+        assert_ok!(SubscriptionPallet::start_auction(
+            RuntimeOrigin::root(),
+            SubscriptionMode::Daily { days: 1 }
+        ));
+        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        Timestamp::set_timestamp(1_000_000 + 100_000);
+        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+
+        // Move past expiration
+        Timestamp::set_timestamp(87_500_001);
+
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 0,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(7_095_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should fail with Payment error (expired)
+        let result = extension.validate(&ALICE, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_err());
+    });
+}
+
+#[test]
+fn test_extension_validation_non_existent_subscription() {
+    new_test_ext().execute_with(|| {
+        Timestamp::set_timestamp(1_000_000);
+
+        // Try to use non-existent subscription
+        let extension = ChargeSubscriptionTransaction::<Test>::Enabled {
+            subscription_owner: ALICE,
+            subscription_id: 999,
+        };
+
+        let info = frame_support::dispatch::DispatchInfo {
+            call_weight: frame_support::weights::Weight::from_parts(70_952_000, 0),
+            class: frame_support::dispatch::DispatchClass::Normal,
+            pays_fee: frame_support::dispatch::Pays::No,
+            extension_weight: frame_support::weights::Weight::zero(),
+        };
+
+        // Validate should fail with Payment error
+        let result = extension.validate(&ALICE, &RuntimeCall::System(
+            frame_system::Call::remark { remark: vec![] }
+        ), &info, 0);
+        assert!(result.is_err());
+    });
+}
+
 
