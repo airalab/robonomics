@@ -24,6 +24,29 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 - 📚 **Comprehensive documentation** for library API
 - 🔧 **Type-safe blockchain integration** via subxt
 
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    libcps CLI                       │
+├─────────────────────────────────────────────────────┤
+│  Commands │ Display │ Crypto │ Blockchain │ MQTT   │
+└─────────────────────────────────────────────────────┘
+      ↓           ↓         ↓         ↓          ↓
+┌─────────────────────────────────────────────────────┐
+│                 libcps Library                      │
+├──────────────┬──────────────┬──────────────────────┤
+│   Cipher     │  Types       │  Generated Runtime   │
+│   - SR25519  │  - NodeData  │  - subxt codegen     │
+│   - ED25519  │  - NodeId    │  - CPS pallet API    │
+└──────────────┴──────────────┴──────────────────────┘
+      ↓                              ↓
+┌─────────────────────┐    ┌─────────────────────────┐
+│  Substrate Node     │    │    MQTT Broker          │
+│  - CPS Pallet       │    │  - rumqttc client       │
+└─────────────────────┘    └─────────────────────────┘
+```
+
 ## 📦 Installation
 
 ### As a Library
@@ -68,30 +91,54 @@ sudo cp target/release/cps /usr/local/bin/
 ### Quick Start
 
 ```rust
-use libcps::{Client, Config, types::NodeData};
+use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
+use libcps::types::NodeData;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Connect to blockchain
-    let config = Config {
-        ws_url: "ws://localhost:9944".to_string(),
-        suri: Some("//Alice".to_string()),
-    };
+fn main() -> anyhow::Result<()> {
+    // Create cipher for encryption/decryption
+    let alice = Cipher::new(
+        "//Alice".to_string(),
+        EncryptionAlgorithm::XChaCha20Poly1305,
+        CryptoScheme::Sr25519,
+    )?;
     
-    let client = Client::new(&config).await?;
+    let bob = Cipher::new(
+        "//Bob".to_string(),
+        EncryptionAlgorithm::XChaCha20Poly1305,
+        CryptoScheme::Sr25519,
+    )?;
+    
+    // Encrypt message from Alice to Bob
+    let plaintext = b"secret message";
+    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    
+    // Bob decrypts with sender verification
+    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
+    assert_eq!(plaintext, &decrypted[..]);
     
     // Create node data
-    let plain_data = NodeData::plain("sensor reading: 22.5C");
-    let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3]);
-    
-    // Use client.api to interact with blockchain
-    // (requires generated metadata from running node)
+    let plain_data = NodeData::from("sensor reading: 22.5C");
+    let encrypted_data = NodeData::aead_from(encrypted);
     
     Ok(())
 }
 ```
 
-### Encryption Example
+### Data Types
+
+```rust
+use libcps::types::{NodeData, NodeId};
+
+// Create plain data (unencrypted)
+let meta = NodeData::from("sensor config");
+let meta_bytes = NodeData::from(vec![1, 2, 3]);
+
+// Create encrypted data from cipher output
+let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public)?;
+let payload = NodeData::aead_from(encrypted_bytes);
+```
+
+### Encryption Examples
 
 #### SR25519 Encryption (Substrate Native)
 
@@ -99,32 +146,29 @@ async fn main() -> anyhow::Result<()> {
 use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
 
 fn encrypt_sr25519_example() -> anyhow::Result<()> {
-    // Create cipher with SR25519 scheme
-    let sender_cipher = Cipher::new(
+    // Create ciphers for Alice and Bob
+    let alice = Cipher::new(
         "//Alice".to_string(),
         EncryptionAlgorithm::XChaCha20Poly1305,
-        CryptoScheme::Sr25519
+        CryptoScheme::Sr25519,
     )?;
 
-    let receiver_cipher = Cipher::new(
+    let bob = Cipher::new(
         "//Bob".to_string(),
         EncryptionAlgorithm::XChaCha20Poly1305,
-        CryptoScheme::Sr25519
+        CryptoScheme::Sr25519,
     )?;
 
+    // Encrypt from Alice to Bob
     let plaintext = b"secret message";
-    let receiver_public = receiver_cipher.public_key();
+    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
 
-    // Encrypt with specific algorithm
-    let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
-
-    // Decrypt with sender verification (recommended for security)
-    let sender_public = sender_cipher.public_key();
-    let decrypted = receiver_cipher.decrypt(&encrypted, Some(&sender_public))?;
+    // Decrypt with sender verification (recommended)
+    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
     assert_eq!(plaintext, &decrypted[..]);
 
     // Decrypt without sender verification (accepts from any sender)
-    let decrypted_any = receiver_cipher.decrypt(&encrypted, None)?;
+    let decrypted_any = bob.decrypt(&encrypted, None)?;
     assert_eq!(plaintext, &decrypted_any[..]);
 
     Ok(())
@@ -137,29 +181,27 @@ fn encrypt_sr25519_example() -> anyhow::Result<()> {
 use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
 
 fn encrypt_ed25519_example() -> anyhow::Result<()> {
-    // Create cipher with ED25519 scheme
-    let sender_cipher = Cipher::new(
+    // Create ciphers with ED25519 scheme
+    let alice = Cipher::new(
         "//Alice".to_string(),
         EncryptionAlgorithm::AesGcm256,
-        CryptoScheme::Ed25519
+        CryptoScheme::Ed25519,
     )?;
 
-    let receiver_cipher = Cipher::new(
+    let bob = Cipher::new(
         "//Bob".to_string(),
         EncryptionAlgorithm::AesGcm256,
-        CryptoScheme::Ed25519
+        CryptoScheme::Ed25519,
     )?;
 
+    // Encrypt from Alice to Bob
     let plaintext = b"secret message for home assistant";
-    let receiver_public = receiver_cipher.public_key();
+    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
 
-    // Encrypt with ED25519
-    let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
-
-    // Decrypt
-    let decrypted = receiver_cipher.decrypt(&encrypted, None)?;
-
+    // Decrypt with sender verification
+    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
     assert_eq!(plaintext, &decrypted[..]);
+
     Ok(())
 }
 ```
@@ -458,11 +500,19 @@ cps create --payload 'public data'
 
 ## 🔐 Encryption
 
-The CLI supports multiple cryptographic schemes and AEAD encryption algorithms:
+The library supports multiple cryptographic schemes and AEAD encryption algorithms with robust key derivation and self-describing message format.
 
 ### Cryptographic Schemes
 
-The library supports two cryptographic schemes for encryption:
+Two cryptographic schemes are supported for ECDH key agreement:
+
+| Feature | SR25519 | ED25519 |
+|---------|---------|---------|
+| **Curve** | Ristretto255 | Curve25519 (via X25519) |
+| **ECDH** | Ristretto255 scalar multiplication | ED25519 → X25519 |
+| **Best For** | Substrate blockchain operations | IoT devices, Home Assistant |
+| **Compatibility** | Native to Polkadot ecosystem | Standard ED25519 implementations |
+| **Key Agreement** | `scalar * point` on Ristretto255 | ED25519 → Curve25519 → X25519 |
 
 #### **SR25519** (Default - Substrate Native)
 - Uses Ristretto255 curve for ECDH
@@ -507,16 +557,57 @@ Three AEAD ciphers are supported:
    - Generate random nonce per message (size varies by algorithm)
    - Add authentication tag (AEAD)
 
-3. **Message Format**
+3. **Self-Describing Message Format**
+   
+   The encrypted bytes contain a JSON structure with embedded algorithm metadata:
    ```json
    {
      "version": 1,
      "algorithm": "xchacha20",
-     "from": "5GrwvaEF...",
-     "nonce": "base64-encoded",
-     "ciphertext": "base64-encoded"
+     "from": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+     "nonce": "base64-encoded-nonce",
+     "ciphertext": "base64-encoded-data-with-auth-tag"
    }
    ```
+   
+   This self-describing format enables:
+   - **Automatic algorithm detection**: Receiver knows which cipher to use
+   - **Sender identification**: The `from` field contains sender's public key (SS58 format)
+   - **Version compatibility**: Future protocol upgrades without breaking changes
+   - **Portable encryption**: No need to coordinate algorithm choice out-of-band
+
+### Key Derivation (HKDF-SHA256)
+
+The encryption scheme uses HKDF (RFC 5869) for deriving encryption keys from shared secrets:
+
+#### Process:
+
+1. **ECDH Key Agreement**
+   - SR25519: Ristretto255 scalar multiplication
+   - ED25519: X25519 (ED25519 → Curve25519 → X25519)
+   - Result: 32-byte shared secret
+
+2. **HKDF Extract**
+   ```
+   salt = "robonomics-network"  (constant, for domain separation)
+   PRK = HMAC-SHA256(salt, shared_secret)
+   ```
+
+3. **HKDF Expand**
+   ```
+   info = algorithm-specific string:
+     - "robonomics-cps-xchacha20poly1305"
+     - "robonomics-cps-aesgcm256"
+     - "robonomics-cps-chacha20poly1305"
+   
+   OKM = HMAC-SHA256(PRK, info)[0..32]
+   ```
+
+#### Security Properties:
+- **Domain Separation**: Keys bound to Robonomics network context
+- **Algorithm Binding**: Different algorithms produce independent keys
+- **Key Independence**: Each (shared_secret, algorithm) pair → unique key
+- **Defense in Depth**: Constant salt strengthens key derivation even with low-entropy secrets
 
 ### Sender Verification
 
@@ -544,29 +635,20 @@ cps show 5 --decrypt --scheme sr25519
 # The CLI always performs sender verification when available
 ```
 
-### Library Usage
+### CLI Address Formats
 
-```rust
-use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
+The `--receiver-public` parameter accepts both:
 
-// Create a Cipher instance
-let cipher = Cipher::new(
-    "//Alice".to_string(),
-    EncryptionAlgorithm::XChaCha20Poly1305,
-    CryptoScheme::Sr25519,
-)?;
+1. **SS58 Address** (recommended):
+   ```bash
+   cps create --payload 'data' --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+   ```
 
-// Get public key
-let my_public = cipher.public_key();
-
-// Encrypt data
-let plaintext = b"Hello, World!";
-let receiver_public = [0u8; 32]; // receiver's public key
-let encrypted = cipher.encrypt(plaintext, &receiver_public)?;
-
-// Decrypt data
-let decrypted = cipher.decrypt(&encrypted, None)?;
-```
+2. **Hex-encoded public key** (32 bytes, optional `0x` prefix):
+   ```bash
+   cps create --payload 'data' --receiver-public 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+   cps create --payload 'data' --receiver-public d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+   ```
 
 ### Home Assistant Compatibility
 
@@ -624,7 +706,7 @@ MQTT Topic → CPS CLI → Blockchain Node
 
 ### Publish: Blockchain → MQTT
 
-Monitor blockchain node for payload changes and publish to MQTT topic in real-time.
+Monitor blockchain node for payload changes and publish to MQTT topic in real-time using event-driven architecture.
 
 ```bash
 # Basic publishing
@@ -637,6 +719,21 @@ cps mqtt publish "actuators/valve" 10 \
     --mqtt-password mypass
 ```
 
+**Technical Implementation:**
+- Subscribes to finalized blockchain blocks
+- Monitors `PayloadSet` events for target node
+- Only queries and publishes when payload actually changes (event-driven)
+- No polling overhead - reacts to blockchain events in real-time
+- Publishes to MQTT with QoS 0 (At Most Once)
+- Background event loop for MQTT auto-reconnection
+
+**Flow:**
+```text
+Blockchain PayloadSet Event → Detect Change → Query Node → Publish to MQTT
+          ↓                         ↓              ↓              ↓
+   (detected via event)      (node_id match)  (at block #)  (changed data)
+```
+
 **Features:**
 - ✅ Event-driven monitoring (no polling overhead)
 - ✅ Monitors `PayloadSet` events in finalized blocks
@@ -645,21 +742,6 @@ cps mqtt publish "actuators/valve" 10 \
 - ✅ Auto-reconnect on connection failures
 - ✅ Graceful shutdown handling
 - ✅ Block number tracking in logs
-
-**Flow:**
-```
-Blockchain PayloadSet Event → CPS CLI → MQTT Topic
-           ↓                      ↓           ↓
-    Payload Changed          Query Node   Publish
-    (detected via event)     at block     changed data
-```
-
-**Technical Implementation:**
-- Subscribes to finalized blockchain blocks
-- Filters `PayloadSet` events for target node
-- Queries node state only when event detected
-- Publishes to MQTT with QoS 0 (At Most Once)
-- Background event loop for MQTT auto-reconnection
 
 ### Example Output
 
