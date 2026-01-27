@@ -574,6 +574,22 @@ impl pallet_robonomics_subscription::Config for Runtime {
     type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+    pub const MaxTreeDepth: u32 = 32;
+    pub const MaxChildrenPerNode: u32 = 100;
+    pub const MaxRootNodes: u32 = 100;
+}
+
+impl pallet_robonomics_cps::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type MaxTreeDepth = MaxTreeDepth;
+    type MaxChildrenPerNode = MaxChildrenPerNode;
+    type MaxRootNodes = MaxRootNodes;
+    type EncryptedData = pallet_robonomics_cps::DefaultEncryptedData;
+    type OnPayloadSet = ();
+    type WeightInfo = ();
+}
+
 impl pallet_robonomics_digital_twin::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_robonomics_digital_twin::weights::SubstrateWeight<Runtime>;
@@ -737,6 +753,9 @@ mod runtime {
     #[runtime::pallet_index(57)]
     pub type Subscription = pallet_robonomics_subscription;
 
+    #[runtime::pallet_index(58)]
+    pub type CPS = pallet_robonomics_cps;
+
     //
     // XCM support pallets.
     //
@@ -849,6 +868,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_subscription, Subscription]
+    [pallet_robonomics_cps, CPS]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
 );

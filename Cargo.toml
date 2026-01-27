@@ -25,8 +25,10 @@ members = [
   "frame/liability",
   "frame/digital-twin",
   "frame/xcm-info",
+  "frame/cps",
   "frame/wrapped-native",
   "runtime/robonomics",
+  "tools/libcps",
 ]
 resolver = "2"
 
@@ -57,6 +59,31 @@ serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
+anyhow = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+
+# Cryptography (for libcps)
+curve25519-dalek = "4.1"
+x25519-dalek = { version = "2.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+
+# Blockchain (for libcps)
+subxt = "0.44"
+subxt-signer = "0.44"
+
+# Serialization (for libcps)
+base64 = "0.21"
+hex = "0.4"
+
+# MQTT (for libcps)
+rumqttc = "0.24"
+
+# CLI (for libcps)
+colored = "2.1"
+chrono = "0.4"
 color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
@@ -98,7 +125,7 @@ sc-executor = { version = "0.47.0" }
 sc-offchain = { version = "50.0.0" }
 sc-finality-grandpa = { version = "0.24.0" }
 sc-keystore = { version = "39.0.0" }
-sc-network = { version = "0.55.0" }
+sc-network = { version = "0.55.1" }
 sc-network-sync = { version = "0.54.0" }
 sc-rpc = { version = "50.0.0" }
 sc-rpc-api = { version = "0.54.0" }
@@ -107,7 +134,7 @@ sc-storage-monitor = { version = "0.27.0" }
 sc-sysinfo = { version = "46.0.0" }
 sc-telemetry = { version = "30.0.0" }
 sc-tracing = { version = "44.0.0" }
-sc-transaction-pool = { version = "44.0.0" }
+sc-transaction-pool = { version = "44.1.0" }
 sc-transaction-pool-api = { version = "43.0.0" }
 sp-blockchain = { version = "43.0.0" }
 sp-consensus = { version = "0.46.0" }
@@ -119,12 +146,12 @@ try-runtime-cli = { version = "0.42.0" }
 # Substrate pallets
 # (wasm)
 pallet-balances = { version = "46.0.0", default-features = false }
-frame-support = { version = "45.0.0", default-features = false }
+frame-support = { version = "45.1.0", default-features = false }
 frame-system = { version = "45.0.0", default-features = false }
-frame-executive = { version = "45.0.0", default-features = false }
+frame-executive = { version = "45.0.1", default-features = false }
 frame-metadata-hash-extension = { version = "0.13.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "40.0.0", default-features = false }
-pallet-assets = { version = "48.0.0", default-features = false }
+pallet-assets = { version = "48.1.0", default-features = false }
 pallet-aura = { version = "44.0.0", default-features = false }
 pallet-authorship = { version = "45.0.0", default-features = false }
 pallet-collective = { version = "45.0.0", default-features = false }
@@ -146,13 +173,13 @@ pallet-timestamp = { version = "44.0.0", default-features = false }
 pallet-transaction-payment = { version = "45.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "45.0.0", default-features = false }
 pallet-identity = { version = "45.0.0", default-features = false }
-frame-benchmarking = { version = "45.0.0", default-features = false }
+frame-benchmarking = { version = "45.0.1", default-features = false }
 frame-system-benchmarking = { version = "45.0.0", default-features = false }
 frame-try-runtime = { version = "0.51.0", default-features = false }
 pallet-grandpa = { version = "45.0.0", default-features = false }
-sp-staking = { version = "42.0.0", default-features = false }
+sp-staking = { version = "42.1.0", default-features = false }
 pallet-xcm = { version = "25.0.0", default-features = false }
-parachains-common = { version = "27.0.0", default-features = false }
+parachains-common = { version = "27.1.0", default-features = false }
 
 # Cumulus
 # (native)
@@ -196,7 +223,7 @@ xcm-builder = { version = "25.0.0", package = "staging-xcm-builder", default-fea
 xcm-executor = { version = "24.0.0", package = "staging-xcm-executor", default-features = false }
 
 # Substrate build deps
-substrate-wasm-builder = "31.0.0"
+substrate-wasm-builder = "31.1.0"
 
 # Robonomics pallets
 pallet-robonomics-datalog = { path = "./frame/datalog", default-features = false }
@@ -205,6 +232,7 @@ pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-subscription = { path = "./frame/subscription", default-features = false }
+pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-wrapped-native = { path = "./frame/wrapped-native", default-features = false }
 
 # Robonomics runtimes
