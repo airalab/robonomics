@@ -870,6 +870,7 @@ pub mod pallet {
     }
 
     #[pallet::error]
+    #[derive(PartialEq)]
     pub enum Error<T> {
         /// Auction with the index doesn't exist.
         NotExistAuction,
