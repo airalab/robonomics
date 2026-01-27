@@ -73,7 +73,9 @@
 //! ## Security Guarantees
 //!
 //! This scheme provides:
-//! - **Forward Secrecy**: Compromising one session doesn't compromise past sessions
+//! - **Forward Secrecy (with ephemeral ECDH keys)**: When each session uses fresh
+//!   ephemeral key pairs for ECDH, compromising one session's keys does not reveal
+//!   past sessions
 //! - **Algorithm Agility**: Multiple AEAD algorithms supported without security loss
 //! - **Domain Separation**: Keys are bound to the Robonomics network context
 //! - **Key Independence**: Each algorithm and key pair combination produces unique keys
