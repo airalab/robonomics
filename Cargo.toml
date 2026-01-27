@@ -27,7 +27,7 @@ members = [
   "frame/cps",
   "frame/wrapped-native",
   "runtime/robonomics",
-  "tools/cps",
+  "tools/libcps",
 ]
 resolver = "2"
 

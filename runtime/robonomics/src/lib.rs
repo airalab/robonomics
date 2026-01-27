@@ -662,6 +662,9 @@ mod runtime {
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
 
+    #[runtime::pallet_index(57)]
+    pub type CPS = pallet_robonomics_cps;
+
     //
     // XCM support pallets.
     //

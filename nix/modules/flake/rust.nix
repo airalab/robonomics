@@ -21,6 +21,10 @@
         OPENSSL_NO_VENDOR = 1;
         PROTOC = "${protobuf}/bin/protoc";
       };
+      /*
+      crates."libcps".crane.args = with pkgs; {
+      };
+      */
     };
 
     packages = let inherit (config.rust-project) crates; in rec {
