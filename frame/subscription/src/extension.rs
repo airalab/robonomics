@@ -423,13 +423,13 @@ where
         }
     }
 
-    fn post_dispatch(
+    fn post_dispatch_details(
         pre: Self::Pre,
         info: &DispatchInfoOf<<T as Config>::Call>,
-        post_info: &mut PostDispatchInfoOf<<T as Config>::Call>,
+        post_info: &PostDispatchInfoOf<<T as Config>::Call>,
         _len: usize,
         _result: &DispatchResult,
-    ) -> Result<(), TransactionValidityError> {
+    ) -> Result<Weight, TransactionValidityError> {
         if pre.pays_no_fee {
             if let (Some(owner), Some(subscription_id)) =
                 (pre.subscription_owner, pre.subscription_id)
@@ -441,6 +441,6 @@ where
             }
         }
 
-        Ok(())
+        Ok(Weight::zero())
     }
 }
