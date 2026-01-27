@@ -146,11 +146,13 @@ pub use scheme::CryptoScheme;
 /// 1. **Domain Separation**: Binds derived keys to the Robonomics network context,
 ///    ensuring keys cannot be reused or confused with other systems or protocols.
 ///
-/// 2. **Entropy Addition**: Provides additional randomness in the key derivation
-///    process, independent of the shared secret's entropy.
+/// 2. **Structured Extraction**: Provides a fixed, protocol-specific input to HKDF's
+///    extract phase, helping to condition the shared secret into a uniform pseudorandom
+///    key without claiming to add independent entropy.
 ///
-/// 3. **Defense in Depth**: Protects against potential weaknesses in the shared
-///    secret by ensuring the derived key material has good randomness properties.
+/// 3. **Defense in Depth**: Increases robustness against potential weaknesses in the
+///    shared secret by strengthening the key derivation process and reducing the risk
+///    of key material being misused across different contexts.
 ///
 /// # Why a Constant Salt?
 ///
