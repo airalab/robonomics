@@ -68,7 +68,7 @@
 //! ┌──────────────────────────────────────────────────────────┐
 //! │ 2. pre_dispatch()                                        │
 //! │    - Re-validate subscription (prevent race conditions)  │
-//! │    - Prepare RwsPreDispatch info (owner, sub_id)         │
+//! │    - Prepare SubscriptionPreDispatch info (owner, sub_id)│
 //! │    → Returns: Pre-dispatch state                         │
 //! └──────────────────────────────────────────────────────────┘
 //!                         │
@@ -164,8 +164,8 @@
 //!
 //! // Create the call
 //! let call = RuntimeCall::Datalog(
-//!     pallet_robonomics_datalog::Call::record { 
-//!         record: b"sensor_data".to_vec() 
+//!     pallet_robonomics_datalog::Call::record {
+//!         record: b"sensor_data".to_vec()
 //!     }
 //! );
 //!
@@ -215,9 +215,12 @@
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::TypeInfo;
 use sp_runtime::{
-    traits::{TransactionExtension, Dispatchable, DispatchOriginOf, DispatchInfoOf, AsSystemOriginSigner, Get},
+    traits::{
+        AsSystemOriginSigner, DispatchInfoOf, DispatchOriginOf, Dispatchable, Get,
+        TransactionExtension,
+    },
     transaction_validity::{
-        InvalidTransaction, TransactionValidityError, ValidTransaction, TransactionSource,
+        InvalidTransaction, TransactionSource, TransactionValidityError, ValidTransaction,
     },
 };
 use sp_std::prelude::*;
@@ -243,7 +246,7 @@ use sp_runtime::traits::{Implication, PostDispatchInfoOf};
 ///   assetId: {
 ///     parents: 0,
 ///     interior: {
-///       X1: [{ 
+///       X1: [{
 ///         PalletInstance: 55,  // Subscription pallet index
 ///       }]
 ///     }
@@ -279,8 +282,14 @@ pub enum ChargeSubscriptionTransaction<T: Config + Send + Sync> {
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for ChargeSubscriptionTransaction<T> {
     fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
         match self {
-            Self::Enabled { subscription_id, .. } => {
-                write!(f, "ChargeSubscriptionTransaction::Enabled({})", subscription_id)
+            Self::Enabled {
+                subscription_id, ..
+            } => {
+                write!(
+                    f,
+                    "ChargeSubscriptionTransaction::Enabled({})",
+                    subscription_id
+                )
             }
             Self::Disabled => write!(f, "ChargeSubscriptionTransaction::Disabled"),
         }
@@ -298,7 +307,7 @@ impl<T: Config + Send + Sync> Default for ChargeSubscriptionTransaction<T> {
 /// This struct is returned from `pre_dispatch()` and passed to `post_dispatch()`
 /// to track whether the transaction used a subscription and which one.
 #[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
-pub struct RwsPreDispatch<AccountId> {
+pub struct SubscriptionPreDispatch<AccountId> {
     /// Whether this transaction is using a subscription (fee-less)
     pub pays_no_fee: bool,
     /// The account that owns the subscription
@@ -352,7 +361,7 @@ where
 
     type Implicit = ();
     type Val = ();
-    type Pre = RwsPreDispatch<T::AccountId>;
+    type Pre = SubscriptionPreDispatch<T::AccountId>;
 
     fn implicit(&self) -> Result<Self::Implicit, TransactionValidityError> {
         Ok(())
@@ -370,8 +379,7 @@ where
         match self {
             Self::Enabled { .. } => {
                 // Performs validation: 2 DB reads + computation (total ≈ 55µs = 55_000_000 ps)
-                Weight::from_parts(55_000_000, 0)
-                    .saturating_add(T::DbWeight::get().reads(2))
+                Weight::from_parts(55_000_000, 0).saturating_add(T::DbWeight::get().reads(2))
             }
             Self::Disabled => {
                 // No validation performed, minimal overhead
@@ -389,18 +397,25 @@ where
         _self_implicit: Self::Implicit,
         _inherited_implication: &impl Implication,
         _source: TransactionSource,
-    ) -> Result<(ValidTransaction, Self::Val, DispatchOriginOf<<T as Config>::Call>), TransactionValidityError> {
-        // Extract the account ID from the origin
-        let Some(who) = origin.as_system_origin_signer() else {
-            // If not a signed origin, this extension is not applicable
-            return Err(InvalidTransaction::BadSigner.into());
-        };
-
+    ) -> Result<
+        (
+            ValidTransaction,
+            Self::Val,
+            DispatchOriginOf<<T as Config>::Call>,
+        ),
+        TransactionValidityError,
+    > {
         match self {
             Self::Enabled {
                 subscription_owner,
                 subscription_id,
             } => {
+                // Extract the account ID from the origin
+                let Some(who) = origin.as_system_origin_signer() else {
+                    // If not a signed origin, this extension is not applicable
+                    return Err(InvalidTransaction::BadSigner.into());
+                };
+
                 // Validate subscription and permissions
                 Self::validate_subscription(who, subscription_owner, *subscription_id, info)?;
 
@@ -425,14 +440,12 @@ where
             Self::Enabled {
                 subscription_owner,
                 subscription_id,
-            } => {
-                Ok(RwsPreDispatch {
-                    pays_no_fee: true,
-                    subscription_owner: Some(subscription_owner),
-                    subscription_id: Some(subscription_id),
-                })
-            }
-            Self::Disabled => Ok(RwsPreDispatch {
+            } => Ok(SubscriptionPreDispatch {
+                pays_no_fee: true,
+                subscription_owner: Some(subscription_owner),
+                subscription_id: Some(subscription_id),
+            }),
+            Self::Disabled => Ok(SubscriptionPreDispatch {
                 pays_no_fee: false,
                 subscription_owner: None,
                 subscription_id: None,

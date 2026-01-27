@@ -108,8 +108,8 @@
 //!
 //! // Create transaction with RWS extension
 //! let call = RuntimeCall::Datalog(
-//!     pallet_robonomics_datalog::Call::record { 
-//!         record: b"sensor_data".to_vec() 
+//!     pallet_robonomics_datalog::Call::record {
+//!         record: b"sensor_data".to_vec()
 //!     }
 //! );
 //!
@@ -142,9 +142,9 @@
 //! Subscription::grant_access(origin, subscription_id: 0, delegate: bob);
 //!
 //! // Now bob can use alice's subscription by specifying:
-//! // ChargeSubscriptionTransaction::Enabled { 
-//! //     subscription_owner: alice, 
-//! //     subscription_id: 0 
+//! // ChargeSubscriptionTransaction::Enabled {
+//! //     subscription_owner: alice,
+//! //     subscription_id: 0
 //! // }
 //!
 //! // Owner can revoke access
@@ -521,9 +521,9 @@ pub mod extension;
 pub mod mock;
 pub mod weights;
 
+pub use extension::ChargeSubscriptionTransaction;
 pub use pallet::*;
 pub use weights::WeightInfo;
-pub use extension::ChargeSubscriptionTransaction;
 
 #[cfg(test)]
 mod tests;
@@ -957,13 +957,8 @@ pub mod pallet {
     /// Permissions for accounts to use subscriptions.
     /// Maps (subscription_owner, subscription_id, delegate_account) => has_permission
     /// When true, the delegate account can use the subscription for fee-less transactions.
-    pub(super) type SubscriptionPermissions<T: Config> = StorageMap<
-        _,
-        Blake2_128Concat,
-        (T::AccountId, u32, T::AccountId),
-        bool,
-        ValueQuery,
-    >;
+    pub(super) type SubscriptionPermissions<T: Config> =
+        StorageMap<_, Blake2_128Concat, (T::AccountId, u32, T::AccountId), bool, ValueQuery>;
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]

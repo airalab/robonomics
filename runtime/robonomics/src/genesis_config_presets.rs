@@ -27,7 +27,7 @@ use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
-pub const SAFE_XCM_VERSION: u32 = 5; 
+pub const SAFE_XCM_VERSION: u32 = 5;
 
 fn robonomics_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
@@ -60,8 +60,12 @@ fn robonomics_genesis(
                 })
                 .collect(),
         },
-        polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
-        sudo: SudoConfig { key: Some(Sr25519Keyring::Alice.to_account_id()) },
+        polkadot_xcm: PolkadotXcmConfig {
+            safe_xcm_version: Some(SAFE_XCM_VERSION)
+        },
+        sudo: SudoConfig {
+            key: Some(Sr25519Keyring::Alice.to_account_id())
+        },
     })
 }
 

@@ -550,7 +550,6 @@ impl pallet_robonomics_rws::Config for Runtime {
     type WeightInfo = pallet_robonomics_rws::weights::SubstrateWeight<Runtime>;
 }
 
-
 parameter_types! {
     pub const MinimalBid: Balance = 1 * XRT;
     pub const AuctionDurationMs: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)

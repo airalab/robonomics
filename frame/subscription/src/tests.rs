@@ -20,7 +20,7 @@
 use crate::{mock::*, *};
 use frame_support::{assert_err, assert_ok};
 use sp_runtime::{
-    traits::{TransactionExtension, Implication},
+    traits::{Implication, TransactionExtension},
     transaction_validity::TransactionSource,
     DispatchError,
 };
@@ -138,7 +138,11 @@ fn test_bid_first_becomes_winner() {
         ));
 
         // First bid becomes the winner
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         let auction = SubscriptionPallet::auction(0).unwrap();
         assert_eq!(auction.winner, Some(ALICE));
@@ -162,7 +166,11 @@ fn test_bid_outbidding() {
         ));
 
         // Alice bids first
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         assert_eq!(Balances::reserved_balance(ALICE), 200);
 
         // Bob outbids Alice
@@ -197,7 +205,11 @@ fn test_bid_too_small_error() {
         );
 
         // First valid bid
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         // Try to outbid with same or lower amount
         assert_err!(
@@ -232,7 +244,11 @@ fn test_bid_after_auction_period_ends() {
         ));
 
         // First bid within period (this starts the countdown)
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         // Verify first_bid_time was set
         let auction = SubscriptionPallet::auction(0).unwrap();
@@ -258,7 +274,11 @@ fn test_bid_after_auction_period_ends() {
         Timestamp::set_timestamp(2_000_000 + 100_000 + 1);
 
         // First bid on an auction with no previous bids should work regardless of time passed since creation
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(CHARLIE), 1, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(CHARLIE),
+            1,
+            200
+        ));
 
         // Verify the first bid set the first_bid_time to current time
         let auction2 = SubscriptionPallet::auction(1).unwrap();
@@ -277,7 +297,11 @@ fn test_claim_successful() {
             RuntimeOrigin::root(),
             SubscriptionMode::Lifetime { tps: 10_000 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         // Cannot claim before auction ends
         assert_err!(
@@ -289,7 +313,11 @@ fn test_claim_successful() {
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
         // Alice claims the auction
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Check subscription was created for Alice with id 0
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
@@ -317,12 +345,20 @@ fn test_claim_to_beneficiary() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
         // Alice claims but assigns to BOB
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, Some(BOB)));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            Some(BOB)
+        ));
 
         // Subscription should be created for BOB, not ALICE
         assert!(SubscriptionPallet::subscription(ALICE, 0).is_none());
@@ -342,7 +378,11 @@ fn test_claim_by_non_winner_error() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
@@ -363,12 +403,20 @@ fn test_double_claim_error() {
             RuntimeOrigin::root(),
             SubscriptionMode::Lifetime { tps: 10_000 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
 
         Timestamp::set_timestamp(1_000_000 + 100_000);
 
         // First claim succeeds
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Second claim should fail
         assert_err!(
@@ -408,9 +456,17 @@ fn test_multiple_subscriptions_per_user() {
             RuntimeOrigin::root(),
             SubscriptionMode::Lifetime { tps: 10_000 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Create second subscription for ALICE
         Timestamp::set_timestamp(2_000_000);
@@ -418,9 +474,17 @@ fn test_multiple_subscriptions_per_user() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 1, 300));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            1,
+            300
+        ));
         Timestamp::set_timestamp(2_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 1, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            1,
+            None
+        ));
 
         // ALICE should have two subscriptions with IDs 0 and 1
         assert!(SubscriptionPallet::subscription(ALICE, 0).is_some());
@@ -457,7 +521,11 @@ fn test_multiple_auctions_remain_live_until_first_bid() {
         Timestamp::set_timestamp(1_000_000 + 3_600_000);
 
         // First bid on auction 0 should work even though created long ago
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         assert_eq!(
             SubscriptionPallet::auction(0).unwrap().first_bid_time,
             Some(1_000_000 + 3_600_000)
@@ -470,7 +538,11 @@ fn test_multiple_auctions_remain_live_until_first_bid() {
         assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(BOB), 0, 300));
 
         // Auction 1 still has no bids and can accept its first bid
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 1, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            1,
+            200
+        ));
         assert_eq!(
             SubscriptionPallet::auction(1).unwrap().first_bid_time,
             Some(1_000_000 + 3_600_000 + 50_000)
@@ -492,7 +564,11 @@ fn test_multiple_auctions_remain_live_until_first_bid() {
         );
 
         // Auction 2 still has no bids and can accept its first bid at any time
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(CHARLIE), 2, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(CHARLIE),
+            2,
+            200
+        ));
         assert_eq!(
             SubscriptionPallet::auction(2).unwrap().first_bid_time,
             Some(1_000_000 + 3_600_000 + 50_000 + 100_000)
@@ -525,7 +601,10 @@ fn test_start_lifetime_creates_subscription() {
         assert_eq!(subscription.expiration_time, None);
 
         // Verify assets were locked
-        assert_eq!(SubscriptionPallet::locked_assets(ALICE, 0), Some(lock_amount));
+        assert_eq!(
+            SubscriptionPallet::locked_assets(ALICE, 0),
+            Some(lock_amount)
+        );
 
         // Verify asset balance was reduced
         assert_eq!(
@@ -542,12 +621,18 @@ fn test_start_lifetime_tps_calculation() {
 
         // Test different amounts
         // Amount 500 * Ratio 100 = 50_000 μTPS
-        assert_ok!(SubscriptionPallet::start_lifetime(RuntimeOrigin::signed(ALICE), 500));
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            500
+        ));
         let sub0 = SubscriptionPallet::subscription(ALICE, 0).unwrap();
         assert_eq!(sub0.mode, SubscriptionMode::Lifetime { tps: 50_000 });
 
         // Amount 2000 * Ratio 100 = 200_000 μTPS
-        assert_ok!(SubscriptionPallet::start_lifetime(RuntimeOrigin::signed(ALICE), 2000));
+        assert_ok!(SubscriptionPallet::start_lifetime(
+            RuntimeOrigin::signed(ALICE),
+            2000
+        ));
         let sub1 = SubscriptionPallet::subscription(ALICE, 1).unwrap();
         assert_eq!(sub1.mode, SubscriptionMode::Lifetime { tps: 200_000 });
     });
@@ -569,7 +654,10 @@ fn test_lifetime_subscription_weight_accumulation() {
 
         // Verify subscription was created
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
-        assert_eq!(subscription.mode, SubscriptionMode::Lifetime { tps: 500_000 });
+        assert_eq!(
+            subscription.mode,
+            SubscriptionMode::Lifetime { tps: 500_000 }
+        );
         assert_eq!(subscription.free_weight, 0);
         assert_eq!(subscription.last_update, 1_000_000);
 
@@ -679,9 +767,17 @@ fn test_active_daily_subscription_usage() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 30 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Verify subscription has 10_000 μTPS (0.01 TPS) and correct expiration
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
@@ -714,9 +810,17 @@ fn test_daily_subscription_expiration() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 1 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Verify subscription
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
@@ -745,9 +849,17 @@ fn test_daily_subscription_expiration_boundary() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 2 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         let subscription = SubscriptionPallet::subscription(ALICE, 0).unwrap();
         // Expiration: (1_000_000 + 100_000) + 2 * MILLIS_PER_DAY = 1_100_000 + 172_800_000 = 173_900_000
@@ -959,9 +1071,17 @@ fn test_is_subscription_active_daily() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 2 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Subscription is active immediately after creation
         assert!(Pallet::<Test>::is_subscription_active(&ALICE, 0));
@@ -992,7 +1112,9 @@ fn test_has_sufficient_weight_lifetime() {
         ));
 
         // Initially has 0 weight
-        assert!(!Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 70_952_000));
+        assert!(!Pallet::<Test>::has_sufficient_weight(
+            &ALICE, 0, 70_952_000
+        ));
 
         // Wait 10 seconds: 70_952_000 * 100_000 * 10_000 / 1_000_000_000 = 70_952_000
         Timestamp::set_timestamp(1_000_000 + 10_000);
@@ -1001,7 +1123,11 @@ fn test_has_sufficient_weight_lifetime() {
         assert!(Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 70_952_000));
 
         // But not for two calls
-        assert!(!Pallet::<Test>::has_sufficient_weight(&ALICE, 0, 141_904_000));
+        assert!(!Pallet::<Test>::has_sufficient_weight(
+            &ALICE,
+            0,
+            141_904_000
+        ));
     });
 }
 
@@ -1015,9 +1141,17 @@ fn test_has_sufficient_weight_daily_expired() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 1 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Wait to accumulate weight
         Timestamp::set_timestamp(1_100_000 + 10_000);
@@ -1047,17 +1181,17 @@ fn test_extension_validation_disabled() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed even without subscription        
+        // Validate should succeed even without subscription
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1092,17 +1226,17 @@ fn test_extension_validation_enabled_success() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with valid subscription        
+        // Validate should succeed with valid subscription
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1137,17 +1271,17 @@ fn test_extension_validation_no_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with BadSigner        
+        // Validate should fail with BadSigner
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(BOB).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1189,17 +1323,17 @@ fn test_extension_validation_with_permission() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should succeed with permission        
+        // Validate should succeed with permission
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(BOB).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1231,17 +1365,17 @@ fn test_extension_validation_insufficient_weight() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (insufficient weight)        
+        // Validate should fail with Payment error (insufficient weight)
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1259,9 +1393,17 @@ fn test_extension_validation_expired_subscription() {
             RuntimeOrigin::root(),
             SubscriptionMode::Daily { days: 1 }
         ));
-        assert_ok!(SubscriptionPallet::bid(RuntimeOrigin::signed(ALICE), 0, 200));
+        assert_ok!(SubscriptionPallet::bid(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            200
+        ));
         Timestamp::set_timestamp(1_000_000 + 100_000);
-        assert_ok!(SubscriptionPallet::claim(RuntimeOrigin::signed(ALICE), 0, None));
+        assert_ok!(SubscriptionPallet::claim(
+            RuntimeOrigin::signed(ALICE),
+            0,
+            None
+        ));
 
         // Move past expiration
         Timestamp::set_timestamp(87_500_001);
@@ -1278,17 +1420,17 @@ fn test_extension_validation_expired_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error (expired)        
+        // Validate should fail with Payment error (expired)
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
@@ -1314,22 +1456,20 @@ fn test_extension_validation_non_existent_subscription() {
             extension_weight: frame_support::weights::Weight::zero(),
         };
 
-        // Validate should fail with Payment error        
+        // Validate should fail with Payment error
         let call = RuntimeCall::System(frame_system::Call::remark { remark: vec![] });
         let origin = frame_system::RawOrigin::Signed(ALICE).into();
         let implication = sp_runtime::traits::transaction_extension::TxBaseImplication(&call);
-        
+
         let result = extension.validate(
             origin,
             &call,
             &info,
             0,
-            (),  // self_implicit
+            (), // self_implicit
             &implication,
             TransactionSource::External,
         );
         assert!(result.is_err());
     });
 }
-
-

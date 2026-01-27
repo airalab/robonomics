@@ -24,10 +24,7 @@ use frame_support::{
 };
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::{
-    traits::IdentityLookup,
-    BuildStorage, Permill,
-};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, Permill};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type Balance = u128;
@@ -39,8 +36,6 @@ const ALICE: u64 = 1;
 const BOB: u64 = 2;
 const CHARLIE: u64 = 3;
 const LIFETIME_ASSET_ID: AssetId = 1;
-
-
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
