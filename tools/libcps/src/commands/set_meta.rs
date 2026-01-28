@@ -64,8 +64,9 @@ pub async fn execute(
     // Update metadata using Node API with NodeData
     let node = Node::new(&client, node_id);
 
-    display::tree::progress("Updating metadata...");
+    let spinner = display::banner::spinner("Submitting transaction...");
     let _events = node.set_meta(Some(meta_data)).await?;
+    spinner.finish_and_clear();
 
     display::tree::success(&format!(
         "Metadata updated for node {}",
