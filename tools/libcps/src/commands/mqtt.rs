@@ -83,17 +83,17 @@ pub async fn subscribe(
         topic.bright_cyan()
     ));
 
-    // Start the bridge with CLI message handler
-    mqtt::start_subscribe_bridge(
-        blockchain_config,
-        cipher,
-        mqtt_config,
-        topic,
-        node_id,
-        receiver_public,
-        Some(message_handler),
-    )
-    .await
+    // Start the bridge with CLI message handler using Config method
+    mqtt_config
+        .subscribe(
+            blockchain_config,
+            cipher,
+            topic,
+            node_id,
+            receiver_public,
+            Some(message_handler),
+        )
+        .await
 }
 
 /// Publish blockchain node payload changes to an MQTT topic (CLI wrapper).
@@ -152,13 +152,13 @@ pub async fn publish(
         );
     });
 
-    // Start the bridge with publish handler
-    mqtt::start_publish_bridge(
-        blockchain_config,
-        mqtt_config,
-        topic,
-        node_id,
-        Some(publish_handler),
-    )
-    .await
+    // Start the bridge with publish handler using Config method
+    mqtt_config
+        .publish(
+            blockchain_config,
+            topic,
+            node_id,
+            Some(publish_handler),
+        )
+        .await
 }
