@@ -23,6 +23,8 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::{EncryptedData, NodeData};
+use std::future::Future;
+use std::pin::Pin;
 
 pub async fn execute(
     config: &Config,
@@ -51,7 +53,7 @@ fn print_node_tree<'a>(
     decrypt: bool,
     prefix: &'a str,
     is_last: bool,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + 'a>> {
+) -> Pin<Box<dyn Future<Output = Result<()>> + 'a>> {
     Box::pin(async move {
         // Query node using Node API
         let node = Node::new(client, node_id);
