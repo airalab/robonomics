@@ -154,7 +154,8 @@ let meta = NodeData::from("sensor config");
 let meta_bytes = NodeData::from(vec![1, 2, 3]);
 
 // Create encrypted data from cipher output
-let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
+let encrypted_msg = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
+let encrypted_bytes = encrypted_msg.encode();
 let payload = NodeData::aead_from(encrypted_bytes);
 ```
 
