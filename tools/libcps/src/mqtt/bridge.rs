@@ -209,6 +209,14 @@ pub fn extract_node_data(node_data: &NodeData) -> String {
 /// or custom processing.
 pub type MessageHandler = Box<dyn Fn(&str, &[u8]) + Send + Sync>;
 
+/// Optional callback type for publish notifications.
+///
+/// When provided, this callback is called after successfully publishing
+/// a message to MQTT. Can be used for logging or custom tracking.
+/// 
+/// Arguments: (topic, block_number, payload_data)
+pub type PublishHandler = Box<dyn Fn(&str, u32, &str) + Send + Sync>;
+
 /// Start an MQTT subscribe bridge that listens to a topic and updates blockchain node payload.
 ///
 /// This function creates a long-running bridge that:
@@ -312,21 +320,28 @@ pub async fn start_subscribe_bridge(
                 }
 
                 // Prepare node data (encrypt if needed)
-                let node_data = if let Some(receiver_pub) = receiver_public.as_ref() {
-                    if let Some(cipher) = cipher {
-                        let encrypted_bytes = cipher.encrypt(&publish.payload, receiver_pub)?;
-                        NodeData::aead_from(encrypted_bytes)
-                    } else {
+                let node_data = match (receiver_public.as_ref(), cipher) {
+                    (Some(receiver_pub), Some(cipher)) => {
+                        match cipher.encrypt(&publish.payload, receiver_pub) {
+                            Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
+                            Err(e) => {
+                                // Encryption failed, log error and continue
+                                eprintln!("Failed to encrypt message: {}", e);
+                                continue;
+                            }
+                        }
+                    }
+                    _ => {
                         let payload_str = String::from_utf8_lossy(&publish.payload);
                         NodeData::from(payload_str.to_string())
                     }
-                } else {
-                    let payload_str = String::from_utf8_lossy(&publish.payload);
-                    NodeData::from(payload_str.to_string())
                 };
 
                 // Update node payload on blockchain
-                node.set_payload(Some(node_data)).await?;
+                if let Err(e) = node.set_payload(Some(node_data)).await {
+                    // Blockchain update failed, log error and continue
+                    eprintln!("Failed to update node payload: {}", e);
+                }
             }
             Ok(Event::Incoming(Packet::ConnAck(_))) => {
                 // Connected to MQTT broker
@@ -360,6 +375,7 @@ pub async fn start_subscribe_bridge(
 /// * `mqtt_config` - MQTT broker configuration
 /// * `topic` - MQTT topic to publish to
 /// * `node_id` - Blockchain node ID to monitor
+/// * `publish_handler` - Optional callback for publish notifications
 ///
 /// # Returns
 ///
@@ -387,6 +403,7 @@ pub async fn start_subscribe_bridge(
 ///     &mqtt_config,
 ///     "actuators/status",
 ///     1,
+///     None,
 /// ).await?;
 /// # Ok(())
 /// # }
@@ -396,6 +413,7 @@ pub async fn start_publish_bridge(
     mqtt_config: &Config,
     topic: &str,
     node_id: u64,
+    publish_handler: Option<PublishHandler>,
 ) -> Result<()> {
     // Connect to blockchain
     let client = Client::new(blockchain_config).await?;
@@ -495,11 +513,23 @@ pub async fn start_publish_bridge(
                     if let Some(payload) = node_info.payload {
                         // Extract the actual data from NodeData
                         let data = extract_node_data(&payload);
+                        let block_number = block.number();
 
                         // Publish to MQTT
-                        let _ = mqtt_client
+                        match mqtt_client
                             .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
-                            .await;
+                            .await
+                        {
+                            Ok(_) => {
+                                // Call publish handler if provided
+                                if let Some(ref handler) = publish_handler {
+                                    handler(topic, block_number, &data);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to publish to MQTT: {}", e);
+                            }
+                        }
                     }
                 }
                 Err(_e) => {

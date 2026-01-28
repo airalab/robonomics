@@ -41,10 +41,9 @@ pub async fn subscribe(
     receiver_public: Option<[u8; 32]>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     // Early validation
     let (host, port) = mqtt::parse_mqtt_url(&mqtt_config.broker)?;
-    
     display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
     display::tree::info(&format!("Topic: {}", topic.bright_cyan()));
     display::tree::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
@@ -108,7 +107,7 @@ pub async fn publish(
     node_id: u64,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
-    
+
     // Early validation
     let (host, port) = mqtt::parse_mqtt_url(&mqtt_config.broker)?;
 
@@ -125,6 +124,34 @@ pub async fn publish(
         node_id.to_string().bright_cyan()
     ));
 
-    // Start the bridge
-    mqtt::start_publish_bridge(blockchain_config, mqtt_config, topic, node_id).await
+    // Create a publish handler for CLI output
+    let topic_clone = topic.to_string();
+    let publish_handler = Box::new(move |_t: &str, block_num: u32, data: &str| {
+        // Truncate data if too long for display
+        const MAX_DISPLAY_LENGTH: usize = 100;
+        const TRUNCATE_ELLIPSIS: &str = "...";
+        const TRUNCATE_LENGTH: usize = MAX_DISPLAY_LENGTH - TRUNCATE_ELLIPSIS.len();
+
+        let display_data = {
+            let char_count = data.chars().take(MAX_DISPLAY_LENGTH + 1).count();
+            if char_count > MAX_DISPLAY_LENGTH {
+                let truncated: String = data.chars().take(TRUNCATE_LENGTH).collect();
+                format!("{}...", truncated)
+            } else {
+                data.to_string()
+            }
+        };
+
+        println!(
+            "[{}] {} Published to {} at block #{}: {}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            "📤".bright_blue(),
+            topic_clone.bright_cyan(),
+            block_num.to_string().bright_white(),
+            display_data.bright_white()
+        );
+    });
+
+    // Start the bridge with publish handler
+    mqtt::start_publish_bridge(blockchain_config, mqtt_config, topic, node_id, Some(publish_handler)).await
 }

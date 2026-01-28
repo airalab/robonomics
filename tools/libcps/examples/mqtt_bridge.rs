@@ -78,11 +78,17 @@ async fn main() -> anyhow::Result<()> {
     println!("Starting publish bridge...");
     println!("This will monitor node 1 and publish to 'actuators/status'");
 
+    // Create a custom publish handler
+    let handler = Box::new(|topic: &str, block_num: u32, data: &str| {
+        println!("📤 Published to {} at block #{}: {}", topic, block_num, data);
+    });
+
     mqtt::start_publish_bridge(
         &blockchain_config,
         &mqtt_config,
         "actuators/status",
         1,  // node_id
+        Some(handler),
     )
     .await?;
     */

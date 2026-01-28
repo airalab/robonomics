@@ -71,5 +71,5 @@ pub mod bridge;
 
 pub use bridge::{
     extract_node_data, parse_mqtt_url, start_publish_bridge, start_subscribe_bridge, Config,
-    MessageHandler,
+    MessageHandler, PublishHandler,
 };
