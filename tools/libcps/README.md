@@ -614,10 +614,10 @@ Three AEAD ciphers are supported:
 
 3. **Self-Describing Message Format**
    
-   The encrypted bytes contain a JSON structure with embedded algorithm metadata:
+   The encrypted bytes contain a versioned JSON structure (enum) with embedded algorithm metadata:
    ```json
    {
-     "version": 1,
+     "version": "1",
      "algorithm": "xchacha20",
      "from": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
      "nonce": "base64-encoded-nonce",
@@ -625,11 +625,26 @@ Three AEAD ciphers are supported:
    }
    ```
    
-   This self-describing format enables:
+   The message format is defined as a Rust enum `EncryptedMessage`:
+   ```rust
+   pub enum EncryptedMessage {
+       V1 {
+           algorithm: String,    // e.g., "xchacha20", "aesgcm256", "chacha20"
+           from: String,         // Sender's public key (bs58 encoded)
+           nonce: String,        // base64-encoded nonce
+           ciphertext: String,   // base64-encoded encrypted data with auth tag
+       }
+   }
+   ```
+   
+   This versioned enum design provides:
    - **Automatic algorithm detection**: Receiver knows which cipher to use
-   - **Sender identification**: The `from` field contains sender's public key (SS58 format)
-   - **Version compatibility**: Future protocol upgrades without breaking changes
+   - **Sender identification**: The `from` field contains sender's public key (bs58/SS58 format)
+   - **Version compatibility**: Enum tagged by version field for future upgrades
+   - **Type safety**: Compile-time guarantee of message structure validity
    - **Portable encryption**: No need to coordinate algorithm choice out-of-band
+   - **Future-proof**: New versions can be added as additional enum variants (e.g., `V2 { ... }`)
+
 
 ### Key Derivation (HKDF-SHA256)
 
