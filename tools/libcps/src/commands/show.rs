@@ -32,12 +32,12 @@ pub async fn execute(
     node_id: u64,
     decrypt: bool,
 ) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::progress(&format!("Fetching node tree from node {node_id}..."));
+    display::info(&format!("Connected to {}", config.ws_url));
+    display::progress(&format!("Fetching node tree from node {node_id}..."));
 
     // Print the tree recursively
     print_node_tree(&client, node_id, cipher, decrypt, "", true).await?;

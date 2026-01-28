@@ -675,9 +675,9 @@ async fn main() -> Result<()> {
             }
             MqttCommands::Start { config } => {
                 // Load config from file and start all bridges
-                display::tree::progress(&format!("Loading configuration from {}...", config));
+                display::progress(&format!("Loading configuration from {}...", config));
                 let mqtt_config = mqtt::Config::from_file(&config)?;
-                display::tree::success("Configuration loaded successfully");
+                display::success("Configuration loaded successfully");
 
                 // Validate that blockchain config is present
                 if mqtt_config.blockchain.is_none() {
@@ -686,7 +686,7 @@ async fn main() -> Result<()> {
                     ));
                 }
 
-                display::tree::info(&format!(
+                display::info(&format!(
                     "Starting {} subscribe bridge(s) and {} publish bridge(s)...",
                     mqtt_config.subscribe.len(),
                     mqtt_config.publish.len()

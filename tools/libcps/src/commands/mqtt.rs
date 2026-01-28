@@ -27,6 +27,7 @@ use colored::*;
 use libcps::blockchain::Config;
 use libcps::crypto::Cipher;
 use libcps::mqtt;
+use sp_core::crypto::{AccountId32, Ss58Codec};
 
 /// Subscribe to an MQTT topic and update blockchain node payload (CLI wrapper).
 ///
@@ -41,23 +42,24 @@ pub async fn subscribe(
     receiver_public: Option<[u8; 32]>,
     algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     // Early validation
     let (host, port) = mqtt::parse_mqtt_url(&mqtt_config.broker)?;
-    display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
-    display::tree::info(&format!("Topic: {}", topic.bright_cyan()));
-    display::tree::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
+    display::info(&format!("Connected to {}", blockchain_config.ws_url));
+    display::info(&format!("Topic: {}", topic.bright_cyan()));
+    display::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
 
     if let Some(receiver_pub) = receiver_public.as_ref() {
         match (cipher, algorithm) {
             (Some(cipher), Some(algorithm)) => {
-                display::tree::info(&format!(
+                display::info(&format!(
                     "[E] Using encryption: {} with {}",
                     algorithm,
                     cipher.scheme()
                 ));
-                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
+                let receiver_account = AccountId32::from(*receiver_pub);
+                display::info(&format!("[K] Receiver: {}", receiver_account.to_ss58check()));
             }
             (None, _) => {
                 return Err(anyhow::anyhow!(
@@ -72,7 +74,7 @@ pub async fn subscribe(
         }
     }
 
-    display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
+    display::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
 
     // Create a message handler for CLI output
     let topic_clone = topic.to_string();
@@ -87,11 +89,11 @@ pub async fn subscribe(
         );
     });
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Connected to {}",
         mqtt_config.broker.bright_white()
     ));
-    display::tree::info(&format!(
+    display::info(&format!(
         "📡 Listening for messages on {}...",
         topic.bright_cyan()
     ));
@@ -121,25 +123,25 @@ pub async fn publish(
     node_id: u64,
     decrypt: bool,
 ) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     // Early validation
     let (host, port) = mqtt::parse_mqtt_url(&mqtt_config.broker)?;
 
-    display::tree::info(&format!("Connected to {}", blockchain_config.ws_url));
+    display::info(&format!("Connected to {}", blockchain_config.ws_url));
 
-    display::tree::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
+    display::progress(&format!("Connecting to MQTT broker {}:{}...", host, port));
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Connected to {}",
         mqtt_config.broker.bright_white()
     ));
 
     if decrypt {
-        display::tree::info("[D] Decryption enabled - encrypted payloads will be decrypted");
+        display::info("[D] Decryption enabled - encrypted payloads will be decrypted");
     }
 
-    display::tree::info(&format!(
+    display::info(&format!(
         "🔄 Monitoring node {} payload on each block...",
         node_id.to_string().bright_cyan()
     ));
