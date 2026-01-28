@@ -653,14 +653,13 @@ impl Cipher {
             .map_err(|e| anyhow!("HKDF key derivation failed: {e}"))?;
 
         // Step 3: Encrypt with specified algorithm
-        // AEAD encryption should never fail with valid keys - failures indicate bugs
         let (nonce_bytes, ciphertext) = match algorithm {
             EncryptionAlgorithm::XChaCha20Poly1305 => {
                 let cipher = XChaCha20Poly1305::new(&encryption_key.into());
                 let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
-                    .expect("XChaCha20 encryption failed - this indicates a bug or memory corruption");
+                    .map_err(|e| anyhow!("XChaCha20 encryption failed: {e}"))?;
                 (nonce.to_vec(), ct)
             }
             EncryptionAlgorithm::AesGcm256 => {
@@ -668,7 +667,7 @@ impl Cipher {
                 let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
-                    .expect("AES-GCM encryption failed - this indicates a bug or memory corruption");
+                    .map_err(|e| anyhow!("AES-GCM encryption failed: {e}"))?;
                 (nonce.to_vec(), ct)
             }
             EncryptionAlgorithm::ChaCha20Poly1305 => {
@@ -676,7 +675,7 @@ impl Cipher {
                 let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
-                    .expect("ChaCha20 encryption failed - this indicates a bug or memory corruption");
+                    .map_err(|e| anyhow!("ChaCha20 encryption failed: {e}"))?;
                 (nonce.to_vec(), ct)
             }
         };

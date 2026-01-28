@@ -50,13 +50,25 @@ pub async fn subscribe(
     display::tree::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
 
     if let Some(receiver_pub) = receiver_public.as_ref() {
-        if let (Some(cipher), Some(algorithm)) = (cipher, algorithm) {
-            display::tree::info(&format!(
-                "🔐 Using encryption: {} with {}",
-                algorithm,
-                cipher.scheme()
-            ));
-            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        match (cipher, algorithm) {
+            (Some(cipher), Some(algorithm)) => {
+                display::tree::info(&format!(
+                    "🔐 Using encryption: {} with {}",
+                    algorithm,
+                    cipher.scheme()
+                ));
+                display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+            }
+            (None, _) => {
+                return Err(anyhow::anyhow!(
+                    "Encryption requested (receiver public key provided) but cipher is missing. Provide --suri to enable encryption."
+                ));
+            }
+            (_, None) => {
+                return Err(anyhow::anyhow!(
+                    "Encryption requested (receiver public key provided) but algorithm is missing. Provide --cipher to specify algorithm."
+                ));
+            }
         }
     }
 

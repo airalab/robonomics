@@ -509,6 +509,16 @@ impl Config {
                                 }
                             }
                         }
+                        (Some(_), Some(_), None) => {
+                            // Encryption requested but algorithm is missing
+                            eprintln!("Error: Encryption requested (receiver public key provided) but algorithm is missing");
+                            continue;
+                        }
+                        (Some(_), None, _) => {
+                            // Encryption requested but cipher is missing
+                            eprintln!("Error: Encryption requested (receiver public key provided) but cipher is missing");
+                            continue;
+                        }
                         _ => {
                             let payload_str = String::from_utf8_lossy(&publish.payload);
                             NodeData::from(payload_str.to_string())
