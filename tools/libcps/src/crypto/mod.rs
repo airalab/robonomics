@@ -322,12 +322,7 @@ impl Default for EncryptionAlgorithm {
 
 impl fmt::Display for EncryptionAlgorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::XChaCha20Poly1305 => "xchacha20",
-            Self::AesGcm256 => "aesgcm256",
-            Self::ChaCha20Poly1305 => "chacha20",
-        };
-        write!(f, "{}", s)
+        write!(f, "{}", self.name())
     }
 }
 
