@@ -112,36 +112,66 @@ sudo cp target/release/cps /usr/local/bin/
 
 ### Quick Start
 
-```rust
-use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
-use libcps::types::NodeData;
+This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
 
-fn main() -> anyhow::Result<()> {
-    // Create cipher for encryption/decryption
-    let alice = Cipher::new(
-        "//Alice".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
+```rust
+use libcps::{Client, Config, node::Node, types::NodeData};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Connect to blockchain
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    let client = Client::new(&config).await?;
     
-    let bob = Cipher::new(
-        "//Bob".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
+    // Create a root node with metadata and payload
+    let meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
+    let payload: NodeData = r#"{"status":"online"}"#.into();
+    let root_node = Node::create(&client, None, Some(meta), Some(payload)).await?;
+    println!("Created root node: {}", root_node.id());
     
-    // Encrypt message from Alice to Bob
-    let plaintext = b"secret message";
-    let encrypted_msg = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
+    // Create a child node
+    let child_meta: NodeData = r#"{"type":"room","name":"Server Room"}"#.into();
+    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
+    let child_node = Node::create(&client, Some(root_node.id()), Some(child_meta), Some(child_payload)).await?;
+    println!("Created child node: {}", child_node.id());
     
-    // Bob decrypts with sender verification
-    let decrypted = bob.decrypt(&encrypted_msg, Some(&alice.public_key()))?;
-    assert_eq!(plaintext, &decrypted[..]);
+    // Update node metadata
+    let new_meta: NodeData = r#"{"type":"room","name":"Server Room","updated":true}"#.into();
+    child_node.set_meta(Some(new_meta)).await?;
     
-    // Create node data
-    let plain_data = NodeData::from("sensor reading: 22.5C");
-    let encrypted_data = NodeData::aead_from(encrypted);
+    // Update node payload
+    let new_payload: NodeData = r#"{"temp":"23.5C"}"#.into();
+    child_node.set_payload(Some(new_payload)).await?;
+    
+    // Query and display node information
+    let info = root_node.query().await?;
+    println!("Node {} has {} children", info.id, info.children.len());
     
     Ok(())
 }
+```
+
+**Tree Visualization Output:**
+
+When you query a node, the tree is displayed with the new visual format:
+
+```
+[*] CPS Node ID: 0
+
+|--  [O] Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+|--  [M] Meta: {
+  "type": "building",
+  "name": "HQ"
+}
+`--  [P] Payload: {
+  "status": "online"
+}
+
+    [C] Children: (1 nodes)
+      `-- Node: 1
 ```
 
 ### Data Types
@@ -387,19 +417,19 @@ cps show 0
 
 Output:
 ```
-🌳 CPS Node ID: 0
+[*] CPS Node ID: 0
 
-├─ 📝 Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-├─ 📊 Meta: {
-     "type": "building",
-     "name": "HQ"
-   }
-└─ 🔐 Payload: {
-     "status": "online"
-   }
+|--  [O] Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+|--  [M] Meta: {
+  "type": "building",
+  "name": "HQ"
+}
+`--  [P] Payload: {
+  "status": "online"
+}
 
-   👶 Children: (1 nodes)
-      └─ NodeId: 1
+    [C] Children: (1 nodes)
+      `-- Node: 1
 ```
 
 ## 📖 Commands
