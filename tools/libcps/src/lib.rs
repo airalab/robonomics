@@ -136,6 +136,7 @@
 
 pub mod blockchain;
 pub mod crypto;
+#[cfg(feature = "mqtt")]
 pub mod mqtt;
 pub mod node;
 pub mod types;

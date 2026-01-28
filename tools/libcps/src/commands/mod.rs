@@ -19,6 +19,7 @@
 
 pub mod create;
 pub mod move_node;
+#[cfg(feature = "mqtt")]
 pub mod mqtt;
 pub mod remove;
 pub mod set_meta;

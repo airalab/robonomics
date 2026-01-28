@@ -87,6 +87,7 @@ struct Cli {
     #[arg(long, env = "ROBONOMICS_SURI")]
     suri: Option<String>,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT broker URL
     #[arg(
         long,
@@ -95,14 +96,17 @@ struct Cli {
     )]
     mqtt_broker: String,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT username
     #[arg(long, env = "ROBONOMICS_MQTT_USERNAME")]
     mqtt_username: Option<String>,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT password
     #[arg(long, env = "ROBONOMICS_MQTT_PASSWORD")]
     mqtt_password: Option<String>,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT client ID
     #[arg(long, env = "ROBONOMICS_MQTT_CLIENT_ID")]
     mqtt_client_id: Option<String>,
@@ -299,10 +303,12 @@ EXAMPLES:
     },
 
     /// MQTT bridge commands
+    #[cfg(feature = "mqtt")]
     #[command(subcommand)]
     Mqtt(MqttCommands),
 }
 
+#[cfg(feature = "mqtt")]
 #[derive(Subcommand)]
 enum MqttCommands {
     /// Subscribe to MQTT topic and update node payload with received messages
@@ -405,6 +411,7 @@ async fn main() -> Result<()> {
         suri: cli.suri.clone(),
     };
 
+    #[cfg(feature = "mqtt")]
     // Create MQTT config
     let mqtt_config = mqtt::Config {
         broker: cli.mqtt_broker.clone(),
@@ -551,6 +558,7 @@ async fn main() -> Result<()> {
         Commands::Remove { node_id, force } => {
             commands::remove::execute(&blockchain_config, node_id, force).await?;
         }
+        #[cfg(feature = "mqtt")]
         Commands::Mqtt(mqtt_cmd) => match mqtt_cmd {
             MqttCommands::Subscribe {
                 topic,

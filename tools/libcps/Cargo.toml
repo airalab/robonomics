@@ -42,7 +42,7 @@ hkdf = { workspace = true }
 sha2 = { workspace = true }
 
 # MQTT
-rumqttc = { workspace = true }
+rumqttc = { workspace = true, optional = true }
 
 # CLI & Output
 clap = { workspace = true, features = ["env"], optional = true }
@@ -61,8 +61,9 @@ anyhow = { workspace = true }
 chrono = { workspace = true, optional = true }
 
 [features]
-default = ["cli"]
-cli = ["clap", "colored", "chrono"]
+default = ["mqtt", "cli"]
+mqtt = ["dep:rumqttc"]
+cli = ["mqtt", "clap", "colored", "chrono"]
 
 [package.metadata.docs.rs]
 all-features = true
