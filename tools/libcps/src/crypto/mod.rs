@@ -358,8 +358,10 @@ pub enum EncryptedMessage {
         /// Sender's public key (32 bytes)
         from: [u8; 32],
         /// Nonce for the encryption (size varies by algorithm: 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20)
+        #[serde(with = "easy_hex::serde")]
         nonce: Vec<u8>,
         /// Encrypted ciphertext with authentication tag
+        #[serde(with = "easy_hex::serde")]
         ciphertext: Vec<u8>,
     },
 }

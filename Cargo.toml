@@ -89,6 +89,7 @@ indicatif = "0.17"
 color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
+easy-hex = "1.0"
 
 # Substrate
 # (wasm)

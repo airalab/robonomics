@@ -26,6 +26,7 @@ use sp_core::crypto::Ss58Codec;
 use std::str::FromStr;
 
 // Import from the library
+use libcps::crypto::{Cipher, EncryptionAlgorithm};
 use libcps::{blockchain, mqtt};
 
 // CLI-specific modules (display and commands)
@@ -490,11 +491,11 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, scheme)?)
+                Some(Cipher::new(suri, scheme)?)
             } else {
                 None
             };
-            commands::show::execute(&blockchain_config, cipher.as_ref(), node_id, decrypt).await?;
+            commands::show::execute(&blockchain_config, cipher.as_ref(), node_id).await?;
         }
         Commands::Create {
             parent,
@@ -521,10 +522,7 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (
-                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
-                    Some(algorithm),
-                )
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
                 (None, None)
             };
@@ -555,15 +553,12 @@ async fn main() -> Result<()> {
 
             // Create cipher if encryption is requested
             let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
-                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                let algorithm = EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (
-                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
-                    Some(algorithm),
-                )
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
                 (None, None)
             };
@@ -593,15 +588,12 @@ async fn main() -> Result<()> {
 
             // Create cipher if encryption is requested
             let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
-                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                let algorithm = EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (
-                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
-                    Some(algorithm),
-                )
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
                 (None, None)
             };
@@ -642,15 +634,12 @@ async fn main() -> Result<()> {
 
                 // Create cipher if encryption is requested
                 let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
-                    let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                    let algorithm = EncryptionAlgorithm::from_str(&cipher)
                         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                     let suri = cli
                         .suri
                         .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                    (
-                        Some(libcps::crypto::Cipher::new(suri, scheme)?),
-                        Some(algorithm),
-                    )
+                    (Some(Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
                     (None, None)
                 };
