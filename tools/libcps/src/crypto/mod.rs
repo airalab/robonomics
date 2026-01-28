@@ -474,7 +474,9 @@ impl Cipher {
     ///
     /// # Errors
     ///
-    /// Returns error if ECDH fails
+    /// Returns error if the public key cannot be decompressed into a valid curve point.
+    /// Not all 32-byte arrays represent valid curve points - decompression validates
+    /// the point is on the curve and meets other curve-specific requirements.
     fn derive_shared_secret(&self, receiver_public: &[u8; 32]) -> Result<[u8; 32]> {
         match self.scheme {
             CryptoScheme::Sr25519 => {
@@ -638,7 +640,13 @@ impl Cipher {
     ///
     /// # Errors
     ///
-    /// Returns error if the receiver's public key is invalid and cannot be decompressed
+    /// Returns error if the receiver's public key is invalid (not a valid curve point).
+    /// This can happen if:
+    /// - The public key bytes don't represent a valid Ristretto255 point (SR25519)
+    /// - The public key bytes don't represent a valid Edwards curve point (Ed25519)
+    /// - The receiver_public parameter contains corrupted or malicious data
+    ///
+    /// Note: Valid public keys from Substrate accounts will always succeed.
     pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32], algorithm: EncryptionAlgorithm) -> Result<EncryptedMessage> {
         // Step 1: Derive shared secret using direct ECDH
         // This can fail if receiver_public is invalid
