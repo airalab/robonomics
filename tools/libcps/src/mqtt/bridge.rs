@@ -535,9 +535,8 @@ impl Config {
                             }
                         }
                         (Some(_), _, _) => {
-                            // This state should be prevented by earlier validation at bridge setup
-                            // (receiver_public.is_some() ensures both cipher and algorithm are present)
-                            unreachable!("receiver_public is Some but cipher or algorithm is missing; this should be unreachable due to prior validation");
+                            // Invalid bridge configuration: receiver_public is set but cipher or algorithm is missing
+                            unreachable!("invalid bridge configuration: receiver_public is set but cipher or algorithm is missing");
                         }
                         _ => {
                             let payload_str = String::from_utf8_lossy(&publish.payload);
