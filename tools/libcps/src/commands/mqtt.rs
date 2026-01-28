@@ -61,12 +61,12 @@ pub async fn subscribe(
             }
             (None, _) => {
                 return Err(anyhow::anyhow!(
-                    "Encryption requested (receiver public key provided) but cipher is missing. Provide --suri to enable encryption."
+                    "Encryption requested but cipher is missing. Provide --suri to enable encryption."
                 ));
             }
             (_, None) => {
                 return Err(anyhow::anyhow!(
-                    "Encryption requested (receiver public key provided) but algorithm is missing. Provide --cipher to specify algorithm."
+                    "Encryption requested but algorithm is missing. Provide --cipher to specify algorithm."
                 ));
             }
         }
