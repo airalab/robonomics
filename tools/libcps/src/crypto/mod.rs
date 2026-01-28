@@ -651,7 +651,7 @@ impl Cipher {
     ///
     /// Note: Valid public keys from Substrate accounts will always succeed.
     pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32], algorithm: EncryptionAlgorithm) -> Result<EncryptedMessage> {
-        debug!("Encrypting {} bytes with {:?} using {:?} scheme", 
+        debug!("Encrypting {} bytes with {} using {:?} scheme", 
                plaintext.len(), algorithm, self.scheme);
         trace!("Receiver public key: {:02x?}...", &receiver_public[..8]);
         
