@@ -132,6 +132,335 @@ pub struct Config {
     pub client_id: Option<String>,
 }
 
+impl Config {
+    /// Subscribe to MQTT topic and update blockchain node payload with received messages.
+    ///
+    /// This method creates a long-running bridge that:
+    /// 1. Connects to the specified MQTT broker
+    /// 2. Subscribes to the given topic
+    /// 3. On each message, optionally encrypts it and updates the blockchain node payload
+    /// 4. Automatically reconnects on connection failures
+    ///
+    /// # Arguments
+    ///
+    /// * `blockchain_config` - Configuration for blockchain connection
+    /// * `cipher` - Optional cipher for encrypting messages before sending to blockchain
+    /// * `topic` - MQTT topic to subscribe to
+    /// * `node_id` - Blockchain node ID to update
+    /// * `receiver_public` - Optional public key for encryption (required if cipher is provided)
+    /// * `message_handler` - Optional callback for custom message processing
+    ///
+    /// # Returns
+    ///
+    /// This function runs indefinitely and only returns on fatal errors.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::{mqtt, Config as BlockchainConfig};
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let blockchain_config = BlockchainConfig {
+    ///     ws_url: "ws://localhost:9944".to_string(),
+    ///     suri: Some("//Alice".to_string()),
+    /// };
+    ///
+    /// let mqtt_config = mqtt::Config {
+    ///     broker: "mqtt://localhost:1883".to_string(),
+    ///     username: None,
+    ///     password: None,
+    ///     client_id: None,
+    /// };
+    ///
+    /// mqtt_config.subscribe(
+    ///     &blockchain_config,
+    ///     None,
+    ///     "sensors/temp",
+    ///     1,
+    ///     None,
+    ///     None,
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn subscribe(
+        &self,
+        blockchain_config: &BlockchainConfig,
+        cipher: Option<&Cipher>,
+        topic: &str,
+        node_id: u64,
+        receiver_public: Option<[u8; 32]>,
+        message_handler: Option<MessageHandler>,
+    ) -> Result<()> {
+        // Connect to blockchain
+        let client = Client::new(blockchain_config).await?;
+        let _keypair = client.require_keypair()?;
+
+        // Parse MQTT broker URL
+        let (host, port) = parse_mqtt_url(&self.broker)?;
+
+        // Configure MQTT client
+        let client_id = self
+            .client_id
+            .clone()
+            .unwrap_or_else(|| format!("cps-sub-{}", node_id));
+
+        let mut mqttoptions = MqttOptions::new(client_id, host, port);
+        mqttoptions.set_keep_alive(Duration::from_secs(30));
+
+        // Set credentials if provided
+        if let Some(username) = &self.username {
+            mqttoptions.set_credentials(username, self.password.as_deref().unwrap_or(""));
+        }
+
+        // Create MQTT client with eventloop
+        let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+
+        // Subscribe to topic
+        mqtt_client
+            .subscribe(topic, QoS::AtMostOnce)
+            .await
+            .map_err(|e| anyhow!("Failed to subscribe to topic: {}", e))?;
+
+        // Create Node handle for updates
+        let node = Node::new(&client, node_id);
+
+        // Process MQTT events
+        loop {
+            match eventloop.poll().await {
+                Ok(Event::Incoming(Packet::Publish(publish))) => {
+                    // Call custom handler if provided
+                    if let Some(ref handler) = message_handler {
+                        handler(topic, &publish.payload);
+                    }
+
+                    // Prepare node data (encrypt if needed)
+                    let node_data = match (receiver_public.as_ref(), cipher) {
+                        (Some(receiver_pub), Some(cipher)) => {
+                            match cipher.encrypt(&publish.payload, receiver_pub) {
+                                Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
+                                Err(e) => {
+                                    // Encryption failed, log error and continue
+                                    eprintln!("Failed to encrypt message: {}", e);
+                                    continue;
+                                }
+                            }
+                        }
+                        _ => {
+                            let payload_str = String::from_utf8_lossy(&publish.payload);
+                            NodeData::from(payload_str.to_string())
+                        }
+                    };
+
+                    // Update node payload on blockchain
+                    if let Err(e) = node.set_payload(Some(node_data)).await {
+                        // Blockchain update failed, log error and continue
+                        eprintln!("Failed to update node payload: {}", e);
+                    }
+                }
+                Ok(Event::Incoming(Packet::ConnAck(_))) => {
+                    // Connected to MQTT broker
+                }
+                Ok(Event::Incoming(Packet::SubAck(_))) => {
+                    // Subscription acknowledged
+                }
+                Ok(_) => {
+                    // Other events, ignore
+                }
+                Err(_e) => {
+                    // Connection error, wait and retry
+                    sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+                }
+            }
+        }
+    }
+
+    /// Monitor blockchain node and publish payload changes to MQTT topic.
+    ///
+    /// This method creates a long-running bridge that:
+    /// 1. Connects to blockchain and MQTT broker
+    /// 2. Subscribes to finalized blocks
+    /// 3. Monitors for PayloadSet events for the specified node
+    /// 4. Publishes node payload changes to the MQTT topic
+    /// 5. Automatically handles MQTT reconnections
+    ///
+    /// # Arguments
+    ///
+    /// * `blockchain_config` - Configuration for blockchain connection
+    /// * `topic` - MQTT topic to publish to
+    /// * `node_id` - Blockchain node ID to monitor
+    /// * `publish_handler` - Optional callback for publish notifications
+    ///
+    /// # Returns
+    ///
+    /// This function runs indefinitely and only returns on fatal errors.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::{mqtt, Config as BlockchainConfig};
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let blockchain_config = BlockchainConfig {
+    ///     ws_url: "ws://localhost:9944".to_string(),
+    ///     suri: Some("//Alice".to_string()),
+    /// };
+    ///
+    /// let mqtt_config = mqtt::Config {
+    ///     broker: "mqtt://localhost:1883".to_string(),
+    ///     username: None,
+    ///     password: None,
+    ///     client_id: None,
+    /// };
+    ///
+    /// mqtt_config.publish(
+    ///     &blockchain_config,
+    ///     "actuators/status",
+    ///     1,
+    ///     None,
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn publish(
+        &self,
+        blockchain_config: &BlockchainConfig,
+        topic: &str,
+        node_id: u64,
+        publish_handler: Option<PublishHandler>,
+    ) -> Result<()> {
+        // Connect to blockchain
+        let client = Client::new(blockchain_config).await?;
+
+        // Parse MQTT broker URL
+        let (host, port) = parse_mqtt_url(&self.broker)?;
+
+        // Configure MQTT client
+        let client_id = self
+            .client_id
+            .clone()
+            .unwrap_or_else(|| format!("cps-pub-{}", node_id));
+
+        let mut mqttoptions = MqttOptions::new(client_id, host, port);
+        mqttoptions.set_keep_alive(Duration::from_secs(30));
+
+        // Set credentials if provided
+        if let Some(username) = &self.username {
+            mqttoptions.set_credentials(username, self.password.as_deref().unwrap_or(""));
+        }
+
+        // Create MQTT client
+        let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+
+        // Create shutdown channel for graceful termination of background task
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
+
+        // Spawn task to handle MQTT events (for auto-reconnect)
+        let eventloop_handle = tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = shutdown_rx.recv() => {
+                        // Shutdown signal received, exit gracefully
+                        break;
+                    }
+                    result = eventloop.poll() => {
+                        if let Err(_e) = result {
+                            // Connection error, wait and retry
+                            sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create Node handle for querying
+        let node = Node::new(&client, node_id);
+
+        // Subscribe to finalized blocks
+        let mut blocks_sub = client
+            .api
+            .blocks()
+            .subscribe_finalized()
+            .await
+            .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
+
+        // Monitor each block for PayloadSet events
+        while let Some(block_result) = blocks_sub.next().await {
+            let block = match block_result {
+                Ok(b) => b,
+                Err(_e) => {
+                    continue;
+                }
+            };
+
+            // Check events in this block for PayloadSet events related to our node
+            let events = match block.events().await {
+                Ok(e) => e,
+                Err(_e) => {
+                    continue;
+                }
+            };
+
+            // Look for PayloadSet events for our node
+            let payload_set_events = events.find::<PayloadSet>();
+
+            let mut payload_updated = false;
+            for event in payload_set_events {
+                match event {
+                    Ok(payload_event) => {
+                        // Check if this event is for our node
+                        if payload_event.0 .0 == node_id {
+                            payload_updated = true;
+                            break;
+                        }
+                    }
+                    Err(_e) => {
+                        // Failed to decode event, skip
+                    }
+                }
+            }
+
+            // Only query and publish if the payload was actually updated
+            if payload_updated {
+                match node.query_at(block.hash()).await {
+                    Ok(node_info) => {
+                        if let Some(payload) = node_info.payload {
+                            // Extract the actual data from NodeData
+                            let data = extract_node_data(&payload);
+                            let block_number = block.number();
+
+                            // Publish to MQTT
+                            match mqtt_client
+                                .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
+                                .await
+                            {
+                                Ok(_) => {
+                                    // Call publish handler if provided
+                                    if let Some(ref handler) = publish_handler {
+                                        handler(topic, block_number, &data);
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to publish to MQTT: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(_e) => {
+                        // Failed to query node, skip
+                    }
+                }
+            }
+        }
+
+        // Signal shutdown to the background MQTT event loop task
+        let _ = shutdown_tx.send(());
+
+        // Wait for the background task to finish (with timeout to avoid hanging)
+        let _ = tokio::time::timeout(Duration::from_secs(5), eventloop_handle).await;
+
+        Ok(())
+    }
+}
+
 /// Constants for MQTT operation
 const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 
@@ -219,25 +548,7 @@ pub type PublishHandler = Box<dyn Fn(&str, u32, &str) + Send + Sync>;
 
 /// Start an MQTT subscribe bridge that listens to a topic and updates blockchain node payload.
 ///
-/// This function creates a long-running bridge that:
-/// 1. Connects to the specified MQTT broker
-/// 2. Subscribes to the given topic
-/// 3. On each message, optionally encrypts it and updates the blockchain node payload
-/// 4. Automatically reconnects on connection failures
-///
-/// # Arguments
-///
-/// * `blockchain_config` - Configuration for blockchain connection
-/// * `cipher` - Optional cipher for encrypting messages before sending to blockchain
-/// * `mqtt_config` - MQTT broker configuration
-/// * `topic` - MQTT topic to subscribe to
-/// * `node_id` - Blockchain node ID to update
-/// * `receiver_public` - Optional public key for encryption (required if cipher is provided)
-/// * `message_handler` - Optional callback for custom message processing
-///
-/// # Returns
-///
-/// This function runs indefinitely and only returns on fatal errors.
+/// This is a convenience wrapper around [`Config::subscribe`].
 ///
 /// # Examples
 ///
@@ -277,109 +588,21 @@ pub async fn start_subscribe_bridge(
     receiver_public: Option<[u8; 32]>,
     message_handler: Option<MessageHandler>,
 ) -> Result<()> {
-    // Connect to blockchain
-    let client = Client::new(blockchain_config).await?;
-    let _keypair = client.require_keypair()?;
-
-    // Parse MQTT broker URL
-    let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
-
-    // Configure MQTT client
-    let client_id = mqtt_config
-        .client_id
-        .clone()
-        .unwrap_or_else(|| format!("cps-sub-{}", node_id));
-
-    let mut mqttoptions = MqttOptions::new(client_id, host, port);
-    mqttoptions.set_keep_alive(Duration::from_secs(30));
-
-    // Set credentials if provided
-    if let Some(username) = &mqtt_config.username {
-        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
-    }
-
-    // Create MQTT client with eventloop
-    let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-
-    // Subscribe to topic
-    mqtt_client
-        .subscribe(topic, QoS::AtMostOnce)
+    mqtt_config
+        .subscribe(
+            blockchain_config,
+            cipher,
+            topic,
+            node_id,
+            receiver_public,
+            message_handler,
+        )
         .await
-        .map_err(|e| anyhow!("Failed to subscribe to topic: {}", e))?;
-
-    // Create Node handle for updates
-    let node = Node::new(&client, node_id);
-
-    // Process MQTT events
-    loop {
-        match eventloop.poll().await {
-            Ok(Event::Incoming(Packet::Publish(publish))) => {
-                // Call custom handler if provided
-                if let Some(ref handler) = message_handler {
-                    handler(topic, &publish.payload);
-                }
-
-                // Prepare node data (encrypt if needed)
-                let node_data = match (receiver_public.as_ref(), cipher) {
-                    (Some(receiver_pub), Some(cipher)) => {
-                        match cipher.encrypt(&publish.payload, receiver_pub) {
-                            Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
-                            Err(e) => {
-                                // Encryption failed, log error and continue
-                                eprintln!("Failed to encrypt message: {}", e);
-                                continue;
-                            }
-                        }
-                    }
-                    _ => {
-                        let payload_str = String::from_utf8_lossy(&publish.payload);
-                        NodeData::from(payload_str.to_string())
-                    }
-                };
-
-                // Update node payload on blockchain
-                if let Err(e) = node.set_payload(Some(node_data)).await {
-                    // Blockchain update failed, log error and continue
-                    eprintln!("Failed to update node payload: {}", e);
-                }
-            }
-            Ok(Event::Incoming(Packet::ConnAck(_))) => {
-                // Connected to MQTT broker
-            }
-            Ok(Event::Incoming(Packet::SubAck(_))) => {
-                // Subscription acknowledged
-            }
-            Ok(_) => {
-                // Other events, ignore
-            }
-            Err(_e) => {
-                // Connection error, wait and retry
-                sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
-            }
-        }
-    }
 }
 
 /// Start an MQTT publish bridge that monitors blockchain and publishes to MQTT topic.
 ///
-/// This function creates a long-running bridge that:
-/// 1. Connects to blockchain and MQTT broker
-/// 2. Subscribes to finalized blocks
-/// 3. Monitors for PayloadSet events for the specified node
-/// 4. Publishes node payload changes to the MQTT topic
-/// 5. Automatically handles MQTT reconnections
-///
-/// # Arguments
-///
-/// * `blockchain_config` - Configuration for blockchain connection
-/// * `mqtt_config` - MQTT broker configuration
-/// * `topic` - MQTT topic to publish to
-/// * `node_id` - Blockchain node ID to monitor
-/// * `publish_handler` - Optional callback for publish notifications
-///
-/// # Returns
-///
-/// This function runs indefinitely and only returns on fatal errors.
+/// This is a convenience wrapper around [`Config::publish`].
 ///
 /// # Examples
 ///
@@ -415,135 +638,7 @@ pub async fn start_publish_bridge(
     node_id: u64,
     publish_handler: Option<PublishHandler>,
 ) -> Result<()> {
-    // Connect to blockchain
-    let client = Client::new(blockchain_config).await?;
-
-    // Parse MQTT broker URL
-    let (host, port) = parse_mqtt_url(&mqtt_config.broker)?;
-
-    // Configure MQTT client
-    let client_id = mqtt_config
-        .client_id
-        .clone()
-        .unwrap_or_else(|| format!("cps-pub-{}", node_id));
-
-    let mut mqttoptions = MqttOptions::new(client_id, host, port);
-    mqttoptions.set_keep_alive(Duration::from_secs(30));
-
-    // Set credentials if provided
-    if let Some(username) = &mqtt_config.username {
-        mqttoptions.set_credentials(username, mqtt_config.password.as_deref().unwrap_or(""));
-    }
-
-    // Create MQTT client
-    let (mqtt_client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-
-    // Create shutdown channel for graceful termination of background task
-    let (shutdown_tx, mut shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
-
-    // Spawn task to handle MQTT events (for auto-reconnect)
-    let eventloop_handle = tokio::spawn(async move {
-        loop {
-            tokio::select! {
-                _ = shutdown_rx.recv() => {
-                    // Shutdown signal received, exit gracefully
-                    break;
-                }
-                result = eventloop.poll() => {
-                    if let Err(_e) = result {
-                        // Connection error, wait and retry
-                        sleep(Duration::from_secs(MQTT_RECONNECT_DELAY_SECS)).await;
-                    }
-                }
-            }
-        }
-    });
-
-    // Create Node handle for querying
-    let node = Node::new(&client, node_id);
-
-    // Subscribe to finalized blocks
-    let mut blocks_sub = client
-        .api
-        .blocks()
-        .subscribe_finalized()
+    mqtt_config
+        .publish(blockchain_config, topic, node_id, publish_handler)
         .await
-        .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
-
-    // Monitor each block for PayloadSet events
-    while let Some(block_result) = blocks_sub.next().await {
-        let block = match block_result {
-            Ok(b) => b,
-            Err(_e) => {
-                continue;
-            }
-        };
-
-        // Check events in this block for PayloadSet events related to our node
-        let events = match block.events().await {
-            Ok(e) => e,
-            Err(_e) => {
-                continue;
-            }
-        };
-
-        // Look for PayloadSet events for our node
-        let payload_set_events = events.find::<PayloadSet>();
-
-        let mut payload_updated = false;
-        for event in payload_set_events {
-            match event {
-                Ok(payload_event) => {
-                    // Check if this event is for our node
-                    if payload_event.0 .0 == node_id {
-                        payload_updated = true;
-                        break;
-                    }
-                }
-                Err(_e) => {
-                    // Failed to decode event, skip
-                }
-            }
-        }
-
-        // Only query and publish if the payload was actually updated
-        if payload_updated {
-            match node.query_at(block.hash()).await {
-                Ok(node_info) => {
-                    if let Some(payload) = node_info.payload {
-                        // Extract the actual data from NodeData
-                        let data = extract_node_data(&payload);
-                        let block_number = block.number();
-
-                        // Publish to MQTT
-                        match mqtt_client
-                            .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
-                            .await
-                        {
-                            Ok(_) => {
-                                // Call publish handler if provided
-                                if let Some(ref handler) = publish_handler {
-                                    handler(topic, block_number, &data);
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to publish to MQTT: {}", e);
-                            }
-                        }
-                    }
-                }
-                Err(_e) => {
-                    // Failed to query node, skip
-                }
-            }
-        }
-    }
-
-    // Signal shutdown to the background MQTT event loop task
-    let _ = shutdown_tx.send(());
-
-    // Wait for the background task to finish (with timeout to avoid hanging)
-    let _ = tokio::time::timeout(Duration::from_secs(5), eventloop_handle).await;
-
-    Ok(())
 }

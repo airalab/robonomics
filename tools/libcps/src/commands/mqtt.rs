@@ -153,5 +153,12 @@ pub async fn publish(
     });
 
     // Start the bridge with publish handler
-    mqtt::start_publish_bridge(blockchain_config, mqtt_config, topic, node_id, Some(publish_handler)).await
+    mqtt::start_publish_bridge(
+        blockchain_config,
+        mqtt_config,
+        topic,
+        node_id,
+        Some(publish_handler),
+    )
+    .await
 }

@@ -50,8 +50,6 @@ async fn main() -> anyhow::Result<()> {
     println!();
 
     // Example 1: Subscribe Bridge
-    // Uncomment to run subscribe bridge
-    /*
     println!("Starting subscribe bridge...");
     println!("This will listen to 'sensors/temp' and update node 1");
     
@@ -60,44 +58,16 @@ async fn main() -> anyhow::Result<()> {
         println!("📥 Received on {}: {:?}", topic, payload);
     });
 
-    mqtt::start_subscribe_bridge(
-        &blockchain_config,
-        None,  // No encryption
-        &mqtt_config,
-        "sensors/temp",
-        1,  // node_id
-        None,  // No receiver public key
-        Some(handler),
-    )
-    .await?;
-    */
-
-    // Example 2: Publish Bridge
-    // Uncomment to run publish bridge
-    /*
-    println!("Starting publish bridge...");
-    println!("This will monitor node 1 and publish to 'actuators/status'");
-
-    // Create a custom publish handler
-    let handler = Box::new(|topic: &str, block_num: u32, data: &str| {
-        println!("📤 Published to {} at block #{}: {}", topic, block_num, data);
-    });
-
-    mqtt::start_publish_bridge(
-        &blockchain_config,
-        &mqtt_config,
-        "actuators/status",
-        1,  // node_id
-        Some(handler),
-    )
-    .await?;
-    */
-
-    println!("✅ MQTT API is working correctly!");
-    println!("\nTo actually run the bridges, uncomment the example code above.");
-    println!("Make sure you have:");
-    println!("  - A running Robonomics node at ws://localhost:9944");
-    println!("  - An MQTT broker at mqtt://localhost:1883");
+    mqtt_config
+        .subscribe(
+            &blockchain_config,
+            None,  // No encryption
+            "sensors/temp",
+            1,  // node_id
+            None,  // No receiver public key
+            Some(handler),
+        )
+        .await?;
 
     Ok(())
 }
