@@ -21,6 +21,7 @@
 //! both from the CLI and as a library. It supports bidirectional communication:
 //! - **Subscribe mode**: Listen to MQTT topics and update blockchain node payloads
 //! - **Publish mode**: Monitor blockchain events and publish to MQTT topics
+//! - **Config file mode**: Manage multiple bridges from a TOML configuration file
 //!
 //! # Examples
 //!
@@ -28,6 +29,101 @@
 //!
 //! ```
 //! use libcps::mqtt::Config;
+//!
+//! let config = Config {
+//!     broker: "mqtt://localhost:1883".to_string(),
+//!     username: Some("user".to_string()),
+//!     password: Some("pass".to_string()),
+//!     client_id: Some("my-client".to_string()),
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
+//! };
+//! ```
+//!
+//! ## Loading from Configuration File
+//!
+//! ```no_run
+//! use libcps::mqtt::Config;
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! // Load config from TOML file
+//! let config = Config::from_file("mqtt_config.toml")?;
+//!
+//! // Start all configured bridges
+//! config.start().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Configuration File Format
+//!
+//! ```toml
+//! broker = "mqtt://localhost:1883"
+//! username = "myuser"
+//! password = "mypass"
+//!
+//! [blockchain]
+//! ws_url = "ws://localhost:9944"
+//! suri = "//Alice"
+//!
+//! [[subscribe]]
+//! topic = "sensors/temperature"
+//! node_id = 5
+//!
+//! [[subscribe]]
+//! topic = "sensors/humidity"
+//! node_id = 6
+//! receiver_public = "5GrwvaEF..."
+//! cipher = "xchacha20"
+//! scheme = "sr25519"
+//!
+//! [[publish]]
+//! topic = "actuators/valve"
+//! node_id = 10
+//! ```
+//!
+//! ## Programmatic Usage
+//!
+//! ```no_run
+//! use libcps::{mqtt, Config as BlockchainConfig};
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! let blockchain_config = BlockchainConfig {
+//!     ws_url: "ws://localhost:9944".to_string(),
+//!     suri: Some("//Alice".to_string()),
+//! };
+//!
+//! let mqtt_config = mqtt::Config {
+//!     broker: "mqtt://localhost:1883".to_string(),
+//!     username: None,
+//!     password: None,
+//!     client_id: None,
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
+//! };
+//!
+//! // Subscribe: MQTT -> Blockchain
+//! mqtt_config.subscribe(
+//!     &blockchain_config,
+//!     None,
+//!     "sensors/temp",
+//!     1,
+//!     None,
+//!     None,
+//! ).await?;
+//!
+//! // Publish: Blockchain -> MQTT
+//! mqtt_config.publish(
+//!     &blockchain_config,
+//!     "actuators/status",
+//!     1,
+//!     None,
+//! ).await?;
+//! # Ok(())
+//! # }
+//! ```
 //!
 //! // Anonymous connection
 //! let config = Config {

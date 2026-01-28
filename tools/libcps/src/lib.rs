@@ -108,6 +108,9 @@
 //!     username: Some("user".to_string()),
 //!     password: Some("pass".to_string()),
 //!     client_id: Some("my-client".to_string()),
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
 //! };
 //!
 //! // Configure blockchain connection
@@ -139,7 +142,41 @@
 //! # }
 //! ```
 //!
-//! See [`mqtt`] module documentation and `examples/mqtt_bridge.rs` for more details.
+//! ### Configuration File Support
+//!
+//! Manage multiple bridges with a TOML configuration file:
+//!
+//! ```no_run
+//! use libcps::mqtt::Config;
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! // Load configuration from file
+//! let config = Config::from_file("mqtt_config.toml")?;
+//!
+//! // Start all configured bridges concurrently
+//! config.start().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Example configuration file:
+//! ```toml
+//! broker = "mqtt://localhost:1883"
+//!
+//! [blockchain]
+//! ws_url = "ws://localhost:9944"
+//! suri = "//Alice"
+//!
+//! [[subscribe]]
+//! topic = "sensors/temperature"
+//! node_id = 5
+//!
+//! [[publish]]
+//! topic = "actuators/valve"
+//! node_id = 10
+//! ```
+//!
+//! See [`mqtt`] module documentation and `examples/mqtt_config.toml` for more details.
 //!
 //! ## Feature Flags
 //!
