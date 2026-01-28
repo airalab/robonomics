@@ -17,12 +17,13 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 - 🎨 **Beautiful colored output** with emojis and ASCII art (CLI)
 - 🔐 **Multi-algorithm AEAD encryption** (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
 - 🔑 **Dual keypair support** (SR25519 for Substrate, ED25519 for IoT/Home Assistant)
-- 📡 **MQTT bridge** for IoT device integration
+- 📡 **MQTT bridge** for IoT device integration (optional feature)
 - 🌲 **Hierarchical tree visualization** of CPS nodes (CLI)
 - ⚙️ **Flexible configuration** via environment variables or CLI args
 - 🔒 **Secure by design** with proper key management and ECDH key agreement
 - 📚 **Comprehensive documentation** for library API
 - 🔧 **Type-safe blockchain integration** via subxt
+- 🎛️ **Feature flags** for flexible dependency management
 
 ## 🏗️ Architecture
 
@@ -56,6 +57,27 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 libcps = "0.1.0"
+```
+
+#### Feature Flags
+
+The library supports optional feature flags for flexible dependency management:
+
+- **`mqtt`** - Enables MQTT bridge functionality (enabled by default)
+- **`cli`** - Enables CLI binary with colored output (enabled by default)
+
+```toml
+# Default: all features enabled
+[dependencies]
+libcps = "0.1.0"
+
+# Library only, without MQTT
+[dependencies]
+libcps = { version = "0.1.0", default-features = false }
+
+# Library with MQTT only (no CLI)
+[dependencies]
+libcps = { version = "0.1.0", default-features = false, features = ["mqtt"] }
 ```
 
 ### CLI Tool from Crates.io
@@ -218,6 +240,46 @@ let mqtt_config = MqttConfig {
     client_id: Some("my-client".to_string()),
 };
 ```
+
+### MQTT Bridge (Library Usage)
+
+The MQTT bridge can be used directly from library code:
+
+```rust
+use libcps::{mqtt, Config as BlockchainConfig};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let blockchain_config = BlockchainConfig {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+
+    let mqtt_config = mqtt::Config {
+        broker: "mqtt://localhost:1883".to_string(),
+        username: None,
+        password: None,
+        client_id: Some("cps-subscriber".to_string()),
+        blockchain: None,
+        subscribe: Vec::new(),
+        publish: Vec::new(),
+    };
+
+    // Subscribe to MQTT and update blockchain using Config method
+    mqtt_config.subscribe(
+        &blockchain_config,
+        None,  // No encryption
+        "sensors/temperature",
+        42,    // node_id
+        None,  // No receiver public key
+        None,  // No custom message handler
+    ).await?;
+
+    Ok(())
+}
+```
+
+For detailed MQTT examples, see [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs).
 
 ## 🚀 CLI Quick Start
 
@@ -663,11 +725,129 @@ cps set-payload 5 "encrypted data" --receiver-public <RECEIVER_ADDRESS> --scheme
 
 ## 📡 MQTT Bridge
 
-The MQTT bridge enables seamless IoT integration with real-time, event-driven synchronization:
+The MQTT bridge enables seamless IoT integration with real-time, event-driven synchronization. The bridge functionality is available both as a CLI command and as a library API.
+
+### Library API
+
+The MQTT bridge can be used programmatically from your Rust applications:
+
+```rust
+use libcps::{mqtt, Config as BlockchainConfig};
+
+// Subscribe Bridge: MQTT → Blockchain
+// Using Config method API
+mqtt_config.subscribe(
+    &blockchain_config,
+    None,              // Optional encryption cipher
+    "sensors/temp",    // MQTT topic
+    1,                 // Node ID
+    None,              // Optional receiver public key
+    None,              // Optional message handler callback
+).await?;
+
+// Publish Bridge: Blockchain → MQTT
+// Using Config method API
+mqtt_config.publish(
+    &blockchain_config,
+    None,               // Optional cipher for decryption
+    "actuators/status", // MQTT topic
+    1,                  // Node ID
+    None,               // Optional publish handler callback
+).await?;
+```
+
+**Library Features:**
+- ✅ Reusable API for custom applications
+- ✅ Optional callbacks for message handling and logging
+- ✅ Resilient error handling (continues on transient failures)
+- ✅ Encryption support (SR25519/ED25519)
+- ✅ Auto-reconnection on connection failures
+
+See [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs) for a complete working example.
+
+### Configuration File
+
+You can manage multiple bridges using a TOML configuration file. This is ideal for running multiple subscribe and publish bridges concurrently.
+
+#### CLI Usage
+
+```bash
+# Start all bridges from config file
+cps mqtt start -c mqtt_config.toml
+
+# With custom config path
+cps mqtt start --config /etc/cps/mqtt-bridge.toml
+```
+
+#### Configuration File Format
+
+```toml
+# MQTT Broker Configuration
+broker = "mqtt://localhost:1883"
+username = "myuser"  # Optional
+password = "mypass"  # Optional
+client_id = "cps-bridge"  # Optional
+
+# Blockchain Configuration
+[blockchain]
+ws_url = "ws://localhost:9944"
+suri = "//Alice"
+
+# Subscribe Topics (MQTT → Blockchain)
+[[subscribe]]
+topic = "sensors/temperature"
+node_id = 5
+
+[[subscribe]]
+topic = "sensors/humidity"
+node_id = 6
+receiver_public = "5GrwvaEF..."  # Optional encryption
+cipher = "xchacha20"  # Optional
+scheme = "sr25519"  # Optional
+
+# Publish Topics (Blockchain → MQTT)
+[[publish]]
+topic = "actuators/valve01"
+node_id = 10
+
+[[publish]]
+topic = "actuators/fan"
+node_id = 11
+
+# Publish with decryption (reads encrypted blockchain data, publishes decrypted to MQTT)
+# Algorithm and scheme are auto-detected from the encrypted data
+[[publish]]
+topic = "decrypted/sensor/data"
+node_id = 13
+decrypt = true
+```
+
+See [`examples/mqtt_config.toml`](examples/mqtt_config.toml) for a complete example.
+
+#### Library Usage
+
+```rust
+use libcps::mqtt::Config;
+
+// Load config from file
+let config = Config::from_file("mqtt_config.toml")?;
+
+// Start all bridges
+config.start().await?;
+```
+
+**Features:**
+- ✅ Manage multiple bridges from a single file
+- ✅ Concurrent execution of all bridges
+- ✅ Per-topic encryption configuration
+- ✅ Easy deployment and version control
+- ✅ No need to manage multiple CLI processes
 
 ### Subscribe: MQTT → Blockchain
 
 Subscribe to MQTT topics and automatically update blockchain node payload with received messages.
+
+#### CLI Usage
 
 ```bash
 # Basic subscription
@@ -688,12 +868,35 @@ cps mqtt subscribe "sensors/temperature" 5 \
     --cipher aesgcm256
 ```
 
+#### Library Usage
+
+```rust
+use libcps::{mqtt, Config as BlockchainConfig};
+
+// Create a custom message handler for logging
+let handler = Box::new(|topic: &str, payload: &[u8]| {
+    println!("📥 Received on {}: {:?}", topic, payload);
+});
+
+// Using Config method API
+mqtt_config.subscribe(
+    &blockchain_config,
+    None,              // No encryption
+    "sensors/temp",
+    1,                 // node_id
+    None,              // No receiver public key
+    Some(handler),     // Custom message handler
+).await?;
+```
+
 **Features:**
 - ✅ Real-time message processing
 - ✅ Auto-reconnect on connection failures
 - ✅ Optional encryption support (SR25519/ED25519)
-- ✅ Colorful console output with timestamps
+- ✅ Colorful console output with timestamps (CLI)
+- ✅ Custom message handlers for library usage
 - ✅ Multiple cipher algorithm support
+- ✅ Resilient error handling (continues on transient failures)
 
 **Flow:**
 ```
@@ -707,15 +910,47 @@ MQTT Topic → CPS CLI → Blockchain Node
 
 Monitor blockchain node for payload changes and publish to MQTT topic in real-time using event-driven architecture.
 
+#### CLI Usage
+
 ```bash
 # Basic publishing
 cps mqtt publish "actuators/valve" 10
+
+# With decryption (auto-detects algorithm from encrypted data)
+cps mqtt publish "sensors/encrypted" 10 --decrypt
 
 # With custom broker configuration
 cps mqtt publish "actuators/valve" 10 \
     --mqtt-broker mqtt://broker.example.com:1883 \
     --mqtt-username myuser \
     --mqtt-password mypass
+```
+
+#### Library Usage
+
+```rust
+use libcps::{mqtt, Config as BlockchainConfig, crypto::Cipher};
+
+// Create cipher for decryption (optional)
+let cipher = Cipher::new(
+    "//Alice".to_string(),
+    crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+    crypto::CryptoScheme::Sr25519
+)?;
+
+// Create a custom publish handler for logging
+let handler = Box::new(|topic: &str, block_num: u32, data: &str| {
+    println!("📤 Published to {} at block #{}: {}", topic, block_num, data);
+});
+
+// Using Config method API with decryption
+mqtt_config.publish(
+    &blockchain_config,
+    Some(&cipher),     // Optional cipher for decryption
+    "actuators/status",
+    1,                 // node_id
+    Some(handler),     // Custom publish handler
+).await?;
 ```
 
 **Technical Implementation:**
@@ -741,6 +976,8 @@ Blockchain PayloadSet Event → Detect Change → Query Node → Publish to MQTT
 - ✅ Auto-reconnect on connection failures
 - ✅ Graceful shutdown handling
 - ✅ Block number tracking in logs
+- ✅ Custom publish handlers for library usage
+- ✅ Resilient error handling (continues on transient failures)
 
 ### Example Output
 

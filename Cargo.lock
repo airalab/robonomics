@@ -5549,6 +5549,7 @@ dependencies = [
  "subxt 0.44.2",
  "subxt-signer 0.44.2",
  "tokio",
+ "toml 0.8.23",
  "x25519-dalek",
 ]
 

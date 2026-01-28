@@ -12,15 +12,48 @@ This document provides information for developers working on the CPS CLI tool.
 
 ```bash
 # Build in debug mode
-cargo build --package robonomics-cps-cli
+cargo build --package libcps
 
 # Build in release mode (optimized)
-cargo build --release --package robonomics-cps-cli
+cargo build --release --package libcps
 
-# The binary will be at:
+# Build CLI binary only
+cargo build --bin cps
+
+# Build library only
+cargo build --lib
+
+# The binaries will be at:
 # Debug: target/debug/cps
 # Release: target/release/cps
 ```
+
+### Feature Flags
+
+The project supports several feature flags for flexible dependency management:
+
+```bash
+# Build with all features (default)
+cargo build --package libcps
+
+# Build library without MQTT support
+cargo build --package libcps --lib --no-default-features
+
+# Build library with only MQTT (no CLI)
+cargo build --package libcps --lib --no-default-features --features mqtt
+
+# Build CLI (includes MQTT by default)
+cargo build --package libcps --bin cps
+```
+
+Available features:
+- **`mqtt`** - Enables MQTT bridge functionality (default: enabled)
+- **`cli`** - Enables CLI binary with colored output and chrono (default: enabled)
+
+Feature dependencies:
+- `default = ["mqtt", "cli"]`
+- `mqtt = ["dep:rumqttc"]`
+- `cli = ["mqtt", "clap", "colored", "chrono"]`
 
 ## Running
 
@@ -36,13 +69,15 @@ cargo run --package robonomics-cps-cli -- --help
 
 ### Main Components
 
-1. **`src/main.rs`**: CLI entry point using `clap` for argument parsing
-2. **`src/blockchain/`**: Blockchain client and connection management
-3. **`src/commands/`**: Individual command implementations
-4. **`src/crypto/`**: Encryption/decryption utilities
-5. **`src/display/`**: Beautiful colored output formatting
-6. **`src/mqtt/`**: MQTT bridge configuration
-7. **`src/types.rs`**: Type definitions matching the CPS pallet
+1. **`src/lib.rs`**: Library entry point with module exports
+2. **`src/main.rs`**: CLI entry point using `clap` for argument parsing
+3. **`src/blockchain/`**: Blockchain client and connection management
+4. **`src/commands/`**: Individual CLI command implementations (thin wrappers)
+5. **`src/crypto/`**: Encryption/decryption utilities (library)
+6. **`src/display/`**: Beautiful colored output formatting (CLI-only)
+7. **`src/mqtt/`**: MQTT bridge configuration and implementation (library)
+8. **`src/node.rs`**: Node-oriented API for CPS operations (library)
+9. **`src/types.rs`**: Type definitions matching the CPS pallet (library)
 
 ### Adding a New Command
 

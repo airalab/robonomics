@@ -76,6 +76,7 @@ subxt-signer = "0.44"
 # Serialization (for libcps)
 base64 = "0.21"
 hex = "0.4"
+toml = "0.8"
 
 # MQTT (for libcps)
 rumqttc = "0.24"
