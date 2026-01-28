@@ -275,6 +275,84 @@ async fn main() -> anyhow::Result<()> {
 
 For detailed MQTT examples, see [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs).
 
+### Debugging and Logging
+
+The library uses the [`log`](https://docs.rs/log) crate for comprehensive logging throughout all operations. This makes debugging easy and allows you to trace every step of encryption, blockchain interaction, and MQTT communication.
+
+#### Logging Levels
+
+The library uses these log levels:
+- **`trace`**: Very detailed logs (function entry/exit, data hex dumps, step-by-step operations)
+- **`debug`**: Operation details (algorithms chosen, data sizes, IDs, success messages)
+- **`warn`**: Recoverable issues (fallback to plaintext, retries)
+- **`error`**: Failures (encryption errors, connection failures)
+
+#### Enabling Logging
+
+Use any log implementation like `env_logger` or `tracing`:
+
+```rust
+use libcps::{Client, Config};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize logger (example with env_logger)
+    env_logger::init();
+    
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    
+    let client = Client::new(&config).await?;
+    // Now you'll see debug logs!
+    
+    Ok(())
+}
+```
+
+#### Set Log Level via Environment
+
+```bash
+# Show all debug and trace logs
+RUST_LOG=trace cargo run
+
+# Show only libcps logs at debug level
+RUST_LOG=libcps=debug cargo run
+
+# Show only crypto operations
+RUST_LOG=libcps::crypto=trace cargo run
+
+# Show specific modules
+RUST_LOG=libcps::mqtt=debug,libcps::crypto=trace cargo run
+```
+
+#### Example Trace Output
+
+```
+TRACE libcps::blockchain: Connecting to blockchain at ws://localhost:9944
+DEBUG libcps::blockchain: Successfully connected to blockchain
+TRACE libcps::crypto: Creating new Cipher with scheme: Sr25519
+DEBUG libcps::crypto: SR25519 keypair created successfully
+DEBUG libcps::crypto: Encrypting 42 bytes with XChaCha20Poly1305 using Sr25519 scheme
+TRACE libcps::crypto: Deriving shared secret via ECDH
+TRACE libcps::crypto: Encryption key derived
+TRACE libcps::crypto: Generated XChaCha20 nonce: 24 bytes
+DEBUG libcps::crypto: Encryption complete: 42 bytes plaintext -> 58 bytes ciphertext (+ 16 bytes overhead)
+DEBUG libcps::mqtt: Starting MQTT subscribe bridge: topic='sensors/temp', node=5
+TRACE libcps::mqtt: Received MQTT message on topic 'sensors/temp': 42 bytes
+DEBUG libcps::node: Setting payload for node 5: has_data=true
+TRACE libcps::node: Building set_payload transaction
+DEBUG libcps::node: Payload updated successfully for node 5
+```
+
+This comprehensive logging makes it easy to:
+- Debug encryption/decryption operations
+- Monitor performance (data sizes at each step)
+- Audit security operations
+- Troubleshoot MQTT connectivity
+- Track blockchain transactions
+
 ## 🚀 CLI Quick Start
 
 ### 1. Set up your environment
