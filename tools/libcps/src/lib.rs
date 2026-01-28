@@ -132,6 +132,7 @@
 //! // Or publish blockchain changes to MQTT using Config method
 //! mqtt_config.publish(
 //!     &blockchain_config,
+//!     None,               // Optional cipher for decryption
 //!     "actuators/status", // MQTT topic
 //!     1,                  // Node ID
 //!     None,               // No custom publish handler

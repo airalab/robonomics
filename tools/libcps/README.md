@@ -749,6 +749,7 @@ mqtt_config.subscribe(
 // Using Config method API
 mqtt_config.publish(
     &blockchain_config,
+    None,               // Optional cipher for decryption
     "actuators/status", // MQTT topic
     1,                  // Node ID
     None,               // Optional publish handler callback
