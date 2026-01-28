@@ -43,7 +43,6 @@ pub fn print_node_recursive(
     owner: AccountId32,
     meta: Option<&str>,
     payload: Option<&str>,
-    _children: &[u64],
     prefix: &str,
     is_last: bool,
 ) {

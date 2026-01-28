@@ -119,7 +119,6 @@ fn print_node_tree<'a>(
             node_info.owner,
             meta_str.as_deref(),
             payload_str.as_deref(),
-            &node_info.children,
             prefix,
             is_last,
         );
