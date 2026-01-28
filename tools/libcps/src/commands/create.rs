@@ -24,6 +24,7 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
+use parity_scale_codec::Encode;
 
 pub async fn execute(
     config: &Config,
@@ -32,6 +33,7 @@ pub async fn execute(
     meta: Option<String>,
     payload: Option<String>,
     receiver_public: Option<[u8; 32]>,
+    algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -57,14 +59,16 @@ pub async fn execute(
     let meta_data =
         if let (Some(receiver_pub), Some(ref m)) = (receiver_public.as_ref(), meta.as_ref()) {
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+            let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             display::tree::info(&format!(
-                "🔐 Encrypting metadata with {} using {}",
-                cipher.algorithm(),
+                "[E] Encrypting metadata with {} using {}",
+                algorithm,
                 cipher.scheme()
             ));
-            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+            display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
 
-            let encrypted_bytes = cipher.encrypt(m.as_bytes(), receiver_pub)?;
+            let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_bytes = encrypted_message.encode();
             Some(NodeData::aead_from(encrypted_bytes))
         } else {
             meta.map(|m| NodeData::from(m))
@@ -73,16 +77,18 @@ pub async fn execute(
     let payload_data =
         if let (Some(receiver_pub), Some(ref p)) = (receiver_public.as_ref(), payload.as_ref()) {
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+            let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             if meta_data.is_none() {
                 display::tree::info(&format!(
-                    "🔐 Encrypting payload with {} using {}",
-                    cipher.algorithm(),
+                    "[E] Encrypting payload with {} using {}",
+                    algorithm,
                     cipher.scheme()
                 ));
-                display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
             }
 
-            let encrypted_bytes = cipher.encrypt(p.as_bytes(), receiver_pub)?;
+            let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_bytes = encrypted_message.encode();
             Some(NodeData::aead_from(encrypted_bytes))
         } else {
             payload.map(|p| NodeData::from(p))

@@ -112,11 +112,13 @@
 //!     1,
 //!     None,
 //!     None,
+//!     None,
 //! ).await?;
 //!
 //! // Publish: Blockchain -> MQTT
 //! mqtt_config.publish(
 //!     &blockchain_config,
+//!     None,
 //!     "actuators/status",
 //!     1,
 //!     None,
@@ -143,13 +145,16 @@
 //! ```
 
 use crate::blockchain::{Client, Config as BlockchainConfig};
-use crate::crypto::Cipher;
+use crate::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
 use crate::node::Node;
 use crate::types::{EncryptedData, NodeData};
 use crate::PayloadSet;
 use anyhow::{anyhow, Result};
+use log::{debug, error, trace, warn};
+use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tokio::time::{sleep, Duration};
 
 /// Configuration for a subscribe topic
@@ -278,9 +283,17 @@ impl Config {
     /// # }
     /// ```
     pub async fn start(&self) -> Result<()> {
+        debug!("Starting MQTT bridge from configuration file");
+        trace!("Configuration: {} subscribe topics, {} publish topics", 
+               self.subscribe.len(), self.publish.len());
+        
         // Validate blockchain config exists
         let blockchain_data = self.blockchain.as_ref()
             .ok_or_else(|| anyhow!("Blockchain configuration required in config file"))?;
+        
+        debug!("Blockchain config: ws_url={}, suri={}", 
+               blockchain_data.ws_url,
+               if blockchain_data.suri.is_some() { "present" } else { "none" });
         
         let blockchain_config = BlockchainConfig {
             ws_url: blockchain_data.ws_url.clone(),
@@ -292,6 +305,7 @@ impl Config {
 
         // Spawn subscribe tasks
         for sub in &self.subscribe {
+            debug!("Setting up subscribe task for topic '{}' -> node {}", sub.topic, sub.node_id);
             let blockchain_cfg = blockchain_config.clone();
             let mqtt_cfg = self.clone();
             let topic = sub.topic.clone();
@@ -301,27 +315,28 @@ impl Config {
             let scheme_name = sub.scheme.clone().unwrap_or_else(|| "sr25519".to_string());
 
             let task = tokio::spawn(async move {
+                trace!("Subscribe task starting for topic '{}'", topic);
                 // Parse receiver public key if provided
                 let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                    debug!("Parsing receiver public key for encryption");
                     Some(parse_receiver_public_key(addr_or_hex)?)
                 } else {
                     None
                 };
 
                 // Create cipher if encryption is requested
-                let cipher = if receiver_public.is_some() {
-                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
-                    use std::str::FromStr;
-                    
+                let (cipher, algorithm_opt) = if receiver_public.is_some() {
+                    debug!("Creating cipher with algorithm={}, scheme={}", cipher_name, scheme_name);
                     let algorithm = EncryptionAlgorithm::from_str(&cipher_name)
                         .map_err(|e| anyhow!("Invalid cipher '{}': {}", cipher_name, e))?;
                     let scheme = CryptoScheme::from_str(&scheme_name)
                         .map_err(|e| anyhow!("Invalid scheme '{}': {}", scheme_name, e))?;
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for encryption"))?;
-                    Some(CryptoCipher::new(suri, algorithm, scheme)?)
+                    (Some(Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
-                    None
+                    trace!("No encryption configured for this subscription");
+                    (None, None)
                 };
 
                 // Start subscribe bridge
@@ -331,6 +346,7 @@ impl Config {
                     &topic,
                     node_id,
                     receiver_pub_bytes,
+                    algorithm_opt,
                     None, // No custom message handler
                 ).await
             });
@@ -351,13 +367,11 @@ impl Config {
                 // Note: Algorithm and scheme are auto-detected from encrypted data
                 // We only need our private key (SURI) to create the Cipher
                 let cipher = if should_decrypt {
-                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
-                    
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for decryption"))?;
-                    // Use default algorithm (XChaCha20) and scheme (SR25519) for Cipher creation
+                    // Use default scheme (SR25519) for Cipher creation
                     // The actual algorithm used will be read from the encrypted message
-                    Some(CryptoCipher::new(suri, EncryptionAlgorithm::XChaCha20Poly1305, CryptoScheme::Sr25519)?)
+                    Some(Cipher::new(suri, CryptoScheme::Sr25519)?)
                 } else {
                     None
                 };
@@ -377,7 +391,7 @@ impl Config {
         // Wait for all tasks (they run indefinitely)
         for task in tasks {
             if let Err(e) = task.await {
-                eprintln!("Bridge task failed: {}", e);
+                error!("Bridge task failed: {}", e);
             }
         }
 
@@ -399,6 +413,7 @@ impl Config {
     /// * `topic` - MQTT topic to subscribe to
     /// * `node_id` - Blockchain node ID to update
     /// * `receiver_public` - Optional public key for encryption (required if cipher is provided)
+    /// * `algorithm` - Optional encryption algorithm (required if cipher is provided)
     /// * `message_handler` - Optional callback for custom message processing
     ///
     /// # Returns
@@ -420,6 +435,9 @@ impl Config {
     ///     username: None,
     ///     password: None,
     ///     client_id: None,
+    ///     blockchain: None,
+    ///     subscribe: Vec::new(),
+    ///     publish: Vec::new(),
     /// };
     ///
     /// mqtt_config.subscribe(
@@ -427,6 +445,7 @@ impl Config {
     ///     None,
     ///     "sensors/temp",
     ///     1,
+    ///     None,
     ///     None,
     ///     None,
     /// ).await?;
@@ -440,21 +459,30 @@ impl Config {
         topic: &str,
         node_id: u64,
         receiver_public: Option<[u8; 32]>,
+        algorithm: Option<EncryptionAlgorithm>,
         message_handler: Option<MessageHandler>,
     ) -> Result<()> {
+        debug!("Starting MQTT subscribe bridge: topic='{}', node={}", topic, node_id);
+        debug!("Subscribe config: encryption={}, algorithm={:?}", 
+               receiver_public.is_some(), algorithm);
+        
         // Connect to blockchain
+        trace!("Connecting to blockchain at {}", blockchain_config.ws_url);
         let client = Client::new(blockchain_config).await?;
         let _keypair = client.require_keypair()?;
+        debug!("Connected to blockchain successfully");
 
         // Parse MQTT broker URL
         let (host, port) = parse_mqtt_url(&self.broker)?;
+        debug!("MQTT broker: {}:{}", host, port);
 
         // Configure MQTT client
         let client_id = self
             .client_id
             .clone()
             .unwrap_or_else(|| format!("cps-sub-{}", node_id));
-
+        
+        trace!("MQTT client_id: {}", client_id);
         let mut mqttoptions = MqttOptions::new(client_id, host, port);
         mqttoptions.set_keep_alive(Duration::from_secs(30));
 
@@ -476,36 +504,54 @@ impl Config {
         let node = Node::new(&client, node_id);
 
         // Process MQTT events
+        debug!("Starting MQTT event loop for topic '{}'", topic);
         loop {
             match eventloop.poll().await {
                 Ok(Event::Incoming(Packet::Publish(publish))) => {
+                    trace!("Received MQTT message on topic '{}': {} bytes", 
+                           topic, publish.payload.len());
+                    
                     // Call custom handler if provided
                     if let Some(ref handler) = message_handler {
                         handler(topic, &publish.payload);
                     }
 
                     // Prepare node data (encrypt if needed)
-                    let node_data = match (receiver_public.as_ref(), cipher) {
-                        (Some(receiver_pub), Some(cipher)) => {
-                            match cipher.encrypt(&publish.payload, receiver_pub) {
-                                Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
+                    let node_data = match (receiver_public.as_ref(), cipher, algorithm) {
+                        (Some(receiver_pub), Some(cipher), Some(algorithm)) => {
+                            debug!("Encrypting message with {:?} algorithm", algorithm);
+                            match cipher.encrypt(&publish.payload, receiver_pub, algorithm) {
+                                Ok(encrypted_message) => {
+                                    let encrypted_bytes = encrypted_message.encode();
+                                    trace!("Encrypted message: {} bytes -> {} bytes", 
+                                           publish.payload.len(), encrypted_bytes.len());
+                                    NodeData::aead_from(encrypted_bytes)
+                                }
                                 Err(e) => {
                                     // Encryption failed, log error and continue
-                                    eprintln!("Failed to encrypt message: {}", e);
+                                    error!("Failed to encrypt message: {}", e);
                                     continue;
                                 }
                             }
                         }
+                        (Some(_), _, _) => {
+                            // Invalid bridge configuration: receiver_public is set but cipher or algorithm is missing
+                            unreachable!("invalid bridge configuration: receiver_public is set but cipher or algorithm is missing");
+                        }
                         _ => {
                             let payload_str = String::from_utf8_lossy(&publish.payload);
+                            trace!("Using plaintext payload");
                             NodeData::from(payload_str.to_string())
                         }
                     };
 
                     // Update node payload on blockchain
+                    debug!("Updating node {} payload on blockchain", node_id);
                     if let Err(e) = node.set_payload(Some(node_data)).await {
                         // Blockchain update failed, log error and continue
-                        eprintln!("Failed to update node payload: {}", e);
+                        error!("Failed to update node payload: {}", e);
+                    } else {
+                        trace!("Node {} payload updated successfully", node_id);
                     }
                 }
                 Ok(Event::Incoming(Packet::ConnAck(_))) => {
@@ -560,6 +606,9 @@ impl Config {
     ///     username: None,
     ///     password: None,
     ///     client_id: None,
+    ///     blockchain: None,
+    ///     subscribe: Vec::new(),
+    ///     publish: Vec::new(),
     /// };
     ///
     /// mqtt_config.publish(
@@ -684,7 +733,7 @@ impl Config {
                                         String::from_utf8_lossy(&decrypted_bytes).to_string()
                                     }
                                     Err(e) => {
-                                        eprintln!("Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
+                                        warn!("Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
                                         // Fall back to raw extraction
                                         extract_node_data(&payload)
                                     }
@@ -708,7 +757,7 @@ impl Config {
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("Failed to publish to MQTT: {}", e);
+                                    error!("Failed to publish to MQTT: {}", e);
                                 }
                             }
                         }

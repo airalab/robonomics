@@ -71,13 +71,11 @@
 //! // Create a Cipher with SR25519 scheme
 //! let sender_cipher = Cipher::new(
 //!     "//Alice".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
 //! let receiver_cipher = Cipher::new(
 //!     "//Bob".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
@@ -85,11 +83,11 @@
 //! let receiver_public = receiver_cipher.public_key();
 //!
 //! // Encrypt using the cipher
-//! let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
+//! let encrypted_msg = sender_cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 //!
 //! // Decrypt with optional sender verification
 //! let sender_public = sender_cipher.public_key();
-//! let decrypted = receiver_cipher.decrypt(&encrypted, Some(&sender_public))?;
+//! let decrypted = receiver_cipher.decrypt(&encrypted_msg, Some(&sender_public))?;
 //! # Ok(())
 //! # }
 //! ```
@@ -126,6 +124,7 @@
 //!     "sensors/temp",    // MQTT topic
 //!     1,                 // Node ID
 //!     None,              // No receiver public key
+//!     None,              // No algorithm
 //!     None,              // No custom message handler
 //! ).await?;
 //!

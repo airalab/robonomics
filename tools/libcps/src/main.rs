@@ -77,7 +77,7 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
 
 #[derive(Parser)]
 #[command(name = "cps")]
-#[command(version, about = "🌳 Beautiful CLI for Robonomics CPS (Cyber-Physical Systems)", long_about = None)]
+#[command(version, about = "CPS CLI - Robonomics Cyber-Physical Systems", long_about = None)]
 struct Cli {
     /// WebSocket URL for blockchain connection
     #[arg(long, env = "ROBONOMICS_WS_URL", default_value = "ws://localhost:9944")]
@@ -470,7 +470,6 @@ async fn main() -> Result<()> {
                     .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
                 Some(libcps::crypto::Cipher::new(
                     suri,
-                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Placeholder; actual algorithm auto-detected in Cipher::decrypt
                     scheme,
                 )?)
             } else {
@@ -497,23 +496,24 @@ async fn main() -> Result<()> {
             // - SURI (sender's seed phrase): Used to derive the sender's keypair for ECDH
             // - receiver_public: The recipient's public key for deriving the shared secret
             // If receiver_public is None, data will be stored as plaintext (no encryption).
-            let cipher = if receiver_public.is_some() {
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::create::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 parent,
                 meta,
                 payload,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -532,22 +532,23 @@ async fn main() -> Result<()> {
             };
 
             // Create cipher if encryption is requested
-            let cipher = if receiver_public.is_some() {
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::set_meta::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 node_id,
                 data,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -566,22 +567,23 @@ async fn main() -> Result<()> {
             };
 
             // Create cipher if encryption is requested
-            let cipher = if receiver_public.is_some() {
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::set_payload::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 node_id,
                 data,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -611,23 +613,24 @@ async fn main() -> Result<()> {
                 };
 
                 // Create cipher if encryption is requested
-                let cipher = if receiver_public.is_some() {
+                let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
                     let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                     let suri = cli
                         .suri
                         .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                    Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                    (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
-                    None
+                    (None, None)
                 };
                 commands::mqtt::subscribe(
                     &blockchain_config,
-                    cipher.as_ref(),
+                    cipher_opt.as_ref(),
                     &mqtt_config,
                     &topic,
                     node_id,
                     receiver_pub_bytes,
+                    algorithm_opt,
                 )
                 .await?;
             }

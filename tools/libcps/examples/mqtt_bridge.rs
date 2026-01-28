@@ -41,6 +41,9 @@ async fn main() -> anyhow::Result<()> {
         username: None,
         password: None,
         client_id: Some("libcps-example".to_string()),
+        blockchain: None,
+        subscribe: Vec::new(),
+        publish: Vec::new(),
     };
 
     // Parse and display MQTT broker details
@@ -65,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
             "sensors/temp",
             1,  // node_id
             None,  // No receiver public key
+            None,  // No algorithm (no encryption)
             Some(handler),
         )
         .await?;

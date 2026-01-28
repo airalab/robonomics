@@ -120,22 +120,20 @@ fn main() -> anyhow::Result<()> {
     // Create cipher for encryption/decryption
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
     
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
     
     // Encrypt message from Alice to Bob
     let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted_msg = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
     
     // Bob decrypts with sender verification
-    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
+    let decrypted = bob.decrypt(&encrypted_msg, Some(&alice.public_key()))?;
     assert_eq!(plaintext, &decrypted[..]);
     
     // Create node data
@@ -156,7 +154,8 @@ let meta = NodeData::from("sensor config");
 let meta_bytes = NodeData::from(vec![1, 2, 3]);
 
 // Create encrypted data from cipher output
-let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public)?;
+let encrypted_msg = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
+let encrypted_bytes = encrypted_msg.encode();
 let payload = NodeData::aead_from(encrypted_bytes);
 ```
 
@@ -171,19 +170,17 @@ fn encrypt_sr25519_example() -> anyhow::Result<()> {
     // Create ciphers for Alice and Bob
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
 
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
 
     // Encrypt from Alice to Bob
     let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
 
     // Decrypt with sender verification (recommended)
     let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
@@ -206,19 +203,17 @@ fn encrypt_ed25519_example() -> anyhow::Result<()> {
     // Create ciphers with ED25519 scheme
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::AesGcm256,
         CryptoScheme::Ed25519,
     )?;
 
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::AesGcm256,
         CryptoScheme::Ed25519,
     )?;
 
     // Encrypt from Alice to Bob
     let plaintext = b"secret message for home assistant";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::AesGcm256)?;
 
     // Decrypt with sender verification
     let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
@@ -280,6 +275,84 @@ async fn main() -> anyhow::Result<()> {
 ```
 
 For detailed MQTT examples, see [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs).
+
+### Debugging and Logging
+
+The library uses the [`log`](https://docs.rs/log) crate for comprehensive logging throughout all operations. This makes debugging easy and allows you to trace every step of encryption, blockchain interaction, and MQTT communication.
+
+#### Logging Levels
+
+The library uses these log levels:
+- **`trace`**: Very detailed logs (function entry/exit, data hex dumps, step-by-step operations)
+- **`debug`**: Operation details (algorithms chosen, data sizes, IDs, success messages)
+- **`warn`**: Recoverable issues (fallback to plaintext, retries)
+- **`error`**: Failures (encryption errors, connection failures)
+
+#### Enabling Logging
+
+Use any log implementation like `env_logger` or `tracing`:
+
+```rust
+use libcps::{Client, Config};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize logger (example with env_logger)
+    env_logger::init();
+    
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    
+    let client = Client::new(&config).await?;
+    // Now you'll see debug logs!
+    
+    Ok(())
+}
+```
+
+#### Set Log Level via Environment
+
+```bash
+# Show all debug and trace logs
+RUST_LOG=trace cargo run
+
+# Show only libcps logs at debug level
+RUST_LOG=libcps=debug cargo run
+
+# Show only crypto operations
+RUST_LOG=libcps::crypto=trace cargo run
+
+# Show specific modules
+RUST_LOG=libcps::mqtt=debug,libcps::crypto=trace cargo run
+```
+
+#### Example Trace Output
+
+```
+TRACE libcps::blockchain: Connecting to blockchain at ws://localhost:9944
+DEBUG libcps::blockchain: Successfully connected to blockchain
+TRACE libcps::crypto: Creating new Cipher with scheme: Sr25519
+DEBUG libcps::crypto: SR25519 keypair created successfully
+DEBUG libcps::crypto: Encrypting 42 bytes with XChaCha20Poly1305 using Sr25519 scheme
+TRACE libcps::crypto: Deriving shared secret via ECDH
+TRACE libcps::crypto: Encryption key derived
+TRACE libcps::crypto: Generated XChaCha20 nonce: 24 bytes
+DEBUG libcps::crypto: Encryption complete: 42 bytes plaintext -> 58 bytes ciphertext (+ 16 bytes overhead)
+DEBUG libcps::mqtt: Starting MQTT subscribe bridge: topic='sensors/temp', node=5
+TRACE libcps::mqtt: Received MQTT message on topic 'sensors/temp': 42 bytes
+DEBUG libcps::node: Setting payload for node 5: has_data=true
+TRACE libcps::node: Building set_payload transaction
+DEBUG libcps::node: Payload updated successfully for node 5
+```
+
+This comprehensive logging makes it easy to:
+- Debug encryption/decryption operations
+- Monitor performance (data sizes at each step)
+- Audit security operations
+- Troubleshoot MQTT connectivity
+- Track blockchain transactions
 
 ## 🚀 CLI Quick Start
 
@@ -620,22 +693,31 @@ Three AEAD ciphers are supported:
 
 3. **Self-Describing Message Format**
    
-   The encrypted bytes contain a JSON structure with embedded algorithm metadata:
-   ```json
-   {
-     "version": 1,
-     "algorithm": "xchacha20",
-     "from": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-     "nonce": "base64-encoded-nonce",
-     "ciphertext": "base64-encoded-data-with-auth-tag"
+   The encrypted message uses SCALE codec for efficient binary serialization on the blockchain.
+   The message format is defined as a versioned Rust enum:
+   
+   ```rust
+   pub enum EncryptedMessage {
+       V1 {
+           algorithm: EncryptionAlgorithm,  // XChaCha20Poly1305, AesGcm256, or ChaCha20Poly1305
+           from: [u8; 32],                  // Sender's 32-byte public key
+           nonce: Vec<u8>,                  // 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20
+           ciphertext: Vec<u8>,             // Encrypted data with authentication tag
+       }
    }
    ```
    
-   This self-describing format enables:
-   - **Automatic algorithm detection**: Receiver knows which cipher to use
-   - **Sender identification**: The `from` field contains sender's public key (SS58 format)
-   - **Version compatibility**: Future protocol upgrades without breaking changes
-   - **Portable encryption**: No need to coordinate algorithm choice out-of-band
+   The message is serialized using **SCALE codec** (Simple Concatenated Aggregate Little-Endian),
+   the native encoding format for Substrate blockchains, providing:
+   
+   - **Blockchain efficiency**: Compact binary format minimizes on-chain storage costs
+   - **Automatic algorithm detection**: Receiver knows which cipher to use from the enum
+   - **Sender identification**: The `from` field contains sender's raw 32-byte public key
+   - **Version compatibility**: Enum variants enable future protocol upgrades
+   - **Type safety**: Compile-time guarantee of message structure validity with Encode/Decode derives
+   - **Future-proof**: New versions can be added as additional enum variants (e.g., `V2 { ... }`)
+   - **Native integration**: SCALE codec is the standard for all Substrate/Polkadot data
+
 
 ### Key Derivation (HKDF-SHA256)
 
@@ -934,7 +1016,6 @@ use libcps::{mqtt, Config as BlockchainConfig, crypto::Cipher};
 // Create cipher for decryption (optional)
 let cipher = Cipher::new(
     "//Alice".to_string(),
-    crypto::EncryptionAlgorithm::XChaCha20Poly1305,
     crypto::CryptoScheme::Sr25519
 )?;
 

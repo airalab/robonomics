@@ -5540,6 +5540,7 @@ dependencies = [
  "curve25519-dalek",
  "hex",
  "hkdf",
+ "log",
  "parity-scale-codec",
  "rumqttc",
  "serde",

@@ -33,6 +33,9 @@
 //!     username: Some("user".to_string()),
 //!     password: Some("pass".to_string()),
 //!     client_id: Some("my-client".to_string()),
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
 //! };
 //! ```
 //!
@@ -52,6 +55,9 @@
 //!     username: None,
 //!     password: None,
 //!     client_id: None,
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
 //! };
 //!
 //! // Using Config method API
@@ -60,6 +66,7 @@
 //!     None,
 //!     "sensors/temp",
 //!     1,
+//!     None,
 //!     None,
 //!     None,
 //! ).await?;

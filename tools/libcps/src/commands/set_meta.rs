@@ -24,6 +24,7 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
+use parity_scale_codec::Encode;
 
 pub async fn execute(
     config: &Config,
@@ -31,6 +32,7 @@ pub async fn execute(
     node_id: u64,
     data: String,
     receiver_public: Option<[u8; 32]>,
+    algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -43,14 +45,16 @@ pub async fn execute(
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
+        let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
         display::tree::info(&format!(
-            "🔐 Encrypting metadata with {} using {}",
-            cipher.algorithm(),
+            "[E] Encrypting metadata with {} using {}",
+            algorithm,
             cipher.scheme()
         ));
-        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
 
-        let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub)?;
+        let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
+        let encrypted_bytes = encrypted_message.encode();
         NodeData::aead_from(encrypted_bytes)
     } else {
         NodeData::from(data)

@@ -39,6 +39,7 @@ pub async fn subscribe(
     topic: &str,
     node_id: u64,
     receiver_public: Option<[u8; 32]>,
+    algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -49,13 +50,25 @@ pub async fn subscribe(
     display::tree::info(&format!("Node: {}", node_id.to_string().bright_cyan()));
 
     if let Some(receiver_pub) = receiver_public.as_ref() {
-        if let Some(cipher) = cipher {
-            display::tree::info(&format!(
-                "🔐 Using encryption: {} with {}",
-                cipher.algorithm(),
-                cipher.scheme()
-            ));
-            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        match (cipher, algorithm) {
+            (Some(cipher), Some(algorithm)) => {
+                display::tree::info(&format!(
+                    "[E] Using encryption: {} with {}",
+                    algorithm,
+                    cipher.scheme()
+                ));
+                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
+            }
+            (None, _) => {
+                return Err(anyhow::anyhow!(
+                    "Encryption requested but cipher is missing. Provide --suri to enable encryption."
+                ));
+            }
+            (_, None) => {
+                return Err(anyhow::anyhow!(
+                    "Encryption requested but algorithm is missing. Provide --cipher to specify algorithm."
+                ));
+            }
         }
     }
 
@@ -91,6 +104,7 @@ pub async fn subscribe(
             topic,
             node_id,
             receiver_public,
+            algorithm,
             Some(message_handler),
         )
         .await
@@ -122,7 +136,7 @@ pub async fn publish(
     ));
     
     if decrypt {
-        display::tree::info("🔓 Decryption enabled - encrypted payloads will be decrypted");
+        display::tree::info("[D] Decryption enabled - encrypted payloads will be decrypted");
     }
     
     display::tree::info(&format!(
@@ -160,13 +174,13 @@ pub async fn publish(
     
     // Create cipher for decryption if requested
     let cipher = if decrypt {
-        use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
+        use libcps::crypto::{Cipher, CryptoScheme};
         
         let suri = blockchain_config.suri.clone()
             .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
-        // Use default algorithm/scheme for Cipher creation
+        // Use default scheme for Cipher creation
         // Actual algorithm is auto-detected from encrypted message
-        Some(Cipher::new(suri, EncryptionAlgorithm::XChaCha20Poly1305, CryptoScheme::Sr25519)?)
+        Some(Cipher::new(suri, CryptoScheme::Sr25519)?)
     } else {
         None
     };
