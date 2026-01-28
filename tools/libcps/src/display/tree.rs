@@ -20,7 +20,8 @@
 use colored::*;
 use sp_core::crypto::{AccountId32, Ss58Codec};
 
-/// Print a beautiful tree structure for a CPS node (non-recursive, single node display)
+/// Print a beautiful tree structure for a single CPS node (non-recursive: shows this node's
+/// details and lists child IDs, but does not recursively display full child node details)
 pub fn print_tree(
     node_id: u64,
     owner: AccountId32,
