@@ -606,7 +606,7 @@ The encryption scheme uses HKDF (RFC 5869) for deriving encryption keys from sha
 - **Domain Separation**: Keys bound to Robonomics network context
 - **Algorithm Binding**: Different algorithms produce independent keys
 - **Key Independence**: Each (shared_secret, algorithm) pair → unique key
-- **Defense in Depth**: Constant salt strengthens key derivation even with low-entropy secrets
+- **Security Enhancement**: Constant salt strengthens key derivation even with low-entropy secrets
 
 ### Sender Verification
 
