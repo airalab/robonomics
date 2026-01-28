@@ -158,7 +158,7 @@ pub fn print_node_recursive(
     // Owner
     println!(
         "{}{}  {} {}",
-        content_prefix,
+        content_prefix.bright_black(),
         "|--".bright_black(),
         "[O]".bright_yellow(),
         owner.to_ss58check().bright_white()
@@ -168,7 +168,7 @@ pub fn print_node_recursive(
     if let Some(meta_str) = meta {
         println!(
             "{}{}  {} {}",
-            content_prefix,
+            content_prefix.bright_black(),
             "|--".bright_black(),
             "[M]".bright_magenta(),
             format_data(meta_str)
@@ -176,7 +176,7 @@ pub fn print_node_recursive(
     } else {
         println!(
             "{}{}  {} {}",
-            content_prefix,
+            content_prefix.bright_black(),
             "|--".bright_black(),
             "[M]".bright_magenta(),
             "<empty>".bright_black()
@@ -187,7 +187,7 @@ pub fn print_node_recursive(
     if let Some(payload_str) = payload {
         println!(
             "{}{}  {} {}",
-            content_prefix,
+            content_prefix.bright_black(),
             "`--".bright_black(),
             "[P]".bright_green(),
             format_data(payload_str)
@@ -195,7 +195,7 @@ pub fn print_node_recursive(
     } else {
         println!(
             "{}{}  {} {}",
-            content_prefix,
+            content_prefix.bright_black(),
             "`--".bright_black(),
             "[P]".bright_green(),
             "<empty>".bright_black()
@@ -208,12 +208,6 @@ pub fn print_node_recursive(
 pub fn success(msg: &str) {
     println!("{} {}", "[+]".green().bold(), msg.green());
 }
-
-/*
-pub fn error(msg: &str) {
-    eprintln!("{} {}", "[!]".red().bold(), msg.red());
-}
-*/
 
 pub fn info(msg: &str) {
     println!("{} {}", "[i]".blue().bold(), msg.bright_blue());
