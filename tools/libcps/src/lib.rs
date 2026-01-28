@@ -124,6 +124,7 @@
 //!     "sensors/temp",    // MQTT topic
 //!     1,                 // Node ID
 //!     None,              // No receiver public key
+//!     None,              // No algorithm
 //!     None,              // No custom message handler
 //! ).await?;
 //!

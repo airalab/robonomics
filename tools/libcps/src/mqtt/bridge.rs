@@ -112,11 +112,13 @@
 //!     1,
 //!     None,
 //!     None,
+//!     None,
 //! ).await?;
 //!
 //! // Publish: Blockchain -> MQTT
 //! mqtt_config.publish(
 //!     &blockchain_config,
+//!     None,
 //!     "actuators/status",
 //!     1,
 //!     None,
@@ -400,6 +402,7 @@ impl Config {
     /// * `topic` - MQTT topic to subscribe to
     /// * `node_id` - Blockchain node ID to update
     /// * `receiver_public` - Optional public key for encryption (required if cipher is provided)
+    /// * `algorithm` - Optional encryption algorithm (required if cipher is provided)
     /// * `message_handler` - Optional callback for custom message processing
     ///
     /// # Returns
@@ -421,6 +424,9 @@ impl Config {
     ///     username: None,
     ///     password: None,
     ///     client_id: None,
+    ///     blockchain: None,
+    ///     subscribe: Vec::new(),
+    ///     publish: Vec::new(),
     /// };
     ///
     /// mqtt_config.subscribe(
@@ -428,6 +434,7 @@ impl Config {
     ///     None,
     ///     "sensors/temp",
     ///     1,
+    ///     None,
     ///     None,
     ///     None,
     /// ).await?;
@@ -562,6 +569,9 @@ impl Config {
     ///     username: None,
     ///     password: None,
     ///     client_id: None,
+    ///     blockchain: None,
+    ///     subscribe: Vec::new(),
+    ///     publish: Vec::new(),
     /// };
     ///
     /// mqtt_config.publish(
