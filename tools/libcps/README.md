@@ -275,20 +275,6 @@ cps mqtt subscribe "sensors/temp01" 5 --receiver-public <RECEIVER_ADDRESS> --cip
 - On each message: updates node payload
 - Displays colorful logs for each update
 
-**Example output:**
-```
-📡 Connecting to MQTT broker...
-✅ Connected to mqtt://localhost:1883
-📥 Subscribed to topic: sensors/temp01
-🔄 Listening for messages...
-
-[2025-12-04 10:30:15] 📨 Received: 22.5C
-✅ Updated node 5 payload
-
-[2025-12-04 10:30:45] 📨 Received: 23.1C
-✅ Updated node 5 payload
-```
-
 ### `mqtt publish <topic> <node_id>`
 
 Monitor node payload and publish changes to MQTT topic using event-driven architecture.
@@ -303,7 +289,7 @@ cps mqtt publish "actuators/valve01" 10
 - Only queries and publishes when payload actually changes
 - Automatically decrypts encrypted payloads
 
-See [MQTT Bridge](#-mqtt-bridge) section for detailed technical implementation.
+> See [MQTT Bridge](#-mqtt-bridge) section for detailed technical implementation.
 
 ## ⚙️ Configuration
 
@@ -914,7 +900,7 @@ tools/cps/
     ├── blockchain/       # Blockchain client
     │   ├── mod.rs
     │   └── client.rs
-    ├── mqtt/             # MQTT client
+    ├── mqtt/             # MQTT bridge 
     │   ├── mod.rs
     │   └── bridge.rs
     └── display/          # Pretty output
