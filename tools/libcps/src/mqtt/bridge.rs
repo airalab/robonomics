@@ -114,25 +114,215 @@ use crate::types::{EncryptedData, NodeData};
 use crate::PayloadSet;
 use anyhow::{anyhow, Result};
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
+use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
+
+/// Configuration for a subscribe topic
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubscribeConfig {
+    /// MQTT topic to subscribe to
+    pub topic: String,
+    /// Node ID to update with received messages
+    pub node_id: u64,
+    /// Optional receiver public key for encryption (hex or SS58 format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receiver_public: Option<String>,
+    /// Encryption cipher algorithm (xchacha20, aesgcm256, chacha20)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cipher: Option<String>,
+    /// Cryptographic scheme (sr25519, ed25519)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<String>,
+}
+
+/// Configuration for a publish topic
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PublishConfig {
+    /// MQTT topic to publish to
+    pub topic: String,
+    /// Node ID to monitor for changes
+    pub node_id: u64,
+}
+
+/// Blockchain connection configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BlockchainConfigData {
+    /// WebSocket URL for blockchain connection
+    pub ws_url: String,
+    /// Account secret URI (e.g., //Alice or seed phrase)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suri: Option<String>,
+}
 
 /// Configuration for MQTT broker connection.
 ///
 /// This configuration is used to establish connections to MQTT brokers
-/// for IoT device integration.
-#[derive(Clone, Debug)]
+/// for IoT device integration. It can be loaded from a TOML file or
+/// created programmatically.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     /// MQTT broker URL (e.g., "mqtt://localhost:1883")
     pub broker: String,
     /// Optional username for authentication
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
     /// Optional password for authentication
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     /// Optional client ID for MQTT connection
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
+    /// Blockchain connection configuration (for config file usage)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockchain: Option<BlockchainConfigData>,
+    /// List of topics to subscribe to (for config file usage)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subscribe: Vec<SubscribeConfig>,
+    /// List of topics to publish to (for config file usage)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub publish: Vec<PublishConfig>,
 }
 
 impl Config {
+    /// Load configuration from a TOML file.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the TOML configuration file
+    ///
+    /// # Returns
+    ///
+    /// Returns the loaded Config or an error if the file cannot be read or parsed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::mqtt::Config;
+    /// # fn example() -> anyhow::Result<()> {
+    /// let config = Config::from_file("config.toml")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_file(path: &str) -> Result<Self> {
+        let contents = std::fs::read_to_string(path)
+            .map_err(|e| anyhow!("Failed to read config file '{}': {}", path, e))?;
+        
+        let config: Config = toml::from_str(&contents)
+            .map_err(|e| anyhow!("Failed to parse TOML config: {}", e))?;
+        
+        Ok(config)
+    }
+
+    /// Start MQTT bridges for all configured topics.
+    ///
+    /// This method spawns concurrent tasks for all subscribe and publish topics
+    /// defined in the configuration. It requires blockchain configuration to be
+    /// present in the config.
+    ///
+    /// # Returns
+    ///
+    /// This function runs indefinitely and only returns on fatal errors.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use libcps::mqtt::Config;
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let config = Config::from_file("config.toml")?;
+    /// config.start().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn start(&self) -> Result<()> {
+        // Validate blockchain config exists
+        let blockchain_data = self.blockchain.as_ref()
+            .ok_or_else(|| anyhow!("Blockchain configuration required in config file"))?;
+        
+        let blockchain_config = BlockchainConfig {
+            ws_url: blockchain_data.ws_url.clone(),
+            suri: blockchain_data.suri.clone(),
+        };
+
+        // Create a task set for concurrent execution
+        let mut tasks = Vec::new();
+
+        // Spawn subscribe tasks
+        for sub in &self.subscribe {
+            let blockchain_cfg = blockchain_config.clone();
+            let mqtt_cfg = self.clone();
+            let topic = sub.topic.clone();
+            let node_id = sub.node_id;
+            let receiver_public = sub.receiver_public.clone();
+            let cipher_name = sub.cipher.clone().unwrap_or_else(|| "xchacha20".to_string());
+            let scheme_name = sub.scheme.clone().unwrap_or_else(|| "sr25519".to_string());
+
+            let task = tokio::spawn(async move {
+                // Parse receiver public key if provided
+                let receiver_pub_bytes = if let Some(ref addr_or_hex) = receiver_public {
+                    Some(parse_receiver_public_key(addr_or_hex)?)
+                } else {
+                    None
+                };
+
+                // Create cipher if encryption is requested
+                let cipher = if receiver_public.is_some() {
+                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
+                    use std::str::FromStr;
+                    
+                    let algorithm = EncryptionAlgorithm::from_str(&cipher_name)
+                        .map_err(|e| anyhow!("Invalid cipher '{}': {}", cipher_name, e))?;
+                    let scheme = CryptoScheme::from_str(&scheme_name)
+                        .map_err(|e| anyhow!("Invalid scheme '{}': {}", scheme_name, e))?;
+                    let suri = blockchain_cfg.suri.clone()
+                        .ok_or_else(|| anyhow!("SURI required for encryption"))?;
+                    Some(CryptoCipher::new(suri, algorithm, scheme)?)
+                } else {
+                    None
+                };
+
+                // Start subscribe bridge
+                mqtt_cfg.subscribe(
+                    &blockchain_cfg,
+                    cipher.as_ref(),
+                    &topic,
+                    node_id,
+                    receiver_pub_bytes,
+                    None, // No custom message handler
+                ).await
+            });
+
+            tasks.push(task);
+        }
+
+        // Spawn publish tasks
+        for pub_cfg in &self.publish {
+            let blockchain_cfg = blockchain_config.clone();
+            let mqtt_cfg = self.clone();
+            let topic = pub_cfg.topic.clone();
+            let node_id = pub_cfg.node_id;
+
+            let task = tokio::spawn(async move {
+                mqtt_cfg.publish(
+                    &blockchain_cfg,
+                    &topic,
+                    node_id,
+                    None, // No custom publish handler
+                ).await
+            });
+
+            tasks.push(task);
+        }
+
+        // Wait for all tasks (they run indefinitely)
+        for task in tasks {
+            if let Err(e) = task.await {
+                eprintln!("Bridge task failed: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Subscribe to MQTT topic and update blockchain node payload with received messages.
     ///
     /// This method creates a long-running bridge that:
@@ -463,6 +653,35 @@ impl Config {
 
 /// Constants for MQTT operation
 const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
+
+/// Parse receiver public key from SS58 address or hex string.
+///
+/// Supports both SS58 addresses and hex-encoded 32-byte keys.
+fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
+    use sp_core::crypto::{AccountId32, Ss58Codec};
+    
+    // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
+    if let Ok(account_id) = AccountId32::from_ss58check(addr_or_hex) {
+        let bytes: &[u8; 32] = account_id.as_ref();
+        return Ok(*bytes);
+    }
+
+    // Fall back to hex decoding
+    let hex_str = addr_or_hex.strip_prefix("0x").unwrap_or(addr_or_hex);
+    let bytes = hex::decode(hex_str)
+        .map_err(|e| anyhow!("Invalid receiver address (not valid SS58 or hex): {}", e))?;
+
+    if bytes.len() != 32 {
+        return Err(anyhow!(
+            "Invalid receiver public key: expected 32 bytes, got {}",
+            bytes.len()
+        ));
+    }
+
+    let mut array = [0u8; 32];
+    array.copy_from_slice(&bytes);
+    Ok(array)
+}
 
 /// Parse MQTT broker URL to extract host and port.
 ///

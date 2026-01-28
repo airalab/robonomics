@@ -51,6 +51,7 @@ colored = { workspace = true, optional = true }
 # Serialization
 serde = { workspace = true, features = ["std"] }
 serde_json = { workspace = true, features = ["std"] }
+toml = { workspace = true, optional = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
 hex = { workspace = true }
@@ -62,7 +63,7 @@ chrono = { workspace = true, optional = true }
 
 [features]
 default = ["mqtt", "cli"]
-mqtt = ["dep:rumqttc"]
+mqtt = ["dep:rumqttc", "dep:toml"]
 cli = ["mqtt", "clap", "colored", "chrono"]
 
 [package.metadata.docs.rs]

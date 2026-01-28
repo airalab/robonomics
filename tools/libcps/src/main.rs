@@ -399,6 +399,34 @@ TECHNICAL DETAILS:
         /// Node ID to monitor
         node_id: u64,
     },
+
+    /// Start MQTT bridge from configuration file
+    #[command(long_about = "Start MQTT bridge from configuration file.
+
+Reads MQTT and blockchain configuration from a TOML file and starts all
+configured subscribe and publish bridges concurrently.
+
+EXAMPLES:
+    # Start from config file
+    cps mqtt start -c config.toml
+    
+    # With custom config path
+    cps mqtt start --config /etc/cps/mqtt.toml
+
+CONFIGURATION FILE FORMAT:
+    See examples/mqtt_config.toml for a complete example.
+
+BEHAVIOR:
+    - Loads configuration from TOML file
+    - Validates all settings
+    - Spawns concurrent tasks for all bridges
+    - Runs indefinitely until interrupted
+    - Auto-reconnects on failures")]
+    Start {
+        /// Path to TOML configuration file
+        #[arg(short = 'c', long)]
+        config: String,
+    },
 }
 
 #[tokio::main]
@@ -418,6 +446,9 @@ async fn main() -> Result<()> {
         username: cli.mqtt_username.clone(),
         password: cli.mqtt_password.clone(),
         client_id: cli.mqtt_client_id.clone(),
+        blockchain: None,  // Not used for CLI commands
+        subscribe: Vec::new(),  // Not used for CLI commands
+        publish: Vec::new(),  // Not used for CLI commands
     };
 
     // Execute commands
@@ -597,6 +628,27 @@ async fn main() -> Result<()> {
             }
             MqttCommands::Publish { topic, node_id } => {
                 commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id).await?;
+            }
+            MqttCommands::Start { config } => {
+                // Load config from file and start all bridges
+                display::tree::progress(&format!("Loading configuration from {}...", config));
+                let mqtt_config = mqtt::Config::from_file(&config)?;
+                display::tree::success("Configuration loaded successfully");
+                
+                // Validate that blockchain config is present
+                if mqtt_config.blockchain.is_none() {
+                    return Err(anyhow::anyhow!(
+                        "Configuration file must include [blockchain] section with ws_url"
+                    ));
+                }
+                
+                display::tree::info(&format!(
+                    "Starting {} subscribe bridge(s) and {} publish bridge(s)...",
+                    mqtt_config.subscribe.len(),
+                    mqtt_config.publish.len()
+                ));
+                
+                mqtt_config.start().await?;
             }
         },
     }

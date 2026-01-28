@@ -762,6 +762,77 @@ mqtt::start_publish_bridge(
 
 See [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs) for a complete working example.
 
+### Configuration File
+
+You can manage multiple bridges using a TOML configuration file. This is ideal for running multiple subscribe and publish bridges concurrently.
+
+#### CLI Usage
+
+```bash
+# Start all bridges from config file
+cps mqtt start -c mqtt_config.toml
+
+# With custom config path
+cps mqtt start --config /etc/cps/mqtt-bridge.toml
+```
+
+#### Configuration File Format
+
+```toml
+# MQTT Broker Configuration
+broker = "mqtt://localhost:1883"
+username = "myuser"  # Optional
+password = "mypass"  # Optional
+client_id = "cps-bridge"  # Optional
+
+# Blockchain Configuration
+[blockchain]
+ws_url = "ws://localhost:9944"
+suri = "//Alice"
+
+# Subscribe Topics (MQTT → Blockchain)
+[[subscribe]]
+topic = "sensors/temperature"
+node_id = 5
+
+[[subscribe]]
+topic = "sensors/humidity"
+node_id = 6
+receiver_public = "5GrwvaEF..."  # Optional encryption
+cipher = "xchacha20"  # Optional
+scheme = "sr25519"  # Optional
+
+# Publish Topics (Blockchain → MQTT)
+[[publish]]
+topic = "actuators/valve01"
+node_id = 10
+
+[[publish]]
+topic = "actuators/fan"
+node_id = 11
+```
+
+See [`examples/mqtt_config.toml`](examples/mqtt_config.toml) for a complete example.
+
+#### Library Usage
+
+```rust
+use libcps::mqtt::Config;
+
+// Load config from file
+let config = Config::from_file("mqtt_config.toml")?;
+
+// Start all bridges
+config.start().await?;
+```
+
+**Features:**
+- ✅ Manage multiple bridges from a single file
+- ✅ Concurrent execution of all bridges
+- ✅ Per-topic encryption configuration
+- ✅ Easy deployment and version control
+- ✅ No need to manage multiple CLI processes
+
 ### Subscribe: MQTT → Blockchain
 
 Subscribe to MQTT topics and automatically update blockchain node payload with received messages.
