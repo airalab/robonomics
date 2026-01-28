@@ -614,36 +614,30 @@ Three AEAD ciphers are supported:
 
 3. **Self-Describing Message Format**
    
-   The encrypted bytes contain a versioned JSON structure (enum) with embedded algorithm metadata:
-   ```json
-   {
-     "version": "1",
-     "algorithm": "xchacha20",
-     "from": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-     "nonce": "base64-encoded-nonce",
-     "ciphertext": "base64-encoded-data-with-auth-tag"
-   }
-   ```
+   The encrypted message uses SCALE codec for efficient binary serialization on the blockchain.
+   The message format is defined as a versioned Rust enum:
    
-   The message format is defined as a Rust enum `EncryptedMessage`:
    ```rust
    pub enum EncryptedMessage {
        V1 {
-           algorithm: String,    // e.g., "xchacha20", "aesgcm256", "chacha20"
-           from: String,         // Sender's public key (bs58 encoded)
-           nonce: String,        // base64-encoded nonce
-           ciphertext: String,   // base64-encoded encrypted data with auth tag
+           algorithm: EncryptionAlgorithm,  // XChaCha20Poly1305, AesGcm256, or ChaCha20Poly1305
+           from: [u8; 32],                  // Sender's 32-byte public key
+           nonce: Vec<u8>,                  // 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20
+           ciphertext: Vec<u8>,             // Encrypted data with authentication tag
        }
    }
    ```
    
-   This versioned enum design provides:
-   - **Automatic algorithm detection**: Receiver knows which cipher to use
-   - **Sender identification**: The `from` field contains sender's public key (bs58/SS58 format)
-   - **Version compatibility**: Enum tagged by version field for future upgrades
-   - **Type safety**: Compile-time guarantee of message structure validity
-   - **Portable encryption**: No need to coordinate algorithm choice out-of-band
+   The message is serialized using **SCALE codec** (Simple Concatenated Aggregate Little-Endian),
+   the native encoding format for Substrate blockchains, providing:
+   
+   - **Blockchain efficiency**: Compact binary format minimizes on-chain storage costs
+   - **Automatic algorithm detection**: Receiver knows which cipher to use from the enum
+   - **Sender identification**: The `from` field contains sender's raw 32-byte public key
+   - **Version compatibility**: Enum variants enable future protocol upgrades
+   - **Type safety**: Compile-time guarantee of message structure validity with Encode/Decode derives
    - **Future-proof**: New versions can be added as additional enum variants (e.g., `V2 { ... }`)
+   - **Native integration**: SCALE codec is the standard for all Substrate/Polkadot data
 
 
 ### Key Derivation (HKDF-SHA256)

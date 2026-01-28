@@ -150,6 +150,7 @@ use crate::node::Node;
 use crate::types::{EncryptedData, NodeData};
 use crate::PayloadSet;
 use anyhow::{anyhow, Result};
+use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration};
@@ -498,14 +499,8 @@ impl Config {
                         (Some(receiver_pub), Some(cipher), Some(algorithm)) => {
                             match cipher.encrypt(&publish.payload, receiver_pub, algorithm) {
                                 Ok(encrypted_message) => {
-                                    match serde_json::to_vec(&encrypted_message) {
-                                        Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
-                                        Err(e) => {
-                                            // Serialization failed, log error and continue
-                                            eprintln!("Failed to serialize encrypted message: {}", e);
-                                            continue;
-                                        }
-                                    }
+                                    let encrypted_bytes = encrypted_message.encode();
+                                    NodeData::aead_from(encrypted_bytes)
                                 }
                                 Err(e) => {
                                     // Encryption failed, log error and continue

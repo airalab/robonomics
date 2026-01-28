@@ -28,6 +28,7 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
+use parity_scale_codec::Encode;
 
 pub async fn execute(
     config: &Config,
@@ -58,7 +59,7 @@ pub async fn execute(
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
 
         let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
-        let encrypted_bytes = serde_json::to_vec(&encrypted_message)?;
+        let encrypted_bytes = encrypted_message.encode();
         NodeData::aead_from(encrypted_bytes)
     } else {
         NodeData::from(data)
