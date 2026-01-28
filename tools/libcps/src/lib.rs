@@ -71,13 +71,11 @@
 //! // Create a Cipher with SR25519 scheme
 //! let sender_cipher = Cipher::new(
 //!     "//Alice".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
 //! let receiver_cipher = Cipher::new(
 //!     "//Bob".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
@@ -85,7 +83,7 @@
 //! let receiver_public = receiver_cipher.public_key();
 //!
 //! // Encrypt using the cipher
-//! let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
+//! let encrypted = sender_cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 //!
 //! // Decrypt with optional sender verification
 //! let sender_public = sender_cipher.public_key();

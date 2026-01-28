@@ -120,19 +120,17 @@ fn main() -> anyhow::Result<()> {
     // Create cipher for encryption/decryption
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
     
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
     
     // Encrypt message from Alice to Bob
     let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
     
     // Bob decrypts with sender verification
     let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
@@ -156,7 +154,7 @@ let meta = NodeData::from("sensor config");
 let meta_bytes = NodeData::from(vec![1, 2, 3]);
 
 // Create encrypted data from cipher output
-let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public)?;
+let encrypted_bytes = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 let payload = NodeData::aead_from(encrypted_bytes);
 ```
 
@@ -171,19 +169,17 @@ fn encrypt_sr25519_example() -> anyhow::Result<()> {
     // Create ciphers for Alice and Bob
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
 
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::XChaCha20Poly1305,
         CryptoScheme::Sr25519,
     )?;
 
     // Encrypt from Alice to Bob
     let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
 
     // Decrypt with sender verification (recommended)
     let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
@@ -206,19 +202,17 @@ fn encrypt_ed25519_example() -> anyhow::Result<()> {
     // Create ciphers with ED25519 scheme
     let alice = Cipher::new(
         "//Alice".to_string(),
-        EncryptionAlgorithm::AesGcm256,
         CryptoScheme::Ed25519,
     )?;
 
     let bob = Cipher::new(
         "//Bob".to_string(),
-        EncryptionAlgorithm::AesGcm256,
         CryptoScheme::Ed25519,
     )?;
 
     // Encrypt from Alice to Bob
     let plaintext = b"secret message for home assistant";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key())?;
+    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::AesGcm256)?;
 
     // Decrypt with sender verification
     let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
@@ -934,7 +928,6 @@ use libcps::{mqtt, Config as BlockchainConfig, crypto::Cipher};
 // Create cipher for decryption (optional)
 let cipher = Cipher::new(
     "//Alice".to_string(),
-    crypto::EncryptionAlgorithm::XChaCha20Poly1305,
     crypto::CryptoScheme::Sr25519
 )?;
 

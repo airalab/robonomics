@@ -354,13 +354,12 @@ fn default_algorithm() -> String {
 ///
 /// let cipher = Cipher::new(
 ///     "//Alice".to_string(),
-///     EncryptionAlgorithm::XChaCha20Poly1305,
 ///     CryptoScheme::Sr25519,
 /// ).unwrap();
 ///
 /// let plaintext = b"secret message";
 /// let receiver_public = &[0u8; 32]; // receiver's public key
-/// let encrypted = cipher.encrypt(plaintext, receiver_public).unwrap();
+/// let encrypted = cipher.encrypt(plaintext, receiver_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
 /// let decrypted = cipher.decrypt(&encrypted, None).unwrap();
 /// ```
 pub struct Cipher {
@@ -368,8 +367,6 @@ pub struct Cipher {
     secret: [u8; 32],
     /// Cached public key (derived once in constructor)
     public_key: [u8; 32],
-    /// Encryption algorithm
-    algorithm: EncryptionAlgorithm,
     /// Cryptographic scheme
     scheme: CryptoScheme,
 }
@@ -382,7 +379,6 @@ impl Cipher {
     /// # Arguments
     ///
     /// * `suri` - Secret URI for the keypair
-    /// * `algorithm` - Encryption algorithm to use
     /// * `scheme` - Cryptographic scheme to use
     ///
     /// # Returns
@@ -396,15 +392,14 @@ impl Cipher {
     /// # Examples
     ///
     /// ```no_run
-    /// use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
+    /// use libcps::crypto::{Cipher, CryptoScheme};
     ///
     /// let cipher = Cipher::new(
     ///     "//Alice".to_string(),
-    ///     EncryptionAlgorithm::XChaCha20Poly1305,
     ///     CryptoScheme::Sr25519,
     /// ).unwrap();
     /// ```
-    pub fn new(suri: String, algorithm: EncryptionAlgorithm, scheme: CryptoScheme) -> Result<Self> {
+    pub fn new(suri: String, scheme: CryptoScheme) -> Result<Self> {
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
                 let pair = sp_core::sr25519::Pair::from_string(&suri, None)
@@ -430,14 +425,8 @@ impl Cipher {
         Ok(Cipher {
             secret,
             public_key,
-            algorithm,
             scheme,
         })
-    }
-
-    /// Get the encryption algorithm.
-    pub fn algorithm(&self) -> EncryptionAlgorithm {
-        self.algorithm
     }
 
     /// Get the cryptographic scheme.
@@ -600,27 +589,6 @@ impl Cipher {
         Ok(okm)
     }
 
-    /// Derive encryption key from shared secret using HKDF-SHA256.
-    ///
-    /// This is a convenience wrapper around `derive_encryption_key_with_algorithm`
-    /// that uses the cipher's configured algorithm.
-    ///
-    /// # Arguments
-    ///
-    /// * `shared_secret` - The 32-byte shared secret from ECDH key agreement
-    ///
-    /// # Returns
-    ///
-    /// Returns a 32-byte encryption key derived using HKDF with the cipher's
-    /// configured algorithm.
-    ///
-    /// # See Also
-    ///
-    /// - [`derive_encryption_key_with_algorithm`] for detailed HKDF documentation
-    fn derive_encryption_key(&self, shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
-        Self::derive_encryption_key_with_algorithm(shared_secret, &self.algorithm)
-    }
-
     /// Get sender's public key.
     ///
     /// Returns the cached public key that was derived in the constructor.
@@ -634,6 +602,7 @@ impl Cipher {
     ///
     /// * `plaintext` - The data to encrypt
     /// * `receiver_public` - The recipient's public key (exactly 32 bytes)
+    /// * `algorithm` - The encryption algorithm to use
     ///
     /// # Returns
     ///
@@ -642,17 +611,17 @@ impl Cipher {
     /// # Errors
     ///
     /// Returns error if encryption fails
-    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32]) -> Result<Vec<u8>> {
+    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32], algorithm: EncryptionAlgorithm) -> Result<Vec<u8>> {
         use base64::{engine::general_purpose, Engine as _};
 
         // Step 1: Derive shared secret using direct ECDH
         let shared_secret = self.derive_shared_secret(receiver_public)?;
 
         // Step 2: Derive encryption key using HKDF with salt
-        let encryption_key = self.derive_encryption_key(&shared_secret)?;
+        let encryption_key = Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)?;
 
         // Step 3: Encrypt with specified algorithm
-        let (nonce_bytes, ciphertext) = match self.algorithm {
+        let (nonce_bytes, ciphertext) = match algorithm {
             EncryptionAlgorithm::XChaCha20Poly1305 => {
                 let cipher = XChaCha20Poly1305::new(&encryption_key.into());
                 let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
@@ -683,7 +652,7 @@ impl Cipher {
         let sender_public = self.public_key();
 
         // Step 5: Create message structure
-        let algorithm_str = match self.algorithm {
+        let algorithm_str = match algorithm {
             EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
             EncryptionAlgorithm::AesGcm256 => "aesgcm256",
             EncryptionAlgorithm::ChaCha20Poly1305 => "chacha20",
@@ -910,12 +879,10 @@ mod tests {
     fn test_cipher_creation() {
         let cipher = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
 
-        assert_eq!(cipher.algorithm(), EncryptionAlgorithm::XChaCha20Poly1305);
         assert_eq!(cipher.scheme(), CryptoScheme::Sr25519);
     }
 
@@ -923,7 +890,6 @@ mod tests {
     fn test_encrypt_decrypt_roundtrip_sr25519() {
         let cipher = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
@@ -932,7 +898,7 @@ mod tests {
         let public_key = cipher.public_key();
 
         let plaintext = b"Hello, World!";
-        let encrypted = cipher.encrypt(plaintext, &public_key).unwrap();
+        let encrypted = cipher.encrypt(plaintext, &public_key, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
         let decrypted = cipher.decrypt(&encrypted, None).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -942,7 +908,6 @@ mod tests {
     fn test_encrypt_decrypt_roundtrip_ed25519() {
         let cipher = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
         )
         .unwrap();
@@ -951,7 +916,7 @@ mod tests {
         let public_key = cipher.public_key();
 
         let plaintext = b"Hello, World!";
-        let encrypted = cipher.encrypt(plaintext, &public_key).unwrap();
+        let encrypted = cipher.encrypt(plaintext, &public_key, EncryptionAlgorithm::AesGcm256).unwrap();
         let decrypted = cipher.decrypt(&encrypted, None).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -961,14 +926,12 @@ mod tests {
     fn test_cross_party_encryption_sr25519() {
         let alice = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
@@ -977,7 +940,7 @@ mod tests {
         let alice_public = alice.public_key();
 
         let plaintext = b"Secret from Alice to Bob";
-        let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
+        let encrypted = alice.encrypt(plaintext, &bob_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
         let decrypted = bob.decrypt(&encrypted, Some(&alice_public)).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -987,21 +950,18 @@ mod tests {
     fn test_sender_verification_fails() {
         let alice = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
 
         let charlie = Cipher::new(
             "//Charlie".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
@@ -1010,7 +970,7 @@ mod tests {
         let charlie_public = charlie.public_key();
 
         let plaintext = b"From Alice";
-        let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
+        let encrypted = alice.encrypt(plaintext, &bob_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
 
         // Should fail: expecting message from Charlie, but it's from Alice
         let result = bob.decrypt(&encrypted, Some(&charlie_public));
@@ -1022,14 +982,12 @@ mod tests {
     fn test_derive_shared_secret_sr25519() {
         let alice = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
             CryptoScheme::Sr25519,
         )
         .unwrap();
@@ -1049,14 +1007,12 @@ mod tests {
     fn test_derive_shared_secret_ed25519() {
         let alice = Cipher::new(
             "//Alice".to_string(),
-            EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
         )
         .unwrap();
 
         let bob = Cipher::new(
             "//Bob".to_string(),
-            EncryptionAlgorithm::AesGcm256,
             CryptoScheme::Ed25519,
         )
         .unwrap();

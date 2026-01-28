@@ -143,7 +143,7 @@
 //! ```
 
 use crate::blockchain::{Client, Config as BlockchainConfig};
-use crate::crypto::Cipher;
+use crate::crypto::{Cipher, EncryptionAlgorithm};
 use crate::node::Node;
 use crate::types::{EncryptedData, NodeData};
 use crate::PayloadSet;
@@ -309,7 +309,7 @@ impl Config {
                 };
 
                 // Create cipher if encryption is requested
-                let cipher = if receiver_public.is_some() {
+                let (cipher, algorithm_opt) = if receiver_public.is_some() {
                     use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
                     use std::str::FromStr;
                     
@@ -319,9 +319,9 @@ impl Config {
                         .map_err(|e| anyhow!("Invalid scheme '{}': {}", scheme_name, e))?;
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for encryption"))?;
-                    Some(CryptoCipher::new(suri, algorithm, scheme)?)
+                    (Some(CryptoCipher::new(suri, scheme)?), Some(algorithm))
                 } else {
-                    None
+                    (None, None)
                 };
 
                 // Start subscribe bridge
@@ -331,6 +331,7 @@ impl Config {
                     &topic,
                     node_id,
                     receiver_pub_bytes,
+                    algorithm_opt,
                     None, // No custom message handler
                 ).await
             });
@@ -351,13 +352,13 @@ impl Config {
                 // Note: Algorithm and scheme are auto-detected from encrypted data
                 // We only need our private key (SURI) to create the Cipher
                 let cipher = if should_decrypt {
-                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
+                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme};
                     
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for decryption"))?;
-                    // Use default algorithm (XChaCha20) and scheme (SR25519) for Cipher creation
+                    // Use default scheme (SR25519) for Cipher creation
                     // The actual algorithm used will be read from the encrypted message
-                    Some(CryptoCipher::new(suri, EncryptionAlgorithm::XChaCha20Poly1305, CryptoScheme::Sr25519)?)
+                    Some(CryptoCipher::new(suri, CryptoScheme::Sr25519)?)
                 } else {
                     None
                 };
@@ -440,6 +441,7 @@ impl Config {
         topic: &str,
         node_id: u64,
         receiver_public: Option<[u8; 32]>,
+        algorithm: Option<EncryptionAlgorithm>,
         message_handler: Option<MessageHandler>,
     ) -> Result<()> {
         // Connect to blockchain
@@ -485,9 +487,9 @@ impl Config {
                     }
 
                     // Prepare node data (encrypt if needed)
-                    let node_data = match (receiver_public.as_ref(), cipher) {
-                        (Some(receiver_pub), Some(cipher)) => {
-                            match cipher.encrypt(&publish.payload, receiver_pub) {
+                    let node_data = match (receiver_public.as_ref(), cipher, algorithm) {
+                        (Some(receiver_pub), Some(cipher), Some(algorithm)) => {
+                            match cipher.encrypt(&publish.payload, receiver_pub, algorithm) {
                                 Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
                                 Err(e) => {
                                     // Encryption failed, log error and continue
