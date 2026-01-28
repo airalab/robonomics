@@ -1,6 +1,6 @@
-# libcps CLI Examples
+# libcps Examples
 
-This directory contains example scripts demonstrating libcps CLI usage.
+This directory contains example scripts and code demonstrating libcps usage.
 
 ## Prerequisites
 
@@ -15,23 +15,39 @@ This directory contains example scripts demonstrating libcps CLI usage.
    export ROBONOMICS_SURI="//Alice"  # Your seed phrase
    ```
 
-## Encryption Examples
+## CLI Examples (Shell Scripts)
 
-### Basic Encryption
+### Encryption Examples
 - `encrypt_xchacha20.sh` - XChaCha20-Poly1305 encryption (default, recommended)
 - `encrypt_ed25519.sh` - ED25519 scheme for IoT compatibility
 
 ### MQTT Integration
 - `mqtt_encrypted.sh` - Subscribe to MQTT with encryption
 
-## Running Examples
+## Library Examples (Rust)
+
+### MQTT Bridge Example
+- `mqtt_bridge.rs` - Demonstrates using MQTT bridge from library code
+
+Run the example:
+```bash
+cargo run --example mqtt_bridge
+```
+
+This example shows:
+- How to configure MQTT and blockchain connections
+- Using `mqtt::parse_mqtt_url()` for URL parsing
+- Setting up subscribe bridge with custom message handler
+- Setting up publish bridge with custom publish handler
+
+## Running Shell Examples
 
 ```bash
 # Make scripts executable
-chmod +x tools/cps/examples/*.sh
+chmod +x tools/libcps/examples/*.sh
 
 # Run an example
-./tools/cps/examples/encrypt_xchacha20.sh
+./tools/libcps/examples/encrypt_xchacha20.sh
 ```
 
 ## Important Notes
