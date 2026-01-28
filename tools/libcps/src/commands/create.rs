@@ -96,7 +96,7 @@ pub async fn execute(
             payload.map(|p| NodeData::from(p))
         };
 
-    let spinner = display::banner::spinner("Submitting transaction...");
+    let spinner = display::spinner("Submitting transaction...");
     let node = Node::create(&client, parent, meta_data, payload_data).await?;
     spinner.finish_and_clear();
 

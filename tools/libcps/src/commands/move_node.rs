@@ -35,7 +35,7 @@ pub async fn execute(config: &Config, node_id: u64, new_parent_id: u64) -> Resul
     // Move node using Node API
     let node = Node::new(&client, node_id);
 
-    let spinner = display::banner::spinner("Submitting transaction...");
+    let spinner = display::spinner("Submitting transaction...");
     node.move_to(new_parent_id).await?;
     spinner.finish_and_clear();
 

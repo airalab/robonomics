@@ -69,7 +69,7 @@ pub async fn execute(
     // Create a Node handle and delegate to node operation (business logic)
     let node = Node::new(&client, node_id);
 
-    let spinner = display::banner::spinner("Submitting transaction...");
+    let spinner = display::spinner("Submitting transaction...");
     let _events = node.set_payload(Some(payload_data)).await?;
     spinner.finish_and_clear();
 

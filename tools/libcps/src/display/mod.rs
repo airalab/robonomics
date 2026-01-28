@@ -17,5 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Display utilities for CLI output.
 
-pub mod banner;
+use indicatif::{ProgressBar, ProgressStyle};
+
 pub mod tree;
+
+/// Create a spinner for long-running operations
+pub fn spinner(msg: &str) -> ProgressBar {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+            .template("{spinner:.cyan.bold} {msg:.cyan}")
+            .unwrap(),
+    );
+    pb.set_message(msg.to_string());
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    pb
+}
