@@ -653,9 +653,9 @@ impl Cipher {
         let shared_secret = self.derive_shared_secret(receiver_public)?;
 
         // Step 2: Derive encryption key using HKDF with salt
-        // This should never fail with valid inputs
+        // This should never fail with valid inputs, but propagate an error instead of panicking
         let encryption_key = Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)
-            .expect("HKDF key derivation failed - this indicates a bug");
+            .map_err(|e| anyhow!("HKDF key derivation failed: {e}"))?;
 
         // Step 3: Encrypt with specified algorithm
         // AEAD encryption should never fail with valid keys - failures indicate bugs
