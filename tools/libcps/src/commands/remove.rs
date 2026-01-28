@@ -60,10 +60,11 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
         }
     }
 
-    display::tree::progress(&format!("Deleting node {node_id}..."));
+    let spinner = display::spinner("Submitting transaction...");
 
     // Delete node using Node API
     node.delete().await?;
+    spinner.finish_and_clear();
 
     display::tree::success(&format!(
         "Node {} deleted",

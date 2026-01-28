@@ -20,96 +20,6 @@
 use colored::*;
 use sp_core::crypto::{AccountId32, Ss58Codec};
 
-/// Print a beautiful tree structure for a single CPS node (non-recursive: shows this node's
-/// details and lists child IDs, but does not recursively display full child node details)
-pub fn print_tree(
-    node_id: u64,
-    owner: AccountId32,
-    meta: Option<&str>,
-    payload: Option<&str>,
-    children: &[u64],
-) {
-    println!(
-        "\n{} {}\n",
-        "[*] CPS Node".bright_cyan().bold(),
-        format!("ID: {node_id}").bright_white().bold()
-    );
-
-    // Owner
-    println!(
-        "{}  {} {}",
-        "|--".bright_black(),
-        "[O] Owner:".bright_yellow(),
-        owner.to_ss58check().bright_white()
-    );
-
-    // Metadata
-    if let Some(meta_str) = meta {
-        println!(
-            "{}  {} {}",
-            "|--".bright_black(),
-            "[M] Meta:".bright_magenta(),
-            format_data(meta_str)
-        );
-    } else {
-        println!(
-            "{}  {} {}",
-            "|--".bright_black(),
-            "[M] Meta:".bright_magenta(),
-            "<empty>".bright_black()
-        );
-    }
-
-    // Payload
-    if let Some(payload_str) = payload {
-        println!(
-            "{}  {} {}",
-            "`--".bright_black(),
-            "[P] Payload:".bright_green(),
-            format_data(payload_str)
-        );
-    } else {
-        println!(
-            "{}  {} {}",
-            "`--".bright_black(),
-            "[P] Payload:".bright_green(),
-            "<empty>".bright_black()
-        );
-    }
-
-    // Children
-    if !children.is_empty() {
-        println!(
-            "\n{}  {} {}",
-            "   ".bright_black(),
-            "[C] Children:".bright_blue(),
-            format!("({} nodes)", children.len()).bright_black()
-        );
-        for (i, child_id) in children.iter().enumerate() {
-            let prefix = if i == children.len() - 1 {
-                "`--"
-            } else {
-                "|--"
-            };
-            println!(
-                "      {} {} {}",
-                prefix.bright_black(),
-                "Node:".bright_white(),
-                child_id.to_string().bright_cyan()
-            );
-        }
-    } else {
-        println!(
-            "\n{}  {} {}",
-            "   ".bright_black(),
-            "[C] Children:".bright_blue(),
-            "<none>".bright_black()
-        );
-    }
-
-    println!();
-}
-
 fn format_data(data: &str) -> ColoredString {
     // Try to parse as JSON for pretty formatting
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
@@ -133,7 +43,6 @@ pub fn print_node_recursive(
     owner: AccountId32,
     meta: Option<&str>,
     payload: Option<&str>,
-    children: &[u64],
     prefix: &str,
     is_last: bool,
 ) {
@@ -211,10 +120,6 @@ pub fn success(msg: &str) {
 
 pub fn info(msg: &str) {
     println!("{} {}", "[i]".blue().bold(), msg.bright_blue());
-}
-
-pub fn warning(msg: &str) {
-    println!("{} {}", "[!]".yellow().bold(), msg.yellow());
 }
 
 pub fn progress(msg: &str) {

@@ -96,8 +96,9 @@ pub async fn execute(
             payload.map(|p| NodeData::from(p))
         };
 
-    display::tree::progress("Creating node...");
+    let spinner = display::spinner("Submitting transaction...");
     let node = Node::create(&client, parent, meta_data, payload_data).await?;
+    spinner.finish_and_clear();
 
     display::tree::success(&format!(
         "Node created with ID: {}",

@@ -78,6 +78,20 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
 #[derive(Parser)]
 #[command(name = "cps")]
 #[command(version, about = "CPS CLI - Robonomics Cyber-Physical Systems", long_about = None)]
+#[command(before_help = r#"
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   ██╗     ██╗██████╗  ██████╗██████╗ ███████╗                ║
+║   ██║     ██║██╔══██╗██╔════╝██╔══██╗██╔════╝                ║
+║   ██║     ██║██████╔╝██║     ██████╔╝███████╗                ║
+║   ██║     ██║██╔══██╗██║     ██╔═══╝ ╚════██║                ║
+║   ███████╗██║██████╔╝╚██████╗██║     ███████║                ║
+║   ╚══════╝╚═╝╚═════╝  ╚═════╝╚═╝     ╚══════╝                ║
+║                                                               ║
+║           Cyber-Physical Systems - Robonomics Network         ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+"#)]
 struct Cli {
     /// WebSocket URL for blockchain connection
     #[arg(long, env = "ROBONOMICS_WS_URL", default_value = "ws://localhost:9944")]
@@ -86,6 +100,10 @@ struct Cli {
     /// Account secret URI (e.g., //Alice, //Bob, or seed phrase)
     #[arg(long, env = "ROBONOMICS_SURI")]
     suri: Option<String>,
+
+    /// Logging level (off, error, warn, info, debug, trace)
+    #[arg(short = 'l', long, env = "RUST_LOG", default_value = "warn")]
+    log_level: String,
 
     #[cfg(feature = "mqtt")]
     /// MQTT broker URL
@@ -437,6 +455,10 @@ BEHAVIOR:
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Initialize logging
+    std::env::set_var("RUST_LOG", &cli.log_level);
+    env_logger::init();
 
     // Create blockchain config (crypto-free)
     let blockchain_config = blockchain::Config {

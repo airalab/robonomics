@@ -108,40 +108,118 @@ cargo build --release --package libcps --bin cps
 sudo cp target/release/cps /usr/local/bin/
 ```
 
+## 🚀 CLI Quick Start
+
+### 1. Set up your environment
+
+```bash
+# Set blockchain endpoint
+export ROBONOMICS_WS_URL=ws://localhost:9944
+
+# Set your account (development account for testing)
+export ROBONOMICS_SURI=//Alice
+
+# Optional: Set MQTT broker
+export ROBONOMICS_MQTT_BROKER=mqtt://localhost:1883
+```
+
+### 2. Create your first node
+
+```bash
+# Create a root node
+cps create --meta '{"type":"building","name":"HQ"}' --payload '{"status":"online"}'
+
+# Create a child node
+cps create --parent 0 --meta '{"type":"room","name":"Server Room"}' --payload '{"temp":"22C"}'
+```
+
+### 3. View your CPS tree
+
+```bash
+cps show 0
+```
+
+Output:
+```
+[*] CPS Node ID: 0
+
+|--  [O] Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+|--  [M] Meta: {
+  "type": "building",
+  "name": "HQ"
+}
+`--  [P] Payload: {
+  "status": "online"
+}
+
+    [C] Children: (1 nodes)
+      `-- Node: 1
+```
+
 ## 📚 Library Usage
 
 ### Quick Start
 
-```rust
-use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
-use libcps::types::NodeData;
+This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
 
-fn main() -> anyhow::Result<()> {
-    // Create cipher for encryption/decryption
-    let alice = Cipher::new(
-        "//Alice".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
+```rust
+use libcps::{Client, Config, node::Node, types::NodeData};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Connect to blockchain
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    let client = Client::new(&config).await?;
     
-    let bob = Cipher::new(
-        "//Bob".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
+    // Create a root node with metadata and payload
+    let meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
+    let payload: NodeData = r#"{"status":"online"}"#.into();
+    let root_node = Node::create(&client, None, Some(meta), Some(payload)).await?;
+    println!("Created root node: {}", root_node.id());
     
-    // Encrypt message from Alice to Bob
-    let plaintext = b"secret message";
-    let encrypted_msg = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
+    // Create a child node
+    let child_meta: NodeData = r#"{"type":"room","name":"Server Room"}"#.into();
+    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
+    let child_node = Node::create(&client, Some(root_node.id()), Some(child_meta), Some(child_payload)).await?;
+    println!("Created child node: {}", child_node.id());
     
-    // Bob decrypts with sender verification
-    let decrypted = bob.decrypt(&encrypted_msg, Some(&alice.public_key()))?;
-    assert_eq!(plaintext, &decrypted[..]);
+    // Update node metadata
+    let new_meta: NodeData = r#"{"type":"room","name":"Server Room","updated":true}"#.into();
+    child_node.set_meta(Some(new_meta)).await?;
     
-    // Create node data
-    let plain_data = NodeData::from("sensor reading: 22.5C");
-    let encrypted_data = NodeData::aead_from(encrypted);
+    // Update node payload
+    let new_payload: NodeData = r#"{"temp":"23.5C"}"#.into();
+    child_node.set_payload(Some(new_payload)).await?;
+    
+    // Query and display node information
+    let info = root_node.query().await?;
+    println!("Node {} has {} children", info.id, info.children.len());
     
     Ok(())
 }
+```
+
+**Tree Visualization Output:**
+
+When you query a node, the tree is displayed with the new visual format:
+
+```
+[*] CPS Node ID: 0
+
+|--  [O] Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+|--  [M] Meta: {
+  "type": "building",
+  "name": "HQ"
+}
+`--  [P] Payload: {
+  "status": "online"
+}
+
+    [C] Children: (1 nodes)
+      `-- Node: 1
 ```
 
 ### Data Types
@@ -353,54 +431,6 @@ This comprehensive logging makes it easy to:
 - Audit security operations
 - Troubleshoot MQTT connectivity
 - Track blockchain transactions
-
-## 🚀 CLI Quick Start
-
-### 1. Set up your environment
-
-```bash
-# Set blockchain endpoint
-export ROBONOMICS_WS_URL=ws://localhost:9944
-
-# Set your account (development account for testing)
-export ROBONOMICS_SURI=//Alice
-
-# Optional: Set MQTT broker
-export ROBONOMICS_MQTT_BROKER=mqtt://localhost:1883
-```
-
-### 2. Create your first node
-
-```bash
-# Create a root node
-cps create --meta '{"type":"building","name":"HQ"}' --payload '{"status":"online"}'
-
-# Create a child node
-cps create --parent 0 --meta '{"type":"room","name":"Server Room"}' --payload '{"temp":"22C"}'
-```
-
-### 3. View your CPS tree
-
-```bash
-cps show 0
-```
-
-Output:
-```
-🌳 CPS Node ID: 0
-
-├─ 📝 Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-├─ 📊 Meta: {
-     "type": "building",
-     "name": "HQ"
-   }
-└─ 🔐 Payload: {
-     "status": "online"
-   }
-
-   👶 Children: (1 nodes)
-      └─ NodeId: 1
-```
 
 ## 📖 Commands
 
@@ -1064,30 +1094,30 @@ Blockchain PayloadSet Event → Detect Change → Query Node → Publish to MQTT
 
 **Subscribe Command:**
 ```
-📡 Connecting to MQTT broker...
-✅ Connected to mqtt://localhost:1883
-📥 Subscribed to topic: sensors/temp01
-🔄 Listening for messages...
+[~] Connecting to MQTT broker...
+[+] Connected to mqtt://localhost:1883
+[i] Subscribed to topic: sensors/temp01
+[~] Listening for messages...
 
-[2025-12-04 10:30:15] 📨 Received: 22.5C
-🔐 Encrypting with XChaCha20-Poly1305 using SR25519
-✅ Updated node 5 payload
+[2025-12-04 10:30:15] Received: 22.5C
+[i] Encrypting with XChaCha20-Poly1305 using SR25519
+[+] Updated node 5 payload
 
-[2025-12-04 10:30:45] 📨 Received: 23.1C
-🔐 Encrypting with XChaCha20-Poly1305 using SR25519
-✅ Updated node 5 payload
+[2025-12-04 10:30:45] Received: 23.1C
+[i] Encrypting with XChaCha20-Poly1305 using SR25519
+[+] Updated node 5 payload
 ```
 
 **Publish Command:**
 ```
-📡 Connecting to blockchain...
-✅ Connected to ws://localhost:9944
-📡 Connecting to MQTT broker localhost:1883...
-✅ Connected to mqtt://localhost:1883
-🔄 Monitoring node 10 payload on each block...
+[~] Connecting to blockchain...
+[+] Connected to ws://localhost:9944
+[~] Connecting to MQTT broker localhost:1883...
+[+] Connected to mqtt://localhost:1883
+[i] Monitoring node 10 payload on each block...
 
-[2025-12-04 10:31:20] 📤 Published to actuators/valve01 at block #1234: open
-[2025-12-04 10:31:50] 📤 Published to actuators/valve01 at block #1240: closed
+[2025-12-04 10:31:20] Published to actuators/valve01 at block #1234: open
+[2025-12-04 10:31:50] Published to actuators/valve01 at block #1240: closed
 ```
 
 ### Authentication
