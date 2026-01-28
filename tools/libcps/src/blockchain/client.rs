@@ -41,6 +41,7 @@
 //! ```
 
 use anyhow::{anyhow, Result};
+use log::{debug, trace};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::{sr25519::Keypair, SecretUri};
 
@@ -125,18 +126,27 @@ impl Client {
     /// # }
     /// ```
     pub async fn new(config: &Config) -> Result<Self> {
+        debug!("Connecting to blockchain at {}", config.ws_url);
+        trace!("SURI provided: {}", config.suri.is_some());
+        
         // Connect to the blockchain
         let api = OnlineClient::<PolkadotConfig>::from_url(&config.ws_url)
             .await
             .map_err(|e| anyhow!("Failed to connect to {}: {}", config.ws_url, e))?;
+        
+        debug!("Successfully connected to blockchain");
 
         // Parse keypair if SURI provided
         let keypair = if let Some(suri) = &config.suri {
+            trace!("Parsing SURI and creating keypair");
             let uri: SecretUri = suri
                 .parse()
                 .map_err(|e| anyhow!("Failed to parse SURI: {e}"))?;
-            Some(Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {e}"))?)
+            let kp = Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {e}"))?;
+            debug!("Keypair created successfully");
+            Some(kp)
         } else {
+            debug!("No SURI provided, read-only mode");
             None
         };
 

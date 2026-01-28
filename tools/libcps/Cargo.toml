@@ -61,6 +61,9 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true, optional = true }
 
+# Logging
+log = { workspace = true }
+
 [features]
 default = ["mqtt", "cli"]
 mqtt = ["dep:rumqttc", "dep:toml"]
