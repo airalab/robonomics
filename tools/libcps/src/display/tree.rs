@@ -139,7 +139,7 @@ pub fn print_node_recursive(
 ) {
     // Node header with proper tree symbols
     let branch = if is_last { "`--" } else { "|--" };
-    
+
     println!(
         "{}{} {} {}",
         prefix,

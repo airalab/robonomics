@@ -59,7 +59,8 @@ pub async fn execute(
     let meta_data =
         if let (Some(receiver_pub), Some(ref m)) = (receiver_public.as_ref(), meta.as_ref()) {
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-            let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
+            let algorithm =
+                algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             display::tree::info(&format!(
                 "[E] Encrypting metadata with {} using {}",
                 algorithm,
@@ -77,7 +78,8 @@ pub async fn execute(
     let payload_data =
         if let (Some(receiver_pub), Some(ref p)) = (receiver_public.as_ref(), payload.as_ref()) {
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-            let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
+            let algorithm =
+                algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             if meta_data.is_none() {
                 display::tree::info(&format!(
                     "[E] Encrypting payload with {} using {}",

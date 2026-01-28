@@ -31,9 +31,9 @@ fn main() -> anyhow::Result<()> {
     // Load configuration from file
     println!("Loading configuration from examples/mqtt_config.toml...");
     let config = Config::from_file("examples/mqtt_config.toml")?;
-    
+
     println!("✅ Configuration loaded successfully!\n");
-    
+
     // Display broker configuration
     println!("📡 MQTT Broker Configuration:");
     println!("   Broker: {}", config.broker);
@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         println!("   Client ID: {}", client_id);
     }
     println!();
-    
+
     // Display blockchain configuration
     if let Some(blockchain) = &config.blockchain {
         println!("🔗 Blockchain Configuration:");
@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
         }
         println!();
     }
-    
+
     // Display subscribe topics
     println!("📥 Subscribe Topics ({}):", config.subscribe.len());
     for (i, sub) in config.subscribe.iter().enumerate() {
@@ -70,19 +70,24 @@ fn main() -> anyhow::Result<()> {
         }
     }
     println!();
-    
+
     // Display publish topics
     println!("📤 Publish Topics ({}):", config.publish.len());
     for (i, pub_cfg) in config.publish.iter().enumerate() {
-        println!("   {}. {} <- Node ID {}", i + 1, pub_cfg.topic, pub_cfg.node_id);
+        println!(
+            "   {}. {} <- Node ID {}",
+            i + 1,
+            pub_cfg.topic,
+            pub_cfg.node_id
+        );
     }
     println!();
-    
+
     println!("To start all bridges, run:");
     println!("  cps mqtt start -c examples/mqtt_config.toml");
     println!();
     println!("Or from library code:");
     println!("  config.start().await?;");
-    
+
     Ok(())
 }

@@ -45,7 +45,8 @@ pub async fn execute(
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-        let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
+        let algorithm =
+            algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
         display::tree::info(&format!(
             "[E] Encrypting metadata with {} using {}",
             algorithm,

@@ -75,10 +75,13 @@ fn print_node_tree<'a>(
         // Try to decrypt if requested and data is encrypted
         let meta_str = if let Some(ref meta) = node_info.meta {
             if decrypt && is_encrypted(meta) {
-                let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
+                let cipher =
+                    cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
                 let bytes = extract_bytes(meta);
-                let message: libcps::crypto::EncryptedMessage = parity_scale_codec::Decode::decode(&mut &bytes[..])
-                    .map_err(|e| anyhow::anyhow!("Failed to decode encrypted metadata: {}", e))?;
+                let message: libcps::crypto::EncryptedMessage =
+                    parity_scale_codec::Decode::decode(&mut &bytes[..]).map_err(|e| {
+                        anyhow::anyhow!("Failed to decode encrypted metadata: {}", e)
+                    })?;
                 let decrypted = cipher.decrypt(&message, None)
                     .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
                 Some(String::from_utf8_lossy(&decrypted).to_string())
@@ -92,10 +95,13 @@ fn print_node_tree<'a>(
 
         let payload_str = if let Some(ref payload) = node_info.payload {
             if decrypt && is_encrypted(payload) {
-                let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
+                let cipher =
+                    cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
                 let bytes = extract_bytes(payload);
-                let message: libcps::crypto::EncryptedMessage = parity_scale_codec::Decode::decode(&mut &bytes[..])
-                    .map_err(|e| anyhow::anyhow!("Failed to decode encrypted payload: {}", e))?;
+                let message: libcps::crypto::EncryptedMessage =
+                    parity_scale_codec::Decode::decode(&mut &bytes[..]).map_err(|e| {
+                        anyhow::anyhow!("Failed to decode encrypted payload: {}", e)
+                    })?;
                 let decrypted = cipher.decrypt(&message, None)
                     .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
                 Some(String::from_utf8_lossy(&decrypted).to_string())

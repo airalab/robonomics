@@ -198,9 +198,13 @@ impl<'a> Node<'a> {
         meta: Option<NodeData>,
         payload: Option<NodeData>,
     ) -> Result<Self> {
-        debug!("Creating new CPS node: parent={:?}, has_meta={}, has_payload={}", 
-               parent, meta.is_some(), payload.is_some());
-        
+        debug!(
+            "Creating new CPS node: parent={:?}, has_meta={}, has_payload={}",
+            parent,
+            meta.is_some(),
+            payload.is_some()
+        );
+
         let keypair = client.require_keypair()?;
         trace!("Using keypair for transaction signing");
 
@@ -274,7 +278,7 @@ impl<'a> Node<'a> {
             .latest_finalized_block_ref()
             .await?
             .hash();
-        
+
         trace!("Latest finalized block hash: {:?}", block_hash);
         self.query_at(block_hash).await
     }
@@ -390,7 +394,11 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn set_meta(&self, meta: Option<NodeData>) -> Result<ExtrinsicEvents> {
-        debug!("Setting metadata for node {}: has_data={}", self.id, meta.is_some());
+        debug!(
+            "Setting metadata for node {}: has_data={}",
+            self.id,
+            meta.is_some()
+        );
         let keypair = self.client.require_keypair()?;
         let node_id = CpsNodeId(self.id);
 
@@ -410,7 +418,7 @@ impl<'a> Node<'a> {
             .wait_for_finalized_success()
             .await
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
-        
+
         debug!("Metadata updated successfully for node {}", self.id);
 
         Ok(events)
@@ -448,7 +456,11 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn set_payload(&self, payload: Option<NodeData>) -> Result<ExtrinsicEvents> {
-        debug!("Setting payload for node {}: has_data={}", self.id, payload.is_some());
+        debug!(
+            "Setting payload for node {}: has_data={}",
+            self.id,
+            payload.is_some()
+        );
         let keypair = self.client.require_keypair()?;
         let node_id = CpsNodeId(self.id);
 
@@ -470,7 +482,7 @@ impl<'a> Node<'a> {
             .wait_for_finalized_success()
             .await
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
-        
+
         debug!("Payload updated successfully for node {}", self.id);
         Ok(events)
     }

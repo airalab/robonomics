@@ -398,7 +398,7 @@ TECHNICAL DETAILS:
 
         /// Node ID to monitor
         node_id: u64,
-        
+
         /// Decrypt encrypted blockchain payloads before publishing to MQTT
         /// The encryption algorithm and scheme are auto-detected from the encrypted data
         #[arg(short = 'd', long)]
@@ -451,9 +451,9 @@ async fn main() -> Result<()> {
         username: cli.mqtt_username.clone(),
         password: cli.mqtt_password.clone(),
         client_id: cli.mqtt_client_id.clone(),
-        blockchain: None,  // Not used for CLI commands
-        subscribe: Vec::new(),  // Not used for CLI commands
-        publish: Vec::new(),  // Not used for CLI commands
+        blockchain: None,      // Not used for CLI commands
+        subscribe: Vec::new(), // Not used for CLI commands
+        publish: Vec::new(),   // Not used for CLI commands
     };
 
     // Execute commands
@@ -468,10 +468,7 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
-                Some(libcps::crypto::Cipher::new(
-                    suri,
-                    scheme,
-                )?)
+                Some(libcps::crypto::Cipher::new(suri, scheme)?)
             } else {
                 None
             };
@@ -502,7 +499,10 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
+                (
+                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
+                    Some(algorithm),
+                )
             } else {
                 (None, None)
             };
@@ -538,7 +538,10 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
+                (
+                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
+                    Some(algorithm),
+                )
             } else {
                 (None, None)
             };
@@ -573,7 +576,10 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
+                (
+                    Some(libcps::crypto::Cipher::new(suri, scheme)?),
+                    Some(algorithm),
+                )
             } else {
                 (None, None)
             };
@@ -619,7 +625,10 @@ async fn main() -> Result<()> {
                     let suri = cli
                         .suri
                         .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                    (Some(libcps::crypto::Cipher::new(suri, scheme)?), Some(algorithm))
+                    (
+                        Some(libcps::crypto::Cipher::new(suri, scheme)?),
+                        Some(algorithm),
+                    )
                 } else {
                     (None, None)
                 };
@@ -634,28 +643,33 @@ async fn main() -> Result<()> {
                 )
                 .await?;
             }
-            MqttCommands::Publish { topic, node_id, decrypt } => {
-                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id, decrypt).await?;
+            MqttCommands::Publish {
+                topic,
+                node_id,
+                decrypt,
+            } => {
+                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id, decrypt)
+                    .await?;
             }
             MqttCommands::Start { config } => {
                 // Load config from file and start all bridges
                 display::tree::progress(&format!("Loading configuration from {}...", config));
                 let mqtt_config = mqtt::Config::from_file(&config)?;
                 display::tree::success("Configuration loaded successfully");
-                
+
                 // Validate that blockchain config is present
                 if mqtt_config.blockchain.is_none() {
                     return Err(anyhow::anyhow!(
                         "Configuration file must include [blockchain] section with ws_url"
                     ));
                 }
-                
+
                 display::tree::info(&format!(
                     "Starting {} subscribe bridge(s) and {} publish bridge(s)...",
                     mqtt_config.subscribe.len(),
                     mqtt_config.publish.len()
                 ));
-                
+
                 mqtt_config.start().await?;
             }
         },

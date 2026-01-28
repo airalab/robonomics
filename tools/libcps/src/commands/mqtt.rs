@@ -134,11 +134,11 @@ pub async fn publish(
         "Connected to {}",
         mqtt_config.broker.bright_white()
     ));
-    
+
     if decrypt {
         display::tree::info("[D] Decryption enabled - encrypted payloads will be decrypted");
     }
-    
+
     display::tree::info(&format!(
         "🔄 Monitoring node {} payload on each block...",
         node_id.to_string().bright_cyan()
@@ -171,12 +171,14 @@ pub async fn publish(
             display_data.bright_white()
         );
     });
-    
+
     // Create cipher for decryption if requested
     let cipher = if decrypt {
         use libcps::crypto::{Cipher, CryptoScheme};
-        
-        let suri = blockchain_config.suri.clone()
+
+        let suri = blockchain_config
+            .suri
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
         // Use default scheme for Cipher creation
         // Actual algorithm is auto-detected from encrypted message

@@ -23,8 +23,9 @@ use std::time::Duration;
 
 /// Print the main LIBCPS banner
 pub fn print_banner() {
-    println!("{}", 
-r#"
+    println!(
+        "{}",
+        r#"
     ╔═══════════════════════════════════════════════════════════════╗
     ║                                                               ║
     ║   ██╗     ██╗██████╗  ██████╗██████╗ ███████╗                ║
@@ -37,7 +38,10 @@ r#"
     ║           Cyber-Physical Systems - Robonomics Network         ║
     ║                                                               ║
     ╚═══════════════════════════════════════════════════════════════╝
-"#.bright_cyan().bold());
+"#
+        .bright_cyan()
+        .bold()
+    );
 }
 
 /// Print a section header with ASCII art
@@ -55,7 +59,7 @@ pub fn close_section() {
 pub fn spinner(msg: &str, duration_ms: u64) {
     let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let iterations = duration_ms / 100;
-    
+
     for i in 0..iterations {
         let frame = frames[i as usize % frames.len()];
         print!("\r{} {} ", frame.cyan().bold(), msg.cyan());
@@ -70,14 +74,15 @@ pub fn progress_bar(current: usize, total: usize, width: usize) {
     let percent = (current as f64 / total as f64 * 100.0) as usize;
     let filled = (current as f64 / total as f64 * width as f64) as usize;
     let empty = width - filled;
-    
-    print!("\r[{}{}] {}%", 
+
+    print!(
+        "\r[{}{}] {}%",
         "=".repeat(filled).green(),
         " ".repeat(empty),
         percent
     );
     std::io::Write::flush(&mut std::io::stdout()).ok();
-    
+
     if current == total {
         println!();
     }
@@ -85,31 +90,37 @@ pub fn progress_bar(current: usize, total: usize, width: usize) {
 
 /// Box drawing for important messages
 pub fn message_box(title: &str, lines: &[&str]) {
-    let max_len = lines.iter().map(|l| l.len()).max().unwrap_or(0).max(title.len());
+    let max_len = lines
+        .iter()
+        .map(|l| l.len())
+        .max()
+        .unwrap_or(0)
+        .max(title.len());
     let width = max_len + 4;
-    
+
     // Top border
     println!("\n  ┌─{}─┐", "─".repeat(width));
-    
+
     // Title
     let padding = width - title.len() - 2;
     let left_pad = padding / 2;
     let right_pad = padding - left_pad;
-    println!("  │ {}{}{} │", 
+    println!(
+        "  │ {}{}{} │",
         " ".repeat(left_pad),
         title.bright_white().bold(),
         " ".repeat(right_pad)
     );
-    
+
     // Separator
     println!("  ├─{}─┤", "─".repeat(width));
-    
+
     // Lines
     for line in lines {
         let line_padding = width - line.len() - 2;
         println!("  │  {}{} │", line, " ".repeat(line_padding));
     }
-    
+
     // Bottom border
     println!("  └─{}─┘\n", "─".repeat(width));
 }
@@ -126,7 +137,10 @@ pub fn typewriter(text: &str, delay_ms: u64) {
 
 /// ASCII art separator
 pub fn separator() {
-    println!("{}", "    ════════════════════════════════════════════════════════".bright_black());
+    println!(
+        "{}",
+        "    ════════════════════════════════════════════════════════".bright_black()
+    );
 }
 
 /// Print a boxed message with ASCII art

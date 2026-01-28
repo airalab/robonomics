@@ -128,12 +128,12 @@ impl Client {
     pub async fn new(config: &Config) -> Result<Self> {
         debug!("Connecting to blockchain at {}", config.ws_url);
         trace!("SURI provided: {}", config.suri.is_some());
-        
+
         // Connect to the blockchain
         let api = OnlineClient::<PolkadotConfig>::from_url(&config.ws_url)
             .await
             .map_err(|e| anyhow!("Failed to connect to {}: {}", config.ws_url, e))?;
-        
+
         debug!("Successfully connected to blockchain");
 
         // Parse keypair if SURI provided
@@ -142,7 +142,8 @@ impl Client {
             let uri: SecretUri = suri
                 .parse()
                 .map_err(|e| anyhow!("Failed to parse SURI: {e}"))?;
-            let kp = Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {e}"))?;
+            let kp =
+                Keypair::from_uri(&uri).map_err(|e| anyhow!("Failed to create keypair: {e}"))?;
             debug!("Keypair created successfully");
             Some(kp)
         } else {

@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
     // Example 1: Subscribe Bridge
     println!("Starting subscribe bridge...");
     println!("This will listen to 'sensors/temp' and update node 1");
-    
+
     // Create a custom message handler
     let handler = Box::new(|topic: &str, payload: &[u8]| {
         println!("📥 Received on {}: {:?}", topic, payload);
@@ -64,11 +64,11 @@ async fn main() -> anyhow::Result<()> {
     mqtt_config
         .subscribe(
             &blockchain_config,
-            None,  // No encryption
+            None, // No encryption
             "sensors/temp",
-            1,  // node_id
-            None,  // No receiver public key
-            None,  // No algorithm (no encryption)
+            1,    // node_id
+            None, // No receiver public key
+            None, // No algorithm (no encryption)
             Some(handler),
         )
         .await?;

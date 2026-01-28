@@ -255,10 +255,10 @@ impl Config {
     pub fn from_file(path: &str) -> Result<Self> {
         let contents = std::fs::read_to_string(path)
             .map_err(|e| anyhow!("Failed to read config file '{}': {}", path, e))?;
-        
-        let config: Config = toml::from_str(&contents)
-            .map_err(|e| anyhow!("Failed to parse TOML config: {}", e))?;
-        
+
+        let config: Config =
+            toml::from_str(&contents).map_err(|e| anyhow!("Failed to parse TOML config: {}", e))?;
+
         Ok(config)
     }
 
@@ -284,17 +284,28 @@ impl Config {
     /// ```
     pub async fn start(&self) -> Result<()> {
         debug!("Starting MQTT bridge from configuration file");
-        trace!("Configuration: {} subscribe topics, {} publish topics", 
-               self.subscribe.len(), self.publish.len());
-        
+        trace!(
+            "Configuration: {} subscribe topics, {} publish topics",
+            self.subscribe.len(),
+            self.publish.len()
+        );
+
         // Validate blockchain config exists
-        let blockchain_data = self.blockchain.as_ref()
+        let blockchain_data = self
+            .blockchain
+            .as_ref()
             .ok_or_else(|| anyhow!("Blockchain configuration required in config file"))?;
-        
-        debug!("Blockchain config: ws_url={}, suri={}", 
-               blockchain_data.ws_url,
-               if blockchain_data.suri.is_some() { "present" } else { "none" });
-        
+
+        debug!(
+            "Blockchain config: ws_url={}, suri={}",
+            blockchain_data.ws_url,
+            if blockchain_data.suri.is_some() {
+                "present"
+            } else {
+                "none"
+            }
+        );
+
         let blockchain_config = BlockchainConfig {
             ws_url: blockchain_data.ws_url.clone(),
             suri: blockchain_data.suri.clone(),
@@ -305,13 +316,19 @@ impl Config {
 
         // Spawn subscribe tasks
         for sub in &self.subscribe {
-            debug!("Setting up subscribe task for topic '{}' -> node {}", sub.topic, sub.node_id);
+            debug!(
+                "Setting up subscribe task for topic '{}' -> node {}",
+                sub.topic, sub.node_id
+            );
             let blockchain_cfg = blockchain_config.clone();
             let mqtt_cfg = self.clone();
             let topic = sub.topic.clone();
             let node_id = sub.node_id;
             let receiver_public = sub.receiver_public.clone();
-            let cipher_name = sub.cipher.clone().unwrap_or_else(|| "xchacha20".to_string());
+            let cipher_name = sub
+                .cipher
+                .clone()
+                .unwrap_or_else(|| "xchacha20".to_string());
             let scheme_name = sub.scheme.clone().unwrap_or_else(|| "sr25519".to_string());
 
             let task = tokio::spawn(async move {
@@ -326,12 +343,17 @@ impl Config {
 
                 // Create cipher if encryption is requested
                 let (cipher, algorithm_opt) = if receiver_public.is_some() {
-                    debug!("Creating cipher with algorithm={}, scheme={}", cipher_name, scheme_name);
+                    debug!(
+                        "Creating cipher with algorithm={}, scheme={}",
+                        cipher_name, scheme_name
+                    );
                     let algorithm = EncryptionAlgorithm::from_str(&cipher_name)
                         .map_err(|e| anyhow!("Invalid cipher '{}': {}", cipher_name, e))?;
                     let scheme = CryptoScheme::from_str(&scheme_name)
                         .map_err(|e| anyhow!("Invalid scheme '{}': {}", scheme_name, e))?;
-                    let suri = blockchain_cfg.suri.clone()
+                    let suri = blockchain_cfg
+                        .suri
+                        .clone()
                         .ok_or_else(|| anyhow!("SURI required for encryption"))?;
                     (Some(Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
@@ -340,15 +362,17 @@ impl Config {
                 };
 
                 // Start subscribe bridge
-                mqtt_cfg.subscribe(
-                    &blockchain_cfg,
-                    cipher.as_ref(),
-                    &topic,
-                    node_id,
-                    receiver_pub_bytes,
-                    algorithm_opt,
-                    None, // No custom message handler
-                ).await
+                mqtt_cfg
+                    .subscribe(
+                        &blockchain_cfg,
+                        cipher.as_ref(),
+                        &topic,
+                        node_id,
+                        receiver_pub_bytes,
+                        algorithm_opt,
+                        None, // No custom message handler
+                    )
+                    .await
             });
 
             tasks.push(task);
@@ -367,7 +391,9 @@ impl Config {
                 // Note: Algorithm and scheme are auto-detected from encrypted data
                 // We only need our private key (SURI) to create the Cipher
                 let cipher = if should_decrypt {
-                    let suri = blockchain_cfg.suri.clone()
+                    let suri = blockchain_cfg
+                        .suri
+                        .clone()
                         .ok_or_else(|| anyhow!("SURI required for decryption"))?;
                     // Use default scheme (SR25519) for Cipher creation
                     // The actual algorithm used will be read from the encrypted message
@@ -375,14 +401,16 @@ impl Config {
                 } else {
                     None
                 };
-                
-                mqtt_cfg.publish(
-                    &blockchain_cfg,
-                    cipher.as_ref(),
-                    &topic,
-                    node_id,
-                    None, // No custom publish handler
-                ).await
+
+                mqtt_cfg
+                    .publish(
+                        &blockchain_cfg,
+                        cipher.as_ref(),
+                        &topic,
+                        node_id,
+                        None, // No custom publish handler
+                    )
+                    .await
             });
 
             tasks.push(task);
@@ -462,10 +490,16 @@ impl Config {
         algorithm: Option<EncryptionAlgorithm>,
         message_handler: Option<MessageHandler>,
     ) -> Result<()> {
-        debug!("Starting MQTT subscribe bridge: topic='{}', node={}", topic, node_id);
-        debug!("Subscribe config: encryption={}, algorithm={:?}", 
-               receiver_public.is_some(), algorithm);
-        
+        debug!(
+            "Starting MQTT subscribe bridge: topic='{}', node={}",
+            topic, node_id
+        );
+        debug!(
+            "Subscribe config: encryption={}, algorithm={:?}",
+            receiver_public.is_some(),
+            algorithm
+        );
+
         // Connect to blockchain
         trace!("Connecting to blockchain at {}", blockchain_config.ws_url);
         let client = Client::new(blockchain_config).await?;
@@ -481,7 +515,7 @@ impl Config {
             .client_id
             .clone()
             .unwrap_or_else(|| format!("cps-sub-{}", node_id));
-        
+
         trace!("MQTT client_id: {}", client_id);
         let mut mqttoptions = MqttOptions::new(client_id, host, port);
         mqttoptions.set_keep_alive(Duration::from_secs(30));
@@ -508,9 +542,12 @@ impl Config {
         loop {
             match eventloop.poll().await {
                 Ok(Event::Incoming(Packet::Publish(publish))) => {
-                    trace!("Received MQTT message on topic '{}': {} bytes", 
-                           topic, publish.payload.len());
-                    
+                    trace!(
+                        "Received MQTT message on topic '{}': {} bytes",
+                        topic,
+                        publish.payload.len()
+                    );
+
                     // Call custom handler if provided
                     if let Some(ref handler) = message_handler {
                         handler(topic, &publish.payload);
@@ -523,8 +560,11 @@ impl Config {
                             match cipher.encrypt(&publish.payload, receiver_pub, algorithm) {
                                 Ok(encrypted_message) => {
                                     let encrypted_bytes = encrypted_message.encode();
-                                    trace!("Encrypted message: {} bytes -> {} bytes", 
-                                           publish.payload.len(), encrypted_bytes.len());
+                                    trace!(
+                                        "Encrypted message: {} bytes -> {} bytes",
+                                        publish.payload.len(),
+                                        encrypted_bytes.len()
+                                    );
                                     NodeData::aead_from(encrypted_bytes)
                                 }
                                 Err(e) => {
@@ -742,7 +782,7 @@ impl Config {
                                 // No cipher, just extract the data as-is
                                 extract_node_data(&payload)
                             };
-                            
+
                             let block_number = block.number();
 
                             // Publish to MQTT
@@ -787,7 +827,7 @@ const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 /// Supports both SS58 addresses and hex-encoded 32-byte keys.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
     use sp_core::crypto::{AccountId32, Ss58Codec};
-    
+
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
     if let Ok(account_id) = AccountId32::from_ss58check(addr_or_hex) {
         let bytes: &[u8; 32] = account_id.as_ref();
@@ -889,7 +929,6 @@ pub type MessageHandler = Box<dyn Fn(&str, &[u8]) + Send + Sync>;
 ///
 /// When provided, this callback is called after successfully publishing
 /// a message to MQTT. Can be used for logging or custom tracking.
-/// 
+///
 /// Arguments: (topic, block_number, data)
 pub type PublishHandler = Box<dyn Fn(&str, u32, &str) + Send + Sync>;
-
