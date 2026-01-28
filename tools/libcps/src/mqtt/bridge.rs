@@ -497,7 +497,16 @@ impl Config {
                     let node_data = match (receiver_public.as_ref(), cipher, algorithm) {
                         (Some(receiver_pub), Some(cipher), Some(algorithm)) => {
                             match cipher.encrypt(&publish.payload, receiver_pub, algorithm) {
-                                Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
+                                Ok(encrypted_message) => {
+                                    match serde_json::to_vec(&encrypted_message) {
+                                        Ok(encrypted_bytes) => NodeData::aead_from(encrypted_bytes),
+                                        Err(e) => {
+                                            // Serialization failed, log error and continue
+                                            eprintln!("Failed to serialize encrypted message: {}", e);
+                                            continue;
+                                        }
+                                    }
+                                }
                                 Err(e) => {
                                     // Encryption failed, log error and continue
                                     eprintln!("Failed to encrypt message: {}", e);

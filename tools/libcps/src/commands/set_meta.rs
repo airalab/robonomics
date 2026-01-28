@@ -52,7 +52,8 @@ pub async fn execute(
         ));
         display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
 
-        let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
+        let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
+        let encrypted_bytes = serde_json::to_vec(&encrypted_message)?;
         NodeData::aead_from(encrypted_bytes)
     } else {
         NodeData::from(data)

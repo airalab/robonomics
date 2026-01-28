@@ -306,7 +306,12 @@ impl Default for EncryptionAlgorithm {
 
 impl fmt::Display for EncryptionAlgorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        let s = match self {
+            Self::XChaCha20Poly1305 => "xchacha20",
+            Self::AesGcm256 => "aesgcm256",
+            Self::ChaCha20Poly1305 => "chacha20",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -359,8 +364,8 @@ fn default_algorithm() -> String {
 ///
 /// let plaintext = b"secret message";
 /// let receiver_public = &[0u8; 32]; // receiver's public key
-/// let encrypted = cipher.encrypt(plaintext, receiver_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
-/// let decrypted = cipher.decrypt(&encrypted, None).unwrap();
+/// let encrypted_msg = cipher.encrypt(plaintext, receiver_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
+/// let decrypted = cipher.decrypt(&encrypted_msg, None).unwrap();
 /// ```
 pub struct Cipher {
     /// 32-byte secret key
@@ -606,12 +611,12 @@ impl Cipher {
     ///
     /// # Returns
     ///
-    /// Returns encrypted bytes in JSON format
+    /// Returns an EncryptedMessage structure that can be serialized by the caller
     ///
     /// # Errors
     ///
     /// Returns error if encryption fails
-    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32], algorithm: EncryptionAlgorithm) -> Result<Vec<u8>> {
+    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32], algorithm: EncryptionAlgorithm) -> Result<EncryptedMessage> {
         use base64::{engine::general_purpose, Engine as _};
 
         // Step 1: Derive shared secret using direct ECDH
@@ -651,30 +656,21 @@ impl Cipher {
         // Step 4: Get sender's public key
         let sender_public = self.public_key();
 
-        // Step 5: Create message structure
-        let algorithm_str = match algorithm {
-            EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
-            EncryptionAlgorithm::AesGcm256 => "aesgcm256",
-            EncryptionAlgorithm::ChaCha20Poly1305 => "chacha20",
-        };
-
-        let message = EncryptedMessage {
+        // Step 5: Create and return message structure
+        Ok(EncryptedMessage {
             version: 1,
-            algorithm: algorithm_str.to_string(),
+            algorithm: algorithm.to_string(),
             from: bs58::encode(&sender_public).into_string(),
             nonce: general_purpose::STANDARD.encode(&nonce_bytes),
             ciphertext: general_purpose::STANDARD.encode(&ciphertext),
-        };
-
-        // Step 6: Serialize to JSON
-        serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
+        })
     }
 
     /// Decrypt data with inlined AEAD (algorithm auto-detected).
     ///
     /// # Arguments
     ///
-    /// * `ciphertext` - JSON-formatted encrypted data
+    /// * `message` - Encrypted message structure
     /// * `expected_sender` - Optional sender public key for verification
     ///
     /// # Returns
@@ -686,15 +682,12 @@ impl Cipher {
     /// Returns error if decryption fails or sender verification fails
     pub fn decrypt(
         &self,
-        ciphertext: &[u8],
+        message: &EncryptedMessage,
         expected_sender: Option<&[u8; 32]>,
     ) -> Result<Vec<u8>> {
         use base64::{engine::general_purpose, Engine as _};
 
-        // Step 1: Parse message
-        let message: EncryptedMessage = serde_json::from_slice(ciphertext)
-            .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
-
+        // Step 1: Validate version
         if message.version != 1 {
             return Err(anyhow!(
                 "Unsupported encryption version: {}",
@@ -815,8 +808,11 @@ impl Cipher {
                 use crate::types::EncryptedData;
                 match encrypted_data {
                     EncryptedData::Aead(bounded_vec) => {
+                        // Parse the JSON message
+                        let message: EncryptedMessage = serde_json::from_slice(&bounded_vec.0)
+                            .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
                         // Decrypt using the embedded metadata
-                        self.decrypt(&bounded_vec.0, expected_sender)
+                        self.decrypt(&message, expected_sender)
                     }
                 }
             }

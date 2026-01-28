@@ -83,11 +83,11 @@
 //! let receiver_public = receiver_cipher.public_key();
 //!
 //! // Encrypt using the cipher
-//! let encrypted = sender_cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
+//! let encrypted_msg = sender_cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 //!
 //! // Decrypt with optional sender verification
 //! let sender_public = sender_cipher.public_key();
-//! let decrypted = receiver_cipher.decrypt(&encrypted, Some(&sender_public))?;
+//! let decrypted = receiver_cipher.decrypt(&encrypted_msg, Some(&sender_public))?;
 //! # Ok(())
 //! # }
 //! ```

@@ -66,7 +66,8 @@ pub async fn execute(
             ));
             display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
 
-            let encrypted_bytes = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_bytes = serde_json::to_vec(&encrypted_message)?;
             Some(NodeData::aead_from(encrypted_bytes))
         } else {
             meta.map(|m| NodeData::from(m))
@@ -85,7 +86,8 @@ pub async fn execute(
                 display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
             }
 
-            let encrypted_bytes = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;
+            let encrypted_bytes = serde_json::to_vec(&encrypted_message)?;
             Some(NodeData::aead_from(encrypted_bytes))
         } else {
             payload.map(|p| NodeData::from(p))

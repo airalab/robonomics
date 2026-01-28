@@ -60,7 +60,9 @@ pub async fn execute(
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
             display::tree::info("🔓 Decrypting metadata...");
             let bytes = extract_bytes(meta);
-            let decrypted = cipher.decrypt(&bytes, None)
+            let message: libcps::crypto::EncryptedMessage = serde_json::from_slice(&bytes)
+                .map_err(|e| anyhow::anyhow!("Failed to parse encrypted metadata: {}", e))?;
+            let decrypted = cipher.decrypt(&message, None)
                 .map_err(|e| anyhow::anyhow!("Failed to decrypt metadata: {}. Data appears to be encrypted but decryption failed.", e))?;
             Some(String::from_utf8_lossy(&decrypted).to_string())
         } else {
@@ -76,7 +78,9 @@ pub async fn execute(
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for decryption"))?;
             display::tree::info("🔓 Decrypting payload...");
             let bytes = extract_bytes(payload);
-            let decrypted = cipher.decrypt(&bytes, None)
+            let message: libcps::crypto::EncryptedMessage = serde_json::from_slice(&bytes)
+                .map_err(|e| anyhow::anyhow!("Failed to parse encrypted payload: {}", e))?;
+            let decrypted = cipher.decrypt(&message, None)
                 .map_err(|e| anyhow::anyhow!("Failed to decrypt payload: {}. Data appears to be encrypted but decryption failed.", e))?;
             Some(String::from_utf8_lossy(&decrypted).to_string())
         } else {
