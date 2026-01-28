@@ -53,11 +53,11 @@ pub async fn subscribe(
         match (cipher, algorithm) {
             (Some(cipher), Some(algorithm)) => {
                 display::tree::info(&format!(
-                    "🔐 Using encryption: {} with {}",
+                    "[E] Using encryption: {} with {}",
                     algorithm,
                     cipher.scheme()
                 ));
-                display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
             }
             (None, _) => {
                 return Err(anyhow::anyhow!(
@@ -136,7 +136,7 @@ pub async fn publish(
     ));
     
     if decrypt {
-        display::tree::info("🔓 Decryption enabled - encrypted payloads will be decrypted");
+        display::tree::info("[D] Decryption enabled - encrypted payloads will be decrypted");
     }
     
     display::tree::info(&format!(

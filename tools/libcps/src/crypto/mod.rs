@@ -403,11 +403,11 @@ impl Cipher {
     /// # Arguments
     ///
     /// * `suri` - Secret URI for the keypair
-    /// * `scheme` - Cryptographic scheme to use
+    /// * `scheme` - Cryptographic scheme to use (Sr25519 or Ed25519)
     ///
     /// # Returns
     ///
-    /// Returns a Cipher instance with the secret key
+    /// Returns a Cipher instance with the secret key and public key
     ///
     /// # Errors
     ///

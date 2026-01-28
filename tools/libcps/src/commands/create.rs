@@ -61,11 +61,11 @@ pub async fn execute(
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
             let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             display::tree::info(&format!(
-                "🔐 Encrypting metadata with {} using {}",
+                "[E] Encrypting metadata with {} using {}",
                 algorithm,
                 cipher.scheme()
             ));
-            display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+            display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
 
             let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
             let encrypted_bytes = encrypted_message.encode();
@@ -80,11 +80,11 @@ pub async fn execute(
             let algorithm = algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             if meta_data.is_none() {
                 display::tree::info(&format!(
-                    "🔐 Encrypting payload with {} using {}",
+                    "[E] Encrypting payload with {} using {}",
                     algorithm,
                     cipher.scheme()
                 ));
-                display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
             }
 
             let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;

@@ -46,7 +46,7 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     if !force {
         print!(
             "{} Are you sure you want to delete node {}? (y/N): ",
-            "⚠️".yellow(),
+            "[!]".yellow().bold(),
             node_id.to_string().bright_cyan()
         );
         io::stdout().flush()?;

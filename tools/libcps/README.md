@@ -130,10 +130,10 @@ fn main() -> anyhow::Result<()> {
     
     // Encrypt message from Alice to Bob
     let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
+    let encrypted_msg = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
     
     // Bob decrypts with sender verification
-    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
+    let decrypted = bob.decrypt(&encrypted_msg, Some(&alice.public_key()))?;
     assert_eq!(plaintext, &decrypted[..]);
     
     // Create node data

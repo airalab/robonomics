@@ -534,15 +534,10 @@ impl Config {
                                 }
                             }
                         }
-                        (Some(_), Some(_), None) => {
-                            // Encryption requested but algorithm is missing
-                            error!("Encryption requested (receiver public key provided) but algorithm is missing");
-                            continue;
-                        }
-                        (Some(_), None, _) => {
-                            // Encryption requested but cipher is missing
-                            error!("Encryption requested (receiver public key provided) but cipher is missing");
-                            continue;
+                        (Some(_), _, _) => {
+                            // This state should be prevented by earlier validation at bridge setup
+                            // (receiver_public.is_some() ensures both cipher and algorithm are present)
+                            unreachable!("receiver_public is Some but cipher or algorithm is missing; this should be unreachable due to prior validation");
                         }
                         _ => {
                             let payload_str = String::from_utf8_lossy(&publish.payload);

@@ -20,7 +20,7 @@
 use colored::*;
 use sp_core::crypto::{AccountId32, Ss58Codec};
 
-/// Print a beautiful tree structure for a CPS node
+/// Print a beautiful tree structure for a CPS node (non-recursive, single node display)
 pub fn print_tree(
     node_id: u64,
     owner: AccountId32,
@@ -30,15 +30,15 @@ pub fn print_tree(
 ) {
     println!(
         "\n{} {}\n",
-        "🌳 CPS Node".bright_cyan().bold(),
+        "[*] CPS Node".bright_cyan().bold(),
         format!("ID: {node_id}").bright_white().bold()
     );
 
     // Owner
     println!(
         "{}  {} {}",
-        "├─".bright_black(),
-        "📝 Owner:".bright_yellow(),
+        "|--".bright_black(),
+        "[O] Owner:".bright_yellow(),
         owner.to_ss58check().bright_white()
     );
 
@@ -46,15 +46,15 @@ pub fn print_tree(
     if let Some(meta_str) = meta {
         println!(
             "{}  {} {}",
-            "├─".bright_black(),
-            "📊 Meta:".bright_magenta(),
+            "|--".bright_black(),
+            "[M] Meta:".bright_magenta(),
             format_data(meta_str)
         );
     } else {
         println!(
             "{}  {} {}",
-            "├─".bright_black(),
-            "📊 Meta:".bright_magenta(),
+            "|--".bright_black(),
+            "[M] Meta:".bright_magenta(),
             "<empty>".bright_black()
         );
     }
@@ -63,15 +63,15 @@ pub fn print_tree(
     if let Some(payload_str) = payload {
         println!(
             "{}  {} {}",
-            "└─".bright_black(),
-            "🔐 Payload:".bright_green(),
+            "`--".bright_black(),
+            "[P] Payload:".bright_green(),
             format_data(payload_str)
         );
     } else {
         println!(
             "{}  {} {}",
-            "└─".bright_black(),
-            "🔐 Payload:".bright_green(),
+            "`--".bright_black(),
+            "[P] Payload:".bright_green(),
             "<empty>".bright_black()
         );
     }
@@ -81,19 +81,19 @@ pub fn print_tree(
         println!(
             "\n{}  {} {}",
             "   ".bright_black(),
-            "👶 Children:".bright_blue(),
+            "[C] Children:".bright_blue(),
             format!("({} nodes)", children.len()).bright_black()
         );
         for (i, child_id) in children.iter().enumerate() {
             let prefix = if i == children.len() - 1 {
-                "└─"
+                "`--"
             } else {
-                "├─"
+                "|--"
             };
             println!(
                 "      {} {} {}",
                 prefix.bright_black(),
-                "NodeId:".bright_white(),
+                "Node:".bright_white(),
                 child_id.to_string().bright_cyan()
             );
         }
@@ -101,7 +101,7 @@ pub fn print_tree(
         println!(
             "\n{}  {} {}",
             "   ".bright_black(),
-            "👶 Children:".bright_blue(),
+            "[C] Children:".bright_blue(),
             "<none>".bright_black()
         );
     }
@@ -126,24 +126,102 @@ fn format_data(data: &str) -> ColoredString {
     }
 }
 
+/// Print a node in recursive tree format (for building full tree visualizations)
+pub fn print_node_recursive(
+    node_id: u64,
+    owner: AccountId32,
+    meta: Option<&str>,
+    payload: Option<&str>,
+    children: &[u64],
+    prefix: &str,
+    is_last: bool,
+) {
+    // Node header with proper tree symbols
+    let branch = if is_last { "`--" } else { "|--" };
+    
+    println!(
+        "{}{} {} {}",
+        prefix,
+        branch.bright_black(),
+        "[*]".bright_cyan().bold(),
+        format!("Node {}", node_id).bright_white().bold()
+    );
+
+    // Calculate the prefix for this node's content
+    let content_prefix = if is_last {
+        format!("{}    ", prefix)
+    } else {
+        format!("{}|   ", prefix)
+    };
+
+    // Owner
+    println!(
+        "{}{}  {} {}",
+        content_prefix,
+        "|--".bright_black(),
+        "[O]".bright_yellow(),
+        owner.to_ss58check().bright_white()
+    );
+
+    // Metadata
+    if let Some(meta_str) = meta {
+        println!(
+            "{}{}  {} {}",
+            content_prefix,
+            "|--".bright_black(),
+            "[M]".bright_magenta(),
+            format_data(meta_str)
+        );
+    } else {
+        println!(
+            "{}{}  {} {}",
+            content_prefix,
+            "|--".bright_black(),
+            "[M]".bright_magenta(),
+            "<empty>".bright_black()
+        );
+    }
+
+    // Payload
+    if let Some(payload_str) = payload {
+        println!(
+            "{}{}  {} {}",
+            content_prefix,
+            "`--".bright_black(),
+            "[P]".bright_green(),
+            format_data(payload_str)
+        );
+    } else {
+        println!(
+            "{}{}  {} {}",
+            content_prefix,
+            "`--".bright_black(),
+            "[P]".bright_green(),
+            "<empty>".bright_black()
+        );
+    }
+
+    // Note: Children are printed by the recursive caller, not here
+}
+
 pub fn success(msg: &str) {
-    println!("{} {}", "✅".green(), msg.green());
+    println!("{} {}", "[+]".green().bold(), msg.green());
 }
 
 /*
 pub fn error(msg: &str) {
-    eprintln!("{} {}", "❌".red(), msg.red());
+    eprintln!("{} {}", "[!]".red().bold(), msg.red());
 }
 */
 
 pub fn info(msg: &str) {
-    println!("{} {}", "ℹ️".blue(), msg.bright_blue());
+    println!("{} {}", "[i]".blue().bold(), msg.bright_blue());
 }
 
 pub fn warning(msg: &str) {
-    println!("{} {}", "⚠️".yellow(), msg.yellow());
+    println!("{} {}", "[!]".yellow().bold(), msg.yellow());
 }
 
 pub fn progress(msg: &str) {
-    println!("{} {}", "🔄".cyan(), msg.cyan());
+    println!("{} {}", "[~]".cyan().bold(), msg.cyan());
 }
