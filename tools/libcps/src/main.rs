@@ -78,6 +78,20 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
 #[derive(Parser)]
 #[command(name = "cps")]
 #[command(version, about = "CPS CLI - Robonomics Cyber-Physical Systems", long_about = None)]
+#[command(before_help = r#"
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                                                               ║
+    ║   ██╗     ██╗██████╗  ██████╗██████╗ ███████╗                ║
+    ║   ██║     ██║██╔══██╗██╔════╝██╔══██╗██╔════╝                ║
+    ║   ██║     ██║██████╔╝██║     ██████╔╝███████╗                ║
+    ║   ██║     ██║██╔══██╗██║     ██╔═══╝ ╚════██║                ║
+    ║   ███████╗██║██████╔╝╚██████╗██║     ███████║                ║
+    ║   ╚══════╝╚═╝╚═════╝  ╚═════╝╚═╝     ╚══════╝                ║
+    ║                                                               ║
+    ║           Cyber-Physical Systems - Robonomics Network         ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+"#)]
 struct Cli {
     /// WebSocket URL for blockchain connection
     #[arg(long, env = "ROBONOMICS_WS_URL", default_value = "ws://localhost:9944")]
