@@ -151,286 +151,7 @@ Output:
 `--  [P] Payload: {
   "status": "online"
 }
-
-    [C] Children: (1 nodes)
-      `-- Node: 1
 ```
-
-## 📚 Library Usage
-
-### Quick Start
-
-This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
-
-```rust
-use libcps::{Client, Config, node::Node, types::NodeData};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Connect to blockchain
-    let config = Config {
-        ws_url: "ws://localhost:9944".to_string(),
-        suri: Some("//Alice".to_string()),
-    };
-    let client = Client::new(&config).await?;
-    
-    // Create a root node with metadata and payload
-    let meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
-    let payload: NodeData = r#"{"status":"online"}"#.into();
-    let root_node = Node::create(&client, None, Some(meta), Some(payload)).await?;
-    println!("Created root node: {}", root_node.id());
-    
-    // Create a child node
-    let child_meta: NodeData = r#"{"type":"room","name":"Server Room"}"#.into();
-    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
-    let child_node = Node::create(&client, Some(root_node.id()), Some(child_meta), Some(child_payload)).await?;
-    println!("Created child node: {}", child_node.id());
-    
-    // Update node metadata
-    let new_meta: NodeData = r#"{"type":"room","name":"Server Room","updated":true}"#.into();
-    child_node.set_meta(Some(new_meta)).await?;
-    
-    // Update node payload
-    let new_payload: NodeData = r#"{"temp":"23.5C"}"#.into();
-    child_node.set_payload(Some(new_payload)).await?;
-    
-    // Query and display node information
-    let info = root_node.query().await?;
-    println!("Node {} has {} children", info.id, info.children.len());
-    
-    Ok(())
-}
-```
-
-**Tree Visualization Output:**
-
-When you query a node, the tree is displayed with the new visual format:
-
-```
-[*] CPS Node ID: 0
-
-|--  [O] Owner: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-|--  [M] Meta: {
-  "type": "building",
-  "name": "HQ"
-}
-`--  [P] Payload: {
-  "status": "online"
-}
-
-    [C] Children: (1 nodes)
-      `-- Node: 1
-```
-
-### Data Types
-
-```rust
-use libcps::types::{NodeData, NodeId};
-
-// Create plain data (unencrypted)
-let meta = NodeData::from("sensor config");
-let meta_bytes = NodeData::from(vec![1, 2, 3]);
-
-// Create encrypted data from cipher output
-let encrypted_msg = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
-let encrypted_bytes = encrypted_msg.encode();
-let payload = NodeData::aead_from(encrypted_bytes);
-```
-
-### Encryption Examples
-
-#### SR25519 Encryption (Substrate Native)
-
-```rust
-use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
-
-fn encrypt_sr25519_example() -> anyhow::Result<()> {
-    // Create ciphers for Alice and Bob
-    let alice = Cipher::new(
-        "//Alice".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
-
-    let bob = Cipher::new(
-        "//Bob".to_string(),
-        CryptoScheme::Sr25519,
-    )?;
-
-    // Encrypt from Alice to Bob
-    let plaintext = b"secret message";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::XChaCha20Poly1305)?;
-
-    // Decrypt with sender verification (recommended)
-    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
-    assert_eq!(plaintext, &decrypted[..]);
-
-    // Decrypt without sender verification (accepts from any sender)
-    let decrypted_any = bob.decrypt(&encrypted, None)?;
-    assert_eq!(plaintext, &decrypted_any[..]);
-
-    Ok(())
-}
-```
-
-#### ED25519 Encryption (IoT / Home Assistant Compatible)
-
-```rust
-use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
-
-fn encrypt_ed25519_example() -> anyhow::Result<()> {
-    // Create ciphers with ED25519 scheme
-    let alice = Cipher::new(
-        "//Alice".to_string(),
-        CryptoScheme::Ed25519,
-    )?;
-
-    let bob = Cipher::new(
-        "//Bob".to_string(),
-        CryptoScheme::Ed25519,
-    )?;
-
-    // Encrypt from Alice to Bob
-    let plaintext = b"secret message for home assistant";
-    let encrypted = alice.encrypt(plaintext, &bob.public_key(), EncryptionAlgorithm::AesGcm256)?;
-
-    // Decrypt with sender verification
-    let decrypted = bob.decrypt(&encrypted, Some(&alice.public_key()))?;
-    assert_eq!(plaintext, &decrypted[..]);
-
-    Ok(())
-}
-```
-
-### MQTT Configuration Example
-
-```rust
-use libcps::mqtt::Config as MqttConfig;
-
-let mqtt_config = MqttConfig {
-    broker: "mqtt://localhost:1883".to_string(),
-    username: Some("user".to_string()),
-    password: Some("pass".to_string()),
-    client_id: Some("my-client".to_string()),
-};
-```
-
-### MQTT Bridge (Library Usage)
-
-The MQTT bridge can be used directly from library code:
-
-```rust
-use libcps::{mqtt, Config as BlockchainConfig};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let blockchain_config = BlockchainConfig {
-        ws_url: "ws://localhost:9944".to_string(),
-        suri: Some("//Alice".to_string()),
-    };
-
-    let mqtt_config = mqtt::Config {
-        broker: "mqtt://localhost:1883".to_string(),
-        username: None,
-        password: None,
-        client_id: Some("cps-subscriber".to_string()),
-        blockchain: None,
-        subscribe: Vec::new(),
-        publish: Vec::new(),
-    };
-
-    // Subscribe to MQTT and update blockchain using Config method
-    mqtt_config.subscribe(
-        &blockchain_config,
-        None,  // No encryption
-        "sensors/temperature",
-        42,    // node_id
-        None,  // No receiver public key
-        None,  // No custom message handler
-    ).await?;
-
-    Ok(())
-}
-```
-
-For detailed MQTT examples, see [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs).
-
-### Debugging and Logging
-
-The library uses the [`log`](https://docs.rs/log) crate for comprehensive logging throughout all operations. This makes debugging easy and allows you to trace every step of encryption, blockchain interaction, and MQTT communication.
-
-#### Logging Levels
-
-The library uses these log levels:
-- **`trace`**: Very detailed logs (function entry/exit, data hex dumps, step-by-step operations)
-- **`debug`**: Operation details (algorithms chosen, data sizes, IDs, success messages)
-- **`warn`**: Recoverable issues (fallback to plaintext, retries)
-- **`error`**: Failures (encryption errors, connection failures)
-
-#### Enabling Logging
-
-Use any log implementation like `env_logger` or `tracing`:
-
-```rust
-use libcps::{Client, Config};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize logger (example with env_logger)
-    env_logger::init();
-    
-    let config = Config {
-        ws_url: "ws://localhost:9944".to_string(),
-        suri: Some("//Alice".to_string()),
-    };
-    
-    let client = Client::new(&config).await?;
-    // Now you'll see debug logs!
-    
-    Ok(())
-}
-```
-
-#### Set Log Level via Environment
-
-```bash
-# Show all debug and trace logs
-RUST_LOG=trace cargo run
-
-# Show only libcps logs at debug level
-RUST_LOG=libcps=debug cargo run
-
-# Show only crypto operations
-RUST_LOG=libcps::crypto=trace cargo run
-
-# Show specific modules
-RUST_LOG=libcps::mqtt=debug,libcps::crypto=trace cargo run
-```
-
-#### Example Trace Output
-
-```
-TRACE libcps::blockchain: Connecting to blockchain at ws://localhost:9944
-DEBUG libcps::blockchain: Successfully connected to blockchain
-TRACE libcps::crypto: Creating new Cipher with scheme: Sr25519
-DEBUG libcps::crypto: SR25519 keypair created successfully
-DEBUG libcps::crypto: Encrypting 42 bytes with XChaCha20Poly1305 using Sr25519 scheme
-TRACE libcps::crypto: Deriving shared secret via ECDH
-TRACE libcps::crypto: Encryption key derived
-TRACE libcps::crypto: Generated XChaCha20 nonce: 24 bytes
-DEBUG libcps::crypto: Encryption complete: 42 bytes plaintext -> 58 bytes ciphertext (+ 16 bytes overhead)
-DEBUG libcps::mqtt: Starting MQTT subscribe bridge: topic='sensors/temp', node=5
-TRACE libcps::mqtt: Received MQTT message on topic 'sensors/temp': 42 bytes
-DEBUG libcps::node: Setting payload for node 5: has_data=true
-TRACE libcps::node: Building set_payload transaction
-DEBUG libcps::node: Payload updated successfully for node 5
-```
-
-This comprehensive logging makes it easy to:
-- Debug encryption/decryption operations
-- Monitor performance (data sizes at each step)
-- Audit security operations
-- Troubleshoot MQTT connectivity
-- Track blockchain transactions
 
 ## 📖 Commands
 
@@ -615,52 +336,66 @@ cps --ws-url ws://localhost:9944 \
     show 0
 ```
 
-## 🔐 Encryption Requirements
+## 📚 Library Usage
 
-### What You Need
+### Quick Start
 
-To encrypt data, you **MUST provide BOTH**:
+This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
 
-1. **Sender's Seed Phrase** (your account):
-   - Via `--suri` CLI argument, OR
-   - Via `ROBONOMICS_SURI` environment variable
-   - Example: `//Alice`, `//Bob`, or a 12/24-word seed phrase
+```rust
+use libcps::{Client, Config, node::Node, types::NodeData};
 
-2. **Receiver's Public Key** (who can decrypt):
-   - Via `--receiver-public` CLI argument
-   - Supports SS58 addresses or hex-encoded public keys
-   - Example: `5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty`
-
-### Quick Example
-
-```bash
-# Setup sender credentials
-export ROBONOMICS_SURI="//Alice"
-
-# Encrypt payload for Bob
-cps create \
-  --payload 'secret data' \
-  --receiver-public 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Connect to blockchain
+    let config = Config {
+        ws_url: "ws://localhost:9944".to_string(),
+        suri: Some("//Alice".to_string()),
+    };
+    let client = Client::new(&config).await?;
+    
+    // Create a root node with metadata and payload
+    let meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
+    let payload: NodeData = r#"{"status":"online"}"#.into();
+    let root_node = Node::create(&client, None, Some(meta), Some(payload)).await?;
+    println!("Created root node: {}", root_node.id());
+    
+    // Create a child node
+    let child_meta: NodeData = r#"{"type":"room","name":"Server Room"}"#.into();
+    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
+    let child_node = Node::create(&client, Some(root_node.id()), Some(child_meta), Some(child_payload)).await?;
+    println!("Created child node: {}", child_node.id());
+    
+    // Update node metadata
+    let new_meta: NodeData = r#"{"type":"room","name":"Server Room","updated":true}"#.into();
+    child_node.set_meta(Some(new_meta)).await?;
+    
+    // Update node payload
+    let new_payload: NodeData = r#"{"temp":"23.5C"}"#.into();
+    child_node.set_payload(Some(new_payload)).await?;
+    
+    // Query and display node information
+    let info = root_node.query().await?;
+    println!("Node {} has {} children", info.id, info.children.len());
+    
+    Ok(())
+}
 ```
 
-### What Happens Without Encryption
+### Data Types
 
-If you **omit** `--receiver-public`, data is stored as **plaintext** (no encryption):
+```rust
+use libcps::types::{NodeData, NodeId};
 
-```bash
-# This creates plaintext data (visible to everyone)
-cps create --payload 'public data'
+// Create plain data (unencrypted)
+let meta = NodeData::from("sensor config");
+let meta_bytes = NodeData::from(vec![1, 2, 3]);
+
+// Create encrypted data from cipher output
+let encrypted_msg = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
+let encrypted_bytes = encrypted_msg.encode();
+let payload = NodeData::aead_from(encrypted_bytes);
 ```
-
-### Error Messages
-
-- `"SURI required for encryption"` → Set `--suri` or `ROBONOMICS_SURI`
-- `"Invalid receiver address"` → Check the SS58 address or hex format
-
-### See Also
-
-- [Examples directory](examples/) for working scripts
-- [Encryption section](#encryption) for algorithm details
 
 ## 🔐 Encryption
 
@@ -679,12 +414,14 @@ Two cryptographic schemes are supported for ECDH key agreement:
 | **Key Agreement** | `scalar * point` on Ristretto255 | ED25519 → Curve25519 → X25519 |
 
 #### **SR25519** (Default - Substrate Native)
+
 - Uses Ristretto255 curve for ECDH
 - Native to Substrate/Polkadot ecosystem
 - Best for: Substrate blockchain operations
 - Key agreement: Ristretto255 scalar multiplication
 
 #### **ED25519** (IoT Compatible)
+
 - Uses X25519 ECDH (ED25519 → Curve25519 conversion)
 - Compatible with standard ED25519 implementations
 - Best for: IoT devices, Home Assistant integration, standard cryptography
@@ -777,63 +514,11 @@ The encryption scheme uses HKDF (RFC 5869) for deriving encryption keys from sha
    ```
 
 #### Security Properties:
+
 - **Domain Separation**: Keys bound to Robonomics network context
 - **Algorithm Binding**: Different algorithms produce independent keys
 - **Key Independence**: Each (shared_secret, algorithm) pair → unique key
 - **Security Enhancement**: Constant salt strengthens key derivation even with low-entropy secrets
-
-### Sender Verification
-
-Decryption supports **optional sender verification** for enhanced security:
-
-- **With verification** (recommended): Verifies the message sender's identity before decrypting
-- **Without verification**: Decrypts messages from any sender (useful for anonymous scenarios)
-
-```bash
-# Encrypt with SR25519 (default) and XChaCha20 (default)
-cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS>
-
-# Encrypt with ED25519 cryptographic scheme
-cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
-
-# Encrypt with different algorithm
-cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --cipher aesgcm256
-
-# Combine scheme and cipher selection
-cps create --payload 'secret data' --receiver-public <RECEIVER_ADDRESS> --scheme ed25519 --cipher aesgcm256
-
-# Decrypt when viewing
-cps show 5 --decrypt --scheme sr25519
-
-# The CLI always performs sender verification when available
-```
-
-### CLI Address Formats
-
-The `--receiver-public` parameter accepts both:
-
-1. **SS58 Address** (recommended):
-   ```bash
-   cps create --payload 'data' --receiver-public 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-   ```
-
-2. **Hex-encoded public key** (32 bytes, optional `0x` prefix):
-   ```bash
-   cps create --payload 'data' --receiver-public 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
-   cps create --payload 'data' --receiver-public d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
-   ```
-
-### Home Assistant Compatibility
-
-When using with Home Assistant Robonomics integration, use ED25519 cryptographic scheme:
-
-```bash
-# Subscribe to Home Assistant data with ED25519
-cps mqtt subscribe "homeassistant/sensor/temperature" 5 --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
-
-# Update node with ED25519 encryption
-cps set-payload 5 "encrypted data" --receiver-public <RECEIVER_ADDRESS> --scheme ed25519
-```
 
 ## 📡 MQTT Bridge
 
@@ -867,13 +552,6 @@ mqtt_config.publish(
     None,               // Optional publish handler callback
 ).await?;
 ```
-
-**Library Features:**
-- ✅ Reusable API for custom applications
-- ✅ Optional callbacks for message handling and logging
-- ✅ Resilient error handling (continues on transient failures)
-- ✅ Encryption support (SR25519/ED25519)
-- ✅ Auto-reconnection on connection failures
 
 See [`examples/mqtt_bridge.rs`](examples/mqtt_bridge.rs) for a complete working example.
 
@@ -948,13 +626,6 @@ let config = Config::from_file("mqtt_config.toml")?;
 config.start().await?;
 ```
 
-**Features:**
-- ✅ Manage multiple bridges from a single file
-- ✅ Concurrent execution of all bridges
-- ✅ Per-topic encryption configuration
-- ✅ Easy deployment and version control
-- ✅ No need to manage multiple CLI processes
-
 ### Subscribe: MQTT → Blockchain
 
 Subscribe to MQTT topics and automatically update blockchain node payload with received messages.
@@ -1000,15 +671,6 @@ mqtt_config.subscribe(
     Some(handler),     // Custom message handler
 ).await?;
 ```
-
-**Features:**
-- ✅ Real-time message processing
-- ✅ Auto-reconnect on connection failures
-- ✅ Optional encryption support (SR25519/ED25519)
-- ✅ Colorful console output with timestamps (CLI)
-- ✅ Custom message handlers for library usage
-- ✅ Multiple cipher algorithm support
-- ✅ Resilient error handling (continues on transient failures)
 
 **Flow:**
 ```
@@ -1078,17 +740,6 @@ Blockchain PayloadSet Event → Detect Change → Query Node → Publish to MQTT
           ↓                         ↓              ↓              ↓
    (detected via event)      (node_id match)  (at block #)  (changed data)
 ```
-
-**Features:**
-- ✅ Event-driven monitoring (no polling overhead)
-- ✅ Monitors `PayloadSet` events in finalized blocks
-- ✅ Only queries and publishes when payload actually changes
-- ✅ Automatic decryption of encrypted payloads
-- ✅ Auto-reconnect on connection failures
-- ✅ Graceful shutdown handling
-- ✅ Block number tracking in logs
-- ✅ Custom publish handlers for library usage
-- ✅ Resilient error handling (continues on transient failures)
 
 ### Example Output
 
@@ -1259,7 +910,7 @@ tools/cps/
     │   └── mqtt.rs
     ├── crypto/           # Encryption utilities
     │   ├── mod.rs
-    │   └── xchacha20.rs
+    │   └── scheme.rs
     ├── blockchain/       # Blockchain client
     │   ├── mod.rs
     │   └── client.rs
@@ -1274,13 +925,13 @@ tools/cps/
 ### Building
 
 ```bash
-cargo build --package robonomics-cps-cli
+cargo build --package libcps
 ```
 
 ### Testing
 
 ```bash
-cargo test --package robonomics-cps-cli
+cargo test --package libcps
 ```
 
 ### Generating Blockchain Metadata

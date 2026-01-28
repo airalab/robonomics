@@ -77,20 +77,20 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
 
 #[derive(Parser)]
 #[command(name = "cps")]
-#[command(version, about = "CPS CLI - Robonomics Cyber-Physical Systems", long_about = None)]
+#[command(version, about = "libcps - Robonomics Cyber-Physical System controls", long_about = None)]
 #[command(before_help = r#"
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   ██╗     ██╗██████╗  ██████╗██████╗ ███████╗                ║
-║   ██║     ██║██╔══██╗██╔════╝██╔══██╗██╔════╝                ║
-║   ██║     ██║██████╔╝██║     ██████╔╝███████╗                ║
-║   ██║     ██║██╔══██╗██║     ██╔═══╝ ╚════██║                ║
-║   ███████╗██║██████╔╝╚██████╗██║     ███████║                ║
-║   ╚══════╝╚═╝╚═════╝  ╚═════╝╚═╝     ╚══════╝                ║
-║                                                               ║
-║           Cyber-Physical Systems - Robonomics Network         ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║     ██╗     ██╗██████╗  ██████╗██████╗ ███████╗      ║
+║     ██║     ██║██╔══██╗██╔════╝██╔══██╗██╔════╝      ║
+║     ██║     ██║██████╔╝██║     ██████╔╝███████╗      ║
+║     ██║     ██║██╔══██╗██║     ██╔═══╝ ╚════██║      ║
+║     ███████╗██║██████╔╝╚██████╗██║     ███████║      ║
+║     ╚══════╝╚═╝╚═════╝  ╚═════╝╚═╝     ╚══════╝      ║
+║                                                      ║
+║     Cyber-Physical Systems - Robonomics Network      ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
 "#)]
 struct Cli {
     /// WebSocket URL for blockchain connection
@@ -137,7 +137,7 @@ struct Cli {
 enum Commands {
     /// Display node information and its children in a beautiful tree format
     #[command(
-        long_about = "Display node information and its children in a beautiful tree format.
+        long_about = "Display node information and its children in a tree format.
 
 EXAMPLES:
     # Show node 0
