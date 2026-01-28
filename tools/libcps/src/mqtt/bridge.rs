@@ -214,7 +214,7 @@ pub type MessageHandler = Box<dyn Fn(&str, &[u8]) + Send + Sync>;
 /// When provided, this callback is called after successfully publishing
 /// a message to MQTT. Can be used for logging or custom tracking.
 /// 
-/// Arguments: (topic, block_number, payload_data)
+/// Arguments: (topic, block_number, data)
 pub type PublishHandler = Box<dyn Fn(&str, u32, &str) + Send + Sync>;
 
 /// Start an MQTT subscribe bridge that listens to a topic and updates blockchain node payload.
