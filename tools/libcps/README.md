@@ -812,6 +812,13 @@ node_id = 10
 [[publish]]
 topic = "actuators/fan"
 node_id = 11
+
+# Publish with decryption (reads encrypted blockchain data, publishes decrypted to MQTT)
+# Algorithm and scheme are auto-detected from the encrypted data
+[[publish]]
+topic = "decrypted/sensor/data"
+node_id = 13
+decrypt = true
 ```
 
 See [`examples/mqtt_config.toml`](examples/mqtt_config.toml) for a complete example.
@@ -908,6 +915,9 @@ Monitor blockchain node for payload changes and publish to MQTT topic in real-ti
 # Basic publishing
 cps mqtt publish "actuators/valve" 10
 
+# With decryption (auto-detects algorithm from encrypted data)
+cps mqtt publish "sensors/encrypted" 10 --decrypt
+
 # With custom broker configuration
 cps mqtt publish "actuators/valve" 10 \
     --mqtt-broker mqtt://broker.example.com:1883 \
@@ -918,16 +928,24 @@ cps mqtt publish "actuators/valve" 10 \
 #### Library Usage
 
 ```rust
-use libcps::{mqtt, Config as BlockchainConfig};
+use libcps::{mqtt, Config as BlockchainConfig, crypto::Cipher};
+
+// Create cipher for decryption (optional)
+let cipher = Cipher::new(
+    "//Alice".to_string(),
+    crypto::EncryptionAlgorithm::XChaCha20Poly1305,
+    crypto::CryptoScheme::Sr25519
+)?;
 
 // Create a custom publish handler for logging
 let handler = Box::new(|topic: &str, block_num: u32, data: &str| {
     println!("📤 Published to {} at block #{}: {}", topic, block_num, data);
 });
 
-// Using Config method API
+// Using Config method API with decryption
 mqtt_config.publish(
     &blockchain_config,
+    Some(&cipher),     // Optional cipher for decryption
     "actuators/status",
     1,                 // node_id
     Some(handler),     // Custom publish handler

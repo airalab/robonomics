@@ -54,3 +54,16 @@ node_id = 11
 [[publish]]
 topic = "status/system"
 node_id = 12
+
+# Example with decryption - reads encrypted data from blockchain and publishes decrypted to MQTT
+# The encryption algorithm and scheme are auto-detected from the encrypted data
+[[publish]]
+topic = "decrypted/sensor/data"
+node_id = 13
+decrypt = true
+
+# Another decryption example
+[[publish]]
+topic = "decrypted/secure/readings"
+node_id = 14
+decrypt = true

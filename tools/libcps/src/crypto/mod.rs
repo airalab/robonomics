@@ -810,6 +810,49 @@ impl Cipher {
             }
         }
     }
+    
+    /// Decrypt a NodeData payload if it's encrypted.
+    ///
+    /// If the NodeData is Plain, returns the plain data as-is.
+    /// If the NodeData is Encrypted, attempts to decrypt it using the cipher's private key.
+    /// The encryption metadata (algorithm, sender, nonce) is embedded in the encrypted data itself.
+    ///
+    /// # Arguments
+    ///
+    /// * `node_data` - The NodeData to decrypt
+    /// * `expected_sender` - Optional sender public key for verification
+    ///
+    /// # Returns
+    ///
+    /// Returns the decrypted (or plain) data as bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns error if decryption fails or sender verification fails
+    pub fn decrypt_node_data(
+        &self,
+        node_data: &crate::types::NodeData,
+        expected_sender: Option<&[u8; 32]>,
+    ) -> Result<Vec<u8>> {
+        use crate::types::NodeData;
+        
+        match node_data {
+            NodeData::Plain(bounded_vec) => {
+                // Already plain, just return the data
+                Ok(bounded_vec.0.clone())
+            }
+            NodeData::Encrypted(encrypted_data) => {
+                // Extract the AEAD data
+                use crate::types::EncryptedData;
+                match encrypted_data {
+                    EncryptedData::Aead(bounded_vec) => {
+                        // Decrypt using the embedded metadata
+                        self.decrypt(&bounded_vec.0, expected_sender)
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

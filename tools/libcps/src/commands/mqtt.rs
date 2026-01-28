@@ -105,6 +105,7 @@ pub async fn publish(
     mqtt_config: &mqtt::Config,
     topic: &str,
     node_id: u64,
+    decrypt: bool,
 ) -> Result<()> {
     display::tree::progress("Connecting to blockchain...");
 
@@ -119,6 +120,11 @@ pub async fn publish(
         "Connected to {}",
         mqtt_config.broker.bright_white()
     ));
+    
+    if decrypt {
+        display::tree::info("🔓 Decryption enabled - encrypted payloads will be decrypted");
+    }
+    
     display::tree::info(&format!(
         "🔄 Monitoring node {} payload on each block...",
         node_id.to_string().bright_cyan()
@@ -151,11 +157,25 @@ pub async fn publish(
             display_data.bright_white()
         );
     });
+    
+    // Create cipher for decryption if requested
+    let cipher = if decrypt {
+        use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
+        
+        let suri = blockchain_config.suri.clone()
+            .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
+        // Use default algorithm/scheme for Cipher creation
+        // Actual algorithm is auto-detected from encrypted message
+        Some(Cipher::new(suri, EncryptionAlgorithm::XChaCha20Poly1305, CryptoScheme::Sr25519)?)
+    } else {
+        None
+    };
 
     // Start the bridge with publish handler using Config method
     mqtt_config
         .publish(
             blockchain_config,
+            cipher.as_ref(),
             topic,
             node_id,
             Some(publish_handler),

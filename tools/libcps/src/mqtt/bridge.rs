@@ -177,6 +177,15 @@ pub struct PublishConfig {
     pub topic: String,
     /// Node ID to monitor for changes
     pub node_id: u64,
+    /// Whether to decrypt encrypted blockchain payloads before publishing to MQTT
+    /// Requires SURI to be configured in blockchain section
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub decrypt: bool,
+}
+
+// Helper for serde skip_serializing_if
+fn is_false(b: &bool) -> bool {
+    !b
 }
 
 /// Blockchain connection configuration
@@ -335,10 +344,27 @@ impl Config {
             let mqtt_cfg = self.clone();
             let topic = pub_cfg.topic.clone();
             let node_id = pub_cfg.node_id;
+            let should_decrypt = pub_cfg.decrypt;
 
             let task = tokio::spawn(async move {
+                // Create cipher for decryption if requested
+                // Note: Algorithm and scheme are auto-detected from encrypted data
+                // We only need our private key (SURI) to create the Cipher
+                let cipher = if should_decrypt {
+                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
+                    
+                    let suri = blockchain_cfg.suri.clone()
+                        .ok_or_else(|| anyhow!("SURI required for decryption"))?;
+                    // Use default algorithm (XChaCha20) and scheme (SR25519) for Cipher creation
+                    // The actual algorithm used will be read from the encrypted message
+                    Some(CryptoCipher::new(suri, EncryptionAlgorithm::XChaCha20Poly1305, CryptoScheme::Sr25519)?)
+                } else {
+                    None
+                };
+                
                 mqtt_cfg.publish(
                     &blockchain_cfg,
+                    cipher.as_ref(),
                     &topic,
                     node_id,
                     None, // No custom publish handler
@@ -538,6 +564,7 @@ impl Config {
     ///
     /// mqtt_config.publish(
     ///     &blockchain_config,
+    ///     None,  // Optional cipher for decryption
     ///     "actuators/status",
     ///     1,
     ///     None,
@@ -548,6 +575,7 @@ impl Config {
     pub async fn publish(
         &self,
         blockchain_config: &BlockchainConfig,
+        cipher: Option<&Cipher>,
         topic: &str,
         node_id: u64,
         publish_handler: Option<PublishHandler>,
@@ -648,8 +676,24 @@ impl Config {
                 match node.query_at(block.hash()).await {
                     Ok(node_info) => {
                         if let Some(payload) = node_info.payload {
-                            // Extract the actual data from NodeData
-                            let data = extract_node_data(&payload);
+                            // Extract or decrypt the data
+                            let data = if let Some(cipher) = cipher {
+                                // Try to decrypt if cipher is provided
+                                match cipher.decrypt_node_data(&payload, None) {
+                                    Ok(decrypted_bytes) => {
+                                        String::from_utf8_lossy(&decrypted_bytes).to_string()
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
+                                        // Fall back to raw extraction
+                                        extract_node_data(&payload)
+                                    }
+                                }
+                            } else {
+                                // No cipher, just extract the data as-is
+                                extract_node_data(&payload)
+                            };
+                            
                             let block_number = block.number();
 
                             // Publish to MQTT

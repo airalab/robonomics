@@ -398,6 +398,11 @@ TECHNICAL DETAILS:
 
         /// Node ID to monitor
         node_id: u64,
+        
+        /// Decrypt encrypted blockchain payloads before publishing to MQTT
+        /// The encryption algorithm and scheme are auto-detected from the encrypted data
+        #[arg(short = 'd', long)]
+        decrypt: bool,
     },
 
     /// Start MQTT bridge from configuration file
@@ -626,8 +631,8 @@ async fn main() -> Result<()> {
                 )
                 .await?;
             }
-            MqttCommands::Publish { topic, node_id } => {
-                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id).await?;
+            MqttCommands::Publish { topic, node_id, decrypt } => {
+                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id, decrypt).await?;
             }
             MqttCommands::Start { config } => {
                 // Load config from file and start all bridges
