@@ -84,6 +84,7 @@ rumqttc = "0.24"
 # CLI (for libcps)
 colored = "2.1"
 chrono = "0.4"
+indicatif = "0.17"
 color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"

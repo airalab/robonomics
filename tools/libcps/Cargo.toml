@@ -47,6 +47,7 @@ rumqttc = { workspace = true, optional = true }
 # CLI & Output
 clap = { workspace = true, features = ["env"], optional = true }
 colored = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true, features = ["std"] }
@@ -67,7 +68,7 @@ log = { workspace = true }
 [features]
 default = ["mqtt", "cli"]
 mqtt = ["dep:rumqttc", "dep:toml"]
-cli = ["mqtt", "clap", "colored", "chrono"]
+cli = ["mqtt", "clap", "colored", "chrono", "indicatif"]
 
 [package.metadata.docs.rs]
 all-features = true
