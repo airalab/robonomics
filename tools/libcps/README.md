@@ -260,13 +260,15 @@ async fn main() -> anyhow::Result<()> {
         username: None,
         password: None,
         client_id: Some("cps-subscriber".to_string()),
+        blockchain: None,
+        subscribe: Vec::new(),
+        publish: Vec::new(),
     };
 
-    // Subscribe to MQTT and update blockchain
-    mqtt::start_subscribe_bridge(
+    // Subscribe to MQTT and update blockchain using Config method
+    mqtt_config.subscribe(
         &blockchain_config,
         None,  // No encryption
-        &mqtt_config,
         "sensors/temperature",
         42,    // node_id
         None,  // No receiver public key
@@ -733,10 +735,10 @@ The MQTT bridge can be used programmatically from your Rust applications:
 use libcps::{mqtt, Config as BlockchainConfig};
 
 // Subscribe Bridge: MQTT → Blockchain
-mqtt::start_subscribe_bridge(
+// Using Config method API
+mqtt_config.subscribe(
     &blockchain_config,
     None,              // Optional encryption cipher
-    &mqtt_config,
     "sensors/temp",    // MQTT topic
     1,                 // Node ID
     None,              // Optional receiver public key
@@ -744,9 +746,9 @@ mqtt::start_subscribe_bridge(
 ).await?;
 
 // Publish Bridge: Blockchain → MQTT
-mqtt::start_publish_bridge(
+// Using Config method API
+mqtt_config.publish(
     &blockchain_config,
-    &mqtt_config,
     "actuators/status", // MQTT topic
     1,                  // Node ID
     None,               // Optional publish handler callback
@@ -868,10 +870,10 @@ let handler = Box::new(|topic: &str, payload: &[u8]| {
     println!("📥 Received on {}: {:?}", topic, payload);
 });
 
-mqtt::start_subscribe_bridge(
+// Using Config method API
+mqtt_config.subscribe(
     &blockchain_config,
     None,              // No encryption
-    &mqtt_config,
     "sensors/temp",
     1,                 // node_id
     None,              // No receiver public key
@@ -923,9 +925,9 @@ let handler = Box::new(|topic: &str, block_num: u32, data: &str| {
     println!("📤 Published to {} at block #{}: {}", topic, block_num, data);
 });
 
-mqtt::start_publish_bridge(
+// Using Config method API
+mqtt_config.publish(
     &blockchain_config,
-    &mqtt_config,
     "actuators/status",
     1,                 // node_id
     Some(handler),     // Custom publish handler

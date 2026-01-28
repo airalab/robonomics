@@ -119,21 +119,19 @@
 //!     suri: Some("//Alice".to_string()),
 //! };
 //!
-//! // Subscribe to MQTT and update blockchain
-//! mqtt::start_subscribe_bridge(
+//! // Subscribe to MQTT and update blockchain using Config method
+//! mqtt_config.subscribe(
 //!     &blockchain_config,
 //!     None,              // No encryption
-//!     &mqtt_config,
 //!     "sensors/temp",    // MQTT topic
 //!     1,                 // Node ID
 //!     None,              // No receiver public key
 //!     None,              // No custom message handler
 //! ).await?;
 //!
-//! // Or publish blockchain changes to MQTT
-//! mqtt::start_publish_bridge(
+//! // Or publish blockchain changes to MQTT using Config method
+//! mqtt_config.publish(
 //!     &blockchain_config,
-//!     &mqtt_config,
 //!     "actuators/status", // MQTT topic
 //!     1,                  // Node ID
 //!     None,               // No custom publish handler

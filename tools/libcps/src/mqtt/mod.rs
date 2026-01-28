@@ -54,10 +54,10 @@
 //!     client_id: None,
 //! };
 //!
-//! mqtt::start_subscribe_bridge(
+//! // Using Config method API
+//! mqtt_config.subscribe(
 //!     &blockchain_config,
 //!     None,
-//!     &mqtt_config,
 //!     "sensors/temp",
 //!     1,
 //!     None,
