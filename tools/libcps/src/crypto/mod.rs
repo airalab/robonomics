@@ -648,7 +648,9 @@ impl Cipher {
         let shared_secret = self.derive_shared_secret(receiver_public)?;
 
         // Step 2: Derive encryption key using HKDF with salt
-        // This should never fail with valid inputs, but propagate an error instead of panicking
+        // HKDF expand can only fail if the output length exceeds the hash function's 
+        // maximum (255 * hash_len for SHA-256 = 8160 bytes), but we only request 32 bytes.
+        // We propagate the error for defensive programming rather than panicking.
         let encryption_key = Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)
             .map_err(|e| anyhow!("HKDF key derivation failed: {e}"))?;
 

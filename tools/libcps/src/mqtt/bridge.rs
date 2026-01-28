@@ -145,7 +145,7 @@
 //! ```
 
 use crate::blockchain::{Client, Config as BlockchainConfig};
-use crate::crypto::{Cipher, EncryptionAlgorithm};
+use crate::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
 use crate::node::Node;
 use crate::types::{EncryptedData, NodeData};
 use crate::PayloadSet;
@@ -153,6 +153,7 @@ use anyhow::{anyhow, Result};
 use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tokio::time::{sleep, Duration};
 
 /// Configuration for a subscribe topic
@@ -313,16 +314,13 @@ impl Config {
 
                 // Create cipher if encryption is requested
                 let (cipher, algorithm_opt) = if receiver_public.is_some() {
-                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme, EncryptionAlgorithm};
-                    use std::str::FromStr;
-                    
                     let algorithm = EncryptionAlgorithm::from_str(&cipher_name)
                         .map_err(|e| anyhow!("Invalid cipher '{}': {}", cipher_name, e))?;
                     let scheme = CryptoScheme::from_str(&scheme_name)
                         .map_err(|e| anyhow!("Invalid scheme '{}': {}", scheme_name, e))?;
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for encryption"))?;
-                    (Some(CryptoCipher::new(suri, scheme)?), Some(algorithm))
+                    (Some(Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
                     (None, None)
                 };
@@ -355,13 +353,11 @@ impl Config {
                 // Note: Algorithm and scheme are auto-detected from encrypted data
                 // We only need our private key (SURI) to create the Cipher
                 let cipher = if should_decrypt {
-                    use crate::crypto::{Cipher as CryptoCipher, CryptoScheme};
-                    
                     let suri = blockchain_cfg.suri.clone()
                         .ok_or_else(|| anyhow!("SURI required for decryption"))?;
                     // Use default scheme (SR25519) for Cipher creation
                     // The actual algorithm used will be read from the encrypted message
-                    Some(CryptoCipher::new(suri, CryptoScheme::Sr25519)?)
+                    Some(Cipher::new(suri, CryptoScheme::Sr25519)?)
                 } else {
                     None
                 };
@@ -381,7 +377,7 @@ impl Config {
         // Wait for all tasks (they run indefinitely)
         for task in tasks {
             if let Err(e) = task.await {
-                eprintln!("Bridge task failed: {}", e);
+                eprintln!("Error: Bridge task failed: {}", e);
             }
         }
 
@@ -504,7 +500,7 @@ impl Config {
                                 }
                                 Err(e) => {
                                     // Encryption failed, log error and continue
-                                    eprintln!("Failed to encrypt message: {}", e);
+                                    eprintln!("Error: Failed to encrypt message: {}", e);
                                     continue;
                                 }
                             }
@@ -528,7 +524,7 @@ impl Config {
                     // Update node payload on blockchain
                     if let Err(e) = node.set_payload(Some(node_data)).await {
                         // Blockchain update failed, log error and continue
-                        eprintln!("Failed to update node payload: {}", e);
+                        eprintln!("Error: Failed to update node payload: {}", e);
                     }
                 }
                 Ok(Event::Incoming(Packet::ConnAck(_))) => {
@@ -710,7 +706,7 @@ impl Config {
                                         String::from_utf8_lossy(&decrypted_bytes).to_string()
                                     }
                                     Err(e) => {
-                                        eprintln!("Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
+                                        eprintln!("Error: Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
                                         // Fall back to raw extraction
                                         extract_node_data(&payload)
                                     }
@@ -734,7 +730,7 @@ impl Config {
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("Failed to publish to MQTT: {}", e);
+                                    eprintln!("Error: Failed to publish to MQTT: {}", e);
                                 }
                             }
                         }
