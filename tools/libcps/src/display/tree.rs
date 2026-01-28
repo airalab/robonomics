@@ -113,15 +113,3 @@ pub fn print_node_recursive(
 
     // Note: Children are printed by the recursive caller, not here
 }
-
-pub fn success(msg: &str) {
-    println!("{} {}", "[+]".green().bold(), msg.green());
-}
-
-pub fn info(msg: &str) {
-    println!("{} {}", "[i]".blue().bold(), msg.bright_blue());
-}
-
-pub fn progress(msg: &str) {
-    println!("{} {}", "[~]".cyan().bold(), msg.cyan());
-}

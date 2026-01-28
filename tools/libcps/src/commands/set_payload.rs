@@ -29,6 +29,7 @@ use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 use parity_scale_codec::Encode;
+use sp_core::crypto::{AccountId32, Ss58Codec};
 
 pub async fn execute(
     config: &Config,
@@ -39,25 +40,26 @@ pub async fn execute(
     algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
     // CLI display: show connection progress
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Updating payload for node {node_id}"));
+    display::info(&format!("Connected to {}", config.ws_url));
+    display::info(&format!("Updating payload for node {node_id}"));
 
     // Convert data to NodeData, applying encryption if requested
     let payload_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
         let algorithm =
             algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
-        display::tree::info(&format!(
+        display::info(&format!(
             "[E] Encrypting payload with {} using {}",
             algorithm,
             cipher.scheme()
         ));
-        display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
+        let receiver_account = AccountId32::from(*receiver_pub);
+        display::info(&format!("[K] Receiver: {}", receiver_account.to_ss58check()));
 
         let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
         let encrypted_bytes = encrypted_message.encode();
@@ -73,7 +75,7 @@ pub async fn execute(
     let _events = node.set_payload(Some(payload_data)).await?;
     spinner.finish_and_clear();
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Payload updated for node {}",
         node_id.to_string().bright_cyan()
     ));

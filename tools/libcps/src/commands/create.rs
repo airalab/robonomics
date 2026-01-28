@@ -25,6 +25,7 @@ use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
 use parity_scale_codec::Encode;
+use sp_core::crypto::{AccountId32, Ss58Codec};
 
 pub async fn execute(
     config: &Config,
@@ -35,24 +36,25 @@ pub async fn execute(
     receiver_public: Option<[u8; 32]>,
     algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
     let keypair = client.require_keypair()?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!(
+    display::info(&format!("Connected to {}", config.ws_url));
+    let account_id = AccountId32::from(keypair.public_key().0);
+    display::info(&format!(
         "Using account: {}",
-        hex::encode(keypair.public_key().0)
+        account_id.to_ss58check()
     ));
 
     if parent.is_some() {
-        display::tree::info(&format!(
+        display::info(&format!(
             "Creating child node under parent {}",
             parent.unwrap()
         ));
     } else {
-        display::tree::info("Creating root node");
+        display::info("Creating root node");
     }
 
     // Convert strings to NodeData, applying encryption if requested
@@ -61,12 +63,13 @@ pub async fn execute(
             let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
             let algorithm =
                 algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
-            display::tree::info(&format!(
+            display::info(&format!(
                 "[E] Encrypting metadata with {} using {}",
                 algorithm,
                 cipher.scheme()
             ));
-            display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
+            let receiver_account = AccountId32::from(*receiver_pub);
+            display::info(&format!("[K] Receiver: {}", receiver_account.to_ss58check()));
 
             let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
             let encrypted_bytes = encrypted_message.encode();
@@ -81,12 +84,13 @@ pub async fn execute(
             let algorithm =
                 algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
             if meta_data.is_none() {
-                display::tree::info(&format!(
+                display::info(&format!(
                     "[E] Encrypting payload with {} using {}",
                     algorithm,
                     cipher.scheme()
                 ));
-                display::tree::info(&format!("[K] Receiver: {}", hex::encode(receiver_pub)));
+                let receiver_account = AccountId32::from(*receiver_pub);
+                display::info(&format!("[K] Receiver: {}", receiver_account.to_ss58check()));
             }
 
             let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;
@@ -100,7 +104,7 @@ pub async fn execute(
     let node = Node::create(&client, parent, meta_data, payload_data).await?;
     spinner.finish_and_clear();
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Node created with ID: {}",
         node.id().to_string().bright_cyan()
     ));
