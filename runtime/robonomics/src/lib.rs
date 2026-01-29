@@ -784,15 +784,29 @@ extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 frame_benchmarking::define_benchmarks!(
+    // System pallets
     [frame_system, SystemBench::<Runtime>]
+    [pallet_balances, Balances]
+    [pallet_timestamp, Timestamp]
+    [pallet_utility, Utility]
+    [pallet_multisig, Multisig]
+    [pallet_vesting, Vesting]
+    [pallet_assets, Assets]
+    // Consensus pallets
+    [pallet_collator_selection, CollatorSelection]
+    [pallet_session, Session]
     // Robonomics pallets
     [pallet_robonomics_datalog, Datalog]
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
+    [pallet_robonomics_cps, CPS]
+    [pallet_wrapped_native, WrappedXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
+    [pallet_xcm, PolkadotXcm]
+    [pallet_xcm_info, XcmInfo]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
