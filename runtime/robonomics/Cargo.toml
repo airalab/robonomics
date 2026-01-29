@@ -50,6 +50,7 @@ pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
 pallet-preimage.workspace = true
+pallet-proxy.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-system.workspace = true
 frame-try-runtime = { optional = true, workspace = true }
@@ -68,6 +69,7 @@ pallet-robonomics-digital-twin.workspace = true
 pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
+pallet-robonomics-subscription.workspace = true
 pallet-robonomics-cps.workspace = true
 pallet-wrapped-native.workspace = true
 
@@ -132,6 +134,7 @@ std = [
   "pallet-membership/std",
   "pallet-multisig/std",
   "pallet-preimage/std",
+  "pallet-proxy/std",
   "frame-support/std",
   "frame-system/std",
   "frame-system-rpc-runtime-api/std",
@@ -145,6 +148,7 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
+  "pallet-robonomics-subscription/std",
   "pallet-wrapped-native/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
@@ -176,11 +180,13 @@ runtime-benchmarks = [
   "pallet-balances/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
+  "pallet-proxy/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
+  "pallet-robonomics-subscription/runtime-benchmarks",
   "pallet-wrapped-native/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",

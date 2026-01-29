@@ -19,6 +19,7 @@ codegen-units = 1
 members = [
   "bin/robonomics",
   "frame/rws",
+  "frame/subscription",
   "frame/launch",
   "frame/datalog",
   "frame/liability",
@@ -42,7 +43,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
 smallvec = { version = "1.11", default-features = false }
-hex-literal = { version = "0.4.1", default-features = false }
+hex-literal = { version = "0.4", default-features = false }
 log = { version = "0.4.19", default-features = false }
 
 # (native)
@@ -62,28 +63,22 @@ anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
 
-# Cryptography (for libcps)
+# libcps
 curve25519-dalek = "4.1"
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 chacha20poly1305 = "0.10"
 aes-gcm = "0.10"
 hkdf = "0.12"
 sha2 = "0.10"
-
-# Blockchain (for libcps)
 subxt = "0.44"
 subxt-signer = "0.44"
-
-# Serialization (for libcps)
-base64 = "0.21"
+base64 = "0.22"
 hex = "0.4"
+rumqttc = "0.25.1"
 toml = "0.8"
 
-# MQTT (for libcps)
-rumqttc = "0.24"
-
-# CLI (for libcps)
-colored = "2.1"
+# libcps CLI
+colored = "3.1"
 chrono = "0.4"
 indicatif = "0.17"
 color-eyre = { version = "0.6.3", default-features = false }
@@ -234,6 +229,7 @@ pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-featur
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-subscription = { path = "./frame/subscription", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-wrapped-native = { path = "./frame/wrapped-native", default-features = false }
 

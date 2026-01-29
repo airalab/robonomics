@@ -56,7 +56,7 @@ use sp_runtime::{
     impl_opaque_keys,
     traits::{BlakeTwo256, Block as BlockT, Bounded, ConvertInto},
     transaction_validity::{TransactionSource, TransactionValidity},
-    BoundedVec, FixedPointNumber, Perbill, Perquintill,
+    BoundedVec, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
@@ -375,6 +375,70 @@ impl pallet_multisig::Config for Runtime {
     type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
+#[derive(
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    parity_scale_codec::Encode,
+    parity_scale_codec::Decode,
+    parity_scale_codec::DecodeWithMemTracking,
+    sp_runtime::RuntimeDebug,
+    parity_scale_codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl frame_support::traits::InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, _c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+        }
+    }
+
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, ProxyType::Any) => true,
+        }
+    }
+}
+
+parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 40);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const AnnouncementDepositBase: Balance = deposit(1, 48);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+}
+
+impl pallet_proxy::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = ConstU32<32>;
+    type MaxPending = ConstU32<32>;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+    type WeightInfo = ();
+    type BlockNumberProvider = frame_system::Pallet<Runtime>;
+}
+
 parameter_types! {
     pub ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
@@ -502,6 +566,29 @@ impl pallet_robonomics_rws::Config for Runtime {
 }
 
 parameter_types! {
+    pub const AuctionDurationMs: u64 = 60_000;  // 60,000 milliseconds (i.e., 60 seconds)
+    pub const AssetToTpsRatio: Permill = Permill::from_parts(1);
+    pub const SubscriptionPalletId: PalletId = PalletId(*b"RwsStake");
+}
+
+impl pallet_robonomics_subscription::Config for Runtime {
+    type Assets = Assets;
+    type LifetimeAssetId = ConstU32<42>;
+    type AssetToTpsRatio = AssetToTpsRatio;
+    type PalletId = SubscriptionPalletId;
+    type Call = RuntimeCall;
+    type Time = Timestamp;
+    type Moment = u64;
+    type AuctionCurrency = Balances;
+    type RuntimeEvent = RuntimeEvent;
+    type ReferenceCallWeight = ReferenceCallWeight;
+    type AuctionDuration = AuctionDurationMs;
+    type MinimalBid = MinimalBid;
+    type StartAuctionOrigin = EnsureRoot<AccountId>;
+    type WeightInfo = pallet_robonomics_subscription::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxRootNodes: u32 = 100;
@@ -626,6 +713,9 @@ mod runtime {
     #[runtime::pallet_index(16)]
     pub type MultiBlockMigrations = pallet_migrations;
 
+    #[runtime::pallet_index(17)]
+    pub type Proxy = pallet_proxy;
+
     //
     // Parachain core pallets
     //
@@ -678,6 +768,9 @@ mod runtime {
     pub type Liability = pallet_robonomics_liability;
 
     #[runtime::pallet_index(57)]
+    pub type Subscription = pallet_robonomics_subscription;
+
+    #[runtime::pallet_index(58)]
     pub type CPS = pallet_robonomics_cps;
 
     //
@@ -743,6 +836,7 @@ pub type TxExtension = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
         frame_system::CheckEra<Runtime>,
         frame_system::CheckNonce<Runtime>,
         frame_system::CheckWeight<Runtime>,
+        pallet_robonomics_subscription::ChargeSubscriptionTransaction<Runtime>,
         pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
         frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
     ),
@@ -790,7 +884,8 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
-    [pallet_robonomics_rws, RWS]
+    [pallet_robonomics_subscription, Subscription]
+    [pallet_robonomics_cps, CPS]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
 );
