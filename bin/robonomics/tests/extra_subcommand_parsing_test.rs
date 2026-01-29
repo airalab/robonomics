@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Integration tests that spawn the actual binary `polkadot-omni-node`
+/// Integration tests that spawn the actual binary `robonomics`
 /// using `assert_cmd`. We verify that the help text
 /// excludes the `export-chain-spec` sub‑command exactly as intended
 use assert_cmd::cargo::cargo_bin;
