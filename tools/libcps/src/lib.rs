@@ -199,11 +199,11 @@
 //! The library provides types that match the CPS pallet:
 //!
 //! ```
-//! use libcps::types::{NodeId, NodeData, EncryptedData};
+//! use libcps::types::{NodeId, NodeData};
 //!
 //! let node_id = NodeId(42);
-//! let plain_data = NodeData::plain_from_bytes(b"sensor reading");
-//! let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+//! let plain_data = NodeData::from(b"sensor reading".to_vec());
+//! let encrypted_data = NodeData::aead_from(vec![1, 2, 3, 4]);
 //! ```
 //!
 //! ## Crates.io Metadata

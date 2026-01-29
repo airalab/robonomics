@@ -35,7 +35,7 @@
 //!     let client = Client::new(&config).await?;
 //!     let keypair = client.require_keypair()?;
 //!     
-//!     println!("Connected with account: {:?}", keypair.public_key());
+//!     println!("Connected with account");
 //!     Ok(())
 //! }
 //! ```

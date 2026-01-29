@@ -98,25 +98,30 @@
 //! 3. AEAD Encryption:
 //!    nonce = random(24 bytes)
 //!    ciphertext = XChaCha20Poly1305(encryption_key, nonce, plaintext)
+//! ```
 //!
 //! 4. Transmit message:
 //!    The encrypted message is a versioned enum serialized with SCALE codec:
-//!    ```rust
-//!    enum EncryptedMessage {
-//!        V1 {
-//!            algorithm: EncryptionAlgorithm,  // enum: XChaCha20Poly1305, AesGcm256, ChaCha20Poly1305
-//!            from: [u8; 32],                  // sender's public key
-//!            nonce: Vec<u8>,                  // 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20
-//!            ciphertext: Vec<u8>,             // encrypted data with auth tag
-//!        }
-//!    }
-//!    ```
+//!    
+//! ```ignore
+//! enum EncryptedMessage {
+//!     V1 {
+//!         algorithm: EncryptionAlgorithm,  // enum: XChaCha20Poly1305, AesGcm256, ChaCha20Poly1305
+//!         from: [u8; 32],                  // sender's public key
+//!         nonce: Vec<u8>,                  // 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20
+//!         ciphertext: Vec<u8>,             // encrypted data with auth tag
+//!     }
+//! }
+//! ```
+//!    
 //!    The versioned format allows future protocol upgrades:
 //!    - Enum variants enable backward-compatible format changes
 //!    - Currently only V1 variant is supported
 //!    - SCALE codec provides efficient binary serialization for blockchain storage
 //!    - `algorithm` field enables auto-detection of cipher used
 //!    - `from` contains sender's 32-byte public key
+//!
+//! ```text
 //!                           ───────────────────>
 //!
 //! 5. Receiver verifies and derives same key:
