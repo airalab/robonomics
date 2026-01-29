@@ -1,6 +1,6 @@
 name: Syntax
 permissions:
-  contents: read
+  contents: write
 
 on: 
   workflow_call:
@@ -18,16 +18,27 @@ jobs:
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: false
 
-      - name: Check fmt
-        run: cargo fmt -- --check
+      - name: Check and fix Rust formatting
+        id: cargo-fmt
+        run: |
+          if ! cargo fmt -- --check; then
+            echo "needs_fix=true" >> $GITHUB_OUTPUT
+            cargo fmt
+          else
+            echo "needs_fix=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Check Cargo.toml format
+      - name: Check and fix TOML formatting
+        id: taplo-fmt
         run: |
           if taplo --version &> /dev/null; then
             echo "taplo-cli is already installed"
@@ -35,7 +46,28 @@ jobs:
             curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
               | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
           fi
-          taplo fmt --check
+          
+          if ! taplo fmt --check; then
+            echo "needs_fix=true" >> $GITHUB_OUTPUT
+            taplo fmt
+          else
+            echo "needs_fix=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push formatting fixes
+        if: steps.cargo-fmt.outputs.needs_fix == 'true' || steps.taplo-fmt.outputs.needs_fix == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Auto-fix code formatting (cargo fmt + taplo fmt)"
+          git push
+
+      - name: Fail if formatting was needed
+        if: steps.cargo-fmt.outputs.needs_fix == 'true' || steps.taplo-fmt.outputs.needs_fix == 'true'
+        run: |
+          echo "::error::Code formatting was automatically fixed. Please pull the latest changes."
+          exit 1
 
   check-license:
     if: github.event.pull_request.draft == false
