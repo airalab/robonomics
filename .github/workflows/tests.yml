@@ -31,7 +31,7 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Install deps
-      run: sudo apt -y install pkg-config protobuf-compiler
+      run: sudo apt -y install pkg-config protobuf-compiler libclang-dev
 
     - name: Run all workspace tests
       run: cargo test --workspace --locked
@@ -52,7 +52,7 @@ jobs:
       run: |
         sudo add-apt-repository ppa:ethereum/ethereum -y
         sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler solc
+        sudo apt -y install pkg-config protobuf-compiler libclang-dev solc
         sudo cp ./scripts/resolc /usr/local/bin/resolc
 
     - name: Build runtime with benchmarks
