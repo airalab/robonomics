@@ -25,12 +25,12 @@ use libcps::node::Node;
 use std::io::{self, Write};
 
 pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
+    display::info(&format!("Connected to {}", config.ws_url));
 
     // Check if node has children (query first)
     let node = Node::new(&client, node_id);
@@ -46,7 +46,7 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
     if !force {
         print!(
             "{} Are you sure you want to delete node {}? (y/N): ",
-            "⚠️".yellow(),
+            "[!]".yellow().bold(),
             node_id.to_string().bright_cyan()
         );
         io::stdout().flush()?;
@@ -55,17 +55,18 @@ pub async fn execute(config: &Config, node_id: u64, force: bool) -> Result<()> {
         io::stdin().read_line(&mut input)?;
 
         if !input.trim().eq_ignore_ascii_case("y") {
-            display::tree::info("Deletion cancelled");
+            display::info("Deletion cancelled");
             return Ok(());
         }
     }
 
-    display::tree::progress(&format!("Deleting node {node_id}..."));
+    let spinner = display::spinner("Submitting transaction...");
 
     // Delete node using Node API
     node.delete().await?;
+    spinner.finish_and_clear();
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Node {} deleted",
         node_id.to_string().bright_cyan()
     ));

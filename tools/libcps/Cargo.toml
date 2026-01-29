@@ -42,15 +42,18 @@ hkdf = { workspace = true }
 sha2 = { workspace = true }
 
 # MQTT
-rumqttc = { workspace = true }
+rumqttc = { workspace = true, optional = true }
 
 # CLI & Output
 clap = { workspace = true, features = ["env"], optional = true }
 colored = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
+easy-hex = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true, features = ["std"] }
 serde_json = { workspace = true, features = ["std"] }
+toml = { workspace = true, optional = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
 hex = { workspace = true }
@@ -60,9 +63,22 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true, optional = true }
 
+# Logging
+log = { workspace = true }
+env_logger = { workspace = true, optional = true }
+
 [features]
-default = ["cli"]
-cli = ["clap", "colored", "chrono"]
+default = ["mqtt", "cli"]
+mqtt = ["dep:rumqttc", "dep:toml"]
+cli = [
+  "mqtt",
+  "clap",
+  "colored",
+  "chrono",
+  "indicatif",
+  "env_logger",
+  "easy-hex",
+]
 
 [package.metadata.docs.rs]
 all-features = true

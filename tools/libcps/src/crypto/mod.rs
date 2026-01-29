@@ -98,10 +98,30 @@
 //! 3. AEAD Encryption:
 //!    nonce = random(24 bytes)
 //!    ciphertext = XChaCha20Poly1305(encryption_key, nonce, plaintext)
+//! ```
 //!
 //! 4. Transmit message:
-//!    {from: alice_public, algorithm: "xchacha20poly1305",
-//!     nonce: base64(nonce), ciphertext: base64(ciphertext)}
+//!    The encrypted message is a versioned enum serialized with SCALE codec:
+//!    
+//! ```ignore
+//! enum EncryptedMessage {
+//!     V1 {
+//!         algorithm: EncryptionAlgorithm,  // enum: XChaCha20Poly1305, AesGcm256, ChaCha20Poly1305
+//!         from: [u8; 32],                  // sender's public key
+//!         nonce: Vec<u8>,                  // 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20
+//!         ciphertext: Vec<u8>,             // encrypted data with auth tag
+//!     }
+//! }
+//! ```
+//!    
+//!    The versioned format allows future protocol upgrades:
+//!    - Enum variants enable backward-compatible format changes
+//!    - Currently only V1 variant is supported
+//!    - SCALE codec provides efficient binary serialization for blockchain storage
+//!    - `algorithm` field enables auto-detection of cipher used
+//!    - `from` contains sender's 32-byte public key
+//!
+//! ```text
 //!                           ───────────────────>
 //!
 //! 5. Receiver verifies and derives same key:
@@ -127,6 +147,8 @@ use anyhow::{anyhow, Result};
 use chacha20poly1305::{
     aead::OsRng, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
+use log::{debug, trace};
+use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use sp_core::Pair;
 use std::fmt;
@@ -214,7 +236,7 @@ const HKDF_SALT: &[u8] = b"robonomics-network";
 /// let from_str = EncryptionAlgorithm::from_str("aesgcm256").unwrap();
 /// assert_eq!(from_str, EncryptionAlgorithm::AesGcm256);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode, Serialize, Deserialize)]
 pub enum EncryptionAlgorithm {
     /// XChaCha20-Poly1305 AEAD (24-byte nonce)
     XChaCha20Poly1305,
@@ -326,18 +348,28 @@ impl FromStr for EncryptionAlgorithm {
 }
 
 /// Encrypted message format stored on-chain.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EncryptedMessage {
-    version: u8,
-    #[serde(default = "default_algorithm")]
-    algorithm: String,
-    from: String,
-    nonce: String,
-    ciphertext: String,
-}
-
-fn default_algorithm() -> String {
-    "xchacha20".to_string()
+///
+/// This enum is versioned to support future format changes while maintaining
+/// backward compatibility. Uses SCALE codec for efficient binary serialization.
+#[derive(Debug, Clone, Encode, Decode, Serialize, Deserialize)]
+pub enum EncryptedMessage {
+    /// Version 1 of the encrypted message format.
+    ///
+    /// Uses AEAD encryption with algorithm identifier, sender's public key,
+    /// nonce, and ciphertext as binary data.
+    V1 {
+        /// Encryption algorithm
+        algorithm: EncryptionAlgorithm,
+        /// Sender's public key (32 bytes)
+        #[serde(with = "easy_hex::serde")]
+        from: [u8; 32],
+        /// Nonce for the encryption (size varies by algorithm: 24 bytes for XChaCha20, 12 for AES-GCM/ChaCha20)
+        #[serde(with = "easy_hex::serde")]
+        nonce: Vec<u8>,
+        /// Encrypted ciphertext with authentication tag
+        #[serde(with = "easy_hex::serde")]
+        ciphertext: Vec<u8>,
+    },
 }
 
 /// Cipher configuration for encryption and decryption operations.
@@ -354,22 +386,19 @@ fn default_algorithm() -> String {
 ///
 /// let cipher = Cipher::new(
 ///     "//Alice".to_string(),
-///     EncryptionAlgorithm::XChaCha20Poly1305,
 ///     CryptoScheme::Sr25519,
 /// ).unwrap();
 ///
 /// let plaintext = b"secret message";
 /// let receiver_public = &[0u8; 32]; // receiver's public key
-/// let encrypted = cipher.encrypt(plaintext, receiver_public).unwrap();
-/// let decrypted = cipher.decrypt(&encrypted, None).unwrap();
+/// let encrypted_msg = cipher.encrypt(plaintext, receiver_public, EncryptionAlgorithm::XChaCha20Poly1305).unwrap();
+/// let decrypted = cipher.decrypt(&encrypted_msg, None).unwrap();
 /// ```
 pub struct Cipher {
     /// 32-byte secret key
     secret: [u8; 32],
     /// Cached public key (derived once in constructor)
     public_key: [u8; 32],
-    /// Encryption algorithm
-    algorithm: EncryptionAlgorithm,
     /// Cryptographic scheme
     scheme: CryptoScheme,
 }
@@ -382,12 +411,11 @@ impl Cipher {
     /// # Arguments
     ///
     /// * `suri` - Secret URI for the keypair
-    /// * `algorithm` - Encryption algorithm to use
-    /// * `scheme` - Cryptographic scheme to use
+    /// * `scheme` - Cryptographic scheme to use (Sr25519 or Ed25519)
     ///
     /// # Returns
     ///
-    /// Returns a Cipher instance with the secret key
+    /// Returns a Cipher instance with the secret key and public key
     ///
     /// # Errors
     ///
@@ -396,17 +424,20 @@ impl Cipher {
     /// # Examples
     ///
     /// ```no_run
-    /// use libcps::crypto::{Cipher, EncryptionAlgorithm, CryptoScheme};
+    /// use libcps::crypto::{Cipher, CryptoScheme};
     ///
     /// let cipher = Cipher::new(
     ///     "//Alice".to_string(),
-    ///     EncryptionAlgorithm::XChaCha20Poly1305,
     ///     CryptoScheme::Sr25519,
     /// ).unwrap();
     /// ```
-    pub fn new(suri: String, algorithm: EncryptionAlgorithm, scheme: CryptoScheme) -> Result<Self> {
+    pub fn new(suri: String, scheme: CryptoScheme) -> Result<Self> {
+        debug!("Creating new Cipher with scheme: {:?}", scheme);
+        trace!("SURI length: {} chars", suri.len());
+
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
+                trace!("Parsing SR25519 keypair from SURI");
                 let pair = sp_core::sr25519::Pair::from_string(&suri, None)
                     .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
                 let secret_bytes = pair.to_raw_vec();
@@ -414,9 +445,11 @@ impl Cipher {
                 secret.copy_from_slice(&secret_bytes[..32]);
                 // Derive public key using Pair interface
                 let public_key = pair.public().0;
+                debug!("SR25519 keypair created successfully");
                 (secret, public_key)
             }
             CryptoScheme::Ed25519 => {
+                trace!("Parsing ED25519 keypair from SURI");
                 let pair = sp_core::ed25519::Pair::from_string(&suri, None)
                     .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
                 let secret_bytes = pair.to_raw_vec();
@@ -424,20 +457,15 @@ impl Cipher {
                 secret.copy_from_slice(&secret_bytes[..32]);
                 // Derive public key using Pair interface
                 let public_key = pair.public().0;
+                debug!("ED25519 keypair created successfully");
                 (secret, public_key)
             }
         };
         Ok(Cipher {
             secret,
             public_key,
-            algorithm,
             scheme,
         })
-    }
-
-    /// Get the encryption algorithm.
-    pub fn algorithm(&self) -> EncryptionAlgorithm {
-        self.algorithm
     }
 
     /// Get the cryptographic scheme.
@@ -457,7 +485,9 @@ impl Cipher {
     ///
     /// # Errors
     ///
-    /// Returns error if ECDH fails
+    /// Returns error if the public key cannot be decompressed into a valid curve point.
+    /// Not all 32-byte arrays represent valid curve points - decompression validates
+    /// the point is on the curve and meets other curve-specific requirements.
     fn derive_shared_secret(&self, receiver_public: &[u8; 32]) -> Result<[u8; 32]> {
         match self.scheme {
             CryptoScheme::Sr25519 => {
@@ -600,27 +630,6 @@ impl Cipher {
         Ok(okm)
     }
 
-    /// Derive encryption key from shared secret using HKDF-SHA256.
-    ///
-    /// This is a convenience wrapper around `derive_encryption_key_with_algorithm`
-    /// that uses the cipher's configured algorithm.
-    ///
-    /// # Arguments
-    ///
-    /// * `shared_secret` - The 32-byte shared secret from ECDH key agreement
-    ///
-    /// # Returns
-    ///
-    /// Returns a 32-byte encryption key derived using HKDF with the cipher's
-    /// configured algorithm.
-    ///
-    /// # See Also
-    ///
-    /// - [`derive_encryption_key_with_algorithm`] for detailed HKDF documentation
-    fn derive_encryption_key(&self, shared_secret: &[u8; 32]) -> Result<[u8; 32]> {
-        Self::derive_encryption_key_with_algorithm(shared_secret, &self.algorithm)
-    }
-
     /// Get sender's public key.
     ///
     /// Returns the cached public key that was derived in the constructor.
@@ -634,28 +643,57 @@ impl Cipher {
     ///
     /// * `plaintext` - The data to encrypt
     /// * `receiver_public` - The recipient's public key (exactly 32 bytes)
+    /// * `algorithm` - The encryption algorithm to use
     ///
     /// # Returns
     ///
-    /// Returns encrypted bytes in JSON format
+    /// Returns an EncryptedMessage structure that can be serialized by the caller
     ///
     /// # Errors
     ///
-    /// Returns error if encryption fails
-    pub fn encrypt(&self, plaintext: &[u8], receiver_public: &[u8; 32]) -> Result<Vec<u8>> {
-        use base64::{engine::general_purpose, Engine as _};
+    /// Returns error if the receiver's public key is invalid (not a valid curve point).
+    /// This can happen if:
+    /// - The public key bytes don't represent a valid Ristretto255 point (SR25519)
+    /// - The public key bytes don't represent a valid Edwards curve point (Ed25519)
+    /// - The receiver_public parameter contains corrupted or malicious data
+    ///
+    /// Note: Valid public keys from Substrate accounts will always succeed.
+    pub fn encrypt(
+        &self,
+        plaintext: &[u8],
+        receiver_public: &[u8; 32],
+        algorithm: EncryptionAlgorithm,
+    ) -> Result<EncryptedMessage> {
+        debug!(
+            "Encrypting {} bytes with {} using {:?} scheme",
+            plaintext.len(),
+            algorithm,
+            self.scheme
+        );
+        trace!("Receiver public key: {:02x?}...", &receiver_public[..8]);
 
         // Step 1: Derive shared secret using direct ECDH
+        // This can fail if receiver_public is invalid
+        trace!("Deriving shared secret via ECDH");
         let shared_secret = self.derive_shared_secret(receiver_public)?;
+        trace!("Shared secret derived successfully");
 
         // Step 2: Derive encryption key using HKDF with salt
-        let encryption_key = self.derive_encryption_key(&shared_secret)?;
+        // HKDF expand can only fail if the output length exceeds the hash function's
+        // maximum (255 * hash_len for SHA-256 = 8160 bytes), but we only request 32 bytes.
+        // We propagate the error for defensive programming rather than panicking.
+        trace!("Deriving encryption key with HKDF");
+        let encryption_key = Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)
+            .map_err(|e| anyhow!("HKDF key derivation failed: {e}"))?;
+        trace!("Encryption key derived");
 
         // Step 3: Encrypt with specified algorithm
-        let (nonce_bytes, ciphertext) = match self.algorithm {
+        trace!("Encrypting plaintext with {:?}", algorithm);
+        let (nonce_bytes, ciphertext) = match algorithm {
             EncryptionAlgorithm::XChaCha20Poly1305 => {
                 let cipher = XChaCha20Poly1305::new(&encryption_key.into());
                 let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+                trace!("Generated XChaCha20 nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
                     .map_err(|e| anyhow!("XChaCha20 encryption failed: {e}"))?;
@@ -664,6 +702,7 @@ impl Cipher {
             EncryptionAlgorithm::AesGcm256 => {
                 let cipher = Aes256Gcm::new(&encryption_key.into());
                 let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+                trace!("Generated AES-GCM nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
                     .map_err(|e| anyhow!("AES-GCM encryption failed: {e}"))?;
@@ -672,6 +711,7 @@ impl Cipher {
             EncryptionAlgorithm::ChaCha20Poly1305 => {
                 let cipher = ChaCha20Poly1305::new(&encryption_key.into());
                 let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+                trace!("Generated ChaCha20 nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
                     .map_err(|e| anyhow!("ChaCha20 encryption failed: {e}"))?;
@@ -681,31 +721,28 @@ impl Cipher {
 
         // Step 4: Get sender's public key
         let sender_public = self.public_key();
+        trace!("Sender public key: {:02x?}...", &sender_public[..8]);
 
-        // Step 5: Create message structure
-        let algorithm_str = match self.algorithm {
-            EncryptionAlgorithm::XChaCha20Poly1305 => "xchacha20",
-            EncryptionAlgorithm::AesGcm256 => "aesgcm256",
-            EncryptionAlgorithm::ChaCha20Poly1305 => "chacha20",
-        };
-
-        let message = EncryptedMessage {
-            version: 1,
-            algorithm: algorithm_str.to_string(),
-            from: bs58::encode(&sender_public).into_string(),
-            nonce: general_purpose::STANDARD.encode(&nonce_bytes),
-            ciphertext: general_purpose::STANDARD.encode(&ciphertext),
-        };
-
-        // Step 6: Serialize to JSON
-        serde_json::to_vec(&message).map_err(|e| anyhow!("JSON serialization failed: {e}"))
+        // Step 5: Create and return message structure with binary data
+        debug!(
+            "Encryption complete: {} bytes plaintext -> {} bytes ciphertext (+ {} bytes overhead)",
+            plaintext.len(),
+            ciphertext.len(),
+            ciphertext.len() - plaintext.len()
+        );
+        Ok(EncryptedMessage::V1 {
+            algorithm,
+            from: sender_public,
+            nonce: nonce_bytes,
+            ciphertext,
+        })
     }
 
     /// Decrypt data with inlined AEAD (algorithm auto-detected).
     ///
     /// # Arguments
     ///
-    /// * `ciphertext` - JSON-formatted encrypted data
+    /// * `message` - Encrypted message structure
     /// * `expected_sender` - Optional sender public key for verification
     ///
     /// # Returns
@@ -717,96 +754,140 @@ impl Cipher {
     /// Returns error if decryption fails or sender verification fails
     pub fn decrypt(
         &self,
-        ciphertext: &[u8],
+        message: &EncryptedMessage,
         expected_sender: Option<&[u8; 32]>,
     ) -> Result<Vec<u8>> {
-        use base64::{engine::general_purpose, Engine as _};
+        match message {
+            EncryptedMessage::V1 {
+                algorithm,
+                from,
+                nonce,
+                ciphertext,
+            } => {
+                debug!(
+                    "Decrypting message with {:?} using {:?} scheme",
+                    algorithm, self.scheme
+                );
+                trace!(
+                    "Ciphertext: {} bytes, nonce: {} bytes",
+                    ciphertext.len(),
+                    nonce.len()
+                );
+                trace!("Sender public key: {:02x?}...", &from[..8]);
 
-        // Step 1: Parse message
-        let message: EncryptedMessage = serde_json::from_slice(ciphertext)
-            .map_err(|e| anyhow!("Failed to parse encrypted message: {e}"))?;
+                // Step 1: Verify sender if expected
+                if let Some(expected_pk) = expected_sender {
+                    trace!("Verifying sender public key");
+                    if from != expected_pk {
+                        return Err(anyhow!(
+                            "Sender public key mismatch: message from unexpected sender"
+                        ));
+                    }
+                    trace!("Sender verification passed");
+                }
 
-        if message.version != 1 {
-            return Err(anyhow!(
-                "Unsupported encryption version: {}",
-                message.version
-            ));
-        }
+                // Step 2: Derive shared secret using direct ECDH
+                trace!("Deriving shared secret via ECDH");
+                let shared_secret = self.derive_shared_secret(from)?;
+                trace!("Shared secret derived successfully");
 
-        // Step 2: Parse algorithm
-        let algorithm = EncryptionAlgorithm::from_str(&message.algorithm)
-            .map_err(|e| anyhow!("Unsupported algorithm: {e}"))?;
+                // Step 3: Derive encryption key using HKDF with salt
+                trace!("Deriving decryption key with HKDF");
+                let encryption_key =
+                    Self::derive_encryption_key_with_algorithm(&shared_secret, algorithm)?;
+                trace!("Decryption key derived");
 
-        // Step 3: Decode sender's public key
-        let sender_public_bytes = bs58::decode(&message.from)
-            .into_vec()
-            .map_err(|e| anyhow!("Failed to decode sender public key: {e}"))?;
+                // Step 4: Decrypt with appropriate algorithm
+                trace!("Decrypting ciphertext with {:?}", algorithm);
+                let plaintext = match algorithm {
+                    EncryptionAlgorithm::XChaCha20Poly1305 => {
+                        if nonce.len() != 24 {
+                            return Err(anyhow!(
+                                "Invalid XChaCha20 nonce length: expected 24 bytes"
+                            ));
+                        }
+                        let nonce_array = XNonce::from_slice(nonce);
+                        let cipher = XChaCha20Poly1305::new(&encryption_key.into());
+                        cipher
+                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .map_err(|e| anyhow!("XChaCha20 decryption failed: {e}"))
+                    }
+                    EncryptionAlgorithm::AesGcm256 => {
+                        if nonce.len() != 12 {
+                            return Err(anyhow!("Invalid AES-GCM nonce length: expected 12 bytes"));
+                        }
+                        let nonce_array = AesNonce::from_slice(nonce);
+                        let cipher = Aes256Gcm::new(&encryption_key.into());
+                        cipher
+                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .map_err(|e| anyhow!("AES-GCM decryption failed: {e}"))
+                    }
+                    EncryptionAlgorithm::ChaCha20Poly1305 => {
+                        if nonce.len() != 12 {
+                            return Err(anyhow!(
+                                "Invalid ChaCha20 nonce length: expected 12 bytes"
+                            ));
+                        }
+                        let nonce_array = ChachaNonce::from_slice(nonce);
+                        let cipher = ChaCha20Poly1305::new(&encryption_key.into());
+                        cipher
+                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .map_err(|e| anyhow!("ChaCha20 decryption failed: {e}"))
+                    }
+                }?;
 
-        if sender_public_bytes.len() != 32 {
-            return Err(anyhow!(
-                "Invalid sender public key length: expected 32 bytes"
-            ));
-        }
-
-        let mut sender_pk_array = [0u8; 32];
-        sender_pk_array.copy_from_slice(&sender_public_bytes);
-
-        // Step 4: Optionally verify sender
-        if let Some(expected_pk) = expected_sender {
-            if &sender_pk_array != expected_pk {
-                return Err(anyhow!(
-                    "Sender public key mismatch: message from unexpected sender"
-                ));
+                debug!(
+                    "Decryption complete: {} bytes ciphertext -> {} bytes plaintext",
+                    ciphertext.len(),
+                    plaintext.len()
+                );
+                Ok(plaintext)
             }
         }
+    }
 
-        // Step 5: Derive shared secret using direct ECDH
-        let shared_secret = self.derive_shared_secret(&sender_pk_array)?;
+    /// Decrypt a NodeData payload if it's encrypted.
+    ///
+    /// If the NodeData is Plain, returns the plain data as-is.
+    /// If the NodeData is Encrypted, attempts to decrypt it using the cipher's private key.
+    /// The encryption metadata (algorithm, sender, nonce) is embedded in the encrypted data itself.
+    ///
+    /// # Arguments
+    ///
+    /// * `node_data` - The NodeData to decrypt
+    /// * `expected_sender` - Optional sender public key for verification
+    ///
+    /// # Returns
+    ///
+    /// Returns the decrypted (or plain) data as bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns error if decryption fails or sender verification fails
+    pub fn decrypt_node_data(
+        &self,
+        node_data: &crate::types::NodeData,
+        expected_sender: Option<&[u8; 32]>,
+    ) -> Result<Vec<u8>> {
+        use crate::types::NodeData;
 
-        // Step 6: Derive encryption key using HKDF with salt
-        let encryption_key =
-            Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)?;
-
-        // Step 7: Decode nonce and ciphertext
-        let nonce_bytes = general_purpose::STANDARD
-            .decode(&message.nonce)
-            .map_err(|e| anyhow!("Failed to decode nonce: {e}"))?;
-
-        let ciphertext_bytes = general_purpose::STANDARD
-            .decode(&message.ciphertext)
-            .map_err(|e| anyhow!("Failed to decode ciphertext: {e}"))?;
-
-        // Step 8: Decrypt with appropriate algorithm
-        match algorithm {
-            EncryptionAlgorithm::XChaCha20Poly1305 => {
-                if nonce_bytes.len() != 24 {
-                    return Err(anyhow!("Invalid XChaCha20 nonce length: expected 24 bytes"));
-                }
-                let nonce = XNonce::from_slice(&nonce_bytes);
-                let cipher = XChaCha20Poly1305::new(&encryption_key.into());
-                cipher
-                    .decrypt(nonce, ciphertext_bytes.as_ref())
-                    .map_err(|e| anyhow!("XChaCha20 decryption failed: {e}"))
+        match node_data {
+            NodeData::Plain(bounded_vec) => {
+                // Already plain, just return the data
+                Ok(bounded_vec.0.clone())
             }
-            EncryptionAlgorithm::AesGcm256 => {
-                if nonce_bytes.len() != 12 {
-                    return Err(anyhow!("Invalid AES-GCM nonce length: expected 12 bytes"));
+            NodeData::Encrypted(encrypted_data) => {
+                // Extract the AEAD data
+                use crate::types::EncryptedData;
+                match encrypted_data {
+                    EncryptedData::Aead(bounded_vec) => {
+                        // Decode the SCALE-encoded message
+                        let message: EncryptedMessage = Decode::decode(&mut &bounded_vec.0[..])
+                            .map_err(|e| anyhow!("Failed to decode encrypted message: {e}"))?;
+                        // Decrypt using the embedded metadata
+                        self.decrypt(&message, expected_sender)
+                    }
                 }
-                let nonce = AesNonce::from_slice(&nonce_bytes);
-                let cipher = Aes256Gcm::new(&encryption_key.into());
-                cipher
-                    .decrypt(nonce, ciphertext_bytes.as_ref())
-                    .map_err(|e| anyhow!("AES-GCM decryption failed: {e}"))
-            }
-            EncryptionAlgorithm::ChaCha20Poly1305 => {
-                if nonce_bytes.len() != 12 {
-                    return Err(anyhow!("Invalid ChaCha20 nonce length: expected 12 bytes"));
-                }
-                let nonce = ChachaNonce::from_slice(&nonce_bytes);
-                let cipher = ChaCha20Poly1305::new(&encryption_key.into());
-                cipher
-                    .decrypt(nonce, ciphertext_bytes.as_ref())
-                    .map_err(|e| anyhow!("ChaCha20 decryption failed: {e}"))
             }
         }
     }
@@ -865,31 +946,26 @@ mod tests {
 
     #[test]
     fn test_cipher_creation() {
-        let cipher = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let cipher = Cipher::new("//Alice".to_string(), CryptoScheme::Sr25519).unwrap();
 
-        assert_eq!(cipher.algorithm(), EncryptionAlgorithm::XChaCha20Poly1305);
         assert_eq!(cipher.scheme(), CryptoScheme::Sr25519);
     }
 
     #[test]
     fn test_encrypt_decrypt_roundtrip_sr25519() {
-        let cipher = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let cipher = Cipher::new("//Alice".to_string(), CryptoScheme::Sr25519).unwrap();
 
         // Get Alice's public key for self-encryption
         let public_key = cipher.public_key();
 
         let plaintext = b"Hello, World!";
-        let encrypted = cipher.encrypt(plaintext, &public_key).unwrap();
+        let encrypted = cipher
+            .encrypt(
+                plaintext,
+                &public_key,
+                EncryptionAlgorithm::XChaCha20Poly1305,
+            )
+            .unwrap();
         let decrypted = cipher.decrypt(&encrypted, None).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -897,18 +973,15 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_roundtrip_ed25519() {
-        let cipher = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::AesGcm256,
-            CryptoScheme::Ed25519,
-        )
-        .unwrap();
+        let cipher = Cipher::new("//Alice".to_string(), CryptoScheme::Ed25519).unwrap();
 
         // Get Alice's public key for self-encryption
         let public_key = cipher.public_key();
 
         let plaintext = b"Hello, World!";
-        let encrypted = cipher.encrypt(plaintext, &public_key).unwrap();
+        let encrypted = cipher
+            .encrypt(plaintext, &public_key, EncryptionAlgorithm::AesGcm256)
+            .unwrap();
         let decrypted = cipher.decrypt(&encrypted, None).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -916,25 +989,21 @@ mod tests {
 
     #[test]
     fn test_cross_party_encryption_sr25519() {
-        let alice = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let alice = Cipher::new("//Alice".to_string(), CryptoScheme::Sr25519).unwrap();
 
-        let bob = Cipher::new(
-            "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let bob = Cipher::new("//Bob".to_string(), CryptoScheme::Sr25519).unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();
 
         let plaintext = b"Secret from Alice to Bob";
-        let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
+        let encrypted = alice
+            .encrypt(
+                plaintext,
+                &bob_public,
+                EncryptionAlgorithm::XChaCha20Poly1305,
+            )
+            .unwrap();
         let decrypted = bob.decrypt(&encrypted, Some(&alice_public)).unwrap();
 
         assert_eq!(plaintext.to_vec(), decrypted);
@@ -942,32 +1011,23 @@ mod tests {
 
     #[test]
     fn test_sender_verification_fails() {
-        let alice = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let alice = Cipher::new("//Alice".to_string(), CryptoScheme::Sr25519).unwrap();
 
-        let bob = Cipher::new(
-            "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let bob = Cipher::new("//Bob".to_string(), CryptoScheme::Sr25519).unwrap();
 
-        let charlie = Cipher::new(
-            "//Charlie".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let charlie = Cipher::new("//Charlie".to_string(), CryptoScheme::Sr25519).unwrap();
 
         let bob_public = bob.public_key();
         let charlie_public = charlie.public_key();
 
         let plaintext = b"From Alice";
-        let encrypted = alice.encrypt(plaintext, &bob_public).unwrap();
+        let encrypted = alice
+            .encrypt(
+                plaintext,
+                &bob_public,
+                EncryptionAlgorithm::XChaCha20Poly1305,
+            )
+            .unwrap();
 
         // Should fail: expecting message from Charlie, but it's from Alice
         let result = bob.decrypt(&encrypted, Some(&charlie_public));
@@ -977,19 +1037,9 @@ mod tests {
 
     #[test]
     fn test_derive_shared_secret_sr25519() {
-        let alice = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let alice = Cipher::new("//Alice".to_string(), CryptoScheme::Sr25519).unwrap();
 
-        let bob = Cipher::new(
-            "//Bob".to_string(),
-            EncryptionAlgorithm::XChaCha20Poly1305,
-            CryptoScheme::Sr25519,
-        )
-        .unwrap();
+        let bob = Cipher::new("//Bob".to_string(), CryptoScheme::Sr25519).unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();
@@ -1004,19 +1054,9 @@ mod tests {
 
     #[test]
     fn test_derive_shared_secret_ed25519() {
-        let alice = Cipher::new(
-            "//Alice".to_string(),
-            EncryptionAlgorithm::AesGcm256,
-            CryptoScheme::Ed25519,
-        )
-        .unwrap();
+        let alice = Cipher::new("//Alice".to_string(), CryptoScheme::Ed25519).unwrap();
 
-        let bob = Cipher::new(
-            "//Bob".to_string(),
-            EncryptionAlgorithm::AesGcm256,
-            CryptoScheme::Ed25519,
-        )
-        .unwrap();
+        let bob = Cipher::new("//Bob".to_string(), CryptoScheme::Ed25519).unwrap();
 
         let bob_public = bob.public_key();
         let alice_public = alice.public_key();

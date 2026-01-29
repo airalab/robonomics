@@ -71,13 +71,11 @@
 //! // Create a Cipher with SR25519 scheme
 //! let sender_cipher = Cipher::new(
 //!     "//Alice".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
 //! let receiver_cipher = Cipher::new(
 //!     "//Bob".to_string(),
-//!     EncryptionAlgorithm::XChaCha20Poly1305,
 //!     CryptoScheme::Sr25519,
 //! )?;
 //!
@@ -85,28 +83,115 @@
 //! let receiver_public = receiver_cipher.public_key();
 //!
 //! // Encrypt using the cipher
-//! let encrypted = sender_cipher.encrypt(plaintext, &receiver_public)?;
+//! let encrypted_msg = sender_cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 //!
 //! // Decrypt with optional sender verification
 //! let sender_public = sender_cipher.public_key();
-//! let decrypted = receiver_cipher.decrypt(&encrypted, Some(&sender_public))?;
+//! let decrypted = receiver_cipher.decrypt(&encrypted_msg, Some(&sender_public))?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! ## MQTT Bridge
 //!
-//! Configure MQTT connections for IoT integration:
+//! Configure and use MQTT bridge for IoT integration:
 //!
 //! ```no_run
-//! use libcps::mqtt::Config as MqttConfig;
+//! use libcps::{mqtt, Config as BlockchainConfig};
 //!
-//! let mqtt_config = MqttConfig {
+//! # async fn example() -> anyhow::Result<()> {
+//! // Configure MQTT connection
+//! let mqtt_config = mqtt::Config {
 //!     broker: "mqtt://localhost:1883".to_string(),
 //!     username: Some("user".to_string()),
 //!     password: Some("pass".to_string()),
 //!     client_id: Some("my-client".to_string()),
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
 //! };
+//!
+//! // Configure blockchain connection
+//! let blockchain_config = BlockchainConfig {
+//!     ws_url: "ws://localhost:9944".to_string(),
+//!     suri: Some("//Alice".to_string()),
+//! };
+//!
+//! // Subscribe to MQTT and update blockchain using Config method
+//! mqtt_config.subscribe(
+//!     &blockchain_config,
+//!     None,              // No encryption
+//!     "sensors/temp",    // MQTT topic
+//!     1,                 // Node ID
+//!     None,              // No receiver public key
+//!     None,              // No algorithm
+//!     None,              // No custom message handler
+//! ).await?;
+//!
+//! // Or publish blockchain changes to MQTT using Config method
+//! mqtt_config.publish(
+//!     &blockchain_config,
+//!     None,               // Optional cipher for decryption
+//!     "actuators/status", // MQTT topic
+//!     1,                  // Node ID
+//!     None,               // No custom publish handler
+//! ).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Configuration File Support
+//!
+//! Manage multiple bridges with a TOML configuration file:
+//!
+//! ```no_run
+//! use libcps::mqtt::Config;
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! // Load configuration from file
+//! let config = Config::from_file("mqtt_config.toml")?;
+//!
+//! // Start all configured bridges concurrently
+//! config.start().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Example configuration file:
+//! ```toml
+//! broker = "mqtt://localhost:1883"
+//!
+//! [blockchain]
+//! ws_url = "ws://localhost:9944"
+//! suri = "//Alice"
+//!
+//! [[subscribe]]
+//! topic = "sensors/temperature"
+//! node_id = 5
+//!
+//! [[publish]]
+//! topic = "actuators/valve"
+//! node_id = 10
+//! ```
+//!
+//! See [`mqtt`] module documentation and `examples/mqtt_config.toml` for more details.
+//!
+//! ## Feature Flags
+//!
+//! The library supports optional features:
+//!
+//! - **`mqtt`** (default) - Enables MQTT bridge functionality
+//! - **`cli`** (default) - Enables CLI binary with colored output
+//!
+//! ```toml
+//! # All features (default)
+//! libcps = "0.1.0"
+//!
+//! # Library only, no MQTT
+//! libcps = { version = "0.1.0", default-features = false }
+//!
+//! # Library with MQTT only (no CLI)
+//! libcps = { version = "0.1.0", default-features = false, features = ["mqtt"] }
 //! ```
 //!
 //! ## Type Definitions
@@ -114,11 +199,11 @@
 //! The library provides types that match the CPS pallet:
 //!
 //! ```
-//! use libcps::types::{NodeId, NodeData, EncryptedData};
+//! use libcps::types::{NodeId, NodeData};
 //!
 //! let node_id = NodeId(42);
-//! let plain_data = NodeData::plain_from_bytes(b"sensor reading");
-//! let encrypted_data = NodeData::encrypted_xchacha(vec![1, 2, 3, 4]);
+//! let plain_data = NodeData::from(b"sensor reading".to_vec());
+//! let encrypted_data = NodeData::aead_from(vec![1, 2, 3, 4]);
 //! ```
 //!
 //! ## Crates.io Metadata
@@ -136,6 +221,7 @@
 
 pub mod blockchain;
 pub mod crypto;
+#[cfg(feature = "mqtt")]
 pub mod mqtt;
 pub mod node;
 pub mod types;

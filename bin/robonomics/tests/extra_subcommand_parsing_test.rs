@@ -16,15 +16,14 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Integration tests that spawn the actual binary `polkadot-omni-node`
+/// Integration tests that spawn the actual binary `robonomics`
 /// using `assert_cmd`. We verify that the help text
 /// excludes the `export-chain-spec` sub‑command exactly as intended
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin;
 
 #[test]
 fn robonomics_omni_node_export_chain_spec() {
-    let output = Command::cargo_bin("robonomics")
-        .expect("binary `robonomics` should be built by the workspace")
+    let output = cargo_bin!("robonomics")
         .arg("export-chain-spec")
         .arg("--chain")
         .arg("kusama")
@@ -40,8 +39,7 @@ fn robonomics_omni_node_export_chain_spec() {
         "binary must export kusama parachain spec"
     );
 
-    let output = Command::cargo_bin("robonomics")
-        .expect("binary `robonomics` should be built by the workspace")
+    let output = cargo_bin!("robonomics")
         .arg("export-chain-spec")
         .arg("--chain")
         .arg("polkadot")

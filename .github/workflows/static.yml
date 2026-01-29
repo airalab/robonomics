@@ -24,10 +24,10 @@ jobs:
         with:
           cache: false
 
-      - name: Check fmt
+      - name: Check Rust formatting
         run: cargo fmt -- --check
 
-      - name: Check Cargo.toml format
+      - name: Check TOML formatting
         run: |
           if taplo --version &> /dev/null; then
             echo "taplo-cli is already installed"
@@ -35,6 +35,7 @@ jobs:
             curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
               | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
           fi
+          
           taplo fmt --check
 
   check-license:

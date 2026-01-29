@@ -15,12 +15,15 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! MQTT bridge configuration and types.
+//! MQTT bridge configuration and implementation.
 //!
-//! This module provides configuration types for connecting to MQTT brokers
-//! and bridging messages between MQTT topics and blockchain nodes.
+//! This module provides configuration types and bridge implementations for
+//! connecting to MQTT brokers and bridging messages between MQTT topics
+//! and blockchain nodes.
 //!
 //! # Examples
+//!
+//! ## Configuration
 //!
 //! ```
 //! use libcps::mqtt::Config;
@@ -30,9 +33,50 @@
 //!     username: Some("user".to_string()),
 //!     password: Some("pass".to_string()),
 //!     client_id: Some("my-client".to_string()),
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
 //! };
+//! ```
+//!
+//! ## Subscribe Bridge
+//!
+//! ```no_run
+//! use libcps::{mqtt, Config as BlockchainConfig};
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! let blockchain_config = BlockchainConfig {
+//!     ws_url: "ws://localhost:9944".to_string(),
+//!     suri: Some("//Alice".to_string()),
+//! };
+//!
+//! let mqtt_config = mqtt::Config {
+//!     broker: "mqtt://localhost:1883".to_string(),
+//!     username: None,
+//!     password: None,
+//!     client_id: None,
+//!     blockchain: None,
+//!     subscribe: Vec::new(),
+//!     publish: Vec::new(),
+//! };
+//!
+//! // Using Config method API
+//! mqtt_config.subscribe(
+//!     &blockchain_config,
+//!     None,
+//!     "sensors/temp",
+//!     1,
+//!     None,
+//!     None,
+//!     None,
+//! ).await?;
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod bridge;
 
-pub use bridge::Config;
+pub use bridge::{
+    extract_node_data, parse_mqtt_url, BlockchainConfigData, Config, MessageHandler, PublishConfig,
+    PublishHandler, SubscribeConfig,
+};

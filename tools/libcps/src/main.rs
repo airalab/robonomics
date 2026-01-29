@@ -26,6 +26,7 @@ use sp_core::crypto::Ss58Codec;
 use std::str::FromStr;
 
 // Import from the library
+use libcps::crypto::{Cipher, EncryptionAlgorithm};
 use libcps::{blockchain, mqtt};
 
 // CLI-specific modules (display and commands)
@@ -77,7 +78,21 @@ fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
 
 #[derive(Parser)]
 #[command(name = "cps")]
-#[command(version, about = "🌳 Beautiful CLI for Robonomics CPS (Cyber-Physical Systems)", long_about = None)]
+#[command(version, about = "libcps - Robonomics Cyber-Physical System controls", long_about = None)]
+#[command(before_help = r#"
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║     ██╗     ██╗██████╗  ██████╗██████╗ ███████╗      ║
+║     ██║     ██║██╔══██╗██╔════╝██╔══██╗██╔════╝      ║
+║     ██║     ██║██████╔╝██║     ██████╔╝███████╗      ║
+║     ██║     ██║██╔══██╗██║     ██╔═══╝ ╚════██║      ║
+║     ███████╗██║██████╔╝╚██████╗██║     ███████║      ║
+║     ╚══════╝╚═╝╚═════╝  ╚═════╝╚═╝     ╚══════╝      ║
+║                                                      ║
+║     Cyber-Physical Systems - Robonomics Network      ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"#)]
 struct Cli {
     /// WebSocket URL for blockchain connection
     #[arg(long, env = "ROBONOMICS_WS_URL", default_value = "ws://localhost:9944")]
@@ -87,6 +102,11 @@ struct Cli {
     #[arg(long, env = "ROBONOMICS_SURI")]
     suri: Option<String>,
 
+    /// Logging level (off, error, warn, info, debug, trace)
+    #[arg(short = 'l', long, env = "RUST_LOG", default_value = "warn")]
+    log_level: String,
+
+    #[cfg(feature = "mqtt")]
     /// MQTT broker URL
     #[arg(
         long,
@@ -95,14 +115,17 @@ struct Cli {
     )]
     mqtt_broker: String,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT username
     #[arg(long, env = "ROBONOMICS_MQTT_USERNAME")]
     mqtt_username: Option<String>,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT password
     #[arg(long, env = "ROBONOMICS_MQTT_PASSWORD")]
     mqtt_password: Option<String>,
 
+    #[cfg(feature = "mqtt")]
     /// MQTT client ID
     #[arg(long, env = "ROBONOMICS_MQTT_CLIENT_ID")]
     mqtt_client_id: Option<String>,
@@ -115,7 +138,7 @@ struct Cli {
 enum Commands {
     /// Display node information and its children in a beautiful tree format
     #[command(
-        long_about = "Display node information and its children in a beautiful tree format.
+        long_about = "Display node information and its children in a tree format.
 
 EXAMPLES:
     # Show node 0
@@ -299,10 +322,12 @@ EXAMPLES:
     },
 
     /// MQTT bridge commands
+    #[cfg(feature = "mqtt")]
     #[command(subcommand)]
     Mqtt(MqttCommands),
 }
 
+#[cfg(feature = "mqtt")]
 #[derive(Subcommand)]
 enum MqttCommands {
     /// Subscribe to MQTT topic and update node payload with received messages
@@ -392,6 +417,39 @@ TECHNICAL DETAILS:
 
         /// Node ID to monitor
         node_id: u64,
+
+        /// Decrypt encrypted blockchain payloads before publishing to MQTT
+        /// The encryption algorithm and scheme are auto-detected from the encrypted data
+        #[arg(short = 'd', long)]
+        decrypt: bool,
+    },
+
+    /// Start MQTT bridge from configuration file
+    #[command(long_about = "Start MQTT bridge from configuration file.
+
+Reads MQTT and blockchain configuration from a TOML file and starts all
+configured subscribe and publish bridges concurrently.
+
+EXAMPLES:
+    # Start from config file
+    cps mqtt start -c config.toml
+    
+    # With custom config path
+    cps mqtt start --config /etc/cps/mqtt.toml
+
+CONFIGURATION FILE FORMAT:
+    See examples/mqtt_config.toml for a complete example.
+
+BEHAVIOR:
+    - Loads configuration from TOML file
+    - Validates all settings
+    - Spawns concurrent tasks for all bridges
+    - Runs indefinitely until interrupted
+    - Auto-reconnects on failures")]
+    Start {
+        /// Path to TOML configuration file
+        #[arg(short = 'c', long)]
+        config: String,
     },
 }
 
@@ -399,18 +457,26 @@ TECHNICAL DETAILS:
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Initialize logging
+    std::env::set_var("RUST_LOG", &cli.log_level);
+    env_logger::init();
+
     // Create blockchain config (crypto-free)
     let blockchain_config = blockchain::Config {
         ws_url: cli.ws_url.clone(),
         suri: cli.suri.clone(),
     };
 
+    #[cfg(feature = "mqtt")]
     // Create MQTT config
     let mqtt_config = mqtt::Config {
         broker: cli.mqtt_broker.clone(),
         username: cli.mqtt_username.clone(),
         password: cli.mqtt_password.clone(),
         client_id: cli.mqtt_client_id.clone(),
+        blockchain: None,      // Not used for CLI commands
+        subscribe: Vec::new(), // Not used for CLI commands
+        publish: Vec::new(),   // Not used for CLI commands
     };
 
     // Execute commands
@@ -425,15 +491,11 @@ async fn main() -> Result<()> {
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for decryption"))?;
-                Some(libcps::crypto::Cipher::new(
-                    suri,
-                    libcps::crypto::EncryptionAlgorithm::XChaCha20Poly1305, // Placeholder; actual algorithm auto-detected in Cipher::decrypt
-                    scheme,
-                )?)
+                Some(Cipher::new(suri, scheme)?)
             } else {
                 None
             };
-            commands::show::execute(&blockchain_config, cipher.as_ref(), node_id, decrypt).await?;
+            commands::show::execute(&blockchain_config, cipher.as_ref(), node_id).await?;
         }
         Commands::Create {
             parent,
@@ -454,23 +516,24 @@ async fn main() -> Result<()> {
             // - SURI (sender's seed phrase): Used to derive the sender's keypair for ECDH
             // - receiver_public: The recipient's public key for deriving the shared secret
             // If receiver_public is None, data will be stored as plaintext (no encryption).
-            let cipher = if receiver_public.is_some() {
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
                 let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::create::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 parent,
                 meta,
                 payload,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -489,22 +552,23 @@ async fn main() -> Result<()> {
             };
 
             // Create cipher if encryption is requested
-            let cipher = if receiver_public.is_some() {
-                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
+                let algorithm = EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::set_meta::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 node_id,
                 data,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -523,22 +587,23 @@ async fn main() -> Result<()> {
             };
 
             // Create cipher if encryption is requested
-            let cipher = if receiver_public.is_some() {
-                let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+            let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
+                let algorithm = EncryptionAlgorithm::from_str(&cipher)
                     .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                 let suri = cli
                     .suri
                     .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                (Some(Cipher::new(suri, scheme)?), Some(algorithm))
             } else {
-                None
+                (None, None)
             };
             commands::set_payload::execute(
                 &blockchain_config,
-                cipher.as_ref(),
+                cipher_opt.as_ref(),
                 node_id,
                 data,
                 receiver_pub_bytes,
+                algorithm_opt,
             )
             .await?;
         }
@@ -551,6 +616,7 @@ async fn main() -> Result<()> {
         Commands::Remove { node_id, force } => {
             commands::remove::execute(&blockchain_config, node_id, force).await?;
         }
+        #[cfg(feature = "mqtt")]
         Commands::Mqtt(mqtt_cmd) => match mqtt_cmd {
             MqttCommands::Subscribe {
                 topic,
@@ -567,28 +633,55 @@ async fn main() -> Result<()> {
                 };
 
                 // Create cipher if encryption is requested
-                let cipher = if receiver_public.is_some() {
-                    let algorithm = libcps::crypto::EncryptionAlgorithm::from_str(&cipher)
+                let (cipher_opt, algorithm_opt) = if receiver_public.is_some() {
+                    let algorithm = EncryptionAlgorithm::from_str(&cipher)
                         .map_err(|e| anyhow::anyhow!("Invalid cipher: {}", e))?;
                     let suri = cli
                         .suri
                         .ok_or_else(|| anyhow::anyhow!("SURI required for encryption"))?;
-                    Some(libcps::crypto::Cipher::new(suri, algorithm, scheme)?)
+                    (Some(Cipher::new(suri, scheme)?), Some(algorithm))
                 } else {
-                    None
+                    (None, None)
                 };
                 commands::mqtt::subscribe(
                     &blockchain_config,
-                    cipher.as_ref(),
+                    cipher_opt.as_ref(),
                     &mqtt_config,
                     &topic,
                     node_id,
                     receiver_pub_bytes,
+                    algorithm_opt,
                 )
                 .await?;
             }
-            MqttCommands::Publish { topic, node_id } => {
-                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id).await?;
+            MqttCommands::Publish {
+                topic,
+                node_id,
+                decrypt,
+            } => {
+                commands::mqtt::publish(&blockchain_config, &mqtt_config, &topic, node_id, decrypt)
+                    .await?;
+            }
+            MqttCommands::Start { config } => {
+                // Load config from file and start all bridges
+                display::progress(&format!("Loading configuration from {}...", config));
+                let mqtt_config = mqtt::Config::from_file(&config)?;
+                display::success("Configuration loaded successfully");
+
+                // Validate that blockchain config is present
+                if mqtt_config.blockchain.is_none() {
+                    return Err(anyhow::anyhow!(
+                        "Configuration file must include [blockchain] section with ws_url"
+                    ));
+                }
+
+                display::info(&format!(
+                    "Starting {} subscribe bridge(s) and {} publish bridge(s)...",
+                    mqtt_config.subscribe.len(),
+                    mqtt_config.publish.len()
+                ));
+
+                mqtt_config.start().await?;
             }
         },
     }

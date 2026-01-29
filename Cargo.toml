@@ -61,6 +61,7 @@ thiserror = "1.0.43"
 async-trait = "0.1.71"
 anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
+env_logger = "0.11"
 
 # libcps
 curve25519-dalek = "4.1"
@@ -74,13 +75,16 @@ subxt-signer = "0.44"
 base64 = "0.22"
 hex = "0.4"
 rumqttc = "0.25.1"
+toml = "0.8"
 
 # libcps CLI
 colored = "3.1"
 chrono = "0.4"
+indicatif = "0.17"
 color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
+easy-hex = "1.0"
 
 # Substrate
 # (wasm)

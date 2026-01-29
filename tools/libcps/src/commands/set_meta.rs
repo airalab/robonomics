@@ -24,6 +24,8 @@ use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
 use libcps::node::Node;
 use libcps::types::NodeData;
+use parity_scale_codec::Encode;
+use sp_core::crypto::{AccountId32, Ss58Codec};
 
 pub async fn execute(
     config: &Config,
@@ -31,26 +33,34 @@ pub async fn execute(
     node_id: u64,
     data: String,
     receiver_public: Option<[u8; 32]>,
+    algorithm: Option<libcps::crypto::EncryptionAlgorithm>,
 ) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Updating metadata for node {node_id}"));
+    display::info(&format!("Connected to {}", config.ws_url));
+    display::info(&format!("Updating metadata for node {node_id}"));
 
     // Convert data to NodeData, applying encryption if requested
     let meta_data = if let Some(receiver_pub) = receiver_public.as_ref() {
         let cipher = cipher.ok_or_else(|| anyhow::anyhow!("Cipher required for encryption"))?;
-        display::tree::info(&format!(
-            "🔐 Encrypting metadata with {} using {}",
-            cipher.algorithm(),
+        let algorithm =
+            algorithm.ok_or_else(|| anyhow::anyhow!("Algorithm required for encryption"))?;
+        display::info(&format!(
+            "[E] Encrypting metadata with {} using {}",
+            algorithm,
             cipher.scheme()
         ));
-        display::tree::info(&format!("🔑 Receiver: {}", hex::encode(receiver_pub)));
+        let receiver_account = AccountId32::from(*receiver_pub);
+        display::info(&format!(
+            "[K] Receiver: {}",
+            receiver_account.to_ss58check()
+        ));
 
-        let encrypted_bytes = cipher.encrypt(data.as_bytes(), receiver_pub)?;
+        let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
+        let encrypted_bytes = encrypted_message.encode();
         NodeData::aead_from(encrypted_bytes)
     } else {
         NodeData::from(data)
@@ -59,10 +69,11 @@ pub async fn execute(
     // Update metadata using Node API with NodeData
     let node = Node::new(&client, node_id);
 
-    display::tree::progress("Updating metadata...");
+    let spinner = display::spinner("Submitting transaction...");
     let _events = node.set_meta(Some(meta_data)).await?;
+    spinner.finish_and_clear();
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Metadata updated for node {}",
         node_id.to_string().bright_cyan()
     ));

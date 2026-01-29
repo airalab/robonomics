@@ -24,21 +24,22 @@ use libcps::blockchain::{Client, Config};
 use libcps::node::Node;
 
 pub async fn execute(config: &Config, node_id: u64, new_parent_id: u64) -> Result<()> {
-    display::tree::progress("Connecting to blockchain...");
+    display::progress("Connecting to blockchain...");
 
     let client = Client::new(config).await?;
     let _keypair = client.require_keypair()?;
 
-    display::tree::info(&format!("Connected to {}", config.ws_url));
-    display::tree::info(&format!("Moving node {node_id} to parent {new_parent_id}"));
+    display::info(&format!("Connected to {}", config.ws_url));
+    display::info(&format!("Moving node {node_id} to parent {new_parent_id}"));
 
     // Move node using Node API
     let node = Node::new(&client, node_id);
 
-    display::tree::progress("Moving node...");
+    let spinner = display::spinner("Submitting transaction...");
     node.move_to(new_parent_id).await?;
+    spinner.finish_and_clear();
 
-    display::tree::success(&format!(
+    display::success(&format!(
         "Node {} moved to parent {}",
         node_id.to_string().bright_cyan(),
         new_parent_id.to_string().bright_cyan()

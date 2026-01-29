@@ -71,6 +71,7 @@ use crate::blockchain::Client;
 use crate::robonomics_runtime;
 use crate::types::{NodeData, NodeId as CpsNodeId};
 use anyhow::{anyhow, Result};
+use log::{debug, trace};
 use sp_core::crypto::AccountId32;
 use subxt::PolkadotConfig;
 
@@ -197,17 +198,27 @@ impl<'a> Node<'a> {
         meta: Option<NodeData>,
         payload: Option<NodeData>,
     ) -> Result<Self> {
+        debug!(
+            "Creating new CPS node: parent={:?}, has_meta={}, has_payload={}",
+            parent,
+            meta.is_some(),
+            payload.is_some()
+        );
+
         let keypair = client.require_keypair()?;
+        trace!("Using keypair for transaction signing");
 
         // Convert parent to NodeId type
         let parent_id = parent.map(CpsNodeId);
 
         // Build the create_node transaction
+        trace!("Building create_node transaction");
         let create_call = robonomics_runtime::api::tx()
             .cps()
             .create_node(parent_id, meta, payload);
 
         // Submit and watch the transaction
+        trace!("Submitting and watching transaction");
         let events = client
             .api
             .tx()
@@ -219,12 +230,14 @@ impl<'a> Node<'a> {
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
 
         // Extract the created node ID from the NodeCreated event
+        trace!("Extracting node ID from NodeCreated event");
         let node_created_event = events
             .find_first::<robonomics_runtime::api::cps::events::NodeCreated>()
             .map_err(|e| anyhow!("Failed to find NodeCreated event: {}", e))?
             .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?;
 
         let node_id = node_created_event.0 .0; // Extract u64 from NodeId(u64)
+        debug!("CPS node created successfully: id={}", node_id);
 
         Ok(Self {
             client,
@@ -256,6 +269,7 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
+        trace!("Querying node {} at latest finalized block", self.id);
         // Get the latest finalized block and query at that block
         let block_hash = self
             .client
@@ -265,6 +279,7 @@ impl<'a> Node<'a> {
             .await?
             .hash();
 
+        trace!("Latest finalized block hash: {:?}", block_hash);
         self.query_at(block_hash).await
     }
 
@@ -379,13 +394,20 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn set_meta(&self, meta: Option<NodeData>) -> Result<ExtrinsicEvents> {
+        debug!(
+            "Setting metadata for node {}: has_data={}",
+            self.id,
+            meta.is_some()
+        );
         let keypair = self.client.require_keypair()?;
         let node_id = CpsNodeId(self.id);
 
         // Build the set_meta transaction
+        trace!("Building set_meta transaction");
         let set_meta_call = robonomics_runtime::api::tx().cps().set_meta(node_id, meta);
 
         // Submit and watch the transaction
+        trace!("Submitting set_meta transaction for node {}", self.id);
         let events = self
             .client
             .api
@@ -396,6 +418,8 @@ impl<'a> Node<'a> {
             .wait_for_finalized_success()
             .await
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
+
+        debug!("Metadata updated successfully for node {}", self.id);
 
         Ok(events)
     }
@@ -432,15 +456,22 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn set_payload(&self, payload: Option<NodeData>) -> Result<ExtrinsicEvents> {
+        debug!(
+            "Setting payload for node {}: has_data={}",
+            self.id,
+            payload.is_some()
+        );
         let keypair = self.client.require_keypair()?;
         let node_id = CpsNodeId(self.id);
 
         // Build the set_payload transaction
+        trace!("Building set_payload transaction");
         let set_payload_call = robonomics_runtime::api::tx()
             .cps()
             .set_payload(node_id, payload);
 
         // Submit and watch the transaction
+        trace!("Submitting set_payload transaction for node {}", self.id);
         let events = self
             .client
             .api
@@ -452,6 +483,7 @@ impl<'a> Node<'a> {
             .await
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
 
+        debug!("Payload updated successfully for node {}", self.id);
         Ok(events)
     }
 
@@ -562,19 +594,5 @@ impl<'a> Node<'a> {
             .map_err(|e| anyhow!("Transaction failed: {}", e))?;
 
         Ok(events)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_node_new() {
-        // This is a minimal test since we can't create a real Client without a running node
-        // In a real test environment with a test node, you would do:
-        // let client = Client::new(&test_config).await?;
-        // let node = Node::new(&client, 42);
-        // assert_eq!(node.id(), 42);
     }
 }
