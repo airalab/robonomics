@@ -110,46 +110,39 @@ libcps automatically generates type definitions from the robonomics runtime duri
 
 ### How It Works
 
-1. The robonomics runtime must be built first:
-   ```bash
-   cargo build -p robonomics-runtime --release
-   ```
+The robonomics runtime is added as a build dependency. When libcps builds:
 
-2. When building libcps, the build script (build.rs) automatically:
-   - Locates the compiled runtime WASM file
-   - Extracts metadata using `subwasm`
-   - Saves it as `metadata.scale`
-   - The subxt macro uses this file to generate type-safe APIs
+1. The runtime is compiled (if not already built)
+2. The build script accesses the embedded WASM binary from the runtime
+3. Metadata is automatically extracted from the WASM
+4. The subxt macro uses this metadata to generate type-safe APIs
 
-3. The generated API is available as `libcps::robonomics_api`:
-   ```rust
-   use libcps::robonomics_api;
-   
-   // Access runtime APIs
-   let create_call = robonomics_api::tx().cps().create_node(...);
-   let nodes_query = robonomics_api::storage().cps().nodes(node_id);
-   ```
+No manual steps or external tools required!
+
+### Generated API
+
+The generated API is available as `libcps::robonomics_api`:
+
+```rust
+use libcps::robonomics_api;
+
+// Access runtime APIs
+let create_call = robonomics_api::tx().cps().create_node(...);
+let nodes_query = robonomics_api::storage().cps().nodes(node_id);
+```
 
 ### Requirements
 
-- **subwasm** must be installed for metadata extraction:
-  ```bash
-  # Download from https://github.com/chevdor/subwasm/releases
-  # Or on Linux:
-  wget https://github.com/chevdor/subwasm/releases/download/v0.20.0/subwasm_linux_amd64_v0.20.0.deb
-  sudo dpkg -i subwasm_linux_amd64_v0.20.0.deb
-  ```
-
-- **wasm32-unknown-unknown** target must be installed:
-  ```bash
-  rustup target add wasm32-unknown-unknown
-  ```
+Just Rust and Cargo! The build process is fully automated:
+- Runtime WASM is embedded via dependency
+- Metadata extraction happens in build.rs
+- No external tools needed
 
 This ensures:
 - Metadata is always in sync with the runtime
-- No manual codegen steps are required  
-- Type definitions are generated automatically during cargo build
-- Metadata inconsistencies are eliminated
+- Zero manual steps
+- Type definitions are generated automatically
+- Self-contained build process
 
 ## Testing
 

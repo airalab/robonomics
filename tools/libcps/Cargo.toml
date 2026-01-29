@@ -69,6 +69,8 @@ env_logger = { workspace = true, optional = true }
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }
+robonomics-runtime = { path = "../../runtime/robonomics", default-features = false, features = ["std"] }
+subxt-metadata = { version = "0.44" }
 
 [features]
 default = ["mqtt", "cli"]
