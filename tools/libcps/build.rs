@@ -16,7 +16,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-use parity_scale_codec::Encode;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -25,23 +24,10 @@ fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     
     // The robonomics-runtime is built as a dependency with std feature.
-    // Access the metadata directly from the runtime
-    let metadata = robonomics_runtime::RuntimeGenesisConfig::default()
-        .build_storage()
-        .expect("Failed to build storage")
-        .top
-        .into_iter()
-        .find(|(k, _)| k == b":code")
-        .map(|(_, v)| v)
-        .expect("Runtime code not found in storage");
+    // Access the pre-built metadata constant
+    let metadata_bytes = robonomics_runtime::METADATA;
     
-    // Actually, let's use the simpler approach: get metadata directly from the runtime API
-    let metadata = <robonomics_runtime::Runtime as frame_metadata::RuntimeMetadata>::metadata();
-    
-    println!("cargo:warning=Extracted metadata from runtime");
-    
-    // Encode to SCALE format
-    let metadata_bytes = metadata.encode();
+    println!("cargo:warning=Using runtime metadata ({} bytes)", metadata_bytes.len());
     
     // Write the metadata to a file so subxt macro can use it
     let metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");

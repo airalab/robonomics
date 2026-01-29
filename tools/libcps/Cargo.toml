@@ -69,8 +69,6 @@ env_logger = { workspace = true, optional = true }
 
 [build-dependencies]
 robonomics-runtime = { path = "../../runtime/robonomics", features = ["std"] }
-frame-metadata = { workspace = true, features = ["current"] }
-parity-scale-codec = { workspace = true, features = ["std"] }
 
 [features]
 default = ["mqtt", "cli"]
