@@ -21,57 +21,50 @@ use std::fs;
 use std::path::PathBuf;
 
 fn main() {
-    // The robonomics-runtime build dependency will build the WASM runtime.
-    // We need to find the path to the built WASM file and pass it to the compile-time
-    // environment so the subxt macro can use it.
-    
-    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
-    let out_path = PathBuf::from(&out_dir);
-    
-    // Navigate from OUT_DIR to the target directory
-    // OUT_DIR structure: target/<profile>/build/<crate-hash>/out
-    let target_dir = out_path
+    // Find the workspace root
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_path = PathBuf::from(&manifest_dir);
+    let workspace_root = manifest_path
         .parent()
         .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .expect("Could not determine target directory");
+        .expect("Could not determine workspace root")
+        .to_path_buf();
     
-    // Look for robonomics-runtime build directory
-    let build_dir = target_dir.join("debug").join("build");
+    let runtime_dir = workspace_root.join("runtime/robonomics");
     
-    let mut wasm_path = None;
+    // Check for WASM file in release build
+    let wasm_path = workspace_root
+        .join("target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.wasm");
     
-    if let Ok(entries) = fs::read_dir(&build_dir) {
-        for entry in entries.filter_map(|e| e.ok()) {
-            let dir_name = entry.file_name();
-            if dir_name.to_string_lossy().starts_with("robonomics-runtime-") {
-                let potential_wasm = entry
-                    .path()
-                    .join("out/wbuild/robonomics-runtime/robonomics_runtime.compact.wasm");
-                if potential_wasm.exists() {
-                    wasm_path = Some(potential_wasm);
-                    break;
-                }
-            }
-        }
+    if !wasm_path.exists() {
+        eprintln!();
+        eprintln!("================================================================================");
+        eprintln!("ERROR: Robonomics runtime WASM not found!");
+        eprintln!();
+        eprintln!("The WASM runtime must be built before building libcps.");
+        eprintln!("Please run the following command first:");
+        eprintln!();
+        eprintln!("    cargo build -p robonomics-runtime --release");
+        eprintln!();
+        eprintln!("Expected WASM location:");
+        eprintln!("    {}", wasm_path.display());
+        eprintln!("================================================================================");
+        eprintln!();
+        panic!("Robonomics runtime WASM not found. Build the runtime first.");
     }
     
-    let wasm_path = wasm_path.expect(
-        "Could not find robonomics_runtime.compact.wasm. \
-         Make sure robonomics-runtime is built as a dependency."
-    );
+    println!("cargo:warning=Using WASM from: {}", wasm_path.display());
     
-    // Set the WASM path as an environment variable for use in the source code
-    println!(
-        "cargo:rustc-env=ROBONOMICS_RUNTIME_WASM={}",
-        wasm_path.display()
-    );
+    // Copy WASM to a known location in the libcps directory
+    let dest_wasm = manifest_path.join("robonomics_runtime.compact.wasm");
     
-    // Make sure we rebuild if the WASM changes
-    println!("cargo:rerun-if-changed={}", wasm_path.display());
+    fs::copy(&wasm_path, &dest_wasm)
+        .expect("Failed to copy WASM to libcps directory");
+    
+    println!("cargo:warning=Copied WASM to: {}", dest_wasm.display());
     
     // Trigger rebuild if runtime source changes
-    println!("cargo:rerun-if-changed=../../runtime/robonomics/src");
-    println!("cargo:rerun-if-changed=../../runtime/robonomics/Cargo.toml");
+    println!("cargo:rerun-if-changed={}", runtime_dir.join("src").display());
+    println!("cargo:rerun-if-changed={}", runtime_dir.join("Cargo.toml").display());
+    println!("cargo:rerun-if-changed={}", wasm_path.display());
 }

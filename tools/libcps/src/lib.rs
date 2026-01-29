@@ -238,10 +238,10 @@ pub mod types;
 #[allow(rustdoc::broken_intra_doc_links)]
 // Robonomics runtime API generated from WASM
 // This macro generates the runtime API code from the WASM runtime file.
-// The WASM path is set by build.rs which builds robonomics-runtime as a dependency.
+// The WASM is copied to the libcps directory by build.rs from the compiled runtime.
 // This ensures the metadata is always in sync with the runtime.
 #[subxt::subxt(
-    runtime_metadata_path = env!("ROBONOMICS_RUNTIME_WASM"),
+    runtime_metadata_path = "robonomics_runtime.compact.wasm",
     derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy")
 )]
 pub mod robonomics_api {}

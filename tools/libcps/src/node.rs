@@ -68,7 +68,6 @@
 //! ```
 
 use crate::blockchain::Client;
-use crate::robonomics_runtime;
 use crate::types::{NodeData, NodeId as CpsNodeId};
 use anyhow::{anyhow, Result};
 use log::{debug, trace};

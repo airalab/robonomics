@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Type definitions for CPS pallet integration.
 
-pub use crate::crate::robonomics_api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-pub use crate::crate::robonomics_api::runtime_types::pallet_robonomics_cps::{
+pub use crate::robonomics_api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+pub use crate::robonomics_api::runtime_types::pallet_robonomics_cps::{
     DefaultEncryptedData as EncryptedData, NodeData, NodeId,
 };
 
