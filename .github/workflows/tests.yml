@@ -33,8 +33,13 @@ jobs:
     - name: Install deps
       run: sudo apt -y install pkg-config protobuf-compiler libclang-dev
 
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+
     - name: Run all workspace tests
-      run: cargo test --workspace --locked
+      run: cargo nextest run --workspace --locked
 
   runtime-benchmarks:
     needs: static-checks
