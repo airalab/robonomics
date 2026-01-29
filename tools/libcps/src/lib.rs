@@ -237,8 +237,9 @@ pub mod types;
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
 // Robonomics runtime API generated from metadata
-// The metadata.scale file is automatically extracted from the WASM runtime by build.rs.
-// This ensures the metadata is always in sync with the runtime.
+// The build script extracts metadata directly from robonomics-runtime dependency
+// using the RuntimeMetadata trait and saves it as metadata.scale.
+// This ensures metadata is always in sync with the runtime.
 #[subxt::subxt(
     runtime_metadata_path = "metadata.scale",
     derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy")

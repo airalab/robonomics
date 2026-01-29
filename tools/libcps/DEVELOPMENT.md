@@ -106,20 +106,25 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 
 ## Blockchain Metadata
 
-libcps automatically generates type definitions from the robonomics runtime during build.
+libcps automatically generates type definitions from the robonomics runtime.
 
 ### How It Works
 
-The robonomics runtime is added as a build dependency. When libcps builds:
+The robonomics runtime is added as a **build dependency**. When libcps builds:
 
-1. The runtime is compiled (if not already built)
-2. The build script accesses the embedded WASM binary from the runtime
-3. Metadata is automatically extracted from the WASM
-4. The subxt macro uses this metadata to generate type-safe APIs
+1. The build script accesses the embedded `WASM_BINARY` from robonomics-runtime
+2. Writes it as `robonomics_runtime.compact.wasm`
+3. The subxt macro reads this WASM file and generates type-safe APIs
 
-No manual steps or external tools required!
+**No external tools required** - just Rust and Cargo!
 
-### Generated API
+### Usage
+
+Simply build libcps and everything happens automatically:
+
+```bash
+cargo build -p libcps
+```
 
 The generated API is available as `libcps::robonomics_api`:
 
@@ -131,18 +136,12 @@ let create_call = robonomics_api::tx().cps().create_node(...);
 let nodes_query = robonomics_api::storage().cps().nodes(node_id);
 ```
 
-### Requirements
+### Benefits
 
-Just Rust and Cargo! The build process is fully automated:
-- Runtime WASM is embedded via dependency
-- Metadata extraction happens in build.rs
-- No external tools needed
-
-This ensures:
-- Metadata is always in sync with the runtime
-- Zero manual steps
-- Type definitions are generated automatically
-- Self-contained build process
+- **Zero external dependencies**: No subwasm or other tools needed
+- **Always in sync**: WASM comes directly from runtime dependency
+- **Type safe**: Compile-time verification of all runtime calls  
+- **Self-contained**: Everything happens in the build process
 
 ## Testing
 
