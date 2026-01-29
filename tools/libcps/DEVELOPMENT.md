@@ -104,46 +104,24 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 }
 ```
 
-## Generating Blockchain Metadata
+## Blockchain Metadata
 
-To interact with a live blockchain, you need to generate type definitions:
+libcps automatically generates type definitions from the robonomics runtime during build.
+The runtime is built as a dependency, and the WASM file is used to extract metadata at compile time using the subxt macro.
 
-```bash
-# Install subxt CLI
-cargo install subxt-cli
+This ensures that:
+- Metadata is always in sync with the runtime
+- No manual codegen steps are required
+- Type definitions are generated automatically during cargo build
 
-# Start your Robonomics node (in another terminal)
-# Then generate metadata:
-subxt metadata --url ws://localhost:9944 > metadata.scale
-
-# Generate Rust types
-subxt codegen --file metadata.scale > src/robonomics_runtime.rs
-```
-
-Then use the generated types in your code:
-
+The implementation uses:
 ```rust
-#[subxt::subxt(runtime_metadata_path = "metadata.scale")]
-pub mod robonomics {}
-
-// Query storage
-let nodes_query = robonomics::storage().cps().nodes(NodeId(node_id));
-let node = client.api.storage().at_latest().await?
-    .fetch(&nodes_query).await?;
-
-// Submit extrinsic
-let create_call = robonomics::tx().cps().create_node(
-    parent_id,
-    meta_data,
-    payload_data,
-);
-client.api
-    .tx()
-    .sign_and_submit_then_watch_default(&create_call, keypair)
-    .await?
-    .wait_for_finalized_success()
-    .await?;
+#[subxt::subxt(runtime_metadata_path = env!("ROBONOMICS_RUNTIME_WASM"))]
+pub mod api {}
 ```
+
+The `ROBONOMICS_RUNTIME_WASM` environment variable is set by the build script (build.rs) which
+references the WASM file built from the robonomics-runtime dependency.
 
 ## Testing
 

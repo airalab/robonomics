@@ -5620,6 +5620,7 @@ dependencies = [
  "indicatif",
  "log",
  "parity-scale-codec",
+ "robonomics-runtime",
  "rumqttc",
  "serde",
  "serde_json",
@@ -10509,6 +10510,7 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "substrate-wasm-builder",
+ "subxt-metadata 0.44.2",
 ]
 
 [[package]]

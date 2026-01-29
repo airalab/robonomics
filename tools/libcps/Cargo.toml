@@ -67,6 +67,9 @@ chrono = { workspace = true, optional = true }
 log = { workspace = true }
 env_logger = { workspace = true, optional = true }
 
+[build-dependencies]
+robonomics-runtime = { path = "../../runtime/robonomics", features = ["std"] }
+
 [features]
 default = ["mqtt", "cli"]
 mqtt = ["dep:rumqttc", "dep:toml"]

@@ -236,10 +236,18 @@ pub mod types;
 )]
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
-pub(crate) mod robonomics_runtime;
+// Robonomics runtime API generated from WASM
+// This macro generates the runtime API code from the WASM runtime file.
+// The WASM path is set by build.rs which builds robonomics-runtime as a dependency.
+// This ensures the metadata is always in sync with the runtime.
+#[subxt::subxt(
+    runtime_metadata_path = env!("ROBONOMICS_RUNTIME_WASM"),
+    derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy")
+)]
+pub mod robonomics_api {}
 
 // Re-export event types for CLI usage
-pub use robonomics_runtime::api::cps::events::PayloadSet;
+pub use robonomics_api::cps::events::PayloadSet;
 
 // Re-export commonly used types for convenience
 pub use blockchain::{Client, Config};
