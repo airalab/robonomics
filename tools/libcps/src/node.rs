@@ -596,17 +596,3 @@ impl<'a> Node<'a> {
         Ok(events)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_node_new() {
-        // This is a minimal test since we can't create a real Client without a running node
-        // In a real test environment with a test node, you would do:
-        // let client = Client::new(&test_config).await?;
-        // let node = Node::new(&client, 42);
-        // assert_eq!(node.id(), 42);
-    }
-}
