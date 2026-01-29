@@ -236,12 +236,11 @@ pub mod types;
 )]
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
-// Robonomics runtime API generated from WASM
-// This macro generates the runtime API code from the WASM runtime file.
-// The WASM is copied to the libcps directory by build.rs from the compiled runtime.
+// Robonomics runtime API generated from metadata
+// The metadata.scale file is automatically extracted from the WASM runtime by build.rs.
 // This ensures the metadata is always in sync with the runtime.
 #[subxt::subxt(
-    runtime_metadata_path = "robonomics_runtime.compact.wasm",
+    runtime_metadata_path = "metadata.scale",
     derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy")
 )]
 pub mod robonomics_api {}

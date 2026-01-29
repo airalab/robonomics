@@ -17,8 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 use std::env;
-use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn main() {
     // Find the workspace root
@@ -55,15 +55,28 @@ fn main() {
     
     println!("cargo:warning=Using WASM from: {}", wasm_path.display());
     
-    // Copy WASM to a known location in the libcps directory
-    let dest_wasm = manifest_path.join("robonomics_runtime.compact.wasm");
+    // Extract metadata from WASM using subwasm
+    let metadata_path = manifest_path.join("metadata.scale");
     
-    fs::copy(&wasm_path, &dest_wasm)
-        .expect("Failed to copy WASM to libcps directory");
+    println!("cargo:warning=Extracting metadata to: {}", metadata_path.display());
     
-    println!("cargo:warning=Copied WASM to: {}", dest_wasm.display());
+    let status = Command::new("subwasm")
+        .args(&[
+            "meta",
+            wasm_path.to_str().unwrap(),
+            "-f", "scale",
+            "-o", metadata_path.to_str().unwrap(),
+        ])
+        .status()
+        .expect("Failed to run subwasm. Make sure subwasm is installed: https://github.com/chevdor/subwasm");
     
-    // Trigger rebuild if runtime source changes
+    if !status.success() {
+        panic!("Failed to extract metadata using subwasm");
+    }
+    
+    println!("cargo:warning=Metadata extracted successfully");
+    
+    // Trigger rebuild if runtime source changes or WASM changes
     println!("cargo:rerun-if-changed={}", runtime_dir.join("src").display());
     println!("cargo:rerun-if-changed={}", runtime_dir.join("Cargo.toml").display());
     println!("cargo:rerun-if-changed={}", wasm_path.display());

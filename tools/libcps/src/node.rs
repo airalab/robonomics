@@ -78,7 +78,7 @@ use subxt::PolkadotConfig;
 pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
 
 /// Information about a CPS node.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NodeInfo {
     /// Node ID
     pub id: u64,

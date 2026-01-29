@@ -11,4 +11,5 @@ scripts/zombienet/tests/node_modules/
 scripts/zombienet/tests/package-lock.json
 scripts/zombienet/tests/yarn.lock
 /tmp/zombie-*
+/tools/libcps/metadata.scale
 /tools/libcps/robonomics_runtime.compact.wasm

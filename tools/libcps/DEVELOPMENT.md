@@ -107,21 +107,49 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 ## Blockchain Metadata
 
 libcps automatically generates type definitions from the robonomics runtime during build.
-The runtime is built as a dependency, and the WASM file is used to extract metadata at compile time using the subxt macro.
 
-This ensures that:
+### How It Works
+
+1. The robonomics runtime must be built first:
+   ```bash
+   cargo build -p robonomics-runtime --release
+   ```
+
+2. When building libcps, the build script (build.rs) automatically:
+   - Locates the compiled runtime WASM file
+   - Extracts metadata using `subwasm`
+   - Saves it as `metadata.scale`
+   - The subxt macro uses this file to generate type-safe APIs
+
+3. The generated API is available as `libcps::robonomics_api`:
+   ```rust
+   use libcps::robonomics_api;
+   
+   // Access runtime APIs
+   let create_call = robonomics_api::tx().cps().create_node(...);
+   let nodes_query = robonomics_api::storage().cps().nodes(node_id);
+   ```
+
+### Requirements
+
+- **subwasm** must be installed for metadata extraction:
+  ```bash
+  # Download from https://github.com/chevdor/subwasm/releases
+  # Or on Linux:
+  wget https://github.com/chevdor/subwasm/releases/download/v0.20.0/subwasm_linux_amd64_v0.20.0.deb
+  sudo dpkg -i subwasm_linux_amd64_v0.20.0.deb
+  ```
+
+- **wasm32-unknown-unknown** target must be installed:
+  ```bash
+  rustup target add wasm32-unknown-unknown
+  ```
+
+This ensures:
 - Metadata is always in sync with the runtime
-- No manual codegen steps are required
+- No manual codegen steps are required  
 - Type definitions are generated automatically during cargo build
-
-The implementation uses:
-```rust
-#[subxt::subxt(runtime_metadata_path = env!("ROBONOMICS_RUNTIME_WASM"))]
-pub mod api {}
-```
-
-The `ROBONOMICS_RUNTIME_WASM` environment variable is set by the build script (build.rs) which
-references the WASM file built from the robonomics-runtime dependency.
+- Metadata inconsistencies are eliminated
 
 ## Testing
 
