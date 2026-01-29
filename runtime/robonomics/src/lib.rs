@@ -317,6 +317,21 @@ parameter_types! {
     pub const MetadataDepositPerByte: Balance = deposit(0, 1);
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct AssetsBenchmarkHelper;
+#[cfg(feature = "runtime-benchmarks")]
+impl pallet_assets::BenchmarkHelper<parity_scale_codec::Compact<u32>, u128>
+    for AssetsBenchmarkHelper
+{
+    fn create_asset_id_parameter(id: u32) -> parity_scale_codec::Compact<u32> {
+        id.into()
+    }
+
+    fn create_reserve_id_parameter(_id: u32) -> u128 {
+        0u128
+    }
+}
+
 impl pallet_assets::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Balance = Balance;
@@ -339,7 +354,7 @@ impl pallet_assets::Config for Runtime {
     type CallbackHandle = ();
     type ReserveData = u128;
     #[cfg(feature = "runtime-benchmarks")]
-    type BenchmarkHelper = ();
+    type BenchmarkHelper = AssetsBenchmarkHelper;
 }
 
 parameter_types! {
