@@ -96,6 +96,8 @@ polkadot-runtime-common.workspace = true
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
+subxt-metadata = { version = "0.44", optional = true }
+parity-scale-codec = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
@@ -216,6 +218,9 @@ try-runtime = [
 
 # Enable the metadata hash generation in the wasm builder.
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]
+
+# Enable metadata extraction to SCALE file for libcps
+metadata-extract = ["std", "subxt-metadata"]
 
 # A feature that should be enabled when the runtime should be built for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
