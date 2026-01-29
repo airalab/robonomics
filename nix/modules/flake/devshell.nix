@@ -3,7 +3,7 @@
     devShells.default = with pkgs; mkShell.override { stdenv = clangStdenv; } {
         inputsFrom = [ self'.devShells.rust ];
         buildInputs = [
-          openssl rustfmt taplo actionlint
+          openssl rustfmt taplo actionlint cargo-nextest
           subxt-cli srtool-cli psvm frame-omni-bencher
         ]
         ++ lib.optionals stdenv.hostPlatform.isLinux [ rust-jemalloc-sys ];
@@ -18,6 +18,7 @@
         let robonomics = config.rust-project.crates."robonomics".crane.outputs.drv.crate;
             libcps = config.rust-project.crates."libcps".crane.outputs.drv.crate;
         in with pkgs; mkShell {
+          inputsFrom = [ self'.devShells.default ];
           buildInputs = [ polkadot polkadot-parachain zombienet robonomics libcps ];
         };
   };
