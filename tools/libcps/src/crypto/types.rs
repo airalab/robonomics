@@ -329,4 +329,35 @@ mod tests {
             EncryptionAlgorithm::XChaCha20Poly1305
         );
     }
+
+    #[test]
+    fn test_crypto_scheme_name() {
+        assert_eq!(CryptoScheme::Sr25519.name(), "SR25519");
+        assert_eq!(CryptoScheme::Ed25519.name(), "ED25519");
+    }
+
+    #[test]
+    fn test_crypto_scheme_info_suffix() {
+        assert_eq!(CryptoScheme::Sr25519.info_suffix(), "-sr25519");
+        assert_eq!(CryptoScheme::Ed25519.info_suffix(), "-ed25519");
+    }
+
+    #[test]
+    fn test_crypto_scheme_display() {
+        assert_eq!(CryptoScheme::Sr25519.to_string(), "sr25519");
+        assert_eq!(CryptoScheme::Ed25519.to_string(), "ed25519");
+    }
+
+    #[test]
+    fn test_crypto_scheme_from_str() {
+        assert_eq!(
+            CryptoScheme::from_str("sr25519").unwrap(),
+            CryptoScheme::Sr25519
+        );
+        assert_eq!(
+            CryptoScheme::from_str("ed25519").unwrap(),
+            CryptoScheme::Ed25519
+        );
+        assert!(CryptoScheme::from_str("invalid").is_err());
+    }
 }
