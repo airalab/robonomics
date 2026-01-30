@@ -71,6 +71,10 @@ hkdf = "0.12"
 sha2 = "0.10"
 
 # Blockchain (for libcps)
+# NOTE: subxt and subxt-signer are intentionally pinned to 0.43.x for
+# compatibility with the existing libcps code and target chain runtime.
+# Upgrading to 0.44+ requires coordinated refactoring and will be done
+# in a separate change.
 subxt = "0.43.1"
 subxt-signer = "0.43.0"
 
