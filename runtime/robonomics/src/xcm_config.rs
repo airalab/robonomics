@@ -345,4 +345,5 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 impl pallet_xcm_info::Config for Runtime {
     type AssetId = AssetId;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
 }

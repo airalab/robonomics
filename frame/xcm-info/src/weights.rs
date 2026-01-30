@@ -50,33 +50,6 @@ pub trait WeightInfo {
     fn set_asset_link() -> Weight;
 }
 
-/// Weights for `pallet_xcm_info` using the Substrate node and recommended hardware.
-pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-    /// Storage: `XcmInfo::RelayNetwork` (r:0 w:1)
-    /// Proof: `XcmInfo::RelayNetwork` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-    fn set_relay_network() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `0`
-        //  Estimated: `0`
-        // Minimum execution time: 5_000 picoseconds.
-        Weight::from_parts(6_000_000, 0)
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-    /// Storage: `XcmInfo::LocationToAssetId` (r:0 w:1)
-    /// Proof: `XcmInfo::LocationToAssetId` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-    /// Storage: `XcmInfo::AssetIdToLocation` (r:0 w:1)
-    /// Proof: `XcmInfo::AssetIdToLocation` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-    fn set_asset_link() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `0`
-        //  Estimated: `0`
-        // Minimum execution time: 8_000 picoseconds.
-        Weight::from_parts(10_000_000, 0)
-            .saturating_add(T::DbWeight::get().writes(2_u64))
-    }
-}
-
 // For backwards compatibility and tests.
 impl WeightInfo for () {
     /// Storage: `XcmInfo::RelayNetwork` (r:0 w:1)
@@ -110,13 +83,11 @@ mod tests {
 
     #[test]
     fn test_set_relay_network() {
-        assert!(SubstrateWeight::<()>::set_relay_network().ref_time() > 0);
         assert!(<() as WeightInfo>::set_relay_network().ref_time() > 0);
     }
 
     #[test]
     fn test_set_asset_link() {
-        assert!(SubstrateWeight::<()>::set_asset_link().ref_time() > 0);
         assert!(<() as WeightInfo>::set_asset_link().ref_time() > 0);
     }
 }

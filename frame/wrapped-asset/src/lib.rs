@@ -83,6 +83,7 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
+    use super::WeightInfo;
     use frame_support::{
         pallet_prelude::*,
         traits::{fungible::Mutate as FungibleMutate, Currency, ExistenceRequirement},
@@ -203,7 +204,7 @@ pub mod pallet {
         ///
         /// - `NativeWrapped`: Emitted when tokens are successfully wrapped
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::wrap_and_send())]
+        #[pallet::weight(<T as Config>::WeightInfo::wrap_and_send())]
         pub fn wrap_and_send(
             origin: OriginFor<T>,
             amount: BalanceOf<T>,

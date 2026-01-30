@@ -563,6 +563,7 @@ impl pallet_wrapped_asset::Config for Runtime {
     type ForeignAssetLocation = ForeignAssetLocation;
     type AssetHubLocation = AssetHubLocation;
     type XcmFeeAmount = XcmFeeAmount;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -806,7 +807,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
-    // TODO: [pallet_wrapped_asset, WrappedXRT]
+    [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     //[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]

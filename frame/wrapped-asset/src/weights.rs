@@ -49,26 +49,6 @@ pub trait WeightInfo {
     fn wrap_and_send() -> Weight;
 }
 
-/// Weights for `pallet_wrapped_asset` using the Substrate node and recommended hardware.
-pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-    /// Storage: `WrappedNative::TotalWrapped` (r:1 w:1)
-    /// Proof: `WrappedNative::TotalWrapped` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-    /// Storage: `Balances::Account` (r:1 w:1)
-    /// Proof: `Balances::Account` (`max_values`: None, `max_size`: Some(128), added: 2603, mode: `MaxEncodedLen`)
-    /// Storage: `PolkadotXcm::XcmExecutionSuspended` (r:1 w:0)
-    /// Proof: `PolkadotXcm::XcmExecutionSuspended` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
-    fn wrap_and_send() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `171`
-        //  Estimated: `3636`
-        // Minimum execution time: 50_000 picoseconds.
-        Weight::from_parts(55_000_000, 3636)
-            .saturating_add(T::DbWeight::get().reads(3_u64))
-            .saturating_add(T::DbWeight::get().writes(2_u64))
-    }
-}
-
 // For backwards compatibility and tests.
 impl WeightInfo for () {
     /// Storage: `WrappedNative::TotalWrapped` (r:1 w:1)
@@ -95,7 +75,6 @@ mod tests {
 
     #[test]
     fn test_wrap_and_send() {
-        assert!(SubstrateWeight::<()>::wrap_and_send().ref_time() > 0);
         assert!(<() as WeightInfo>::wrap_and_send().ref_time() > 0);
     }
 }
