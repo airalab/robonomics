@@ -33,7 +33,7 @@
 //! ## Quick Start
 //!
 //! ```no_run
-//! use libcps::{Client, Config};
+//! use libcps::blockchain::{Client, Config};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -46,7 +46,7 @@
 //!     let client = Client::new(&config).await?;
 //!     
 //!     // Use the client to interact with CPS pallet
-//!     // (requires generated metadata from a running node)
+//!     // (metadata is auto-generated from runtime dependency)
 //!     
 //!     Ok(())
 //! }
@@ -56,9 +56,8 @@
 //!
 //! - [`blockchain`]: Blockchain client and connection management
 //! - [`crypto`]: Encryption and key derivation utilities
-//! - [`mqtt`]: MQTT bridge configuration and types
-//! - [`types`]: CPS pallet type definitions
-//! - [`node`]: Node-oriented API with async/sync methods for CPS operations
+//! - [`mqtt`]: MQTT bridge configuration and types (optional feature)
+//! - [`node`]: Node-oriented API with type definitions and async methods for CPS operations
 //!
 //! ## Encryption
 //!
@@ -97,7 +96,7 @@
 //! Configure and use MQTT bridge for IoT integration:
 //!
 //! ```no_run
-//! use libcps::{mqtt, BlockchainConfig};
+//! use libcps::{mqtt, blockchain::Config};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Configure MQTT connection
@@ -112,7 +111,7 @@
 //! };
 //!
 //! // Configure blockchain connection
-//! let blockchain_config = BlockchainConfig {
+//! let blockchain_config = Config {
 //!     ws_url: "ws://localhost:9944".to_string(),
 //!     suri: Some("//Alice".to_string()),
 //! };
@@ -145,11 +144,11 @@
 //! Manage multiple bridges with a TOML configuration file:
 //!
 //! ```no_run
-//! use libcps::MqttConfig;
+//! use libcps::mqtt::Config;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Load configuration from file
-//! let config = MqttConfig::from_file("mqtt_config.toml")?;
+//! let config = Config::from_file("mqtt_config.toml")?;
 //!
 //! // Start all configured bridges concurrently
 //! config.start().await?;

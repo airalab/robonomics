@@ -39,15 +39,16 @@
 //! ## Async Usage (Recommended)
 //!
 //! ```no_run
-//! use libcps::{BlockchainClient, BlockchainConfig, node::{Node, NodeData}};
+//! use libcps::blockchain::{Client, Config};
+//! use libcps::node::{Node, NodeData};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let config = BlockchainConfig {
+//!     let config = Config {
 //!         ws_url: "ws://localhost:9944".to_string(),
 //!         suri: Some("//Alice".to_string()),
 //!     };
-//!     let client = BlockchainClient::new(&config).await?;
+//!     let client = Client::new(&config).await?;
 //!     
 //!     // Create a new node with clean API
 //!     let meta: NodeData = "sensor".into();

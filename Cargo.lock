@@ -3881,22 +3881,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "frame-decode"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c470df86cf28818dd3cd2fc4667b80dbefe2236c722c3dc1d09e7c6c82d6dfcd"
-dependencies = [
- "frame-metadata",
- "parity-scale-codec",
- "scale-decode",
- "scale-encode",
- "scale-info",
- "scale-type-resolver",
- "sp-crypto-hashing",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "frame-election-provider-solution-type"
 version = "16.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9088,7 +9072,7 @@ dependencies = [
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "substrate-state-trie-migration-rpc",
- "subxt-metadata 0.43.0",
+ "subxt-metadata",
 ]
 
 [[package]]
@@ -10551,7 +10535,6 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "substrate-wasm-builder",
- "subxt-metadata 0.44.2",
 ]
 
 [[package]]
@@ -14118,7 +14101,7 @@ dependencies = [
  "subxt-core",
  "subxt-lightclient",
  "subxt-macro",
- "subxt-metadata 0.43.0",
+ "subxt-metadata",
  "subxt-rpcs",
  "thiserror 2.0.18",
  "tokio",
@@ -14141,7 +14124,7 @@ dependencies = [
  "quote",
  "scale-info",
  "scale-typegen",
- "subxt-metadata 0.43.0",
+ "subxt-metadata",
  "syn 2.0.114",
  "thiserror 2.0.18",
 ]
@@ -14155,7 +14138,7 @@ dependencies = [
  "base58",
  "blake2 0.10.6",
  "derive-where",
- "frame-decode 0.8.3",
+ "frame-decode",
  "frame-metadata",
  "hashbrown 0.14.5",
  "hex",
@@ -14171,7 +14154,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-crypto-hashing",
- "subxt-metadata 0.43.0",
+ "subxt-metadata",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -14205,7 +14188,7 @@ dependencies = [
  "quote",
  "scale-typegen",
  "subxt-codegen",
- "subxt-metadata 0.43.0",
+ "subxt-metadata",
  "subxt-utils-fetchmetadata",
  "syn 2.0.114",
 ]
@@ -14216,22 +14199,7 @@ version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c134068711c0c46906abc0e6e4911204420331530738e18ca903a5469364d9f"
 dependencies = [
- "frame-decode 0.8.3",
- "frame-metadata",
- "hashbrown 0.14.5",
- "parity-scale-codec",
- "scale-info",
- "sp-crypto-hashing",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "subxt-metadata"
-version = "0.44.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc80c07a71e180a42ba0f12727b1f9f39bf03746df6d546d24edbbc137f64fa1"
-dependencies = [
- "frame-decode 0.9.0",
+ "frame-decode",
  "frame-metadata",
  "hashbrown 0.14.5",
  "parity-scale-codec",

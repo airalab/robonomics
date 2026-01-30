@@ -76,8 +76,7 @@ cargo run --package robonomics-cps-cli -- --help
 5. **`src/crypto/`**: Encryption/decryption utilities (library)
 6. **`src/display/`**: Beautiful colored output formatting (CLI-only)
 7. **`src/mqtt/`**: MQTT bridge configuration and implementation (library)
-8. **`src/node.rs`**: Node-oriented API for CPS operations (library)
-9. **`src/types.rs`**: Type definitions matching the CPS pallet (library)
+8. **`src/node.rs`**: Node-oriented API with type definitions for CPS operations (library)
 
 ### Adding a New Command
 
@@ -96,10 +95,10 @@ use crate::display;
 use anyhow::Result;
 
 pub async fn execute(config: &Config, param: String) -> Result<()> {
-    display::tree::progress("Executing my command...");
+    display::progress("Executing my command...");
     let client = Client::new(config).await?;
     // Your implementation here
-    display::tree::success("Command completed!");
+    display::success("Command completed!");
     Ok(())
 }
 ```
@@ -113,8 +112,8 @@ libcps automatically generates type definitions from the robonomics runtime.
 The robonomics runtime is added as a **build dependency**. When libcps builds:
 
 1. The build script accesses the embedded `WASM_BINARY` from robonomics-runtime
-2. Writes it as `robonomics_runtime.compact.wasm`
-3. The subxt macro reads this WASM file and generates type-safe APIs
+2. Writes it to `$OUT_DIR/robonomics_runtime.compact.wasm`
+3. The subxt macro reads this WASM file and generates type-safe APIs at compile time
 
 **No external tools required** - just Rust and Cargo!
 
@@ -126,14 +125,14 @@ Simply build libcps and everything happens automatically:
 cargo build -p libcps
 ```
 
-The generated API is available as `libcps::robonomics_api`:
+The generated API is available through the blockchain module:
 
 ```rust
-use libcps::robonomics_api;
+use libcps::blockchain::{Client, robonomics};
 
 // Access runtime APIs
-let create_call = robonomics_api::tx().cps().create_node(...);
-let nodes_query = robonomics_api::storage().cps().nodes(node_id);
+let create_call = robonomics::tx().cps().create_node(...);
+let nodes_query = robonomics::storage().cps().nodes(node_id);
 ```
 
 ### Benefits
@@ -294,13 +293,15 @@ robonomics --dev --tmp
 
 ### Missing Metadata
 
-**Problem**: Types not found or compilation errors after generating metadata
+**Problem**: Types not found or compilation errors
 
-**Solution**: Regenerate metadata with the correct node version:
-```bash
-subxt metadata --url ws://localhost:9944 > metadata.scale
-subxt codegen --file metadata.scale > src/robonomics_runtime.rs
-```
+**Solution**: The metadata is automatically generated from the runtime dependency during build. If you have issues:
+
+1. Clean the build: `cargo clean -p libcps`
+2. Ensure robonomics-runtime dependency is up to date
+3. Rebuild: `cargo build -p libcps`
+
+The metadata will be automatically extracted from the runtime's embedded WASM binary.
 
 ### Type Mismatch
 
