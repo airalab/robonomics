@@ -103,11 +103,26 @@ This repository is organized as a Cargo workspace with the following structure:
 
 - **`chains/`** - Chain specification files for different networks
 
+### Tools
+
+- **`tools/libcps/`** - Robonomics CPS (Cyber-Physical Systems) library and CLI
+  - Comprehensive Rust library for managing hierarchical CPS nodes on-chain
+  - Beautiful CLI interface with colored output and tree visualization
+  - Multi-algorithm AEAD encryption support (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
+  - MQTT bridge for IoT device integration
+  - See [libcps/README.md](tools/libcps/README.md) for detailed documentation
+
 ### Development Infrastructure
 
 - **`nix/`** - Nix flake modules and build configurations
 - **`scripts/`** - Build, deployment, and testing scripts
-  - `zombienet/` - Multi-node test network configurations
+  - `benchmark-pallets.sh` - Automated runtime benchmarking for all pallets
+  - `build-deb.sh` - Debian package builder
+  - `build-runtime.sh` - Runtime WASM builder
+  - `resolc` - Solang compiler wrapper for Solidity contracts
+  - `docker/` - Docker configuration and healthcheck scripts
+  - `weights/` - Weight template for runtime benchmarks
+  - `zombienet/` - Multi-node test network configurations and integration tests
 
 ### Documentation
 
