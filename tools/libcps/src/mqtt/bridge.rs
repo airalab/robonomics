@@ -826,12 +826,11 @@ const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 ///
 /// Supports both SS58 addresses and hex-encoded 32-byte keys.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
-    use sp_core::crypto::{AccountId32, Ss58Codec};
+    use subxt::utils::AccountId32;
 
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
-    if let Ok(account_id) = AccountId32::from_ss58check(addr_or_hex) {
-        let bytes: &[u8; 32] = account_id.as_ref();
-        return Ok(*bytes);
+    if let Ok(account_id) = AccountId32::from_string(addr_or_hex) {
+        return Ok(account_id.0);
     }
 
     // Fall back to hex decoding

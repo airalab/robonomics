@@ -27,7 +27,7 @@ use colored::*;
 use libcps::blockchain::Config;
 use libcps::crypto::Cipher;
 use libcps::mqtt;
-use sp_core::crypto::{AccountId32, Ss58Codec};
+use subxt::utils::AccountId32;
 
 /// Subscribe to an MQTT topic and update blockchain node payload (CLI wrapper).
 ///
@@ -61,7 +61,7 @@ pub async fn subscribe(
                 let receiver_account = AccountId32::from(*receiver_pub);
                 display::info(&format!(
                     "[K] Receiver: {}",
-                    receiver_account.to_ss58check()
+                    receiver_account
                 ));
             }
             (None, _) => {

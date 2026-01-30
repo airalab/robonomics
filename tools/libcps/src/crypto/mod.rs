@@ -150,7 +150,7 @@ use chacha20poly1305::{
 use log::{debug, trace};
 use parity_scale_codec::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use sp_core::Pair;
+use subxt_signer::{sr25519, ed25519, SecretUri};
 use std::fmt;
 use std::str::FromStr;
 
@@ -440,25 +440,23 @@ impl Cipher {
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
                 trace!("Parsing SR25519 keypair from SURI");
-                let pair = sp_core::sr25519::Pair::from_string(&suri, None)
-                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
-                let secret_bytes = pair.to_raw_vec();
-                let mut secret = [0u8; 32];
-                secret.copy_from_slice(&secret_bytes[..32]);
-                // Derive public key using Pair interface
-                let public_key = pair.public().0;
+                let uri: SecretUri = suri.parse()
+                    .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
+                let keypair = sr25519::Keypair::from_uri(&uri)
+                    .map_err(|e| anyhow!("Failed to create SR25519 keypair: {:?}", e))?;
+                let secret = keypair.secret_key().to_bytes();
+                let public_key = keypair.public_key().0;
                 debug!("SR25519 keypair created successfully");
                 (secret, public_key)
             }
             CryptoScheme::Ed25519 => {
                 trace!("Parsing ED25519 keypair from SURI");
-                let pair = sp_core::ed25519::Pair::from_string(&suri, None)
-                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
-                let secret_bytes = pair.to_raw_vec();
-                let mut secret = [0u8; 32];
-                secret.copy_from_slice(&secret_bytes[..32]);
-                // Derive public key using Pair interface
-                let public_key = pair.public().0;
+                let uri: SecretUri = suri.parse()
+                    .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
+                let keypair = ed25519::Keypair::from_uri(&uri)
+                    .map_err(|e| anyhow!("Failed to create ED25519 keypair: {:?}", e))?;
+                let secret = keypair.secret_key().to_bytes();
+                let public_key = keypair.public_key().0;
                 debug!("ED25519 keypair created successfully");
                 (secret, public_key)
             }
