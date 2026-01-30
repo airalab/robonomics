@@ -1,32 +1,38 @@
 #!/bin/bash
-# Generate weights for all Robonomics pallets
-# This script should be run from the project root directory
+# DEPRECATED: This script is deprecated in favor of the new benchmark workflow
+# Please use the new benchmarking approach documented in the README:
+#
+# Quick start with Nix (recommended):
+#   nix develop .#benchmarking -c ./scripts/benchmark-all.sh
+#
+# Or use the new script directly:
+#   ./scripts/benchmark-all.sh
+#
+# See README.md for full documentation on runtime benchmarking.
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Get the project root (two levels up from scripts/weights/)
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "⚠️  DEPRECATED: This script is deprecated"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Please use the new benchmarking workflow instead:"
+echo ""
+echo "  Quick start with Nix (recommended):"
+echo "    nix develop .#benchmarking -c ./scripts/benchmark-all.sh"
+echo ""
+echo "  Or use the new script directly:"
+echo "    ./scripts/benchmark-all.sh"
+echo ""
+echo "See README.md for full documentation on runtime benchmarking."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 
-# Change to project root
-cd "${PROJECT_ROOT}"
+# Ask if user wants to continue with the new script
+read -p "Would you like to run the new benchmark script? (y/N) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    exec "${SCRIPT_DIR}/benchmark-all.sh"
+fi
 
-# Template path relative to project root
-TEMPLATE="./scripts/weights/frame-weight-template.hbs"
-RUNTIME="./runtime/robonomics/target/srtool/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm"
+exit 1
 
-echo "Generating weights for datalog..."
-frame-omni-bencher v1 benchmark pallet --runtime "${RUNTIME}" --pallet pallet_robonomics_datalog --extrinsic "" --template "${TEMPLATE}" --output frame/datalog/src/weights.rs
-
-echo "Generating weights for digital-twin..."
-frame-omni-bencher v1 benchmark pallet --runtime "${RUNTIME}" --pallet pallet_robonomics_digital_twin --extrinsic "" --template "${TEMPLATE}" --output frame/digital-twin/src/weights.rs
-
-echo "Generating weights for launch..."
-frame-omni-bencher v1 benchmark pallet --runtime "${RUNTIME}" --pallet pallet_robonomics_launch --extrinsic "" --template "${TEMPLATE}" --output frame/launch/src/weights.rs
-
-echo "Generating weights for liability..."
-frame-omni-bencher v1 benchmark pallet --runtime "${RUNTIME}" --pallet pallet_robonomics_liability --extrinsic "" --template "${TEMPLATE}" --output frame/liability/src/weights.rs
-
-echo "Generating weights for rws..."
-frame-omni-bencher v1 benchmark pallet --runtime "${RUNTIME}" --pallet pallet_robonomics_rws --extrinsic "" --template "${TEMPLATE}" --output frame/rws/src/weights.rs
-
-echo "All weights generated!"

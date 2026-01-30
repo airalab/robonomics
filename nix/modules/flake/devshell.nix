@@ -21,5 +21,18 @@
           inputsFrom = [ self'.devShells.default ];
           buildInputs = [ polkadot polkadot-parachain zombienet robonomics libcps ];
         };
+
+    devShells.benchmarking = with pkgs; mkShell.override { stdenv = clangStdenv; } {
+        inputsFrom = [ self'.devShells.rust ];
+        buildInputs = [
+          openssl frame-omni-bencher srtool-cli
+        ]
+        ++ lib.optionals stdenv.hostPlatform.isLinux [ rust-jemalloc-sys ];
+
+        LIBCLANG_PATH = lib.makeLibraryPath [ llvmPackages.libclang ];
+        RUST_SRC_PATH = "${rustPlatform.rustLibSrc}";
+        OPENSSL_NO_VENDOR = 1;
+        PROTOC = "${lib.makeBinPath [ protobuf ]}/protoc";
+      };
   };
 }
