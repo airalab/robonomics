@@ -19,6 +19,7 @@
 use parity_scale_codec::Decode;
 use sc_executor::{WasmExecutionMethod, WasmExecutor};
 use sc_executor_common::runtime_blob::RuntimeBlob;
+use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -35,7 +36,9 @@ fn main() {
     let wasm = robonomics_runtime::WASM_BINARY.expect("WASM_BINARY is not available");
 
     // Create runtime blob from WASM code
-    let runtime_blob = RuntimeBlob::new(wasm).expect("Unable to create RuntimeBlob from WASM");
+    let uncompressed_wasm = decompress(&wasm, CODE_BLOB_BOMB_LIMIT).expect("WASM blob is invalid");
+    let runtime_blob =
+        RuntimeBlob::new(&uncompressed_wasm).expect("Unable to create RuntimeBlob from WASM");
 
     // Instantiate WASM executor
     let mut ext = sp_state_machine::BasicExternalities::default();
