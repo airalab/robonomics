@@ -77,6 +77,6 @@
 pub mod bridge;
 
 pub use bridge::{
-    extract_node_data, parse_mqtt_url, BlockchainConfigData, Config, MessageHandler, PublishConfig,
-    PublishHandler, SubscribeConfig,
+    parse_mqtt_url, BlockchainConfigData, Config, MessageHandler, PublishConfig, PublishHandler,
+    SubscribeConfig,
 };

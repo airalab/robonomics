@@ -68,14 +68,43 @@
 //! ```
 
 use crate::blockchain::Client;
+use crate::robonomics::cps::events::PayloadSet;
 use crate::{AccountId32, RobonomicsConfig};
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
-use crate::robonomics::cps::events::PayloadSet;
 
 pub use create::robonomics::runtime_types::pallet_robonomics_cps::{
     DefaultEncryptedData as EncryptedData, NodeData, NodeId,
 };
+
+/// Helper methods for NodeData type
+impl NodeData {
+    /// Create an encrypted AEAD NodeData from bytes
+    pub fn aead_from(v: Vec<u8>) -> Self {
+        NodeData::Encrypted(EncryptedData::Aead(BoundedVec(v)))
+    }
+}
+
+/// Implement From<Vec<u8>> for NodeData (creates Plain variant)
+impl From<Vec<u8>> for NodeData {
+    fn from(v: Vec<u8>) -> Self {
+        NodeData::Plain(BoundedVec(v))
+    }
+}
+
+/// Implement From<String> for NodeData (creates Plain variant)
+impl From<String> for NodeData {
+    fn from(s: String) -> Self {
+        Self::from(s.into_bytes())
+    }
+}
+
+/// Implement From<&str> for NodeData (creates Plain variant)
+impl From<&str> for NodeData {
+    fn from(s: &str) -> Self {
+        Self::from(s.as_bytes().to_vec())
+    }
+}
 
 /// Type for extrinsic events from blockchain transactions.
 pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
@@ -332,9 +361,7 @@ impl<'a> Node<'a> {
             .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
 
         // Query children
-        let children_query = crate::robonomics::storage()
-            .cps()
-            .nodes_by_parent(node_id);
+        let children_query = crate::robonomics::storage().cps().nodes_by_parent(node_id);
 
         let children = self
             .client
@@ -468,9 +495,7 @@ impl<'a> Node<'a> {
 
         // Build the set_payload transaction
         trace!("Building set_payload transaction");
-        let set_payload_call = crate::robonomics::tx()
-            .cps()
-            .set_payload(node_id, payload);
+        let set_payload_call = crate::robonomics::tx().cps().set_payload(node_id, payload);
 
         // Submit and watch the transaction
         trace!("Submitting set_payload transaction for node {}", self.id);

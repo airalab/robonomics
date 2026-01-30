@@ -20,7 +20,7 @@
 //! This module provides the Cipher struct which handles ECDH key agreement,
 //! HKDF key derivation, and AEAD encryption/decryption operations.
 
-use super::types::{CryptoScheme, EncryptionAlgorithm, EncryptedMessage};
+use super::types::{CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
 use aes_gcm::{
     aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
     Aes256Gcm, Nonce as AesNonce,
@@ -103,7 +103,8 @@ impl Cipher {
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
                 trace!("Parsing SR25519 keypair from SURI");
-                let uri: SecretUri = suri.parse()
+                let uri: SecretUri = suri
+                    .parse()
                     .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
                 let keypair = sr25519::Keypair::from_uri(&uri)
                     .map_err(|e| anyhow!("Failed to create SR25519 keypair: {:?}", e))?;
@@ -114,7 +115,8 @@ impl Cipher {
             }
             CryptoScheme::Ed25519 => {
                 trace!("Parsing ED25519 keypair from SURI");
-                let uri: SecretUri = suri.parse()
+                let uri: SecretUri = suri
+                    .parse()
                     .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
                 let keypair = ed25519::Keypair::from_uri(&uri)
                     .map_err(|e| anyhow!("Failed to create ED25519 keypair: {:?}", e))?;
@@ -505,52 +507,6 @@ impl Cipher {
                     plaintext.len()
                 );
                 Ok(plaintext)
-            }
-        }
-    }
-
-    /// Decrypt a NodeData payload if it's encrypted.
-    ///
-    /// If the NodeData is Plain, returns the plain data as-is.
-    /// If the NodeData is Encrypted, attempts to decrypt it using the cipher's private key.
-    /// The encryption metadata (algorithm, sender, nonce) is embedded in the encrypted data itself.
-    ///
-    /// # Arguments
-    ///
-    /// * `node_data` - The NodeData to decrypt
-    /// * `expected_sender` - Optional sender public key for verification
-    ///
-    /// # Returns
-    ///
-    /// Returns the decrypted (or plain) data as bytes
-    ///
-    /// # Errors
-    ///
-    /// Returns error if decryption fails or sender verification fails
-    pub fn decrypt_node_data(
-        &self,
-        node_data: &crate::types::NodeData,
-        expected_sender: Option<&[u8; 32]>,
-    ) -> Result<Vec<u8>> {
-        use crate::types::NodeData;
-
-        match node_data {
-            NodeData::Plain(bounded_vec) => {
-                // Already plain, just return the data
-                Ok(bounded_vec.0.clone())
-            }
-            NodeData::Encrypted(encrypted_data) => {
-                // Extract the AEAD data
-                use crate::types::EncryptedData;
-                match encrypted_data {
-                    EncryptedData::Aead(bounded_vec) => {
-                        // Decode the SCALE-encoded message
-                        let message: EncryptedMessage = Decode::decode(&mut &bounded_vec.0[..])
-                            .map_err(|e| anyhow!("Failed to decode encrypted message: {e}"))?;
-                        // Decrypt using the embedded metadata
-                        self.decrypt(&message, expected_sender)
-                    }
-                }
             }
         }
     }

@@ -240,17 +240,16 @@ pub mod node;
 #[subxt::subxt(
     runtime_metadata_path = "$OUT_DIR/metadata.scale",
     derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy"),
-    derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode",
+    derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode"
 )]
 pub mod robonomics {}
 
 // Re-export event types for CLI usage
 pub use robonomics::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
-pub use primitive_types::{H256, U256};
 
-use subxt::{Config, DefaultExtrinsicParams, DefaultExtrinsicParamsBuilder};
 use subxt::config::SubstrateConfig;
+use subxt::{Config, DefaultExtrinsicParams, DefaultExtrinsicParamsBuilder};
 
 /// Default set of commonly used types by Robonomics nodes.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -273,32 +272,3 @@ pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
 /// A builder which leads to [`RobonomicsExtrinsicParams`] being constructed.
 /// This is what you provide to methods like `sign_and_submit()`.
 pub type RobonomicsExtrinsicParamsBuilder<T> = DefaultExtrinsicParamsBuilder<T>;
-
-/// Helper methods for NodeData type
-impl NodeData {
-    /// Create an encrypted AEAD NodeData from bytes
-    pub fn aead_from(v: Vec<u8>) -> Self {
-        NodeData::Encrypted(EncryptedData::Aead(BoundedVec(v)))
-    }
-}
-
-/// Implement From<Vec<u8>> for NodeData (creates Plain variant)
-impl From<Vec<u8>> for NodeData {
-    fn from(v: Vec<u8>) -> Self {
-        NodeData::Plain(BoundedVec(v))
-    }
-}
-
-/// Implement From<String> for NodeData (creates Plain variant)
-impl From<String> for NodeData {
-    fn from(s: String) -> Self {
-        Self::from(s.into_bytes())
-    }
-}
-
-/// Implement From<&str> for NodeData (creates Plain variant)
-impl From<&str> for NodeData {
-    fn from(s: &str) -> Self {
-        Self::from(s.as_bytes().to_vec())
-    }
-}

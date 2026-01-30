@@ -54,10 +54,7 @@ pub async fn execute(
             cipher.scheme()
         ));
         let receiver_account = AccountId32::from(*receiver_pub);
-        display::info(&format!(
-            "[K] Receiver: {}",
-            receiver_account
-        ));
+        display::info(&format!("[K] Receiver: {}", receiver_account));
 
         let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
         let encrypted_bytes = encrypted_message.encode();

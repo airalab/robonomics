@@ -59,10 +59,7 @@ pub async fn subscribe(
                     cipher.scheme()
                 ));
                 let receiver_account = AccountId32::from(*receiver_pub);
-                display::info(&format!(
-                    "[K] Receiver: {}",
-                    receiver_account
-                ));
+                display::info(&format!("[K] Receiver: {}", receiver_account));
             }
             (None, _) => {
                 return Err(anyhow::anyhow!(

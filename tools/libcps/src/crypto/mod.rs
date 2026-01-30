@@ -139,8 +139,8 @@
 //! - RFC 8439: ChaCha20-Poly1305 AEAD
 //! - draft-irtf-cfrg-xchacha: XChaCha: eXtended-nonce ChaCha and AEAD_XChaCha20_Poly1305
 
-mod types;
 mod cipher;
+mod types;
 
 pub use cipher::Cipher;
-pub use types::{CryptoScheme, EncryptionAlgorithm, EncryptedMessage};
+pub use types::{CryptoScheme, EncryptedMessage, EncryptionAlgorithm};

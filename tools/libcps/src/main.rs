@@ -22,8 +22,8 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use subxt::utils::AccountId32;
 use std::str::FromStr;
+use subxt::utils::AccountId32;
 
 // Import from the library
 use libcps::crypto::{Cipher, EncryptionAlgorithm};
