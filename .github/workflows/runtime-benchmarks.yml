@@ -1,0 +1,111 @@
+name: Runtime Benchmarks
+
+on:
+  push:
+    branches:
+      - 'feat/*'
+      - 'release/*'
+  pull_request:
+    branches:
+      - 'feat/*'
+      - 'release/*'
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v4
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install system dependencies
+        run: |
+          sudo add-apt-repository ppa:ethereum/ethereum -y
+          sudo apt update
+          sudo apt -y install pkg-config protobuf-compiler libclang-dev solc
+          sudo cp ./scripts/resolc /usr/local/bin/resolc
+
+      - name: Install frame-omni-bencher
+        run: |
+          cargo install --git https://github.com/paritytech/polkadot-sdk frame-omni-bencher --locked
+
+      - name: Build runtime with benchmarking features
+        run: |
+          cargo build --release --features runtime-benchmarks -p robonomics-runtime --locked
+
+      - name: Verify runtime WASM exists
+        run: |
+          if [ ! -f "./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm" ]; then
+            echo "Error: Runtime WASM not found"
+            exit 1
+          fi
+          echo "Runtime WASM found"
+
+      - name: Run benchmarks for Robonomics pallets
+        run: |
+          # Set runtime path
+          RUNTIME="./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm"
+          TEMPLATE="./scripts/weights/frame-weight-template.hbs"
+          
+          # Test a representative subset of pallets to verify benchmarking works
+          # We don't generate actual weight files, just verify the benchmarks run successfully
+          
+          echo "Testing pallet_robonomics_datalog..."
+          frame-omni-bencher v1 benchmark pallet \
+            --runtime "$RUNTIME" \
+            --pallet pallet_robonomics_datalog \
+            --extrinsic "*" \
+            --steps 2 \
+            --repeat 1 \
+            --output /tmp/weights_test.rs \
+            --template "$TEMPLATE" \
+            --header ./LICENSE
+          
+          echo "Testing pallet_robonomics_rws..."
+          frame-omni-bencher v1 benchmark pallet \
+            --runtime "$RUNTIME" \
+            --pallet pallet_robonomics_rws \
+            --extrinsic "*" \
+            --steps 2 \
+            --repeat 1 \
+            --output /tmp/weights_test.rs \
+            --template "$TEMPLATE" \
+            --header ./LICENSE
+          
+          echo "Testing pallet_robonomics_cps..."
+          frame-omni-bencher v1 benchmark pallet \
+            --runtime "$RUNTIME" \
+            --pallet pallet_robonomics_cps \
+            --extrinsic "*" \
+            --steps 2 \
+            --repeat 1 \
+            --output /tmp/weights_test.rs \
+            --template "$TEMPLATE" \
+            --header ./LICENSE
+          
+          echo "Testing pallet_wrapped_native..."
+          frame-omni-bencher v1 benchmark pallet \
+            --runtime "$RUNTIME" \
+            --pallet pallet_wrapped_native \
+            --extrinsic "*" \
+            --steps 2 \
+            --repeat 1 \
+            --output /tmp/weights_test.rs \
+            --template "$TEMPLATE" \
+            --header ./LICENSE
+          
+          echo "All benchmark checks passed successfully!"
+
+      - name: Verify generated weights file
+        run: |
+          if [ ! -f "/tmp/weights_test.rs" ]; then
+            echo "Error: Benchmark did not generate weights file"
+            exit 1
+          fi
+          echo "Weights file generated successfully"
+          head -20 /tmp/weights_test.rs
