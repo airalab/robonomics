@@ -260,7 +260,7 @@ impl Cipher {
             algorithm,
             self.scheme
         );
-        trace!("Receiver public key: {:02x?}...", &receiver_public[..8]);
+        trace!("Receiver public key provided; proceeding with ECDH");
 
         // Step 1: Derive shared secret using direct ECDH
         // This can fail if receiver_public is invalid
