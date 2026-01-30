@@ -241,7 +241,7 @@ The easiest way to run benchmarks is using the dedicated benchmarking shell:
 
 ```bash
 # Enter the benchmarking shell and run all benchmarks
-nix develop .#benchmarking -c ./scripts/benchmark-all.sh
+nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
 ```
 
 This single command will:
@@ -312,7 +312,7 @@ cargo install --git https://github.com/paritytech/polkadot-sdk frame-omni-benche
 cargo build --release --features runtime-benchmarks -p robonomics-runtime
 
 # 3. Run the benchmark script
-./scripts/benchmark-all.sh
+./scripts/benchmark-pallets.sh
 ```
 
 #### Understanding Benchmark Results
