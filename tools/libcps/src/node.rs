@@ -165,7 +165,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let config = Config {
@@ -209,10 +210,11 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{BlockchainClient, BlockchainConfig, Node, NodeData};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::{Node, NodeData};
     ///
     /// # async fn example() -> anyhow::Result<()> {
-    /// let config = BlockchainConfig {
+    /// let config = Config {
     ///     ws_url: "ws://localhost:9944".to_string(),
     ///     suri: Some("//Alice".to_string()),
     /// };
@@ -286,7 +288,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -330,7 +333,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -407,7 +411,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node, types::NodeData};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::{Node, NodeData};
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -469,7 +474,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node, types::NodeData};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::{Node, NodeData};
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -530,7 +536,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -583,7 +590,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node};
+    /// use libcps::blockchain::{Client, Config};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {

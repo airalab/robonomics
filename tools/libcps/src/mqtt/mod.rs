@@ -42,10 +42,10 @@
 //! ## Subscribe Bridge
 //!
 //! ```no_run
-//! use libcps::{mqtt, Config as BlockchainConfig};
+//! use libcps::{mqtt, blockchain::Config};
 //!
 //! # async fn example() -> anyhow::Result<()> {
-//! let blockchain_config = BlockchainConfig {
+//! let blockchain_config = Config {
 //!     ws_url: "ws://localhost:9944".to_string(),
 //!     suri: Some("//Alice".to_string()),
 //! };
