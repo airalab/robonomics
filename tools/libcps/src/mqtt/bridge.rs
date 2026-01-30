@@ -827,9 +827,10 @@ const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 /// Supports both SS58 addresses and hex-encoded 32-byte keys.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
     use subxt::utils::AccountId32;
+    use std::str::FromStr;
 
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
-    if let Ok(account_id) = AccountId32::from_string(addr_or_hex) {
+    if let Ok(account_id) = AccountId32::from_str(addr_or_hex) {
         return Ok(account_id.0);
     }
 

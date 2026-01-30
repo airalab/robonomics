@@ -23,6 +23,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use subxt::utils::AccountId32;
+use std::str::FromStr;
 
 // Import from the library
 use libcps::crypto::{Cipher, EncryptionAlgorithm};
@@ -36,7 +37,7 @@ mod display;
 ///
 /// # Supported formats
 /// - **SS58 address**: A valid Substrate SS58-encoded account ID. Decoding is attempted first
-///   using subxt's `AccountId32::from_string`, which supports both Sr25519 and
+///   using subxt's `AccountId32::from_str`, which supports both Sr25519 and
 ///   Ed25519 (they share the same 32-byte public key length).
 /// - **Hex string**: A 64-hex-character string representing a 32-byte public key. An optional
 ///   `0x` prefix is allowed (e.g. `0xdeadbeef...` or `deadbeef...`).
@@ -53,7 +54,7 @@ mod display;
 ///   exactly 32 bytes.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
-    if let Ok(account_id) = AccountId32::from_string(addr_or_hex) {
+    if let Ok(account_id) = AccountId32::from_str(addr_or_hex) {
         return Ok(account_id.0);
     }
 
