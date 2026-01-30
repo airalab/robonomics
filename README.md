@@ -97,7 +97,7 @@ This repository is organized as a Cargo workspace with the following structure:
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
   - `xcm-info/` - XCM integration utilities
-  - `wrapped-native/` - Native token wrapping functionality
+  - `wrapped-asset/` - Native token wrapping functionality
 
 ### Chain Specifications
 
@@ -309,7 +309,7 @@ The `benchmark-pallets.sh` script generates weights for all configured pallets:
 - `pallet_robonomics_liability` - Smart contracts for robotics
 - `pallet_robonomics_rws` - RWS subscription management
 - `pallet_robonomics_cps` - Cyber-physical systems integration
-- `pallet_wrapped_native` - Token wrapping functionality
+- `pallet_wrapped_asset` - Token wrapping functionality
 - `pallet_xcm_info` - XCM integration utilities
 
 #### Manual Benchmarking (Without Nix)

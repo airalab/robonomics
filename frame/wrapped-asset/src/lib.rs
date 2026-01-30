@@ -15,9 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # Wrapped Native Pallet
+//! # Wrapped Asset Pallet
 //!
-//! The Wrapped Native pallet enables bidirectional conversion between the parachain's
+//! The Wrapped Asset pallet enables bidirectional conversion between the parachain's
 //! native token and a foreign asset representation on Asset Hub via XCM.
 //!
 //! ## Overview
@@ -68,6 +68,10 @@
 #![allow(deprecated)] // Allow deprecated RuntimeEvent for now
 #![allow(clippy::let_unit_value)] // False positive on type declarations
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
 #[cfg(test)]
 mod mock;
 
@@ -75,6 +79,7 @@ mod mock;
 mod tests;
 
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -92,7 +97,7 @@ pub mod pallet {
         <T as frame_system::Config>::AccountId,
     >>::Balance;
 
-    /// Configuration trait for the Wrapped Native pallet.
+    /// Configuration trait for the Wrapped Asset pallet.
     #[pallet::config]
     pub trait Config: frame_system::Config + pallet_xcm::Config {
         /// The overarching event type.
@@ -113,6 +118,9 @@ pub mod pallet {
         /// Amount of relay chain asset to use for XCM execution fees on Asset Hub.
         #[pallet::constant]
         type XcmFeeAmount: Get<u128>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -195,7 +203,7 @@ pub mod pallet {
         ///
         /// - `NativeWrapped`: Emitted when tokens are successfully wrapped
         #[pallet::call_index(0)]
-        #[pallet::weight(Weight::from_parts(10_000, 0))]
+        #[pallet::weight(T::WeightInfo::wrap_and_send())]
         pub fn wrap_and_send(
             origin: OriginFor<T>,
             amount: BalanceOf<T>,

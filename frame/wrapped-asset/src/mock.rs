@@ -15,9 +15,9 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Mock runtime for Wrapped Native pallet tests.
+//! Mock runtime for Wrapped Asset pallet tests.
 
-use crate::{self as pallet_wrapped_native};
+use crate::{self as pallet_wrapped_asset};
 use frame_support::{
     parameter_types,
     traits::{ConstU32, Everything},
@@ -39,7 +39,7 @@ frame_support::construct_runtime!(
         System: frame_system,
         Balances: pallet_balances,
         PolkadotXcm: pallet_xcm,
-        WrappedNative: pallet_wrapped_native,
+        WrappedNative: pallet_wrapped_asset,
     }
 );
 
@@ -192,7 +192,7 @@ impl xcm_executor::Config for XcmConfig {
     type XcmEventEmitter = ();
 }
 
-// Wrapped Native pallet configuration
+// Wrapped Asset pallet configuration
 parameter_types! {
     pub ForeignAssetLocation: Location = Location::new(
         1,
@@ -205,12 +205,13 @@ parameter_types! {
     pub const XcmFeeAmount: u128 = 1_000_000;
 }
 
-impl pallet_wrapped_native::Config for Test {
+impl pallet_wrapped_asset::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type NativeCurrency = Balances;
     type ForeignAssetLocation = ForeignAssetLocation;
     type AssetHubLocation = AssetHubLocation;
     type XcmFeeAmount = XcmFeeAmount;
+    type WeightInfo = ();
 }
 
 // Test accounts

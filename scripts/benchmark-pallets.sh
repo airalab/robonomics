@@ -72,7 +72,7 @@ PALLETS=(
     "pallet_robonomics_liability:frame/liability/src/weights.rs"
     "pallet_robonomics_rws:frame/rws/src/weights.rs"
     "pallet_robonomics_cps:frame/cps/src/weights.rs"
-    "pallet_wrapped_native:frame/wrapped-native/src/weights.rs"
+    "pallet_wrapped_asset:frame/wrapped-asset/src/weights.rs"
     "pallet_xcm_info:frame/xcm-info/src/weights.rs"
 )
 

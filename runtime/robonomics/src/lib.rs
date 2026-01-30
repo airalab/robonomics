@@ -557,7 +557,7 @@ parameter_types! {
     pub const XcmFeeAmount: u128 = 10_000_000_000;
 }
 
-impl pallet_wrapped_native::Config for Runtime {
+impl pallet_wrapped_asset::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeCurrency = Balances;
     type ForeignAssetLocation = ForeignAssetLocation;
@@ -656,7 +656,7 @@ mod runtime {
     pub type Assets = pallet_assets;
 
     #[runtime::pallet_index(35)]
-    pub type WrappedXRT = pallet_wrapped_native;
+    pub type WrappedXRT = pallet_wrapped_asset;
 
     //
     // Robonomics Network pallets.
@@ -806,7 +806,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
-    // TODO: [pallet_wrapped_native, WrappedXRT]
+    // TODO: [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     //[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]

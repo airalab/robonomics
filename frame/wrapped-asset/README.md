@@ -1,10 +1,10 @@
-# Pallet Wrapped Native
+# Pallet Wrapped Asset
 
 Bidirectional conversion between parachain native token and foreign asset representation on Asset Hub via XCM.
 
 ## Overview
 
-The Wrapped Native pallet enables users to convert their parachain's native token to and from a foreign asset representation on Asset Hub using XCM (Cross-Consensus Messaging).
+The Wrapped Asset pallet enables users to convert their parachain's native token to and from a foreign asset representation on Asset Hub using XCM (Cross-Consensus Messaging).
 
 ### Key Features
 
@@ -25,7 +25,7 @@ Add the pallet to your runtime's `Cargo.toml`:
 
 ```toml
 [dependencies]
-pallet-wrapped-native = { path = "../frame/wrapped-native", default-features = false }
+pallet-wrapped-asset = { path = "../frame/wrapped-native", default-features = false }
 ```
 
 Configure the pallet in your runtime:
@@ -45,7 +45,7 @@ parameter_types! {
     pub const XcmFeeAmount: u128 = 1_000_000_000; // 0.001 relay tokens
 }
 
-impl pallet_wrapped_native::Config for Runtime {
+impl pallet_wrapped_asset::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeCurrency = Balances;
     type ForeignAssetLocation = ForeignAssetLocation;
@@ -77,7 +77,7 @@ impl TransactAsset for CustomAssetTransactor {
                     .ok_or(XcmError::InvalidLocation)?;
                 
                 // Call unwrap handler
-                pallet_wrapped_native::Pallet::<Runtime>::handle_incoming_unwrap(
+                pallet_wrapped_asset::Pallet::<Runtime>::handle_incoming_unwrap(
                     beneficiary,
                     *amount,
                 ).map_err(|_| XcmError::FailedToTransactAsset("Unwrap failed"))?;
@@ -107,14 +107,14 @@ Users can wrap their native tokens using the `wrap_and_send` extrinsic:
 
 ```rust
 // Wrap 100 tokens and send to yourself (default beneficiary)
-WrappedNative::wrap_and_send(origin, 100, None)?;
+WrappedAsset::wrap_and_send(origin, 100, None)?;
 
 // Wrap 100 tokens and send to custom beneficiary
 let beneficiary = Location::new(
     1,
     [AccountId32 { network: None, id: destination_account }]
 );
-WrappedNative::wrap_and_send(origin, 100, Some(beneficiary))?;
+WrappedAsset::wrap_and_send(origin, 100, Some(beneficiary))?;
 ```
 
 **What happens:**
@@ -140,13 +140,13 @@ The pallet provides several query functions:
 
 ```rust
 // Get total wrapped balance (sovereign account balance on Asset Hub)
-let total = WrappedNative::get_total_wrapped();
+let total = WrappedAsset::get_total_wrapped();
 
 // Check if amount can be wrapped
-let can_wrap = WrappedNative::can_wrap(100);
+let can_wrap = WrappedAsset::can_wrap(100);
 
 // Get maximum wrappable amount
-let max = WrappedNative::max_wrappable();
+let max = WrappedAsset::max_wrappable();
 ```
 
 ## Setup Requirements
@@ -286,13 +286,13 @@ NativeUnwrapped {
 Run the pallet tests:
 
 ```bash
-cargo test -p pallet-wrapped-native
+cargo test -p pallet-wrapped-asset
 ```
 
 Run tests with output:
 
 ```bash
-cargo test -p pallet-wrapped-native -- --nocapture
+cargo test -p pallet-wrapped-asset -- --nocapture
 ```
 
 ## License
