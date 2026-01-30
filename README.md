@@ -233,7 +233,7 @@ cargo test --features runtime-benchmarks
 
 ### Runtime Benchmarking
 
-Runtime benchmarking generates accurate weight functions for all pallets, which are crucial for accurate transaction fee calculation and preventing DoS attacks.
+Runtime benchmarking generates accurate weight functions for all pallets, which are crucial for accurate transaction fee calculation and preventing DoS attacks by ensuring extrinsics don't exceed block computational limits.
 
 #### Quick Start: One-Line Benchmarking with Nix
 
@@ -277,7 +277,7 @@ The following pallets have benchmarking configurations:
 **System Pallets:**
 - `pallet_balances` - Balance transfers and reserves
 - `pallet_timestamp` - Block timestamp setting
-- `pallet_utility` - Batch calls and multi-signature dispatches
+- `pallet_utility` - Batch calls and derivative dispatches
 - `pallet_multisig` - Multi-signature operations
 - `pallet_vesting` - Token vesting schedules
 - `pallet_assets` - Asset management
@@ -320,10 +320,13 @@ cargo build --release --features runtime-benchmarks -p robonomics-runtime
 Benchmark results are written as weight functions in Rust code. For example, in `frame/datalog/src/weights.rs`:
 
 ```rust
-pub fn record() -> Weight {
-    Weight::from_parts(50_000_000, 0)
-        .saturating_add(T::DbWeight::get().reads(2))
-        .saturating_add(T::DbWeight::get().writes(1))
+// Example pseudocode - actual implementation uses trait methods
+impl WeightInfo for SubstrateWeight<T> {
+    fn record() -> Weight {
+        Weight::from_parts(50_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(2))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
 }
 ```
 

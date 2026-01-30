@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # DEPRECATED: This script is deprecated in favor of the new benchmark workflow
 # Please use the new benchmarking approach documented in the README:
 #
@@ -34,5 +34,5 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     exec "${SCRIPT_DIR}/benchmark-all.sh"
 fi
 
-exit 1
+exit 0
 

@@ -31,6 +31,13 @@ if [ -z "$RUNTIME_WASM" ]; then
         echo -e "${YELLOW}Runtime WASM not found at $RUNTIME${NC}"
         echo -e "${YELLOW}Building runtime with benchmarking features...${NC}"
         cargo build --release --features runtime-benchmarks -p robonomics-runtime
+        
+        # Verify the build succeeded
+        if [ ! -f "$RUNTIME" ]; then
+            echo -e "${RED}Error: Failed to build runtime WASM${NC}"
+            echo -e "${RED}Expected file at: $RUNTIME${NC}"
+            exit 1
+        fi
     fi
 else
     RUNTIME="$RUNTIME_WASM"
@@ -59,7 +66,9 @@ benchmark_pallet() {
     
     echo -e "${GREEN}Benchmarking $pallet_name...${NC}"
     
-    if frame-omni-bencher v1 benchmark pallet \
+    # Capture output for better error reporting
+    local output
+    if output=$(frame-omni-bencher v1 benchmark pallet \
         --runtime "$RUNTIME" \
         --pallet "$pallet_name" \
         --extrinsic "*" \
@@ -67,11 +76,13 @@ benchmark_pallet() {
         --output "$output_path" \
         --header ./LICENSE \
         --steps 50 \
-        --repeat 20; then
+        --repeat 20 2>&1); then
         echo -e "${GREEN}✓ Successfully generated weights for $pallet_name${NC}"
         echo ""
     else
         echo -e "${RED}✗ Failed to generate weights for $pallet_name${NC}"
+        echo -e "${RED}Error output:${NC}"
+        echo "$output" | head -20
         echo ""
         return 1
     fi
