@@ -81,26 +81,6 @@ impl CryptoScheme {
             Self::Ed25519 => "ED25519",
         }
     }
-
-    /// Get the info string suffix for HKDF key derivation.
-    ///
-    /// This is used for domain separation in HKDF, ensuring keys derived
-    /// for different schemes are independent.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use libcps::crypto::CryptoScheme;
-    ///
-    /// assert_eq!(CryptoScheme::Sr25519.info_suffix(), "sr25519");
-    /// assert_eq!(CryptoScheme::Ed25519.info_suffix(), "ed25519");
-    /// ```
-    pub fn info_suffix(&self) -> &'static str {
-        match self {
-            Self::Sr25519 => "sr25519",
-            Self::Ed25519 => "ed25519",
-        }
-    }
 }
 
 impl Default for CryptoScheme {
@@ -334,12 +314,6 @@ mod tests {
     fn test_crypto_scheme_name() {
         assert_eq!(CryptoScheme::Sr25519.name(), "SR25519");
         assert_eq!(CryptoScheme::Ed25519.name(), "ED25519");
-    }
-
-    #[test]
-    fn test_crypto_scheme_info_suffix() {
-        assert_eq!(CryptoScheme::Sr25519.info_suffix(), "-sr25519");
-        assert_eq!(CryptoScheme::Ed25519.info_suffix(), "-ed25519");
     }
 
     #[test]
