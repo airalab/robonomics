@@ -34,10 +34,10 @@ mod benchmarks {
         // Setup: Create a funded account
         let caller: T::AccountId = whitelisted_caller();
         let amount = 1_000_000u32.into();
-        
+
         // Fund the account with native tokens
         let _ = T::NativeCurrency::make_free_balance_be(&caller, amount + amount);
-        
+
         // Set TotalWrapped to ensure there's enough to wrap
         TotalWrapped::<T>::put(amount + amount);
 
