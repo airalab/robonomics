@@ -34,7 +34,7 @@
 // --steps=50
 // --repeat=20
 // --heap-pages=4096
-// --output=./frame/wrapped-native/src/weights.rs
+// --output=./frame/wrapped-asset/src/weights.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
