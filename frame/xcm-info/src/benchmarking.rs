@@ -27,7 +27,7 @@ use sp_std::prelude::*;
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    use xcm::v5::NetworkId;
+    use xcm::latest::prelude::*;
 
     #[benchmark]
     fn set_relay_network() {
