@@ -220,77 +220,6 @@ impl Cipher {
         }
     }
 
-    /// Derive encryption key from shared secret using HKDF-SHA256.
-    ///
-    /// This is an internal helper function that performs the HKDF key derivation
-    /// with a specified algorithm. Used by both encryption and decryption paths.
-    ///
-    /// # Arguments
-    ///
-    /// * `shared_secret` - The 32-byte shared secret from ECDH key agreement
-    /// * `algorithm` - The encryption algorithm, which determines the info string
-    ///
-    /// # HKDF Process
-    ///
-    /// The function implements RFC 5869 HKDF with these parameters:
-    ///
-    /// 1. **Hash Function**: SHA-256 (provides 256-bit output)
-    /// 2. **Salt**: `"robonomics-network"` (constant, for domain separation)
-    /// 3. **IKM**: The ECDH shared secret (input keying material)
-    /// 4. **Info**: Algorithm-specific string (e.g., "robonomics-cps-xchacha20poly1305")
-    /// 5. **Length**: 32 bytes (256 bits for encryption key)
-    ///
-    /// ## Extract Phase
-    /// ```text
-    /// PRK = HMAC-SHA256(salt, shared_secret)
-    /// ```
-    /// Produces a pseudorandom key with strong entropy properties.
-    ///
-    /// ## Expand Phase
-    /// ```text
-    /// OKM = HMAC-SHA256(PRK, info || 0x01)[0..32]
-    /// ```
-    /// Produces the final 32-byte encryption key bound to the algorithm.
-    ///
-    /// # Security Properties
-    ///
-    /// - **Algorithm Binding**: Different algorithms produce different keys due to
-    ///   unique info strings, preventing cross-algorithm attacks.
-    /// - **Domain Separation**: Salt binds keys to Robonomics network context.
-    /// - **Entropy Extraction**: HKDF extract ensures output has uniform distribution
-    ///   even if input has biases.
-    /// - **Key Independence**: Each (shared_secret, algorithm) pair produces a
-    ///   cryptographically independent key.
-    ///
-    /// # Returns
-    ///
-    /// Returns a 32-byte (256-bit) encryption key suitable for the specified
-    /// AEAD algorithm.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the HKDF expand operation fails (which should never
-    /// happen with valid parameters).
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let shared_secret = [0u8; 32]; // from ECDH
-    /// let algorithm = EncryptionAlgorithm::XChaCha20Poly1305;
-    /// let key = Cipher::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)?;
-    /// // key is now a unique 32-byte encryption key
-    /// ```
-    fn derive_encryption_key_with_algorithm(
-        shared_secret: &[u8; 32],
-        algorithm: &EncryptionAlgorithm,
-    ) -> Result<[u8; 32]> {
-        let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), shared_secret);
-        let mut okm = [0u8; 32];
-        hkdf.expand(algorithm.info_string().as_bytes(), &mut okm)
-            .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
-        Ok(okm)
-    }
-
     /// Get sender's public key.
     ///
     /// Returns the cached public key that was derived in the constructor.
@@ -344,8 +273,10 @@ impl Cipher {
         // maximum (255 * hash_len for SHA-256 = 8160 bytes), but we only request 32 bytes.
         // We propagate the error for defensive programming rather than panicking.
         trace!("Deriving encryption key with HKDF");
-        let encryption_key = Self::derive_encryption_key_with_algorithm(&shared_secret, &algorithm)
-            .map_err(|e| anyhow!("HKDF key derivation failed: {e}"))?;
+        let mut encryption_key = [0u8; 32];
+        let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), &shared_secret);
+        hkdf.expand(algorithm.info_string().as_bytes(), &mut encryption_key)
+            .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
         trace!("Encryption key derived");
 
         // Step 3: Encrypt with specified algorithm
@@ -454,8 +385,10 @@ impl Cipher {
 
                 // Step 3: Derive encryption key using HKDF with salt
                 trace!("Deriving decryption key with HKDF");
-                let encryption_key =
-                    Self::derive_encryption_key_with_algorithm(&shared_secret, algorithm)?;
+                let mut encryption_key = [0u8; 32];
+                let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), &shared_secret);
+                hkdf.expand(algorithm.info_string().as_bytes(), &mut encryption_key)
+                    .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
                 trace!("Decryption key derived");
 
                 // Step 4: Decrypt with appropriate algorithm

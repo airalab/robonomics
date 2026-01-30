@@ -218,7 +218,7 @@ impl<'a> Node<'a> {
     ///     ws_url: "ws://localhost:9944".to_string(),
     ///     suri: Some("//Alice".to_string()),
     /// };
-    /// let client = BlockchainClient::new(&config).await?;
+    /// let client = Client::new(&config).await?;
     ///
     /// let meta: NodeData = "metadata".into();
     /// let payload: NodeData = "payload data".into();
