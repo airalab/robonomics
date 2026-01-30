@@ -881,13 +881,19 @@ cps mqtt subscribe "machines/cnc001/telemetry" 2 --receiver-public <RECEIVER_ADD
 ### Project Structure
 
 ```
-tools/cps/
-├── Cargo.toml
-├── README.md
+tools/libcps/
+├── Cargo.toml            # Dependencies and features
+├── build.rs              # Build script for metadata extraction
+├── README.md             # This file
+├── DEVELOPMENT.md        # Developer guide
 └── src/
+    ├── lib.rs            # Library entry point with module exports
     ├── main.rs           # CLI entry point
-    ├── types.rs          # CPS pallet types
-    ├── commands/         # Command implementations
+    ├── node.rs           # Node-oriented API with CPS type definitions
+    ├── blockchain/       # Blockchain client and connection
+    │   ├── mod.rs
+    │   └── client.rs
+    ├── commands/         # CLI command implementations
     │   ├── mod.rs
     │   ├── show.rs
     │   ├── create.rs
@@ -897,15 +903,13 @@ tools/cps/
     │   ├── remove.rs
     │   └── mqtt.rs
     ├── crypto/           # Encryption utilities
-    │   ├── mod.rs
-    │   └── scheme.rs
-    ├── blockchain/       # Blockchain client
-    │   ├── mod.rs
-    │   └── client.rs
-    ├── mqtt/             # MQTT bridge 
+    │   ├── mod.rs        # Documentation and re-exports
+    │   ├── types.rs      # CryptoScheme, EncryptionAlgorithm, EncryptedMessage
+    │   └── cipher.rs     # Cipher implementation
+    ├── mqtt/             # MQTT bridge (optional feature)
     │   ├── mod.rs
     │   └── bridge.rs
-    └── display/          # Pretty output
+    └── display/          # Pretty CLI output
         ├── mod.rs
         └── tree.rs
 ```
