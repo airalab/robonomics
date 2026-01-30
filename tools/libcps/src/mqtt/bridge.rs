@@ -718,7 +718,7 @@ impl Config {
         // Create node decrypt closure
         let node_data_to_string = |node_data| match node_data {
             NodeData::Plain(bytes) => {
-                String::from_utf8(bytes.0).map_err(|_| error!("Unvalid UTF-8 character"))
+                String::from_utf8(bytes.0).map_err(|_| error!("Invalid UTF-8 character"))
             }
             NodeData::Encrypted(EncryptedData::Aead(bytes)) => {
                 let message: EncryptedMessage = Decode::decode(&mut &bytes.0[..])
@@ -727,7 +727,7 @@ impl Config {
                     let decrypted = cipher
                         .decrypt(&message, None)
                         .map_err(|e| error!("Failed to decrypt message: {}.", e))?;
-                    String::from_utf8(decrypted).map_err(|_| error!("Unvalid UTF-8 character"))
+                    String::from_utf8(decrypted).map_err(|_| error!("Invalid UTF-8 character"))
                 } else {
                     serde_json::to_string(&message).map_err(|e| {
                         error!("Failed to convert encrypted message into JSON: {}.", e)
