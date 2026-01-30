@@ -154,7 +154,7 @@ EXAMPLES:
         node_id: u64,
 
         /// Attempt to decrypt encrypted data
-        #[arg(long)]
+        #[arg(short = 'd', long)]
         decrypt: bool,
 
         /// Cryptographic scheme for decryption (sr25519, ed25519)
@@ -187,7 +187,7 @@ EXAMPLES:
         --cipher aesgcm256")]
     Create {
         /// Parent node ID (omit for root node)
-        #[arg(long)]
+        #[arg(short = 'p', long)]
         parent: Option<u64>,
 
         /// Metadata (configuration data)
@@ -200,7 +200,7 @@ EXAMPLES:
 
         /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
         /// Supports both SS58 addresses and hex-encoded public keys.
-        #[arg(long)]
+        #[arg(short = 'r', long)]
         receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
@@ -236,7 +236,7 @@ EXAMPLES:
 
         /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
         /// Supports both SS58 addresses and hex-encoded public keys.
-        #[arg(long)]
+        #[arg(short = 'r', long)]
         receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
@@ -272,7 +272,7 @@ EXAMPLES:
 
         /// Receiver public key or SS58 address for encryption. If provided, data will be encrypted.
         /// Supports both SS58 addresses and hex-encoded public keys.
-        #[arg(long)]
+        #[arg(short = 'r', long)]
         receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)
@@ -316,7 +316,7 @@ EXAMPLES:
         node_id: u64,
 
         /// Skip confirmation prompt
-        #[arg(long)]
+        #[arg(short = 'f', long)]
         force: bool,
     },
 
@@ -370,7 +370,7 @@ BEHAVIOR:
 
         /// Receiver public key or SS58 address for encryption. If provided, messages will be encrypted.
         /// Supports both SS58 addresses and hex-encoded public keys.
-        #[arg(long)]
+        #[arg(short = 'r', long)]
         receiver_public: Option<String>,
 
         /// Encryption algorithm (xchacha20, aesgcm256, chacha20)

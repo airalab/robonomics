@@ -67,9 +67,11 @@ fn print_node_tree<'a>(
                     String::from_utf8(decrypted)
                         .map_err(|_| anyhow::anyhow!("Unvalid UTF-8 character"))
                 } else {
-                    serde_json::to_string(&message).map_err(|e| {
-                        anyhow::anyhow!("Failed to convert encrypted message into JSON: {}.", e)
-                    })
+                    serde_json::to_string(&message)
+                        .map_err(|e| {
+                            anyhow::anyhow!("Failed to convert encrypted message into JSON: {}.", e)
+                        })
+                        .map(|json_msg| format!("Encrypted: {}", json_msg))
                 }
             }
         };
