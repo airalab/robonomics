@@ -22,10 +22,9 @@ use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
-use libcps::node::Node;
-use libcps::types::NodeData;
+use libcps::node::{Node, NodeData};
 use parity_scale_codec::Encode;
-use sp_core::crypto::{AccountId32, Ss58Codec};
+use subxt::utils::AccountId32;
 
 pub async fn execute(
     config: &Config,
@@ -43,7 +42,7 @@ pub async fn execute(
 
     display::info(&format!("Connected to {}", config.ws_url));
     let account_id = AccountId32::from(keypair.public_key().0);
-    display::info(&format!("Using account: {}", account_id.to_ss58check()));
+    display::info(&format!("Using account: {}", account_id));
 
     if parent.is_some() {
         display::info(&format!(
@@ -66,10 +65,7 @@ pub async fn execute(
                 cipher.scheme()
             ));
             let receiver_account = AccountId32::from(*receiver_pub);
-            display::info(&format!(
-                "[K] Receiver: {}",
-                receiver_account.to_ss58check()
-            ));
+            display::info(&format!("[K] Receiver: {}", receiver_account));
 
             let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
             let encrypted_bytes = encrypted_message.encode();
@@ -90,10 +86,7 @@ pub async fn execute(
                     cipher.scheme()
                 ));
                 let receiver_account = AccountId32::from(*receiver_pub);
-                display::info(&format!(
-                    "[K] Receiver: {}",
-                    receiver_account.to_ss58check()
-                ));
+                display::info(&format!("[K] Receiver: {}", receiver_account));
             }
 
             let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;

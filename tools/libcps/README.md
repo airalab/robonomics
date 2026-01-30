@@ -329,7 +329,8 @@ cps --ws-url ws://localhost:9944 \
 This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
 
 ```rust
-use libcps::{Client, Config, node::Node, types::NodeData};
+use libcps::blockchain::{Client, Config};
+use libcps::node::{Node, NodeData};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -371,7 +372,8 @@ async fn main() -> anyhow::Result<()> {
 ### Data Types
 
 ```rust
-use libcps::types::{NodeData, NodeId};
+use libcps::node::{NodeData, NodeId};
+use libcps::crypto::EncryptionAlgorithm;
 
 // Create plain data (unencrypted)
 let meta = NodeData::from("sensor config");
@@ -515,7 +517,7 @@ The MQTT bridge enables seamless IoT integration with real-time, event-driven sy
 The MQTT bridge can be used programmatically from your Rust applications:
 
 ```rust
-use libcps::{mqtt, Config as BlockchainConfig};
+use libcps::{mqtt, blockchain::Config};
 
 // Subscribe Bridge: MQTT → Blockchain
 // Using Config method API
@@ -640,7 +642,7 @@ cps mqtt subscribe "sensors/temperature" 5 \
 #### Library Usage
 
 ```rust
-use libcps::{mqtt, Config as BlockchainConfig};
+use libcps::{mqtt, blockchain::Config};
 
 // Create a custom message handler for logging
 let handler = Box::new(|topic: &str, payload: &[u8]| {
@@ -689,7 +691,7 @@ cps mqtt publish "actuators/valve" 10 \
 #### Library Usage
 
 ```rust
-use libcps::{mqtt, Config as BlockchainConfig, crypto::Cipher};
+use libcps::{mqtt, blockchain::Config, crypto::Cipher};
 
 // Create cipher for decryption (optional)
 let cipher = Cipher::new(
@@ -879,13 +881,19 @@ cps mqtt subscribe "machines/cnc001/telemetry" 2 --receiver-public <RECEIVER_ADD
 ### Project Structure
 
 ```
-tools/cps/
-├── Cargo.toml
-├── README.md
+tools/libcps/
+├── Cargo.toml            # Dependencies and features
+├── build.rs              # Build script for metadata extraction
+├── README.md             # This file
+├── DEVELOPMENT.md        # Developer guide
 └── src/
+    ├── lib.rs            # Library entry point with module exports
     ├── main.rs           # CLI entry point
-    ├── types.rs          # CPS pallet types
-    ├── commands/         # Command implementations
+    ├── node.rs           # Node-oriented API with CPS type definitions
+    ├── blockchain/       # Blockchain client and connection
+    │   ├── mod.rs
+    │   └── client.rs
+    ├── commands/         # CLI command implementations
     │   ├── mod.rs
     │   ├── show.rs
     │   ├── create.rs
@@ -895,15 +903,13 @@ tools/cps/
     │   ├── remove.rs
     │   └── mqtt.rs
     ├── crypto/           # Encryption utilities
-    │   ├── mod.rs
-    │   └── scheme.rs
-    ├── blockchain/       # Blockchain client
-    │   ├── mod.rs
-    │   └── client.rs
-    ├── mqtt/             # MQTT bridge 
+    │   ├── mod.rs        # Documentation and re-exports
+    │   ├── types.rs      # CryptoScheme, EncryptionAlgorithm, EncryptedMessage
+    │   └── cipher.rs     # Cipher implementation
+    ├── mqtt/             # MQTT bridge (optional feature)
     │   ├── mod.rs
     │   └── bridge.rs
-    └── display/          # Pretty output
+    └── display/          # Pretty CLI output
         ├── mod.rs
         └── tree.rs
 ```
@@ -922,18 +928,19 @@ cargo test --package libcps
 
 ### Generating Blockchain Metadata
 
-When connected to a running Robonomics node:
+Metadata is **automatically extracted** during the build process. The robonomics runtime is added as a build dependency, and the build script:
+
+1. Accesses the embedded `WASM_BINARY` from robonomics-runtime
+2. Writes it as `robonomics_runtime.compact.wasm`
+3. subxt macro reads this WASM and generates type-safe APIs at compile time
+
+**No external tools required!** Just build the project:
 
 ```bash
-# Install subxt-cli
-cargo install subxt-cli
-
-# Generate metadata
-subxt metadata --url ws://localhost:9944 > metadata.scale
-
-# Generate Rust code
-subxt codegen --file metadata.scale > src/robonomics_runtime.rs
+cargo build -p libcps
 ```
+
+The metadata is always in sync with the runtime dependency version.
 
 ## 🤝 Contributing
 

@@ -33,7 +33,7 @@
 //! ## Quick Start
 //!
 //! ```no_run
-//! use libcps::{Client, Config};
+//! use libcps::blockchain::{Client, Config};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -46,7 +46,7 @@
 //!     let client = Client::new(&config).await?;
 //!     
 //!     // Use the client to interact with CPS pallet
-//!     // (requires generated metadata from a running node)
+//!     // (metadata is auto-generated from runtime dependency)
 //!     
 //!     Ok(())
 //! }
@@ -56,9 +56,8 @@
 //!
 //! - [`blockchain`]: Blockchain client and connection management
 //! - [`crypto`]: Encryption and key derivation utilities
-//! - [`mqtt`]: MQTT bridge configuration and types
-//! - [`types`]: CPS pallet type definitions
-//! - [`node`]: Node-oriented API with async/sync methods for CPS operations
+//! - [`mqtt`]: MQTT bridge configuration and types (optional feature)
+//! - [`node`]: Node-oriented API with type definitions and async methods for CPS operations
 //!
 //! ## Encryption
 //!
@@ -97,7 +96,7 @@
 //! Configure and use MQTT bridge for IoT integration:
 //!
 //! ```no_run
-//! use libcps::{mqtt, Config as BlockchainConfig};
+//! use libcps::{mqtt, blockchain::Config};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Configure MQTT connection
@@ -112,7 +111,7 @@
 //! };
 //!
 //! // Configure blockchain connection
-//! let blockchain_config = BlockchainConfig {
+//! let blockchain_config = Config {
 //!     ws_url: "ws://localhost:9944".to_string(),
 //!     suri: Some("//Alice".to_string()),
 //! };
@@ -199,7 +198,7 @@
 //! The library provides types that match the CPS pallet:
 //!
 //! ```
-//! use libcps::types::{NodeId, NodeData};
+//! use libcps::node::{NodeId, NodeData};
 //!
 //! let node_id = NodeId(42);
 //! let plain_data = NodeData::from(b"sensor reading".to_vec());
@@ -224,23 +223,3 @@ pub mod crypto;
 #[cfg(feature = "mqtt")]
 pub mod mqtt;
 pub mod node;
-pub mod types;
-
-// Generated runtime metadata from subxt
-#[allow(
-    dead_code,
-    unused_imports,
-    non_camel_case_types,
-    unreachable_patterns,
-    missing_docs
-)]
-#[allow(clippy::all)]
-#[allow(rustdoc::broken_intra_doc_links)]
-pub(crate) mod robonomics_runtime;
-
-// Re-export event types for CLI usage
-pub use robonomics_runtime::api::cps::events::PayloadSet;
-
-// Re-export commonly used types for convenience
-pub use blockchain::{Client, Config};
-pub use types::{EncryptedData, NodeData, NodeId};

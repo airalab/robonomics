@@ -22,7 +22,7 @@
 //!
 //! Run with: cargo run --example mqtt_bridge
 
-use libcps::{mqtt, Config as BlockchainConfig};
+use libcps::{blockchain::Config as BlockchainConfig, mqtt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

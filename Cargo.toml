@@ -71,21 +71,25 @@ hkdf = "0.12"
 sha2 = "0.10"
 
 # Blockchain (for libcps)
-subxt = "0.44"
-subxt-signer = "0.44"
+# NOTE: subxt and subxt-signer are intentionally pinned to 0.43.x for
+# compatibility with the existing libcps code and target chain runtime.
+# Upgrading to 0.44+ requires coordinated refactoring and will be done
+# in a separate change.
+subxt = "0.43.1"
+subxt-signer = "0.43.0"
 
 # Serialization (for libcps)
-base64 = "0.21"
+base64 = "0.22"
 hex = "0.4"
-toml = "0.8"
+toml = "0.9"
 
 # MQTT (for libcps)
-rumqttc = "0.24"
+rumqttc = "0.25"
 
 # CLI (for libcps)
-colored = "2.1"
+colored = "3.1"
 chrono = "0.4"
-indicatif = "0.17"
+indicatif = "0.18"
 color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
@@ -105,6 +109,7 @@ sp-inherents = { version = "40.0.0", default-features = false }
 sp-offchain = { version = "40.0.0", default-features = false }
 sp-runtime-interface = { version = "33.0.0", default-features = false }
 sp-session = { version = "42.0.0", default-features = false }
+sp-state-machine = { version = "0.49.0", default-features = false }
 sp-transaction-pool = { version = "40.0.0", default-features = false }
 sp-version = { version = "43.0.0", default-features = false }
 sp-weights = { version = "33.2.0", default-features = false }
@@ -125,6 +130,7 @@ sc-consensus = { version = "0.54.0" }
 sc-consensus-aura = { version = "0.55.0" }
 sc-consensus-grandpa = { version = "0.40.0" }
 sc-executor = { version = "0.47.0" }
+sc-executor-common = { version = "0.43.0" }
 sc-offchain = { version = "50.0.0" }
 sc-finality-grandpa = { version = "0.24.0" }
 sc-keystore = { version = "39.0.0" }

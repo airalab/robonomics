@@ -18,7 +18,7 @@
 //! Tree visualization utilities.
 
 use colored::*;
-use sp_core::crypto::{AccountId32, Ss58Codec};
+use subxt::utils::AccountId32;
 
 fn format_data(data: &str) -> ColoredString {
     // Try to parse as JSON for pretty formatting
@@ -70,7 +70,7 @@ pub fn print_node_recursive(
         content_prefix.bright_black(),
         "|--".bright_black(),
         "[O]".bright_yellow(),
-        owner.to_ss58check().bright_white()
+        owner.to_string().bright_white()
     );
 
     // Metadata

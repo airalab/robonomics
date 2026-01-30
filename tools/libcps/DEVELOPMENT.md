@@ -76,8 +76,7 @@ cargo run --package robonomics-cps-cli -- --help
 5. **`src/crypto/`**: Encryption/decryption utilities (library)
 6. **`src/display/`**: Beautiful colored output formatting (CLI-only)
 7. **`src/mqtt/`**: MQTT bridge configuration and implementation (library)
-8. **`src/node.rs`**: Node-oriented API for CPS operations (library)
-9. **`src/types.rs`**: Type definitions matching the CPS pallet (library)
+8. **`src/node.rs`**: Node-oriented API with type definitions for CPS operations (library)
 
 ### Adding a New Command
 
@@ -96,54 +95,52 @@ use crate::display;
 use anyhow::Result;
 
 pub async fn execute(config: &Config, param: String) -> Result<()> {
-    display::tree::progress("Executing my command...");
+    display::progress("Executing my command...");
     let client = Client::new(config).await?;
     // Your implementation here
-    display::tree::success("Command completed!");
+    display::success("Command completed!");
     Ok(())
 }
 ```
 
-## Generating Blockchain Metadata
+## Blockchain Metadata
 
-To interact with a live blockchain, you need to generate type definitions:
+libcps automatically generates type definitions from the robonomics runtime.
+
+### How It Works
+
+The robonomics runtime is added as a **build dependency**. When libcps builds:
+
+1. The build script accesses the embedded `WASM_BINARY` from robonomics-runtime
+2. Writes it to `$OUT_DIR/robonomics_runtime.compact.wasm`
+3. The subxt macro reads this WASM file and generates type-safe APIs at compile time
+
+**No external tools required** - just Rust and Cargo!
+
+### Usage
+
+Simply build libcps and everything happens automatically:
 
 ```bash
-# Install subxt CLI
-cargo install subxt-cli
-
-# Start your Robonomics node (in another terminal)
-# Then generate metadata:
-subxt metadata --url ws://localhost:9944 > metadata.scale
-
-# Generate Rust types
-subxt codegen --file metadata.scale > src/robonomics_runtime.rs
+cargo build -p libcps
 ```
 
-Then use the generated types in your code:
+The generated API is available through the blockchain module:
 
 ```rust
-#[subxt::subxt(runtime_metadata_path = "metadata.scale")]
-pub mod robonomics {}
+use libcps::blockchain::{Client, robonomics};
 
-// Query storage
-let nodes_query = robonomics::storage().cps().nodes(NodeId(node_id));
-let node = client.api.storage().at_latest().await?
-    .fetch(&nodes_query).await?;
-
-// Submit extrinsic
-let create_call = robonomics::tx().cps().create_node(
-    parent_id,
-    meta_data,
-    payload_data,
-);
-client.api
-    .tx()
-    .sign_and_submit_then_watch_default(&create_call, keypair)
-    .await?
-    .wait_for_finalized_success()
-    .await?;
+// Access runtime APIs
+let create_call = robonomics::tx().cps().create_node(...);
+let nodes_query = robonomics::storage().cps().nodes(node_id);
 ```
+
+### Benefits
+
+- **Zero external dependencies**: No subwasm or other tools needed
+- **Always in sync**: WASM comes directly from runtime dependency
+- **Type safe**: Compile-time verification of all runtime calls  
+- **Self-contained**: Everything happens in the build process
 
 ## Testing
 
@@ -296,13 +293,15 @@ robonomics --dev --tmp
 
 ### Missing Metadata
 
-**Problem**: Types not found or compilation errors after generating metadata
+**Problem**: Types not found or compilation errors
 
-**Solution**: Regenerate metadata with the correct node version:
-```bash
-subxt metadata --url ws://localhost:9944 > metadata.scale
-subxt codegen --file metadata.scale > src/robonomics_runtime.rs
-```
+**Solution**: The metadata is automatically generated from the runtime dependency during build. If you have issues:
+
+1. Clean the build: `cargo clean -p libcps`
+2. Ensure robonomics-runtime dependency is up to date
+3. Rebuild: `cargo build -p libcps`
+
+The metadata will be automatically extracted from the runtime's embedded WASM binary.
 
 ### Type Mismatch
 

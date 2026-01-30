@@ -86,10 +86,10 @@
 //! ## Programmatic Usage
 //!
 //! ```no_run
-//! use libcps::{mqtt, Config as BlockchainConfig};
+//! use libcps::{mqtt, blockchain};
 //!
 //! # async fn example() -> anyhow::Result<()> {
-//! let blockchain_config = BlockchainConfig {
+//! let blockchain_config = blockchain::Config {
 //!     ws_url: "ws://localhost:9944".to_string(),
 //!     suri: Some("//Alice".to_string()),
 //! };
@@ -145,12 +145,11 @@
 //! ```
 
 use crate::blockchain::{Client, Config as BlockchainConfig};
-use crate::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
-use crate::node::Node;
-use crate::types::{EncryptedData, NodeData};
-use crate::PayloadSet;
+use crate::crypto::{Cipher, CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
+use crate::node::{EncryptedData, Node, NodeData, PayloadSet};
 use anyhow::{anyhow, Result};
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace};
+use parity_scale_codec::Decode;
 use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
@@ -451,9 +450,9 @@ impl Config {
     /// # Examples
     ///
     /// ```no_run
-    /// # use libcps::{mqtt, Config as BlockchainConfig};
+    /// # use libcps::{mqtt, blockchain::Config};
     /// # async fn example() -> anyhow::Result<()> {
-    /// let blockchain_config = BlockchainConfig {
+    /// let blockchain_config = Config {
     ///     ws_url: "ws://localhost:9944".to_string(),
     ///     suri: Some("//Alice".to_string()),
     /// };
@@ -634,9 +633,9 @@ impl Config {
     /// # Examples
     ///
     /// ```no_run
-    /// # use libcps::{mqtt, Config as BlockchainConfig};
+    /// # use libcps::{mqtt, blockchain::Config};
     /// # async fn example() -> anyhow::Result<()> {
-    /// let blockchain_config = BlockchainConfig {
+    /// let blockchain_config = Config {
     ///     ws_url: "ws://localhost:9944".to_string(),
     ///     suri: Some("//Alice".to_string()),
     /// };
@@ -716,6 +715,35 @@ impl Config {
         // Create Node handle for querying
         let node = Node::new(&client, node_id);
 
+        // Create node decrypt closure
+        let node_data_to_string = |node_data| match node_data {
+            NodeData::Plain(bytes) => String::from_utf8(bytes.0).map_err(|e| {
+                error!("Invalid UTF-8 character: {}", e);
+                anyhow!("Invalid UTF-8 character: {}", e)
+            }),
+            NodeData::Encrypted(EncryptedData::Aead(bytes)) => {
+                let message: EncryptedMessage = Decode::decode(&mut &bytes.0[..]).map_err(|e| {
+                    error!("Failed to decode encrypted metadata: {}", e);
+                    anyhow!("Failed to decode encrypted metadata: {}", e)
+                })?;
+                if let Some(cipher) = cipher {
+                    let decrypted = cipher.decrypt(&message, None).map_err(|e| {
+                        error!("Failed to decrypt message: {}", e);
+                        anyhow!("Failed to decrypt message: {}", e)
+                    })?;
+                    String::from_utf8(decrypted).map_err(|e| {
+                        error!("Invalid UTF-8 character: {}", e);
+                        anyhow!("Invalid UTF-8 character: {}", e)
+                    })
+                } else {
+                    serde_json::to_string(&message).map_err(|e| {
+                        error!("Failed to convert encrypted message into JSON: {}", e);
+                        anyhow!("Failed to convert encrypted message into JSON: {}", e)
+                    })
+                }
+            }
+        };
+
         // Subscribe to finalized blocks
         let mut blocks_sub = client
             .api
@@ -766,38 +794,21 @@ impl Config {
                     Ok(node_info) => {
                         if let Some(payload) = node_info.payload {
                             // Extract or decrypt the data
-                            let data = if let Some(cipher) = cipher {
-                                // Try to decrypt if cipher is provided
-                                match cipher.decrypt_node_data(&payload, None) {
-                                    Ok(decrypted_bytes) => {
-                                        String::from_utf8_lossy(&decrypted_bytes).to_string()
+                            if let Ok(data) = node_data_to_string(payload) {
+                                // Publish to MQTT
+                                match mqtt_client
+                                    .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
+                                    .await
+                                {
+                                    Ok(_) => {
+                                        // Call publish handler if provided
+                                        if let Some(ref handler) = publish_handler {
+                                            handler(topic, block.number(), &data);
+                                        }
                                     }
                                     Err(e) => {
-                                        warn!("Failed to decrypt payload for node {}: {}. Publishing raw data.", node_id, e);
-                                        // Fall back to raw extraction
-                                        extract_node_data(&payload)
+                                        error!("Failed to publish to MQTT: {}", e);
                                     }
-                                }
-                            } else {
-                                // No cipher, just extract the data as-is
-                                extract_node_data(&payload)
-                            };
-
-                            let block_number = block.number();
-
-                            // Publish to MQTT
-                            match mqtt_client
-                                .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
-                                .await
-                            {
-                                Ok(_) => {
-                                    // Call publish handler if provided
-                                    if let Some(ref handler) = publish_handler {
-                                        handler(topic, block_number, &data);
-                                    }
-                                }
-                                Err(e) => {
-                                    error!("Failed to publish to MQTT: {}", e);
                                 }
                             }
                         }
@@ -826,12 +837,12 @@ const MQTT_RECONNECT_DELAY_SECS: u64 = 5;
 ///
 /// Supports both SS58 addresses and hex-encoded 32-byte keys.
 fn parse_receiver_public_key(addr_or_hex: &str) -> Result<[u8; 32]> {
-    use sp_core::crypto::{AccountId32, Ss58Codec};
+    use std::str::FromStr;
+    use subxt::utils::AccountId32;
 
     // Try SS58 decoding with AccountId32 (works for both Sr25519 and Ed25519)
-    if let Ok(account_id) = AccountId32::from_ss58check(addr_or_hex) {
-        let bytes: &[u8; 32] = account_id.as_ref();
-        return Ok(*bytes);
+    if let Ok(account_id) = AccountId32::from_str(addr_or_hex) {
+        return Ok(account_id.0);
     }
 
     // Fall back to hex decoding
@@ -886,35 +897,6 @@ pub fn parse_mqtt_url(url: &str) -> Result<(String, u16)> {
     } else {
         // Default to port 1883 if not specified
         Ok((url.to_string(), 1883))
-    }
-}
-
-/// Extract readable data from NodeData.
-///
-/// Converts NodeData to a string representation:
-/// - Plain data: UTF-8 string or binary indicator
-/// - Encrypted data: Indicates encryption with size
-///
-/// # Examples
-///
-/// ```
-/// # use libcps::types::NodeData;
-/// # use libcps::mqtt::extract_node_data;
-/// let plain_data = NodeData::from("Hello, World!".to_string());
-/// assert_eq!(extract_node_data(&plain_data), "Hello, World!");
-/// ```
-pub fn extract_node_data(node_data: &NodeData) -> String {
-    match node_data {
-        NodeData::Plain(bounded_vec) => {
-            // Try to convert bytes to UTF-8 string
-            String::from_utf8(bounded_vec.0.clone())
-                .unwrap_or_else(|_| format!("[Binary data: {} bytes]", bounded_vec.0.len()))
-        }
-        NodeData::Encrypted(EncryptedData::Aead(bounded_vec)) => {
-            // For encrypted data, indicate it's encrypted
-            let size = bounded_vec.0.len();
-            format!("[Encrypted data: {} bytes]", size)
-        }
     }
 }
 
