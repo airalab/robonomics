@@ -70,12 +70,12 @@
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 pub mod migration;
-// pub mod weights;
+pub mod weights;
 
 pub use pallet::*;
-// pub use weights::WeightInfo;
+pub use weights::WeightInfo;
 
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
@@ -107,6 +107,9 @@ pub mod pallet {
         /// in the runtime's event stream.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::error]
@@ -192,7 +195,7 @@ pub mod pallet {
         /// XcmInfo::set_relay_network(RuntimeOrigin::root(), NetworkId::Kusama)?;
         /// ```
         #[pallet::call_index(0)]
-        #[pallet::weight({10_000})]
+        #[pallet::weight(T::WeightInfo::set_relay_network())]
         pub fn set_relay_network(origin: OriginFor<T>, network_id: NetworkId) -> DispatchResult {
             ensure_root(origin)?;
 
@@ -229,7 +232,7 @@ pub mod pallet {
         /// XcmInfo::set_asset_link(RuntimeOrigin::root(), 1u32, location)?;
         /// ```
         #[pallet::call_index(1)]
-        #[pallet::weight({10_000})]
+        #[pallet::weight(T::WeightInfo::set_asset_link())]
         pub fn set_asset_link(
             origin: OriginFor<T>,
             asset_id: T::AssetId,
@@ -299,6 +302,7 @@ mod tests {
     impl Config for Runtime {
         type AssetId = u32;
         type RuntimeEvent = RuntimeEvent;
+        type WeightInfo = ();
     }
 
     /// Build test externalities for running tests

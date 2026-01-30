@@ -1,5 +1,5 @@
 [package]
-name = "pallet-wrapped-native"
+name = "pallet-wrapped-asset"
 description = "Bidirectional conversion between parachain native token and foreign asset on Asset Hub"
 version = "0.1.0"
 authors.workspace = true

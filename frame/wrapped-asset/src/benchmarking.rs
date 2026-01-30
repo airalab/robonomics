@@ -15,34 +15,38 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Benchmarks for XcmInfo Pallet
+//! Benchmarks for Wrapped Asset Pallet
 
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 use frame_benchmarking::v2::*;
+use frame_support::traits::Currency;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    use xcm::latest::prelude::*;
 
     #[benchmark]
-    fn set_relay_network() {
+    fn wrap_and_send() {
+        // Setup: Create a funded account
+        let caller: T::AccountId = whitelisted_caller();
+        let amount = 1_000_000u32.into();
+
+        // Fund the account with native tokens
+        let _ = T::NativeCurrency::make_free_balance_be(&caller, amount + amount);
+
+        // Set TotalWrapped to ensure there's enough to wrap
+        TotalWrapped::<T>::put(amount + amount);
+
         #[extrinsic_call]
-        _(RawOrigin::Root, NetworkId::Kusama);
+        _(RawOrigin::Signed(caller.clone()), amount, None);
+
+        // Verify the wrapped amount was decreased
+        assert!(TotalWrapped::<T>::get() < amount + amount);
     }
 
-    #[benchmark]
-    fn set_asset_link() {
-        let location = Location::here();
-        let asset_id: T::AssetId = Default::default();
-
-        #[extrinsic_call]
-        _(RawOrigin::Root, asset_id, location);
-    }
-
-    impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime,);
+    impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

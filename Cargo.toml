@@ -25,7 +25,7 @@ members = [
   "frame/digital-twin",
   "frame/xcm-info",
   "frame/cps",
-  "frame/wrapped-native",
+  "frame/wrapped-asset",
   "runtime/robonomics",
   "tools/libcps",
 ]
@@ -242,7 +242,7 @@ pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
-pallet-wrapped-native = { path = "./frame/wrapped-native", default-features = false }
+pallet-wrapped-asset = { path = "./frame/wrapped-asset", default-features = false }
 
 # Robonomics runtimes
 robonomics-runtime = { path = "./runtime/robonomics" }

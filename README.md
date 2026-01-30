@@ -97,7 +97,7 @@ This repository is organized as a Cargo workspace with the following structure:
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
   - `xcm-info/` - XCM integration utilities
-  - `wrapped-native/` - Native token wrapping functionality
+  - `wrapped-asset/` - Native token wrapping functionality
 
 ### Chain Specifications
 
@@ -230,6 +230,122 @@ cargo test -p pallet-robonomics-datalog
 # Run integration tests
 cargo test --features runtime-benchmarks
 ```
+
+### Runtime Benchmarking
+
+Runtime benchmarking generates accurate weight functions for all pallets, which are crucial for accurate transaction fee calculation and preventing DoS attacks by ensuring extrinsics don't exceed block computational limits.
+
+#### Quick Start: One-Line Benchmarking with Nix
+
+The easiest way to run benchmarks is using the dedicated benchmarking shell:
+
+```bash
+# Enter the benchmarking shell and run all benchmarks
+nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
+```
+
+This single command will:
+1. Set up the complete benchmarking environment (Rust toolchain, frame-omni-bencher, etc.)
+2. Build the runtime with `runtime-benchmarks` feature
+3. Run benchmarks for all 18 pallets (10 system/XCM + 8 Robonomics custom)
+4. Generate weight files:
+   - System/XCM pallets → `runtime/robonomics/src/weights/`
+   - Robonomics pallets → `frame/*/src/weights.rs`
+
+**Customizing Benchmark Parameters:**
+
+You can customize the benchmark steps and repeats using environment variables:
+
+```bash
+# Use fewer steps/repeats for faster testing (default: steps=50, repeat=20)
+BENCHMARK_STEPS=10 BENCHMARK_REPEAT=5 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
+
+# Minimal settings for quick validation
+BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
+```
+
+#### Benchmarking Individual Pallets
+
+To benchmark a specific pallet:
+
+```bash
+# Enter the benchmarking shell
+nix develop .#benchmarking
+
+# Benchmark a specific pallet
+frame-omni-bencher v1 benchmark pallet \
+  --runtime ./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm \
+  --pallet pallet_robonomics_datalog \
+  --extrinsic "*" \
+  --template ./scripts/weights/frame-weight-template.hbs \
+  --output ./frame/datalog/src/weights.rs \
+  --header ./LICENSE \
+  --steps 50 \
+  --repeat 20
+```
+
+#### Available Pallets for Benchmarking
+
+The `benchmark-pallets.sh` script generates weights for all configured pallets:
+
+**System Pallets** (saved to `runtime/robonomics/src/weights/`):
+- `pallet_balances` - Balance transfers and reserves
+- `pallet_timestamp` - Block timestamp setting
+- `pallet_utility` - Batch calls and derivative dispatches
+- `pallet_multisig` - Multi-signature operations
+- `pallet_vesting` - Token vesting schedules
+- `pallet_assets` - Asset management
+- `pallet_collator_selection` - Collator selection mechanism
+- `pallet_session` - Session key management
+
+**XCM Pallets** (saved to `runtime/robonomics/src/weights/`):
+- `cumulus_pallet_xcmp_queue` - Cross-chain message queue
+- `pallet_xcm` - XCM message execution
+
+**Robonomics Custom Pallets** (saved to `frame/*/src/weights.rs`):
+- `pallet_robonomics_datalog` - IoT datalog storage
+- `pallet_robonomics_digital_twin` - Digital twin state management
+- `pallet_robonomics_launch` - Device launch commands
+- `pallet_robonomics_liability` - Smart contracts for robotics
+- `pallet_robonomics_rws` - RWS subscription management
+- `pallet_robonomics_cps` - Cyber-physical systems integration
+- `pallet_wrapped_asset` - Token wrapping functionality
+- `pallet_xcm_info` - XCM integration utilities
+
+#### Manual Benchmarking (Without Nix)
+
+If you prefer not to use Nix:
+
+```bash
+# 1. Install frame-omni-bencher
+cargo install --git https://github.com/paritytech/polkadot-sdk frame-omni-bencher
+
+# 2. Build the runtime with benchmarking features
+cargo build --release --features runtime-benchmarks -p robonomics-runtime
+
+# 3. Run the benchmark script
+./scripts/benchmark-pallets.sh
+```
+
+#### Understanding Benchmark Results
+
+Benchmark results are written as weight functions in Rust code. For example, in `frame/datalog/src/weights.rs`:
+
+```rust
+// Example pseudocode - actual implementation uses trait methods
+impl WeightInfo for SubstrateWeight<T> {
+    fn record() -> Weight {
+        Weight::from_parts(50_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(2))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
+}
+```
+
+These weights are used by the runtime to:
+- Calculate transaction fees accurately
+- Prevent block overloading
+- Ensure fair resource allocation
 
 ## Contributing
 

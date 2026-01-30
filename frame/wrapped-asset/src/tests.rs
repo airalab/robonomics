@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Tests for Wrapped Native pallet.
+//! Tests for Wrapped Asset pallet.
 
 use crate::{mock::*, Error, Event};
 use frame_support::{assert_err, assert_ok};

@@ -557,7 +557,7 @@ parameter_types! {
     pub const XcmFeeAmount: u128 = 10_000_000_000;
 }
 
-impl pallet_wrapped_native::Config for Runtime {
+impl pallet_wrapped_asset::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeCurrency = Balances;
     type ForeignAssetLocation = ForeignAssetLocation;
@@ -656,7 +656,7 @@ mod runtime {
     pub type Assets = pallet_assets;
 
     #[runtime::pallet_index(35)]
-    pub type WrappedXRT = pallet_wrapped_native;
+    pub type WrappedXRT = pallet_wrapped_asset;
 
     //
     // Robonomics Network pallets.
@@ -784,15 +784,33 @@ extern crate frame_benchmarking;
 
 #[cfg(feature = "runtime-benchmarks")]
 frame_benchmarking::define_benchmarks!(
+    // System pallets
     [frame_system, SystemBench::<Runtime>]
+    [frame_system_extensions, SystemExtensionsBench::<Runtime>]
+    [pallet_balances, Balances]
+    [pallet_timestamp, Timestamp]
+    [pallet_utility, Utility]
+    [pallet_multisig, Multisig]
+    [pallet_vesting, Vesting]
+    [pallet_assets, Assets]
+    [pallet_transaction_payment, TransactionPayment]
+    [cumulus_pallet_weight_reclaim, WeightReclaim]
+    [cumulus_pallet_parachain_system, ParachainSystem]
+    // Consensus pallets
+    [pallet_collator_selection, CollatorSelection]
+    [pallet_session, SessionBench::<Runtime>]
     // Robonomics pallets
     [pallet_robonomics_datalog, Datalog]
     [pallet_robonomics_digital_twin, DigitalTwin]
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
+    [pallet_robonomics_cps, CPS]
+    // TODO: [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
+    //[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
+    [pallet_xcm_info, XcmInfo]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
@@ -961,6 +979,9 @@ impl_runtime_apis! {
             use frame_benchmarking::BenchmarkList;
             use frame_support::traits::StorageInfoTrait;
             use frame_system_benchmarking::Pallet as SystemBench;
+            use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+            use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
+            //use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -970,28 +991,31 @@ impl_runtime_apis! {
             (list, storage_info)
         }
 
+        #[allow(non_local_definitions)]
         fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
-            use frame_benchmarking::BenchmarkBatch;
+            use frame_benchmarking::{BenchmarkBatch, BenchmarkError};
             use frame_support::traits::TrackedStorageKey;
             use frame_system_benchmarking::Pallet as SystemBench;
+            use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+            use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 
-            #[allow(non_local_definitions)]
-            impl frame_system_benchmarking::Config for Runtime {}
+            impl frame_system_benchmarking::Config for Runtime {
+                fn setup_set_code_requirements(code: &alloc::vec::Vec<u8>) -> Result<(), BenchmarkError> {
+                    ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
+                    Ok(())
+                }
+                fn verify_set_code() {
+                    System::assert_last_event(
+                        cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into()
+                    );
+                }
+            }
+            impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
-            let whitelist: Vec<TrackedStorageKey> = vec![
-                // Block Number
-                hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
-                // Total Issuance
-                hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
-                // Execution Phase
-                hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
-                // Event Count
-                hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
-                // System Events
-                hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
-            ];
+            use frame_support::traits::WhitelistedStorageKeys;
+            let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
