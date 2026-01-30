@@ -1,4 +1,4 @@
-name: Zombienet Integration Tests
+name: Zombienet Tests
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   zombienet-tests:
-    name: Run Zombienet Tests
+    name: Run Tests
     runs-on: ubuntu-latest
     # Timeout accounts for: build time (~30min), binary downloads (~5min),
     # network initialization (~5min), and test execution (~10min) with buffer
@@ -23,7 +23,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - uses: cachix/install-nix-action@v25
         with:

@@ -1,4 +1,4 @@
-name: Syntax
+name: Static Checks 
 permissions:
   contents: read
 
@@ -10,14 +10,14 @@ on:
         value: ${{ jobs.fmt.outputs.status && jobs.check-license.outputs.status }}
 
 jobs:
-  fmt:
+  check-formatting:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
     steps:
       - name: Checkout the source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -45,7 +45,7 @@ jobs:
       status: ${{ job.status }}
     steps:
       - name: Checkout the source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check license
         uses: viperproject/check-license-header@v2

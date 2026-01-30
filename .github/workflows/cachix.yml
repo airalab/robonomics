@@ -53,6 +53,5 @@ jobs:
         with:
           name: robonomics
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build 
       - run: nix develop --command bash -c "echo OK"
       - run: nix develop .#local-testnet --command bash -c "echo OK"

@@ -45,7 +45,7 @@ jobs:
             target: x86_64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install Protoc
         if: ${{ matrix.platform.runs-on != 'ubuntu-latest' }}
         uses: arduino/setup-protoc@v3
@@ -74,7 +74,7 @@ jobs:
 
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -125,7 +125,7 @@ jobs:
       status: ${{ job.status }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Srtool build
       id: srtool_build
