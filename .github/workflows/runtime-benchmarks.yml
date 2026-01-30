@@ -65,70 +65,16 @@ jobs:
       - name: Test benchmarking devshell
         run: nix develop .#benchmarking --command bash -c "echo OK"
 
-      - name: Run benchmark checks on representative pallets
+      - name: Run benchmark checks using benchmark-pallets.sh
         run: |
           nix develop .#benchmarking --command bash -c '
             set -e
             
-            # Build runtime with benchmarking features
-            echo "Building runtime with benchmarking features..."
-            cargo build --release --features runtime-benchmarks -p robonomics-runtime --locked
+            # Use minimal steps/repeat for faster CI execution
+            export BENCHMARK_STEPS=2
+            export BENCHMARK_REPEAT=1
             
-            # Verify runtime WASM exists
-            RUNTIME="./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm"
-            if [ ! -f "$RUNTIME" ]; then
-              echo "Error: Runtime WASM not found at $RUNTIME"
-              exit 1
-            fi
-            echo "Runtime WASM found at $RUNTIME"
-            
-            # Test a representative subset of pallets to verify benchmarking works
-            # We use minimal steps/repeats for faster CI execution
-            TEMPLATE="./scripts/weights/frame-weight-template.hbs"
-            
-            echo "Testing pallet_robonomics_datalog..."
-            frame-omni-bencher v1 benchmark pallet \
-              --runtime "$RUNTIME" \
-              --pallet pallet_robonomics_datalog \
-              --extrinsic "*" \
-              --steps 2 \
-              --repeat 1 \
-              --output /tmp/weights_test_datalog.rs \
-              --template "$TEMPLATE" \
-              --header ./LICENSE
-            
-            echo "Testing pallet_balances (system pallet)..."
-            frame-omni-bencher v1 benchmark pallet \
-              --runtime "$RUNTIME" \
-              --pallet pallet_balances \
-              --extrinsic "*" \
-              --steps 2 \
-              --repeat 1 \
-              --output /tmp/weights_test_balances.rs \
-              --template "$TEMPLATE" \
-              --header ./LICENSE
-            
-            echo "Testing pallet_xcm..."
-            frame-omni-bencher v1 benchmark pallet \
-              --runtime "$RUNTIME" \
-              --pallet pallet_xcm \
-              --extrinsic "*" \
-              --steps 2 \
-              --repeat 1 \
-              --output /tmp/weights_test_xcm.rs \
-              --template "$TEMPLATE" \
-              --header ./LICENSE
-            
-            # Verify generated weights files
-            for test_file in /tmp/weights_test_*.rs; do
-              if [ ! -f "$test_file" ]; then
-                echo "Error: Benchmark did not generate weights file: $test_file"
-                exit 1
-              fi
-            done
-            
-            echo "All benchmark checks passed successfully!"
-            echo "Sample weights file preview:"
-            head -20 /tmp/weights_test_datalog.rs
+            # Run the benchmark script
+            ./scripts/benchmark-pallets.sh
           '
 

@@ -71,6 +71,10 @@ PALLETS=(
     "pallet_xcm_info:frame/xcm-info/src/weights.rs"
 )
 
+# Benchmark configuration (can be overridden with environment variables)
+STEPS="${BENCHMARK_STEPS:-50}"
+REPEAT="${BENCHMARK_REPEAT:-20}"
+
 # Function to benchmark a pallet
 benchmark_pallet() {
     local pallet_info=$1
@@ -88,8 +92,8 @@ benchmark_pallet() {
         --template "$TEMPLATE" \
         --output "$output_path" \
         --header ./LICENSE \
-        --steps 50 \
-        --repeat 20 2>&1); then
+        --steps "$STEPS" \
+        --repeat "$REPEAT" 2>&1); then
         echo -e "${GREEN}✓ Successfully generated weights for $pallet_name${NC}"
         echo ""
     else
@@ -104,6 +108,7 @@ benchmark_pallet() {
 # Main execution
 echo -e "${GREEN}Starting runtime benchmarks for all pallets${NC}"
 echo "=================================================="
+echo -e "Benchmark settings: ${YELLOW}steps=$STEPS, repeat=$REPEAT${NC}"
 echo ""
 
 failed_pallets=()

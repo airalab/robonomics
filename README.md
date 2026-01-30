@@ -247,8 +247,22 @@ nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
 This single command will:
 1. Set up the complete benchmarking environment (Rust toolchain, frame-omni-bencher, etc.)
 2. Build the runtime with `runtime-benchmarks` feature
-3. Run benchmarks for all Robonomics pallets
-4. Generate weight files in `frame/*/src/weights.rs`
+3. Run benchmarks for all 18 pallets (10 system/XCM + 8 Robonomics custom)
+4. Generate weight files:
+   - System/XCM pallets → `runtime/robonomics/src/weights/`
+   - Robonomics pallets → `frame/*/src/weights.rs`
+
+**Customizing Benchmark Parameters:**
+
+You can customize the benchmark steps and repeats using environment variables:
+
+```bash
+# Use fewer steps/repeats for faster testing (default: steps=50, repeat=20)
+BENCHMARK_STEPS=10 BENCHMARK_REPEAT=5 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
+
+# Minimal settings for quick validation
+BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
+```
 
 #### Benchmarking Individual Pallets
 
