@@ -168,13 +168,13 @@ impl EncryptionAlgorithm {
     /// use libcps::crypto::EncryptionAlgorithm;
     ///
     /// let algo = EncryptionAlgorithm::XChaCha20Poly1305;
-    /// assert_eq!(algo.info_string(), b"robonomics-cps-xchacha20poly1305");
+    /// assert_eq!(algo.info_string(), "xchacha20poly1305");
     /// ```
-    pub fn info_string(&self) -> &'static [u8] {
+    pub fn info_string(&self) -> &'static str {
         match self {
-            Self::XChaCha20Poly1305 => b"robonomics-cps-xchacha20poly1305",
-            Self::AesGcm256 => b"robonomics-cps-aesgcm256",
-            Self::ChaCha20Poly1305 => b"robonomics-cps-chacha20poly1305",
+            Self::XChaCha20Poly1305 => "xchacha20poly1305",
+            Self::AesGcm256 => "aesgcm256",
+            Self::ChaCha20Poly1305 => "chacha20poly1305",
         }
     }
 
@@ -238,7 +238,7 @@ impl Default for EncryptionAlgorithm {
 
 impl fmt::Display for EncryptionAlgorithm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.info_string())
     }
 }
 
@@ -280,4 +280,53 @@ pub enum EncryptedMessage {
         #[serde(with = "easy_hex::serde")]
         ciphertext: Vec<u8>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_algorithm_from_str() {
+        assert_eq!(
+            EncryptionAlgorithm::from_str("xchacha20").unwrap(),
+            EncryptionAlgorithm::XChaCha20Poly1305
+        );
+        assert_eq!(
+            EncryptionAlgorithm::from_str("aesgcm256").unwrap(),
+            EncryptionAlgorithm::AesGcm256
+        );
+        assert_eq!(
+            EncryptionAlgorithm::from_str("chacha20").unwrap(),
+            EncryptionAlgorithm::ChaCha20Poly1305
+        );
+    }
+
+    #[test]
+    fn test_algorithm_info_strings() {
+        assert_eq!(
+            EncryptionAlgorithm::XChaCha20Poly1305.info_string(),
+            "xchacha20poly1305"
+        );
+        assert_eq!(EncryptionAlgorithm::AesGcm256.info_string(), "aesgcm256");
+        assert_eq!(
+            EncryptionAlgorithm::ChaCha20Poly1305.info_string(),
+            "chacha20poly1305"
+        );
+    }
+
+    #[test]
+    fn test_nonce_sizes() {
+        assert_eq!(EncryptionAlgorithm::XChaCha20Poly1305.nonce_size(), 24);
+        assert_eq!(EncryptionAlgorithm::AesGcm256.nonce_size(), 12);
+        assert_eq!(EncryptionAlgorithm::ChaCha20Poly1305.nonce_size(), 12);
+    }
+
+    #[test]
+    fn test_default() {
+        assert_eq!(
+            EncryptionAlgorithm::default(),
+            EncryptionAlgorithm::XChaCha20Poly1305
+        );
+    }
 }

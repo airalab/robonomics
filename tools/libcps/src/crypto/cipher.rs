@@ -31,7 +31,6 @@ use chacha20poly1305::{
 };
 use hkdf::Hkdf;
 use log::{debug, trace};
-use parity_scale_codec::Encode;
 use sha2::Sha256;
 use sp_core::Pair;
 
@@ -285,12 +284,9 @@ impl Cipher {
         shared_secret: &[u8; 32],
         algorithm: &EncryptionAlgorithm,
     ) -> Result<[u8; 32]> {
-        use hkdf::Hkdf;
-        use sha2::Sha256;
-
         let hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT), shared_secret);
         let mut okm = [0u8; 32];
-        hkdf.expand(algorithm.info_string(), &mut okm)
+        hkdf.expand(algorithm.info_string().as_bytes(), &mut okm)
             .map_err(|e| anyhow!("HKDF expansion failed: {e}"))?;
         Ok(okm)
     }
@@ -515,53 +511,6 @@ impl Cipher {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_algorithm_from_str() {
-        assert_eq!(
-            EncryptionAlgorithm::from_str("xchacha20").unwrap(),
-            EncryptionAlgorithm::XChaCha20Poly1305
-        );
-        assert_eq!(
-            EncryptionAlgorithm::from_str("aesgcm256").unwrap(),
-            EncryptionAlgorithm::AesGcm256
-        );
-        assert_eq!(
-            EncryptionAlgorithm::from_str("chacha20").unwrap(),
-            EncryptionAlgorithm::ChaCha20Poly1305
-        );
-    }
-
-    #[test]
-    fn test_algorithm_info_strings() {
-        assert_eq!(
-            EncryptionAlgorithm::XChaCha20Poly1305.info_string(),
-            b"robonomics-cps-xchacha20poly1305"
-        );
-        assert_eq!(
-            EncryptionAlgorithm::AesGcm256.info_string(),
-            b"robonomics-cps-aesgcm256"
-        );
-        assert_eq!(
-            EncryptionAlgorithm::ChaCha20Poly1305.info_string(),
-            b"robonomics-cps-chacha20poly1305"
-        );
-    }
-
-    #[test]
-    fn test_nonce_sizes() {
-        assert_eq!(EncryptionAlgorithm::XChaCha20Poly1305.nonce_size(), 24);
-        assert_eq!(EncryptionAlgorithm::AesGcm256.nonce_size(), 12);
-        assert_eq!(EncryptionAlgorithm::ChaCha20Poly1305.nonce_size(), 12);
-    }
-
-    #[test]
-    fn test_default() {
-        assert_eq!(
-            EncryptionAlgorithm::default(),
-            EncryptionAlgorithm::XChaCha20Poly1305
-        );
-    }
 
     #[test]
     fn test_cipher_creation() {

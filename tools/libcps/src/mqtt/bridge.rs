@@ -148,7 +148,7 @@ use crate::blockchain::{Client, Config as BlockchainConfig};
 use crate::crypto::{Cipher, CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
 use crate::node::{EncryptedData, Node, NodeData, PayloadSet};
 use anyhow::{anyhow, Result};
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace};
 use parity_scale_codec::Decode;
 use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};

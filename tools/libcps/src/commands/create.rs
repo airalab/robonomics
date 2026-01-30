@@ -22,8 +22,7 @@ use anyhow::Result;
 use colored::*;
 use libcps::blockchain::{Client, Config};
 use libcps::crypto::Cipher;
-use libcps::node::Node;
-use libcps::types::NodeData;
+use libcps::node::{Node, NodeData};
 use parity_scale_codec::Encode;
 use subxt::utils::AccountId32;
 

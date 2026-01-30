@@ -70,7 +70,7 @@ pub fn print_node_recursive(
         content_prefix.bright_black(),
         "|--".bright_black(),
         "[O]".bright_yellow(),
-        owner.bright_white()
+        owner.to_string().bright_white()
     );
 
     // Metadata
