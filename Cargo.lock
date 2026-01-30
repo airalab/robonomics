@@ -7876,7 +7876,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-wrapped-native"
+name = "pallet-wrapped-asset"
 version = "0.1.0"
 dependencies = [
  "frame-benchmarking",
@@ -10522,7 +10522,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
- "pallet-wrapped-native",
+ "pallet-wrapped-asset",
  "pallet-xcm",
  "pallet-xcm-info",
  "parity-scale-codec",
