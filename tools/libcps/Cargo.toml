@@ -59,7 +59,7 @@ bs58 = { workspace = true }
 hex = { workspace = true }
 
 # Async
-tokio= { workspace = true }
+tokio = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true, optional = true }
 
