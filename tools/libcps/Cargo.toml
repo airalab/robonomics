@@ -31,7 +31,6 @@ required-features = ["cli"]
 subxt = { workspace = true }
 subxt-signer = { workspace = true }
 parity-scale-codec = { workspace = true, features = ["std"] }
-sp-core = { workspace = true, features = ["std"] }
 
 # Cryptography
 curve25519-dalek = { workspace = true }
@@ -59,7 +58,7 @@ bs58 = { workspace = true }
 hex = { workspace = true }
 
 # Async
-tokio = { workspace = true }
+tokio= { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true, optional = true }
 
@@ -68,7 +67,12 @@ log = { workspace = true }
 env_logger = { workspace = true, optional = true }
 
 [build-dependencies]
-robonomics-runtime = { path = "../../runtime/robonomics", features = ["std"] }
+robonomics-runtime = { workspace = true }
+sp-io = { workspace = true }
+sp-state-machine = { workspace = true }
+sc-executor = { workspace = true }
+sc-executor-common = { workspace = true }
+parity-scale-codec = { workspace = true }
 
 [features]
 default = ["mqtt", "cli"]

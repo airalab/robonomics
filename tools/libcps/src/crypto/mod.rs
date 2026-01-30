@@ -154,9 +154,11 @@ use sp_core::Pair;
 use std::fmt;
 use std::str::FromStr;
 
-pub mod scheme;
+pub mod types;
+pub mod cipher;
 
-pub use scheme::CryptoScheme;
+pub use types::{CryptoScheme, EncryptionAlgorithm, EncryptedMessage};
+pub use cipher::Cipher;
 
 /// HKDF salt for key derivation.
 ///

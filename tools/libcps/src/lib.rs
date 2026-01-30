@@ -97,7 +97,7 @@
 //! Configure and use MQTT bridge for IoT integration:
 //!
 //! ```no_run
-//! use libcps::{mqtt, Config as BlockchainConfig};
+//! use libcps::{mqtt, BlockchainConfig};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Configure MQTT connection
@@ -145,11 +145,11 @@
 //! Manage multiple bridges with a TOML configuration file:
 //!
 //! ```no_run
-//! use libcps::mqtt::Config;
+//! use libcps::MqttConfig;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // Load configuration from file
-//! let config = Config::from_file("mqtt_config.toml")?;
+//! let config = MqttConfig::from_file("mqtt_config.toml")?;
 //!
 //! // Start all configured bridges concurrently
 //! config.start().await?;
@@ -199,7 +199,7 @@
 //! The library provides types that match the CPS pallet:
 //!
 //! ```
-//! use libcps::types::{NodeId, NodeData};
+//! use libcps::node::{NodeId, NodeData};
 //!
 //! let node_id = NodeId(42);
 //! let plain_data = NodeData::from(b"sensor reading".to_vec());
@@ -224,7 +224,11 @@ pub mod crypto;
 #[cfg(feature = "mqtt")]
 pub mod mqtt;
 pub mod node;
-pub mod types;
+
+// Re-export commonly used types for convenience
+pub use blockchain::{Client as BlockchainClient, Config as BlockchainConfig};
+#[cfg(feature = "mqtt")]
+pub use mqtt::{Config as MqttConfig};
 
 // Generated runtime metadata from subxt
 #[allow(
@@ -236,19 +240,70 @@ pub mod types;
 )]
 #[allow(clippy::all)]
 #[allow(rustdoc::broken_intra_doc_links)]
-// Robonomics runtime API generated from metadata
-// The build script extracts metadata directly from robonomics-runtime dependency
-// using the RuntimeMetadata trait and saves it as metadata.scale.
+// Robonomics runtime API generated from runtime metadata.
 // This ensures metadata is always in sync with the runtime.
 #[subxt::subxt(
-    runtime_metadata_path = "metadata.scale",
-    derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy")
+    runtime_metadata_path = "$OUT_DIR/metadata.scale",
+    derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy"),
+    derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode",
 )]
-pub mod robonomics_api {}
+pub mod robonomics {}
 
 // Re-export event types for CLI usage
-pub use robonomics_api::cps::events::PayloadSet;
+pub use robonomics::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
+pub use primitive_types::{H256, U256};
 
-// Re-export commonly used types for convenience
-pub use blockchain::{Client, Config};
-pub use types::{EncryptedData, NodeData, NodeId};
+use subxt::{Config, DefaultExtrinsicParams, DefaultExtrinsicParamsBuilder};
+use subxt::config::SubstrateConfig;
+
+/// Default set of commonly used types by Robonomics nodes.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum RobonomicsConfig {}
+
+impl Config for RobonomicsConfig {
+    type AccountId = <SubstrateConfig as Config>::AccountId;
+    type Signature = <SubstrateConfig as Config>::Signature;
+    type Hasher = <SubstrateConfig as Config>::Hasher;
+    type Header = <SubstrateConfig as Config>::Header;
+    type AssetId = <SubstrateConfig as Config>::AssetId;
+    type Address = MultiAddress<Self::AccountId, ()>;
+    type ExtrinsicParams = RobonomicsExtrinsicParams<Self>;
+}
+
+/// A struct representing the signed extra and additional parameters required
+/// to construct a transaction for a polkadot node.
+pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
+
+/// A builder which leads to [`RobonomicsExtrinsicParams`] being constructed.
+/// This is what you provide to methods like `sign_and_submit()`.
+pub type RobonomicsExtrinsicParamsBuilder<T> = DefaultExtrinsicParamsBuilder<T>;
+
+/// Helper methods for NodeData type
+impl NodeData {
+    /// Create an encrypted AEAD NodeData from bytes
+    pub fn aead_from(v: Vec<u8>) -> Self {
+        NodeData::Encrypted(EncryptedData::Aead(BoundedVec(v)))
+    }
+}
+
+/// Implement From<Vec<u8>> for NodeData (creates Plain variant)
+impl From<Vec<u8>> for NodeData {
+    fn from(v: Vec<u8>) -> Self {
+        NodeData::Plain(BoundedVec(v))
+    }
+}
+
+/// Implement From<String> for NodeData (creates Plain variant)
+impl From<String> for NodeData {
+    fn from(s: String) -> Self {
+        Self::from(s.into_bytes())
+    }
+}
+
+/// Implement From<&str> for NodeData (creates Plain variant)
+impl From<&str> for NodeData {
+    fn from(s: &str) -> Self {
+        Self::from(s.as_bytes().to_vec())
+    }
+}

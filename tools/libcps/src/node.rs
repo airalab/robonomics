@@ -39,15 +39,15 @@
 //! ## Async Usage (Recommended)
 //!
 //! ```no_run
-//! use libcps::{Client, Config, node::Node, types::NodeData};
+//! use libcps::{BlockchainClient, BlockchainConfig, node::{Node, NodeData}};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let config = Config {
+//!     let config = BlockchainConfig {
 //!         ws_url: "ws://localhost:9944".to_string(),
 //!         suri: Some("//Alice".to_string()),
 //!     };
-//!     let client = Client::new(&config).await?;
+//!     let client = BlockchainClient::new(&config).await?;
 //!     
 //!     // Create a new node with clean API
 //!     let meta: NodeData = "sensor".into();
@@ -68,14 +68,17 @@
 //! ```
 
 use crate::blockchain::Client;
-use crate::types::{NodeData, NodeId as CpsNodeId};
+use crate::{AccountId32, RobonomicsConfig};
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
-use sp_core::crypto::AccountId32;
-use subxt::PolkadotConfig;
+use crate::robonomics::cps::events::PayloadSet;
+
+pub use create::robonomics::runtime_types::pallet_robonomics_cps::{
+    DefaultEncryptedData as EncryptedData, NodeData, NodeId,
+};
 
 /// Type for extrinsic events from blockchain transactions.
-pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<PolkadotConfig>;
+pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
 
 /// Information about a CPS node.
 #[derive(Debug)]
@@ -174,14 +177,14 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::{Client, Config, node::Node, types::NodeData};
+    /// use libcps::{BlockchainClient, BlockchainConfig, Node, NodeData};
     ///
     /// # async fn example() -> anyhow::Result<()> {
-    /// let config = Config {
+    /// let config = BlockchainConfig {
     ///     ws_url: "ws://localhost:9944".to_string(),
     ///     suri: Some("//Alice".to_string()),
     /// };
-    /// let client = Client::new(&config).await?;
+    /// let client = BlockchainClient::new(&config).await?;
     ///
     /// let meta: NodeData = "metadata".into();
     /// let payload: NodeData = "payload data".into();
@@ -208,11 +211,11 @@ impl<'a> Node<'a> {
         trace!("Using keypair for transaction signing");
 
         // Convert parent to NodeId type
-        let parent_id = parent.map(CpsNodeId);
+        let parent_id = parent.map(NodeId);
 
         // Build the create_node transaction
         trace!("Building create_node transaction");
-        let create_call = crate::robonomics_api::tx()
+        let create_call = crate::robonomics::tx()
             .cps()
             .create_node(parent_id, meta, payload);
 
@@ -231,7 +234,7 @@ impl<'a> Node<'a> {
         // Extract the created node ID from the NodeCreated event
         trace!("Extracting node ID from NodeCreated event");
         let node_created_event = events
-            .find_first::<crate::robonomics_api::cps::events::NodeCreated>()
+            .find_first::<crate::robonomics::cps::events::NodeCreated>()
             .map_err(|e| anyhow!("Failed to find NodeCreated event: {}", e))?
             .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?;
 
@@ -315,8 +318,8 @@ impl<'a> Node<'a> {
     /// ```
     pub async fn query_at(&self, block_hash: subxt::utils::H256) -> Result<NodeInfo> {
         // Query the node from storage at specific block
-        let node_id = CpsNodeId(self.id);
-        let nodes_query = crate::robonomics_api::storage().cps().nodes(node_id);
+        let node_id = NodeId(self.id);
+        let nodes_query = crate::robonomics::storage().cps().nodes(node_id);
 
         let node = self
             .client
@@ -329,7 +332,7 @@ impl<'a> Node<'a> {
             .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
 
         // Query children
-        let children_query = crate::robonomics_api::storage()
+        let children_query = crate::robonomics::storage()
             .cps()
             .nodes_by_parent(node_id);
 
@@ -399,11 +402,11 @@ impl<'a> Node<'a> {
             meta.is_some()
         );
         let keypair = self.client.require_keypair()?;
-        let node_id = CpsNodeId(self.id);
+        let node_id = NodeId(self.id);
 
         // Build the set_meta transaction
         trace!("Building set_meta transaction");
-        let set_meta_call = crate::robonomics_api::tx().cps().set_meta(node_id, meta);
+        let set_meta_call = crate::robonomics::tx().cps().set_meta(node_id, meta);
 
         // Submit and watch the transaction
         trace!("Submitting set_meta transaction for node {}", self.id);
@@ -461,11 +464,11 @@ impl<'a> Node<'a> {
             payload.is_some()
         );
         let keypair = self.client.require_keypair()?;
-        let node_id = CpsNodeId(self.id);
+        let node_id = NodeId(self.id);
 
         // Build the set_payload transaction
         trace!("Building set_payload transaction");
-        let set_payload_call = crate::robonomics_api::tx()
+        let set_payload_call = crate::robonomics::tx()
             .cps()
             .set_payload(node_id, payload);
 
@@ -519,11 +522,11 @@ impl<'a> Node<'a> {
     /// ```
     pub async fn move_to(&self, new_parent: u64) -> Result<ExtrinsicEvents> {
         let keypair = self.client.require_keypair()?;
-        let node_id = CpsNodeId(self.id);
-        let new_parent_id = CpsNodeId(new_parent);
+        let node_id = NodeId(self.id);
+        let new_parent_id = NodeId(new_parent);
 
         // Build the move_node transaction
-        let move_node_call = crate::robonomics_api::tx()
+        let move_node_call = crate::robonomics::tx()
             .cps()
             .move_node(node_id, new_parent_id);
 
@@ -575,10 +578,10 @@ impl<'a> Node<'a> {
     /// ```
     pub async fn delete(self) -> Result<ExtrinsicEvents> {
         let keypair = self.client.require_keypair()?;
-        let node_id = CpsNodeId(self.id);
+        let node_id = NodeId(self.id);
 
         // Build the delete_node transaction
-        let delete_node_call = crate::robonomics_api::tx().cps().delete_node(node_id);
+        let delete_node_call = crate::robonomics::tx().cps().delete_node(node_id);
 
         // Submit and watch the transaction
         let events = self
