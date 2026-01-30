@@ -40,9 +40,10 @@
 //! }
 //! ```
 
+use super::RobonomicsConfig;
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
-use subxt::{OnlineClient, PolkadotConfig};
+use subxt::OnlineClient;
 use subxt_signer::{sr25519::Keypair, SecretUri};
 
 /// Configuration for blockchain connection.
@@ -83,7 +84,7 @@ pub struct Config {
 /// ```
 pub struct Client {
     /// Subxt client for blockchain interaction
-    pub api: OnlineClient<PolkadotConfig>,
+    pub api: OnlineClient<RobonomicsConfig>,
     /// Optional keypair for signing transactions
     pub keypair: Option<Keypair>,
 }
@@ -130,7 +131,7 @@ impl Client {
         trace!("SURI provided: {}", config.suri.is_some());
 
         // Connect to the blockchain
-        let api = OnlineClient::<PolkadotConfig>::from_url(&config.ws_url)
+        let api = OnlineClient::<RobonomicsConfig>::from_url(&config.ws_url)
             .await
             .map_err(|e| anyhow!("Failed to connect to {}: {}", config.ws_url, e))?;
 

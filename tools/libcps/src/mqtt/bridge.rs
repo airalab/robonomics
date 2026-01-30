@@ -146,10 +146,10 @@
 
 use crate::blockchain::{Client, Config as BlockchainConfig};
 use crate::crypto::{Cipher, CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
-use crate::node::{EncryptedData, Node, NodeData};
-use crate::robonomics::cps::events::PayloadSet;
+use crate::node::{EncryptedData, Node, NodeData, PayloadSet};
 use anyhow::{anyhow, Result};
 use log::{debug, error, trace, warn};
+use parity_scale_codec::Decode;
 use parity_scale_codec::Encode;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
@@ -718,19 +718,19 @@ impl Config {
         // Create node decrypt closure
         let node_data_to_string = |nd| match nd {
             NodeData::Plain(bytes) => {
-                String::from_utf8(bytes.0).map_err(|_| log::error!("Unvalid UTF-8 character"))
+                String::from_utf8(bytes.0).map_err(|_| error!("Unvalid UTF-8 character"))
             }
             NodeData::Encrypted(EncryptedData::Aead(bytes)) => {
                 let message: EncryptedMessage = Decode::decode(&mut &bytes.0[..])
-                    .map_err(|e| log::error!("Failed to decode encrypted metadata: {}", e))?;
+                    .map_err(|e| error!("Failed to decode encrypted metadata: {}", e))?;
                 if let Some(cipher) = cipher {
                     let decrypted = cipher
                         .decrypt(&message, None)
-                        .map_err(|e| log::error!("Failed to decrypt message: {}.", e))?;
-                    String::from_utf8(decrypted).map_err(|_| log::error!("Unvalid UTF-8 character"))
+                        .map_err(|e| error!("Failed to decrypt message: {}.", e))?;
+                    String::from_utf8(decrypted).map_err(|_| error!("Unvalid UTF-8 character"))
                 } else {
                     serde_json::to_string(&message).map_err(|e| {
-                        log::error!("Failed to convert encrypted message into JSON: {}.", e)
+                        error!("Failed to convert encrypted message into JSON: {}.", e)
                     })
                 }
             }
@@ -786,22 +786,21 @@ impl Config {
                     Ok(node_info) => {
                         if let Some(payload) = node_info.payload {
                             // Extract or decrypt the data
-                            let data = node_data_to_string(payload);
-                            let block_number = block.number();
-
-                            // Publish to MQTT
-                            match mqtt_client
-                                .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
-                                .await
-                            {
-                                Ok(_) => {
-                                    // Call publish handler if provided
-                                    if let Some(ref handler) = publish_handler {
-                                        handler(topic, block_number, &data);
+                            if let Ok(data) = node_data_to_string(payload) {
+                                // Publish to MQTT
+                                match mqtt_client
+                                    .publish(topic, QoS::AtMostOnce, false, data.as_bytes())
+                                    .await
+                                {
+                                    Ok(_) => {
+                                        // Call publish handler if provided
+                                        if let Some(ref handler) = publish_handler {
+                                            handler(topic, block.number(), &data);
+                                        }
                                     }
-                                }
-                                Err(e) => {
-                                    error!("Failed to publish to MQTT: {}", e);
+                                    Err(e) => {
+                                        error!("Failed to publish to MQTT: {}", e);
+                                    }
                                 }
                             }
                         }

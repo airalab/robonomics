@@ -67,13 +67,15 @@
 //! }
 //! ```
 
-use crate::blockchain::Client;
-use crate::robonomics::cps::events::PayloadSet;
-use crate::{AccountId32, RobonomicsConfig};
+use crate::blockchain::{robonomics, BoundedVec, Client, RobonomicsConfig};
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
+use subxt::utils::AccountId32;
 
-pub use create::robonomics::runtime_types::pallet_robonomics_cps::{
+pub use crate::blockchain::robonomics::cps::events::{
+    MetaSet, NodeCreated, NodeDeleted, NodeMoved, PayloadSet,
+};
+pub use crate::blockchain::robonomics::runtime_types::pallet_robonomics_cps::{
     DefaultEncryptedData as EncryptedData, NodeData, NodeId,
 };
 
@@ -244,9 +246,7 @@ impl<'a> Node<'a> {
 
         // Build the create_node transaction
         trace!("Building create_node transaction");
-        let create_call = crate::robonomics::tx()
-            .cps()
-            .create_node(parent_id, meta, payload);
+        let create_call = robonomics::tx().cps().create_node(parent_id, meta, payload);
 
         // Submit and watch the transaction
         trace!("Submitting and watching transaction");
@@ -263,7 +263,7 @@ impl<'a> Node<'a> {
         // Extract the created node ID from the NodeCreated event
         trace!("Extracting node ID from NodeCreated event");
         let node_created_event = events
-            .find_first::<crate::robonomics::cps::events::NodeCreated>()
+            .find_first::<NodeCreated>()
             .map_err(|e| anyhow!("Failed to find NodeCreated event: {}", e))?
             .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?;
 
@@ -348,7 +348,7 @@ impl<'a> Node<'a> {
     pub async fn query_at(&self, block_hash: subxt::utils::H256) -> Result<NodeInfo> {
         // Query the node from storage at specific block
         let node_id = NodeId(self.id);
-        let nodes_query = crate::robonomics::storage().cps().nodes(node_id);
+        let nodes_query = robonomics::storage().cps().nodes(node_id);
 
         let node = self
             .client
@@ -361,7 +361,7 @@ impl<'a> Node<'a> {
             .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
 
         // Query children
-        let children_query = crate::robonomics::storage().cps().nodes_by_parent(node_id);
+        let children_query = robonomics::storage().cps().nodes_by_parent(node_id);
 
         let children = self
             .client
@@ -433,7 +433,7 @@ impl<'a> Node<'a> {
 
         // Build the set_meta transaction
         trace!("Building set_meta transaction");
-        let set_meta_call = crate::robonomics::tx().cps().set_meta(node_id, meta);
+        let set_meta_call = robonomics::tx().cps().set_meta(node_id, meta);
 
         // Submit and watch the transaction
         trace!("Submitting set_meta transaction for node {}", self.id);
@@ -495,7 +495,7 @@ impl<'a> Node<'a> {
 
         // Build the set_payload transaction
         trace!("Building set_payload transaction");
-        let set_payload_call = crate::robonomics::tx().cps().set_payload(node_id, payload);
+        let set_payload_call = robonomics::tx().cps().set_payload(node_id, payload);
 
         // Submit and watch the transaction
         trace!("Submitting set_payload transaction for node {}", self.id);
@@ -551,9 +551,7 @@ impl<'a> Node<'a> {
         let new_parent_id = NodeId(new_parent);
 
         // Build the move_node transaction
-        let move_node_call = crate::robonomics::tx()
-            .cps()
-            .move_node(node_id, new_parent_id);
+        let move_node_call = robonomics::tx().cps().move_node(node_id, new_parent_id);
 
         // Submit and watch the transaction
         let events = self
@@ -606,7 +604,7 @@ impl<'a> Node<'a> {
         let node_id = NodeId(self.id);
 
         // Build the delete_node transaction
-        let delete_node_call = crate::robonomics::tx().cps().delete_node(node_id);
+        let delete_node_call = robonomics::tx().cps().delete_node(node_id);
 
         // Submit and watch the transaction
         let events = self
