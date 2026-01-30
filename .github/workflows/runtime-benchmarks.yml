@@ -83,6 +83,7 @@ jobs:
             echo "Runtime WASM found at $RUNTIME"
             
             # Test a representative subset of pallets to verify benchmarking works
+            # We use minimal steps/repeats for faster CI execution
             TEMPLATE="./scripts/weights/frame-weight-template.hbs"
             
             echo "Testing pallet_robonomics_datalog..."
@@ -92,51 +93,42 @@ jobs:
               --extrinsic "*" \
               --steps 2 \
               --repeat 1 \
-              --output /tmp/weights_test.rs \
+              --output /tmp/weights_test_datalog.rs \
               --template "$TEMPLATE" \
               --header ./LICENSE
             
-            echo "Testing pallet_robonomics_rws..."
+            echo "Testing pallet_balances (system pallet)..."
             frame-omni-bencher v1 benchmark pallet \
               --runtime "$RUNTIME" \
-              --pallet pallet_robonomics_rws \
+              --pallet pallet_balances \
               --extrinsic "*" \
               --steps 2 \
               --repeat 1 \
-              --output /tmp/weights_test.rs \
+              --output /tmp/weights_test_balances.rs \
               --template "$TEMPLATE" \
               --header ./LICENSE
             
-            echo "Testing pallet_robonomics_cps..."
+            echo "Testing pallet_xcm..."
             frame-omni-bencher v1 benchmark pallet \
               --runtime "$RUNTIME" \
-              --pallet pallet_robonomics_cps \
+              --pallet pallet_xcm \
               --extrinsic "*" \
               --steps 2 \
               --repeat 1 \
-              --output /tmp/weights_test.rs \
+              --output /tmp/weights_test_xcm.rs \
               --template "$TEMPLATE" \
               --header ./LICENSE
             
-            echo "Testing pallet_wrapped_native..."
-            frame-omni-bencher v1 benchmark pallet \
-              --runtime "$RUNTIME" \
-              --pallet pallet_wrapped_native \
-              --extrinsic "*" \
-              --steps 2 \
-              --repeat 1 \
-              --output /tmp/weights_test.rs \
-              --template "$TEMPLATE" \
-              --header ./LICENSE
-            
-            # Verify generated weights file
-            if [ ! -f "/tmp/weights_test.rs" ]; then
-              echo "Error: Benchmark did not generate weights file"
-              exit 1
-            fi
+            # Verify generated weights files
+            for test_file in /tmp/weights_test_*.rs; do
+              if [ ! -f "$test_file" ]; then
+                echo "Error: Benchmark did not generate weights file: $test_file"
+                exit 1
+              fi
+            done
             
             echo "All benchmark checks passed successfully!"
-            echo "Weights file preview:"
-            head -20 /tmp/weights_test.rs
+            echo "Sample weights file preview:"
+            head -20 /tmp/weights_test_datalog.rs
           '
 

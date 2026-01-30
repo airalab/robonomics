@@ -272,21 +272,23 @@ frame-omni-bencher v1 benchmark pallet \
 
 #### Available Pallets for Benchmarking
 
-The following pallets have benchmarking configurations:
+The `benchmark-pallets.sh` script generates weights for all configured pallets:
 
-**System Pallets:**
+**System Pallets** (saved to `runtime/robonomics/src/weights/`):
 - `pallet_balances` - Balance transfers and reserves
 - `pallet_timestamp` - Block timestamp setting
 - `pallet_utility` - Batch calls and derivative dispatches
 - `pallet_multisig` - Multi-signature operations
 - `pallet_vesting` - Token vesting schedules
 - `pallet_assets` - Asset management
-
-**Consensus Pallets:**
 - `pallet_collator_selection` - Collator selection mechanism
 - `pallet_session` - Session key management
 
-**Robonomics Pallets:**
+**XCM Pallets** (saved to `runtime/robonomics/src/weights/`):
+- `cumulus_pallet_xcmp_queue` - Cross-chain message queue
+- `pallet_xcm` - XCM message execution
+
+**Robonomics Custom Pallets** (saved to `frame/*/src/weights.rs`):
 - `pallet_robonomics_datalog` - IoT datalog storage
 - `pallet_robonomics_digital_twin` - Digital twin state management
 - `pallet_robonomics_launch` - Device launch commands
@@ -295,10 +297,6 @@ The following pallets have benchmarking configurations:
 - `pallet_robonomics_cps` - Cyber-physical systems integration
 - `pallet_wrapped_native` - Token wrapping functionality
 - `pallet_xcm_info` - XCM integration utilities
-
-**XCM Pallets:**
-- `cumulus_pallet_xcmp_queue` - Cross-chain message queue
-- `pallet_xcm` - XCM message execution
 
 #### Manual Benchmarking (Without Nix)
 
