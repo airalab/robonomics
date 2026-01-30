@@ -1010,7 +1010,7 @@ impl_runtime_apis! {
                     System::assert_last_event(
                         cumulus_pallet_parachain_system::Event::<Runtime>::ValidationFunctionStored.into()
                     );
-                } 
+                }
             }
             impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
