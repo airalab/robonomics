@@ -25,7 +25,7 @@ Add the pallet to your runtime's `Cargo.toml`:
 
 ```toml
 [dependencies]
-pallet-wrapped-asset = { path = "../frame/wrapped-native", default-features = false }
+pallet-wrapped-asset = { path = "../frame/wrapped-asset", default-features = false }
 ```
 
 Configure the pallet in your runtime:
