@@ -33,7 +33,7 @@ use hkdf::Hkdf;
 use log::{debug, trace};
 use parity_scale_codec::Encode;
 use sha2::Sha256;
-use subxt_signer::{ed25519, sr25519, SecretUri};
+use sp_core::Pair;
 
 /// HKDF salt for key derivation.
 const HKDF_SALT: &[u8] = b"robonomics-network";
@@ -103,25 +103,25 @@ impl Cipher {
         let (secret, public_key) = match scheme {
             CryptoScheme::Sr25519 => {
                 trace!("Parsing SR25519 keypair from SURI");
-                let uri: SecretUri = suri
-                    .parse()
-                    .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
-                let keypair = sr25519::Keypair::from_uri(&uri)
-                    .map_err(|e| anyhow!("Failed to create SR25519 keypair: {:?}", e))?;
-                let secret = keypair.secret_key().to_bytes();
-                let public_key = keypair.public_key().0;
+                let pair = sp_core::sr25519::Pair::from_string(&suri, None)
+                    .map_err(|e| anyhow!("Failed to parse SR25519 keypair: {:?}", e))?;
+                let secret_bytes = pair.to_raw_vec();
+                let mut secret = [0u8; 32];
+                secret.copy_from_slice(&secret_bytes[..32]);
+                // Derive public key using Pair interface
+                let public_key = pair.public().0;
                 debug!("SR25519 keypair created successfully");
                 (secret, public_key)
             }
             CryptoScheme::Ed25519 => {
                 trace!("Parsing ED25519 keypair from SURI");
-                let uri: SecretUri = suri
-                    .parse()
-                    .map_err(|e| anyhow!("Failed to parse SURI: {:?}", e))?;
-                let keypair = ed25519::Keypair::from_uri(&uri)
-                    .map_err(|e| anyhow!("Failed to create ED25519 keypair: {:?}", e))?;
-                let secret = keypair.secret_key().to_bytes();
-                let public_key = keypair.public_key().0;
+                let pair = sp_core::ed25519::Pair::from_string(&suri, None)
+                    .map_err(|e| anyhow!("Failed to parse ED25519 keypair: {:?}", e))?;
+                let secret_bytes = pair.to_raw_vec();
+                let mut secret = [0u8; 32];
+                secret.copy_from_slice(&secret_bytes[..32]);
+                // Derive public key using Pair interface
+                let public_key = pair.public().0;
                 debug!("ED25519 keypair created successfully");
                 (secret, public_key)
             }

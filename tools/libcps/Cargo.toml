@@ -31,6 +31,7 @@ required-features = ["cli"]
 subxt = { workspace = true }
 subxt-signer = { workspace = true }
 parity-scale-codec = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
 
 # Cryptography
 curve25519-dalek = { workspace = true }
