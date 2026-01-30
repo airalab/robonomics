@@ -17,36 +17,8 @@ jobs:
   benchmark-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Aggressive cleanup
-        run: |
-          # Remove Java (JDKs)
-          sudo rm -rf /usr/lib/jvm
-          # Remove .NET SDKs
-          sudo rm -rf /usr/share/dotnet
-          # Remove Swift toolchain
-          sudo rm -rf /usr/share/swift
-          # Remove Haskell (GHC)
-          sudo rm -rf /usr/local/.ghcup
-          # Remove Julia
-          sudo rm -rf /usr/local/julia*
-          # Remove Android SDKs
-          sudo rm -rf /usr/local/lib/android
-          # Remove Chromium
-          sudo rm -rf /usr/local/share/chromium
-          # Remove Microsoft/Edge and Google Chrome builds
-          sudo rm -rf /opt/microsoft /opt/google
-          # Remove Azure CLI
-          sudo rm -rf /opt/az
-          # Remove PowerShell
-          sudo rm -rf /usr/local/share/powershell
-          # Remove CodeQL and other toolcaches
-          sudo rm -rf /opt/hostedtoolcache
-          docker system prune -af || true
-          docker builder prune -af || true
-          df -h
-
       - name: Checkout the source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Nix
         uses: cachix/install-nix-action@v25
@@ -55,15 +27,6 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             accept-flake-config = true
-
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        with:
-          name: robonomics
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-
-      - name: Test benchmarking devshell
-        run: nix develop .#benchmarking --command bash -c "echo OK"
 
       - name: Run benchmark checks using benchmark-pallets.sh
         run: |
