@@ -1,11 +1,11 @@
 # Development Guide
 
-This document provides information for developers working on the CPS CLI tool.
+This document provides information for developers working on the libcps library and CPS CLI tool.
 
 ## Prerequisites
 
 - Rust 1.88.0 or later
-- A running Robonomics node with CPS pallet
+- A running Robonomics node with CPS pallet for testing
 - (Optional) MQTT broker for testing bridge functionality
 
 ## Building
@@ -22,10 +22,6 @@ cargo build --bin cps
 
 # Build library only
 cargo build --lib
-
-# The binaries will be at:
-# Debug: target/debug/cps
-# Release: target/release/cps
 ```
 
 ### Feature Flags
@@ -52,18 +48,8 @@ Available features:
 
 Feature dependencies:
 - `default = ["mqtt", "cli"]`
-- `mqtt = ["dep:rumqttc"]`
-- `cli = ["mqtt", "clap", "colored", "chrono"]`
-
-## Running
-
-```bash
-# Run with cargo
-cargo run --package robonomics-cps-cli -- --help
-
-# Or run the binary directly
-./target/debug/cps --help
-```
+- `mqtt = ["dep:rumqttc", "dep:toml"]`
+- `cli = ["mqtt", "clap", "colored", "chrono", "indicatif", "env_logger", "easy-hex"]`
 
 ## Code Structure
 
@@ -105,88 +91,54 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 
 ## Blockchain Metadata
 
-libcps automatically generates type definitions from the robonomics runtime.
+libcps extracts metadata directly from the robonomics runtime at build time. This approach brings **much less dependencies** than embedding the runtime WASM in the subxt macro.
 
 ### How It Works
 
-The robonomics runtime is added as a **build dependency**. When libcps builds:
+The `build.rs` script extracts metadata from the runtime and saves it to the build directory:
 
-1. The build script accesses the embedded `WASM_BINARY` from robonomics-runtime
-2. Writes it to `$OUT_DIR/robonomics_runtime.compact.wasm`
-3. The subxt macro reads this WASM file and generates type-safe APIs at compile time
-
-**No external tools required** - just Rust and Cargo!
-
-### Usage
-
-Simply build libcps and everything happens automatically:
-
-```bash
-cargo build -p libcps
-```
-
-The generated API is available through the blockchain module:
-
-```rust
-use libcps::blockchain::{Client, robonomics};
-
-// Access runtime APIs
-let create_call = robonomics::tx().cps().create_node(...);
-let nodes_query = robonomics::storage().cps().nodes(node_id);
-```
+1. **Load runtime WASM**: Gets `WASM_BINARY` from robonomics-runtime build dependency
+2. **Create RuntimeBlob**: Prepares the WASM for execution
+3. **Execute metadata call**: Uses `WasmExecutor` to call the `Metadata_metadata` host function
+4. **Decode and validate**: Decodes SCALE-encoded metadata and validates magic bytes
+5. **Save to file**: Writes metadata to `$OUT_DIR/metadata.scale`
+6. **Subxt macro**: Reads the metadata file at compile time to generate type-safe APIs
 
 ### Benefits
 
-- **Zero external dependencies**: No subwasm or other tools needed
-- **Always in sync**: WASM comes directly from runtime dependency
-- **Type safe**: Compile-time verification of all runtime calls  
+- **Fewer dependencies**: No need to embed runtime WASM or pull in heavy runtime dependencies
+- **Faster builds**: Metadata extraction happens once during build
+- **Always in sync**: Metadata comes directly from runtime dependency version
+- **Type safe**: Compile-time verification of all runtime calls
 - **Self-contained**: Everything happens in the build process
+
+### Build Dependencies
+
+The metadata extraction requires these dependencies (build-time only):
+
+```toml
+[build-dependencies]
+robonomics-runtime = { workspace = true }
+sp-io = { workspace = true }
+sp-state-machine = { workspace = true }
+sc-executor = { workspace = true }
+sc-executor-common = { workspace = true }
+parity-scale-codec = { workspace = true }
+```
+
+These are only needed during compilation and don't bloat the final binary.
 
 ## Testing
 
 ### Unit Tests
 
 ```bash
-cargo test --package robonomics-cps-cli
+cargo test --package libcps
 ```
 
 ### Integration Testing
 
-To test with a live node:
-
-1. Start a Robonomics development node:
-   ```bash
-   robonomics --dev --tmp
-   ```
-
-2. Set up environment:
-   ```bash
-   export ROBONOMICS_WS_URL=ws://localhost:9944
-   export ROBONOMICS_SURI=//Alice
-   ```
-
-3. Run commands:
-   ```bash
-   cargo run --package robonomics-cps-cli -- create --meta '{"test":true}'
-   cargo run --package robonomics-cps-cli -- show 0
-   ```
-
-### MQTT Testing
-
-1. Start mosquitto broker:
-   ```bash
-   mosquitto -v
-   ```
-
-2. Test subscribe in one terminal:
-   ```bash
-   cargo run --package robonomics-cps-cli -- mqtt subscribe "test/topic" 0
-   ```
-
-3. Publish messages in another:
-   ```bash
-   mosquitto_pub -t "test/topic" -m "test message"
-   ```
+For integration testing with a live node, see the README for setup instructions.
 
 ## Code Quality
 
@@ -194,20 +146,20 @@ To test with a live node:
 
 ```bash
 # Run clippy
-cargo clippy --package robonomics-cps-cli
+cargo clippy --package libcps
 
 # Apply automatic fixes
-cargo clippy --fix --package robonomics-cps-cli --allow-dirty
+cargo clippy --fix --package libcps --allow-dirty
 ```
 
 ### Formatting
 
 ```bash
 # Check formatting
-cargo fmt --package robonomics-cps-cli -- --check
+cargo fmt --package libcps -- --check
 
 # Apply formatting
-cargo fmt --package robonomics-cps-cli
+cargo fmt --package libcps
 ```
 
 ## Debugging
@@ -216,14 +168,14 @@ cargo fmt --package robonomics-cps-cli
 
 ```bash
 export RUST_LOG=debug
-cargo run --package robonomics-cps-cli -- show 0
+cargo run --package libcps -- show 0
 ```
 
 ### Using LLDB/GDB
 
 ```bash
 # Build with debug symbols
-cargo build --package robonomics-cps-cli
+cargo build --package libcps
 
 # Run with debugger
 rust-lldb target/debug/cps
@@ -237,27 +189,40 @@ rust-gdb target/debug/cps
 
 - `subxt`: Substrate RPC client
 - `subxt-signer`: Account signing utilities
-- `clap`: Command-line argument parsing
+- `clap`: Command-line argument parsing (CLI only)
 - `tokio`: Async runtime
 - `anyhow`: Error handling
 
 ### Crypto Dependencies
 
-- `schnorrkel`: sr25519 cryptography
+- `curve25519-dalek`: Elliptic curve operations
+- `x25519-dalek`: Key exchange
 - `chacha20poly1305`: XChaCha20-Poly1305 encryption
+- `aes-gcm`: AES-GCM encryption
 - `hkdf`: HMAC-based key derivation
 - `sha2`: SHA-256 hashing
 
-### UI Dependencies
+### UI Dependencies (CLI only)
 
 - `colored`: Terminal colors and formatting
+- `indicatif`: Progress bars
 - `serde`/`serde_json`: Serialization
 
 ### Optional Dependencies
 
-- `rumqttc`: MQTT client
+- `rumqttc`: MQTT client (feature: `mqtt`)
 
 ## Architecture Decisions
+
+### Why Extract Metadata at Build Time?
+
+**Problem**: Embedding runtime WASM directly in the code brings many heavy dependencies.
+
+**Solution**: Extract metadata once during build and save it to a file. This:
+- Reduces compile-time dependencies significantly
+- Makes builds faster after initial metadata extraction
+- Keeps the final binary smaller
+- Still ensures metadata is always in sync with runtime version
 
 ### Why XChaCha20-Poly1305?
 
@@ -275,10 +240,22 @@ rust-gdb target/debug/cps
 
 ### Why Separate Commands?
 
-- Modularity: Each command is self-contained
-- Testability: Easy to test individual commands
-- Maintainability: Clear code organization
-- Extensibility: Easy to add new commands
+- **Modularity**: Each command is self-contained
+- **Testability**: Easy to test individual commands
+- **Maintainability**: Clear code organization
+- **Extensibility**: Easy to add new commands
+
+### Library vs CLI Split
+
+The codebase is organized to separate library functionality from CLI:
+
+- **Library code** (`lib.rs`, `blockchain/`, `crypto/`, `mqtt/`, `node.rs`): Pure functionality, no colored output
+- **CLI code** (`main.rs`, `commands/`, `display/`): User interface, pretty printing, argument parsing
+
+This allows:
+- Using libcps as a library without CLI overhead
+- Building custom tools on top of libcps
+- Optional features for different use cases
 
 ## Common Issues
 
@@ -286,22 +263,17 @@ rust-gdb target/debug/cps
 
 **Problem**: `Error when opening the TCP socket: Connection refused`
 
-**Solution**: Make sure your Robonomics node is running:
-```bash
-robonomics --dev --tmp
-```
+**Solution**: Make sure your Robonomics node is running and the WebSocket endpoint is correct.
 
-### Missing Metadata
+### Metadata Build Errors
 
-**Problem**: Types not found or compilation errors
+**Problem**: Build fails during metadata extraction
 
-**Solution**: The metadata is automatically generated from the runtime dependency during build. If you have issues:
-
+**Solution**: 
 1. Clean the build: `cargo clean -p libcps`
 2. Ensure robonomics-runtime dependency is up to date
-3. Rebuild: `cargo build -p libcps`
-
-The metadata will be automatically extracted from the runtime's embedded WASM binary.
+3. Check that all build-dependencies are available
+4. Rebuild: `cargo build -p libcps`
 
 ### Type Mismatch
 
@@ -387,21 +359,6 @@ docs: update README with new examples
 - Use TLS for production MQTT
 - Validate WebSocket URLs
 - Handle connection errors gracefully
-
-## Future Improvements
-
-Potential areas for enhancement:
-
-1. **Metadata Caching**: Cache generated metadata to avoid regeneration
-2. **Batch Operations**: Support creating multiple nodes at once
-3. **Advanced Querying**: Add filtering and search capabilities
-4. **Monitoring Dashboard**: Web UI for visualizing CPS trees
-5. **Plugin System**: Allow custom command extensions
-6. **Configuration File**: Support for `.cpsrc` config file
-7. **Shell Completion**: Generate completions for bash/zsh/fish
-8. **Docker Support**: Containerized deployment
-9. **Metrics**: Export Prometheus metrics
-10. **Webhooks**: HTTP callback support for events
 
 ## Resources
 
