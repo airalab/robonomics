@@ -49,6 +49,8 @@ echo ""
 # List of pallets to benchmark with their output paths
 PALLETS=(
     # System pallets - saved to runtime/robonomics/src/weights/
+    "frame_system:runtime/robonomics/src/weights/frame_system.rs"
+    "frame_system_extensions:runtime/robonomics/src/weights/frame_system_extensions.rs"
     "pallet_balances:runtime/robonomics/src/weights/pallet_balances.rs"
     "pallet_timestamp:runtime/robonomics/src/weights/pallet_timestamp.rs"
     "pallet_utility:runtime/robonomics/src/weights/pallet_utility.rs"
@@ -57,9 +59,12 @@ PALLETS=(
     "pallet_assets:runtime/robonomics/src/weights/pallet_assets.rs"
     "pallet_collator_selection:runtime/robonomics/src/weights/pallet_collator_selection.rs"
     "pallet_session:runtime/robonomics/src/weights/pallet_session.rs"
+    "pallet_transaction_payment:runtime/robonomics/src/weights/pallet_transaction_payment.rs"
+    "cumulus_pallet_parachain_system:runtime/robonomics/src/weights/cumulus_pallet_parachain_system.rs"
+    "cumulus_pallet_weight_reclaim:runtime/robonomics/src/weights/cumulus_pallet_weight_reclaim.rs"
     # XCM pallets - saved to runtime/robonomics/src/weights/
-    "cumulus_pallet_xcmp_queue:runtime/robonomics/src/weights/cumulus_pallet_xcmp_queue.rs"
-    "pallet_xcm:runtime/robonomics/src/weights/pallet_xcm.rs"
+    #"cumulus_pallet_xcmp_queue:runtime/robonomics/src/weights/cumulus_pallet_xcmp_queue.rs"
+    #"pallet_xcm:runtime/robonomics/src/weights/pallet_xcm.rs"
     # Robonomics custom pallets - saved to their respective frame directories
     "pallet_robonomics_datalog:frame/datalog/src/weights.rs"
     "pallet_robonomics_digital_twin:frame/digital-twin/src/weights.rs"
