@@ -716,7 +716,7 @@ impl Config {
         let node = Node::new(&client, node_id);
 
         // Create node decrypt closure
-        let node_data_to_string = |nd| match nd {
+        let node_data_to_string = |node_data| match node_data {
             NodeData::Plain(bytes) => {
                 String::from_utf8(bytes.0).map_err(|_| error!("Unvalid UTF-8 character"))
             }
