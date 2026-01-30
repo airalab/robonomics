@@ -563,6 +563,7 @@ impl pallet_wrapped_asset::Config for Runtime {
     type ForeignAssetLocation = ForeignAssetLocation;
     type AssetHubLocation = AssetHubLocation;
     type XcmFeeAmount = XcmFeeAmount;
+    type WeightInfo = pallet_wrapped_asset::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
