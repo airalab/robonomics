@@ -225,11 +225,6 @@ pub mod crypto;
 pub mod mqtt;
 pub mod node;
 
-// Re-export commonly used types for convenience
-pub use blockchain::{Client as BlockchainClient, Config as BlockchainConfig};
-#[cfg(feature = "mqtt")]
-pub use mqtt::{Config as MqttConfig};
-
 // Generated runtime metadata from subxt
 #[allow(
     dead_code,
