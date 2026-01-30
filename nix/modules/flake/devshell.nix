@@ -33,6 +33,6 @@
         RUST_SRC_PATH = "${rustPlatform.rustLibSrc}";
         OPENSSL_NO_VENDOR = 1;
         PROTOC = "${lib.makeBinPath [ protobuf ]}/protoc";
-      };;
+      };
   };
 }
