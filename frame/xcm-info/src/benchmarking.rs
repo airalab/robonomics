@@ -27,7 +27,6 @@ use sp_std::prelude::*;
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    use xcm::opaque::v3::MultiLocation;
     use xcm::v5::NetworkId;
 
     #[benchmark]
