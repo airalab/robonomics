@@ -25,14 +25,22 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
+use xcm::latest::{
+    prelude::{Location, NetworkId},
+    WESTEND_GENESIS_HASH,
+};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
+pub const SAFE_XCM_VERSION: u32 = 5;
+pub const RELAY_ASSET_ID: u32 = u32::MAX_VALUE - 1;
 
 fn robonomics_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
     endowed_accounts: Vec<AccountId>,
     endowment: Balance,
     id: ParaId,
+    relay: Option<NetworkId>,
+    links: Vec<(AssetId, Location)>,
 ) -> serde_json::Value {
     build_struct_json_patch!(RuntimeGenesisConfig {
         balances: BalancesConfig {
@@ -59,7 +67,25 @@ fn robonomics_genesis(
                 })
                 .collect(),
         },
-        //polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+        polkadot_xcm: PolkadotXcmConfig {
+            safe_xcm_version: Some(SAFE_XCM_VERSION)
+        },
+        sudo: SudoConfig {
+            key: Some(Sr25519Keyring::Alice.to_account_id())
+        },
+        assets: AssetsConfig {
+            assets: vec![(
+                RELAY_ASSET_ID,
+                Sr25519Keyring::Alice.to_account_id(),
+                true,
+                1
+            )],
+            ..Default::default()
+        },
+        xcm_info: XcmInfoConfig {
+            relay: relay.unwrap_or(NetworkId::Kusama),
+            links,
+        }
     })
 }
 
@@ -83,6 +109,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
                 .collect(),
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
+            Some(NetworkId::ByGenesis(WESTEND_GENESIS_HASH)),
+            vec![(RELAY_ASSET_ID, Location::parent())],
         ),
         sp_genesis_builder::DEV_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
@@ -98,6 +126,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             ],
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
+            None,
+            vec![(RELAY_ASSET_ID, Location::parent())],
         ),
         _ => return None,
     };

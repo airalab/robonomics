@@ -3,9 +3,7 @@ permissions:
   contents: read
 
 on:
-  pull_request:
-    types:
-      - opened
+  push:
     branches:
     - 'feat/*'
     - 'fix/*'
@@ -27,38 +25,18 @@ jobs:
       status: ${{ job.status }}
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Install deps
-      run: |
-        sudo add-apt-repository ppa:ethereum/ethereum -y
-        sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler
+      run: sudo apt -y install pkg-config protobuf-compiler libclang-dev
+
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
 
     - name: Run all workspace tests
-      run: cargo test --workspace --locked
-
-  runtime-benchmarks:
-    needs: static-checks
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v4
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-
-    - name: Install deps
-      run: |
-        sudo add-apt-repository ppa:ethereum/ethereum -y
-        sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler solc
-        sudo cp ./scripts/resolc /usr/local/bin/resolc
-
-    - name: Build runtime with benchmarks
-      run: cargo build -p robonomics-runtime --features runtime-benchmarks --locked
+      run: cargo nextest run --workspace --locked

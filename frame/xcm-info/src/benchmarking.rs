@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for XcmInfo Pallet
+//! Benchmarks for XcmInfo Pallet
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -27,8 +27,7 @@ use sp_std::prelude::*;
 #[benchmarks]
 mod benchmarks {
     use super::*;
-    use xcm::opaque::v3::MultiLocation;
-    use xcm::v5::NetworkId;
+    use xcm::latest::prelude::*;
 
     #[benchmark]
     fn set_relay_network() {
@@ -38,12 +37,12 @@ mod benchmarks {
 
     #[benchmark]
     fn set_asset_link() {
-        let location = MultiLocation::here();
+        let location = Location::here();
         let asset_id: T::AssetId = Default::default();
 
         #[extrinsic_call]
         _(RawOrigin::Root, asset_id, location);
     }
 
-    impl_benchmark_test_suite!(XcmInfo, crate::tests::new_test_ext(), crate::tests::Runtime,);
+    impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime,);
 }

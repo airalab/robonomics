@@ -17,16 +17,18 @@
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
     AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-    WeightToFee, XcmInfo, XcmpQueue,
+    MessageQueue, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
+    RuntimeOrigin, WeightToFee, XcmInfo, XcmpQueue,
 };
+use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
-    match_types,
     pallet_prelude::Get,
     parameter_types,
-    traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess},
+    traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess, TransformOrigin},
     weights::Weight,
 };
+use hex_literal::hex;
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
 
@@ -45,30 +47,26 @@ use xcm_executor::{
     Config, XcmExecutor,
 };
 
-// locals
-use robonomics_primitives::ERC20_XRT_ADDRESS;
-
 parameter_types! {
     pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
-    pub const RelayLocation: MultiLocation = MultiLocation::parent();
+    pub RelayLocation: Location = Location::parent();
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-    pub UniversalLocation: InteriorMultiLocation =
-        X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
-    pub Local: MultiLocation = Here.into_location();
-    pub EthereumCurrencyLocation: MultiLocation = MultiLocation::new(2, X2(GlobalConsensus(Ethereum { chain_id: 1 }), AccountKey20{ network: None, key: ERC20_XRT_ADDRESS }));
-    pub AssetsPalletLocation: MultiLocation =
-        PalletInstance(<Assets as PalletInfoAccess>::index() as u8).into();
+    pub UniversalLocation: InteriorLocation =
+        [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
+    pub Local: Location = Location::here();
+    pub AssetsPalletLocation: Location =
+        Location::new(0, [PalletInstance(<Assets as PalletInfoAccess>::index() as u8)]);
     pub DummyCheckingAccount: AccountId = PolkadotXcm::check_account();
 }
 
-/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (
     // The parent (Relay-chain) origin converts to the default `AccountId`.
     ParentIsPreset<AccountId>,
     // Sibling parachain origins convert to AccountId via the `ParaId::into`.
-    SiblingParachainConvertsVia<polkadot_parachain::primitives::Sibling, AccountId>,
+    SiblingParachainConvertsVia<Sibling, AccountId>,
     // Straight up local `AccountId32` origins just alias directly to `AccountId`.
     AccountId32Aliases<RelayNetwork, AccountId>,
     // Derives a private `Account32` by hashing `("multiloc", received multilocation)`
@@ -81,7 +79,7 @@ pub type CurrencyTransactor = FungibleAdapter<
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
     IsConcrete<Local>,
-    // Convert an XCM MultiLocation into a local account id:
+    // Convert an XCM Location into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
     AccountId,
@@ -95,7 +93,7 @@ pub type FungiblesTransactor = FungiblesAdapter<
     Assets,
     // Use this currency when it is a fungible asset matching the given location or name:
     ConvertedConcreteId<AssetId, Balance, XcmInfo, JustTry>,
-    // Convert an XCM MultiLocation into a local account id:
+    // Convert an XCM Location into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
     AccountId,
@@ -105,26 +103,8 @@ pub type FungiblesTransactor = FungiblesAdapter<
     DummyCheckingAccount,
 >;
 
-/// Means for transacting the native currency on this chain.
-pub type BridgedCurrencyTransactor = CurrencyAdapter<
-    // Use this currency:
-    Balances,
-    // Use this currency when it is a fungible asset matching the given location or name:
-    IsConcrete<EthereumCurrencyLocation>,
-    // Convert an XCM MultiLocation into a local account id:
-    LocationToAccountId,
-    // Our chain's account ID type (we can't get away without mentioning it explicitly):
-    AccountId,
-    // We don't track any teleports.
-    (),
->;
-
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (
-    CurrencyTransactor,
-    BridgedCurrencyTransactor,
-    FungiblesTransactor,
-);
+pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -155,14 +135,24 @@ parameter_types! {
     pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 4 * 1024);
     pub const MaxInstructions: u32 = 100;
     pub KsmPerSecond: (cumulus_primitives_core::AssetId, u128, u128) =
-        (MultiLocation::parent().into(), 1_000_000_000, 1_000_000_000);
+        (Location::parent().into(), 1_000_000_000, 1_000_000_000);
 }
 
-match_types! {
-    pub type ParentOrParentsPlurality: impl Contains<MultiLocation> = {
-        MultiLocation { parents: 1, interior: Here } |
-        MultiLocation { parents: 1, interior: X1(Plurality { .. }) }
-    };
+/// Match parent or plurality from parent.
+pub struct ParentOrParentsPlurality;
+impl Contains<Location> for ParentOrParentsPlurality {
+    fn contains(location: &Location) -> bool {
+        if location.parents != 1 {
+            return false;
+        }
+        match &location.interior {
+            Here => true,
+            Junctions::X1(arc) => {
+                matches!(arc.as_ref(), [Junction::Plurality { .. }])
+            }
+            _ => false,
+        }
+    }
 }
 
 pub type XcmBarrier = (
@@ -178,8 +168,8 @@ pub type XcmBarrier = (
 
 /// Asset filter that allows all assets from a certain location.
 pub struct AssetsFrom<T>(PhantomData<T>);
-impl<T: Get<MultiLocation>> ContainsPair<MultiAsset, MultiLocation> for AssetsFrom<T> {
-    fn contains(_a: &MultiAsset, b: &MultiLocation) -> bool {
+impl<T: Get<Location>> ContainsPair<Asset, Location> for AssetsFrom<T> {
+    fn contains(_a: &Asset, b: &Location) -> bool {
         b.eq(&T::get())
     }
 }
@@ -227,6 +217,12 @@ impl Contains<RuntimeCall> for SafeCallFilter {
     }
 }
 
+/*
+pub type WaivedLocations = (
+    RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>,
+);
+*/
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
@@ -250,12 +246,24 @@ impl Config for XcmConfig {
     type MaxAssetsIntoHolding = ConstU32<64>;
     type AssetLocker = ();
     type AssetExchanger = ();
-    type FeeManager = ();
+    type FeeManager = xcm_executor::traits::WaiveDeliveryFees;
+    /*
+    type FeeManager = XcmFeeManagerFromComponents<
+        WaivedLocations,
+        SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>
+    >;
+    */
     type MessageExporter = ();
     type UniversalAliases = Nothing;
     type CallDispatcher = WithOriginFilter<SafeCallFilter>;
     type SafeCallFilter = SafeCallFilter;
     type Aliasers = Nothing;
+    type TransactionalProcessor = xcm_builder::FrameTransactionalProcessor;
+    type HrmpNewChannelOpenRequestHandler = ();
+    type HrmpChannelAcceptedHandler = ();
+    type HrmpChannelClosingHandler = ();
+    type XcmRecorder = ();
+    type XcmEventEmitter = ();
 }
 
 /// Local origins on this chain are allowed to dispatch XCM sends/executions.
@@ -272,7 +280,7 @@ pub type XcmRouter = (
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-    pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+    pub ReachableDest: Option<Location> = Some(Parent.into());
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -301,8 +309,7 @@ impl pallet_xcm::Config for Runtime {
     type MaxRemoteLockConsumers = ConstU32<0>;
     type RemoteLockConsumerIdentifier = ();
     type AdminOrigin = frame_system::EnsureRoot<AccountId>;
-    #[cfg(feature = "runtime-benchmarks")]
-    type ReachableDest = ReachableDest;
+    type AuthorizedAliasConsideration = ();
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -310,25 +317,82 @@ impl cumulus_pallet_xcm::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
-impl cumulus_pallet_xcmp_queue::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
-    type ChannelInfo = ParachainSystem;
-    type VersionWrapper = PolkadotXcm;
-    type ExecuteOverweightOrigin = frame_system::EnsureRoot<AccountId>;
-    type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
-    type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-    type PriceForSiblingDelivery = ();
-    type WeightInfo = cumulus_pallet_xcmp_queue::weights::SubstrateWeight<Runtime>;
+parameter_types! {
+    pub const MaxInboundSuspended: u32 = 1000;
+    pub const MaxActiveOutboundChannels: u32 = 128;
+    pub const MaxPageSize: u32 = 65536;
+    pub const BaseXcmpDeliveryFee: u128 = 1_000_000_000;
+    pub const XcmpByteFee: u128 = 1_000_000;
 }
 
-impl cumulus_pallet_dmp_queue::Config for Runtime {
+/// Price for delivering an XCM to a sibling parachain destination.
+pub type PriceForSiblingParachainDelivery = polkadot_runtime_common::xcm_sender::ExponentialPrice<
+    RelayLocation,
+    BaseXcmpDeliveryFee,
+    XcmpByteFee,
+    XcmpQueue,
+>;
+
+/// Convert a sibling `ParaId` to an `AggregateMessageOrigin`.
+pub struct ParaIdToSibling;
+impl sp_runtime::traits::Convert<ParaId, AggregateMessageOrigin> for ParaIdToSibling {
+    fn convert(para_id: ParaId) -> AggregateMessageOrigin {
+        AggregateMessageOrigin::Sibling(para_id)
+    }
+}
+
+impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
-    type ExecuteOverweightOrigin = frame_system::EnsureRoot<AccountId>;
+    type ChannelInfo = ParachainSystem;
+    type VersionWrapper = PolkadotXcm;
+    type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
+    type MaxInboundSuspended = MaxInboundSuspended;
+    type MaxActiveOutboundChannels = MaxActiveOutboundChannels;
+    type MaxPageSize = MaxPageSize;
+    type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
+    type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
+    // Charge a conservative fee for XCM message delivery to siblings
+    type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
+    // Use unit weights to skip integrity test mismatch between estimated and actual weights
+    // TODO: Generate runtime-specific benchmark weights
+    type WeightInfo = ();
+}
+
+impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
+    type ChannelList = ParachainSystem;
 }
 
 impl pallet_xcm_info::Config for Runtime {
     type AssetId = AssetId;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
+    pub ForeignAssetLocation: Location = Location::new(
+        2,
+        [
+            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
+            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
+        ],
+    );
+
+    /// Asset Hub location
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+
+    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
+    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
+    pub const XcmFeeAmount: u128 = 10_000_000_000;
+}
+
+impl pallet_wrapped_asset::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type NativeCurrency = Balances;
+    type ForeignAssetLocation = ForeignAssetLocation;
+    type AssetHubLocation = AssetHubLocation;
+    type XcmFeeAmount = XcmFeeAmount;
+    type ConvertBalance = JustTry;
+    type AccountIdConversion = LocalOriginToLocation;
+    type WeightInfo = ();
 }
