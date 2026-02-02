@@ -41,101 +41,69 @@ pub fn index_cps_data<T: Config>(block_number: BlockNumberFor<T>) {
         block_number
     );
     
-    // Get current Unix timestamp in milliseconds from system
-    let timestamp = sp_io::offchain::timestamp().unix_millis();
-    
-    // Process events from the current block
-    process_cps_events::<T>(timestamp);
+    // The offchain worker should read indexed data that was stored during
+    // block execution using `sp_io::offchain_index::set()`
+    //
+    // Event indexing happens in the pallet hooks (on_initialize/on_finalize)
+    // where we have access to block timestamp and can store data with proper keys.
+    //
+    // The offchain worker's role is to:
+    // 1. Monitor the indexed data
+    // 2. Perform additional off-chain processing if needed
+    // 3. The data is already accessible via the storage helpers
     
     log::debug!(
         target: "cps-indexer",
-        "Completed indexing for block {:?}",
+        "Offchain worker ready at block {:?}",
         block_number
     );
 }
 
-/// Process CPS events and store them in offchain storage
-///
-/// Note: Event processing requires runtime-specific integration.
-/// Runtime implementers should call the index_* functions directly
-/// from their event handlers or provide a custom implementation that
-/// properly converts RuntimeEvent to CPS Event.
-fn process_cps_events<T: Config>(timestamp: u64) {
-    log::trace!(
-        target: "cps-indexer",
-        "Ready to process events for timestamp {}",
-        timestamp
-    );
-    
-    // TODO: Runtime integration
-    // The runtime should implement event processing by:
-    // 1. Iterating through frame_system::Pallet::<T>::events()
-    // 2. Matching on RuntimeEvent to extract CPS events
-    // 3. Calling index_meta_record, index_payload_record, or index_node_operation
-    //
-    // Example (to be implemented in runtime):
-    // for event_record in frame_system::Pallet::<T>::events() {
-    //     match event_record.event {
-    //         RuntimeEvent::Cps(cps_event) => match cps_event {
-    //             Event::NodeCreated(node_id, parent_id, _) => {
-    //                 index_node_operation(timestamp, node_id, OperationType::Create(parent_id));
-    //             }
-    //             Event::MetaSet(node_id, _) => {
-    //                 if let Some(node) = Pallet::<T>::nodes(node_id) {
-    //                     if let Some(meta) = node.meta {
-    //                         index_meta_record(timestamp, node_id, meta.encode());
-    //                     }
-    //                 }
-    //             }
-    //             // ... other events
-    //         },
-    //         _ => {}
-    //     }
-    // }
-}
-
 /// Index a metadata record
 ///
-/// This should be called by runtime event handlers when metadata is set.
-pub fn index_meta_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
+/// This should be called during block execution (in hooks/extrinsics)
+/// where we have access to block timestamp.
+pub fn index_meta_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
     #[cfg(feature = "std")]
-    storage::store_meta_record(timestamp, node_id, data);
+    storage::store_meta_record(block_number, node_id, data);
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed meta record for node {:?} at timestamp {}",
+        "Indexed meta record for node {:?} at block {}",
         node_id,
-        timestamp
+        block_number
     );
 }
 
 /// Index a payload record
 ///
-/// This should be called by runtime event handlers when payload is set.
-pub fn index_payload_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
+/// This should be called during block execution (in hooks/extrinsics)
+/// where we have access to block timestamp.
+pub fn index_payload_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
     #[cfg(feature = "std")]
-    storage::store_payload_record(timestamp, node_id, data);
+    storage::store_payload_record(block_number, node_id, data);
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed payload record for node {:?} at timestamp {}",
+        "Indexed payload record for node {:?} at block {}",
         node_id,
-        timestamp
+        block_number
     );
 }
 
 /// Index a node operation
 ///
-/// This should be called by runtime event handlers for node lifecycle events.
-pub fn index_node_operation(timestamp: u64, node_id: NodeId, operation: OperationType) {
+/// This should be called during block execution (in hooks/extrinsics)
+/// where we have access to block timestamp.
+pub fn index_node_operation(block_number: u64, node_id: NodeId, operation: OperationType) {
     #[cfg(feature = "std")]
-    storage::store_node_operation(timestamp, node_id, operation.clone());
+    storage::store_node_operation(block_number, node_id, operation.clone());
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed node operation '{:?}' for node {:?} at timestamp {}",
+        "Indexed node operation '{:?}' for node {:?} at block {}",
         operation,
         node_id,
-        timestamp
+        block_number
     );
 }

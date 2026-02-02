@@ -21,6 +21,7 @@
 //! indexed CPS data in offchain storage.
 
 use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
@@ -29,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use crate::NodeId;
 
 /// Metadata record with timestamp and node_id
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct MetaRecord {
@@ -40,7 +41,7 @@ pub struct MetaRecord {
 }
 
 /// Payload record with timestamp and node_id
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct PayloadRecord {
@@ -51,7 +52,7 @@ pub struct PayloadRecord {
 }
 
 /// Node operation type
-#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum OperationType {
     /// Node created with optional parent
@@ -63,7 +64,7 @@ pub enum OperationType {
 }
 
 /// Node operation record with timestamp and node_id
-#[derive(Debug, Clone, Encode, Decode)]
+#[derive(Debug, Clone, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct NodeOperation {

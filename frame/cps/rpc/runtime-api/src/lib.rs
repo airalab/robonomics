@@ -25,8 +25,6 @@ use sp_std::vec::Vec;
 
 // Re-export the storage types for use in runtime API implementations
 pub use pallet_robonomics_cps::NodeId;
-
-#[cfg(feature = "std")]
 pub use pallet_robonomics_cps::offchain::storage::{MetaRecord, PayloadRecord, NodeOperation};
 
 sp_api::decl_runtime_apis! {
@@ -35,34 +33,34 @@ sp_api::decl_runtime_apis! {
         /// Get meta records within optional time range
         ///
         /// # Arguments
+        /// * `node_id` - Optional node_id filter
         /// * `from` - Start timestamp (inclusive), None for all
         /// * `to` - End timestamp (inclusive), None for all
-        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of encoded MetaRecord structures
-        fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
+        /// Vector of MetaRecord structures
+        fn get_meta_records(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<MetaRecord>;
         
         /// Get payload records within optional time range
         ///
         /// # Arguments
+        /// * `node_id` - Optional node_id filter
         /// * `from` - Start timestamp (inclusive), None for all
         /// * `to` - End timestamp (inclusive), None for all
-        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of encoded PayloadRecord structures
-        fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
+        /// Vector of PayloadRecord structures
+        fn get_payload_records(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<PayloadRecord>;
         
         /// Get node operations within optional time range
         ///
         /// # Arguments
+        /// * `node_id` - Optional node_id filter
         /// * `from` - Start timestamp (inclusive), None for all
         /// * `to` - End timestamp (inclusive), None for all
-        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of encoded NodeOperation structures
-        fn get_node_operations(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
+        /// Vector of NodeOperation structures
+        fn get_node_operations(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<NodeOperation>;
     }
 }

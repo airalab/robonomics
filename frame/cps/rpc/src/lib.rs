@@ -41,9 +41,9 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     /// Get meta records within optional time range
     ///
     /// # Arguments
+    /// * `node_id` - Optional node_id filter
     /// * `from` - Start timestamp (inclusive), None for all
     /// * `to` - End timestamp (inclusive), None for all
-    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
@@ -51,18 +51,18 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getMetaRecords")]
     fn get_meta_records(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<MetaRecord>>;
     
     /// Get payload records within optional time range
     ///
     /// # Arguments
+    /// * `node_id` - Optional node_id filter
     /// * `from` - Start timestamp (inclusive), None for all
     /// * `to` - End timestamp (inclusive), None for all
-    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
@@ -70,18 +70,18 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getPayloadRecords")]
     fn get_payload_records(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<PayloadRecord>>;
     
     /// Get node operations within optional time range
     ///
     /// # Arguments
+    /// * `node_id` - Optional node_id filter
     /// * `from` - Start timestamp (inclusive), None for all
     /// * `to` - End timestamp (inclusive), None for all
-    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
@@ -89,9 +89,9 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getNodeOperations")]
     fn get_node_operations(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<NodeOperation>>;
 }
@@ -120,80 +120,58 @@ where
 {
     fn get_meta_records(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<MetaRecord>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
         let node_id = node_id.map(NodeId);
         
-        let records = api
-            .get_meta_records(at_hash, from, to, node_id)
+        api.get_meta_records(at_hash, node_id, from, to)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve meta records from runtime", 
                 Some(format!("{:?}", e))
-            ))?;
-        
-        // Decode Vec<Vec<u8>> to Vec<MetaRecord>
-        use parity_scale_codec::Decode;
-        Ok(records
-            .into_iter()
-            .filter_map(|encoded| MetaRecord::decode(&mut &encoded[..]).ok())
-            .collect())
+            ))
     }
     
     fn get_payload_records(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<PayloadRecord>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
         let node_id = node_id.map(NodeId);
         
-        let records = api
-            .get_payload_records(at_hash, from, to, node_id)
+        api.get_payload_records(at_hash, node_id, from, to)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve payload records from runtime", 
                 Some(format!("{:?}", e))
-            ))?;
-        
-        use parity_scale_codec::Decode;
-        Ok(records
-            .into_iter()
-            .filter_map(|encoded| PayloadRecord::decode(&mut &encoded[..]).ok())
-            .collect())
+            ))
     }
     
     fn get_node_operations(
         &self,
+        node_id: Option<u64>,
         from: Option<u64>,
         to: Option<u64>,
-        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<NodeOperation>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
         let node_id = node_id.map(NodeId);
         
-        let operations = api
-            .get_node_operations(at_hash, from, to, node_id)
+        api.get_node_operations(at_hash, node_id, from, to)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve node operations from runtime", 
                 Some(format!("{:?}", e))
-            ))?;
-        
-        use parity_scale_codec::Decode;
-        Ok(operations
-            .into_iter()
-            .filter_map(|encoded| NodeOperation::decode(&mut &encoded[..]).ok())
-            .collect())
+            ))
     }
 }
