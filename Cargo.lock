@@ -7573,6 +7573,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
  "pallet-proxy",
  "parity-scale-codec",
@@ -7580,6 +7581,29 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-robonomics-cps-rpc"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "jsonrpsee",
+ "pallet-robonomics-cps-rpc-runtime-api",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-robonomics-cps-rpc-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
  "sp-std",
 ]
 

@@ -16,14 +16,13 @@ parity-scale-codec = { workspace = true }
 sp-api = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-runtime = { workspace = true }
-pallet-robonomics-cps-rpc-runtime-api = { path = "../runtime-api", default-features = false }
+pallet-robonomics-cps-rpc-runtime-api = { path = "./runtime-api", default-features = false }
 
 [features]
 default = ["std"]
 std = [
   "parity-scale-codec/std",
   "sp-api/std",
-  "sp-blockchain/std",
   "sp-runtime/std",
   "pallet-robonomics-cps-rpc-runtime-api/std",
 ]
