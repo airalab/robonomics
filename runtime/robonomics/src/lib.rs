@@ -814,24 +814,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_xcm_info, XcmInfo]
 );
 
-// Custom XCM Runtime API providing essential cross-chain functionality
-// This API enables external tools and clients to interact with XCM features
-sp_api::decl_runtime_apis! {
-    /// API for querying XCM-related information
-    pub trait XcmRuntimeApi {
-        /// Convert an XCM Location to a local AccountId
-        /// This allows external tools to determine which account will receive XCM transfers
-        fn location_to_account(location: xcm::VersionedLocation) -> Option<AccountId>;
-
-        /// Calculate the weight-to-fee conversion for XCM operations
-        /// Returns the fee in the native token for a given weight
-        fn weight_to_fee(weight: Weight) -> Balance;
-
-        /// Get the current XCM version supported by this runtime
-        fn xcm_version() -> u32;
-    }
-}
-
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
@@ -970,27 +952,65 @@ impl_runtime_apis! {
         }
     }
 
-    impl self::XcmRuntimeApi<Block> for Runtime {
-        fn location_to_account(location: xcm::VersionedLocation) -> Option<AccountId> {
-            use xcm::latest::Location;
-            use xcm_executor::traits::ConvertLocation;
-            
-            // Try to convert the versioned location to the latest version
-            let latest_location: Result<Location, ()> = location.try_into();
-            
-            match latest_location {
-                Ok(loc) => xcm_config::LocationToAccountId::convert_location(&loc),
-                Err(_) => None,
-            }
+    // XCM Runtime APIs - providing standard XCM functionality
+    impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
+        fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<xcm::VersionedAssetId>, xcm_runtime_apis::fees::Error> {
+            use xcm::latest::prelude::*;
+            let acceptable_assets = vec![AssetId(xcm_config::Local::get())];
+            PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
         }
 
-        fn weight_to_fee(weight: Weight) -> Balance {
-            use frame_support::weights::WeightToFee as WeightToFeeTrait;
-            WeightToFee::weight_to_fee(&weight)
+        fn query_weight_to_asset_fee(weight: Weight, asset: xcm::VersionedAssetId) -> Result<u128, xcm_runtime_apis::fees::Error> {
+            type Trader = <xcm_config::XcmConfig as xcm_executor::Config>::Trader;
+            PolkadotXcm::query_weight_to_asset_fee::<Trader>(weight, asset)
         }
 
-        fn xcm_version() -> u32 {
-            xcm::latest::VERSION
+        fn query_xcm_weight(message: xcm::VersionedXcm<()>) -> Result<Weight, xcm_runtime_apis::fees::Error> {
+            PolkadotXcm::query_xcm_weight(message)
+        }
+
+        fn query_delivery_fees(destination: xcm::VersionedLocation, message: xcm::VersionedXcm<()>, asset_id: xcm::VersionedAssetId) -> Result<xcm::VersionedAssets, xcm_runtime_apis::fees::Error> {
+            type AssetExchanger = <xcm_config::XcmConfig as xcm_executor::Config>::AssetExchanger;
+            PolkadotXcm::query_delivery_fees::<AssetExchanger>(destination, message, asset_id)
+        }
+    }
+
+    impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
+        fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: xcm::Version) -> Result<xcm_runtime_apis::dry_run::CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
+            PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, OriginCaller, RuntimeCall>(origin, call, result_xcms_version)
+        }
+
+        fn dry_run_xcm(origin_location: xcm::VersionedLocation, xcm: xcm::VersionedXcm<RuntimeCall>) -> Result<xcm_runtime_apis::dry_run::XcmDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
+            PolkadotXcm::dry_run_xcm::<xcm_config::XcmRouter>(origin_location, xcm)
+        }
+    }
+
+    impl xcm_runtime_apis::conversions::LocationToAccountApi<Block, AccountId> for Runtime {
+        fn convert_location(location: xcm::VersionedLocation) -> Result<AccountId, xcm_runtime_apis::conversions::Error> {
+            xcm_runtime_apis::conversions::LocationToAccountHelper::<
+                AccountId,
+                xcm_config::LocationToAccountId,
+            >::convert_location(location)
+        }
+    }
+
+    impl xcm_runtime_apis::trusted_query::TrustedQueryApi<Block> for Runtime {
+        fn is_trusted_reserve(asset: xcm::VersionedAsset, location: xcm::VersionedLocation) -> xcm_runtime_apis::trusted_query::XcmTrustedQueryResult {
+            PolkadotXcm::is_trusted_reserve(asset, location)
+        }
+
+        fn is_trusted_teleporter(asset: xcm::VersionedAsset, location: xcm::VersionedLocation) -> xcm_runtime_apis::trusted_query::XcmTrustedQueryResult {
+            PolkadotXcm::is_trusted_teleporter(asset, location)
+        }
+    }
+
+    impl xcm_runtime_apis::authorized_aliases::AuthorizedAliasersApi<Block> for Runtime {
+        fn authorized_aliasers(target: xcm::VersionedLocation) -> Result<Vec<xcm_runtime_apis::authorized_aliases::OriginAliaser>, xcm_runtime_apis::authorized_aliases::Error> {
+            PolkadotXcm::authorized_aliasers(target)
+        }
+
+        fn is_authorized_alias(origin: xcm::VersionedLocation, target: xcm::VersionedLocation) -> Result<bool, xcm_runtime_apis::authorized_aliases::Error> {
+            PolkadotXcm::is_authorized_alias(origin, target)
         }
     }
 
