@@ -25,7 +25,10 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
-use xcm::latest::{prelude::{NetworkId, Location}, WESTEND_GENESIS_HASH};
+use xcm::latest::{
+    prelude::{Location, NetworkId},
+    WESTEND_GENESIS_HASH,
+};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
 pub const SAFE_XCM_VERSION: u32 = 5;
@@ -71,7 +74,12 @@ fn robonomics_genesis(
             key: Some(Sr25519Keyring::Alice.to_account_id())
         },
         assets: AssetsConfig {
-            assets: vec![(RELAY_ASSET_ID, Sr25519Keyring::Alice.to_account_id(), true, 1)],
+            assets: vec![(
+                RELAY_ASSET_ID,
+                Sr25519Keyring::Alice.to_account_id(),
+                true,
+                1
+            )],
             ..Default::default()
         },
         xcm_info: XcmInfoConfig {

@@ -403,8 +403,8 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 }
 
 parameter_types! {
-	pub MessageQueueServiceWeight: Weight =
-		Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
+    pub MessageQueueServiceWeight: Weight =
+        Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
 }
 
 pub struct NarrowOriginToSibling<Inner>(sp_std::marker::PhantomData<Inner>);
@@ -421,8 +421,7 @@ impl<Inner: frame_support::traits::QueuePausedQuery<cumulus_primitives_core::Par
 }
 
 impl<Inner: pallet_message_queue::OnQueueChanged<cumulus_primitives_core::ParaId>>
-    pallet_message_queue::OnQueueChanged<AggregateMessageOrigin>
-    for NarrowOriginToSibling<Inner>
+    pallet_message_queue::OnQueueChanged<AggregateMessageOrigin> for NarrowOriginToSibling<Inner>
 {
     fn on_queue_changed(origin: AggregateMessageOrigin, fp: frame_support::traits::QueueFootprint) {
         if let AggregateMessageOrigin::Sibling(id) = origin {
@@ -432,26 +431,26 @@ impl<Inner: pallet_message_queue::OnQueueChanged<cumulus_primitives_core::ParaId
 }
 
 impl pallet_message_queue::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	#[cfg(feature = "runtime-benchmarks")]
-	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<
-		cumulus_primitives_core::AggregateMessageOrigin,
-	>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MessageProcessor = xcm_builder::ProcessXcmMessage<
-		AggregateMessageOrigin,
-		xcm_executor::XcmExecutor<XcmConfig>,
-		RuntimeCall,
-	>;
-	type Size = u32;
-	// The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
-	type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
-	type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
-	type HeapSize = sp_core::ConstU32<{ 103 * 1024 }>;
-	type MaxStale = sp_core::ConstU32<8>;
-	type ServiceWeight = MessageQueueServiceWeight;
-	type IdleMaxServiceWeight = MessageQueueServiceWeight;
-	type WeightInfo = ();
+    type RuntimeEvent = RuntimeEvent;
+    #[cfg(feature = "runtime-benchmarks")]
+    type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<
+        cumulus_primitives_core::AggregateMessageOrigin,
+    >;
+    #[cfg(not(feature = "runtime-benchmarks"))]
+    type MessageProcessor = xcm_builder::ProcessXcmMessage<
+        AggregateMessageOrigin,
+        xcm_executor::XcmExecutor<XcmConfig>,
+        RuntimeCall,
+    >;
+    type Size = u32;
+    // The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
+    type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
+    type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
+    type HeapSize = sp_core::ConstU32<{ 103 * 1024 }>;
+    type MaxStale = sp_core::ConstU32<8>;
+    type ServiceWeight = MessageQueueServiceWeight;
+    type IdleMaxServiceWeight = MessageQueueServiceWeight;
+    type WeightInfo = ();
 }
 
 impl parachain_info::Config for Runtime {}

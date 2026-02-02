@@ -82,8 +82,8 @@ pub mod pallet {
     use frame_support::traits::StorageVersion;
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
-    use xcm::latest::prelude::*;
     use sp_std::vec::Vec;
+    use xcm::latest::prelude::*;
 
     /// The current storage version
     pub const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -282,7 +282,10 @@ pub mod pallet {
 
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
-            GenesisConfig { relay: NetworkId::Polkadot, links: Default::default() }
+            GenesisConfig {
+                relay: NetworkId::Polkadot,
+                links: Default::default(),
+            }
         }
     }
 

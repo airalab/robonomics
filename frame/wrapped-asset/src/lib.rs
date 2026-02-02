@@ -89,7 +89,10 @@ pub mod pallet {
         traits::{fungible::Mutate as FungibleMutate, Currency, ExistenceRequirement},
     };
     use frame_system::pallet_prelude::*;
-    use sp_runtime::{traits::{Zero, TryConvert, MaybeEquivalence}, Saturating};
+    use sp_runtime::{
+        traits::{MaybeEquivalence, TryConvert, Zero},
+        Saturating,
+    };
     use sp_std::prelude::*;
     use xcm::latest::prelude::*;
 
@@ -108,7 +111,10 @@ pub mod pallet {
             + FungibleMutate<Self::AccountId, Balance = BalanceOf<Self>>;
 
         /// Convert system AccountId to XCM location.
-        type AccountIdConversion: TryConvert<<Self as frame_system::Config>::RuntimeOrigin, Location>;
+        type AccountIdConversion: TryConvert<
+            <Self as frame_system::Config>::RuntimeOrigin,
+            Location,
+        >;
 
         /// Convert system balance into XCM balance.
         type ConvertBalance: MaybeEquivalence<BalanceOf<Self>, u128>;
@@ -318,7 +324,10 @@ pub mod pallet {
         /// # Events
         ///
         /// - `NativeUnwrapped`: Emitted when tokens are successfully unwrapped
-        pub fn handle_incoming_unwrap(beneficiary: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+        pub fn handle_incoming_unwrap(
+            beneficiary: T::AccountId,
+            amount: BalanceOf<T>,
+        ) -> DispatchResult {
             // Mint native tokens to beneficiary
             let _imbalance = T::NativeCurrency::deposit_creating(&beneficiary, amount);
 

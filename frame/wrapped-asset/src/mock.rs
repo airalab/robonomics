@@ -19,18 +19,18 @@
 
 use crate::{self as pallet_wrapped_asset};
 use frame_support::{
-    parameter_types, derive_impl,
+    derive_impl, parameter_types,
     traits::{ConstU32, Everything},
 };
+use hex_literal::hex;
 use sp_core::H256;
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
     BuildStorage,
 };
 use xcm::latest::prelude::*;
-use xcm_executor::traits::JustTry;
 use xcm_builder::SignedToAccountId32;
-use hex_literal::hex;
+use xcm_executor::traits::JustTry;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = sp_runtime::AccountId32;
@@ -205,15 +205,15 @@ impl pallet_wrapped_asset::Config for Test {
 }
 
 // Test accounts
-pub const ALICE: AccountId = AccountId::new(
-    hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"]
-);
-pub const BOB: AccountId = AccountId::new(
-    hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"]
-);
-pub const CHARLIE: AccountId = AccountId::new(
-    hex!["90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"]
-);
+pub const ALICE: AccountId = AccountId::new(hex![
+    "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
+]);
+pub const BOB: AccountId = AccountId::new(hex![
+    "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
+]);
+pub const CHARLIE: AccountId = AccountId::new(hex![
+    "90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
+]);
 
 // Build genesis storage
 pub fn new_test_ext() -> sp_io::TestExternalities {

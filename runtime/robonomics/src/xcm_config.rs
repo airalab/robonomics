@@ -17,20 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
     AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-    WeightToFee, XcmInfo, XcmpQueue, MessageQueue,
+    MessageQueue, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
+    RuntimeOrigin, WeightToFee, XcmInfo, XcmpQueue,
 };
+use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
     pallet_prelude::Get,
     parameter_types,
     traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess, TransformOrigin},
     weights::Weight,
 };
+use hex_literal::hex;
 use polkadot_parachain_primitives::primitives::Sibling;
-use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
-use hex_literal::hex;
 
 // Polkadot imports
 use xcm::latest::prelude::*;
@@ -339,7 +339,7 @@ impl sp_runtime::traits::Convert<ParaId, AggregateMessageOrigin> for ParaIdToSib
     fn convert(para_id: ParaId) -> AggregateMessageOrigin {
         AggregateMessageOrigin::Sibling(para_id)
     }
-} 
+}
 
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
