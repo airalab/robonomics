@@ -103,6 +103,9 @@ pub const PAYLOAD_PREFIX: &[u8] = b"cps::payload::";
 /// Storage key prefix for node operations
 pub const OPERATIONS_PREFIX: &[u8] = b"cps::operations::";
 
+/// Storage key prefix for node index
+const NODE_INDEX_PREFIX: &[u8] = b"cps::node_index::";
+
 /// Generate storage key for meta record (node_id first for efficient lookups)
 pub fn meta_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     let mut key = META_PREFIX.to_vec();
@@ -127,43 +130,80 @@ pub fn operation_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     key
 }
 
-/// Store meta record in offchain storage
-#[cfg(feature = "std")]
-pub fn store_meta_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
+/// Generate storage key for node index entry
+/// This tracks which nodes have indexed data for efficient querying
+fn node_index_key(node_id: NodeId) -> Vec<u8> {
+    let mut key = NODE_INDEX_PREFIX.to_vec();
+    key.extend_from_slice(&node_id.0.to_le_bytes());
+    key
+}
+
+/// Register a node in the index
+/// This allows efficient discovery of which nodes have indexed data
+fn register_node_in_index(node_id: NodeId) {
+    let key = node_index_key(node_id);
+    // Store a simple marker (1 byte) to indicate this node has data
+    sp_io::offchain_index::set(&key, &[1u8]);
+}
+
+/// Get list of indexed node IDs
+/// Returns node IDs that have been registered in the index
+fn get_indexed_node_ids() -> Vec<NodeId> {
     use sp_io::offchain;
     
+    let mut node_ids = Vec::new();
+    
+    // Scan for node index entries
+    // In production, consider maintaining a more efficient index structure
+    for nid in 0..10000 {
+        let node_id = NodeId(nid);
+        let key = node_index_key(node_id);
+        
+        if offchain::local_storage_get(
+            sp_core::offchain::StorageKind::PERSISTENT,
+            &key,
+        ).is_some() {
+            node_ids.push(node_id);
+        }
+    }
+    
+    node_ids
+}
+
+/// Store meta record in offchain storage using offchain indexing
+///
+/// This should be called during block execution (in hooks/extrinsics).
+/// Uses `sp_io::offchain_index::set` to write data that will be available
+/// to offchain workers and RPC queries.
+pub fn store_meta_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
     let record = MetaRecord { timestamp, node_id, data };
     let key = meta_key(node_id, timestamp);
     let value = record.encode();
     
-    offchain::local_storage_set(
-        sp_core::offchain::StorageKind::PERSISTENT,
-        &key,
-        &value,
-    );
+    sp_io::offchain_index::set(&key, &value);
+    register_node_in_index(node_id);
 }
 
-/// Store payload record in offchain storage
-#[cfg(feature = "std")]
+/// Store payload record in offchain storage using offchain indexing
+///
+/// This should be called during block execution (in hooks/extrinsics).
+/// Uses `sp_io::offchain_index::set` to write data that will be available
+/// to offchain workers and RPC queries.
 pub fn store_payload_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
-    use sp_io::offchain;
-    
     let record = PayloadRecord { timestamp, node_id, data };
     let key = payload_key(node_id, timestamp);
     let value = record.encode();
     
-    offchain::local_storage_set(
-        sp_core::offchain::StorageKind::PERSISTENT,
-        &key,
-        &value,
-    );
+    sp_io::offchain_index::set(&key, &value);
+    register_node_in_index(node_id);
 }
 
-/// Store node operation in offchain storage
-#[cfg(feature = "std")]
+/// Store node operation in offchain storage using offchain indexing
+///
+/// This should be called during block execution (in hooks/extrinsics).
+/// Uses `sp_io::offchain_index::set` to write data that will be available
+/// to offchain workers and RPC queries.
 pub fn store_node_operation(timestamp: u64, node_id: NodeId, operation: OperationType) {
-    use sp_io::offchain;
-    
     let operation = NodeOperation {
         timestamp,
         node_id,
@@ -172,20 +212,16 @@ pub fn store_node_operation(timestamp: u64, node_id: NodeId, operation: Operatio
     let key = operation_key(node_id, timestamp);
     let value = operation.encode();
     
-    offchain::local_storage_set(
-        sp_core::offchain::StorageKind::PERSISTENT,
-        &key,
-        &value,
-    );
+    sp_io::offchain_index::set(&key, &value);
+    register_node_in_index(node_id);
 }
 
 /// Get meta records within optional time range from offchain storage
 ///
 /// # Performance Note
 /// With node_id specified, queries are efficient using the double-map structure.
-/// Without node_id, scans a configurable range. In production, maintain an index
-/// of active node_ids or use bounded queries.
-pub fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<MetaRecord> {
+/// Without node_id, uses the node index to efficiently query only nodes with data.
+pub fn get_meta_records(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<MetaRecord> {
     use sp_io::offchain;
     
     let mut records = Vec::new();
@@ -208,13 +244,14 @@ pub fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<Node
             }
         }
     } else {
-        // Less efficient: scan multiple nodes
+        // Use node index for efficient querying
         let from = from.unwrap_or(0);
-        let to = to.unwrap_or(from + 1000); // Smaller default range
+        let to = to.unwrap_or(u64::MAX);
+        let indexed_nodes = get_indexed_node_ids();
         
-        for nid in 0..1000 {
-            for timestamp in from..=to.min(from + 1000) {
-                let key = meta_key(NodeId(nid), timestamp);
+        for nid in indexed_nodes {
+            for timestamp in from..=to.min(from + 10000) {
+                let key = meta_key(nid, timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,
@@ -235,8 +272,8 @@ pub fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<Node
 ///
 /// # Performance Note
 /// With node_id specified, queries are efficient using the double-map structure.
-/// Without node_id, scans a configurable range.
-pub fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<PayloadRecord> {
+/// Without node_id, uses the node index to efficiently query only nodes with data.
+pub fn get_payload_records(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<PayloadRecord> {
     use sp_io::offchain;
     
     let mut records = Vec::new();
@@ -259,11 +296,12 @@ pub fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<N
         }
     } else {
         let from = from.unwrap_or(0);
-        let to = to.unwrap_or(from + 1000);
+        let to = to.unwrap_or(u64::MAX);
+        let indexed_nodes = get_indexed_node_ids();
         
-        for nid in 0..1000 {
-            for timestamp in from..=to.min(from + 1000) {
-                let key = payload_key(NodeId(nid), timestamp);
+        for nid in indexed_nodes {
+            for timestamp in from..=to.min(from + 10000) {
+                let key = payload_key(nid, timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,
@@ -284,8 +322,8 @@ pub fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<N
 ///
 /// # Performance Note
 /// With node_id specified, queries are efficient using the double-map structure.
-/// Without node_id, scans a configurable range.
-pub fn get_node_operations(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<NodeOperation> {
+/// Without node_id, uses the node index to efficiently query only nodes with data.
+pub fn get_node_operations(node_id: Option<NodeId>, from: Option<u64>, to: Option<u64>) -> Vec<NodeOperation> {
     use sp_io::offchain;
     
     let mut operations = Vec::new();
@@ -308,11 +346,12 @@ pub fn get_node_operations(from: Option<u64>, to: Option<u64>, node_id: Option<N
         }
     } else {
         let from = from.unwrap_or(0);
-        let to = to.unwrap_or(from + 1000);
+        let to = to.unwrap_or(u64::MAX);
+        let indexed_nodes = get_indexed_node_ids();
         
-        for nid in 0..1000 {
-            for timestamp in from..=to.min(from + 1000) {
-                let key = operation_key(NodeId(nid), timestamp);
+        for nid in indexed_nodes {
+            for timestamp in from..=to.min(from + 10000) {
+                let key = operation_key(nid, timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,

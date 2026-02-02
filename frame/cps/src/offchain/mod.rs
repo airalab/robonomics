@@ -17,8 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Offchain worker implementation for CPS indexer
 //!
-//! This module implements an offchain worker that monitors on-chain CPS events
-//! and indexes them for historical queries via the RPC API.
+//! This module implements offchain indexing for CPS events using Substrate's
+//! `sp_io::offchain_index` API. Data is indexed during block execution and
+//! made available for queries via RPC.
+//!
+//! ## Architecture
+//!
+//! - **Indexing**: During block execution (in hooks/extrinsics), call `index_*` 
+//!   functions which use `sp_io::offchain_index::set()` to write data
+//! - **Querying**: RPC queries use `sp_io::offchain::local_storage_get()` to 
+//!   read indexed data
+//! - **Storage**: Double-map structure with node_id first, then timestamp for
+//!   efficient per-node queries
+//! - **Node Index**: Maintains a list of node_ids with indexed data for efficient
+//!   querying across all nodes
 
 pub mod storage;
 
@@ -32,39 +44,32 @@ use storage::OperationType;
 
 /// Index CPS data from the current block
 ///
-/// This function is called by the offchain worker hook and processes
-/// events from the current block to extract and index CPS-related data.
+/// This function is called by the offchain worker hook. The actual indexing
+/// happens during block execution via the `index_*` functions below, which use
+/// `sp_io::offchain_index::set()` to write data that's accessible to offchain workers.
 pub fn index_cps_data<T: Config>(block_number: BlockNumberFor<T>) {
-    log::debug!(
-        target: "cps-indexer",
-        "Indexing CPS data for block {:?}",
-        block_number
-    );
-    
-    // The offchain worker should read indexed data that was stored during
-    // block execution using `sp_io::offchain_index::set()`
-    //
-    // Event indexing happens in the pallet hooks (on_initialize/on_finalize)
-    // where we have access to block timestamp and can store data with proper keys.
-    //
-    // The offchain worker's role is to:
-    // 1. Monitor the indexed data
-    // 2. Perform additional off-chain processing if needed
-    // 3. The data is already accessible via the storage helpers
-    
     log::debug!(
         target: "cps-indexer",
         "Offchain worker ready at block {:?}",
         block_number
     );
+    
+    // The offchain worker can perform additional processing here if needed.
+    // Data is already indexed during block execution via index_* functions.
 }
 
 /// Index a metadata record
 ///
-/// This should be called during block execution (in hooks/extrinsics)
-/// where we have access to block timestamp.
+/// This should be called during block execution (in hooks/extrinsics) when
+/// node metadata is updated. Uses `sp_io::offchain_index::set()` to write
+/// the data for offchain access.
+///
+/// # Example
+/// ```ignore
+/// let block_num: u64 = <frame_system::Pallet<T>>::block_number().saturated_into();
+/// index_meta_record(block_num, node_id, meta_data);
+/// ```
 pub fn index_meta_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
-    #[cfg(feature = "std")]
     storage::store_meta_record(block_number, node_id, data);
     
     log::trace!(
@@ -77,10 +82,16 @@ pub fn index_meta_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
 
 /// Index a payload record
 ///
-/// This should be called during block execution (in hooks/extrinsics)
-/// where we have access to block timestamp.
+/// This should be called during block execution (in hooks/extrinsics) when
+/// node payload is updated. Uses `sp_io::offchain_index::set()` to write
+/// the data for offchain access.
+///
+/// # Example
+/// ```ignore
+/// let block_num: u64 = <frame_system::Pallet<T>>::block_number().saturated_into();
+/// index_payload_record(block_num, node_id, payload_data);
+/// ```
 pub fn index_payload_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
-    #[cfg(feature = "std")]
     storage::store_payload_record(block_number, node_id, data);
     
     log::trace!(
@@ -93,10 +104,16 @@ pub fn index_payload_record(block_number: u64, node_id: NodeId, data: Vec<u8>) {
 
 /// Index a node operation
 ///
-/// This should be called during block execution (in hooks/extrinsics)
-/// where we have access to block timestamp.
+/// This should be called during block execution (in hooks/extrinsics) for
+/// node lifecycle events (create/move/delete). Uses `sp_io::offchain_index::set()`
+/// to write the data for offchain access.
+///
+/// # Example
+/// ```ignore
+/// let block_num: u64 = <frame_system::Pallet<T>>::block_number().saturated_into();
+/// index_node_operation(block_num, node_id, OperationType::Create(parent_id));
+/// ```
 pub fn index_node_operation(block_number: u64, node_id: NodeId, operation: OperationType) {
-    #[cfg(feature = "std")]
     storage::store_node_operation(block_number, node_id, operation.clone());
     
     log::trace!(
