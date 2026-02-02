@@ -153,7 +153,11 @@ where
         
         let records = api
             .get_meta_records(at_hash, from, to)
-            .map_err(|e| ErrorObjectOwned::owned(1, "Runtime error", Some(format!("{:?}", e))))?;
+            .map_err(|e| ErrorObjectOwned::owned(
+                1, 
+                "Failed to retrieve meta records from runtime", 
+                Some(format!("{:?}", e))
+            ))?;
         
         Ok(records
             .into_iter()
@@ -175,7 +179,11 @@ where
         
         let records = api
             .get_payload_records(at_hash, from, to)
-            .map_err(|e| ErrorObjectOwned::owned(1, "Runtime error", Some(format!("{:?}", e))))?;
+            .map_err(|e| ErrorObjectOwned::owned(
+                1, 
+                "Failed to retrieve payload records from runtime", 
+                Some(format!("{:?}", e))
+            ))?;
         
         Ok(records
             .into_iter()
@@ -197,7 +205,11 @@ where
         
         let operations = api
             .get_node_operations(at_hash, from, to)
-            .map_err(|e| ErrorObjectOwned::owned(1, "Runtime error", Some(format!("{:?}", e))))?;
+            .map_err(|e| ErrorObjectOwned::owned(
+                1, 
+                "Failed to retrieve node operations from runtime", 
+                Some(format!("{:?}", e))
+            ))?;
         
         Ok(operations
             .into_iter()

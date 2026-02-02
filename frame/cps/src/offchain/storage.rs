@@ -128,6 +128,13 @@ pub fn store_node_operation(timestamp: u64, operation_type: Vec<u8>, data: Vec<u
 }
 
 /// Get meta records within time range from offchain storage
+///
+/// # Performance Note
+/// This implementation iterates through every timestamp in the range.
+/// For production use with large time ranges, consider implementing:
+/// - A timestamp index that stores only timestamps with actual records
+/// - Compound keys with prefix iteration support
+/// - A secondary index for efficient range queries
 pub fn get_meta_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
     use sp_io::offchain;
     
@@ -151,6 +158,13 @@ pub fn get_meta_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
 }
 
 /// Get payload records within time range from offchain storage
+///
+/// # Performance Note
+/// This implementation iterates through every timestamp in the range.
+/// For production use with large time ranges, consider implementing:
+/// - A timestamp index that stores only timestamps with actual records
+/// - Compound keys with prefix iteration support
+/// - A secondary index for efficient range queries
 pub fn get_payload_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
     use sp_io::offchain;
     
@@ -174,6 +188,13 @@ pub fn get_payload_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
 }
 
 /// Get node operations within time range from offchain storage
+///
+/// # Performance Note
+/// This implementation iterates through every timestamp in the range.
+/// For production use with large time ranges, consider implementing:
+/// - A timestamp index that stores only timestamps with actual records
+/// - Compound keys with prefix iteration support
+/// - A secondary index for efficient range queries
 pub fn get_node_operations(from: u64, to: u64) -> Vec<(u64, Vec<u8>, Vec<u8>)> {
     use sp_io::offchain;
     
