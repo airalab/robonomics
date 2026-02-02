@@ -77,12 +77,8 @@ fn test_successful_wrap_and_send() {
                 destination: Location::new(
                     0,
                     [Junction::AccountId32 {
-                        network: None,
-                        id: {
-                            let mut bytes = [0u8; 32];
-                            bytes[0] = 1; // ALICE = 1
-                            bytes
-                        },
+                        network: Some(NetworkId::Kusama),
+                        id: *ALICE.as_ref(),
                     }],
                 ),
             }
@@ -186,12 +182,8 @@ fn test_default_beneficiary() {
                 destination: Location::new(
                     0,
                     [Junction::AccountId32 {
-                        network: None,
-                        id: {
-                            let mut bytes = [0u8; 32];
-                            bytes[0] = 1; // ALICE = 1
-                            bytes
-                        },
+                        network: Some(NetworkId::Kusama),
+                        id: *ALICE.as_ref(),
                     }],
                 ),
             }

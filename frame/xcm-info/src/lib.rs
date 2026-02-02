@@ -82,6 +82,7 @@ pub mod pallet {
     use frame_support::traits::StorageVersion;
     use frame_system::{ensure_root, pallet_prelude::*};
     use sp_runtime::traits::MaybeEquivalence;
+    use sp_std::vec::Vec;
     use xcm::latest::prelude::*;
 
     /// The current storage version
@@ -99,7 +100,7 @@ pub mod pallet {
         /// identify each asset in the local asset registry. The type must implement
         /// `Parameter`, `Copy`, `Default`, and `MaxEncodedLen` for proper storage and
         /// parameter passing.
-        type AssetId: Parameter + Copy + Default + MaxEncodedLen;
+        type AssetId: Parameter + Copy + Default + MaxEncodedLen + MaybeSerializeDeserialize;
 
         /// The overarching event type for the runtime.
         ///
@@ -268,6 +269,35 @@ pub mod pallet {
         }
         fn convert_back(what: &T::AssetId) -> Option<Location> {
             <LocationOf<T>>::get(what)
+        }
+    }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        /// Relay chain network: Kusama / Polkadot / etc.
+        pub relay: NetworkId,
+        /// AssetId <> Location pre-defined links.
+        pub links: Vec<(T::AssetId, Location)>,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                relay: NetworkId::Polkadot,
+                links: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            <RelayNetwork<T>>::put(self.relay);
+
+            for (asset_id, location) in &self.links {
+                <LocationOf<T>>::insert(asset_id, location);
+                <AssetIdOf<T>>::insert(location, asset_id);
+            }
         }
     }
 }

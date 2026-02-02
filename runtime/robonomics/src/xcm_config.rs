@@ -17,15 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
     AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
-    ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-    WeightToFee, XcmInfo, XcmpQueue,
+    MessageQueue, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
+    RuntimeOrigin, WeightToFee, XcmInfo, XcmpQueue,
 };
+use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
     pallet_prelude::Get,
     parameter_types,
-    traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess},
+    traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess, TransformOrigin},
     weights::Weight,
 };
+use hex_literal::hex;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
@@ -215,6 +217,12 @@ impl Contains<RuntimeCall> for SafeCallFilter {
     }
 }
 
+/*
+pub type WaivedLocations = (
+    RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>,
+);
+*/
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
@@ -238,7 +246,13 @@ impl Config for XcmConfig {
     type MaxAssetsIntoHolding = ConstU32<64>;
     type AssetLocker = ();
     type AssetExchanger = ();
-    type FeeManager = ();
+    type FeeManager = xcm_executor::traits::WaiveDeliveryFees;
+    /*
+    type FeeManager = XcmFeeManagerFromComponents<
+        WaivedLocations,
+        SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>
+    >;
+    */
     type MessageExporter = ();
     type UniversalAliases = Nothing;
     type CallDispatcher = WithOriginFilter<SafeCallFilter>;
@@ -319,13 +333,19 @@ pub type PriceForSiblingParachainDelivery = polkadot_runtime_common::xcm_sender:
     XcmpQueue,
 >;
 
+/// Convert a sibling `ParaId` to an `AggregateMessageOrigin`.
+pub struct ParaIdToSibling;
+impl sp_runtime::traits::Convert<ParaId, AggregateMessageOrigin> for ParaIdToSibling {
+    fn convert(para_id: ParaId) -> AggregateMessageOrigin {
+        AggregateMessageOrigin::Sibling(para_id)
+    }
+}
+
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type ChannelInfo = ParachainSystem;
     type VersionWrapper = PolkadotXcm;
-    // XcmpQueue field is currently () as message enqueueing is handled internally
-    // by the pallet's own queue management system and ParachainSystem
-    type XcmpQueue = ();
+    type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
     type MaxInboundSuspended = MaxInboundSuspended;
     type MaxActiveOutboundChannels = MaxActiveOutboundChannels;
     type MaxPageSize = MaxPageSize;
@@ -345,5 +365,34 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 impl pallet_xcm_info::Config for Runtime {
     type AssetId = AssetId;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
+    pub ForeignAssetLocation: Location = Location::new(
+        2,
+        [
+            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
+            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
+        ],
+    );
+
+    /// Asset Hub location
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+
+    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
+    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
+    pub const XcmFeeAmount: u128 = 10_000_000_000;
+}
+
+impl pallet_wrapped_asset::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type NativeCurrency = Balances;
+    type ForeignAssetLocation = ForeignAssetLocation;
+    type AssetHubLocation = AssetHubLocation;
+    type XcmFeeAmount = XcmFeeAmount;
+    type ConvertBalance = JustTry;
+    type AccountIdConversion = LocalOriginToLocation;
     type WeightInfo = ();
 }

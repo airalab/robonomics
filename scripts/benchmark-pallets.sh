@@ -64,6 +64,7 @@ PALLETS=(
     "cumulus_pallet_weight_reclaim:runtime/robonomics/src/weights/cumulus_pallet_weight_reclaim.rs"
     # XCM pallets - saved to runtime/robonomics/src/weights/
     #"cumulus_pallet_xcmp_queue:runtime/robonomics/src/weights/cumulus_pallet_xcmp_queue.rs"
+    "pallet_message_queue:runtime/robonomics/src/weights/pallet_message_queue.rs"
     #"pallet_xcm:runtime/robonomics/src/weights/pallet_xcm.rs"
     # Robonomics custom pallets - saved to their respective frame directories
     "pallet_robonomics_datalog:frame/datalog/src/weights.rs"
@@ -72,7 +73,7 @@ PALLETS=(
     "pallet_robonomics_liability:frame/liability/src/weights.rs"
     "pallet_robonomics_rws:frame/rws/src/weights.rs"
     "pallet_robonomics_cps:frame/cps/src/weights.rs"
-    "pallet_wrapped_asset:frame/wrapped-asset/src/weights.rs"
+    #"pallet_wrapped_asset:frame/wrapped-asset/src/weights.rs"
     "pallet_xcm_info:frame/xcm-info/src/weights.rs"
 )
 

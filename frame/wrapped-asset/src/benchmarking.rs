@@ -42,7 +42,7 @@ mod benchmarks {
         TotalWrapped::<T>::put(amount + amount);
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller.clone()), amount, None);
+        _(RawOrigin::Signed(caller), amount, None);
 
         // Verify the wrapped amount was decreased
         assert!(TotalWrapped::<T>::get() < amount + amount);

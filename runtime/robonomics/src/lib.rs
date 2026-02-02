@@ -47,7 +47,6 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot, EnsureSigned,
 };
-use hex_literal::hex;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
@@ -59,7 +58,6 @@ use sp_runtime::{
     BoundedVec, FixedPointNumber, Perbill, Perquintill,
 };
 use sp_std::prelude::*;
-use xcm::latest::prelude::{Junction, Location, NetworkId, Parachain};
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -392,7 +390,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type OnSystemEvent = ();
     type SelfParaId = parachain_info::Pallet<Runtime>;
-    type DmpQueue = frame_support::traits::EnqueueWithOrigin<(), RelayOrigin>;
+    type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
     type OutboundXcmpMessageSource = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
     type XcmpMessageHandler = cumulus_pallet_xcmp_queue::Pallet<Runtime>;
     type ReservedDmpWeight = ReservedDmpWeight;
@@ -401,6 +399,57 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
         cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
     type ConsensusHook = ConsensusHook;
     type RelayParentOffset = ConstU32<0>;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub MessageQueueServiceWeight: Weight =
+        Perbill::from_percent(35) * RuntimeBlockWeights::get().max_block;
+}
+
+pub struct NarrowOriginToSibling<Inner>(sp_std::marker::PhantomData<Inner>);
+impl<Inner: frame_support::traits::QueuePausedQuery<cumulus_primitives_core::ParaId>>
+    frame_support::traits::QueuePausedQuery<AggregateMessageOrigin>
+    for NarrowOriginToSibling<Inner>
+{
+    fn is_paused(origin: &AggregateMessageOrigin) -> bool {
+        match origin {
+            AggregateMessageOrigin::Sibling(id) => Inner::is_paused(id),
+            _ => false,
+        }
+    }
+}
+
+impl<Inner: pallet_message_queue::OnQueueChanged<cumulus_primitives_core::ParaId>>
+    pallet_message_queue::OnQueueChanged<AggregateMessageOrigin> for NarrowOriginToSibling<Inner>
+{
+    fn on_queue_changed(origin: AggregateMessageOrigin, fp: frame_support::traits::QueueFootprint) {
+        if let AggregateMessageOrigin::Sibling(id) = origin {
+            Inner::on_queue_changed(id, fp)
+        }
+    }
+}
+
+impl pallet_message_queue::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    #[cfg(feature = "runtime-benchmarks")]
+    type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<
+        cumulus_primitives_core::AggregateMessageOrigin,
+    >;
+    #[cfg(not(feature = "runtime-benchmarks"))]
+    type MessageProcessor = xcm_builder::ProcessXcmMessage<
+        AggregateMessageOrigin,
+        xcm_executor::XcmExecutor<XcmConfig>,
+        RuntimeCall,
+    >;
+    type Size = u32;
+    // The XCMP queue pallet is only ever able to handle the `Sibling(ParaId)` origin:
+    type QueueChangeHandler = NarrowOriginToSibling<XcmpQueue>;
+    type QueuePausedQuery = NarrowOriginToSibling<XcmpQueue>;
+    type HeapSize = sp_core::ConstU32<{ 103 * 1024 }>;
+    type MaxStale = sp_core::ConstU32<8>;
+    type ServiceWeight = MessageQueueServiceWeight;
+    type IdleMaxServiceWeight = MessageQueueServiceWeight;
     type WeightInfo = ();
 }
 
@@ -540,33 +589,6 @@ impl pallet_robonomics_liability::Config for Runtime {
 }
 
 parameter_types! {
-    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
-    pub ForeignAssetLocation: Location = Location::new(
-        2,
-        [
-            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
-            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
-        ],
-    );
-
-    /// Asset Hub location
-    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
-
-    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
-    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
-    pub const XcmFeeAmount: u128 = 10_000_000_000;
-}
-
-impl pallet_wrapped_asset::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type NativeCurrency = Balances;
-    type ForeignAssetLocation = ForeignAssetLocation;
-    type AssetHubLocation = AssetHubLocation;
-    type XcmFeeAmount = XcmFeeAmount;
-    type WeightInfo = ();
-}
-
-parameter_types! {
     pub MbmServiceWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
 }
 
@@ -697,6 +719,9 @@ mod runtime {
     #[runtime::pallet_index(74)]
     pub type XcmInfo = pallet_xcm_info;
 
+    #[runtime::pallet_index(75)]
+    pub type MessageQueue = pallet_message_queue;
+
     //
     // Elastic scaling consensus pallets.
     //
@@ -807,10 +832,11 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
-    [pallet_wrapped_asset, WrappedXRT]
+    // TODO: [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
-    [cumulus_pallet_xcmp_queue, XcmpQueue]
-    // Note: pallet_xcm benchmarks require special setup and are not included in standard benchmarking
+    // [cumulus_pallet_xcmp_queue, XcmpQueue]
+    [pallet_message_queue, MessageQueue]
+    //[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
     [pallet_xcm_info, XcmInfo]
 );
 

@@ -49,6 +49,7 @@ pallet-membership.workspace = true
 pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
+pallet-message-queue.workspace = true
 pallet-preimage.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-system.workspace = true
@@ -132,6 +133,7 @@ std = [
   "pallet-session/std",
   "pallet-treasury/std",
   "pallet-membership/std",
+  "pallet-message-queue/std",
   "pallet-multisig/std",
   "pallet-preimage/std",
   "frame-support/std",
@@ -181,6 +183,7 @@ runtime-benchmarks = [
   "pallet-timestamp/runtime-benchmarks",
   "pallet-utility/runtime-benchmarks",
   "pallet-multisig/runtime-benchmarks",
+  "pallet-message-queue/runtime-benchmarks",
   "pallet-vesting/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-session/runtime-benchmarks",
