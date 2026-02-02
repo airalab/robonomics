@@ -976,9 +976,9 @@ impl_runtime_apis! {
             use xcm_executor::traits::ConvertLocation;
             
             // Try to convert the versioned location to the latest version
-            let location_v5: Result<Location, ()> = location.try_into();
+            let latest_location: Result<Location, ()> = location.try_into();
             
-            match location_v5 {
+            match latest_location {
                 Ok(loc) => xcm_config::LocationToAccountId::convert_location(&loc),
                 Err(_) => None,
             }
