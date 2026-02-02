@@ -1126,6 +1126,14 @@ Node operations additionally include an `operationType` field:
 - Storage size grows with activity; implement pruning if needed
 - Queries are bounded by time range to prevent excessive iteration
 - RPC calls are non-blocking and don't affect chain performance
+- **Important**: Current implementation iterates through every timestamp in range. For production use with large time ranges, add bounds checking in the Runtime API implementation to prevent potential DoS via excessive queries.
+
+### Security Considerations
+
+- **Public RPC Endpoints**: The RPC endpoints are publicly accessible. Consider implementing rate limiting at the node level for production deployments.
+- **No Data Encryption**: Offchain storage is not encrypted, but this is acceptable since indexed data comes from public on-chain events.
+- **No Consensus Impact**: Offchain worker operations are isolated and don't affect chain consensus.
+- **Local Storage**: Data is stored locally per node, not broadcast to the network.
 
 ## Roadmap
 
