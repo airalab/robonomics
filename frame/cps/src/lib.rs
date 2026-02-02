@@ -412,6 +412,9 @@ pub mod weights;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "offchain-worker")]
+mod offchain;
+
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -1001,7 +1004,12 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        #[cfg(feature = "offchain-worker")]
+        fn offchain_worker(block_number: BlockNumberFor<T>) {
+            offchain::index_cps_data::<T>(block_number);
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {

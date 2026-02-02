@@ -1,0 +1,29 @@
+[package]
+name = "pallet-robonomics-cps-rpc"
+description = "RPC extension for Robonomics CPS Indexer"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license = "Apache-2.0"
+
+[dependencies]
+jsonrpsee = { workspace = true, features = ["client-core", "server", "macros"] }
+serde = { workspace = true, features = ["derive"] }
+hex = { workspace = true }
+parity-scale-codec = { workspace = true }
+sp-api = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-runtime = { workspace = true }
+pallet-robonomics-cps-rpc-runtime-api = { path = "../runtime-api", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "sp-api/std",
+  "sp-blockchain/std",
+  "sp-runtime/std",
+  "pallet-robonomics-cps-rpc-runtime-api/std",
+]

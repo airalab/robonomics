@@ -988,6 +988,145 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 | **IPFS + DB** | Decentralized storage | No ownership enforcement | Content distribution |
 | **ERC-721 NFTs** | Standard, composable | Gas-expensive, limited structure | Digital collectibles |
 
+## Offchain Worker Indexer (Optional Feature)
+
+The CPS pallet includes an optional offchain worker that collects historical data and exposes it via RPC API.
+
+### Architecture
+
+The offchain worker runs in the background and:
+1. Monitors on-chain CPS events (node creation, updates, deletions)
+2. Indexes events with timestamps in offchain storage
+3. Makes historical data queryable via Runtime API and RPC endpoints
+
+### Enabling the Feature
+
+Add the `offchain-worker` feature flag to enable indexing:
+
+```toml
+pallet-robonomics-cps = { 
+    default-features = false, 
+    path = "../frame/cps",
+    features = ["offchain-worker"]
+}
+```
+
+### Storage Structure
+
+The indexer stores three types of records in offchain storage:
+
+1. **Meta Records**: `cps::meta::<timestamp>` - Metadata updates
+2. **Payload Records**: `cps::payload::<timestamp>` - Payload updates
+3. **Node Operations**: `cps::operations::<timestamp>` - Node lifecycle events
+
+All records include:
+- Unix timestamp (u64)
+- Associated data (Vec<u8>)
+- Operation type (for node operations)
+
+### Runtime API Integration
+
+Implement the Runtime API in your runtime:
+
+```rust
+impl pallet_robonomics_cps_rpc_runtime_api::CpsIndexerApi<Block> for Runtime {
+    fn get_meta_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
+        pallet_robonomics_cps::offchain::storage::get_meta_records(from, to)
+    }
+    
+    fn get_payload_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
+        pallet_robonomics_cps::offchain::storage::get_payload_records(from, to)
+    }
+    
+    fn get_node_operations(from: u64, to: u64) -> Vec<(u64, Vec<u8>, Vec<u8>)> {
+        pallet_robonomics_cps::offchain::storage::get_node_operations(from, to)
+    }
+}
+```
+
+### RPC Extension Setup
+
+Add the RPC extension to your node's RPC handler:
+
+```rust
+use pallet_robonomics_cps_rpc::{CpsIndexerRpc, CpsIndexerRpcApiServer};
+
+// In your RPC setup
+let cps_rpc = CpsIndexerRpc::new(client.clone());
+io.merge(cps_rpc.into_rpc())?;
+```
+
+### RPC Endpoints
+
+Query historical data via JSON-RPC:
+
+**Get meta records:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getMetaRecords", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+**Get payload records:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getPayloadRecords", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+**Get node operations:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getNodeOperations", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+### Response Format
+
+All RPC methods return arrays of timestamped records:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "timestamp": 1704067200,
+      "data": "0x48656c6c6f20576f726c64"
+    },
+    {
+      "timestamp": 1704070800,
+      "data": "0x54657374204461746131"
+    }
+  ],
+  "id": 1
+}
+```
+
+Node operations additionally include an `operationType` field:
+
+```json
+{
+  "timestamp": 1704067200,
+  "operationType": "create",
+  "data": "0x..."
+}
+```
+
+### Benefits
+
+- **Historical Analysis**: Query past system states and changes
+- **Audit Trails**: Track when nodes were created/modified
+- **Monitoring**: Build dashboards showing system activity over time
+- **Debugging**: Investigate issues by reviewing historical events
+- **Compliance**: Maintain queryable records for regulatory requirements
+
+### Performance Considerations
+
+- Offchain storage is node-local (not replicated across the network)
+- Storage size grows with activity; implement pruning if needed
+- Queries are bounded by time range to prevent excessive iteration
+- RPC calls are non-blocking and don't affect chain performance
+
 ## Roadmap
 
 **Current (v1):**
@@ -995,13 +1134,13 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 - ✅ Plain and encrypted data storage
 - ✅ O(1) operations via path storage
 - ✅ Compact encoding for efficiency
+- ✅ Offchain worker indexer with RPC API (optional feature)
 
 **Planned (v2):**
 - 🔮 Multi-owner nodes with role-based permissions
 - 🔮 Node templates for rapid deployment
 - 🔮 Batch operations for bulk updates
 - 🔮 Additional encryption algorithms (AES-GCM, ChaCha20)
-- 🔮 Off-chain worker integration for automated maintenance
 
 ## Technical Documentation
 

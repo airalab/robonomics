@@ -25,6 +25,8 @@ members = [
   "frame/digital-twin",
   "frame/xcm-info",
   "frame/cps",
+  "frame/cps/rpc",
+  "frame/cps/rpc/runtime-api",
   "frame/wrapped-asset",
   "runtime/robonomics",
   "tools/libcps",
