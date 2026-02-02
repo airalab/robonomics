@@ -73,6 +73,28 @@ pub struct NodeOperation {
     pub operation: OperationType,
 }
 
+/// CPS event that can be indexed
+#[derive(Debug, Clone, Encode, Decode, TypeInfo)]
+pub enum CpsEvent {
+    /// Node created [node_id, parent_id]
+    NodeCreated(NodeId, Option<NodeId>),
+    /// Node metadata set [node_id, data]
+    MetaSet(NodeId, Vec<u8>),
+    /// Node payload set [node_id, data]
+    PayloadSet(NodeId, Vec<u8>),
+    /// Node moved [node_id, old_parent, new_parent]
+    NodeMoved(NodeId, Option<NodeId>, NodeId),
+    /// Node deleted [node_id]
+    NodeDeleted(NodeId),
+}
+
+/// Event queue for a block
+#[derive(Debug, Clone, Encode, Decode, TypeInfo)]
+pub struct EventQueue {
+    pub block_number: u64,
+    pub events: Vec<CpsEvent>,
+}
+
 #[cfg(feature = "std")]
 mod hex_serde {
     use serde::{Deserialize, Deserializer, Serializer};
@@ -106,6 +128,9 @@ pub const OPERATIONS_PREFIX: &[u8] = b"cps::operations::";
 /// Storage key prefix for node index
 const NODE_INDEX_PREFIX: &[u8] = b"cps::node_index::";
 
+/// Storage key prefix for event queue
+const EVENT_QUEUE_PREFIX: &[u8] = b"cps::event_queue::";
+
 /// Generate storage key for meta record (node_id first for efficient lookups)
 pub fn meta_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     let mut key = META_PREFIX.to_vec();
@@ -135,6 +160,14 @@ pub fn operation_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
 fn node_index_key(node_id: NodeId) -> Vec<u8> {
     let mut key = NODE_INDEX_PREFIX.to_vec();
     key.extend_from_slice(&node_id.0.to_le_bytes());
+    key
+}
+
+/// Generate storage key for event queue
+/// This stores events for a specific block to be processed by offchain worker
+fn event_queue_key(block_number: u64) -> Vec<u8> {
+    let mut key = EVENT_QUEUE_PREFIX.to_vec();
+    key.extend_from_slice(&block_number.to_le_bytes());
     key
 }
 
@@ -168,6 +201,44 @@ fn get_indexed_node_ids() -> Vec<NodeId> {
     }
     
     node_ids
+}
+
+/// Store event queue for a block in offchain storage
+///
+/// This should be called once per block in `on_finalize` hook.
+/// Uses `sp_io::offchain_index::set` to write event queue that will be
+/// processed by the offchain worker.
+pub fn store_event_queue(block_number: u64, events: Vec<CpsEvent>) {
+    let queue = EventQueue { block_number, events };
+    let key = event_queue_key(block_number);
+    let value = queue.encode();
+    
+    sp_io::offchain_index::set(&key, &value);
+    
+    log::debug!(
+        target: "cps-indexer",
+        "Stored event queue for block {} with {} events",
+        block_number,
+        queue.events.len()
+    );
+}
+
+/// Retrieve event queue for a block from offchain storage
+///
+/// This should be called by the offchain worker to process events.
+pub fn get_event_queue(block_number: u64) -> Option<EventQueue> {
+    use sp_io::offchain;
+    
+    let key = event_queue_key(block_number);
+    
+    if let Some(value) = offchain::local_storage_get(
+        sp_core::offchain::StorageKind::PERSISTENT,
+        &key,
+    ) {
+        EventQueue::decode(&mut &value[..]).ok()
+    } else {
+        None
+    }
 }
 
 /// Store meta record in offchain storage using offchain indexing

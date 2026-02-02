@@ -39,23 +39,94 @@ mod tests;
 
 use crate::{Config, NodeId};
 use frame_system::pallet_prelude::*;
+use sp_runtime::SaturatedConversion;
 use sp_std::vec::Vec;
 use storage::OperationType;
 
 /// Index CPS data from the current block
 ///
-/// This function is called by the offchain worker hook. The actual indexing
-/// happens during block execution via the `index_*` functions below, which use
-/// `sp_io::offchain_index::set()` to write data that's accessible to offchain workers.
+/// This function is called by the offchain worker hook. It reads the event queue
+/// that was stored during block execution and processes each event to index data
+/// into appropriate storage structures.
 pub fn index_cps_data<T: Config>(block_number: BlockNumberFor<T>) {
+    let block_num: u64 = block_number.saturated_into();
+    
     log::debug!(
         target: "cps-indexer",
-        "Offchain worker ready at block {:?}",
+        "Offchain worker processing block {:?}",
         block_number
     );
     
-    // The offchain worker can perform additional processing here if needed.
-    // Data is already indexed during block execution via index_* functions.
+    // Retrieve event queue for this block
+    if let Some(queue) = storage::get_event_queue(block_num) {
+        log::debug!(
+            target: "cps-indexer",
+            "Processing {} events from block {}",
+            queue.events.len(),
+            queue.block_number
+        );
+        
+        // Process each event
+        for event in queue.events {
+            match event {
+                storage::CpsEvent::NodeCreated(node_id, parent_id) => {
+                    storage::store_node_operation(
+                        block_num,
+                        node_id,
+                        storage::OperationType::Create(parent_id),
+                    );
+                    log::trace!(
+                        target: "cps-indexer",
+                        "Indexed NodeCreated: node_id={:?}, parent={:?}",
+                        node_id,
+                        parent_id
+                    );
+                }
+                storage::CpsEvent::MetaSet(node_id, data) => {
+                    storage::store_meta_record(block_num, node_id, data);
+                    log::trace!(
+                        target: "cps-indexer",
+                        "Indexed MetaSet: node_id={:?}",
+                        node_id
+                    );
+                }
+                storage::CpsEvent::PayloadSet(node_id, data) => {
+                    storage::store_payload_record(block_num, node_id, data);
+                    log::trace!(
+                        target: "cps-indexer",
+                        "Indexed PayloadSet: node_id={:?}",
+                        node_id
+                    );
+                }
+                storage::CpsEvent::NodeMoved(node_id, old_parent, new_parent) => {
+                    storage::store_node_operation(
+                        block_num,
+                        node_id,
+                        storage::OperationType::Move(old_parent, new_parent),
+                    );
+                    log::trace!(
+                        target: "cps-indexer",
+                        "Indexed NodeMoved: node_id={:?}, from={:?}, to={:?}",
+                        node_id,
+                        old_parent,
+                        new_parent
+                    );
+                }
+                storage::CpsEvent::NodeDeleted(node_id) => {
+                    storage::store_node_operation(
+                        block_num,
+                        node_id,
+                        storage::OperationType::Delete,
+                    );
+                    log::trace!(
+                        target: "cps-indexer",
+                        "Indexed NodeDeleted: node_id={:?}",
+                        node_id
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Index a metadata record
