@@ -990,39 +990,51 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 
 ## Offchain Worker Indexer (Optional Feature)
 
-The CPS pallet includes an optional offchain worker that collects historical data and exposes it via RPC API.
+The CPS pallet includes an efficient offchain worker that collects historical data using an **event-based indexing pattern** and exposes it via RPC API.
 
 ### Architecture
 
-The offchain worker runs in the background and:
-1. Monitors on-chain CPS events (node creation, updates, deletions)
-2. Indexes events with timestamps in offchain storage
-3. Makes historical data queryable via Runtime API and RPC endpoints
+**Event-Based Indexing Pattern:**
+
+The indexer uses a highly efficient single-write-per-block pattern:
+
+1. **During Block Execution**: As extrinsics execute, CPS events (node creation, updates, deletions) are tracked in temporary storage (`ModifiedNodesThisBlock`)
+2. **In `on_finalize` Hook**: All collected events are written **once** to offchain storage as a single event queue using `sp_io::offchain_index::set()`
+3. **Offchain Worker**: Reads the event queue and processes each event, indexing data into queryable storage structures
+
+**Benefits:**
+- ✅ **Single write per block** instead of multiple writes during execution
+- ✅ **Automatic** - no manual integration needed
+- ✅ **Efficient** - minimal overhead during block execution  
+- ✅ **Clean separation** - event collection happens in runtime, processing in offchain worker
 
 ### Enabling the Feature
 
-Add the `offchain-worker` feature flag to enable indexing:
+Add the `offchain-indexer` feature flag to enable indexing:
 
 ```toml
 pallet-robonomics-cps = { 
     default-features = false, 
     path = "../frame/cps",
-    features = ["offchain-worker"]
+    features = ["offchain-indexer"]
 }
 ```
 
 ### Storage Structure
 
-The indexer stores three types of records in offchain storage:
+The indexer uses a double-map storage structure with **node_id first**, then block number:
 
-1. **Meta Records**: `cps::meta::<timestamp>` - Metadata updates
-2. **Payload Records**: `cps::payload::<timestamp>` - Payload updates
-3. **Node Operations**: `cps::operations::<timestamp>` - Node lifecycle events
+1. **Meta Records**: `cps::meta::<node_id><block_number>` - Metadata updates
+2. **Payload Records**: `cps::payload::<node_id><block_number>` - Payload updates
+3. **Node Operations**: `cps::operations::<node_id><block_number>` - Node lifecycle events
+4. **Node Index**: `cps::node_index::<node_id>` - Tracks which nodes have indexed data
+5. **Event Queue**: `cps::event_queue::<block_number>` - Pending events for processing
 
 All records include:
-- Unix timestamp (u64)
-- Associated data (Vec<u8>)
-- Operation type (for node operations)
+- Block number (as timestamp, u64)
+- Node ID for efficient filtering
+- Associated data (Vec<u8>, encoded)
+- Operation type (for node operations: Create/Move/Delete)
 
 ### Runtime API Integration
 
@@ -1030,19 +1042,33 @@ Implement the Runtime API in your runtime:
 
 ```rust
 impl pallet_robonomics_cps_rpc_runtime_api::CpsIndexerApi<Block> for Runtime {
-    fn get_meta_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
-        pallet_robonomics_cps::offchain::storage::get_meta_records(from, to)
+    fn get_meta_records(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<MetaRecord> {
+        pallet_robonomics_cps::offchain::storage::get_meta_records(node_id, from, to)
     }
     
-    fn get_payload_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)> {
-        pallet_robonomics_cps::offchain::storage::get_payload_records(from, to)
+    fn get_payload_records(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<PayloadRecord> {
+        pallet_robonomics_cps::offchain::storage::get_payload_records(node_id, from, to)
     }
     
-    fn get_node_operations(from: u64, to: u64) -> Vec<(u64, Vec<u8>, Vec<u8>)> {
-        pallet_robonomics_cps::offchain::storage::get_node_operations(from, to)
+    fn get_node_operations(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<NodeOperation> {
+        pallet_robonomics_cps::offchain::storage::get_node_operations(node_id, from, to)
     }
 }
 ```
+
+Note: **No manual index_* calls needed!** Events are automatically tracked and indexed.
 
 ### RPC Extension Setup
 
