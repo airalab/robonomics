@@ -981,7 +981,7 @@ impl_runtime_apis! {
     // implements the required Encode and TypeInfo traits for the XCM runtime API
     impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
         fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: xcm::Version) -> Result<xcm_runtime_apis::dry_run::CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
-            PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, OriginCaller, RuntimeCall>(origin, call, result_xcms_version)
+            PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, _, _>(origin, call, result_xcms_version)
         }
 
         fn dry_run_xcm(origin_location: xcm::VersionedLocation, xcm: xcm::VersionedXcm<RuntimeCall>) -> Result<xcm_runtime_apis::dry_run::XcmDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
