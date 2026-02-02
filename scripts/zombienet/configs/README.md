@@ -23,36 +23,18 @@ Comprehensive XCM testing configuration with:
 - AssetHub parachain (ID 1000): 1 collator with XCM tracing
 - Robonomics parachain (ID 2048): 2 collators with XCM tracing
 
-**Use case:** Testing UMP, DMP, XCMP messages, and basic asset transfers.
+**Use case:** Testing UMP, DMP, XCMP messages, asset transfers, and AssetHub integration.
 
 **Features:**
-- Enhanced logging with `-lxcm=trace` for debugging
+- Enhanced logging with `-lxcm=trace` for debugging XCM messages
 - Proper parachain ID (2048) matching production configuration
-- Support for cross-parachain messaging
+- Support for cross-parachain messaging (XCMP)
+- Comprehensive coverage for all XCM test scenarios
 
 **WebSocket endpoints:**
 - Relay chain: `ws://127.0.0.1:9944`
 - AssetHub: `ws://127.0.0.1:9910`
 - Robonomics: `ws://127.0.0.1:9988` (collator 1), `ws://127.0.0.1:9989` (collator 2)
-
-### assethub-xcm.toml
-AssetHub-specific XCM configuration with:
-- Relay chain (Rococo): 3 validators for enhanced security
-- AssetHub parachain (ID 1000): 2 collators with asset tracing
-- Robonomics parachain (ID 2048): 2 collators with asset tracing
-
-**Use case:** Testing `pallet-wrapped-asset`, asset registration, and complex asset transfers.
-
-**Features:**
-- Additional validator for testing complex consensus scenarios
-- Asset-specific logging with `-lassets=trace`
-- Multiple collators on both parachains for redundancy
-- Optimized for testing bidirectional asset flows
-
-**WebSocket endpoints:**
-- Relay chain: `ws://127.0.0.1:9944`
-- AssetHub: `ws://127.0.0.1:9910`
-- Robonomics: `ws://127.0.0.1:9988`
 
 ## Parachain IDs
 
@@ -76,14 +58,11 @@ All configurations test the XCM setup defined in `runtime/robonomics/src/xcm_con
 ### Using zombienet CLI:
 
 ```bash
-# Basic local network
+# Basic local network (for simple development)
 zombienet spawn configs/robonomics-local.toml -p native
 
-# XCM test network
+# XCM test network (recommended for XCM testing)
 zombienet spawn configs/xcm-tests.toml -p native
-
-# AssetHub test network
-zombienet spawn configs/assethub-xcm.toml -p native
 ```
 
 ### Using the spawn script:

@@ -17,8 +17,7 @@ This test suite validates the XCM integration of the Robonomics parachain, inclu
 scripts/zombienet/
 ├── configs/                    # Network topology configurations
 │   ├── robonomics-local.toml  # Basic local setup
-│   ├── xcm-tests.toml         # Main XCM test configuration
-│   ├── assethub-xcm.toml      # AssetHub-specific tests
+│   ├── xcm-tests.toml         # XCM test configuration (recommended)
 │   └── README.md              # Configuration documentation
 ├── tests/                      # Test scripts
 │   ├── integration-tests.js   # Main test runner
@@ -95,11 +94,11 @@ node --version
 ```bash
 cd scripts/zombienet
 
-# Spawn network with XCM test configuration
+# Spawn network with XCM test configuration (default)
 ./spawn-network.sh
 
-# Or specify a different configuration
-./spawn-network.sh configs/assethub-xcm.toml
+# Or specify robonomics-local for basic development
+./spawn-network.sh configs/robonomics-local.toml
 ```
 
 The network will start with:

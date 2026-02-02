@@ -10,8 +10,7 @@ Successfully implemented comprehensive Zombienet-based XCM tests for the Robonom
 scripts/zombienet/
 ├── configs/                          # Network topology configurations
 │   ├── robonomics-local.toml        # Basic local setup
-│   ├── xcm-tests.toml               # Main XCM test configuration
-│   ├── assethub-xcm.toml            # AssetHub-specific tests
+│   ├── xcm-tests.toml               # XCM test configuration (recommended)
 │   └── README.md                     # Configuration documentation
 ├── tests/                            # Test scripts
 │   ├── integration-tests.js         # Main test runner
@@ -138,13 +137,7 @@ scripts/zombienet/
 - Robonomics: Parachain ID 2048 (production)
 - AssetHub: Parachain ID 1000
 - Multiple collators for redundancy
-
-#### C. assethub-xcm.toml
-- AssetHub-focused testing
-- 3 relay chain validators for enhanced security
-- Asset-specific logging: `-lassets=trace`
-- 2 collators on both parachains
-- Optimized for bidirectional asset flows
+- Covers all XCM test scenarios including AssetHub integration
 
 ### 5. Documentation ✅
 
