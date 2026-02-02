@@ -26,6 +26,7 @@ frame-benchmarking = { workspace = true, optional = true }
 sp-io = { workspace = true }
 pallet-balances = { workspace = true, features = ["std"] }
 pallet-proxy = { workspace = true, features = ["std"] }
+serde_json = { workspace = true }
 
 [features]
 default = ["std"]

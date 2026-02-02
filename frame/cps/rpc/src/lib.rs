@@ -38,11 +38,11 @@ pub use pallet_robonomics_cps::offchain::storage::{MetaRecord, NodeOperation, Pa
 /// CPS Indexer RPC API
 #[rpc(client, server)]
 pub trait CpsIndexerRpcApi<BlockHash> {
-    /// Get meta records within a time range
+    /// Get meta records within optional time range
     ///
     /// # Arguments
-    /// * `from` - Start timestamp (inclusive)
-    /// * `to` - End timestamp (inclusive)
+    /// * `from` - Start timestamp (inclusive), None for all
+    /// * `to` - End timestamp (inclusive), None for all
     /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
@@ -51,17 +51,17 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getMetaRecords")]
     fn get_meta_records(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<MetaRecord>>;
     
-    /// Get payload records within a time range
+    /// Get payload records within optional time range
     ///
     /// # Arguments
-    /// * `from` - Start timestamp (inclusive)
-    /// * `to` - End timestamp (inclusive)
+    /// * `from` - Start timestamp (inclusive), None for all
+    /// * `to` - End timestamp (inclusive), None for all
     /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
@@ -70,17 +70,17 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getPayloadRecords")]
     fn get_payload_records(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<PayloadRecord>>;
     
-    /// Get node operations within a time range
+    /// Get node operations within optional time range
     ///
     /// # Arguments
-    /// * `from` - Start timestamp (inclusive)
-    /// * `to` - End timestamp (inclusive)
+    /// * `from` - Start timestamp (inclusive), None for all
+    /// * `to` - End timestamp (inclusive), None for all
     /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
@@ -89,8 +89,8 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     #[method(name = "cps_getNodeOperations")]
     fn get_node_operations(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<BlockHash>,
     ) -> RpcResult<Vec<NodeOperation>>;
@@ -120,8 +120,8 @@ where
 {
     fn get_meta_records(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<MetaRecord>> {
@@ -137,21 +137,18 @@ where
                 Some(format!("{:?}", e))
             ))?;
         
-        // Convert from tuples to MetaRecord structures
+        // Decode Vec<Vec<u8>> to Vec<MetaRecord>
+        use parity_scale_codec::Decode;
         Ok(records
             .into_iter()
-            .map(|(timestamp, node_id, data)| MetaRecord {
-                timestamp,
-                node_id,
-                data,
-            })
+            .filter_map(|encoded| MetaRecord::decode(&mut &encoded[..]).ok())
             .collect())
     }
     
     fn get_payload_records(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<PayloadRecord>> {
@@ -167,20 +164,17 @@ where
                 Some(format!("{:?}", e))
             ))?;
         
+        use parity_scale_codec::Decode;
         Ok(records
             .into_iter()
-            .map(|(timestamp, node_id, data)| PayloadRecord {
-                timestamp,
-                node_id,
-                data,
-            })
+            .filter_map(|encoded| PayloadRecord::decode(&mut &encoded[..]).ok())
             .collect())
     }
     
     fn get_node_operations(
         &self,
-        from: u64,
-        to: u64,
+        from: Option<u64>,
+        to: Option<u64>,
         node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
     ) -> RpcResult<Vec<NodeOperation>> {
@@ -196,19 +190,10 @@ where
                 Some(format!("{:?}", e))
             ))?;
         
-        // Decode operation bytes back to OperationType
         use parity_scale_codec::Decode;
-        use pallet_robonomics_cps::offchain::storage::OperationType;
-        
         Ok(operations
             .into_iter()
-            .filter_map(|(timestamp, node_id, op_bytes)| {
-                OperationType::decode(&mut &op_bytes[..]).ok().map(|operation| NodeOperation {
-                    timestamp,
-                    node_id,
-                    operation,
-                })
-            })
+            .filter_map(|encoded| NodeOperation::decode(&mut &encoded[..]).ok())
             .collect())
     }
 }

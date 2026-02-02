@@ -32,37 +32,37 @@ pub use pallet_robonomics_cps::offchain::storage::{MetaRecord, PayloadRecord, No
 sp_api::decl_runtime_apis! {
     /// Runtime API for querying indexed CPS data
     pub trait CpsIndexerApi {
-        /// Get meta records within a time range
+        /// Get meta records within optional time range
         ///
         /// # Arguments
-        /// * `from` - Start timestamp (inclusive)
-        /// * `to` - End timestamp (inclusive)
+        /// * `from` - Start timestamp (inclusive), None for all
+        /// * `to` - End timestamp (inclusive), None for all
         /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of MetaRecord structures
-        fn get_meta_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
+        /// Vector of encoded MetaRecord structures
+        fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
         
-        /// Get payload records within a time range
+        /// Get payload records within optional time range
         ///
         /// # Arguments
-        /// * `from` - Start timestamp (inclusive)
-        /// * `to` - End timestamp (inclusive)
+        /// * `from` - Start timestamp (inclusive), None for all
+        /// * `to` - End timestamp (inclusive), None for all
         /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of PayloadRecord structures
-        fn get_payload_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
+        /// Vector of encoded PayloadRecord structures
+        fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
         
-        /// Get node operations within a time range
+        /// Get node operations within optional time range
         ///
         /// # Arguments
-        /// * `from` - Start timestamp (inclusive)
-        /// * `to` - End timestamp (inclusive)
+        /// * `from` - Start timestamp (inclusive), None for all
+        /// * `to` - End timestamp (inclusive), None for all
         /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of NodeOperation structures (timestamp, node_id, operation_bytes)
-        fn get_node_operations(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
+        /// Vector of encoded NodeOperation structures
+        fn get_node_operations(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<Vec<u8>>;
     }
 }

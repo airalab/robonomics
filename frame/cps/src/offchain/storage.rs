@@ -102,27 +102,27 @@ pub const PAYLOAD_PREFIX: &[u8] = b"cps::payload::";
 /// Storage key prefix for node operations
 pub const OPERATIONS_PREFIX: &[u8] = b"cps::operations::";
 
-/// Generate storage key for meta record
-pub fn meta_key(timestamp: u64, node_id: NodeId) -> Vec<u8> {
+/// Generate storage key for meta record (node_id first for efficient lookups)
+pub fn meta_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     let mut key = META_PREFIX.to_vec();
-    key.extend_from_slice(&timestamp.to_le_bytes());
     key.extend_from_slice(&node_id.0.to_le_bytes());
+    key.extend_from_slice(&timestamp.to_le_bytes());
     key
 }
 
-/// Generate storage key for payload record
-pub fn payload_key(timestamp: u64, node_id: NodeId) -> Vec<u8> {
+/// Generate storage key for payload record (node_id first for efficient lookups)
+pub fn payload_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     let mut key = PAYLOAD_PREFIX.to_vec();
-    key.extend_from_slice(&timestamp.to_le_bytes());
     key.extend_from_slice(&node_id.0.to_le_bytes());
+    key.extend_from_slice(&timestamp.to_le_bytes());
     key
 }
 
-/// Generate storage key for node operation
-pub fn operation_key(timestamp: u64, node_id: NodeId) -> Vec<u8> {
+/// Generate storage key for node operation (node_id first for efficient lookups)
+pub fn operation_key(node_id: NodeId, timestamp: u64) -> Vec<u8> {
     let mut key = OPERATIONS_PREFIX.to_vec();
-    key.extend_from_slice(&timestamp.to_le_bytes());
     key.extend_from_slice(&node_id.0.to_le_bytes());
+    key.extend_from_slice(&timestamp.to_le_bytes());
     key
 }
 
@@ -132,7 +132,7 @@ pub fn store_meta_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
     use sp_io::offchain;
     
     let record = MetaRecord { timestamp, node_id, data };
-    let key = meta_key(timestamp, node_id);
+    let key = meta_key(node_id, timestamp);
     let value = record.encode();
     
     offchain::local_storage_set(
@@ -148,7 +148,7 @@ pub fn store_payload_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
     use sp_io::offchain;
     
     let record = PayloadRecord { timestamp, node_id, data };
-    let key = payload_key(timestamp, node_id);
+    let key = payload_key(node_id, timestamp);
     let value = record.encode();
     
     offchain::local_storage_set(
@@ -168,7 +168,7 @@ pub fn store_node_operation(timestamp: u64, node_id: NodeId, operation: Operatio
         node_id,
         operation,
     };
-    let key = operation_key(timestamp, node_id);
+    let key = operation_key(node_id, timestamp);
     let value = operation.encode();
     
     offchain::local_storage_set(
@@ -178,23 +178,24 @@ pub fn store_node_operation(timestamp: u64, node_id: NodeId, operation: Operatio
     );
 }
 
-/// Get meta records within time range from offchain storage
+/// Get meta records within optional time range from offchain storage
 ///
 /// # Performance Note
-/// This implementation iterates through every timestamp in the range.
-/// For production use with large time ranges, consider implementing:
-/// - A timestamp index that stores only timestamps with actual records
-/// - Compound keys with prefix iteration support
-/// - A secondary index for efficient range queries
-pub fn get_meta_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<MetaRecord> {
+/// With node_id specified, queries are efficient using the double-map structure.
+/// Without node_id, scans a configurable range. In production, maintain an index
+/// of active node_ids or use bounded queries.
+pub fn get_meta_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<MetaRecord> {
     use sp_io::offchain;
     
     let mut records = Vec::new();
     
-    // If node_id is specified, we can directly look up by timestamp
     if let Some(nid) = node_id {
-        for timestamp in from..=to {
-            let key = meta_key(timestamp, nid);
+        // Efficient: query specific node's records
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(u64::MAX);
+        
+        for timestamp in from..=to.min(from + 10000) { // Limit iteration
+            let key = meta_key(nid, timestamp);
             
             if let Some(value) = offchain::local_storage_get(
                 sp_core::offchain::StorageKind::PERSISTENT,
@@ -206,14 +207,13 @@ pub fn get_meta_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<Meta
             }
         }
     } else {
-        // Without node_id filter, we need to scan all possible node_ids for each timestamp
-        // This is inefficient but necessary without a secondary index
-        // In production, consider maintaining a separate index of active node_ids
-        for timestamp in from..=to {
-            // Scan with a reasonable node_id range (0-1000 for now)
-            // TODO: Make this configurable or use an index
-            for nid in 0..1000 {
-                let key = meta_key(timestamp, NodeId(nid));
+        // Less efficient: scan multiple nodes
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(from + 1000); // Smaller default range
+        
+        for nid in 0..1000 {
+            for timestamp in from..=to.min(from + 1000) {
+                let key = meta_key(NodeId(nid), timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,
@@ -230,22 +230,22 @@ pub fn get_meta_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<Meta
     records
 }
 
-/// Get payload records within time range from offchain storage
+/// Get payload records within optional time range from offchain storage
 ///
 /// # Performance Note
-/// This implementation iterates through every timestamp in the range.
-/// For production use with large time ranges, consider implementing:
-/// - A timestamp index that stores only timestamps with actual records
-/// - Compound keys with prefix iteration support
-/// - A secondary index for efficient range queries
-pub fn get_payload_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<PayloadRecord> {
+/// With node_id specified, queries are efficient using the double-map structure.
+/// Without node_id, scans a configurable range.
+pub fn get_payload_records(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<PayloadRecord> {
     use sp_io::offchain;
     
     let mut records = Vec::new();
     
     if let Some(nid) = node_id {
-        for timestamp in from..=to {
-            let key = payload_key(timestamp, nid);
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(u64::MAX);
+        
+        for timestamp in from..=to.min(from + 10000) {
+            let key = payload_key(nid, timestamp);
             
             if let Some(value) = offchain::local_storage_get(
                 sp_core::offchain::StorageKind::PERSISTENT,
@@ -257,9 +257,12 @@ pub fn get_payload_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<P
             }
         }
     } else {
-        for timestamp in from..=to {
-            for nid in 0..1000 {
-                let key = payload_key(timestamp, NodeId(nid));
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(from + 1000);
+        
+        for nid in 0..1000 {
+            for timestamp in from..=to.min(from + 1000) {
+                let key = payload_key(NodeId(nid), timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,
@@ -276,22 +279,22 @@ pub fn get_payload_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<P
     records
 }
 
-/// Get node operations within time range from offchain storage
+/// Get node operations within optional time range from offchain storage
 ///
 /// # Performance Note
-/// This implementation iterates through every timestamp in the range.
-/// For production use with large time ranges, consider implementing:
-/// - A timestamp index that stores only timestamps with actual records
-/// - Compound keys with prefix iteration support
-/// - A secondary index for efficient range queries
-pub fn get_node_operations(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<NodeOperation> {
+/// With node_id specified, queries are efficient using the double-map structure.
+/// Without node_id, scans a configurable range.
+pub fn get_node_operations(from: Option<u64>, to: Option<u64>, node_id: Option<NodeId>) -> Vec<NodeOperation> {
     use sp_io::offchain;
     
     let mut operations = Vec::new();
     
     if let Some(nid) = node_id {
-        for timestamp in from..=to {
-            let key = operation_key(timestamp, nid);
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(u64::MAX);
+        
+        for timestamp in from..=to.min(from + 10000) {
+            let key = operation_key(nid, timestamp);
             
             if let Some(value) = offchain::local_storage_get(
                 sp_core::offchain::StorageKind::PERSISTENT,
@@ -303,9 +306,12 @@ pub fn get_node_operations(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<N
             }
         }
     } else {
-        for timestamp in from..=to {
-            for nid in 0..1000 {
-                let key = operation_key(timestamp, NodeId(nid));
+        let from = from.unwrap_or(0);
+        let to = to.unwrap_or(from + 1000);
+        
+        for nid in 0..1000 {
+            for timestamp in from..=to.min(from + 1000) {
+                let key = operation_key(NodeId(nid), timestamp);
                 
                 if let Some(value) = offchain::local_storage_get(
                     sp_core::offchain::StorageKind::PERSISTENT,

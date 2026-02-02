@@ -22,6 +22,9 @@
 
 pub mod storage;
 
+#[cfg(test)]
+mod tests;
+
 use crate::{Config, NodeId};
 use frame_system::pallet_prelude::*;
 use sp_std::vec::Vec;
