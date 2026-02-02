@@ -810,7 +810,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
-    //[pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
+    // Note: pallet_xcm benchmarks require special setup and are not included in standard benchmarking
     [pallet_xcm_info, XcmInfo]
 );
 
@@ -982,7 +982,6 @@ impl_runtime_apis! {
             use frame_system_benchmarking::Pallet as SystemBench;
             use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-            //use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
