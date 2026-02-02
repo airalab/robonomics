@@ -322,7 +322,9 @@ async function waitForXcmExecution(api, timeout = 60000, eventFilter = null) {
  * @returns {string} - Amount in planck units
  */
 function toPlanck(amount, decimals = 12) {
-  return (amount * Math.pow(10, decimals)).toString();
+  // Use BigInt to avoid precision loss
+  const bigAmount = BigInt(Math.floor(amount * Math.pow(10, decimals)));
+  return bigAmount.toString();
 }
 
 /**
@@ -332,7 +334,10 @@ function toPlanck(amount, decimals = 12) {
  * @returns {number} - Amount in tokens
  */
 function fromPlanck(planck, decimals = 12) {
-  return parseInt(planck.toString()) / Math.pow(10, decimals);
+  // Use BigInt to preserve precision
+  const bigPlanck = BigInt(planck.toString());
+  const divisor = BigInt(10 ** decimals);
+  return Number(bigPlanck / divisor);
 }
 
 module.exports = {
