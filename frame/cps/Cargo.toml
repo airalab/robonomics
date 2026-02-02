@@ -16,6 +16,8 @@ sp-std = { workspace = true }
 sp-core = { workspace = true }
 sp-io = { workspace = true }
 log = { workspace = true }
+serde = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
 frame-system = { workspace = true }
 frame-support = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
@@ -34,13 +36,14 @@ std = [
   "sp-core/std",
   "sp-io/std",
   "log/std",
+  "serde?/std",
   "frame-system/std",
   "frame-support/std",
   "frame-benchmarking?/std",
   "scale-info/std",
 ]
 
-offchain-worker = []
+offchain-indexer = ["serde", "hex"]
 
 runtime-benchmarks = [
   "frame-benchmarking",

@@ -12,6 +12,7 @@ license = "Apache-2.0"
 parity-scale-codec = { workspace = true }
 sp-api = { workspace = true }
 sp-std = { workspace = true }
+pallet-robonomics-cps = { path = "../..", default-features = false }
 
 [features]
 default = ["std"]
@@ -19,4 +20,5 @@ std = [
   "parity-scale-codec/std",
   "sp-api/std",
   "sp-std/std",
+  "pallet-robonomics-cps/std",
 ]

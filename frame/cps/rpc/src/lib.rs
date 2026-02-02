@@ -25,45 +25,15 @@ use jsonrpsee::{
     proc_macros::rpc,
     types::ErrorObjectOwned,
 };
-use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
-pub use pallet_robonomics_cps_rpc_runtime_api::CpsIndexerApi as CpsIndexerRuntimeApi;
+pub use pallet_robonomics_cps_rpc_runtime_api::{CpsIndexerApi as CpsIndexerRuntimeApi, NodeId};
 
-/// JSON-serializable meta record
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MetaRecordJson {
-    /// Unix timestamp in seconds
-    pub timestamp: u64,
-    /// Hex-encoded data
-    pub data: String,
-}
-
-/// JSON-serializable payload record
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PayloadRecordJson {
-    /// Unix timestamp in seconds
-    pub timestamp: u64,
-    /// Hex-encoded data
-    pub data: String,
-}
-
-/// JSON-serializable node operation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NodeOperationJson {
-    /// Unix timestamp in seconds
-    pub timestamp: u64,
-    /// Operation type (e.g., "create", "update", "delete")
-    pub operation_type: String,
-    /// Hex-encoded operation data
-    pub data: String,
-}
+// Re-export the storage structures for JSON serialization
+pub use pallet_robonomics_cps::offchain::storage::{MetaRecord, NodeOperation, PayloadRecord};
 
 /// CPS Indexer RPC API
 #[rpc(client, server)]
@@ -73,51 +43,57 @@ pub trait CpsIndexerRpcApi<BlockHash> {
     /// # Arguments
     /// * `from` - Start timestamp (inclusive)
     /// * `to` - End timestamp (inclusive)
+    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
-    /// Vector of meta records with timestamps and hex-encoded data
+    /// Vector of meta records with timestamps, node_ids and hex-encoded data
     #[method(name = "cps_getMetaRecords")]
     fn get_meta_records(
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<BlockHash>,
-    ) -> RpcResult<Vec<MetaRecordJson>>;
+    ) -> RpcResult<Vec<MetaRecord>>;
     
     /// Get payload records within a time range
     ///
     /// # Arguments
     /// * `from` - Start timestamp (inclusive)
     /// * `to` - End timestamp (inclusive)
+    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
-    /// Vector of payload records with timestamps and hex-encoded data
+    /// Vector of payload records with timestamps, node_ids and hex-encoded data
     #[method(name = "cps_getPayloadRecords")]
     fn get_payload_records(
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<BlockHash>,
-    ) -> RpcResult<Vec<PayloadRecordJson>>;
+    ) -> RpcResult<Vec<PayloadRecord>>;
     
     /// Get node operations within a time range
     ///
     /// # Arguments
     /// * `from` - Start timestamp (inclusive)
     /// * `to` - End timestamp (inclusive)
+    /// * `node_id` - Optional node_id filter
     /// * `at` - Optional block hash to query at (defaults to best block)
     ///
     /// # Returns
-    /// Vector of node operations with timestamps, types, and hex-encoded data
+    /// Vector of node operations with timestamps, node_ids, and operation types
     #[method(name = "cps_getNodeOperations")]
     fn get_node_operations(
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<BlockHash>,
-    ) -> RpcResult<Vec<NodeOperationJson>>;
+    ) -> RpcResult<Vec<NodeOperation>>;
 }
 
 /// Implementation of the CPS Indexer RPC API
@@ -146,24 +122,28 @@ where
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> RpcResult<Vec<MetaRecordJson>> {
+    ) -> RpcResult<Vec<MetaRecord>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
+        let node_id = node_id.map(NodeId);
         
         let records = api
-            .get_meta_records(at_hash, from, to)
+            .get_meta_records(at_hash, from, to, node_id)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve meta records from runtime", 
                 Some(format!("{:?}", e))
             ))?;
         
+        // Convert from tuples to MetaRecord structures
         Ok(records
             .into_iter()
-            .map(|(timestamp, data)| MetaRecordJson {
+            .map(|(timestamp, node_id, data)| MetaRecord {
                 timestamp,
-                data: format!("0x{}", hex::encode(data)),
+                node_id,
+                data,
             })
             .collect())
     }
@@ -172,13 +152,15 @@ where
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> RpcResult<Vec<PayloadRecordJson>> {
+    ) -> RpcResult<Vec<PayloadRecord>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
+        let node_id = node_id.map(NodeId);
         
         let records = api
-            .get_payload_records(at_hash, from, to)
+            .get_payload_records(at_hash, from, to, node_id)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve payload records from runtime", 
@@ -187,9 +169,10 @@ where
         
         Ok(records
             .into_iter()
-            .map(|(timestamp, data)| PayloadRecordJson {
+            .map(|(timestamp, node_id, data)| PayloadRecord {
                 timestamp,
-                data: format!("0x{}", hex::encode(data)),
+                node_id,
+                data,
             })
             .collect())
     }
@@ -198,25 +181,33 @@ where
         &self,
         from: u64,
         to: u64,
+        node_id: Option<u64>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> RpcResult<Vec<NodeOperationJson>> {
+    ) -> RpcResult<Vec<NodeOperation>> {
         let api = self.client.runtime_api();
         let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
+        let node_id = node_id.map(NodeId);
         
         let operations = api
-            .get_node_operations(at_hash, from, to)
+            .get_node_operations(at_hash, from, to, node_id)
             .map_err(|e| ErrorObjectOwned::owned(
                 1, 
                 "Failed to retrieve node operations from runtime", 
                 Some(format!("{:?}", e))
             ))?;
         
+        // Decode operation bytes back to OperationType
+        use parity_scale_codec::Decode;
+        use pallet_robonomics_cps::offchain::storage::OperationType;
+        
         Ok(operations
             .into_iter()
-            .map(|(timestamp, operation_type, data)| NodeOperationJson {
-                timestamp,
-                operation_type: String::from_utf8_lossy(&operation_type).to_string(),
-                data: format!("0x{}", hex::encode(data)),
+            .filter_map(|(timestamp, node_id, op_bytes)| {
+                OperationType::decode(&mut &op_bytes[..]).ok().map(|operation| NodeOperation {
+                    timestamp,
+                    node_id,
+                    operation,
+                })
             })
             .collect())
     }

@@ -22,10 +22,10 @@
 
 pub mod storage;
 
-use crate::{Config, Event, Pallet};
+use crate::{Config, NodeId};
 use frame_system::pallet_prelude::*;
-use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::vec::Vec;
+use storage::OperationType;
 
 /// Index CPS data from the current block
 ///
@@ -38,14 +38,10 @@ pub fn index_cps_data<T: Config>(block_number: BlockNumberFor<T>) {
         block_number
     );
     
-    // Get current timestamp
-    // Note: In a real implementation, you would get the timestamp from the block
-    // For now, we use block number as a simple timestamp approximation
-    let timestamp: u64 = block_number.unique_saturated_into();
+    // Get current Unix timestamp in milliseconds from system
+    let timestamp = sp_io::offchain::timestamp().unix_millis();
     
     // Process events from the current block
-    // In a real implementation, you would iterate through system events
-    // and filter for CPS-specific events
     process_cps_events::<T>(timestamp);
     
     log::debug!(
@@ -56,78 +52,87 @@ pub fn index_cps_data<T: Config>(block_number: BlockNumberFor<T>) {
 }
 
 /// Process CPS events and store them in offchain storage
+///
+/// Note: Event processing requires runtime-specific integration.
+/// Runtime implementers should call the index_* functions directly
+/// from their event handlers or provide a custom implementation that
+/// properly converts RuntimeEvent to CPS Event.
 fn process_cps_events<T: Config>(timestamp: u64) {
-    // Note: This is a simplified implementation
-    // In a production system, you would:
-    // 1. Iterate through frame_system::Pallet::<T>::events()
-    // 2. Filter for CPS pallet events
-    // 3. Extract relevant data based on event type
-    // 4. Store the data using the storage helpers
-    
-    // Example event processing (pseudocode):
-    // for event_record in frame_system::Pallet::<T>::events() {
-    //     if let RuntimeEvent::Cps(cps_event) = event_record.event {
-    //         match cps_event {
-    //             Event::NodeCreated { node_id, owner, .. } => {
-    //                 // Index node creation operation
-    //                 index_node_operation(timestamp, "create", node_id, owner);
-    //             }
-    //             Event::MetadataSet { node_id, meta } => {
-    //                 // Index metadata update
-    //                 index_meta_record(timestamp, node_id, meta);
-    //             }
-    //             Event::PayloadSet { node_id, payload } => {
-    //                 // Index payload update
-    //                 index_payload_record(timestamp, node_id, payload);
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-    // }
-    
     log::trace!(
         target: "cps-indexer",
-        "Processed events for timestamp {}",
+        "Ready to process events for timestamp {}",
         timestamp
     );
+    
+    // TODO: Runtime integration
+    // The runtime should implement event processing by:
+    // 1. Iterating through frame_system::Pallet::<T>::events()
+    // 2. Matching on RuntimeEvent to extract CPS events
+    // 3. Calling index_meta_record, index_payload_record, or index_node_operation
+    //
+    // Example (to be implemented in runtime):
+    // for event_record in frame_system::Pallet::<T>::events() {
+    //     match event_record.event {
+    //         RuntimeEvent::Cps(cps_event) => match cps_event {
+    //             Event::NodeCreated(node_id, parent_id, _) => {
+    //                 index_node_operation(timestamp, node_id, OperationType::Create(parent_id));
+    //             }
+    //             Event::MetaSet(node_id, _) => {
+    //                 if let Some(node) = Pallet::<T>::nodes(node_id) {
+    //                     if let Some(meta) = node.meta {
+    //                         index_meta_record(timestamp, node_id, meta.encode());
+    //                     }
+    //                 }
+    //             }
+    //             // ... other events
+    //         },
+    //         _ => {}
+    //     }
+    // }
 }
 
 /// Index a metadata record
-#[allow(dead_code)]
-fn index_meta_record(timestamp: u64, data: Vec<u8>) {
+///
+/// This should be called by runtime event handlers when metadata is set.
+pub fn index_meta_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
     #[cfg(feature = "std")]
-    storage::store_meta_record(timestamp, data);
+    storage::store_meta_record(timestamp, node_id, data);
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed meta record at timestamp {}",
+        "Indexed meta record for node {:?} at timestamp {}",
+        node_id,
         timestamp
     );
 }
 
 /// Index a payload record
-#[allow(dead_code)]
-fn index_payload_record(timestamp: u64, data: Vec<u8>) {
+///
+/// This should be called by runtime event handlers when payload is set.
+pub fn index_payload_record(timestamp: u64, node_id: NodeId, data: Vec<u8>) {
     #[cfg(feature = "std")]
-    storage::store_payload_record(timestamp, data);
+    storage::store_payload_record(timestamp, node_id, data);
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed payload record at timestamp {}",
+        "Indexed payload record for node {:?} at timestamp {}",
+        node_id,
         timestamp
     );
 }
 
 /// Index a node operation
-#[allow(dead_code)]
-fn index_node_operation(timestamp: u64, operation_type: &[u8], data: Vec<u8>) {
+///
+/// This should be called by runtime event handlers for node lifecycle events.
+pub fn index_node_operation(timestamp: u64, node_id: NodeId, operation: OperationType) {
     #[cfg(feature = "std")]
-    storage::store_node_operation(timestamp, operation_type.to_vec(), data);
+    storage::store_node_operation(timestamp, node_id, operation.clone());
     
     log::trace!(
         target: "cps-indexer",
-        "Indexed node operation '{}' at timestamp {}",
-        sp_std::str::from_utf8(operation_type).unwrap_or("unknown"),
+        "Indexed node operation '{:?}' for node {:?} at timestamp {}",
+        operation,
+        node_id,
         timestamp
     );
 }

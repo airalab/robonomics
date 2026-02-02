@@ -23,6 +23,12 @@
 
 use sp_std::vec::Vec;
 
+// Re-export the storage types for use in runtime API implementations
+pub use pallet_robonomics_cps::NodeId;
+
+#[cfg(feature = "std")]
+pub use pallet_robonomics_cps::offchain::storage::{MetaRecord, PayloadRecord, NodeOperation};
+
 sp_api::decl_runtime_apis! {
     /// Runtime API for querying indexed CPS data
     pub trait CpsIndexerApi {
@@ -31,29 +37,32 @@ sp_api::decl_runtime_apis! {
         /// # Arguments
         /// * `from` - Start timestamp (inclusive)
         /// * `to` - End timestamp (inclusive)
+        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of (timestamp, data) tuples
-        fn get_meta_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)>;
+        /// Vector of MetaRecord structures
+        fn get_meta_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
         
         /// Get payload records within a time range
         ///
         /// # Arguments
         /// * `from` - Start timestamp (inclusive)
         /// * `to` - End timestamp (inclusive)
+        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of (timestamp, data) tuples
-        fn get_payload_records(from: u64, to: u64) -> Vec<(u64, Vec<u8>)>;
+        /// Vector of PayloadRecord structures
+        fn get_payload_records(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
         
         /// Get node operations within a time range
         ///
         /// # Arguments
         /// * `from` - Start timestamp (inclusive)
         /// * `to` - End timestamp (inclusive)
+        /// * `node_id` - Optional node_id filter
         ///
         /// # Returns
-        /// Vector of (timestamp, operation_type, data) tuples
-        fn get_node_operations(from: u64, to: u64) -> Vec<(u64, Vec<u8>, Vec<u8>)>;
+        /// Vector of NodeOperation structures (timestamp, node_id, operation_bytes)
+        fn get_node_operations(from: u64, to: u64, node_id: Option<NodeId>) -> Vec<(u64, NodeId, Vec<u8>)>;
     }
 }
