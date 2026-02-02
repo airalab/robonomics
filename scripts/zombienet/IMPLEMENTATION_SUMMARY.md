@@ -9,8 +9,7 @@ Successfully implemented comprehensive Zombienet-based XCM tests for the Robonom
 ```
 scripts/zombienet/
 ├── configs/                          # Network topology configurations
-│   ├── robonomics-local.toml        # Basic local setup
-│   ├── xcm-tests.toml               # XCM test configuration (recommended)
+│   ├── robonomics-local.toml        # Local setup with XCM tracing
 │   └── README.md                     # Configuration documentation
 ├── tests/                            # Test scripts
 │   ├── integration-tests.js         # Main test runner
@@ -124,19 +123,12 @@ scripts/zombienet/
 
 ### 4. Network Configurations ✅
 
-#### A. robonomics-local.toml
-- Basic local development setup
+#### robonomics-local.toml
+- Local development setup with XCM tracing enabled
 - Relay chain: 2 validators (Alice, Bob)
 - AssetHub: Parachain ID 1000
-- Robonomics: Parachain ID 2000 (local dev convenience)
-- Minimal logging
-
-#### B. xcm-tests.toml
-- Comprehensive XCM testing setup
+- Robonomics: Parachain ID 2000
 - Enhanced logging: `-lxcm=trace`, `-lparachain=debug`
-- Robonomics: Parachain ID 2048 (production)
-- AssetHub: Parachain ID 1000
-- Multiple collators for redundancy
 - Covers all XCM test scenarios including AssetHub integration
 
 ### 5. Documentation ✅
@@ -329,7 +321,7 @@ The following should be tested manually before considering the implementation co
 1. **Network Spawning:**
    ```bash
    cd scripts/zombienet
-   ./spawn-network.sh configs/xcm-tests.toml
+   ./spawn-network.sh
    ```
    - Verify all nodes start successfully
    - Check blocks are being produced

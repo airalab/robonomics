@@ -16,8 +16,7 @@ This test suite validates the XCM integration of the Robonomics parachain, inclu
 ```
 scripts/zombienet/
 ├── configs/                    # Network topology configurations
-│   ├── robonomics-local.toml  # Basic local setup
-│   ├── xcm-tests.toml         # XCM test configuration (recommended)
+│   ├── robonomics-local.toml  # Local setup with XCM tracing
 │   └── README.md              # Configuration documentation
 ├── tests/                      # Test scripts
 │   ├── integration-tests.js   # Main test runner
@@ -36,7 +35,28 @@ scripts/zombienet/
 
 ## Prerequisites
 
-### Required Software
+### Using Nix (Recommended)
+
+The easiest way to get all required binaries is to use the `local-testnet` nix devshell, which provides:
+- **zombienet** - Test network orchestrator
+- **polkadot** - Relay chain binary
+- **polkadot-parachain** - AssetHub parachain binary
+- **robonomics** - Robonomics parachain binary
+
+```bash
+# Enter the devshell
+nix develop .#local-testnet
+
+# Verify binaries are available
+zombienet version
+polkadot --version
+polkadot-parachain --version
+robonomics --version
+```
+
+### Manual Installation (Alternative)
+
+If you prefer not to use Nix, you can install the binaries manually:
 
 1. **Zombienet CLI** (v1.3.0+)
    ```bash
@@ -80,6 +100,10 @@ scripts/zombienet/
 ### Verify Installation
 
 ```bash
+# If using nix devshell
+nix develop .#local-testnet
+
+# Verify all binaries
 zombienet version
 polkadot --version
 polkadot-parachain --version
@@ -89,16 +113,22 @@ node --version
 
 ## Quick Start
 
-### 1. Spawn Test Network
+### 1. Setup Environment
+
+```bash
+# Enter the nix devshell (recommended)
+nix develop .#local-testnet
+
+# This provides all required binaries: zombienet, polkadot, polkadot-parachain, robonomics
+```
+
+### 2. Spawn Test Network
 
 ```bash
 cd scripts/zombienet
 
-# Spawn network with XCM test configuration (default)
+# Spawn network with default configuration
 ./spawn-network.sh
-
-# Or specify robonomics-local for basic development
-./spawn-network.sh configs/robonomics-local.toml
 ```
 
 The network will start with:
