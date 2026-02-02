@@ -89,8 +89,7 @@ pub mod pallet {
         traits::{fungible::Mutate as FungibleMutate, Currency, ExistenceRequirement},
     };
     use frame_system::pallet_prelude::*;
-    use parity_scale_codec::Encode;
-    use sp_runtime::{traits::Zero, Saturating};
+    use sp_runtime::{traits::{Zero, TryConvert, MaybeEquivalence}, Saturating};
     use sp_std::prelude::*;
     use xcm::latest::prelude::*;
 
@@ -107,6 +106,12 @@ pub mod pallet {
         /// The native currency (must support minting/burning).
         type NativeCurrency: Currency<Self::AccountId>
             + FungibleMutate<Self::AccountId, Balance = BalanceOf<Self>>;
+
+        /// Convert system AccountId to XCM location.
+        type AccountIdConversion: TryConvert<<Self as frame_system::Config>::RuntimeOrigin, Location>;
+
+        /// Convert system balance into XCM balance.
+        type ConvertBalance: MaybeEquivalence<BalanceOf<Self>, u128>;
 
         /// MultiLocation of this chain's native token when represented as foreign asset on Asset Hub.
         #[pallet::constant]
@@ -174,8 +179,10 @@ pub mod pallet {
         MintFailed,
         /// Failed to send XCM message.
         XcmSendFailed,
-        /// Amount conversion overflow.
-        AmountOverflow,
+        /// Failed to convert account to XCM location.
+        AccountIdConversionFailed,
+        /// Failed to convert balance to XCM balance.
+        AmountToBalanceConversionFailed,
     }
 
     #[pallet::call]
@@ -210,7 +217,7 @@ pub mod pallet {
             amount: BalanceOf<T>,
             beneficiary: Option<Location>,
         ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
+            let who = ensure_signed(origin.clone())?;
 
             // Validate amount is not zero
             ensure!(!amount.is_zero(), Error::<T>::InvalidAmount);
@@ -242,24 +249,18 @@ pub mod pallet {
             let destination = if let Some(dest) = beneficiary {
                 dest
             } else {
-                // Convert AccountId to Location
-                Location::new(
-                    0,
-                    [Junction::AccountId32 {
-                        network: None,
-                        id: Self::account_to_bytes(&who),
-                    }],
-                )
+                // Convert origin AccountId to Location
+                T::AccountIdConversion::try_convert(origin)
+                    .map_err(|_| Error::<T>::AccountIdConversionFailed)?
             };
-
-            // Convert amount to u128
-            let amount_u128: u128 = Self::balance_to_u128(amount)?;
 
             // Build XCM message
             let fee_amount = T::XcmFeeAmount::get();
             let foreign_asset_location = T::ForeignAssetLocation::get();
             let relay_asset_location = Location::parent();
 
+            let amount_u128 = T::ConvertBalance::convert(&amount)
+                .ok_or(Error::<T>::AmountToBalanceConversionFailed)?;
             let assets_to_withdraw: Assets = vec![
                 (foreign_asset_location.clone(), amount_u128).into(),
                 (relay_asset_location.clone(), fee_amount).into(),
@@ -317,22 +318,19 @@ pub mod pallet {
         /// # Events
         ///
         /// - `NativeUnwrapped`: Emitted when tokens are successfully unwrapped
-        pub fn handle_incoming_unwrap(beneficiary: T::AccountId, amount: u128) -> DispatchResult {
-            // Convert amount to Balance
-            let amount_balance = Self::u128_to_balance(amount)?;
-
+        pub fn handle_incoming_unwrap(beneficiary: T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
             // Mint native tokens to beneficiary
-            let _imbalance = T::NativeCurrency::deposit_creating(&beneficiary, amount_balance);
+            let _imbalance = T::NativeCurrency::deposit_creating(&beneficiary, amount);
 
             // Increment TotalWrapped
             TotalWrapped::<T>::mutate(|total| {
-                *total = total.saturating_add(amount_balance);
+                *total = total.saturating_add(amount);
             });
 
             // Emit event
             Self::deposit_event(Event::NativeUnwrapped {
                 who: beneficiary,
-                amount: amount_balance,
+                amount,
             });
 
             Ok(())
@@ -358,25 +356,6 @@ pub mod pallet {
         /// amount of native tokens that can be wrapped.
         pub fn max_wrappable() -> BalanceOf<T> {
             TotalWrapped::<T>::get()
-        }
-
-        // Helper function to convert Balance to u128
-        fn balance_to_u128(balance: BalanceOf<T>) -> Result<u128, Error<T>> {
-            balance.try_into().map_err(|_| Error::<T>::AmountOverflow)
-        }
-
-        // Helper function to convert u128 to Balance
-        fn u128_to_balance(value: u128) -> Result<BalanceOf<T>, Error<T>> {
-            value.try_into().map_err(|_| Error::<T>::AmountOverflow)
-        }
-
-        // Helper function to convert AccountId to bytes
-        fn account_to_bytes(account: &T::AccountId) -> [u8; 32] {
-            let encoded = account.encode();
-            let mut bytes = [0u8; 32];
-            let len = encoded.len().min(32);
-            bytes[..len].copy_from_slice(&encoded[..len]);
-            bytes
         }
     }
 }

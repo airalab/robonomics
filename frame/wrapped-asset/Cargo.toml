@@ -8,8 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-scale-info = { workspace = true }
 parity-scale-codec = { workspace = true }
+scale-info = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { workspace = true }
 frame-system = { workspace = true }
@@ -19,11 +19,13 @@ pallet-xcm = { workspace = true }
 xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
+sp-tracing = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 pallet-balances = { workspace = true, features = ["std"] }
+hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
@@ -31,6 +33,7 @@ std = [
   "parity-scale-codec/std",
   "sp-std/std",
   "sp-runtime/std",
+  "sp-tracing/std",
   "frame-system/std",
   "frame-support/std",
   "frame-benchmarking?/std",
