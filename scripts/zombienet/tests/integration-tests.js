@@ -13,6 +13,10 @@ const {
   testXcmDownwardMessage,
   testAssetHubTransfer,
 } = require('./xcm-tests');
+const {
+  testRelayTokenTransfer,
+  testReserveTransferFilter,
+} = require('./relay-token-transfer.test');
 
 // Test configuration
 const TESTS_CONFIG = {
@@ -243,6 +247,8 @@ async function runTests() {
     
     await testXcmUpwardMessage(testResults);
     await testXcmDownwardMessage(testResults);
+    await testRelayTokenTransfer(testResults);
+    await testReserveTransferFilter(testResults);
     await testAssetHubTransfer(testResults);
     
     // Print results

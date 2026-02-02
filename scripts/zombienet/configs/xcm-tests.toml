@@ -1,0 +1,57 @@
+# Zombienet configuration for Robonomics XCM tests
+# This configuration sets up a relay chain + Robonomics parachain + AssetHub for comprehensive XCM testing
+
+[settings]
+timeout = 1000
+
+[relaychain]
+default_command = "polkadot"
+default_args = ["-lparachain=debug", "-lxcm=trace"]
+chain = "rococo-local"
+
+  [[relaychain.nodes]]
+  name = "alice"
+  validator = true
+  rpc_port = 9944
+  ws_port = 9944
+  args = ["-lparachain=debug", "-lxcm=trace"]
+
+  [[relaychain.nodes]]
+  name = "bob"
+  validator = true
+  args = ["-lparachain=debug", "-lxcm=trace"]
+
+# AssetHub parachain (parachain ID 1000)
+# Provides asset management and cross-chain asset transfer capabilities
+[[parachains]]
+id = 1000
+chain = "asset-hub-rococo-local"
+cumulus_based = true
+
+  [[parachains.collators]]
+  name = "assethub-collator"
+  command = "polkadot-parachain"
+  rpc_port = 9910
+  ws_port = 9910
+  args = ["-lparachain=debug", "-lxcm=trace"]
+
+# Robonomics parachain (parachain ID 2048)
+# Main parachain for testing XCM integration
+[[parachains]]
+id = 2048
+chain = "dev"
+cumulus_based = true
+
+  [[parachains.collators]]
+  name = "robonomics-collator-01"
+  command = "robonomics"
+  rpc_port = 9988
+  ws_port = 9988
+  args = ["-lparachain=debug", "-lxcm=trace", "--force-authoring"]
+
+  [[parachains.collators]]
+  name = "robonomics-collator-02"
+  command = "robonomics"
+  rpc_port = 9989
+  ws_port = 9989
+  args = ["-lparachain=debug", "-lxcm=trace"]
