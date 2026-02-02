@@ -814,6 +814,24 @@ frame_benchmarking::define_benchmarks!(
     [pallet_xcm_info, XcmInfo]
 );
 
+// Custom XCM Runtime API providing essential cross-chain functionality
+// This API enables external tools and clients to interact with XCM features
+sp_api::decl_runtime_apis! {
+    /// API for querying XCM-related information
+    pub trait XcmRuntimeApi {
+        /// Convert an XCM Location to a local AccountId
+        /// This allows external tools to determine which account will receive XCM transfers
+        fn location_to_account(location: xcm::VersionedLocation) -> Option<AccountId>;
+
+        /// Calculate the weight-to-fee conversion for XCM operations
+        /// Returns the fee in the native token for a given weight
+        fn weight_to_fee(weight: Weight) -> Balance;
+
+        /// Get the current XCM version supported by this runtime
+        fn xcm_version() -> u32;
+    }
+}
+
 // Implement our runtime API endpoints. This is just a bunch of proxying.
 impl_runtime_apis! {
     impl sp_api::Core<Block> for Runtime {
@@ -949,6 +967,30 @@ impl_runtime_apis! {
         }
         fn authorities() -> Vec<AuraId> {
             pallet_aura::Authorities::<Runtime>::get().into_inner()
+        }
+    }
+
+    impl self::XcmRuntimeApi<Block> for Runtime {
+        fn location_to_account(location: xcm::VersionedLocation) -> Option<AccountId> {
+            use xcm::latest::Location;
+            use xcm_executor::traits::ConvertLocation;
+            
+            // Try to convert the versioned location to the latest version
+            let location_v5: Result<Location, ()> = location.try_into();
+            
+            match location_v5 {
+                Ok(loc) => xcm_config::LocationToAccountId::convert_location(&loc),
+                Err(_) => None,
+            }
+        }
+
+        fn weight_to_fee(weight: Weight) -> Balance {
+            use frame_support::weights::WeightToFee as WeightToFeeTrait;
+            WeightToFee::weight_to_fee(&weight)
+        }
+
+        fn xcm_version() -> u32 {
+            xcm::latest::VERSION
         }
     }
 
