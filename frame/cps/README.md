@@ -988,6 +988,179 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 | **IPFS + DB** | Decentralized storage | No ownership enforcement | Content distribution |
 | **ERC-721 NFTs** | Standard, composable | Gas-expensive, limited structure | Digital collectibles |
 
+## Offchain Worker Indexer (Optional Feature)
+
+The CPS pallet includes an efficient offchain worker that collects historical data using an **event-based indexing pattern** and exposes it via RPC API.
+
+### Architecture
+
+**Event-Based Indexing Pattern:**
+
+The indexer uses a highly efficient single-write-per-block pattern:
+
+1. **During Block Execution**: As extrinsics execute, CPS events (node creation, updates, deletions) are tracked in temporary storage (`ModifiedNodesThisBlock`)
+2. **In `on_finalize` Hook**: All collected events are written **once** to offchain storage as a single event queue using `sp_io::offchain_index::set()`
+3. **Offchain Worker**: Reads the event queue and processes each event, indexing data into queryable storage structures
+
+**Benefits:**
+- ✅ **Single write per block** instead of multiple writes during execution
+- ✅ **Automatic** - no manual integration needed
+- ✅ **Efficient** - minimal overhead during block execution  
+- ✅ **Clean separation** - event collection happens in runtime, processing in offchain worker
+
+### Enabling the Feature
+
+Add the `offchain-indexer` feature flag to enable indexing:
+
+```toml
+pallet-robonomics-cps = { 
+    default-features = false, 
+    path = "../frame/cps",
+    features = ["offchain-indexer"]
+}
+```
+
+### Storage Structure
+
+The indexer uses a double-map storage structure with **node_id first**, then block number:
+
+1. **Meta Records**: `cps::meta::<node_id><block_number>` - Metadata updates
+2. **Payload Records**: `cps::payload::<node_id><block_number>` - Payload updates
+3. **Node Operations**: `cps::operations::<node_id><block_number>` - Node lifecycle events
+4. **Node Index**: `cps::node_index::<node_id>` - Tracks which nodes have indexed data
+5. **Event Queue**: `cps::event_queue::<block_number>` - Pending events for processing
+
+All records include:
+- Block number (as timestamp, u64)
+- Node ID for efficient filtering
+- Associated data (Vec<u8>, encoded)
+- Operation type (for node operations: Create/Move/Delete)
+
+### Runtime API Integration
+
+Implement the Runtime API in your runtime:
+
+```rust
+impl pallet_robonomics_cps_rpc_runtime_api::CpsIndexerApi<Block> for Runtime {
+    fn get_meta_records(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<MetaRecord> {
+        pallet_robonomics_cps::offchain::storage::get_meta_records(node_id, from, to)
+    }
+    
+    fn get_payload_records(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<PayloadRecord> {
+        pallet_robonomics_cps::offchain::storage::get_payload_records(node_id, from, to)
+    }
+    
+    fn get_node_operations(
+        node_id: Option<NodeId>,
+        from: Option<u64>,
+        to: Option<u64>
+    ) -> Vec<NodeOperation> {
+        pallet_robonomics_cps::offchain::storage::get_node_operations(node_id, from, to)
+    }
+}
+```
+
+Note: **No manual index_* calls needed!** Events are automatically tracked and indexed.
+
+### RPC Extension Setup
+
+Add the RPC extension to your node's RPC handler:
+
+```rust
+use pallet_robonomics_cps_rpc::{CpsIndexerRpc, CpsIndexerRpcApiServer};
+
+// In your RPC setup
+let cps_rpc = CpsIndexerRpc::new(client.clone());
+io.merge(cps_rpc.into_rpc())?;
+```
+
+### RPC Endpoints
+
+Query historical data via JSON-RPC:
+
+**Get meta records:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getMetaRecords", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+**Get payload records:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getPayloadRecords", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+**Get node operations:**
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"id":1, "jsonrpc":"2.0", "method":"cps_getNodeOperations", "params":[1704067200, 1704153600]}' \
+     http://localhost:9933
+```
+
+### Response Format
+
+All RPC methods return arrays of timestamped records:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "timestamp": 1704067200,
+      "data": "0x48656c6c6f20576f726c64"
+    },
+    {
+      "timestamp": 1704070800,
+      "data": "0x54657374204461746131"
+    }
+  ],
+  "id": 1
+}
+```
+
+Node operations additionally include an `operationType` field:
+
+```json
+{
+  "timestamp": 1704067200,
+  "operationType": "create",
+  "data": "0x..."
+}
+```
+
+### Benefits
+
+- **Historical Analysis**: Query past system states and changes
+- **Audit Trails**: Track when nodes were created/modified
+- **Monitoring**: Build dashboards showing system activity over time
+- **Debugging**: Investigate issues by reviewing historical events
+- **Compliance**: Maintain queryable records for regulatory requirements
+
+### Performance Considerations
+
+- Offchain storage is node-local (not replicated across the network)
+- Storage size grows with activity; implement pruning if needed
+- Queries are bounded by time range to prevent excessive iteration
+- RPC calls are non-blocking and don't affect chain performance
+- **Important**: Current implementation iterates through every timestamp in range. For production use with large time ranges, add bounds checking in the Runtime API implementation to prevent potential DoS via excessive queries.
+
+### Security Considerations
+
+- **Public RPC Endpoints**: The RPC endpoints are publicly accessible. Consider implementing rate limiting at the node level for production deployments.
+- **No Data Encryption**: Offchain storage is not encrypted, but this is acceptable since indexed data comes from public on-chain events.
+- **No Consensus Impact**: Offchain worker operations are isolated and don't affect chain consensus.
+- **Local Storage**: Data is stored locally per node, not broadcast to the network.
+
 ## Roadmap
 
 **Current (v1):**
@@ -995,13 +1168,13 @@ await api.tx.cps.moveNode(nodeId, newParentId).signAndSend(account);
 - ✅ Plain and encrypted data storage
 - ✅ O(1) operations via path storage
 - ✅ Compact encoding for efficiency
+- ✅ Offchain worker indexer with RPC API (optional feature)
 
 **Planned (v2):**
 - 🔮 Multi-owner nodes with role-based permissions
 - 🔮 Node templates for rapid deployment
 - 🔮 Batch operations for bulk updates
 - 🔮 Additional encryption algorithms (AES-GCM, ChaCha20)
-- 🔮 Off-chain worker integration for automated maintenance
 
 ## Technical Documentation
 

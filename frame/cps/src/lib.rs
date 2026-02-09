@@ -412,6 +412,9 @@ pub mod weights;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "offchain-indexer")]
+pub mod offchain;
+
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -452,7 +455,7 @@ use sp_runtime::RuntimeDebug;
 ///         payload: Option<NodeData<EncryptedData>>
 ///     ) {
 ///         // Custom logic here - e.g., emit a custom event, update an index, etc.
-///         log::info!("Payload set on node {:?}", node_id);
+///         info!("Payload set on node {:?}", node_id);
 ///     }
 /// }
 /// ```
@@ -542,6 +545,10 @@ pub type MaxDataSize = ConstU32<2048>;
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
 #[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
+#[cfg_attr(
+    all(feature = "std", feature = "offchain-indexer"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[derive(
     Encode,
     Decode,
@@ -1001,7 +1008,16 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+    where
+        <T as frame_system::Config>::RuntimeEvent: TryInto<Event<T>>,
+    {
+        #[cfg(feature = "offchain-indexer")]
+        fn offchain_worker(block_number: BlockNumberFor<T>) {
+            let events = frame_system::Pallet::<T>::read_events_for_pallet::<Event<T>>();
+            offchain::index_events::<T>(block_number, events);
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -1086,6 +1102,7 @@ pub mod pallet {
             <Nodes<T>>::try_mutate(node_id, |node_opt| {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
+
                 node.meta = meta;
                 Ok::<(), DispatchError>(())
             })?;
@@ -1109,6 +1126,7 @@ pub mod pallet {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
+
                 node.payload = payload;
                 Ok::<
                     (

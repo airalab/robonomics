@@ -7577,9 +7577,37 @@ dependencies = [
  "pallet-proxy",
  "parity-scale-codec",
  "scale-info",
+ "serde",
+ "serde_json",
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
+name = "pallet-robonomics-cps-rpc"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "jsonrpsee",
+ "pallet-robonomics-cps",
+ "pallet-robonomics-cps-rpc-runtime-api",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-robonomics-cps-rpc-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "pallet-robonomics-cps",
+ "parity-scale-codec",
+ "sp-api",
  "sp-std",
 ]
 
@@ -10511,6 +10539,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-preimage",
  "pallet-robonomics-cps",
+ "pallet-robonomics-cps-rpc-runtime-api",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",

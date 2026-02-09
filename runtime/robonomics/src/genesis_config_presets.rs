@@ -32,7 +32,7 @@ use xcm::latest::{
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
 pub const SAFE_XCM_VERSION: u32 = 5;
-pub const RELAY_ASSET_ID: u32 = u32::MAX_VALUE - 1;
+pub const RELAY_ASSET_ID: u32 = AssetId::MAX - 1;
 
 fn robonomics_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,

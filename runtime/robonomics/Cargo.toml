@@ -71,6 +71,7 @@ pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
 pallet-wrapped-asset.workspace = true
+pallet-robonomics-cps-rpc-runtime-api = { workspace = true, optional = true }
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -92,7 +93,7 @@ xcm-builder.workspace = true
 xcm-executor.workspace = true
 xcm-runtime-apis.workspace = true
 pallet-xcm.workspace = true
-pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
+pallet-xcm-info.workspace = true
 polkadot-primitives.workspace = true
 polkadot-parachain-primitives.workspace = true
 polkadot-runtime-common.workspace = true
@@ -149,6 +150,8 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
+  "pallet-robonomics-cps/std",
+  "pallet-robonomics-cps-rpc-runtime-api?/std",
   "pallet-wrapped-asset/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
@@ -238,3 +241,9 @@ on-chain-release-build = ["metadata-hash"]
 
 # Use development timings in runtime parameters
 fast-runtime = []
+
+# Enable CPS Indexer Runtime API
+cps-offchain-indexer = [
+  "pallet-robonomics-cps/offchain-indexer",
+  "pallet-robonomics-cps-rpc-runtime-api",
+]
