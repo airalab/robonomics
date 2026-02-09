@@ -247,6 +247,11 @@ pallet-robonomics-liability = { path = "./frame/liability", default-features = f
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-wrapped-asset = { path = "./frame/wrapped-asset", default-features = false }
+pallet-xcm-info = { path = "./frame/xcm-info", default-features = false }
+
+# CPS indexer RPC
+pallet-robonomics-cps-rpc = { path = "./frame/cps/rpc" }
+pallet-robonomics-cps-rpc-runtime-api = { path = "./frame/cps/rpc/runtime-api", default-features = false }
 
 # Robonomics runtimes
 robonomics-runtime = { path = "./runtime/robonomics" }

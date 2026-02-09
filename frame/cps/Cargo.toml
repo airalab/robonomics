@@ -9,34 +9,37 @@ repository.workspace = true
 license = "Apache-2.0"
 
 [dependencies]
-scale-info = { workspace = true }
-parity-scale-codec = { workspace = true }
-sp-runtime = { workspace = true }
-sp-std = { workspace = true }
-sp-core = { workspace = true }
-sp-io = { workspace = true }
-log = { workspace = true }
-serde = { workspace = true, optional = true }
-hex = { workspace = true, optional = true }
-frame-system = { workspace = true }
-frame-support = { workspace = true }
-frame-benchmarking = { workspace = true, optional = true }
+scale-info.workspace = true
+parity-scale-codec.workspace = true
+sp-runtime.workspace = true
+sp-std.workspace = true
+sp-core.workspace = true
+sp-io.workspace = true
+sp-tracing.workspace = true
+serde.workspace = true
+serde.optional = true
+frame-system.workspace = true
+frame-support.workspace = true
+frame-benchmarking.workspace = true
+frame-benchmarking.optional = true
 
 [dev-dependencies]
-sp-io = { workspace = true }
-pallet-balances = { workspace = true, features = ["std"] }
-pallet-proxy = { workspace = true, features = ["std"] }
-serde_json = { workspace = true }
+sp-io.workspace = true
+pallet-balances.workspace = true
+pallet-balances.features = ["std"]
+pallet-proxy.workspace = true
+pallet-proxy.features = ["std"]
+serde_json.workspace = true
 
 [features]
 default = ["std"]
 std = [
   "parity-scale-codec/std",
   "sp-runtime/std",
+  "sp-tracing/std",
   "sp-std/std",
   "sp-core/std",
   "sp-io/std",
-  "log/std",
   "serde?/std",
   "frame-system/std",
   "frame-support/std",
@@ -44,7 +47,7 @@ std = [
   "scale-info/std",
 ]
 
-offchain-indexer = ["serde", "hex"]
+offchain-indexer = ["serde"]
 
 runtime-benchmarks = [
   "frame-benchmarking",

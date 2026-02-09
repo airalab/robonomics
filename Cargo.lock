@@ -7573,8 +7573,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hex",
- "log",
  "pallet-balances",
  "pallet-proxy",
  "parity-scale-codec",
@@ -7585,6 +7583,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "sp-tracing",
 ]
 
 [[package]]
@@ -10540,6 +10539,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-preimage",
  "pallet-robonomics-cps",
+ "pallet-robonomics-cps-rpc-runtime-api",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",

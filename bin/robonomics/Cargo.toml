@@ -23,3 +23,7 @@ assert_cmd.workspace = true
 
 [build-dependencies]
 substrate-build-script-utils.workspace = true
+
+[features]
+default = []
+cps-offchain-indexer = ["robonomics-runtime/cps-offchain-indexer"]

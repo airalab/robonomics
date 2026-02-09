@@ -16,7 +16,9 @@ parity-scale-codec = { workspace = true }
 sp-api = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-runtime = { workspace = true }
-pallet-robonomics-cps = { path = "..", default-features = false, features = ["offchain-indexer"] }
+pallet-robonomics-cps = { path = "..", default-features = false, features = [
+  "offchain-indexer",
+] }
 pallet-robonomics-cps-rpc-runtime-api = { path = "./runtime-api", default-features = false }
 
 [features]

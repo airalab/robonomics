@@ -455,7 +455,7 @@ use sp_runtime::RuntimeDebug;
 ///         payload: Option<NodeData<EncryptedData>>
 ///     ) {
 ///         // Custom logic here - e.g., emit a custom event, update an index, etc.
-///         log::info!("Payload set on node {:?}", node_id);
+///         info!("Payload set on node {:?}", node_id);
 ///     }
 /// }
 /// ```
@@ -545,7 +545,10 @@ pub type MaxDataSize = ConstU32<2048>;
 /// ```
 #[cfg_attr(feature = "std", derive(Debug))]
 #[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
-#[cfg_attr(all(feature = "std", feature = "offchain-indexer"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    all(feature = "std", feature = "offchain-indexer"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[derive(
     Encode,
     Decode,
@@ -877,8 +880,6 @@ pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use sp_runtime::SaturatedConversion;
-    use sp_std::convert::TryInto;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -969,13 +970,6 @@ pub mod pallet {
     pub type RootNodes<T: Config> =
         StorageValue<_, BoundedVec<NodeId, T::MaxRootNodes>, ValueQuery>;
 
-    /// Track modified nodes in current block for offchain indexing
-    #[cfg(feature = "offchain-indexer")]
-    #[pallet::storage]
-    #[pallet::unbounded]
-    pub(crate) type ModifiedNodesThisBlock<T: Config> = 
-        StorageValue<_, Vec<(NodeId, offchain::storage::CpsEvent)>, OptionQuery>;
-
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -1014,40 +1008,14 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        #[cfg(feature = "offchain-indexer")]
-        fn on_finalize(block_number: BlockNumberFor<T>) {
-            // Get all modified nodes tracked during this block
-            if let Some(modified) = ModifiedNodesThisBlock::<T>::take() {
-                let block_num: u64 = block_number.saturated_into();
-                let events: Vec<_> = modified.into_iter().map(|(_, event)| event).collect();
-                let event_count = events.len();
-                
-                offchain::storage::store_event_queue(block_num, events);
-                
-                log::debug!(
-                    target: "cps-indexer",
-                    "Stored {} CPS events for block {}",
-                    event_count,
-                    block_num
-                );
-            }
-        }
-        
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+    where
+        <T as frame_system::Config>::RuntimeEvent: TryInto<Event<T>>,
+    {
         #[cfg(feature = "offchain-indexer")]
         fn offchain_worker(block_number: BlockNumberFor<T>) {
-            offchain::index_cps_data::<T>(block_number);
-        }
-    }
-
-    // Helper functions
-    impl<T: Config> Pallet<T> {
-        #[cfg(feature = "offchain-indexer")]
-        fn track_event(node_id: NodeId, event: offchain::storage::CpsEvent) {
-            ModifiedNodesThisBlock::<T>::mutate(|events_opt| {
-                let events = events_opt.get_or_insert_with(Vec::new);
-                events.push((node_id, event));
-            });
+            let events = frame_system::Pallet::<T>::read_events_for_pallet::<Event<T>>();
+            offchain::index_events::<T>(block_number, events);
         }
     }
 
@@ -1117,10 +1085,6 @@ pub mod pallet {
             <Nodes<T>>::insert(node_id, node);
 
             Self::deposit_event(Event::NodeCreated(node_id, parent_id, sender));
-            
-            #[cfg(feature = "offchain-indexer")]
-            Self::track_event(node_id, offchain::storage::CpsEvent::NodeCreated(node_id, parent_id));
-            
             Ok(())
         }
 
@@ -1138,12 +1102,7 @@ pub mod pallet {
             <Nodes<T>>::try_mutate(node_id, |node_opt| {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
-                
-                #[cfg(feature = "offchain-indexer")]
-                if let Some(ref meta_data) = meta {
-                    Self::track_event(node_id, offchain::storage::CpsEvent::MetaSet(node_id, meta_data.encode()));
-                }
-                
+
                 node.meta = meta;
                 Ok::<(), DispatchError>(())
             })?;
@@ -1167,12 +1126,7 @@ pub mod pallet {
                 let node = node_opt.as_mut().ok_or(Error::<T>::NodeNotFound)?;
                 ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
                 let meta = node.meta.clone();
-                
-                #[cfg(feature = "offchain-indexer")]
-                if let Some(ref payload_data) = payload {
-                    Self::track_event(node_id, offchain::storage::CpsEvent::PayloadSet(node_id, payload_data.encode()));
-                }
-                
+
                 node.payload = payload;
                 Ok::<
                     (
@@ -1262,10 +1216,6 @@ pub mod pallet {
             Self::update_descendant_paths(node_id, &new_path)?;
 
             Self::deposit_event(Event::NodeMoved(node_id, old_parent, new_parent_id, sender));
-            
-            #[cfg(feature = "offchain-indexer")]
-            Self::track_event(node_id, offchain::storage::CpsEvent::NodeMoved(node_id, old_parent, new_parent_id));
-            
             Ok(())
         }
 
@@ -1304,10 +1254,6 @@ pub mod pallet {
             <Nodes<T>>::remove(node_id);
 
             Self::deposit_event(Event::NodeDeleted(node_id, sender));
-            
-            #[cfg(feature = "offchain-indexer")]
-            Self::track_event(node_id, offchain::storage::CpsEvent::NodeDeleted(node_id));
-            
             Ok(())
         }
     }

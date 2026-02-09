@@ -59,6 +59,12 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 
+#[cfg(feature = "cps-offchain-indexer")]
+use pallet_robonomics_cps::{
+    offchain::{storage as cps_indexer, MetaRecord, NodeOperation, PayloadRecord},
+    NodeId,
+};
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -439,7 +445,7 @@ impl pallet_message_queue::Config for Runtime {
     #[cfg(not(feature = "runtime-benchmarks"))]
     type MessageProcessor = xcm_builder::ProcessXcmMessage<
         AggregateMessageOrigin,
-        xcm_executor::XcmExecutor<XcmConfig>,
+        xcm_executor::XcmExecutor<xcm_config::XcmConfig>,
         RuntimeCall,
     >;
     type Size = u32;
@@ -1041,6 +1047,33 @@ impl_runtime_apis! {
 
         fn is_authorized_alias(origin: xcm::VersionedLocation, target: xcm::VersionedLocation) -> Result<bool, xcm_runtime_apis::authorized_aliases::Error> {
             PolkadotXcm::is_authorized_alias(origin, target)
+        }
+    }
+
+    #[cfg(feature = "cps-offchain-indexer")]
+    impl pallet_robonomics_cps_rpc_runtime_api::CpsIndexerApi<Block> for Runtime {
+        fn get_meta_records(
+            node_id: Option<NodeId>,
+            from: Option<u64>,
+            to: Option<u64>,
+        ) -> Vec<MetaRecord> {
+            cps_indexer::get_meta_records(node_id, from, to)
+        }
+
+        fn get_payload_records(
+            node_id: Option<NodeId>,
+            from: Option<u64>,
+            to: Option<u64>,
+        ) -> Vec<PayloadRecord> {
+            cps_indexer::get_payload_records(node_id, from, to)
+        }
+
+        fn get_node_operations(
+            node_id: Option<NodeId>,
+            from: Option<u64>,
+            to: Option<u64>,
+        ) -> Vec<NodeOperation> {
+            cps_indexer::get_node_operations(node_id, from, to)
         }
     }
 
