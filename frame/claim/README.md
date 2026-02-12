@@ -149,7 +149,7 @@ const { u8aToHex } = require('@polkadot/util');
 const wallet = new ethers.Wallet(privateKey);
 const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
 
-// The prefix "Pay RWS to the Robonomics account:" is automatically added
+// Sign the account bytes. The pallet will add the prefix during verification.
 const message = u8aToHex(accountBytes);
 const signature = await wallet.signMessage(ethers.utils.arrayify(message));
 
@@ -443,6 +443,6 @@ Licensed under the Apache License, Version 2.0. See LICENSE file for details.
 
 ## References
 
-- [Polkadot Claim Pallet](https://github.com/paritytech/polkadot/tree/master/runtime/common/src/claims.rs) - Original inspiration
+- [Polkadot Claims Pallet](https://github.com/paritytech/polkadot-sdk/tree/master/polkadot/runtime/common/src/claims) - Original inspiration
 - [Ethereum Signed Messages](https://eips.ethereum.org/EIPS/eip-191) - EIP-191 standard
 - [Substrate Documentation](https://docs.substrate.io/) - General Substrate/FRAME development
