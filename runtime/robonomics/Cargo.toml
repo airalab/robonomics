@@ -70,6 +70,7 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
+pallet-robonomics-claim.workspace = true
 pallet-wrapped-asset.workspace = true
 
 # cumulus dependencies
@@ -149,6 +150,8 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
+  "pallet-robonomics-claim/std",
+  "pallet-robonomics-cps/std",
   "pallet-wrapped-asset/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
