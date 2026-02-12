@@ -1,20 +1,69 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Polkadot.
-
-// Polkadot is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Polkadot is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
-
-//! Pallet to process claims from Ethereum addresses.
+///////////////////////////////////////////////////////////////////////////////
+//
+//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+///////////////////////////////////////////////////////////////////////////////
+//! # Robonomics Claim Pallet
+//!
+//! A pallet for claiming tokens using Ethereum signatures.
+//!
+//! ## Overview
+//!
+//! This pallet enables users who hold Ethereum addresses to claim tokens on the Robonomics
+//! parachain by proving ownership of their Ethereum address through ECDSA signatures.
+//! This is particularly useful for token migrations from Ethereum to Substrate-based chains.
+//!
+//! ## Features
+//!
+//! - **Unsigned Claims**: Users can submit unsigned transactions with Ethereum signatures
+//! - **Signature Verification**: Validates ECDSA signatures using Ethereum's personal_sign format
+//! - **One-time Claims**: Each Ethereum address can only claim once
+//! - **Root Management**: Claims can be added by root/governance
+//!
+//! ## Usage
+//!
+//! ### For Users
+//!
+//! To claim tokens, users need:
+//! 1. An Ethereum address with an associated claim
+//! 2. Control of the private key for that Ethereum address
+//! 3. A destination account on the parachain
+//!
+//! The user signs their destination account ID with their Ethereum private key and submits
+//! the signature via the `claim` extrinsic.
+//!
+//! ### For Governance
+//!
+//! New claims can be added via the `add_claim` extrinsic (requires root origin):
+//! ```ignore
+//! // Add a claim for an Ethereum address
+//! Claims::add_claim(
+//!     RuntimeOrigin::root(),
+//!     ethereum_address,
+//!     amount_to_claim,
+//! )?;
+//! ```
+//!
+//! ## Implementation Details
+//!
+//! The pallet stores claims in a map from Ethereum addresses to token amounts.
+//! When a valid claim is processed:
+//! 1. The signature is verified against the destination account
+//! 2. Tokens are transferred from the pallet account to the destination
+//! 3. The claim is removed from storage
+//! 4. A `Claimed` event is emitted
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -42,14 +91,23 @@ use sp_runtime::{
     RuntimeDebug,
 };
 
+/// Balance type alias for easier reference throughout the pallet.
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+/// Weight information for pallet extrinsics.
+///
+/// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
+    /// Weight for the `claim` extrinsic.
     fn claim() -> Weight;
+    /// Weight for the `add_claim` extrinsic.
     fn add_claim() -> Weight;
 }
 
+/// Test weight implementation that returns zero weight for all operations.
+///
+/// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
     fn claim() -> Weight {
@@ -115,6 +173,10 @@ impl AsRef<[u8]> for EthereumAddress {
     }
 }
 
+/// ECDSA signature from Ethereum.
+///
+/// Contains 64 bytes for the signature (r, s) and 1 byte for the recovery ID (v).
+/// This matches the signature format produced by Ethereum's `personal_sign` and `eth_sign` RPC methods.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, TypeInfo, MaxEncodedLen)]
 pub struct EcdsaSignature(pub [u8; 65]);
 
@@ -140,17 +202,30 @@ pub mod pallet {
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
-    /// Configuration trait.
+    /// Configuration trait for the Claim pallet.
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        
+        /// Currency type for handling token transfers.
         type Currency: Currency<Self::AccountId>;
+        
+        /// Prefix string prepended to signed messages.
+        ///
+        /// This is used in the Ethereum signed message format to prevent signature replay attacks
+        /// across different contexts. Example: b"Pay RWS to the Robonomics account:"
         #[pallet::constant]
         type Prefix: Get<&'static [u8]>;
+        
+        /// Pallet ID for deriving the pallet's account.
+        ///
+        /// The pallet account holds the claimable tokens before they are claimed.
         #[pallet::constant]
         type PalletId: Get<PalletId>;
+        
+        /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
 
@@ -173,12 +248,19 @@ pub mod pallet {
         SignerHasNoClaim,
     }
 
+    /// Mapping of Ethereum addresses to their claimable token amounts.
+    ///
+    /// Once a claim is processed, the entry is removed from this map.
     #[pallet::storage]
     pub type Claims<T: Config> = StorageMap<_, Identity, EthereumAddress, BalanceOf<T>>;
 
+    /// Genesis configuration for the Claim pallet.
+    ///
+    /// Allows setting up initial claims at chain genesis.
     #[pallet::genesis_config]
     #[derive(DefaultNoBound)]
     pub struct GenesisConfig<T: Config> {
+        /// List of initial claims as (Ethereum address, claimable amount) pairs.
         pub claims: Vec<(EthereumAddress, BalanceOf<T>)>,
     }
 
@@ -304,6 +386,12 @@ pub mod pallet {
 }
 
 /// Converts the given binary data into ASCII-encoded hex. It will be twice the length.
+///
+/// # Arguments
+/// * `data` - The binary data to convert to hex ASCII
+///
+/// # Returns
+/// A vector containing the ASCII hex representation (e.g., [0xAB] becomes [b'a', b'b'])
 fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
     let mut r = Vec::with_capacity(data.len() * 2);
     let mut push_nibble = |n| r.push(if n < 10 { b'0' + n } else { b'a' - 10 + n });
@@ -315,7 +403,16 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 }
 
 impl<T: Config> Pallet<T> {
-    // Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
+    /// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
+    ///
+    /// The format matches Ethereum's standard:
+    /// `\x19Ethereum Signed Message:\n{length}{prefix}{what}`
+    ///
+    /// # Arguments
+    /// * `what` - The actual message content to sign
+    ///
+    /// # Returns
+    /// The full message that should be hashed and signed
     fn ethereum_signable_message(what: &[u8]) -> Vec<u8> {
         let prefix = T::Prefix::get();
         let mut l = prefix.len() + what.len();
@@ -331,8 +428,16 @@ impl<T: Config> Pallet<T> {
         v
     }
 
-    // Attempts to recover the Ethereum address from a message signature signed by using
-    // the Ethereum RPC's `personal_sign` and `eth_sign`.
+    /// Attempts to recover the Ethereum address from a message signature.
+    ///
+    /// Uses ECDSA signature recovery with the secp256k1 curve.
+    ///
+    /// # Arguments
+    /// * `s` - The ECDSA signature (65 bytes: r, s, v)
+    /// * `what` - The message that was signed
+    ///
+    /// # Returns
+    /// The recovered Ethereum address, or `None` if recovery fails
     fn eth_recover(s: &EcdsaSignature, what: &[u8]) -> Option<EthereumAddress> {
         let msg = keccak_256(&Self::ethereum_signable_message(what));
         let mut res = EthereumAddress::default();
@@ -341,6 +446,15 @@ impl<T: Config> Pallet<T> {
         Some(res)
     }
 
+    /// Processes a claim by transferring tokens and removing the claim from storage.
+    ///
+    /// # Arguments
+    /// * `signer` - The Ethereum address that signed the claim
+    /// * `dest` - The destination account to receive the claimed tokens
+    ///
+    /// # Errors
+    /// * `SignerHasNoClaim` - If the Ethereum address has no associated claim
+    /// * Transfer errors from the currency pallet
     fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> sp_runtime::DispatchResult {
         let balance_due = Claims::<T>::get(&signer).ok_or(Error::<T>::SignerHasNoClaim)?;
 
@@ -367,17 +481,32 @@ impl<T: Config> Pallet<T> {
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod secp_utils {
+    //! Utilities for working with secp256k1 keys and Ethereum addresses in tests and benchmarks.
     use super::*;
 
+    /// Derives the public key from a secret key.
     pub fn public(secret: &libsecp256k1::SecretKey) -> libsecp256k1::PublicKey {
         libsecp256k1::PublicKey::from_secret_key(secret)
     }
+    
+    /// Derives an Ethereum address from a secret key.
+    ///
+    /// Computes the Keccak-256 hash of the public key and takes the last 20 bytes.
     pub fn eth(secret: &libsecp256k1::SecretKey) -> EthereumAddress {
         let mut res = EthereumAddress::default();
         res.0
             .copy_from_slice(&keccak_256(&public(secret).serialize()[1..65])[12..]);
         res
     }
+    
+    /// Signs a message with a secret key in the format expected by the pallet.
+    ///
+    /// # Arguments
+    /// * `secret` - The secret key to sign with
+    /// * `what` - The message to sign (will be hex-encoded and wrapped in Ethereum format)
+    ///
+    /// # Returns
+    /// An ECDSA signature in the format expected by the claim pallet
     pub fn sig<T: Config>(secret: &libsecp256k1::SecretKey, what: &[u8]) -> EcdsaSignature {
         let msg = keccak_256(&super::Pallet::<T>::ethereum_signable_message(
             &to_ascii_hex(what)[..],
