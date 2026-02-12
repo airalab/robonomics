@@ -208,23 +208,23 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-        
+
         /// Currency type for handling token transfers.
         type Currency: Currency<Self::AccountId>;
-        
+
         /// Prefix string prepended to signed messages.
         ///
         /// This is used in the Ethereum signed message format to prevent signature replay attacks
         /// across different contexts. Example: b"Pay RWS to the Robonomics account:"
         #[pallet::constant]
         type Prefix: Get<&'static [u8]>;
-        
+
         /// Pallet ID for deriving the pallet's account.
         ///
         /// The pallet account holds the claimable tokens before they are claimed.
         #[pallet::constant]
         type PalletId: Get<PalletId>;
-        
+
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
@@ -488,7 +488,7 @@ mod secp_utils {
     pub fn public(secret: &libsecp256k1::SecretKey) -> libsecp256k1::PublicKey {
         libsecp256k1::PublicKey::from_secret_key(secret)
     }
-    
+
     /// Derives an Ethereum address from a secret key.
     ///
     /// Computes the Keccak-256 hash of the public key and takes the last 20 bytes.
@@ -498,7 +498,7 @@ mod secp_utils {
             .copy_from_slice(&keccak_256(&public(secret).serialize()[1..65])[12..]);
         res
     }
-    
+
     /// Signs a message with a secret key in the format expected by the pallet.
     ///
     /// # Arguments
