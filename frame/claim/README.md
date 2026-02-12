@@ -118,7 +118,14 @@ if (claim.isSome) {
 
 #### Step 2: Sign Your Account ID
 
-Sign your Substrate account ID with your Ethereum private key:
+Sign your Substrate account ID with your Ethereum private key. You must include the configured prefix in the message you sign.
+
+**Important**: The message format is `{Prefix}{hex_account_id}`. For example:
+```
+Pay RWS to the Robonomics account:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+```
+
+The Ethereum signing functions (`personal_sign`) will automatically add the `\x19Ethereum Signed Message:\n` wrapper.
 
 **Using web3.js:**
 ```javascript
@@ -128,12 +135,17 @@ const { u8aToHex } = require('@polkadot/util');
 const web3 = new Web3();
 const substrateAccountId = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY';
 
-// Convert account ID to bytes (removing '0x' prefix if present)
+// Convert account ID to hex
 const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
+const accountHex = u8aToHex(accountBytes, -1, false); // Remove '0x' prefix
+
+// Construct message with prefix
+const prefix = 'Pay RWS to the Robonomics account:';
+const message = prefix + accountHex;
 
 // Sign using Ethereum's personal_sign
 const signature = await web3.eth.personal.sign(
-  u8aToHex(accountBytes),
+  message,
   ethereumAddress,
   ethereumPassword // or use MetaMask
 );
@@ -147,11 +159,18 @@ const { ethers } = require('ethers');
 const { u8aToHex } = require('@polkadot/util');
 
 const wallet = new ethers.Wallet(privateKey);
-const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
+const substrateAccountId = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY';
 
-// Sign the account bytes. The pallet will add the prefix during verification.
-const message = u8aToHex(accountBytes);
-const signature = await wallet.signMessage(ethers.utils.arrayify(message));
+// Convert account ID to hex
+const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
+const accountHex = u8aToHex(accountBytes, -1, false); // Remove '0x' prefix
+
+// Construct message with prefix
+const prefix = 'Pay RWS to the Robonomics account:';
+const message = prefix + accountHex;
+
+// Sign the message (signMessage automatically uses personal_sign format)
+const signature = await wallet.signMessage(message);
 
 console.log('Signature:', signature);
 ```
@@ -164,10 +183,17 @@ const { u8aToHex } = require('@polkadot/util');
 const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
 const ethereumAddress = accounts[0];
 
-const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
-const message = u8aToHex(accountBytes);
+const substrateAccountId = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY';
 
-// Sign with MetaMask
+// Convert account ID to hex
+const accountBytes = api.createType('AccountId', substrateAccountId).toU8a();
+const accountHex = u8aToHex(accountBytes, -1, false); // Remove '0x' prefix
+
+// Construct message with prefix
+const prefix = 'Pay RWS to the Robonomics account:';
+const message = prefix + accountHex;
+
+// Sign with MetaMask - it will show the full message including the prefix
 const signature = await ethereum.request({
   method: 'personal_sign',
   params: [message, ethereumAddress],
@@ -218,10 +244,12 @@ async function claimTokens(ethereumPrivateKey, destinationAccount) {
   }
   console.log('Claimable amount:', claim.unwrap().toString());
 
-  // Create signature
+  // Create signature with prefix
   const accountBytes = api.createType('AccountId', destinationAccount).toU8a();
-  const message = u8aToHex(accountBytes);
-  const signature = await wallet.signMessage(ethers.utils.arrayify(message));
+  const accountHex = u8aToHex(accountBytes, -1, false); // Remove '0x' prefix
+  const prefix = 'Pay RWS to the Robonomics account:';
+  const message = prefix + accountHex;
+  const signature = await wallet.signMessage(message);
   
   console.log('Signature created:', signature);
 
