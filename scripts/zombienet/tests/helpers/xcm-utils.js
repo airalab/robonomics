@@ -336,7 +336,7 @@ function toPlanck(amount, decimals = 12) {
 function fromPlanck(planck, decimals = 12) {
   // Use BigInt to preserve precision
   const bigPlanck = BigInt(planck.toString());
-  const divisor = BigInt(10 ** decimals);
+  const divisor = BigInt(10) ** BigInt(decimals);
   return Number(bigPlanck / divisor);
 }
 

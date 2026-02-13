@@ -244,9 +244,12 @@ function hasExtrinsic(api, palletName, extrinsicName) {
  */
 function formatBalance(balance, decimals = 12) {
   const balanceStr = balance.toString();
-  const divisor = Math.pow(10, decimals);
-  const formattedBalance = (parseInt(balanceStr) / divisor).toFixed(decimals);
-  return formattedBalance;
+  const bigBalance = BigInt(balanceStr);
+  const bigDivisor = 10n ** BigInt(decimals);
+  const wholePart = bigBalance / bigDivisor;
+  const remainder = bigBalance % bigDivisor;
+  const remainderStr = remainder.toString().padStart(decimals, '0');
+  return `${wholePart.toString()}.${remainderStr}`;
 }
 
 module.exports = {
