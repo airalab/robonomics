@@ -551,6 +551,20 @@ impl pallet_robonomics_rws::Config for Runtime {
 }
 
 parameter_types! {
+    pub ClaimMessagePrefix: &'static [u8] = b"Claim ERC20 XRT to account:";
+    pub ClaimPalletId: PalletId = PalletId(*b"ClaimXrt");
+}
+
+impl pallet_robonomics_claim::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type PalletId = ClaimPalletId;
+    type Prefix = ClaimMessagePrefix;
+    // TODO: Replace TestWeightInfo with weights generated from benchmarks before production deployment.
+    type WeightInfo = pallet_robonomics_claim::TestWeightInfo;
+}
+
+parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxRootNodes: u32 = 100;
@@ -701,6 +715,9 @@ mod runtime {
     pub type Liability = pallet_robonomics_liability;
 
     #[runtime::pallet_index(57)]
+    pub type ClaimXRT = pallet_robonomics_claim;
+
+    #[runtime::pallet_index(58)]
     pub type CPS = pallet_robonomics_cps;
 
     //

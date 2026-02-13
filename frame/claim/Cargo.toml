@@ -1,0 +1,56 @@
+[package]
+name = "pallet-robonomics-claim"
+description = "Claim token from Ethereum account."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+frame-support.workspace = true
+frame-system.workspace = true
+frame-benchmarking = { workspace = true, optional = true }
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+serde = { features = ["alloc"], workspace = true }
+rustc-hex.workspace = true
+libsecp256k1.workspace = true
+sp-runtime = { features = ["serde"], workspace = true }
+sp-std.workspace = true
+sp-io.workspace = true
+
+[dev-dependencies]
+sp-core.workspace = true
+hex-literal.workspace = true
+serde_json = { workspace = true, default-features = true }
+libsecp256k1 = { workspace = true, default-features = true }
+pallet-balances.workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "frame-support/std",
+  "frame-system/std",
+  "frame-benchmarking?/std",
+  "parity-scale-codec/std",
+
+  "scale-info/std",
+  "serde/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "sp-io/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+]
+
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "sp-runtime/try-runtime",
+]

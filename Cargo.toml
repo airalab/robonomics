@@ -25,6 +25,7 @@ members = [
   "frame/digital-twin",
   "frame/xcm-info",
   "frame/cps",
+  "frame/claim",
   "frame/wrapped-asset",
   "runtime/robonomics",
   "tools/libcps",
@@ -41,8 +42,10 @@ parity-scale-codec = { version = "3.6.1", default-features = false, features = [
 scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
+libsecp256k1 = { version = "0.7.0", default-features = false }
 smallvec = { version = "1.11", default-features = false }
 hex-literal = { version = "0.4.1", default-features = false }
+rustc-hex = { version = "2.1.0", default-features = false }
 log = { version = "0.4.19", default-features = false }
 
 # (native)
@@ -244,6 +247,7 @@ pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
+pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
 pallet-wrapped-asset = { path = "./frame/wrapped-asset", default-features = false }
 
 # Robonomics runtimes
