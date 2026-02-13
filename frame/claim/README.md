@@ -244,10 +244,10 @@ async function claimTokens(ethereumPrivateKey, destinationAccount) {
   }
   console.log('Claimable amount:', claim.unwrap().toString());
 
-  // Create signature with prefix
+  // Create signature with prefix (must match the runtime configuration)
   const accountBytes = api.createType('AccountId', destinationAccount).toU8a();
   const accountHex = u8aToHex(accountBytes, -1, false); // Remove '0x' prefix
-  const prefix = 'Pay RWS to the Robonomics account:';
+  const prefix = 'Claim ERC20 XRT to account:';
   const message = prefix + accountHex;
   const signature = await wallet.signMessage(message);
   

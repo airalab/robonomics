@@ -59,8 +59,8 @@ mod benchmarks {
     #[benchmark]
     fn claim() -> Result<(), BenchmarkError> {
         let c = MAX_CLAIMS;
-        for _ in 0..c / 2 {
-            create_claim::<T>(c)?;
+        for i in 0..c / 2 {
+            create_claim::<T>(i)?;
         }
         let secret_key = libsecp256k1::SecretKey::parse(&keccak_256(&c.encode())).unwrap();
         let eth_address = eth(&secret_key);
@@ -92,8 +92,8 @@ mod benchmarks {
     #[benchmark]
     fn add_claim() -> Result<(), BenchmarkError> {
         let c = MAX_CLAIMS;
-        for _ in 0..c / 2 {
-            create_claim::<T>(c)?;
+        for i in 0..c / 2 {
+            create_claim::<T>(i)?;
         }
         let eth_address = account("eth_address", 0, SEED);
 
@@ -120,7 +120,7 @@ mod benchmarks {
     // Benchmark the time it takes to do `repeat` number of `eth_recover`
     #[benchmark(extra)]
     fn eth_recover(i: Linear<0, 1_000>) {
-        // Crate signature
+        // Create signature
         let secret_key = libsecp256k1::SecretKey::parse(&keccak_256(&i.encode())).unwrap();
         let account: T::AccountId = account("user", i, SEED);
         let signature = sig::<T>(&secret_key, &account.encode());

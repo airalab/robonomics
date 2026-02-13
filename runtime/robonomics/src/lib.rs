@@ -560,6 +560,7 @@ impl pallet_robonomics_claim::Config for Runtime {
     type Currency = Balances;
     type PalletId = ClaimPalletId;
     type Prefix = ClaimMessagePrefix;
+    // TODO: Replace TestWeightInfo with weights generated from benchmarks before production deployment.
     type WeightInfo = pallet_robonomics_claim::TestWeightInfo;
 }
 
