@@ -459,7 +459,7 @@ impl<T: Config> Pallet<T> {
         let balance_due = Claims::<T>::get(&signer).ok_or(Error::<T>::SignerHasNoClaim)?;
 
         let pallet_account = T::PalletId::get().into_account_truncating();
-        let _ = T::Currency::transfer(
+        T::Currency::transfer(
             &pallet_account,
             &dest,
             balance_due,
