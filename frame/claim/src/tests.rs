@@ -67,7 +67,7 @@ fn claiming_works() {
 }
 
 #[test]
-fn claiming_does_not_bypass_signing() {
+fn multiple_eth_addresses_can_claim_to_same_destination() {
     new_test_ext().execute_with(|| {
         assert_ok!(claims::mock::Claims::claim(
             RuntimeOrigin::none(),
