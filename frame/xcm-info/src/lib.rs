@@ -339,6 +339,7 @@ mod tests {
     pub fn new_test_ext() -> sp_io::TestExternalities {
         let storage = RuntimeGenesisConfig {
             system: Default::default(),
+            xcm_info: Default::default(),
         }
         .build_storage()
         .unwrap();
@@ -545,7 +546,7 @@ mod tests {
     fn storage_getters_work_correctly() {
         new_test_ext().execute_with(|| {
             // Initially storage should be empty
-            assert_eq!(XcmInfo::relay_network(), None);
+            assert_eq!(XcmInfo::relay_network(), Some(NetworkId::Polkadot));
 
             // Set relay network
             assert_ok!(XcmInfo::set_relay_network(
