@@ -16,6 +16,7 @@ path = "src/main.rs"
 color-eyre.workspace = true
 polkadot-omni-node-lib.workspace = true
 robonomics-runtime.workspace = true
+robonomics-runtime.features = ["dev-runtime"]
 sp-genesis-builder.workspace = true
 
 [dev-dependencies]

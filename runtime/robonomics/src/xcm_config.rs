@@ -27,7 +27,6 @@ use frame_support::{
     traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess, TransformOrigin},
     weights::Weight,
 };
-use hex_literal::hex;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::ConstU32;
 use sp_std::{marker::PhantomData, prelude::*};
@@ -365,34 +364,5 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 impl pallet_xcm_info::Config for Runtime {
     type AssetId = AssetId;
     type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    /// MultiLocation of Robonomics token (XRT) as foreign asset on Asset Hub.
-    pub ForeignAssetLocation: Location = Location::new(
-        2,
-        [
-            Junction::GlobalConsensus(NetworkId::Ethereum { chain_id: 1 }),
-            Junction::from(hex!["7de91b204c1c737bcee6f000aaa6569cf7061cb7"]),
-        ],
-    );
-
-    /// Asset Hub location
-    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
-
-    /// Amount of relay chain asset (KSM/DOT) to use for XCM execution fees on Asset Hub.
-    /// 0.01 relay tokens = 10_000_000_000 (10^10 planck units)
-    pub const XcmFeeAmount: u128 = 10_000_000_000;
-}
-
-impl pallet_wrapped_asset::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type NativeCurrency = Balances;
-    type ForeignAssetLocation = ForeignAssetLocation;
-    type AssetHubLocation = AssetHubLocation;
-    type XcmFeeAmount = XcmFeeAmount;
-    type ConvertBalance = JustTry;
-    type AccountIdConversion = LocalOriginToLocation;
     type WeightInfo = ();
 }

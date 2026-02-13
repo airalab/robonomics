@@ -24,6 +24,12 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+// Make development WASM binary available in dedicated module.
+#[cfg(feature = "std")]
+pub mod dev {
+    include!(concat!(env!("OUT_DIR"), "/development_wasm_binary.rs"));
+}
+
 extern crate alloc;
 
 use cumulus_primitives_core::AggregateMessageOrigin;
@@ -564,12 +570,14 @@ impl pallet_robonomics_claim::Config for Runtime {
     type WeightInfo = pallet_robonomics_claim::TestWeightInfo;
 }
 
+#[cfg(feature = "dev-runtime")]
 parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxRootNodes: u32 = 100;
 }
 
+#[cfg(feature = "dev-runtime")]
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type MaxTreeDepth = MaxTreeDepth;
@@ -693,7 +701,7 @@ mod runtime {
     pub type Assets = pallet_assets;
 
     #[runtime::pallet_index(35)]
-    pub type WrappedXRT = pallet_wrapped_asset;
+    pub type ClaimXRT = pallet_robonomics_claim;
 
     //
     // Robonomics Network pallets.
@@ -714,10 +722,8 @@ mod runtime {
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
 
+    #[cfg(feature = "dev-runtime")]
     #[runtime::pallet_index(57)]
-    pub type ClaimXRT = pallet_robonomics_claim;
-
-    #[runtime::pallet_index(58)]
     pub type CPS = pallet_robonomics_cps;
 
     //
@@ -848,8 +854,8 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_launch, Launch]
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
+    #[cfg(feature = "dev-runtime")]
     [pallet_robonomics_cps, CPS]
-    // TODO: [pallet_wrapped_asset, WrappedXRT]
     // XCM pallets
     // [cumulus_pallet_xcmp_queue, XcmpQueue]
     [pallet_message_queue, MessageQueue]

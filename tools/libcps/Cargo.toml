@@ -15,7 +15,7 @@ keywords = [
   "cyber-physical-systems",
   "encryption",
 ]
-categories = ["cryptography", "network-programming", "web-programming"]
+categories = ["cryptography", "network-programming"]
 
 [lib]
 name = "libcps"

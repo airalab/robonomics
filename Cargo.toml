@@ -26,7 +26,6 @@ members = [
   "frame/xcm-info",
   "frame/cps",
   "frame/claim",
-  "frame/wrapped-asset",
   "runtime/robonomics",
   "tools/libcps",
 ]
@@ -248,7 +247,6 @@ pallet-robonomics-liability = { path = "./frame/liability", default-features = f
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
-pallet-wrapped-asset = { path = "./frame/wrapped-asset", default-features = false }
 
 # Robonomics runtimes
 robonomics-runtime = { path = "./runtime/robonomics" }

@@ -33,7 +33,7 @@ fn main() {
     // Inspired by subwasm (https://github.com/chevdor/subwasm).
 
     // Get Robonomics runtime WASM code from runtime crate
-    let wasm = robonomics_runtime::WASM_BINARY.expect("WASM_BINARY is not available");
+    let wasm = robonomics_runtime::dev::WASM_BINARY.expect("WASM_BINARY is not available");
 
     // Create runtime blob from WASM code
     let uncompressed_wasm = decompress(&wasm, CODE_BLOB_BOMB_LIMIT).expect("WASM blob is invalid");

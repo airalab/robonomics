@@ -13,7 +13,6 @@ build = "build.rs"
 parity-scale-codec.workspace = true
 smallvec.workspace = true
 scale-info.workspace = true
-hex-literal.workspace = true
 serde_json = { features = ["alloc"], workspace = true }
 
 # primitives
@@ -71,7 +70,6 @@ pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
 pallet-robonomics-claim.workspace = true
-pallet-wrapped-asset.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -152,7 +150,6 @@ std = [
   "pallet-robonomics-rws/std",
   "pallet-robonomics-claim/std",
   "pallet-robonomics-cps/std",
-  "pallet-wrapped-asset/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -196,7 +193,6 @@ runtime-benchmarks = [
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-cps/runtime-benchmarks",
-  "pallet-wrapped-asset/runtime-benchmarks",
   "pallet-xcm-info/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
@@ -239,5 +235,5 @@ metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 # to make it smaller, like logging for example.
 on-chain-release-build = ["metadata-hash"]
 
-# Use development timings in runtime parameters
-fast-runtime = []
+# Use development pallets & parameters in runtime.
+dev-runtime = []
