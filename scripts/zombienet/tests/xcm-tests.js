@@ -7,6 +7,8 @@
 
 const { ApiPromise, WsProvider } = require('@polkadot/api');
 const { Keyring } = require('@polkadot/keyring');
+const { log, sleep, getAccountBalance } = require('./helpers/chain-utils');
+const { isXcmSuccessEvent, isXcmFailureEvent } = require('./helpers/xcm-utils');
 
 // Test configuration for XCM tests
 const XCM_TESTS_CONFIG = {
@@ -16,21 +18,6 @@ const XCM_TESTS_CONFIG = {
   timeout: 120000, // 2 minutes
   blockWaitTime: 30000, // 30 seconds
 };
-
-/**
- * Logger utility
- */
-const log = {
-  info: (msg) => console.log(`[INFO] ${msg}`),
-  success: (msg) => console.log(`[✓] ${msg}`),
-  error: (msg) => console.error(`[✗] ${msg}`),
-  test: (msg) => console.log(`[TEST] ${msg}`),
-};
-
-/**
- * Sleep utility
- */
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Connect to a node via WebSocket

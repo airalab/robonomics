@@ -3,4 +3,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-zombienet spawn ${SCRIPT_DIR}/robonomics-local.toml -p native
+
+# Default to robonomics-local configuration
+CONFIG="${1:-${SCRIPT_DIR}/configs/robonomics-local.toml}"
+
+zombienet spawn "${CONFIG}" -p native
