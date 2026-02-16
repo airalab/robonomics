@@ -43,31 +43,48 @@ To generate session keys:
    ```
    curl -H "Content-Type: application/json" \
      -d '{"id":1,"jsonrpc":"2.0","method":"author_rotateKeys","params":[]}' \
-     http://127.0.0.1:9933
+     http://127.0.0.1:9944
    ```
 2. The command returns a hex-encoded public key bundle.
 3. Copy this value and store it — you will need it for on-chain registration.
-4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).
-   If needed, you can manually insert keys using:
+4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).    
+   You can verify this using the following command:
 
    ```
-   author_insertKey
+   curl --silent --location --request POST 'http://localhost:9944' \
+   --header 'Content-Type: application/json' \
+   --data-raw '{
+    "jsonrpc": "2.0",
+    "method": "author_hasSessionKeys",
+    "params": ["'"ROTATE_KEYS_RESULT"'"],
+    "id": 1
+   }' | jq
    ```
+   NOTE: Replace `ROTATE_KEYS_RESULT` with the hex-encoded public key you just received from `author_rotateKeys`.
 
 Restart the node after generating the keys to ensure they are active.
 
 ## 5. Register Your Collator On-Chain
 
-Once the node is running with the new session keys, you must register (or re-register) your collator in the **Collator Selection pallet**.
+Once the node is running with the new session keys, you must register your collator.
 
 Typical steps:
 
-1. Use your collator account (the controller account).
-2. Submit the extrinsic:
+1. Submit the extrinsic using your pre-generated collator account:
+
+   ```
+   session.setKeys(keys, proof)
+   ```
+   
+   - In the **"keys"** field paste the full hex string from `author_rotateKeys` (the one you generated earlier).
+
+   - In the **"proof"** field you can enter "spacebar" key.
+
+2. Then Submit the extrinsic using the same collator account as origin:
 
    ```
    collatorSelection.registerAsCandidate()
    ```
-3. Provide the session keys you generated earlier.
-4. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
+   **Requirement:** The collator account needs **> 32 XRT** free balance to register as a candidate.
 
+3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
