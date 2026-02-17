@@ -64,40 +64,40 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 		// Proof Size summary in bytes:
 		//  Measured:  `3`
 		//  Estimated: `0`
-		// Minimum execution time: 32_813_000 picoseconds.
-		Weight::from_parts(32_813_000, 0)
+		// Minimum execution time: 33_652_000 picoseconds.
+		Weight::from_parts(33_652_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_meta() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `117`
 		//  Estimated: `0`
-		// Minimum execution time: 24_482_000 picoseconds.
-		Weight::from_parts(24_482_000, 0)
+		// Minimum execution time: 24_789_000 picoseconds.
+		Weight::from_parts(24_789_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_payload() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `117`
 		//  Estimated: `0`
-		// Minimum execution time: 24_446_000 picoseconds.
-		Weight::from_parts(24_446_000, 0)
+		// Minimum execution time: 26_320_000 picoseconds.
+		Weight::from_parts(26_320_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn move_node() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `258`
 		//  Estimated: `0`
-		// Minimum execution time: 51_054_000 picoseconds.
-		Weight::from_parts(51_054_000, 0)
+		// Minimum execution time: 51_614_000 picoseconds.
+		Weight::from_parts(51_614_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn delete_node() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `198`
 		//  Estimated: `0`
-		// Minimum execution time: 40_547_000 picoseconds.
-		Weight::from_parts(40_547_000, 0)
+		// Minimum execution time: 38_932_000 picoseconds.
+		Weight::from_parts(38_932_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

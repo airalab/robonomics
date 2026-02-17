@@ -23,8 +23,8 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-	fn record() -> Weight;
-	fn erase() -> Weight;
+    fn record() -> Weight;
+    fn erase() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -32,10 +32,10 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-	fn record() -> Weight {
+    fn record() -> Weight {
         Weight::zero()
     }
-	fn erase() -> Weight {
+    fn erase() -> Weight {
         Weight::zero()
     }
 }

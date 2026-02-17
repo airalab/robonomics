@@ -64,8 +64,8 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `76`
 		//  Estimated: `0`
-		// Minimum execution time: 16_058_000 picoseconds.
-		Weight::from_parts(16_058_000, 0)
+		// Minimum execution time: 15_758_000 picoseconds.
+		Weight::from_parts(15_758_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `n` is `[0, 105467]`.
@@ -73,8 +73,8 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `118`
 		//  Estimated: `0`
-		// Minimum execution time: 26_370_000 picoseconds.
-		Weight::from_parts(161_838_000, 0)
+		// Minimum execution time: 29_315_000 picoseconds.
+		Weight::from_parts(171_612_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `n` is `[0, 1000]`.
@@ -82,8 +82,8 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `118`
 		//  Estimated: `0`
-		// Minimum execution time: 21_350_000 picoseconds.
-		Weight::from_parts(230_565_000, 0)
+		// Minimum execution time: 24_401_000 picoseconds.
+		Weight::from_parts(230_569_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `n` is `[0, 105457]`.
@@ -91,8 +91,8 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `294 + n * (1 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 36_095_000 picoseconds.
-		Weight::from_parts(307_626_000, 0)
+		// Minimum execution time: 37_556_000 picoseconds.
+		Weight::from_parts(309_849_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `n` is `[0, 100]`.
@@ -100,32 +100,32 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `153`
 		//  Estimated: `0`
-		// Minimum execution time: 25_165_000 picoseconds.
-		Weight::from_parts(7_365_711_000, 0)
+		// Minimum execution time: 26_584_000 picoseconds.
+		Weight::from_parts(8_036_338_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn enqueue_1000_small_xcmp_messages() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `53034`
 		//  Estimated: `0`
-		// Minimum execution time: 381_320_000 picoseconds.
-		Weight::from_parts(381_320_000, 0)
+		// Minimum execution time: 385_818_000 picoseconds.
+		Weight::from_parts(385_818_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn suspend_channel() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `76`
 		//  Estimated: `0`
-		// Minimum execution time: 5_690_000 picoseconds.
-		Weight::from_parts(5_690_000, 0)
+		// Minimum execution time: 6_151_000 picoseconds.
+		Weight::from_parts(6_151_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn resume_channel() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `111`
 		//  Estimated: `0`
-		// Minimum execution time: 8_646_000 picoseconds.
-		Weight::from_parts(8_646_000, 0)
+		// Minimum execution time: 8_151_000 picoseconds.
+		Weight::from_parts(8_151_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `n` is `[0, 92]`.
@@ -133,24 +133,24 @@ impl<T: frame_system::Config> cumulus_pallet_xcmp_queue::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_156_000 picoseconds.
-		Weight::from_parts(15_679_000, 0)
+		// Minimum execution time: 7_769_000 picoseconds.
+		Weight::from_parts(12_786_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn on_idle_good_msg() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `105683`
 		//  Estimated: `0`
-		// Minimum execution time: 269_078_000 picoseconds.
-		Weight::from_parts(269_078_000, 0)
+		// Minimum execution time: 259_750_000 picoseconds.
+		Weight::from_parts(259_750_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn on_idle_large_msg() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `65752`
 		//  Estimated: `0`
-		// Minimum execution time: 172_167_000 picoseconds.
-		Weight::from_parts(172_167_000, 0)
+		// Minimum execution time: 170_199_000 picoseconds.
+		Weight::from_parts(170_199_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

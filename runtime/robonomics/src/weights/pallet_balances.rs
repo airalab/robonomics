@@ -64,56 +64,56 @@ impl<T: frame_system::Config> pallet_balances::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 94_818_000 picoseconds.
-		Weight::from_parts(94_818_000, 0)
+		// Minimum execution time: 104_680_000 picoseconds.
+		Weight::from_parts(104_680_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn transfer_keep_alive() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 73_283_000 picoseconds.
-		Weight::from_parts(73_283_000, 0)
+		// Minimum execution time: 71_475_000 picoseconds.
+		Weight::from_parts(71_475_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_set_balance_creating() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 44_295_000 picoseconds.
-		Weight::from_parts(44_295_000, 0)
+		// Minimum execution time: 45_799_000 picoseconds.
+		Weight::from_parts(45_799_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_set_balance_killing() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
 		//  Estimated: `0`
-		// Minimum execution time: 44_931_000 picoseconds.
-		Weight::from_parts(44_931_000, 0)
+		// Minimum execution time: 61_343_000 picoseconds.
+		Weight::from_parts(61_343_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_transfer() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
 		//  Estimated: `0`
-		// Minimum execution time: 94_646_000 picoseconds.
-		Weight::from_parts(94_646_000, 0)
+		// Minimum execution time: 95_657_000 picoseconds.
+		Weight::from_parts(95_657_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn transfer_all() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 86_600_000 picoseconds.
-		Weight::from_parts(86_600_000, 0)
+		// Minimum execution time: 88_005_000 picoseconds.
+		Weight::from_parts(88_005_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_unreserve() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
 		//  Estimated: `0`
-		// Minimum execution time: 35_621_000 picoseconds.
-		Weight::from_parts(35_621_000, 0)
+		// Minimum execution time: 35_492_000 picoseconds.
+		Weight::from_parts(35_492_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `u` is `[1, 1000]`.
@@ -121,32 +121,32 @@ impl<T: frame_system::Config> pallet_balances::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0 + u * (135 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 33_301_000 picoseconds.
-		Weight::from_parts(22_663_779_000, 0)
+		// Minimum execution time: 37_700_000 picoseconds.
+		Weight::from_parts(20_976_256_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_adjust_total_issuance() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 18_861_000 picoseconds.
-		Weight::from_parts(18_861_000, 0)
+		// Minimum execution time: 18_915_000 picoseconds.
+		Weight::from_parts(18_915_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn burn_allow_death() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 59_028_000 picoseconds.
-		Weight::from_parts(59_028_000, 0)
+		// Minimum execution time: 59_163_000 picoseconds.
+		Weight::from_parts(59_163_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn burn_keep_alive() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 39_680_000 picoseconds.
-		Weight::from_parts(39_680_000, 0)
+		// Minimum execution time: 37_829_000 picoseconds.
+		Weight::from_parts(37_829_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

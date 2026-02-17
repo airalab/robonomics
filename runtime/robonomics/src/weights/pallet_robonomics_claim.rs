@@ -64,16 +64,16 @@ impl<T: frame_system::Config> pallet_robonomics_claim::WeightInfo for WeightInfo
 		// Proof Size summary in bytes:
 		//  Measured:  `1608`
 		//  Estimated: `0`
-		// Minimum execution time: 282_610_000 picoseconds.
-		Weight::from_parts(282_610_000, 0)
+		// Minimum execution time: 296_008_000 picoseconds.
+		Weight::from_parts(296_008_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn add_claim() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 22_866_000 picoseconds.
-		Weight::from_parts(22_866_000, 0)
+		// Minimum execution time: 23_137_000 picoseconds.
+		Weight::from_parts(23_137_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

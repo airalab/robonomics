@@ -60,6 +60,7 @@ pub mod currency {
 
 /// Fee-related.
 pub mod fee {
+    use super::*;
     use frame_support::{
         pallet_prelude::Weight,
         weights::{
@@ -69,7 +70,6 @@ pub mod fee {
     };
     use smallvec::smallvec;
     use sp_runtime::Perbill;
-    use super::*;
 
     /// The block saturation level. Fees will be updated based on this value.
     pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
@@ -93,7 +93,9 @@ pub mod fee {
             let proof_poly: FeePolynomial<Balance> = ProofSizeToFee::polynomial().into();
 
             // Take the maximum instead of the sum to charge by the more scarce resource.
-            time_poly.eval(weight.ref_time()).max(proof_poly.eval(weight.proof_size()))
+            time_poly
+                .eval(weight.ref_time())
+                .max(proof_poly.eval(weight.proof_size()))
         }
     }
 
@@ -177,7 +179,8 @@ pub mod consensus {
 pub mod time {
     use super::BlockNumber;
 
-    pub const MINUTES: BlockNumber = 60_000 / (super::consensus::MILLISECS_PER_BLOCK as BlockNumber);
+    pub const MINUTES: BlockNumber =
+        60_000 / (super::consensus::MILLISECS_PER_BLOCK as BlockNumber);
     pub const HOURS: BlockNumber = MINUTES * 60;
     pub const DAYS: BlockNumber = HOURS * 24;
 }

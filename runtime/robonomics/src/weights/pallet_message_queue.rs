@@ -64,88 +64,88 @@ impl<T: frame_system::Config> pallet_message_queue::WeightInfo for WeightInfo<T>
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `0`
-		// Minimum execution time: 28_827_000 picoseconds.
-		Weight::from_parts(28_827_000, 0)
+		// Minimum execution time: 27_580_000 picoseconds.
+		Weight::from_parts(27_580_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn ready_ring_unknit() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `255`
 		//  Estimated: `0`
-		// Minimum execution time: 32_882_000 picoseconds.
-		Weight::from_parts(32_882_000, 0)
+		// Minimum execution time: 23_579_000 picoseconds.
+		Weight::from_parts(23_579_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn service_queue_base() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `0`
-		// Minimum execution time: 9_979_000 picoseconds.
-		Weight::from_parts(9_979_000, 0)
+		// Minimum execution time: 8_453_000 picoseconds.
+		Weight::from_parts(8_453_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn service_page_base_completion() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `109`
 		//  Estimated: `0`
-		// Minimum execution time: 12_962_000 picoseconds.
-		Weight::from_parts(12_962_000, 0)
+		// Minimum execution time: 13_006_000 picoseconds.
+		Weight::from_parts(13_006_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn service_page_base_no_completion() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `109`
 		//  Estimated: `0`
-		// Minimum execution time: 12_498_000 picoseconds.
-		Weight::from_parts(12_498_000, 0)
+		// Minimum execution time: 12_062_000 picoseconds.
+		Weight::from_parts(12_062_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn service_page_item() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 376_502_000 picoseconds.
-		Weight::from_parts(376_502_000, 0)
+		// Minimum execution time: 362_654_000 picoseconds.
+		Weight::from_parts(362_654_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn bump_service_head() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `208`
 		//  Estimated: `0`
-		// Minimum execution time: 15_961_000 picoseconds.
-		Weight::from_parts(15_961_000, 0)
+		// Minimum execution time: 15_862_000 picoseconds.
+		Weight::from_parts(15_862_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_service_head() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `198`
 		//  Estimated: `0`
-		// Minimum execution time: 12_373_000 picoseconds.
-		Weight::from_parts(12_373_000, 0)
+		// Minimum execution time: 11_914_000 picoseconds.
+		Weight::from_parts(11_914_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn reap_page() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `105646`
 		//  Estimated: `0`
-		// Minimum execution time: 183_700_000 picoseconds.
-		Weight::from_parts(183_700_000, 0)
+		// Minimum execution time: 159_233_000 picoseconds.
+		Weight::from_parts(159_233_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn execute_overweight_page_removed() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `105646`
 		//  Estimated: `0`
-		// Minimum execution time: 237_937_000 picoseconds.
-		Weight::from_parts(237_937_000, 0)
+		// Minimum execution time: 204_852_000 picoseconds.
+		Weight::from_parts(204_852_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn execute_overweight_page_updated() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `105646`
 		//  Estimated: `0`
-		// Minimum execution time: 236_946_000 picoseconds.
-		Weight::from_parts(236_946_000, 0)
+		// Minimum execution time: 232_279_000 picoseconds.
+		Weight::from_parts(232_279_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

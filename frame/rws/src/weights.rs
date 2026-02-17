@@ -23,11 +23,11 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-	fn bid() -> Weight;
-	fn set_devices() -> Weight;
-	fn set_oracle() -> Weight;
-	fn set_subscription() -> Weight;
-	fn start_auction() -> Weight;
+    fn bid() -> Weight;
+    fn set_devices() -> Weight;
+    fn set_oracle() -> Weight;
+    fn set_subscription() -> Weight;
+    fn start_auction() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -35,19 +35,19 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-	fn bid() -> Weight {
+    fn bid() -> Weight {
         Weight::zero()
     }
-	fn set_devices() -> Weight {
+    fn set_devices() -> Weight {
         Weight::zero()
     }
-	fn set_oracle() -> Weight {
+    fn set_oracle() -> Weight {
         Weight::zero()
     }
-	fn set_subscription() -> Weight {
+    fn set_subscription() -> Weight {
         Weight::zero()
     }
-	fn start_auction() -> Weight {
+    fn start_auction() -> Weight {
         Weight::zero()
     }
 }

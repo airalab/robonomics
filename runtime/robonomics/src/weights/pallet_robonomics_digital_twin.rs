@@ -64,24 +64,24 @@ impl<T: frame_system::Config> pallet_robonomics_digital_twin::WeightInfo for Wei
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
 		//  Estimated: `0`
-		// Minimum execution time: 29_274_000 picoseconds.
-		Weight::from_parts(29_274_000, 0)
+		// Minimum execution time: 38_615_000 picoseconds.
+		Weight::from_parts(38_615_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_source() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `234`
 		//  Estimated: `0`
-		// Minimum execution time: 34_187_000 picoseconds.
-		Weight::from_parts(34_187_000, 0)
+		// Minimum execution time: 35_419_000 picoseconds.
+		Weight::from_parts(35_419_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn remove_source() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `166`
 		//  Estimated: `0`
-		// Minimum execution time: 29_836_000 picoseconds.
-		Weight::from_parts(29_836_000, 0)
+		// Minimum execution time: 29_049_000 picoseconds.
+		Weight::from_parts(29_049_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

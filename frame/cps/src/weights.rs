@@ -23,11 +23,11 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-	fn create_node() -> Weight;
-	fn set_meta() -> Weight;
-	fn set_payload() -> Weight;
-	fn move_node() -> Weight;
-	fn delete_node() -> Weight;
+    fn create_node() -> Weight;
+    fn set_meta() -> Weight;
+    fn set_payload() -> Weight;
+    fn move_node() -> Weight;
+    fn delete_node() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -35,19 +35,19 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-	fn create_node() -> Weight {
+    fn create_node() -> Weight {
         Weight::zero()
     }
-	fn set_meta() -> Weight {
+    fn set_meta() -> Weight {
         Weight::zero()
     }
-	fn set_payload() -> Weight {
+    fn set_payload() -> Weight {
         Weight::zero()
     }
-	fn move_node() -> Weight {
+    fn move_node() -> Weight {
         Weight::zero()
     }
-	fn delete_node() -> Weight {
+    fn delete_node() -> Weight {
         Weight::zero()
     }
 }

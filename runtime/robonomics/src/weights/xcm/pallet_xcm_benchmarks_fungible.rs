@@ -22,7 +22,7 @@
 //! DATE: 2026-02-17, STEPS: `2`, REPEAT: `1`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
 //! HOSTNAME: `krakov`, CPU: `13th Gen Intel(R) Core(TM) i7-1365U`
-//! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: 1024
+//! WASM-EXECUTION: Compiled, CHAIN: None, DB CACHE: 1024
 
 // Executed Command:
 // frame-omni-bencher
@@ -39,6 +39,8 @@
 // runtime/robonomics/src/weights/xcm/pallet_xcm_benchmarks_fungible.rs
 // --header
 // /home/akru/devel/robonomics/.github/license-check/HEADER-APACHE2
+// --template
+// /home/akru/devel/robonomics/scripts/weights/xcm-template.hbs
 // --wasm-execution=compiled
 // --steps
 // 2
@@ -59,89 +61,79 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_xcm_benchmarks::fungible`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_xcm_benchmarks::fungible::WeightInfo for WeightInfo<T> {
-	fn withdraw_asset() -> Weight {
+impl<T: frame_system::Config> WeightInfo<T> {
+	pub(crate) fn withdraw_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `101`
 		//  Estimated: `0`
-		// Minimum execution time: 69_615_000 picoseconds.
-		Weight::from_parts(69_615_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 52_663_000 picoseconds.
+		Weight::from_parts(52_663_000, 0)
 	}
-	fn transfer_asset() -> Weight {
+	pub(crate) fn transfer_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `101`
 		//  Estimated: `0`
-		// Minimum execution time: 86_571_000 picoseconds.
-		Weight::from_parts(86_571_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 65_766_000 picoseconds.
+		Weight::from_parts(65_766_000, 0)
 	}
-	fn transfer_reserve_asset() -> Weight {
+	pub(crate) fn transfer_reserve_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `441`
 		//  Estimated: `0`
-		// Minimum execution time: 158_303_000 picoseconds.
-		Weight::from_parts(158_303_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 117_961_000 picoseconds.
+		Weight::from_parts(117_961_000, 0)
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
 	/// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn reserve_asset_deposited() -> Weight {
+	pub(crate) fn reserve_asset_deposited() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 18_446_744_073_709_551_000 picoseconds.
 		Weight::from_parts(18_446_744_073_709_551_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
 	}
-	fn initiate_reserve_withdraw() -> Weight {
+	pub(crate) fn initiate_reserve_withdraw() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `340`
 		//  Estimated: `0`
-		// Minimum execution time: 109_992_000 picoseconds.
-		Weight::from_parts(109_992_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 76_465_000 picoseconds.
+		Weight::from_parts(76_465_000, 0)
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
 	/// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
-	fn receive_teleported_asset() -> Weight {
+	pub(crate) fn receive_teleported_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
 		// Minimum execution time: 18_446_744_073_709_551_000 picoseconds.
 		Weight::from_parts(18_446_744_073_709_551_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
 	}
-	fn deposit_asset() -> Weight {
+	pub(crate) fn deposit_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 59_180_000 picoseconds.
-		Weight::from_parts(59_180_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 41_338_000 picoseconds.
+		Weight::from_parts(41_338_000, 0)
 	}
-	fn deposit_reserve_asset() -> Weight {
+	pub(crate) fn deposit_reserve_asset() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `340`
 		//  Estimated: `0`
-		// Minimum execution time: 145_738_000 picoseconds.
-		Weight::from_parts(145_738_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 111_270_000 picoseconds.
+		Weight::from_parts(111_270_000, 0)
 	}
-	fn initiate_teleport() -> Weight {
+	pub(crate) fn initiate_teleport() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `340`
 		//  Estimated: `0`
-		// Minimum execution time: 108_072_000 picoseconds.
-		Weight::from_parts(108_072_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 77_418_000 picoseconds.
+		Weight::from_parts(77_418_000, 0)
 	}
-	fn initiate_transfer() -> Weight {
+	pub(crate) fn initiate_transfer() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `340`
 		//  Estimated: `0`
-		// Minimum execution time: 166_755_000 picoseconds.
-		Weight::from_parts(166_755_000, 0)
-			.saturating_add(Weight::from_parts(0, 0))
+		// Minimum execution time: 120_421_000 picoseconds.
+		Weight::from_parts(120_421_000, 0)
 	}
 }

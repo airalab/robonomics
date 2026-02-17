@@ -64,16 +64,16 @@ impl<T: frame_system::Config> pallet_xcm_info::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 18_249_000 picoseconds.
-		Weight::from_parts(18_249_000, 0)
+		// Minimum execution time: 19_285_000 picoseconds.
+		Weight::from_parts(19_285_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_asset_link() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 22_734_000 picoseconds.
-		Weight::from_parts(22_734_000, 0)
+		// Minimum execution time: 24_954_000 picoseconds.
+		Weight::from_parts(24_954_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

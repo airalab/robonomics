@@ -65,8 +65,8 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 50_420_000 picoseconds.
-		Weight::from_parts(99_699_000, 0)
+		// Minimum execution time: 52_842_000 picoseconds.
+		Weight::from_parts(103_018_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `s` is `[2, 100]`.
@@ -75,13 +75,13 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `172 + s * (3 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 110_269_000 picoseconds.
-		Weight::from_parts(30_950_122, 0)
+		// Minimum execution time: 91_077_000 picoseconds.
+		Weight::from_parts(59_294_857, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 822_856
-			.saturating_add(Weight::from_parts(793_188, 0).saturating_mul(s.into()))
-			// Standard Error: 8_063
-			.saturating_add(Weight::from_parts(8_478, 0).saturating_mul(z.into()))
+			// Standard Error: 344
+			.saturating_add(Weight::from_parts(317_821, 0).saturating_mul(s.into()))
+			// Standard Error: 3
+			.saturating_add(Weight::from_parts(5_229, 0).saturating_mul(z.into()))
 	}
 	/// The range of component `s` is `[3, 100]`.
 	/// The range of component `z` is `[0, 10000]`.
@@ -89,13 +89,13 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `282`
 		//  Estimated: `0`
-		// Minimum execution time: 63_590_000 picoseconds.
-		Weight::from_parts(35_017_835, 0)
+		// Minimum execution time: 57_742_000 picoseconds.
+		Weight::from_parts(34_711_072, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 130_796
-			.saturating_add(Weight::from_parts(285_721, 0).saturating_mul(s.into()))
-			// Standard Error: 1_268
-			.saturating_add(Weight::from_parts(4_742, 0).saturating_mul(z.into()))
+			// Standard Error: 41_408
+			.saturating_add(Weight::from_parts(230_309, 0).saturating_mul(s.into()))
+			// Standard Error: 401
+			.saturating_add(Weight::from_parts(4_491, 0).saturating_mul(z.into()))
 	}
 	/// The range of component `s` is `[2, 100]`.
 	/// The range of component `z` is `[0, 10000]`.
@@ -103,21 +103,21 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `315 + s * (34 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 93_175_000 picoseconds.
-		Weight::from_parts(76_636_224, 0)
+		// Minimum execution time: 94_798_000 picoseconds.
+		Weight::from_parts(67_790_857, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 4_559
-			.saturating_add(Weight::from_parts(165_387, 0).saturating_mul(s.into()))
-			// Standard Error: 44
-			.saturating_add(Weight::from_parts(4_942, 0).saturating_mul(z.into()))
+			// Standard Error: 22_834
+			.saturating_add(Weight::from_parts(270_071, 0).saturating_mul(s.into()))
+			// Standard Error: 223
+			.saturating_add(Weight::from_parts(4_363, 0).saturating_mul(z.into()))
 	}
 	/// The range of component `s` is `[2, 100]`.
 	fn approve_as_multi_create(_s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `172 + s * (3 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 61_260_000 picoseconds.
-		Weight::from_parts(91_572_000, 0)
+		// Minimum execution time: 57_796_000 picoseconds.
+		Weight::from_parts(84_125_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `s` is `[2, 100]`.
@@ -125,8 +125,8 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `282`
 		//  Estimated: `0`
-		// Minimum execution time: 35_395_000 picoseconds.
-		Weight::from_parts(55_339_000, 0)
+		// Minimum execution time: 31_114_000 picoseconds.
+		Weight::from_parts(53_106_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `s` is `[2, 100]`.
@@ -134,8 +134,8 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `379 + s * (2 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 55_390_000 picoseconds.
-		Weight::from_parts(84_796_000, 0)
+		// Minimum execution time: 58_827_000 picoseconds.
+		Weight::from_parts(97_324_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `s` is `[2, 100]`.
@@ -143,8 +143,8 @@ impl<T: frame_system::Config> pallet_multisig::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `379 + s * (2 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 58_380_000 picoseconds.
-		Weight::from_parts(73_562_000, 0)
+		// Minimum execution time: 50_999_000 picoseconds.
+		Weight::from_parts(168_935_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

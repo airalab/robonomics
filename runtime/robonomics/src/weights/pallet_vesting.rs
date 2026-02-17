@@ -62,55 +62,53 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_vesting::WeightInfo for WeightInfo<T> {
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[1, 28]`.
-	fn vest_locked(_l: u32, s: u32, ) -> Weight {
+	fn vest_locked(l: u32, _s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `234 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 66_817_000 picoseconds.
-		Weight::from_parts(75_171_925, 0)
+		// Minimum execution time: 65_358_000 picoseconds.
+		Weight::from_parts(66_312_592, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 191_423
-			.saturating_add(Weight::from_parts(220_074, 0).saturating_mul(s.into()))
+			// Standard Error: 759
+			.saturating_add(Weight::from_parts(16_561, 0).saturating_mul(l.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[1, 28]`.
-	fn vest_unlocked(l: u32, s: u32, ) -> Weight {
+	fn vest_unlocked(_l: u32, s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `234 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 62_773_000 picoseconds.
-		Weight::from_parts(57_126_740, 0)
+		// Minimum execution time: 67_576_000 picoseconds.
+		Weight::from_parts(67_847_037, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 32_749
-			.saturating_add(Weight::from_parts(109_377, 0).saturating_mul(l.into()))
-			// Standard Error: 59_435
-			.saturating_add(Weight::from_parts(286_759, 0).saturating_mul(s.into()))
+			// Standard Error: 186_804
+			.saturating_add(Weight::from_parts(121_962, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[1, 28]`.
-	fn vest_other_locked(_l: u32, s: u32, ) -> Weight {
+	fn vest_other_locked(l: u32, s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `337 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 62_985_000 picoseconds.
-		Weight::from_parts(72_408_888, 0)
+		// Minimum execution time: 64_003_000 picoseconds.
+		Weight::from_parts(60_119_925, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 179_908
-			.saturating_add(Weight::from_parts(89_611, 0).saturating_mul(s.into()))
+			// Standard Error: 69_794
+			.saturating_add(Weight::from_parts(76_153, 0).saturating_mul(l.into()))
+			// Standard Error: 126_664
+			.saturating_add(Weight::from_parts(151_574, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[1, 28]`.
-	fn vest_other_unlocked(l: u32, s: u32, ) -> Weight {
+	fn vest_other_unlocked(_l: u32, s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `337 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 62_065_000 picoseconds.
-		Weight::from_parts(60_612_111, 0)
+		// Minimum execution time: 63_991_000 picoseconds.
+		Weight::from_parts(67_642_185, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 15_517
-			.saturating_add(Weight::from_parts(83_040, 0).saturating_mul(l.into()))
-			// Standard Error: 28_161
-			.saturating_add(Weight::from_parts(51_888, 0).saturating_mul(s.into()))
+			// Standard Error: 42_242
+			.saturating_add(Weight::from_parts(210_314, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[0, 27]`.
@@ -118,39 +116,37 @@ impl<T: frame_system::Config> pallet_vesting::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `240 + l * (25 ±0) + s * (39 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 130_246_000 picoseconds.
-		Weight::from_parts(121_074_500, 0)
+		// Minimum execution time: 121_826_000 picoseconds.
+		Weight::from_parts(113_738_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 90_543
-			.saturating_add(Weight::from_parts(226_295, 0).saturating_mul(l.into()))
-			// Standard Error: 164_320
-			.saturating_add(Weight::from_parts(339_685, 0).saturating_mul(s.into()))
+			// Standard Error: 53_163
+			.saturating_add(Weight::from_parts(165_061, 0).saturating_mul(l.into()))
+			// Standard Error: 96_481
+			.saturating_add(Weight::from_parts(444_370, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[0, 27]`.
-	fn force_vested_transfer(_l: u32, s: u32, ) -> Weight {
+	fn force_vested_transfer(l: u32, _s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `343 + l * (25 ±0) + s * (39 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 126_499_000 picoseconds.
-		Weight::from_parts(132_082_500, 0)
+		// Minimum execution time: 121_816_000 picoseconds.
+		Weight::from_parts(122_277_500, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 212_946
-			.saturating_add(Weight::from_parts(103_462, 0).saturating_mul(s.into()))
+			// Standard Error: 57_811
+			.saturating_add(Weight::from_parts(178_602, 0).saturating_mul(l.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[2, 28]`.
-	fn not_unlocking_merge_schedules(l: u32, s: u32, ) -> Weight {
+	fn not_unlocking_merge_schedules(_l: u32, s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `236 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 57_225_000 picoseconds.
-		Weight::from_parts(49_194_384, 0)
+		// Minimum execution time: 58_378_000 picoseconds.
+		Weight::from_parts(63_052_769, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 227_040
-			.saturating_add(Weight::from_parts(239_918, 0).saturating_mul(l.into()))
-			// Standard Error: 427_883
-			.saturating_add(Weight::from_parts(286_807, 0).saturating_mul(s.into()))
+			// Standard Error: 73_179
+			.saturating_add(Weight::from_parts(100_865, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[2, 28]`.
@@ -158,22 +154,26 @@ impl<T: frame_system::Config> pallet_vesting::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `236 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 65_202_000 picoseconds.
-		Weight::from_parts(61_622_307, 0)
+		// Minimum execution time: 63_094_000 picoseconds.
+		Weight::from_parts(59_188_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 25_309
-			.saturating_add(Weight::from_parts(85_530, 0).saturating_mul(l.into()))
-			// Standard Error: 47_698
-			.saturating_add(Weight::from_parts(127_846, 0).saturating_mul(s.into()))
+			// Standard Error: 72_816
+			.saturating_add(Weight::from_parts(74_183, 0).saturating_mul(l.into()))
+			// Standard Error: 137_231
+			.saturating_add(Weight::from_parts(139_500, 0).saturating_mul(s.into()))
 	}
 	/// The range of component `l` is `[0, 49]`.
 	/// The range of component `s` is `[2, 28]`.
-	fn force_remove_vesting_schedule(_l: u32, _s: u32, ) -> Weight {
+	fn force_remove_vesting_schedule(l: u32, s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `339 + l * (25 ±0) + s * (36 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 68_524_000 picoseconds.
-		Weight::from_parts(78_432_461, 0)
+		// Minimum execution time: 68_175_000 picoseconds.
+		Weight::from_parts(66_618_846, 0)
 			.saturating_add(Weight::from_parts(0, 0))
+			// Standard Error: 71_438
+			.saturating_add(Weight::from_parts(43_897, 0).saturating_mul(l.into()))
+			// Standard Error: 134_633
+			.saturating_add(Weight::from_parts(55_576, 0).saturating_mul(s.into()))
 	}
 }

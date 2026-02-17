@@ -16,15 +16,15 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
-    AccountId, AllPalletsWithSystem, AssetId, Balance, Balances, DealWithFees,
-    MessageQueue, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
-    RuntimeOrigin, WeightToFee, XcmInfo, XcmpQueue,
+    AccountId, AllPalletsWithSystem, AssetId, Balances, DealWithFees, MessageQueue, ParachainInfo,
+    ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
+    XcmInfo, XcmpQueue,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
     pallet_prelude::Get,
     parameter_types,
-    traits::{Contains, ContainsPair, Disabled, Everything, Nothing, PalletInfoAccess, TransformOrigin},
+    traits::{Contains, ContainsPair, Disabled, Everything, Nothing, TransformOrigin},
     weights::Weight,
 };
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -34,17 +34,14 @@ use sp_std::{marker::PhantomData, prelude::*};
 // Polkadot imports
 use xcm::latest::prelude::*;
 use xcm_builder::{
-    HashedDescription, AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, ConvertedConcreteId, EnsureXcmOrigin,
-    FixedRateOfFungible, FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete,
-    NoChecking, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-    SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-    SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, DescribeFamily, DescribeAllTerminal,
+    AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, DescribeAllTerminal, DescribeFamily,
+    EnsureXcmOrigin, FungibleAdapter, HashedDescription, IsConcrete, ParentAsSuperuser,
+    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
+    UsingComponents, WeightInfoBounds,
 };
-use xcm_executor::{
-    traits::{JustTry, WithOriginFilter},
-    Config, XcmExecutor,
-};
+use xcm_executor::{traits::WithOriginFilter, Config, XcmExecutor};
 
 parameter_types! {
     pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
@@ -214,7 +211,11 @@ impl Config for XcmConfig {
     type IsTeleporter = ();
     type UniversalLocation = UniversalLocation;
     type Barrier = XcmBarrier;
-    type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+    type Weigher = WeightInfoBounds<
+        crate::weights::xcm::RobonomicsXcmWeight<RuntimeCall>,
+        RuntimeCall,
+        MaxInstructions,
+    >;
     type Trader = UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>;
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
@@ -272,7 +273,11 @@ impl pallet_xcm::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type XcmTeleportFilter = Nothing;
     type XcmReserveTransferFilter = Everything;
-    type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+    type Weigher = WeightInfoBounds<
+        crate::weights::xcm::RobonomicsXcmWeight<RuntimeCall>,
+        RuntimeCall,
+        MaxInstructions,
+    >;
     type UniversalLocation = UniversalLocation;
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;

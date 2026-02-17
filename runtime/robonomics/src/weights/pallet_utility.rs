@@ -65,16 +65,16 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 18_452_000 picoseconds.
-		Weight::from_parts(5_182_183_000, 0)
+		// Minimum execution time: 32_135_000 picoseconds.
+		Weight::from_parts(4_889_914_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn as_derivative() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 14_426_000 picoseconds.
-		Weight::from_parts(14_426_000, 0)
+		// Minimum execution time: 15_766_000 picoseconds.
+		Weight::from_parts(15_766_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[0, 1000]`.
@@ -82,16 +82,16 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 15_532_000 picoseconds.
-		Weight::from_parts(5_480_901_000, 0)
+		// Minimum execution time: 16_183_000 picoseconds.
+		Weight::from_parts(5_161_653_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn dispatch_as() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 22_418_000 picoseconds.
-		Weight::from_parts(22_418_000, 0)
+		// Minimum execution time: 19_667_000 picoseconds.
+		Weight::from_parts(19_667_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[0, 1000]`.
@@ -99,24 +99,24 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 17_096_000 picoseconds.
-		Weight::from_parts(5_126_885_000, 0)
+		// Minimum execution time: 15_858_000 picoseconds.
+		Weight::from_parts(4_538_031_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn dispatch_as_fallible() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 19_477_000 picoseconds.
-		Weight::from_parts(19_477_000, 0)
+		// Minimum execution time: 19_667_000 picoseconds.
+		Weight::from_parts(19_667_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn if_else() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 22_986_000 picoseconds.
-		Weight::from_parts(22_986_000, 0)
+		// Minimum execution time: 21_849_000 picoseconds.
+		Weight::from_parts(21_849_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

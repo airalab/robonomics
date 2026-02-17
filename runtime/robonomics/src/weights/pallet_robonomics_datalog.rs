@@ -64,16 +64,16 @@ impl<T: frame_system::Config> pallet_robonomics_datalog::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `148`
 		//  Estimated: `0`
-		// Minimum execution time: 37_839_000 picoseconds.
-		Weight::from_parts(37_839_000, 0)
+		// Minimum execution time: 35_782_000 picoseconds.
+		Weight::from_parts(35_782_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn erase() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `106`
 		//  Estimated: `0`
-		// Minimum execution time: 309_694_000 picoseconds.
-		Weight::from_parts(309_694_000, 0)
+		// Minimum execution time: 358_587_000 picoseconds.
+		Weight::from_parts(358_587_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

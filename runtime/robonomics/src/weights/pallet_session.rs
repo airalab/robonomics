@@ -64,16 +64,16 @@ impl<T: frame_system::Config> pallet_session::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `271`
 		//  Estimated: `0`
-		// Minimum execution time: 42_655_000 picoseconds.
-		Weight::from_parts(42_655_000, 0)
+		// Minimum execution time: 41_207_000 picoseconds.
+		Weight::from_parts(41_207_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn purge_keys() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `243`
 		//  Estimated: `0`
-		// Minimum execution time: 59_744_000 picoseconds.
-		Weight::from_parts(59_744_000, 0)
+		// Minimum execution time: 59_245_000 picoseconds.
+		Weight::from_parts(59_245_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

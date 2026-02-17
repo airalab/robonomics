@@ -64,40 +64,40 @@ impl<T: frame_system::Config> pallet_robonomics_rws::WeightInfo for WeightInfo<T
 		// Proof Size summary in bytes:
 		//  Measured:  `231`
 		//  Estimated: `0`
-		// Minimum execution time: 62_033_000 picoseconds.
-		Weight::from_parts(62_033_000, 0)
+		// Minimum execution time: 55_625_000 picoseconds.
+		Weight::from_parts(55_625_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_devices() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 32_874_000 picoseconds.
-		Weight::from_parts(32_874_000, 0)
+		// Minimum execution time: 22_657_000 picoseconds.
+		Weight::from_parts(22_657_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_oracle() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 11_429_000 picoseconds.
-		Weight::from_parts(11_429_000, 0)
+		// Minimum execution time: 9_614_000 picoseconds.
+		Weight::from_parts(9_614_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_subscription() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `140`
 		//  Estimated: `0`
-		// Minimum execution time: 30_557_000 picoseconds.
-		Weight::from_parts(30_557_000, 0)
+		// Minimum execution time: 26_423_000 picoseconds.
+		Weight::from_parts(26_423_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn start_auction() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `0`
-		// Minimum execution time: 30_036_000 picoseconds.
-		Weight::from_parts(30_036_000, 0)
+		// Minimum execution time: 28_067_000 picoseconds.
+		Weight::from_parts(28_067_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

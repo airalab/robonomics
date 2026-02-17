@@ -147,7 +147,7 @@ pub mod pallet {
 mod tests {
     use crate::{self as digital_twin, *};
 
-    use frame_support::{assert_err, assert_ok, parameter_types, derive_impl};
+    use frame_support::{assert_err, assert_ok, derive_impl, parameter_types};
     use sp_runtime::{BuildStorage, DispatchError};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;

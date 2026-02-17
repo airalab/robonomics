@@ -64,8 +64,8 @@ impl<T: frame_system::Config> pallet_robonomics_launch::WeightInfo for WeightInf
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 14_482_000 picoseconds.
-		Weight::from_parts(14_482_000, 0)
+		// Minimum execution time: 15_257_000 picoseconds.
+		Weight::from_parts(15_257_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

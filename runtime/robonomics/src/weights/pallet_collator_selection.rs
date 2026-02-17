@@ -65,8 +65,8 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `163 + b * (79 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 26_451_000 picoseconds.
-		Weight::from_parts(139_217_000, 0)
+		// Minimum execution time: 28_730_000 picoseconds.
+		Weight::from_parts(139_121_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `b` is `[1, 19]`.
@@ -75,27 +75,27 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `829 + b * (32 ±0) + c * (57 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 80_465_000 picoseconds.
-		Weight::from_parts(82_839_583, 0)
+		// Minimum execution time: 83_294_000 picoseconds.
+		Weight::from_parts(88_551_524, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 91_690
-			.saturating_add(Weight::from_parts(380_416, 0).saturating_mul(c.into()))
+			// Standard Error: 87_847
+			.saturating_add(Weight::from_parts(229_781, 0).saturating_mul(c.into()))
 	}
 	/// The range of component `b` is `[5, 20]`.
 	fn remove_invulnerable(_b: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `119 + b * (32 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 25_154_000 picoseconds.
-		Weight::from_parts(26_986_000, 0)
+		// Minimum execution time: 23_611_000 picoseconds.
+		Weight::from_parts(25_266_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_desired_candidates() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 17_122_000 picoseconds.
-		Weight::from_parts(17_122_000, 0)
+		// Minimum execution time: 15_788_000 picoseconds.
+		Weight::from_parts(15_788_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[0, 50]`.
@@ -104,21 +104,21 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `0 + c * (176 ±0) + k * (127 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 26_153_000 picoseconds.
-		Weight::from_parts(26_153_000, 0)
+		// Minimum execution time: 25_189_000 picoseconds.
+		Weight::from_parts(25_189_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 8_707_830
-			.saturating_add(Weight::from_parts(10_099_740, 0).saturating_mul(c.into()))
-			// Standard Error: 8_707_830
-			.saturating_add(Weight::from_parts(10_054_880, 0).saturating_mul(k.into()))
+			// Standard Error: 8_195_004
+			.saturating_add(Weight::from_parts(9_621_176, 0).saturating_mul(c.into()))
+			// Standard Error: 8_195_004
+			.saturating_add(Weight::from_parts(9_462_676, 0).saturating_mul(k.into()))
 	}
 	/// The range of component `c` is `[4, 50]`.
 	fn update_bond(_c: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `285 + c * (49 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 51_915_000 picoseconds.
-		Weight::from_parts(63_611_000, 0)
+		// Minimum execution time: 46_523_000 picoseconds.
+		Weight::from_parts(68_502_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[1, 49]`.
@@ -126,8 +126,8 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `474 + c * (59 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 76_142_000 picoseconds.
-		Weight::from_parts(109_708_000, 0)
+		// Minimum execution time: 67_535_000 picoseconds.
+		Weight::from_parts(81_058_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[4, 50]`.
@@ -135,8 +135,8 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `607 + c * (59 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 105_127_000 picoseconds.
-		Weight::from_parts(145_003_000, 0)
+		// Minimum execution time: 98_571_000 picoseconds.
+		Weight::from_parts(108_887_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[4, 50]`.
@@ -144,16 +144,16 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `302 + c * (49 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 55_978_000 picoseconds.
-		Weight::from_parts(69_766_000, 0)
+		// Minimum execution time: 54_446_000 picoseconds.
+		Weight::from_parts(72_121_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn note_author() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `103`
 		//  Estimated: `0`
-		// Minimum execution time: 70_268_000 picoseconds.
-		Weight::from_parts(70_268_000, 0)
+		// Minimum execution time: 68_126_000 picoseconds.
+		Weight::from_parts(68_126_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `r` is `[1, 50]`.
@@ -162,10 +162,10 @@ impl<T: frame_system::Config> pallet_collator_selection::WeightInfo for WeightIn
 		// Proof Size summary in bytes:
 		//  Measured:  `379 + c * (98 ±0)`
 		//  Estimated: `0`
-		// Minimum execution time: 43_249_000 picoseconds.
-		Weight::from_parts(88_610_683, 0)
+		// Minimum execution time: 37_365_000 picoseconds.
+		Weight::from_parts(78_337_030, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 125_644
-			.saturating_add(Weight::from_parts(8_656_173, 0).saturating_mul(c.into()))
+			// Standard Error: 356_926
+			.saturating_add(Weight::from_parts(8_124_397, 0).saturating_mul(c.into()))
 	}
 }

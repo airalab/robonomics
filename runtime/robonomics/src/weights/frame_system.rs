@@ -65,8 +65,8 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 9_388_000 picoseconds.
-		Weight::from_parts(5_976_094_000, 0)
+		// Minimum execution time: 10_110_000 picoseconds.
+		Weight::from_parts(5_907_293_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `b` is `[0, 3932160]`.
@@ -74,24 +74,24 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 25_259_000 picoseconds.
-		Weight::from_parts(12_459_106_000, 0)
+		// Minimum execution time: 18_773_000 picoseconds.
+		Weight::from_parts(12_394_577_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_heap_pages() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 12_169_000 picoseconds.
-		Weight::from_parts(12_169_000, 0)
+		// Minimum execution time: 13_399_000 picoseconds.
+		Weight::from_parts(13_399_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn set_code() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `127`
 		//  Estimated: `0`
-		// Minimum execution time: 117_258_352_000 picoseconds.
-		Weight::from_parts(117_258_352_000, 0)
+		// Minimum execution time: 115_805_064_000 picoseconds.
+		Weight::from_parts(115_805_064_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Skipped::Metadata` (r:0 w:0)
@@ -101,8 +101,8 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 11_819_000 picoseconds.
-		Weight::from_parts(1_225_835_000, 0)
+		// Minimum execution time: 10_529_000 picoseconds.
+		Weight::from_parts(1_238_379_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Skipped::Metadata` (r:0 w:0)
@@ -112,8 +112,8 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_554_000 picoseconds.
-		Weight::from_parts(923_374_000, 0)
+		// Minimum execution time: 8_923_000 picoseconds.
+		Weight::from_parts(949_425_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Skipped::Metadata` (r:0 w:0)
@@ -123,24 +123,24 @@ impl<T: frame_system::Config> frame_system::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `39 + p * (69 ±0)`
 		//  Estimated: `69676`
-		// Minimum execution time: 12_430_000 picoseconds.
-		Weight::from_parts(1_948_164_000, 0)
+		// Minimum execution time: 12_265_000 picoseconds.
+		Weight::from_parts(1_955_679_000, 0)
 			.saturating_add(Weight::from_parts(0, 69676))
 	}
 	fn authorize_upgrade() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 38_133_000 picoseconds.
-		Weight::from_parts(38_133_000, 0)
+		// Minimum execution time: 38_391_000 picoseconds.
+		Weight::from_parts(38_391_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn apply_authorized_upgrade() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `149`
 		//  Estimated: `0`
-		// Minimum execution time: 123_240_398_000 picoseconds.
-		Weight::from_parts(123_240_398_000, 0)
+		// Minimum execution time: 122_861_669_000 picoseconds.
+		Weight::from_parts(122_861_669_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

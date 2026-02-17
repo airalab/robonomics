@@ -64,9 +64,6 @@ PALLETS=(
     "cumulus_pallet_xcmp_queue,runtime/robonomics/src/weights/cumulus_pallet_xcmp_queue.rs"
     "pallet_message_queue,runtime/robonomics/src/weights/pallet_message_queue.rs"
     "pallet_xcm,runtime/robonomics/src/weights/pallet_xcm.rs"
-    # XCM tokens - saved to runtime/robonomics/src/weights/xcm/
-    "pallet_xcm_benchmarks::fungible,runtime/robonomics/src/weights/xcm/pallet_xcm_benchmarks_fungible.rs"
-    "pallet_xcm_benchmarks::generic,runtime/robonomics/src/weights/xcm/pallet_xcm_benchmarks_generic.rs"
     # Robonomics pallets - saved to runtime/robonomics/src/weights/
     "pallet_robonomics_datalog,runtime/robonomics/src/weights/pallet_robonomics_datalog.rs"
     "pallet_robonomics_digital_twin,runtime/robonomics/src/weights/pallet_robonomics_digital_twin.rs"
@@ -76,6 +73,13 @@ PALLETS=(
     "pallet_robonomics_cps,runtime/robonomics/src/weights/pallet_robonomics_cps.rs"
     "pallet_robonomics_claim,runtime/robonomics/src/weights/pallet_robonomics_claim.rs"
     "pallet_xcm_info,runtime/robonomics/src/weights/pallet_xcm_info.rs"
+)
+
+# List of XCM pallets to benchmark with their output paths
+# XCM pallets requires custom template
+XCM_PALLETS=(
+    "pallet_xcm_benchmarks::fungible,runtime/robonomics/src/weights/xcm/pallet_xcm_benchmarks_fungible.rs"
+    "pallet_xcm_benchmarks::generic,runtime/robonomics/src/weights/xcm/pallet_xcm_benchmarks_generic.rs"
 )
 
 # Benchmark configuration (can be overridden with environment variables)
@@ -116,6 +120,41 @@ benchmark_pallet() {
     fi
 }
 
+# Function to benchmark XCM pallet
+benchmark_xcm_pallet() {
+    local pallet_info=$1
+    local pallet_name=$(echo "$pallet_info" | cut -d, -f1)
+    local output_path=$(echo "$pallet_info" | cut -d, -f2)
+    
+    echo -e "${GREEN}Benchmarking $pallet_name...${NC}"
+    
+    # Capture output for better error reporting
+    local output
+    if output=$(frame-omni-bencher v1 benchmark pallet \
+        --runtime "$RUNTIME" \
+        --pallet "$pallet_name" \
+        --extrinsic "*" \
+        --output "$output_path" \
+        --header "${PROJECT_ROOT}/.github/license-check/HEADER-APACHE2" \
+        --template "${PROJECT_ROOT}/scripts/weights/xcm-template.hbs" \
+        --wasm-execution=compiled \
+        --steps "$STEPS" \
+        --repeat "$REPEAT" \
+        --heap-pages=4096 \
+        --no-storage-info \
+        --no-min-squares \
+        --no-median-slopes 2>&1); then
+        echo -e "${GREEN}✓ Successfully generated weights for $pallet_name${NC}"
+        echo ""
+    else
+        echo -e "${RED}✗ Failed to generate weights for $pallet_name${NC}"
+        echo -e "${RED}Error output:${NC}"
+        echo "$output" | head -20
+        echo ""
+        return 1
+    fi
+}
+
 # Main execution
 echo -e "${GREEN}Starting runtime benchmarks for all pallets${NC}"
 echo "=================================================="
@@ -126,7 +165,13 @@ failed_pallets=()
 
 for pallet_info in "${PALLETS[@]}"; do
     if ! benchmark_pallet "$pallet_info"; then
-        failed_pallets+=("$(echo "$pallet_info" | cut -d: -f1)")
+        failed_pallets+=("$(echo "$pallet_info" | cut -d, -f1)")
+    fi
+done
+
+for pallet_info in "${XCM_PALLETS[@]}"; do
+    if ! benchmark_xcm_pallet "$pallet_info"; then
+        failed_pallets+=("$(echo "$pallet_info" | cut -d, -f1)")
     fi
 done
 

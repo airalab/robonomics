@@ -64,8 +64,8 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `175`
 		//  Estimated: `0`
-		// Minimum execution time: 73_272_000 picoseconds.
-		Weight::from_parts(73_272_000, 0)
+		// Minimum execution time: 71_072_000 picoseconds.
+		Weight::from_parts(71_072_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
@@ -92,8 +92,8 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `340`
 		//  Estimated: `0`
-		// Minimum execution time: 207_485_000 picoseconds.
-		Weight::from_parts(207_485_000, 0)
+		// Minimum execution time: 203_332_000 picoseconds.
+		Weight::from_parts(203_332_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
@@ -110,120 +110,120 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 22_213_000 picoseconds.
-		Weight::from_parts(22_213_000, 0)
+		// Minimum execution time: 23_128_000 picoseconds.
+		Weight::from_parts(23_128_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_default_xcm_version() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_533_000 picoseconds.
-		Weight::from_parts(8_533_000, 0)
+		// Minimum execution time: 9_253_000 picoseconds.
+		Weight::from_parts(9_253_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_subscribe_version_notify() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `175`
 		//  Estimated: `0`
-		// Minimum execution time: 80_894_000 picoseconds.
-		Weight::from_parts(80_894_000, 0)
+		// Minimum execution time: 83_845_000 picoseconds.
+		Weight::from_parts(83_845_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_unsubscribe_version_notify() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `299`
 		//  Estimated: `0`
-		// Minimum execution time: 76_583_000 picoseconds.
-		Weight::from_parts(76_583_000, 0)
+		// Minimum execution time: 76_150_000 picoseconds.
+		Weight::from_parts(76_150_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn force_suspension() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_805_000 picoseconds.
-		Weight::from_parts(8_805_000, 0)
+		// Minimum execution time: 8_921_000 picoseconds.
+		Weight::from_parts(8_921_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn migrate_supported_version() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `23`
 		//  Estimated: `0`
-		// Minimum execution time: 39_811_000 picoseconds.
-		Weight::from_parts(39_811_000, 0)
+		// Minimum execution time: 37_630_000 picoseconds.
+		Weight::from_parts(37_630_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn migrate_version_notifiers() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `27`
 		//  Estimated: `0`
-		// Minimum execution time: 39_212_000 picoseconds.
-		Weight::from_parts(39_212_000, 0)
+		// Minimum execution time: 36_922_000 picoseconds.
+		Weight::from_parts(36_922_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn already_notified_target() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `79`
 		//  Estimated: `0`
-		// Minimum execution time: 45_817_000 picoseconds.
-		Weight::from_parts(45_817_000, 0)
+		// Minimum execution time: 45_896_000 picoseconds.
+		Weight::from_parts(45_896_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn notify_current_targets() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `119`
 		//  Estimated: `0`
-		// Minimum execution time: 71_845_000 picoseconds.
-		Weight::from_parts(71_845_000, 0)
+		// Minimum execution time: 68_042_000 picoseconds.
+		Weight::from_parts(68_042_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn notify_target_migration_fail() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `79`
 		//  Estimated: `0`
-		// Minimum execution time: 44_632_000 picoseconds.
-		Weight::from_parts(44_632_000, 0)
+		// Minimum execution time: 29_911_000 picoseconds.
+		Weight::from_parts(29_911_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn migrate_version_notify_targets() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `34`
 		//  Estimated: `0`
-		// Minimum execution time: 38_754_000 picoseconds.
-		Weight::from_parts(38_754_000, 0)
+		// Minimum execution time: 38_819_000 picoseconds.
+		Weight::from_parts(38_819_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn migrate_and_notify_old_targets() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `119`
 		//  Estimated: `0`
-		// Minimum execution time: 82_741_000 picoseconds.
-		Weight::from_parts(82_741_000, 0)
+		// Minimum execution time: 83_122_000 picoseconds.
+		Weight::from_parts(83_122_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn new_query() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 5_866_000 picoseconds.
-		Weight::from_parts(5_866_000, 0)
+		// Minimum execution time: 5_517_000 picoseconds.
+		Weight::from_parts(5_517_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn take_response() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `7576`
 		//  Estimated: `0`
-		// Minimum execution time: 49_143_000 picoseconds.
-		Weight::from_parts(49_143_000, 0)
+		// Minimum execution time: 48_156_000 picoseconds.
+		Weight::from_parts(48_156_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn claim_assets() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `157`
 		//  Estimated: `0`
-		// Minimum execution time: 94_877_000 picoseconds.
-		Weight::from_parts(94_877_000, 0)
+		// Minimum execution time: 96_733_000 picoseconds.
+		Weight::from_parts(96_733_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// Storage: `Benchmark::Override` (r:0 w:0)
@@ -250,8 +250,8 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 38_145_000 picoseconds.
-		Weight::from_parts(38_145_000, 0)
+		// Minimum execution time: 35_399_000 picoseconds.
+		Weight::from_parts(35_399_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 }

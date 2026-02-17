@@ -39,18 +39,15 @@ use frame_support::{
     genesis_builder_helper::{build_state, get_preset},
     parameter_types,
     traits::{
-        fungible, tokens::imbalance::ResolveTo, AsEnsureOriginWithArg, ConstBool, ConstU128,
-        ConstU32, ConstU64, Imbalance, OnUnbalanced, WithdrawReasons,
+        fungible, tokens::imbalance::ResolveTo, ConstBool, ConstU32, ConstU64, Imbalance,
+        OnUnbalanced, WithdrawReasons,
     },
-    weights::{
-        ConstantMultiplier, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-        WeightToFeePolynomial,
-    },
+    weights::{ConstantMultiplier, Weight},
     PalletId,
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
-    EnsureRoot, EnsureSigned,
+    EnsureRoot,
 };
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment_rpc_runtime_api::{FeeDetails, RuntimeDispatchInfo};
@@ -68,9 +65,9 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-pub mod xcm_config;
 pub mod common;
-pub use common::{currency::*, time::*, consensus::*, fee::*, *};
+pub mod xcm_config;
+pub use common::{consensus::*, currency::*, fee::*, time::*, *};
 
 mod genesis_config_presets;
 mod weights;
@@ -708,7 +705,7 @@ parameter_types! {
     pub const AssetsName: &'static str = "Assets";
     pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
     pub const MultiBlockMigrationsName: &'static str = "MultiBlockMigrations";
-} 
+}
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
