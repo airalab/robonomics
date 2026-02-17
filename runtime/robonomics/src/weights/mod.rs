@@ -39,13 +39,15 @@ pub mod rocksdb_weights;
 pub mod xcm;
 
 pub mod pallet_robonomics_claim;
-pub mod pallet_robonomics_cps;
 pub mod pallet_robonomics_datalog;
 pub mod pallet_robonomics_digital_twin;
 pub mod pallet_robonomics_launch;
 pub mod pallet_robonomics_liability;
 pub mod pallet_robonomics_rws;
 pub mod pallet_xcm_info;
+
+#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
+pub mod pallet_robonomics_cps;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
