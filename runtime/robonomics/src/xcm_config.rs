@@ -16,7 +16,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
-    AccountId, AllPalletsWithSystem, AssetId, Assets, Balance, Balances, DealWithFees,
+    AccountId, AllPalletsWithSystem, AssetId, Balance, Balances, DealWithFees,
     MessageQueue, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent,
     RuntimeOrigin, WeightToFee, XcmInfo, XcmpQueue,
 };
@@ -24,7 +24,7 @@ use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
     pallet_prelude::Get,
     parameter_types,
-    traits::{Contains, ContainsPair, Everything, Nothing, PalletInfoAccess, TransformOrigin},
+    traits::{Contains, ContainsPair, Disabled, Everything, Nothing, PalletInfoAccess, TransformOrigin},
     weights::Weight,
 };
 use polkadot_parachain_primitives::primitives::Sibling;
@@ -34,12 +34,12 @@ use sp_std::{marker::PhantomData, prelude::*};
 // Polkadot imports
 use xcm::latest::prelude::*;
 use xcm_builder::{
-    Account32Hash, AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+    HashedDescription, AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
     AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, ConvertedConcreteId, EnsureXcmOrigin,
     FixedRateOfFungible, FixedWeightBounds, FungibleAdapter, FungiblesAdapter, IsConcrete,
     NoChecking, ParentAsSuperuser, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
     SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-    SovereignSignedViaLocation, TakeWeightCredit, UsingComponents,
+    SovereignSignedViaLocation, TakeWeightCredit, UsingComponents, DescribeFamily, DescribeAllTerminal,
 };
 use xcm_executor::{
     traits::{JustTry, WithOriginFilter},
@@ -48,14 +48,15 @@ use xcm_executor::{
 
 parameter_types! {
     pub RelayNetwork: NetworkId = XcmInfo::relay_network().unwrap_or(NetworkId::Kusama);
-    pub RelayLocation: Location = Location::parent();
-    pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     pub UniversalLocation: InteriorLocation =
         [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
-    pub Local: Location = Location::here();
-    pub AssetsPalletLocation: Location =
-        Location::new(0, [PalletInstance(<Assets as PalletInfoAccess>::index() as u8)]);
-    pub DummyCheckingAccount: AccountId = PolkadotXcm::check_account();
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+    pub AssetHubParaId: ParaId = 1000.into();
+    pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+    pub const RelayLocation: Location = Location::parent();
+    pub const LocalLocation: Location = Location::here();
+    pub const MaxInstructions: u32 = 100;
+    pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -68,16 +69,16 @@ pub type LocationToAccountId = (
     SiblingParachainConvertsVia<Sibling, AccountId>,
     // Straight up local `AccountId32` origins just alias directly to `AccountId`.
     AccountId32Aliases<RelayNetwork, AccountId>,
-    // Derives a private `Account32` by hashing `("multiloc", received multilocation)`
-    Account32Hash<RelayNetwork, AccountId>,
+    // Foreign locations alias into accounts according to a hash of their standard description.
+    HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 );
 
 /// Means for transacting the native currency on this chain.
-pub type CurrencyTransactor = FungibleAdapter<
+pub type FungibleTransactor = FungibleAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
-    IsConcrete<Local>,
+    IsConcrete<LocalLocation>,
     // Convert an XCM Location into a local account id:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -86,24 +87,8 @@ pub type CurrencyTransactor = FungibleAdapter<
     (),
 >;
 
-/// Means for transacting assets besides the native currency on this chain.
-pub type FungiblesTransactor = FungiblesAdapter<
-    // Use this fungibles implementation:
-    Assets,
-    // Use this currency when it is a fungible asset matching the given location or name:
-    ConvertedConcreteId<AssetId, Balance, XcmInfo, JustTry>,
-    // Convert an XCM Location into a local account id:
-    LocationToAccountId,
-    // Our chain's account ID type (we can't get away without mentioning it explicitly):
-    AccountId,
-    // We don't track any teleports of `Assets`.
-    NoChecking,
-    // We don't track any teleports of `Assets`.
-    DummyCheckingAccount,
->;
-
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, FungiblesTransactor);
+pub type AssetTransactors = (FungibleTransactor,);
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
 /// ready for dispatching a transaction with Xcm's `Transact`. There is an `OriginKind` which can
@@ -131,10 +116,7 @@ pub type XcmOriginToTransactDispatchOrigin = (
 
 parameter_types! {
     // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-    pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 4 * 1024);
-    pub const MaxInstructions: u32 = 100;
-    pub KsmPerSecond: (cumulus_primitives_core::AssetId, u128, u128) =
-        (Location::parent().into(), 1_000_000_000, 1_000_000_000);
+    pub UnitWeightCost: Weight = Weight::from_parts(1_000_000, 4 * 1024);
 }
 
 /// Match parent or plurality from parent.
@@ -233,16 +215,13 @@ impl Config for XcmConfig {
     type UniversalLocation = UniversalLocation;
     type Barrier = XcmBarrier;
     type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-    type Trader = (
-        FixedRateOfFungible<KsmPerSecond, ()>,
-        UsingComponents<WeightToFee, Local, AccountId, Balances, DealWithFees>,
-    );
+    type Trader = UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>;
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
     type AssetClaims = PolkadotXcm;
     type SubscriptionService = PolkadotXcm;
     type PalletInstancesInfo = AllPalletsWithSystem;
-    type MaxAssetsIntoHolding = ConstU32<64>;
+    type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
     type AssetLocker = ();
     type AssetExchanger = ();
     type FeeManager = xcm_executor::traits::WaiveDeliveryFees;
@@ -298,17 +277,16 @@ impl pallet_xcm::Config for Runtime {
     type RuntimeOrigin = RuntimeOrigin;
     type RuntimeCall = RuntimeCall;
     type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-
     type Currency = Balances;
     type CurrencyMatcher = ();
     type TrustedLockers = ();
     type SovereignAccountOf = LocationToAccountId;
     type MaxLockers = ConstU32<0>;
-    type WeightInfo = pallet_xcm::TestWeightInfo; // TODO: fix weights
+    type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
     type MaxRemoteLockConsumers = ConstU32<0>;
     type RemoteLockConsumerIdentifier = ();
     type AdminOrigin = frame_system::EnsureRoot<AccountId>;
-    type AuthorizedAliasConsideration = ();
+    type AuthorizedAliasConsideration = Disabled;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
@@ -352,9 +330,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
     // Charge a conservative fee for XCM message delivery to siblings
     type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
-    // Use unit weights to skip integrity test mismatch between estimated and actual weights
-    // TODO: Generate runtime-specific benchmark weights
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
 }
 
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
@@ -364,5 +340,5 @@ impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
 impl pallet_xcm_info::Config for Runtime {
     type AssetId = AssetId;
     type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::pallet_xcm_info::WeightInfo<Runtime>;
 }

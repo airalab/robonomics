@@ -132,7 +132,7 @@ mod benchmark_runtime {
             sp_runtime::MultiSignature,
             crate::technics::IPFS,
         >;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 }
 

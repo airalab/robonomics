@@ -75,7 +75,6 @@ use alloc::{vec, vec::Vec};
 use frame_support::{
     ensure,
     traits::{Currency, ExistenceRequirement, Get},
-    weights::Weight,
     DefaultNoBound,
 };
 pub use pallet::*;
@@ -91,32 +90,12 @@ use sp_runtime::{
     RuntimeDebug,
 };
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 /// Balance type alias for easier reference throughout the pallet.
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-/// Weight information for pallet extrinsics.
-///
-/// Provides benchmark-derived weights for each extrinsic in the pallet.
-pub trait WeightInfo {
-    /// Weight for the `claim` extrinsic.
-    fn claim() -> Weight;
-    /// Weight for the `add_claim` extrinsic.
-    fn add_claim() -> Weight;
-}
-
-/// Test weight implementation that returns zero weight for all operations.
-///
-/// Used in testing environments where actual weight calculations are not needed.
-pub struct TestWeightInfo;
-impl WeightInfo for TestWeightInfo {
-    fn claim() -> Weight {
-        Weight::zero()
-    }
-    fn add_claim() -> Weight {
-        Weight::zero()
-    }
-}
 
 /// An Ethereum address (i.e. 20 bytes, used to represent an Ethereum account).
 ///

@@ -64,7 +64,7 @@ impl Config for Test {
     type Currency = Balances;
     type PalletId = ClaimPalletId;
     type Prefix = Prefix;
-    type WeightInfo = TestWeightInfo;
+    type WeightInfo = weights::TestWeightInfo;
 }
 
 pub fn alice() -> libsecp256k1::SecretKey {

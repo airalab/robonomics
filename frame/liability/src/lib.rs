@@ -279,7 +279,7 @@ mod tests {
             // Provide report in IPFS
             IPFS,
         >;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 
     // IPFS raw hash (sha256)

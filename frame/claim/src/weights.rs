@@ -23,8 +23,10 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-	fn set_relay_network() -> Weight;
-	fn set_asset_link() -> Weight;
+    /// Weight for the `claim` extrinsic.
+    fn claim() -> Weight;
+    /// Weight for the `add_claim` extrinsic.
+    fn add_claim() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -32,10 +34,10 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-	fn set_relay_network() -> Weight {
+    fn claim() -> Weight {
         Weight::zero()
     }
-	fn set_asset_link() -> Weight {
+    fn add_claim() -> Weight {
         Weight::zero()
     }
 }

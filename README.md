@@ -262,10 +262,8 @@ nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
 This single command will:
 1. Set up the complete benchmarking environment (Rust toolchain, frame-omni-bencher, etc.)
 2. Build the runtime with `runtime-benchmarks` feature
-3. Run benchmarks for all 18 pallets (10 system/XCM + 8 Robonomics custom)
-4. Generate weight files:
-   - System/XCM pallets → `runtime/robonomics/src/weights/`
-   - Robonomics pallets → `frame/*/src/weights.rs`
+3. Run benchmarks for all runtime pallets
+4. Generate weight files → `runtime/robonomics/src/weights/`
 
 **Customizing Benchmark Parameters:**
 
@@ -292,40 +290,11 @@ frame-omni-bencher v1 benchmark pallet \
   --runtime ./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm \
   --pallet pallet_robonomics_datalog \
   --extrinsic "*" \
-  --template ./scripts/weights/frame-weight-template.hbs \
-  --output ./frame/datalog/src/weights.rs \
-  --header ./LICENSE \
+  --output ./weights.rs \
+  --header ./.github/license-check/HEADER-APACHE2 \
   --steps 50 \
   --repeat 20
 ```
-
-#### Available Pallets for Benchmarking
-
-The `benchmark-pallets.sh` script generates weights for all configured pallets:
-
-**System Pallets** (saved to `runtime/robonomics/src/weights/`):
-- `pallet_balances` - Balance transfers and reserves
-- `pallet_timestamp` - Block timestamp setting
-- `pallet_utility` - Batch calls and derivative dispatches
-- `pallet_multisig` - Multi-signature operations
-- `pallet_vesting` - Token vesting schedules
-- `pallet_assets` - Asset management
-- `pallet_collator_selection` - Collator selection mechanism
-- `pallet_session` - Session key management
-
-**XCM Pallets** (saved to `runtime/robonomics/src/weights/`):
-- `cumulus_pallet_xcmp_queue` - Cross-chain message queue
-- `pallet_xcm` - XCM message execution
-
-**Robonomics Custom Pallets** (saved to `frame/*/src/weights.rs`):
-- `pallet_robonomics_datalog` - IoT datalog storage
-- `pallet_robonomics_digital_twin` - Digital twin state management
-- `pallet_robonomics_launch` - Device launch commands
-- `pallet_robonomics_liability` - Smart contracts for robotics
-- `pallet_robonomics_rws` - RWS subscription management
-- `pallet_robonomics_cps` - Cyber-physical systems integration
-- `pallet_wrapped_asset` - Token wrapping functionality
-- `pallet_xcm_info` - XCM integration utilities
 
 #### Manual Benchmarking (Without Nix)
 
@@ -335,20 +304,17 @@ If you prefer not to use Nix:
 # 1. Install frame-omni-bencher
 cargo install --git https://github.com/paritytech/polkadot-sdk frame-omni-bencher
 
-# 2. Build the runtime with benchmarking features
-cargo build --release --features runtime-benchmarks -p robonomics-runtime
-
-# 3. Run the benchmark script
+# 2. Run the benchmark script
 ./scripts/benchmark-pallets.sh
 ```
 
 #### Understanding Benchmark Results
 
-Benchmark results are written as weight functions in Rust code. For example, in `frame/datalog/src/weights.rs`:
+Benchmark results are written as weight functions in Rust code. For example, in `runtime/robonomics/src/weights/pallet_robonomics_datalog.rs`:
 
 ```rust
 // Example pseudocode - actual implementation uses trait methods
-impl WeightInfo for SubstrateWeight<T> {
+impl WeightInfo for WeightInfo<T> {
     fn record() -> Weight {
         Weight::from_parts(50_000_000, 0)
             .saturating_add(T::DbWeight::get().reads(2))

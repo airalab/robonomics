@@ -82,8 +82,8 @@ subxt-signer = "0.43.0"
 
 # Serialization (for libcps)
 base64 = "0.22"
-hex = "0.4"
-toml = "0.9"
+hex = "0.4.3"
+toml = "0.8.12"
 
 # MQTT (for libcps)
 rumqttc = "0.25"
@@ -192,6 +192,7 @@ frame-try-runtime = { version = "0.51.0", default-features = false }
 pallet-grandpa = { version = "45.0.0", default-features = false }
 sp-staking = { version = "42.1.0", default-features = false }
 pallet-xcm = { version = "25.0.0", default-features = false }
+pallet-xcm-benchmarks = { version = "25.0.0", default-features = false }
 parachains-common = { version = "27.1.0", default-features = false }
 
 # Cumulus

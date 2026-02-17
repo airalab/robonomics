@@ -332,7 +332,7 @@ mod tests {
     impl Config for Runtime {
         type AssetId = u32;
         type RuntimeEvent = RuntimeEvent;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 
     /// Build test externalities for running tests

@@ -295,7 +295,7 @@ mod tests {
         type Record = BoundedVec<u8, MaximumMessageSize>;
         type RuntimeEvent = RuntimeEvent;
         type WindowSize = WindowSize;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 
     pub fn new_test_ext() -> sp_io::TestExternalities {

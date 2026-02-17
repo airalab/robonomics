@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Runtime genesis config presets
 
-use crate::common::{currency::XRT, AccountId, AuraId};
+use crate::common::{currency::XRT, xcm_version, AccountId, AuraId};
 use crate::*;
 
 use alloc::{vec, vec::Vec};
@@ -31,7 +31,6 @@ use xcm::latest::{
 };
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
-pub const SAFE_XCM_VERSION: u32 = 5;
 pub const RELAY_ASSET_ID: u32 = u32::MAX - 1;
 
 fn robonomics_genesis(
@@ -68,24 +67,15 @@ fn robonomics_genesis(
                 .collect(),
         },
         polkadot_xcm: PolkadotXcmConfig {
-            safe_xcm_version: Some(SAFE_XCM_VERSION)
-        },
-        sudo: SudoConfig {
-            key: Some(Sr25519Keyring::Alice.to_account_id())
-        },
-        assets: AssetsConfig {
-            assets: vec![(
-                RELAY_ASSET_ID,
-                Sr25519Keyring::Alice.to_account_id(),
-                true,
-                1
-            )],
-            ..Default::default()
+            safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
         },
         xcm_info: XcmInfoConfig {
             relay: relay.unwrap_or(NetworkId::Kusama),
             links,
-        }
+        },
+        sudo: SudoConfig {
+            key: Some(Sr25519Keyring::Alice.to_account_id())
+        },
     })
 }
 

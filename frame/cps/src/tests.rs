@@ -190,7 +190,7 @@ impl pallet_cps::Config for Runtime {
     type MaxRootNodes = MaxRootNodes;
     type EncryptedData = pallet_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
-    type WeightInfo = ();
+    type WeightInfo = weights::TestWeightInfo;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -983,7 +983,7 @@ fn on_payload_set_callback_invoked() {
         type MaxRootNodes = MaxRootNodes;
         type OnPayloadSet = TestPayloadHandler;
         type EncryptedData = DefaultEncryptedData;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 
     let mut ext = {

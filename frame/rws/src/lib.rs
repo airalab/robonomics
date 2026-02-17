@@ -32,9 +32,6 @@ pub mod weights;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-//#[cfg(test)]
-//mod tests;
-
 #[derive(
     PartialEq,
     Eq,

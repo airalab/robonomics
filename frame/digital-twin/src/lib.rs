@@ -147,8 +147,8 @@ pub mod pallet {
 mod tests {
     use crate::{self as digital_twin, *};
 
-    use frame_support::{assert_err, assert_ok, parameter_types};
-    use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError};
+    use frame_support::{assert_err, assert_ok, parameter_types, derive_impl};
+    use sp_runtime::{BuildStorage, DispatchError};
 
     type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -163,42 +163,14 @@ mod tests {
         pub const BlockHashCount: u64 = 250;
     }
 
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
     impl frame_system::Config for Runtime {
-        type RuntimeOrigin = RuntimeOrigin;
-        type Nonce = u64;
         type Block = Block;
-        type RuntimeCall = RuntimeCall;
-        type Hash = sp_core::H256;
-        type Hashing = sp_runtime::traits::BlakeTwo256;
-        type AccountId = u64;
-        type Lookup = IdentityLookup<Self::AccountId>;
-        type RuntimeEvent = RuntimeEvent;
-        type BlockHashCount = BlockHashCount;
-        type Version = ();
-        type PalletInfo = PalletInfo;
-        type AccountData = ();
-        type OnNewAccount = ();
-        type OnKilledAccount = ();
-        type DbWeight = ();
-        type BaseCallFilter = frame_support::traits::Everything;
-        type SystemWeightInfo = ();
-        type BlockWeights = ();
-        type BlockLength = ();
-        type SS58Prefix = ();
-        type OnSetCode = ();
-        type MaxConsumers = frame_support::traits::ConstU32<16>;
-        type RuntimeTask = RuntimeTask;
-        type ExtensionsWeightInfo = ();
-        type SingleBlockMigrations = ();
-        type MultiBlockMigrator = ();
-        type PreInherents = ();
-        type PostInherents = ();
-        type PostTransactions = ();
     }
 
     impl Config for Runtime {
         type RuntimeEvent = RuntimeEvent;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 
     fn new_test_ext() -> sp_io::TestExternalities {
