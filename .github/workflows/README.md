@@ -266,9 +266,10 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
   
   tests:
-    needs: cachix
     uses: ./.github/workflows/tests.yml
 ```
+
+**Note:** Both `cachix` and `tests` run independently in parallel. Build jobs wait for both to complete.
 
 ### 2. Concurrency Control
 
@@ -286,7 +287,7 @@ concurrency:
 - Reduces queue times
 - Faster feedback on latest changes
 
-### 2. Parallel Job Execution
+### 3. Parallel Job Execution
 
 **Strategy:** Jobs with same dependencies run in parallel
 

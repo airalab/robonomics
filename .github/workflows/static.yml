@@ -1,7 +1,6 @@
 name: Static Checks 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 on:
   workflow_call:
@@ -10,10 +9,17 @@ on:
         description: "Status of the static checks"
         value: ${{ jobs.check-formatting.result == 'success' && jobs.check-license.result == 'success' }}
 
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   auto-format:
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:

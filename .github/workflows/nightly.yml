@@ -14,7 +14,7 @@ on:
       DOCKER_PASSWORD:
         required: true
       CACHIX_AUTH_TOKEN:
-        required: true
+        required: false
     outputs:
       status:
         description: "Status of nightly builds"
@@ -31,6 +31,7 @@ env:
 
 jobs:
   cachix:
+    if: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}
     uses: ./.github/workflows/cachix.yml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -40,6 +41,7 @@ jobs:
 
   release-binary:
     needs: [cachix, tests]
+    if: ${{ always() && (needs.cachix.result == 'success' || needs.cachix.result == 'skipped') && needs.tests.result == 'success' }}
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     outputs:
