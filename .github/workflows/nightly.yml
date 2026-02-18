@@ -36,11 +36,10 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   tests:
-    needs: cachix
     uses: ./.github/workflows/tests.yml
 
   release-binary:
-    needs: tests
+    needs: [cachix, tests]
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     outputs:
@@ -137,7 +136,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: tests
+    needs: [cachix, tests]
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

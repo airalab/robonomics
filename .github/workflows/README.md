@@ -30,10 +30,18 @@ The Robonomics CI/CD pipeline is designed for:
 
 **Jobs:**
 ```
-cachix (Nix cache upload)
-    └── tests (calls tests.yml)
-            ├── static-checks → unit-tests (parallel)
-            └── static-checks → runtime-benchmarks (parallel)
+cachix (Nix cache upload) ────┐
+                               │
+tests (calls tests.yml) ───────┤
+    ├── static-checks          │
+    │    ├─ auto-format        │
+    │    ├─ check-formatting   │
+    │    └─ check-license      │
+    ├─ unit-tests (parallel)   │
+    └─ runtime-benchmarks      │
+            (parallel)          │
+                                │
+                ┌───────────────┘
                 │
                 ├─→ release-binary (parallel)
                 └─→ srtool (parallel)
@@ -42,8 +50,10 @@ cachix (Nix cache upload)
 ```
 
 **Workflow Calls:**
-- `cachix.yml` - Builds and uploads Nix artifacts to cachix
-- `tests.yml` - Runs static checks, unit tests, and runtime benchmarks
+- `cachix.yml` - Builds and uploads Nix artifacts to cachix (runs in parallel with tests)
+- `tests.yml` - Runs static checks, unit tests, and runtime benchmarks (runs in parallel with cachix)
+
+**Note:** Both `cachix` and `tests` run independently in parallel. The `release-binary` and `srtool` jobs wait for both to complete successfully before starting.
 
 **Outputs:**
 - Binary artifacts for Linux (x86_64, aarch64) and macOS (x86_64)
