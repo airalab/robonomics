@@ -4,8 +4,6 @@ permissions:
   pull-requests: write
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_call:
     outputs:
       status:
