@@ -8,7 +8,6 @@ This document provides a comprehensive overview of the GitHub Actions CI/CD pipe
 - [Workflow Files](#workflow-files)
 - [Workflow Execution Flow](#workflow-execution-flow)
 - [Caching Strategy](#caching-strategy)
-- [Optimization Features](#optimization-features)
 - [Maintenance Guide](#maintenance-guide)
 
 ## Overview
@@ -126,17 +125,102 @@ static-checks (5-10 min)
 
 ### Supporting Workflows
 
-#### 4. `release.yml`
-**Purpose:** Handles GitHub releases
+#### 4. `release.yml` - Release Pipeline
+**Trigger:** Push tags matching `v[0-9]+.[0-9]+.[0-9]+*`
 
-#### 5. `docs.yml`
-**Purpose:** Documentation building and deployment
+**Purpose:** Automates GitHub release creation and binary artifact publishing
 
-#### 6. `cachix.yml`
-**Purpose:** Nix cache management
+**Jobs:**
+- **nightly** - Calls `nightly.yml` workflow (builds binaries, docker, srtool)
+- **publish-release-draft** - Creates GitHub release draft:
+  - Downloads runtime artifacts
+  - Generates release body using TypeScript script comparing tags
+  - Creates draft release with generated notes
+- **upload-binaries** - Uploads binary artifacts for:
+  - Linux (x86_64, aarch64) musl targets
+  - macOS (x86_64) darwin target
+- **upload-runtimes** - Uploads runtime artifacts:
+  - Compressed WASM runtime
+  - Runtime metadata JSON
+  - SRTOOL digest and compressed info
 
-#### 7. `zombienet.yml`
-**Purpose:** Network testing with Zombienet
+**Features:**
+- Automatic changelog generation between releases
+- Matrix strategy for multi-platform binary uploads
+- SRTOOL report integration in release notes
+- Concurrent artifact uploads for faster releases
+
+**Concurrency:** Not configured (releases run to completion)
+
+#### 5. `docs.yml` - Documentation Pipeline
+**Trigger:** Push to `master` branch
+
+**Purpose:** Builds and deploys Rust documentation to GitHub Pages
+
+**Jobs:**
+- **build** - Builds cargo documentation:
+  - Uses Nix development environment
+  - Generates workspace docs with `cargo doc`
+  - Creates HTML redirect to main docs
+  - Uploads documentation artifact
+- **deploy** - Deploys to GitHub Pages:
+  - Publishes documentation artifact
+  - Updates GitHub Pages site
+
+**Features:**
+- Clean builds to ensure documentation freshness
+- Automatic redirect to main Robonomics docs
+- GitHub Pages integration
+
+**Concurrency:**
+- Group: `deploy`
+- Cancel in progress: `false` (ensures deployment completes)
+
+#### 6. `cachix.yml` - Nix Cache Management
+**Trigger:** Workflow call from other workflows (e.g., nightly.yml, zombienet.yml)
+
+**Purpose:** Builds and uploads Nix artifacts to Cachix for faster subsequent builds
+
+**Jobs:**
+- **cachix-upload** - Builds and caches Nix packages:
+  - Aggressive cleanup to free disk space (~40GB freed)
+  - Builds main Robonomics binary
+  - Builds additional Nix packages (libcps, polkadot, polkadot-parachain)
+  - Uploads artifacts to Cachix cache
+
+**Features:**
+- Disk space optimization through aggressive cleanup
+- Multiple build targets (main + dependencies)
+- Local testnet environment validation
+- Status output for dependent workflows
+
+**Concurrency:**
+- Group: `cachix-${{ github.ref }}`
+- Cancel in progress: `true`
+
+#### 7. `zombienet.yml` - Network Integration Tests
+**Trigger:** 
+- Pull requests to `master` branch
+- Push to `master` branch
+- Manual workflow dispatch
+
+**Purpose:** Runs integration tests using Zombienet local network
+
+**Jobs:**
+- **cachix** - Calls `cachix.yml` to build and cache dependencies
+- **zombienet-tests** - Runs integration tests:
+  - Spawns local Zombienet network (relay chain + parachain)
+  - Waits for network initialization (ports 9944, 9910, 9988)
+  - Executes JavaScript integration tests
+  - Uploads logs on failure for debugging
+
+**Features:**
+- Background network spawning with health checks
+- Node.js module caching
+- Timeout protection (60 minutes)
+- Automatic log artifact collection on failure
+
+**Concurrency:** Not configured (tests run sequentially)
 
 ## Workflow Execution Flow
 
@@ -187,6 +271,60 @@ graph TD
 - **10-30 min**: Tests run in parallel
 
 **Total Duration:** ~20-30 minutes (optimized from ~30-45 minutes)
+
+### Release Pipeline (Tag Push)
+
+```mermaid
+graph TD
+    A[Push tag v*] --> B[Call nightly.yml]
+    B --> C[tests]
+    B --> D[release-binary]
+    B --> E[docker]
+    B --> F[srtool]
+    
+    C --> G[publish-release-draft]
+    D --> G
+    E --> G
+    F --> G
+    
+    G --> H[Generate changelog]
+    H --> I[Create release draft]
+    
+    I --> J[upload-binaries matrix]
+    I --> K[upload-runtimes]
+    
+    J --> L[Linux x86_64]
+    J --> M[Linux aarch64]
+    J --> N[macOS x86_64]
+    
+    L --> O[Upload to release]
+    M --> O
+    N --> O
+    
+    K --> P[Upload WASM]
+    K --> Q[Upload metadata]
+    K --> R[Upload SRTOOL reports]
+    
+    P --> S[Release complete]
+    Q --> S
+    R --> S
+    O --> S
+    
+    style A fill:#ffebee
+    style B fill:#e3f2fd
+    style G fill:#f3e5f5
+    style I fill:#e8f5e9
+    style O fill:#fff3e0
+    style S fill:#c8e6c9
+```
+
+**Timeline:**
+- **0-60 min**: Nightly build workflow (tests, binaries, docker, srtool)
+- **60-65 min**: Generate release notes from commit history
+- **65-70 min**: Create draft release
+- **70-80 min**: Upload binary artifacts (parallel matrix) and runtime artifacts
+
+**Total Duration:** ~70-80 minutes
 
 ## Caching Strategy
 
