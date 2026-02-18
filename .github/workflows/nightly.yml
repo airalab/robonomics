@@ -18,7 +18,7 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.release-binary.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
+        value: ${{ (jobs.release-binary.result == 'success' && jobs.docker.result == 'success' && jobs.srtool.result == 'success') && 'success' || 'failure' }}
 
 concurrency:
   group: nightly-${{ github.ref }}
