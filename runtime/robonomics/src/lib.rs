@@ -27,7 +27,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 // Make development WASM binary available in dedicated module.
 #[cfg(feature = "std")]
 pub mod dev {
-    include!(concat!(env!("OUT_DIR"), "/development_wasm_binary.rs"));
+    include!(concat!(env!("OUT_DIR"), "/development_runtime.rs"));
 }
 
 extern crate alloc;

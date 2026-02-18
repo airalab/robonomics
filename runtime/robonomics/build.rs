@@ -21,7 +21,7 @@ fn main() {
     substrate_wasm_builder::WasmBuilder::build_using_defaults();
 
     substrate_wasm_builder::WasmBuilder::init_with_defaults()
-        .set_file_name("development_wasm_binary.rs")
+        .set_file_name("development_runtime.rs")
         .enable_feature("dev-runtime")
         .build();
 }
@@ -33,7 +33,7 @@ fn main() {
         .build();
 
     substrate_wasm_builder::WasmBuilder::init_with_defaults()
-        .set_file_name("development_wasm_binary.rs")
+        .set_file_name("development_runtime.rs")
         .enable_feature("dev-runtime")
         .enable_metadata_hash("XRT", 9)
         .build();
