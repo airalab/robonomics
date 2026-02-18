@@ -13,35 +13,12 @@ This document provides a comprehensive overview of the GitHub Actions CI/CD pipe
 
 ## Overview
 
-The Robonomics CI/CD pipeline is designed for:
-- **Speed**: Parallel job execution reduces overall pipeline time by 30-40%
-- **Efficiency**: Comprehensive caching minimizes redundant work (50% faster subsequent runs)
-- **Reliability**: Fail-safe strategies ensure robust builds
+The Robonomics CI/CD pipeline is optimized for:
+- **Speed**: 30-40% faster via parallel execution
+- **Efficiency**: 50% faster subsequent runs with caching
+- **Reliability**: Fail-safe strategies for robust builds
 - **Cost-effectiveness**: Resource optimization reduces CI costs
 - **Security**: Minimal permissions and fork-safe workflows
-
-### Recent Optimizations
-
-**Consolidated Architecture (Fewer Files):**
-- Merged `auto-format.yml` into `static.yml`
-- Merged `runtime-benchmarks.yml` into `tests.yml`
-- Result: 7 workflow files instead of 9 (22% reduction)
-
-**Parallel Execution:**
-- `cachix` and `tests` run simultaneously
-- `unit-tests` and `runtime-benchmarks` run in parallel
-- Critical path reduced from ~90-120 min to ~60-85 min
-
-**Proper Status Propagation:**
-- All jobs export status via job-level outputs
-- workflow_call outputs use `jobs.<id>.outputs.status`
-- Ensures status propagates correctly across workflow boundaries
-
-**Security Improvements:**
-- Read-only permissions by default
-- Write permissions only where needed (job-level)
-- Auto-format skips fork PRs automatically
-- Optional secrets for backwards compatibility
 
 ## Workflow Files
 
@@ -515,30 +492,6 @@ Secrets used in workflows:
 3. Search existing issues in the repository
 4. Open a new issue with workflow run link
 
-## Migration History
-
-### v2.0 (February 2026) - Performance Optimization
-
-**Changes:**
-- Added concurrency control to all workflows
-- Implemented comprehensive caching strategy
-- Restructured jobs for parallel execution
-- Optimized artifact retention
-- Added Docker layer caching
-
-**Results:**
-- 30-40% faster pipeline execution
-- 50% faster subsequent runs with caching
-- Reduced CI costs through resource optimization
-
-### v1.0 (Initial Implementation)
-
-**Features:**
-- Basic test pipeline
-- Sequential job execution
-- Manual dependency management
-- No caching strategy
-
 ## Contributing
 
 When modifying workflows:
@@ -556,8 +509,3 @@ When modifying workflows:
 - [Docker Build Push Action](https://github.com/docker/build-push-action)
 - [SRTOOL](https://github.com/chevdor/srtool)
 - [cargo-nextest](https://nexte.st/)
-
----
-
-**Last Updated:** February 2026  
-**Maintainer:** Robonomics DevOps Team
