@@ -35,7 +35,6 @@ cachix (Nix cache upload) ────┐
                                │
 tests (calls tests.yml) ───────┼─────┐
     ├── static-checks          │     │
-    │    ├─ auto-format        │     │
     │    ├─ check-formatting   │     │
     │    └─ check-license      │     │
     ├─ unit-tests (parallel)   │     │
@@ -94,7 +93,7 @@ static-checks (5-10 min)
 ```
 
 **Workflow Calls:**
-- `static.yml` - Static code checks and auto-formatting
+- `static.yml` - Static code checks
 
 **Features:**
 - Rust toolchain caching via `actions-rust-lang/setup-rust-toolchain@v1`
@@ -111,17 +110,15 @@ static-checks (5-10 min)
 - Pull requests (opened, synchronize, reopened)
 - Workflow call from other workflows
 
-**Purpose:** Performs static analysis, formatting checks, and auto-formatting
+**Purpose:** Performs static analysis, formatting checks
 
 **Jobs:**
 ```
-auto-format (PR only)
-    ├── check-formatting (parallel after auto-format)
-    └── check-license (parallel after auto-format)
+─ check-formatting
+─ check-license
 ```
 
 **Features:**
-- **auto-format** (PR only): Automatically formats Rust code and TOML files, commits changes
 - **check-formatting**: Verifies Rust code formatting (`cargo fmt --check`) and TOML formatting (`taplo fmt --check`)
 - **check-license**: Validates license headers
 
@@ -240,137 +237,6 @@ cache-to: type=gha,mode=max
 **Benefits:**
 - Avoid repeated downloads
 - Faster static checks
-
-## Optimization Features
-
-### 1. Modular Workflow Design
-
-**Purpose:** Eliminate code duplication and improve maintainability
-
-**Architecture:**
-- Core workflows (`nightly.yml`) orchestrate the pipeline
-- Reusable workflows (`tests.yml`, `static.yml`, `cachix.yml`) contain actual job implementations
-- Workflows are composed using `workflow_call` to avoid duplication
-- **Consolidated workflows**: merged `auto-format.yml` into `static.yml`, merged `runtime-benchmarks.yml` into `tests.yml`
-
-**Status Propagation:**
-- All jobs export status via job-level outputs: `outputs: status: ${{ job.status }}`
-- workflow_call outputs reference these job outputs: `jobs.<id>.outputs.status`
-- This ensures proper status propagation across workflow_call boundaries
-- `jobs.<id>.result` is only available within the same workflow, not across workflow_call
-
-**Benefits:**
-- Single source of truth for each workflow type
-- Easier to maintain and update (fewer workflow files)
-- Consistent caching and configuration across all jobs
-- Changes to workflows automatically apply everywhere they're used
-- Proper status reporting from called workflows to callers
-
-**Example:**
-```yaml
-jobs:
-  cachix:
-    uses: ./.github/workflows/cachix.yml
-    secrets:
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
-  
-  tests:
-    uses: ./.github/workflows/tests.yml
-
-# In tests.yml:
-jobs:
-  unit-tests:
-    outputs:
-      status: ${{ job.status }}  # Export status
-    # ... job steps
-
-# In workflow_call output:
-workflow_call:
-  outputs:
-    status:
-      value: ${{ jobs.unit-tests.outputs.status == 'success' }}  # Use exported status
-```
-
-**Note:** Both `cachix` and `tests` run independently in parallel. Build jobs wait for both to complete.
-
-### 2. Concurrency Control
-
-**Purpose:** Cancel outdated workflow runs when new commits are pushed
-
-**Implementation:**
-```yaml
-concurrency:
-  group: <workflow-name>-${{ github.ref }}
-  cancel-in-progress: true
-```
-
-**Benefits:**
-- Saves compute resources
-- Reduces queue times
-- Faster feedback on latest changes
-
-### 3. Parallel Job Execution
-
-**Strategy:** Jobs with same dependencies run in parallel
-
-**Examples:**
-- `unit-tests` + `runtime-benchmarks` (both depend on `static-checks`)
-- `cachix` + `tests` (both start immediately in nightly workflow)
-- `release-binary` waits for both `cachix` and `tests`
-- `srtool` waits only for `tests` (no Nix dependency)
-
-**Benefits:**
-- 30-40% faster pipeline execution
-- Better resource utilization
-- Reduced critical path
-
-### 4. Security Best Practices
-
-**Minimal Permissions:**
-- Workflow-level permissions set to read-only by default
-- Write permissions granted only at job-level where needed
-- Example: `auto-format` job has `contents: write`, other jobs don't
-
-**Fork PR Protection:**
-- Auto-format job skips on fork PRs (prevents permission failures)
-- Condition: `github.event.pull_request.head.repo.fork == false`
-- Check jobs still run on forks (read-only operations)
-
-**Optional Secrets:**
-- `CACHIX_AUTH_TOKEN` is optional in `nightly.yml`
-- Cachix job runs conditionally: `if: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}`
-- Maintains backwards compatibility with `release.yml`
-
-### 5. Matrix Builds with Fail-Fast Disabled
-
-**Configuration:**
-```yaml
-strategy:
-  fail-fast: false
-  matrix:
-    platform: [linux-x86_64, linux-aarch64, macos-x86_64]
-```
-
-**Benefits:**
-- Continue building other platforms on single failure
-- Get complete picture of platform issues
-- Don't waste successful builds
-
-### 6. Artifact Retention Optimization
-
-**Setting:** `retention-days: 1`
-
-**Rationale:**
-- Intermediate artifacts only needed for Docker build
-- Reduces storage costs (90 days → 1 day)
-- Production artifacts stored separately via releases
-
-### 5. Environment Variable Optimizations
-
-```yaml
-CARGO_TERM_COLOR: always      # Better CI logs
-CARGO_INCREMENTAL: 0          # Faster clean builds in CI
-```
 
 ## Maintenance Guide
 
