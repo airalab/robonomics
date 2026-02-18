@@ -892,6 +892,10 @@ pub mod pallet {
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
 
+        /// Maximum number of nodes in a subtree that can be moved in a single operation
+        #[pallet::constant]
+        type MaxMovableSubtreeSize: Get<u32>;
+
         /// Encrypted data type for encrypted node data.
         ///
         /// This type encapsulates the encryption algorithm and encrypted payload.
@@ -998,6 +1002,8 @@ pub mod pallet {
         TooManyRootNodes,
         /// Node has children and cannot be deleted
         NodeHasChildren,
+        /// The subtree is too large to move in a single operation
+        SubtreeTooLarge,
     }
 
     #[pallet::hooks]
@@ -1145,6 +1151,13 @@ pub mod pallet {
             ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
             ensure!(new_parent.owner == sender, Error::<T>::OwnerMismatch);
 
+            // Check subtree size BEFORE attempting the move
+            let subtree_size = Self::count_descendants(node_id)?;
+            ensure!(
+                subtree_size <= T::MaxMovableSubtreeSize::get(),
+                Error::<T>::SubtreeTooLarge
+            );
+
             // Check for cycles - node_id cannot be an ancestor of new_parent
             // If node_id is in new_parent's path, moving node under new_parent would create a cycle
             ensure!(
@@ -1241,6 +1254,31 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        /// Count total number of descendants for a given node
+        ///
+        /// Returns the count of all nodes in the subtree rooted at `node_id`,
+        /// excluding the node itself.
+        fn count_descendants(node_id: NodeId) -> Result<u32, Error<T>> {
+            let mut count = 0u32;
+            let children = NodesByParent::<T>::get(node_id);
+
+            for child_id in children.iter() {
+                // Count this child
+                count = count.saturating_add(1);
+
+                // Recursively count its descendants
+                let child_count = Self::count_descendants(*child_id)?;
+                count = count.saturating_add(child_count);
+
+                // Early exit if we've already exceeded the limit
+                if count > T::MaxMovableSubtreeSize::get() {
+                    return Ok(count);
+                }
+            }
+
+            Ok(count)
+        }
+
         /// Recursively update paths of all descendant nodes
         fn update_descendant_paths(
             parent_id: NodeId,

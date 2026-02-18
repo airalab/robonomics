@@ -181,6 +181,7 @@ parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxRootNodes: u32 = 100;
+    pub const MaxMovableSubtreeSize: u32 = 50;
 }
 
 impl pallet_cps::Config for Runtime {
@@ -188,6 +189,7 @@ impl pallet_cps::Config for Runtime {
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxRootNodes = MaxRootNodes;
+    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
     type EncryptedData = pallet_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::TestWeightInfo;
@@ -1578,3 +1580,186 @@ fn proxy_node_restriction_filter_test() {
         );
     });
 }
+
+#[test]
+fn move_node_within_subtree_limit_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create a tree with a root and 10 children
+        // This is well within the MaxMovableSubtreeSize limit of 50
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 0 (root)
+
+        // Create 10 children of node 0
+        for _ in 0..10 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(0)),
+                None,
+                None
+            ));
+        }
+
+        // Create a new root to move the subtree to
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 11 (new parent)
+
+        // Move node 0 (with 10 descendants) under node 11 - should succeed
+        assert_ok!(Cps::move_node(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            NodeId(11)
+        ));
+
+        // Verify the move was successful
+        let node = Cps::nodes(NodeId(0)).unwrap();
+        assert_eq!(node.parent, Some(NodeId(11)));
+    });
+}
+
+#[test]
+fn move_node_exceeding_subtree_limit_fails() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create a tree with more nodes than MaxMovableSubtreeSize (50)
+        // Root with 51 children
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 0 (root)
+
+        // Create 51 children of node 0
+        for _ in 0..51 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(0)),
+                None,
+                None
+            ));
+        }
+
+        // Create a new root to move the subtree to
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 52 (new parent)
+
+        // Attempt to move node 0 (with 51 descendants) under node 52 - should fail
+        assert_noop!(
+            Cps::move_node(RuntimeOrigin::signed(account), NodeId(0), NodeId(52)),
+            Error::<Runtime>::SubtreeTooLarge
+        );
+    });
+}
+
+#[test]
+fn move_node_at_exact_subtree_limit_works() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create a tree with exactly MaxMovableSubtreeSize (50) descendants
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 0 (root)
+
+        // Create exactly 50 children of node 0
+        for _ in 0..50 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(0)),
+                None,
+                None
+            ));
+        }
+
+        // Create a new root to move the subtree to
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 51 (new parent)
+
+        // Move node 0 (with exactly 50 descendants) under node 51 - should succeed
+        assert_ok!(Cps::move_node(
+            RuntimeOrigin::signed(account),
+            NodeId(0),
+            NodeId(51)
+        ));
+
+        // Verify the move was successful
+        let node = Cps::nodes(NodeId(0)).unwrap();
+        assert_eq!(node.parent, Some(NodeId(51)));
+    });
+}
+
+#[test]
+fn move_node_nested_subtree_exceeding_limit_fails() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+
+        // Create a nested tree structure that exceeds the limit
+        // Root -> 10 children -> each with 5 grandchildren = 1 + 10 + 50 = 61 total nodes
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        )); // Node 0 (root)
+
+        // Create 10 children of node 0
+        for i in 0..10 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(0)),
+                None,
+                None
+            )); // Nodes 1-10
+
+            // Create 5 grandchildren for each child
+            for _ in 0..5 {
+                assert_ok!(Cps::create_node(
+                    RuntimeOrigin::signed(account),
+                    Some(NodeId(i + 1)),
+                    None,
+                    None
+                ));
+            }
+        }
+
+        // Create a new root to move the subtree to
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        // Get the ID of the new parent (should be after 1 + 10 + 50 = 61 nodes)
+        let new_parent_id = NodeId(61);
+
+        // Attempt to move node 0 (with 60 descendants) under new parent - should fail
+        assert_noop!(
+            Cps::move_node(RuntimeOrigin::signed(account), NodeId(0), new_parent_id),
+            Error::<Runtime>::SubtreeTooLarge
+        );
+    });
+}
+
