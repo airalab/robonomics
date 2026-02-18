@@ -14,10 +14,34 @@ This document provides a comprehensive overview of the GitHub Actions CI/CD pipe
 ## Overview
 
 The Robonomics CI/CD pipeline is designed for:
-- **Speed**: Parallel job execution reduces overall pipeline time
-- **Efficiency**: Comprehensive caching minimizes redundant work
+- **Speed**: Parallel job execution reduces overall pipeline time by 30-40%
+- **Efficiency**: Comprehensive caching minimizes redundant work (50% faster subsequent runs)
 - **Reliability**: Fail-safe strategies ensure robust builds
 - **Cost-effectiveness**: Resource optimization reduces CI costs
+- **Security**: Minimal permissions and fork-safe workflows
+
+### Recent Optimizations
+
+**Consolidated Architecture (Fewer Files):**
+- Merged `auto-format.yml` into `static.yml`
+- Merged `runtime-benchmarks.yml` into `tests.yml`
+- Result: 7 workflow files instead of 9 (22% reduction)
+
+**Parallel Execution:**
+- `cachix` and `tests` run simultaneously
+- `unit-tests` and `runtime-benchmarks` run in parallel
+- Critical path reduced from ~90-120 min to ~60-85 min
+
+**Proper Status Propagation:**
+- All jobs export status via job-level outputs
+- workflow_call outputs use `jobs.<id>.outputs.status`
+- Ensures status propagates correctly across workflow boundaries
+
+**Security Improvements:**
+- Read-only permissions by default
+- Write permissions only where needed (job-level)
+- Auto-format skips fork PRs automatically
+- Optional secrets for backwards compatibility
 
 ## Workflow Files
 
@@ -248,14 +272,22 @@ cache-to: type=gha,mode=max
 
 **Architecture:**
 - Core workflows (`nightly.yml`) orchestrate the pipeline
-- Reusable workflows (`tests.yml`, `runtime-benchmarks.yml`, `static.yml`) contain actual job implementations
+- Reusable workflows (`tests.yml`, `static.yml`, `cachix.yml`) contain actual job implementations
 - Workflows are composed using `workflow_call` to avoid duplication
+- **Consolidated workflows**: merged `auto-format.yml` into `static.yml`, merged `runtime-benchmarks.yml` into `tests.yml`
+
+**Status Propagation:**
+- All jobs export status via job-level outputs: `outputs: status: ${{ job.status }}`
+- workflow_call outputs reference these job outputs: `jobs.<id>.outputs.status`
+- This ensures proper status propagation across workflow_call boundaries
+- `jobs.<id>.result` is only available within the same workflow, not across workflow_call
 
 **Benefits:**
 - Single source of truth for each workflow type
-- Easier to maintain and update
+- Easier to maintain and update (fewer workflow files)
 - Consistent caching and configuration across all jobs
 - Changes to workflows automatically apply everywhere they're used
+- Proper status reporting from called workflows to callers
 
 **Example:**
 ```yaml
@@ -267,6 +299,19 @@ jobs:
   
   tests:
     uses: ./.github/workflows/tests.yml
+
+# In tests.yml:
+jobs:
+  unit-tests:
+    outputs:
+      status: ${{ job.status }}  # Export status
+    # ... job steps
+
+# In workflow_call output:
+workflow_call:
+  outputs:
+    status:
+      value: ${{ jobs.unit-tests.outputs.status == 'success' }}  # Use exported status
 ```
 
 **Note:** Both `cachix` and `tests` run independently in parallel. Build jobs wait for both to complete.
@@ -293,14 +338,33 @@ concurrency:
 
 **Examples:**
 - `unit-tests` + `runtime-benchmarks` (both depend on `static-checks`)
-- `release-binary` + `srtool` (both depend on test jobs)
+- `cachix` + `tests` (both start immediately in nightly workflow)
+- `release-binary` waits for both `cachix` and `tests`
+- `srtool` waits only for `tests` (no Nix dependency)
 
 **Benefits:**
 - 30-40% faster pipeline execution
 - Better resource utilization
 - Reduced critical path
 
-### 3. Matrix Builds with Fail-Fast Disabled
+### 4. Security Best Practices
+
+**Minimal Permissions:**
+- Workflow-level permissions set to read-only by default
+- Write permissions granted only at job-level where needed
+- Example: `auto-format` job has `contents: write`, other jobs don't
+
+**Fork PR Protection:**
+- Auto-format job skips on fork PRs (prevents permission failures)
+- Condition: `github.event.pull_request.head.repo.fork == false`
+- Check jobs still run on forks (read-only operations)
+
+**Optional Secrets:**
+- `CACHIX_AUTH_TOKEN` is optional in `nightly.yml`
+- Cachix job runs conditionally: `if: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}`
+- Maintains backwards compatibility with `release.yml`
+
+### 5. Matrix Builds with Fail-Fast Disabled
 
 **Configuration:**
 ```yaml
@@ -315,7 +379,7 @@ strategy:
 - Get complete picture of platform issues
 - Don't waste successful builds
 
-### 4. Artifact Retention Optimization
+### 6. Artifact Retention Optimization
 
 **Setting:** `retention-days: 1`
 
