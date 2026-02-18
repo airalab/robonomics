@@ -28,95 +28,14 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  static-checks:
-    uses: ./.github/workflows/static.yml
-
-  unit-tests:
-    needs: static-checks
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v5
-
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-test-
-          ${{ runner.os }}-cargo-
-
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        cache: true
-        cache-key: unit-tests
-
-    - name: Install deps
-      run: sudo apt -y install pkg-config protobuf-compiler libclang-dev
-
-    - name: Install cargo-nextest
-      uses: taiki-e/install-action@v2
-      with:
-        tool: cargo-nextest
-
-    - name: Run all workspace tests
-      run: cargo nextest run --workspace --locked
+  tests:
+    uses: ./.github/workflows/tests.yml
 
   runtime-benchmarks:
-    needs: static-checks
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
-    steps:
-      - name: Checkout the source code
-        uses: actions/checkout@v5
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-
-            ${{ runner.os }}-cargo-
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v25
-        with:
-          nix_path: nixpkgs=channel:nixos-25.11
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            accept-flake-config = true
-
-      - name: Run benchmark checks using benchmark-pallets.sh
-        run: |
-          nix develop .#benchmarking --command bash -c '
-            set -e
-            
-            # Use minimal steps/repeat for faster CI execution
-            export BENCHMARK_STEPS=2
-            export BENCHMARK_REPEAT=1
-            
-            # Run the benchmark script
-            ./scripts/benchmark-pallets.sh
-          '
+    uses: ./.github/workflows/runtime-benchmarks.yml
 
   release-binary:
-    needs: [unit-tests, runtime-benchmarks]
+    needs: [tests, runtime-benchmarks]
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     outputs:
@@ -213,7 +132,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: [unit-tests, runtime-benchmarks]
+    needs: [tests, runtime-benchmarks]
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

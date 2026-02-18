@@ -9,6 +9,11 @@ on:
     branches:
       - 'feat/*'
       - 'release/*'
+  workflow_call:
+    outputs:
+      status:
+        description: "Status of the runtime benchmarks"
+        value: ${{ jobs.benchmark-check.result == 'success' }}
 
 permissions:
   contents: read
@@ -16,6 +21,8 @@ permissions:
 jobs:
   benchmark-check:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v5

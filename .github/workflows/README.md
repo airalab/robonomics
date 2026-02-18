@@ -30,12 +30,19 @@ The Robonomics CI/CD pipeline is designed for:
 
 **Jobs:**
 ```
-static-checks (5-10 min)
-    ├── unit-tests (15-20 min, parallel) ────┐
-    └── runtime-benchmarks (15-20 min, parallel) ─┤
-                                                  ├─→ release-binary (30-40 min, parallel) ─→ docker (10-15 min)
-                                                  └─→ srtool (30-40 min, parallel)
+tests (calls tests.yml)
+    ├── static-checks → unit-tests
+runtime-benchmarks (calls runtime-benchmarks.yml)
+    │
+    ├─→ release-binary (parallel)
+    └─→ srtool (parallel)
+        │
+        └─→ docker (depends on release-binary)
 ```
+
+**Workflow Calls:**
+- `tests.yml` - Runs static checks and unit tests
+- `runtime-benchmarks.yml` - Runtime benchmark checks
 
 **Outputs:**
 - Binary artifacts for Linux (x86_64, aarch64) and macOS (x86_64)
@@ -52,24 +59,27 @@ static-checks (5-10 min)
 - Group: `nightly-${{ github.ref }}`
 - Cancel in progress: `true`
 
-#### 2. `tests.yml` - Test Workflow
+#### 2. `tests.yml` - Unit Tests Workflow
 **Trigger:** 
 - Push to `feat/*`, `fix/*`, `release/*` branches
 - Pull requests (opened, synchronize, reopened) to those branches
-- Workflow call from other workflows
+- Workflow call from other workflows (e.g., nightly.yml)
 
-**Purpose:** Runs comprehensive test suite
+**Purpose:** Runs unit tests with static checks
 
 **Jobs:**
 ```
 static-checks (5-10 min)
-    ├── unit-tests (15-20 min, parallel)
-    └── runtime-benchmarks (15-20 min, parallel)
+    └── unit-tests (15-20 min)
 ```
 
-**Tests Included:**
-- **Unit Tests**: All workspace tests using `cargo nextest`
-- **Runtime Benchmarks**: Pallet benchmarks with minimal steps for CI
+**Workflow Calls:**
+- `static.yml` - Static code checks
+
+**Features:**
+- Rust toolchain caching via `actions-rust-lang/setup-rust-toolchain@v1`
+- Uses `cargo-nextest` for parallel test execution
+- All workspace tests: `cargo nextest run --workspace --locked`
 
 **Concurrency:**
 - Group: `tests-${{ github.ref }}`
@@ -88,14 +98,22 @@ static-checks (5-10 min)
 
 **Note:** Jobs are skipped for draft PRs
 
+### Reusable Workflows
+
+#### 4. `runtime-benchmarks.yml` - Runtime Benchmark Checks
+**Trigger:** 
+- Push/PR to `feat/*`, `release/*` branches
+- Workflow call from other workflows
+
+**Purpose:** Validates runtime pallets can be benchmarked
+
+**Features:**
+- Nix development environment for reproducibility
+- Minimal benchmark execution (BENCHMARK_STEPS=2, BENCHMARK_REPEAT=1) for CI speed
+
+**Note:** This is a check that benchmarks can run, not a full benchmark execution
+
 ### Supporting Workflows
-
-#### 4. `runtime-benchmarks.yml`
-**Trigger:** Push/PR to `feat/*`, `release/*` branches
-
-**Purpose:** Standalone benchmark testing
-
-Uses Nix development environment for reproducible benchmark execution.
 
 #### 5. `release.yml`
 **Purpose:** Handles GitHub releases
@@ -164,34 +182,28 @@ graph TD
 
 ## Caching Strategy
 
-### Cargo Dependencies Cache
+### Rust Toolchain Cache
+
+**Enabled in:** `actions-rust-lang/setup-rust-toolchain@v1` with `cache: true`
 
 **What's Cached:**
-```yaml
-~/.cargo/bin/          # Installed binaries (cargo-nextest, etc.)
-~/.cargo/registry/     # Crate registry
-~/.cargo/git/db/       # Git dependencies
-target/                # Build artifacts
-```
+- Cargo registry and index
+- Cargo git dependencies
+- Build artifacts in `target/`
+- Installed tools from `cargo install`
 
-**Cache Key:** `${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}`
-
-**Restore Keys:**
-1. `${{ runner.os }}-cargo-test-` (partial Cargo.lock match)
-2. `${{ runner.os }}-cargo-` (any cargo cache)
+**Cache Key:** Automatically managed by the action based on:
+- `Cargo.lock` hash
+- Rust toolchain version
+- Runner OS
 
 **Benefits:**
 - 50% faster subsequent runs
 - Eliminates re-downloading dependencies
 - Reuses compiled artifacts when possible
+- No manual cache configuration needed
 
-### Rust Toolchain Cache
-
-**Enabled in:** `setup-rust-toolchain@v1` with `cache: true`
-
-**Benefits:**
-- Faster toolchain setup
-- Consistent tool versions
+**Note:** The `actions-rust-lang/setup-rust-toolchain` action provides comprehensive caching out of the box, so we don't need separate `actions/cache@v4` steps for Cargo dependencies.
 
 ### Docker Layer Cache
 
@@ -220,7 +232,32 @@ cache-to: type=gha,mode=max
 
 ## Optimization Features
 
-### 1. Concurrency Control
+### 1. Modular Workflow Design
+
+**Purpose:** Eliminate code duplication and improve maintainability
+
+**Architecture:**
+- Core workflows (`nightly.yml`) orchestrate the pipeline
+- Reusable workflows (`tests.yml`, `runtime-benchmarks.yml`, `static.yml`) contain actual job implementations
+- Workflows are composed using `workflow_call` to avoid duplication
+
+**Benefits:**
+- Single source of truth for each workflow type
+- Easier to maintain and update
+- Consistent caching and configuration across all jobs
+- Changes to workflows automatically apply everywhere they're used
+
+**Example:**
+```yaml
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+  
+  runtime-benchmarks:
+    uses: ./.github/workflows/runtime-benchmarks.yml
+```
+
+### 2. Concurrency Control
 
 **Purpose:** Cancel outdated workflow runs when new commits are pushed
 
