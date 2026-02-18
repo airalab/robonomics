@@ -40,4 +40,3 @@ jobs:
             # Run the benchmark script
             ./scripts/benchmark-pallets.sh
           '
-

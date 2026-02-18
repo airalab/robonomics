@@ -14,8 +14,14 @@ permissions:
   contents: read
 
 jobs:
+  cachix:
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
   zombienet-tests:
-    name: Run Tests
+    needs: cachix
+    name: Run Integration Tests
     runs-on: ubuntu-latest
     # Timeout accounts for: build time (~30min), binary downloads (~5min),
     # network initialization (~5min), and test execution (~10min) with buffer

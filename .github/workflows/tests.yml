@@ -12,7 +12,7 @@ on:
     outputs:
       status:
         description: "Status of the tests"
-        value: ${{ jobs.unit-tests.outputs.status && jobs.runtime-benchmarks.outputs.status }}
+        value: ${{ jobs.unit-tests.outputs.status }}
 
 jobs:
   static-checks:

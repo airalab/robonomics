@@ -7,7 +7,7 @@ on:
     outputs:
       status:
         description: "Status of the static checks"
-        value: ${{ jobs.fmt.outputs.status && jobs.check-license.outputs.status }}
+        value: ${{ jobs.check-formatting.outputs.status && jobs.check-license.outputs.status }}
 
 jobs:
   check-formatting:

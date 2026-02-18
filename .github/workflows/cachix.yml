@@ -1,18 +1,27 @@
 name: Cachix
 
 on:
-  push:
-    branches:
-    - 'master'
-    - 'release/*'
-    - 'feat/*'
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: true
+    outputs:
+      status:
+        description: "Status of the cachix builds"
+        value: ${{ jobs.cachix-upload.outputs.status }}
 
 permissions:
   contents: read
 
+concurrency:
+  group: cachix
+  cancel-in-progress: false
+
 jobs:
   cachix-upload:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Aggressive cleanup
         run: |
@@ -54,4 +63,8 @@ jobs:
           name: robonomics
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
       - run: nix develop --command bash -c "echo OK"
+      - run: nix build
+      - run: nix build .#libcps
+      - run: nix build .#polkadot
+      - run: nix build .#polkadot-parachain
       - run: nix develop .#local-testnet --command bash -c "echo OK"
