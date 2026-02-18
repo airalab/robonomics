@@ -1259,12 +1259,12 @@ pub mod pallet {
         /// Returns the count of all nodes in the subtree rooted at `node_id`,
         /// excluding the node itself. This count represents the number of
         /// descendant nodes that would need path updates during a move operation.
-        /// 
+        ///
         /// Uses iterative breadth-first traversal to avoid stack overflow.
         fn count_descendants(node_id: NodeId) -> Result<u32, Error<T>> {
             let mut count = 0u32;
             let mut queue = sp_std::collections::vec_deque::VecDeque::new();
-            
+
             // Start with direct children of the node
             let children = NodesByParent::<T>::get(node_id);
             for child_id in children.iter() {
