@@ -7,7 +7,7 @@ on:
     outputs:
       status:
         description: "Status of the static checks"
-        value: ${{ jobs.check-formatting.outputs.status && jobs.check-license.outputs.status }}
+        value: ${{ jobs.check-formatting.result == 'success' && jobs.check-license.result == 'success' }}
 
 jobs:
   check-formatting:
@@ -23,20 +23,26 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: false
+          components: rustfmt
 
       - name: Check Rust formatting
         run: cargo fmt -- --check
 
-      - name: Check TOML formatting
+      - name: Cache taplo binary
+        id: cache-taplo
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/taplo
+          key: taplo-cli-${{ runner.os }}
+
+      - name: Install taplo
+        if: steps.cache-taplo.outputs.cache-hit != 'true'
         run: |
-          if taplo --version &> /dev/null; then
-            echo "taplo-cli is already installed"
-          else
-            curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
-              | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
-          fi
-          
-          taplo fmt --check
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+            | gzip -d - | sudo install -m 755 /dev/stdin /usr/local/bin/taplo
+
+      - name: Check Cargo.toml format
+        run: taplo fmt --check
 
   check-license:
     if: github.event.pull_request.draft == false
