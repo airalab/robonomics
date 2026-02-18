@@ -32,28 +32,35 @@ The Robonomics CI/CD pipeline is designed for:
 ```
 cachix (Nix cache upload) ────┐
                                │
-tests (calls tests.yml) ───────┤
-    ├── static-checks          │
-    │    ├─ auto-format        │
-    │    ├─ check-formatting   │
-    │    └─ check-license      │
-    ├─ unit-tests (parallel)   │
-    └─ runtime-benchmarks      │
-            (parallel)          │
-                                │
-                ┌───────────────┘
-                │
-                ├─→ release-binary (parallel)
-                └─→ srtool (parallel)
+tests (calls tests.yml) ───────┼─────┐
+    ├── static-checks          │     │
+    │    ├─ auto-format        │     │
+    │    ├─ check-formatting   │     │
+    │    └─ check-license      │     │
+    ├─ unit-tests (parallel)   │     │
+    └─ runtime-benchmarks      │     │
+            (parallel)          │     │
+                                │     │
+                ┌───────────────┘     │
+                │                     │
+                └─→ release-binary    │
+                    │                 │
+                    └─→ docker        │
+                                      │
+                    ┌─────────────────┘
                     │
-                    └─→ docker (depends on release-binary)
+                    └─→ srtool
 ```
 
 **Workflow Calls:**
 - `cachix.yml` - Builds and uploads Nix artifacts to cachix (runs in parallel with tests)
 - `tests.yml` - Runs static checks, unit tests, and runtime benchmarks (runs in parallel with cachix)
 
-**Note:** Both `cachix` and `tests` run independently in parallel. The `release-binary` and `srtool` jobs wait for both to complete successfully before starting.
+**Note:** 
+- `cachix` and `tests` run independently in parallel
+- `release-binary` requires both `cachix` and `tests` to complete (needs Nix cache for builds)
+- `srtool` only requires `tests` to complete (doesn't need cachix)
+- `docker` depends on `release-binary`
 
 **Outputs:**
 - Binary artifacts for Linux (x86_64, aarch64) and macOS (x86_64)
