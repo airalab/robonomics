@@ -892,6 +892,10 @@ pub mod pallet {
         #[pallet::constant]
         type MaxRootNodes: Get<u32>;
 
+        /// Maximum number of nodes in a subtree that can be moved in a single operation
+        #[pallet::constant]
+        type MaxMovableSubtreeSize: Get<u32>;
+
         /// Encrypted data type for encrypted node data.
         ///
         /// This type encapsulates the encryption algorithm and encrypted payload.
@@ -998,6 +1002,8 @@ pub mod pallet {
         TooManyRootNodes,
         /// Node has children and cannot be deleted
         NodeHasChildren,
+        /// The subtree is too large to move in a single operation
+        SubtreeTooLarge,
     }
 
     #[pallet::hooks]
@@ -1145,6 +1151,13 @@ pub mod pallet {
             ensure!(node.owner == sender, Error::<T>::NotNodeOwner);
             ensure!(new_parent.owner == sender, Error::<T>::OwnerMismatch);
 
+            // Check subtree size BEFORE attempting the move
+            let subtree_size = Self::count_descendants(node_id)?;
+            ensure!(
+                subtree_size <= T::MaxMovableSubtreeSize::get(),
+                Error::<T>::SubtreeTooLarge
+            );
+
             // Check for cycles - node_id cannot be an ancestor of new_parent
             // If node_id is in new_parent's path, moving node under new_parent would create a cycle
             ensure!(
@@ -1241,6 +1254,44 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        /// Count total number of descendants for a given node
+        ///
+        /// Returns the count of all nodes in the subtree rooted at `node_id`,
+        /// excluding the node itself. This count represents the number of
+        /// descendant nodes that would need path updates during a move operation.
+        /// 
+        /// Uses iterative breadth-first traversal to avoid stack overflow.
+        fn count_descendants(node_id: NodeId) -> Result<u32, Error<T>> {
+            let mut count = 0u32;
+            let mut queue = sp_std::collections::vec_deque::VecDeque::new();
+            
+            // Start with direct children of the node
+            let children = NodesByParent::<T>::get(node_id);
+            for child_id in children.iter() {
+                queue.push_back(*child_id);
+            }
+
+            // Iteratively process all nodes in the subtree (breadth-first)
+            while let Some(current_id) = queue.pop_front() {
+                // Count this node
+                count = count.saturating_add(1);
+
+                // Early exit if we've already exceeded the limit to save computation
+                if count > T::MaxMovableSubtreeSize::get() {
+                    // Return the count as-is, the caller will validate against the limit
+                    return Ok(count);
+                }
+
+                // Add children of current node to the queue
+                let current_children = NodesByParent::<T>::get(current_id);
+                for child_id in current_children.iter() {
+                    queue.push_back(*child_id);
+                }
+            }
+
+            Ok(count)
+        }
+
         /// Recursively update paths of all descendant nodes
         fn update_descendant_paths(
             parent_id: NodeId,

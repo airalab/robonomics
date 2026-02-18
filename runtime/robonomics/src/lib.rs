@@ -491,6 +491,7 @@ parameter_types! {
     pub const MaxTreeDepth: u32 = 32;
     pub const MaxChildrenPerNode: u32 = 100;
     pub const MaxRootNodes: u32 = 100;
+    pub const MaxMovableSubtreeSize: u32 = 50;
 }
 
 #[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
@@ -499,6 +500,7 @@ impl pallet_robonomics_cps::Config for Runtime {
     type MaxTreeDepth = MaxTreeDepth;
     type MaxChildrenPerNode = MaxChildrenPerNode;
     type MaxRootNodes = MaxRootNodes;
+    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
     type EncryptedData = pallet_robonomics_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
