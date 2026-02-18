@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: cachix
-  cancel-in-progress: false
+  group: cachix-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   cachix-upload:
