@@ -1263,16 +1263,16 @@ pub mod pallet {
         /// Uses iterative breadth-first traversal to avoid stack overflow.
         fn count_descendants(node_id: NodeId) -> Result<u32, Error<T>> {
             let mut count = 0u32;
-            let mut queue = sp_std::vec::Vec::new();
+            let mut queue = sp_std::collections::vec_deque::VecDeque::new();
             
             // Start with direct children of the node
             let children = NodesByParent::<T>::get(node_id);
             for child_id in children.iter() {
-                queue.push(*child_id);
+                queue.push_back(*child_id);
             }
 
-            // Iteratively process all nodes in the subtree
-            while let Some(current_id) = queue.pop() {
+            // Iteratively process all nodes in the subtree (breadth-first)
+            while let Some(current_id) = queue.pop_front() {
                 // Count this node
                 count = count.saturating_add(1);
 
@@ -1285,7 +1285,7 @@ pub mod pallet {
                 // Add children of current node to the queue
                 let current_children = NodesByParent::<T>::get(current_id);
                 for child_id in current_children.iter() {
-                    queue.push(*child_id);
+                    queue.push_back(*child_id);
                 }
             }
 
