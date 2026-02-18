@@ -13,6 +13,8 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
+      CACHIX_AUTH_TOKEN:
+        required: true
     outputs:
       status:
         description: "Status of nightly builds"
@@ -28,14 +30,17 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  cachix:
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
   tests:
+    needs: cachix
     uses: ./.github/workflows/tests.yml
 
-  runtime-benchmarks:
-    uses: ./.github/workflows/runtime-benchmarks.yml
-
   release-binary:
-    needs: [tests, runtime-benchmarks]
+    needs: tests
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     outputs:
@@ -132,7 +137,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: [tests, runtime-benchmarks]
+    needs: tests
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

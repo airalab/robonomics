@@ -30,19 +30,20 @@ The Robonomics CI/CD pipeline is designed for:
 
 **Jobs:**
 ```
-tests (calls tests.yml)
-    ├── static-checks → unit-tests
-runtime-benchmarks (calls runtime-benchmarks.yml)
-    │
-    ├─→ release-binary (parallel)
-    └─→ srtool (parallel)
-        │
-        └─→ docker (depends on release-binary)
+cachix (Nix cache upload)
+    └── tests (calls tests.yml)
+            ├── static-checks → unit-tests (parallel)
+            └── static-checks → runtime-benchmarks (parallel)
+                │
+                ├─→ release-binary (parallel)
+                └─→ srtool (parallel)
+                    │
+                    └─→ docker (depends on release-binary)
 ```
 
 **Workflow Calls:**
-- `tests.yml` - Runs static checks and unit tests
-- `runtime-benchmarks.yml` - Runtime benchmark checks
+- `cachix.yml` - Builds and uploads Nix artifacts to cachix
+- `tests.yml` - Runs static checks, unit tests, and runtime benchmarks
 
 **Outputs:**
 - Binary artifacts for Linux (x86_64, aarch64) and macOS (x86_64)
@@ -59,75 +60,67 @@ runtime-benchmarks (calls runtime-benchmarks.yml)
 - Group: `nightly-${{ github.ref }}`
 - Cancel in progress: `true`
 
-#### 2. `tests.yml` - Unit Tests Workflow
+#### 2. `tests.yml` - Comprehensive Test Workflow
 **Trigger:** 
 - Push to `feat/*`, `fix/*`, `release/*` branches
 - Pull requests (opened, synchronize, reopened) to those branches
 - Workflow call from other workflows (e.g., nightly.yml)
 
-**Purpose:** Runs unit tests with static checks
+**Purpose:** Runs all tests including unit tests and runtime benchmarks
 
 **Jobs:**
 ```
 static-checks (5-10 min)
-    └── unit-tests (15-20 min)
+    ├── unit-tests (15-20 min, parallel)
+    └── runtime-benchmarks (15-20 min, parallel)
 ```
 
 **Workflow Calls:**
-- `static.yml` - Static code checks
+- `static.yml` - Static code checks and auto-formatting
 
 **Features:**
 - Rust toolchain caching via `actions-rust-lang/setup-rust-toolchain@v1`
 - Uses `cargo-nextest` for parallel test execution
-- All workspace tests: `cargo nextest run --workspace --locked`
+- Runtime benchmark validation with Nix
+- All tests run in parallel after static checks complete
 
 **Concurrency:**
 - Group: `tests-${{ github.ref }}`
 - Cancel in progress: `true`
 
-#### 3. `static.yml` - Static Code Checks
-**Trigger:** Workflow call only
-
-**Purpose:** Performs static analysis and formatting checks
-
-**Jobs (run in parallel):**
-- **check-formatting**: 
-  - Rust code formatting (`cargo fmt`)
-  - TOML formatting (`taplo`)
-- **check-license**: Validates license headers
-
-**Note:** Jobs are skipped for draft PRs
-
-### Reusable Workflows
-
-#### 4. `runtime-benchmarks.yml` - Runtime Benchmark Checks
-**Trigger:** 
-- Push/PR to `feat/*`, `release/*` branches
+#### 3. `static.yml` - Static Code Checks and Auto-Formatting
+**Trigger:**
+- Pull requests (opened, synchronize, reopened)
 - Workflow call from other workflows
 
-**Purpose:** Validates runtime pallets can be benchmarked
+**Purpose:** Performs static analysis, formatting checks, and auto-formatting
+
+**Jobs:**
+```
+auto-format (PR only)
+    ├── check-formatting (parallel after auto-format)
+    └── check-license (parallel after auto-format)
+```
 
 **Features:**
-- Nix development environment for reproducibility
-- Minimal benchmark execution (BENCHMARK_STEPS=2, BENCHMARK_REPEAT=1) for CI speed
+- **auto-format** (PR only): Automatically formats Rust code and TOML files, commits changes
+- **check-formatting**: Verifies Rust code formatting (`cargo fmt --check`) and TOML formatting (`taplo fmt --check`)
+- **check-license**: Validates license headers
 
-**Note:** This is a check that benchmarks can run, not a full benchmark execution
+**Note:** Auto-format only runs on pull requests, not on workflow_call. Check jobs are skipped for draft PRs.
 
 ### Supporting Workflows
 
-#### 5. `release.yml`
+#### 4. `release.yml`
 **Purpose:** Handles GitHub releases
 
-#### 6. `auto-format.yml`
-**Purpose:** Automatically formats code on push
-
-#### 7. `docs.yml`
+#### 5. `docs.yml`
 **Purpose:** Documentation building and deployment
 
-#### 8. `cachix.yml`
+#### 6. `cachix.yml`
 **Purpose:** Nix cache management
 
-#### 9. `zombienet.yml`
+#### 7. `zombienet.yml`
 **Purpose:** Network testing with Zombienet
 
 ## Workflow Execution Flow
@@ -250,11 +243,14 @@ cache-to: type=gha,mode=max
 **Example:**
 ```yaml
 jobs:
-  tests:
-    uses: ./.github/workflows/tests.yml
+  cachix:
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
   
-  runtime-benchmarks:
-    uses: ./.github/workflows/runtime-benchmarks.yml
+  tests:
+    needs: cachix
+    uses: ./.github/workflows/tests.yml
 ```
 
 ### 2. Concurrency Control

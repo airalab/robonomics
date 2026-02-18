@@ -1,8 +1,11 @@
 name: Static Checks 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
-on: 
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_call:
     outputs:
       status:
@@ -10,11 +13,48 @@ on:
         value: ${{ jobs.check-formatting.result == 'success' && jobs.check-license.result == 'success' }}
 
 jobs:
-  check-formatting:
-    if: github.event.pull_request.draft == false
+  auto-format:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache: false
+          components: rustfmt
+
+      - name: Run cargo fmt
+        run: cargo fmt
+
+      - name: Cache taplo binary
+        id: cache-taplo
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/taplo
+          key: taplo-cli-${{ runner.os }}
+
+      - name: Install taplo
+        if: steps.cache-taplo.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+            | gzip -d - | sudo install -m 755 /dev/stdin /usr/local/bin/taplo
+
+      - name: Run taplo fmt
+        run: taplo fmt
+
+      - uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: Apply auto-formatting changes
+
+  check-formatting:
+    needs: auto-format
+    if: always() && (github.event.pull_request.draft == false || github.event_name == 'workflow_call')
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v5
@@ -45,10 +85,9 @@ jobs:
         run: taplo fmt --check
 
   check-license:
-    if: github.event.pull_request.draft == false
+    needs: auto-format
+    if: always() && (github.event.pull_request.draft == false || github.event_name == 'workflow_call')
     runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v5
