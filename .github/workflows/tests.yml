@@ -25,7 +25,7 @@ on:
     outputs:
       status:
         description: "Status of the tests"
-        value: ${{ jobs.unit-tests.result == 'success' && jobs.runtime-benchmarks.result == 'success' }}
+        value: ${{ jobs.unit-tests.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
 
 jobs:
   static-checks:
@@ -34,6 +34,8 @@ jobs:
   unit-tests:
     needs: static-checks
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
     - name: Checkout the source code
       uses: actions/checkout@v5
@@ -57,6 +59,8 @@ jobs:
   runtime-benchmarks:
     needs: static-checks
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Checkout the source code
         uses: actions/checkout@v5
