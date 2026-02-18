@@ -1257,7 +1257,8 @@ pub mod pallet {
         /// Count total number of descendants for a given node
         ///
         /// Returns the count of all nodes in the subtree rooted at `node_id`,
-        /// excluding the node itself.
+        /// excluding the node itself. This count represents the number of
+        /// descendant nodes that would need path updates during a move operation.
         fn count_descendants(node_id: NodeId) -> Result<u32, Error<T>> {
             let mut count = 0u32;
             let children = NodesByParent::<T>::get(node_id);
@@ -1270,8 +1271,9 @@ pub mod pallet {
                 let child_count = Self::count_descendants(*child_id)?;
                 count = count.saturating_add(child_count);
 
-                // Early exit if we've already exceeded the limit
+                // Early exit if we've already exceeded the limit to save computation
                 if count > T::MaxMovableSubtreeSize::get() {
+                    // Return the count as-is, the caller will validate against the limit
                     return Ok(count);
                 }
             }

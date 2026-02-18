@@ -1717,7 +1717,9 @@ fn move_node_nested_subtree_exceeding_limit_fails() {
         let account = 1u64;
 
         // Create a nested tree structure that exceeds the limit
-        // Root -> 10 children -> each with 5 grandchildren = 1 + 10 + 50 = 61 total nodes
+        // Structure: Root (node 0) -> 10 children (nodes 1-10) -> each with 5 grandchildren
+        // Total descendants: 10 children + 50 grandchildren = 60 descendants
+        // This exceeds MaxMovableSubtreeSize of 50
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
             None,
