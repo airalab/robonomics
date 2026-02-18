@@ -40,7 +40,7 @@ jobs:
 
   release-binary:
     needs: tests
-    if: ${{ always() && (needs.cachix.result == 'success' || needs.cachix.result == 'skipped') && needs.tests.result == 'success' }}
+    if: ${{ always() && needs.tests.result == 'success' }}
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     outputs:
