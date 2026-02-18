@@ -983,6 +983,7 @@ fn on_payload_set_callback_invoked() {
         type MaxTreeDepth = MaxTreeDepth;
         type MaxChildrenPerNode = MaxChildrenPerNode;
         type MaxRootNodes = MaxRootNodes;
+        type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
         type OnPayloadSet = TestPayloadHandler;
         type EncryptedData = DefaultEncryptedData;
         type WeightInfo = weights::TestWeightInfo;
