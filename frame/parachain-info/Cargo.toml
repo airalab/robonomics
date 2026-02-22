@@ -19,15 +19,15 @@ sp-runtime.workspace = true
 [features]
 default = ["std"]
 std = [
-	"parity-scale-codec/std",
-	"cumulus-primitives-core/std",
-	"frame-support/std",
-	"frame-system/std",
-	"scale-info/std",
-	"sp-runtime/std",
+  "parity-scale-codec/std",
+  "cumulus-primitives-core/std",
+  "frame-support/std",
+  "frame-system/std",
+  "scale-info/std",
+  "sp-runtime/std",
 ]
 try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"sp-runtime/try-runtime",
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "sp-runtime/try-runtime",
 ]
