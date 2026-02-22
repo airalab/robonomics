@@ -121,6 +121,34 @@ impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
     }
 }
 
+pub mod migration {
+    use super::*;
+    use frame_support::{
+        pallet_prelude::PhantomData,
+        traits::{Get, UncheckedOnRuntimeUpgrade},
+        BoundedVec,
+    };
+    use sp_std::vec::Vec;
+
+    pub type MigrationToV1<T> = frame_support::migrations::VersionedMigration<
+        0,
+        1,
+        UncheckedMigrationToV1<T>,
+        Pallet<T>,
+        <T as frame_system::Config>::DbWeight,
+    >;
+    pub struct UncheckedMigrationToV1<T>(PhantomData<T>);
+    impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV1<T> {
+        fn on_runtime_upgrade() -> Weight {
+            Devices::<T>::translate_values(|pre: Vec<T::AccountId>| {
+                Some(BoundedVec::truncate_from(pre))
+            });
+            let keys = Devices::<T>::iter_keys().count() as u64;
+            T::DbWeight::get().reads_writes(keys, keys)
+        }
+    }
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;

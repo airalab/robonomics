@@ -720,17 +720,14 @@ impl frame_support::traits::OnRuntimeUpgrade for InitStorageVersions {
             Datalog::in_code_storage_version().put::<Datalog>();
             writes.saturating_inc();
         }
-        if RWS::on_chain_storage_version() == StorageVersion::new(0) {
-            RWS::in_code_storage_version().put::<RWS>();
-            writes.saturating_inc();
-        }
-        <Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, writes)
+        <Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, writes)
     }
 }
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
     InitStorageVersions,
+    pallet_robonomics_rws::migration::MigrationToV1<Runtime>,
     // Cleanup old pallets
     frame_support::migrations::RemovePallet<AssetsName, RocksDbWeight>,
     frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
@@ -748,7 +745,6 @@ type SingleBlockMigrations = (
     cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-    cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 );
 
 #[cfg(feature = "runtime-benchmarks")]
