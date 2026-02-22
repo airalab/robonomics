@@ -25,13 +25,9 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
-use xcm::latest::{
-    prelude::{Location, NetworkId},
-    WESTEND_GENESIS_HASH,
-};
+use xcm::latest::{prelude::NetworkId, WESTEND_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
-pub const RELAY_ASSET_ID: u32 = u32::MAX - 1;
 
 fn robonomics_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
@@ -39,7 +35,6 @@ fn robonomics_genesis(
     endowment: Balance,
     id: ParaId,
     relay: Option<NetworkId>,
-    links: Vec<(AssetId, Location)>,
 ) -> serde_json::Value {
     build_struct_json_patch!(RuntimeGenesisConfig {
         balances: BalancesConfig {
@@ -49,7 +44,10 @@ fn robonomics_genesis(
                 .map(|k| (k, endowment))
                 .collect(),
         },
-        parachain_info: ParachainInfoConfig { parachain_id: id },
+        parachain_info: ParachainInfoConfig {
+            parachain_id: id,
+            relay_network: relay.unwrap_or(NetworkId::Kusama),
+        },
         collator_selection: CollatorSelectionConfig {
             invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
             candidacy_bond: 32 * XRT,
@@ -68,10 +66,6 @@ fn robonomics_genesis(
         },
         polkadot_xcm: PolkadotXcmConfig {
             safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
-        },
-        xcm_info: XcmInfoConfig {
-            relay: relay.unwrap_or(NetworkId::Kusama),
-            links,
         },
         sudo: SudoConfig {
             key: Some(Sr25519Keyring::Alice.to_account_id())
@@ -100,7 +94,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
             Some(NetworkId::ByGenesis(WESTEND_GENESIS_HASH)),
-            vec![(RELAY_ASSET_ID, Location::parent())],
         ),
         sp_genesis_builder::DEV_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
@@ -117,7 +110,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
             None,
-            vec![(RELAY_ASSET_ID, Location::parent())],
         ),
         _ => return None,
     };

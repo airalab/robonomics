@@ -33,9 +33,6 @@ pub type Signature = sp_runtime::MultiSignature;
 /// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-/// Id used for identifying assets.
-pub type AssetId = u32;
-
 /// Balance of an account.
 pub type Balance = u128;
 

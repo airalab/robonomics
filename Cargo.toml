@@ -23,7 +23,6 @@ members = [
   "frame/datalog",
   "frame/liability",
   "frame/digital-twin",
-  "frame/xcm-info",
   "frame/cps",
   "frame/claim",
   "runtime/robonomics",
@@ -45,24 +44,24 @@ libsecp256k1 = { version = "0.7.0", default-features = false }
 smallvec = { version = "1.11", default-features = false }
 hex-literal = { version = "0.4.1", default-features = false }
 rustc-hex = { version = "2.1.0", default-features = false }
-log = { version = "0.4.19", default-features = false }
+serde = { version = "1.0.171", default-features = false, features = [
+  "derive",
+  "alloc",
+] }
+serde_json = { version = "1.0.138", default-features = false }
 
 # (native)
 bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
 color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
-serde = { version = "1.0.171", default-features = false, features = [
-  "derive",
-  "alloc",
-] }
-serde_json = { version = "1.0.138", default-features = false }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
 anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
+log = "0.4"
 
 # Cryptography (for libcps)
 curve25519-dalek = "4.1"
@@ -220,7 +219,6 @@ cumulus-primitives-aura = { version = "0.21.0", default-features = false }
 cumulus-primitives-core = { version = "0.23.0", default-features = false }
 cumulus-primitives-timestamp = { version = "0.24.0", default-features = false }
 cumulus-primitives-utility = { version = "0.25.0", default-features = false }
-parachain-info = { version = "0.25.0", package = "staging-parachain-info", default-features = false }
 
 # Polkadot
 # (native)
@@ -248,6 +246,7 @@ pallet-robonomics-liability = { path = "./frame/liability", default-features = f
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
+parachain-info = { path = "./frame/parachain-info", default-features = false }
 
 # Robonomics runtimes
 robonomics-runtime = { path = "./runtime/robonomics" }

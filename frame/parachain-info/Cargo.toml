@@ -1,0 +1,33 @@
+[package]
+name = "parachain-info"
+description = "Pallet to store the parachain ID & relay network"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+parity-scale-codec = { features = ["derive"], workspace = true }
+cumulus-primitives-core.workspace = true
+frame-support.workspace = true
+frame-system.workspace = true
+scale-info = { features = ["derive"], workspace = true }
+sp-runtime.workspace = true
+
+[features]
+default = ["std"]
+std = [
+	"parity-scale-codec/std",
+	"cumulus-primitives-core/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+	"sp-runtime/std",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"sp-runtime/try-runtime",
+]

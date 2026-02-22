@@ -632,9 +632,6 @@ mod runtime {
     #[runtime::pallet_index(72)]
     pub type CumulusXcm = cumulus_pallet_xcm;
 
-    #[runtime::pallet_index(74)]
-    pub type XcmInfo = pallet_xcm_info;
-
     #[runtime::pallet_index(75)]
     pub type MessageQueue = pallet_message_queue;
 
@@ -705,23 +702,53 @@ pub type Executive = frame_executive::Executive<
 
 parameter_types! {
     pub const AssetsName: &'static str = "Assets";
+    pub const IdentityName: &'static str = "Identity";
     pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
     pub const MultiBlockMigrationsName: &'static str = "MultiBlockMigrations";
+    pub const XcmInfoName: &'static str = "XcmInfo";
+    pub const DmpQueueName: &'static str = "DmpQueue";
+    pub const LighthouseName: &'static str = "Lighthouse";
+}
+
+pub struct InitStorageVersions;
+impl frame_support::traits::OnRuntimeUpgrade for InitStorageVersions {
+    fn on_runtime_upgrade() -> Weight {
+        use frame_support::traits::{GetStorageVersion, StorageVersion};
+        use sp_runtime::traits::Saturating;
+        let mut writes = 0;
+        if Datalog::on_chain_storage_version() == StorageVersion::new(0) {
+            Datalog::in_code_storage_version().put::<Datalog>();
+            writes.saturating_inc();
+        }
+        if RWS::on_chain_storage_version() == StorageVersion::new(0) {
+            RWS::in_code_storage_version().put::<RWS>();
+            writes.saturating_inc();
+        }
+        <Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, writes)
+    }
 }
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
+    InitStorageVersions,
     // Cleanup old pallets
     frame_support::migrations::RemovePallet<AssetsName, RocksDbWeight>,
     frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<MultiBlockMigrationsName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<XcmInfoName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<DmpQueueName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<LighthouseName, RocksDbWeight>,
+    // System
+    cumulus_pallet_parachain_system::migration::Migration<Runtime>,
+    pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
     // XCM
     pallet_xcm::migration::v1::MigrateToV1<Runtime>,
-    pallet_xcm_info::migration::v1::MigrateToV1<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v2::MigrationToV2<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v3::MigrationToV3<Runtime>,
     cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
     cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+    cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
 );
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -757,7 +784,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
     [pallet_xcm_benchmarks::fungible, XcmBalances]
     [pallet_xcm_benchmarks::generic, XcmGeneric]
-    [pallet_xcm_info, XcmInfo]
 );
 
 // Implement our runtime API endpoints. This is just a bunch of proxying.
@@ -972,7 +998,7 @@ impl_runtime_apis! {
         }
 
         fn execute_block(
-            block: Block,
+            block: <Block as BlockT>::LazyBlock,
             state_root_check: bool,
             signature_check: bool,
             select: frame_try_runtime::TryStateSelect,

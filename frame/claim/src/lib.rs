@@ -179,7 +179,11 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
+
+    /// Storage version for migrations
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     /// Configuration trait for the Claim pallet.
     #[pallet::config]

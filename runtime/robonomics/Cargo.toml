@@ -40,12 +40,10 @@ pallet-collator-selection.workspace = true
 pallet-democracy.workspace = true
 frame-executive.workspace = true
 frame-metadata-hash-extension.workspace = true
-pallet-identity.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-treasury.workspace = true
 pallet-membership.workspace = true
-pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
 pallet-message-queue.workspace = true
@@ -92,7 +90,6 @@ xcm-executor.workspace = true
 xcm-runtime-apis.workspace = true
 pallet-xcm.workspace = true
 pallet-xcm-benchmarks.workspace = true
-pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
 polkadot-primitives.workspace = true
 polkadot-parachain-primitives.workspace = true
 polkadot-runtime-common.workspace = true
@@ -128,7 +125,6 @@ std = [
   "pallet-democracy/std",
   "frame-executive/std",
   "frame-metadata-hash-extension/std",
-  "pallet-identity/std",
   "pallet-scheduler/std",
   "pallet-session/std",
   "pallet-treasury/std",
@@ -166,7 +162,6 @@ std = [
   "xcm-executor/std",
   "xcm-runtime-apis/std",
   "pallet-xcm-benchmarks/std",
-  "pallet-xcm-info/std",
   "pallet-xcm/std",
   "polkadot-primitives/std",
   "polkadot-parachain-primitives/std",
@@ -197,7 +192,6 @@ runtime-benchmarks = [
   "pallet-robonomics-cps/runtime-benchmarks",
   "pallet-robonomics-claim/runtime-benchmarks",
   "pallet-xcm-benchmarks/runtime-benchmarks",
-  "pallet-xcm-info/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
@@ -221,12 +215,18 @@ try-runtime = [
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
-  "pallet-migrations/try-runtime",
   "pallet-multisig/try-runtime",
   "pallet-session/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
   "pallet-utility/try-runtime",
+  "pallet-robonomics-datalog/try-runtime",
+  "pallet-robonomics-digital-twin/try-runtime",
+  "pallet-robonomics-launch/try-runtime",
+  "pallet-robonomics-liability/try-runtime",
+  "pallet-robonomics-rws/try-runtime",
+  "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-claim/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",
 ]
