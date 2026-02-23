@@ -45,13 +45,43 @@ pub type Hash = sp_core::H256;
 /// Money matters.
 pub mod currency {
     use super::*;
+    use frame_support::PalletId;
 
-    pub const COASE: Balance = 1_000;
-    pub const GLUSHKOV: Balance = 1_000 * COASE;
+    /// XRT is Robonomics native currency.
+    ///
+    /// Note: decimals is 9.
     pub const XRT: Balance = 1_000 * GLUSHKOV;
 
+    /// Glushkov is unit name for milli XRT.
+    pub const GLUSHKOV: Balance = 1_000 * COASE;
+
+    /// Coase is unit name for micro XRT.
+    pub const COASE: Balance = 1_000;
+
+    /// Helper function for storage cost estimation.
     pub const fn deposit(items: u32, bytes: u32) -> Balance {
         items as Balance * 150 * GLUSHKOV / 100 + (bytes as Balance) * 60 * GLUSHKOV
+    }
+
+    /// Robonomics Network Treasury PalletId.
+    pub const TREASURY_PALLET_ID: PalletId = PalletId(*b"py/trsry");
+
+    #[cfg(test)]
+    mod tests {
+        use super::{AccountId, TREASURY_PALLET_ID};
+        use hex_literal::hex;
+        use sp_runtime::traits::AccountIdConversion;
+
+        #[test]
+        fn treasury_account_matched() {
+            let treasury_account: AccountId = TREASURY_PALLET_ID.into_account_truncating();
+            assert_eq!(
+                treasury_account,
+                AccountId::from(hex![
+                    "6d6f646c70792f74727372790000000000000000000000000000000000000000"
+                ]),
+            );
+        }
     }
 }
 
@@ -136,6 +166,7 @@ pub mod fee {
 
 /// Consensus-related.
 pub mod consensus {
+    use super::BlockNumber;
     use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
     use sp_runtime::Perbill;
 
@@ -170,19 +201,21 @@ pub mod consensus {
     /// Change this to adjust the block time.
     pub const MILLISECS_PER_BLOCK: u64 = 6000;
     pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-}
 
-/// Time constants.
-pub mod time {
-    use super::BlockNumber;
+    /// How many blocks in one minute.
+    pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 
-    pub const MINUTES: BlockNumber =
-        60_000 / (super::consensus::MILLISECS_PER_BLOCK as BlockNumber);
+    /// How many blocks in one hour.
     pub const HOURS: BlockNumber = MINUTES * 60;
+
+    /// How many blocks in one day.
     pub const DAYS: BlockNumber = HOURS * 24;
 }
 
+/// XCM-related.
 pub mod xcm_version {
     /// The default XCM version to set in genesis config.
+    ///
+    /// Note: depend of current `xcm` dependency version.
     pub const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 }

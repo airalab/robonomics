@@ -314,12 +314,12 @@ async function testXcmDownwardMessage(testResults) {
 }
 
 /**
- * Test: AssetHub Token Transfer
- * Transfers assets from Robonomics parachain to AssetHub using XCM
+ * Test: AssetHub Token Teleport 
+ * Teleport XRT from Robonomics parachain to AssetHub using XCM
  */
-async function testAssetHubTransfer(testResults) {
+async function testAssetHubTeleport(testResults) {
   testResults.total++;
-  log.test('Testing AssetHub token transfer (Parachain → AssetHub)...');
+  log.test('Testing AssetHub token teleport (Parachain → AssetHub)...');
   
   try {
     const parachainApi = await connectToNode(XCM_TESTS_CONFIG.parachainWsUrl, 'Parachain');
@@ -504,5 +504,5 @@ async function testAssetHubTransfer(testResults) {
 module.exports = {
   testXcmUpwardMessage,
   testXcmDownwardMessage,
-  testAssetHubTransfer,
+  testAssetHubTeleport,
 };

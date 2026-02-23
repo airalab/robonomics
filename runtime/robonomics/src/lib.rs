@@ -67,7 +67,7 @@ use sp_version::RuntimeVersion;
 
 pub mod common;
 pub mod xcm_config;
-pub use common::{consensus::*, currency::*, fee::*, time::*, *};
+pub use common::{consensus::*, currency::*, fee::*, *};
 
 mod genesis_config_presets;
 mod weights;
@@ -1054,7 +1054,10 @@ impl_runtime_apis! {
             impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
             use xcm::latest::prelude::*;
-            use xcm_config::{AssetHubParaId, AssetHubLocation, LocalLocation, PriceForSiblingParachainDelivery};
+            use xcm_config::{
+                AssetHubParaId, AssetHubLocation, LocalLocation,
+                PriceForSiblingParachainDelivery, NativeAssetId,
+            };
 
             use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsicsBenchmark;
 
@@ -1080,11 +1083,11 @@ impl_runtime_apis! {
                 }
 
                 fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
-                    // Relay/native token can be teleported between AH and Relay.
+                    // Native token can be teleported between AH and parachain.
                     Some((
                         Asset {
                             fun: Fungible(ExistentialDeposit::get()),
-                            id: AssetId(LocalLocation::get())
+                            id: NativeAssetId::get()
                         },
                         AssetHubLocation::get(),
                     ))
@@ -1128,7 +1131,7 @@ impl_runtime_apis! {
                 fn worst_case_holding(_depositable_count: u32) -> Assets {
                     let assets: Vec<Asset> = vec![
                         Asset {
-                            id: AssetId(LocalLocation::get()),
+                            id: NativeAssetId::get(),
                             fun: Fungible(1_000_000 * XRT),
                         }
                     ];
@@ -1139,10 +1142,10 @@ impl_runtime_apis! {
             parameter_types! {
                 pub TrustedTeleporter: Option<(Location, Asset)> = Some((
                     AssetHubLocation::get(),
-                    Asset { fun: Fungible(XRT), id: AssetId(LocalLocation::get()) },
+                    Asset { fun: Fungible(XRT), id: NativeAssetId::get() },
                 ));
-                pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
                 pub const TrustedReserve: Option<(Location, Asset)> = None;
+                pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
             }
 
             impl pallet_xcm_benchmarks::fungible::Config for Runtime {
@@ -1154,7 +1157,7 @@ impl_runtime_apis! {
 
                 fn get_asset() -> Asset {
                     Asset {
-                        id: AssetId(LocalLocation::get()),
+                        id: NativeAssetId::get(),
                         fun: Fungible(XRT),
                     }
                 }
@@ -1186,14 +1189,14 @@ impl_runtime_apis! {
 
                 fn claimable_asset() -> Result<(Location, Location, Assets), BenchmarkError> {
                     let origin = AssetHubLocation::get();
-                    let assets: Assets = (AssetId(LocalLocation::get()), 1_000 * XRT).into();
+                    let assets: Assets = (NativeAssetId::get(), 1_000 * XRT).into();
                     let ticket = Location { parents: 0, interior: Here };
                     Ok((origin, ticket, assets))
                 }
 
                 fn worst_case_for_trader() -> Result<(Asset, WeightLimit), BenchmarkError> {
                     Ok((Asset {
-                        id: AssetId(LocalLocation::get()),
+                        id: NativeAssetId::get(),
                         fun: Fungible(1_000_000 * XRT),
                     }, WeightLimit::Limited(Weight::from_parts(5000, 5000))))
                 }
