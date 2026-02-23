@@ -176,7 +176,7 @@ pallet-migrations = { version = "15.0.0", default-features = false }
 pallet-preimage = { version = "45.0.0", default-features = false }
 pallet-proxy = { version = "45.0.0", default-features = false }
 pallet-scheduler = { version = "46.0.0", default-features = false }
-pallet-session = { version = "45.0.0", default-features = false }
+pallet-session = { version = "45.1.0", default-features = false }
 pallet-treasury = { version = "44.0.0", default-features = false }
 pallet-utility = { version = "45.0.0", default-features = false }
 pallet-vesting = { version = "45.0.0", default-features = false }
@@ -185,7 +185,7 @@ pallet-timestamp = { version = "44.0.0", default-features = false }
 pallet-transaction-payment = { version = "45.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "45.0.0", default-features = false }
 pallet-identity = { version = "45.0.0", default-features = false }
-frame-benchmarking = { version = "45.0.1", default-features = false }
+frame-benchmarking = { version = "45.0.3", default-features = false }
 frame-system-benchmarking = { version = "45.0.0", default-features = false }
 frame-try-runtime = { version = "0.51.0", default-features = false }
 pallet-grandpa = { version = "45.0.0", default-features = false }
@@ -232,7 +232,7 @@ polkadot-parachain-primitives = { version = "20.0.0", default-features = false }
 polkadot-runtime-common = { version = "24.0.0", default-features = false }
 xcm = { version = "21.0.0", package = "staging-xcm", default-features = false }
 xcm-builder = { version = "25.0.0", package = "staging-xcm-builder", default-features = false }
-xcm-executor = { version = "24.0.0", package = "staging-xcm-executor", default-features = false }
+xcm-executor = { version = "24.0.1", package = "staging-xcm-executor", default-features = false }
 xcm-runtime-apis = { version = "0.12.0", default-features = false }
 
 # Substrate build deps

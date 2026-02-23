@@ -337,12 +337,21 @@ mod tests {
 
     #[test]
     fn all_sibling_system_parachains_works() {
-        assert!(AllSiblingSystemParachains::contains(&Location::new(1, [Parachain(1)])));
+        assert!(AllSiblingSystemParachains::contains(&Location::new(
+            1,
+            [Parachain(1)]
+        )));
         assert!(!AllSiblingSystemParachains::contains(&Location::new(
             1,
             [Parachain(LOWEST_PUBLIC_ID.into())]
         )));
-        assert!(!AllSiblingSystemParachains::contains(&Location::new(0, [Parachain(1)])));
-        assert!(!AllSiblingSystemParachains::contains(&Location::new(1, [OnlyChild])));
+        assert!(!AllSiblingSystemParachains::contains(&Location::new(
+            0,
+            [Parachain(1)]
+        )));
+        assert!(!AllSiblingSystemParachains::contains(&Location::new(
+            1,
+            [OnlyChild]
+        )));
     }
 }
