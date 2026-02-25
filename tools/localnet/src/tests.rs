@@ -19,6 +19,8 @@
 
 use anyhow::{Context, Result};
 use colored::Colorize;
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
@@ -26,15 +28,25 @@ use subxt_signer::sr25519::dev;
 use crate::network::NetworkEndpoints;
 
 /// Test result for a single test
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestResult {
     pub name: String,
     pub status: TestStatus,
+    #[serde(serialize_with = "serialize_duration")]
     pub duration: Duration,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_f64(duration.as_secs_f64())
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TestStatus {
     Passed,
     Failed,
@@ -42,27 +54,32 @@ pub enum TestStatus {
 }
 
 /// Test suite results
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TestSuiteResults {
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub skipped: usize,
+    #[serde(serialize_with = "serialize_duration")]
+    pub duration: Duration,
     pub tests: Vec<TestResult>,
-    pub total_duration: Duration,
 }
 
 impl TestSuiteResults {
     pub fn passed_count(&self) -> usize {
-        self.tests.iter().filter(|t| t.status == TestStatus::Passed).count()
+        self.passed
     }
     
     pub fn failed_count(&self) -> usize {
-        self.tests.iter().filter(|t| t.status == TestStatus::Failed).count()
+        self.failed
     }
     
     pub fn skipped_count(&self) -> usize {
-        self.tests.iter().filter(|t| t.status == TestStatus::Skipped).count()
+        self.skipped
     }
     
     pub fn is_success(&self) -> bool {
-        self.failed_count() == 0
+        self.failed == 0
     }
 }
 
@@ -182,18 +199,20 @@ async fn test_extrinsic_submission() -> Result<()> {
     );
     
     // Submit and watch for inclusion
-    let progress = client
+    let mut progress = client
         .tx()
         .sign_and_submit_then_watch_default(&remark_call, &alice)
         .await
         .context("Failed to submit transaction")?;
     
-    let result = progress
-        .wait_for_in_block()
-        .await
-        .context("Failed to wait for transaction in block")?;
-    
-    log::debug!("Transaction included in block: {:?}", result.block_hash());
+    // Wait for in block
+    while let Some(status) = progress.next().await {
+        let status = status.context("Failed to get transaction status")?;
+        if let Some(in_block) = status.as_in_block() {
+            log::debug!("Transaction included in block: {:?}", in_block);
+            break;
+        }
+    }
     
     Ok(())
 }
@@ -216,111 +235,122 @@ async fn test_xcm_upward_message() -> Result<()> {
 }
 
 /// Run all integration tests
-pub async fn run_integration_tests(fail_fast: bool, filter: Option<&str>) -> Result<TestSuiteResults> {
-    use colored::Colorize;
-    
-    println!();
-    println!("{}", "🧪 Running Integration Tests".bold().cyan());
-    println!("{}", "━".repeat(50).bright_black());
-    println!();
+pub async fn run_integration_tests(fail_fast: bool, test_filter: Option<Vec<String>>, json_output: bool) -> Result<TestSuiteResults> {
+    if !json_output {
+        println!();
+        println!("{}", "Running Integration Tests".bold().cyan());
+        println!("{}", "==================================================".bright_black());
+        println!();
+    }
     
     let suite_start = Instant::now();
     let mut results = Vec::new();
     
-    // Define all tests
-    let tests = vec![
-        ("network_initialization", test_network_initialization as fn() -> _),
-        ("block_production", test_block_production as fn() -> _),
-        ("extrinsic_submission", test_extrinsic_submission as fn() -> _),
-        ("xcm_upward_message", test_xcm_upward_message as fn() -> _),
-    ];
+    log::info!("Running tests");
     
-    // Filter tests if needed
-    let filtered_tests: Vec<_> = tests
-        .into_iter()
-        .filter(|(name, _)| {
-            if let Some(f) = filter {
-                name.contains(f)
-            } else {
-                true
-            }
-        })
-        .collect();
-    
-    if filtered_tests.is_empty() {
-        println!("{}", "No tests match the filter".yellow());
-        return Ok(TestSuiteResults {
-            tests: vec![],
-            total_duration: Duration::from_secs(0),
-        });
-    }
-    
-    log::info!("Running {} tests", filtered_tests.len());
-    
-    for (name, test_fn) in filtered_tests {
-        let result = run_test(name, test_fn).await;
-        
-        // Display result
-        match result.status {
-            TestStatus::Passed => {
-                println!(
-                    "  {} {} ({:.2}s)",
-                    "✓".green(),
-                    name.green(),
-                    result.duration.as_secs_f64()
-                );
-            }
-            TestStatus::Failed => {
-                println!(
-                    "  {} {} ({:.2}s)",
-                    "✗".red(),
-                    name.red(),
-                    result.duration.as_secs_f64()
-                );
-                if let Some(ref error) = result.error {
-                    println!("    {}: {}", "Error".bright_black(), error.bright_black());
-                }
-            }
-            TestStatus::Skipped => {
-                println!(
-                    "  {} {} (skipped)",
-                    "○".yellow(),
-                    name.yellow()
-                );
-            }
-        }
-        
-        let should_stop = fail_fast && result.status == TestStatus::Failed;
-        results.push(result);
-        
-        if should_stop {
+    // Run tests based on filter
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "network_initialization".contains(f.as_str())) {
+        results.push(run_test("network_initialization", test_network_initialization).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
-            break;
+            return build_results(results, suite_start, json_output);
         }
     }
     
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "block_production".contains(f.as_str())) {
+        results.push(run_test("block_production", test_block_production).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "extrinsic_submission".contains(f.as_str())) {
+        results.push(run_test("extrinsic_submission", test_extrinsic_submission).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "xcm_upward_message".contains(f.as_str())) {
+        results.push(run_test("xcm_upward_message", test_xcm_upward_message).await);
+    }
+    
+    build_results(results, suite_start, json_output)
+}
+
+fn build_results(results: Vec<TestResult>, suite_start: Instant, json_output: bool) -> Result<TestSuiteResults> {
     let total_duration = suite_start.elapsed();
     
-    println!();
-    println!("{}", "Test Summary".bold());
-    println!("{}", "━".repeat(50).bright_black());
+    // Display results if not in JSON mode
+    if !json_output {
+        for result in &results {
+            match result.status {
+                TestStatus::Passed => {
+                    println!(
+                        "  {} {} ({:.2}s)",
+                        "[PASS]".green(),
+                        result.name.green(),
+                        result.duration.as_secs_f64()
+                    );
+                }
+                TestStatus::Failed => {
+                    println!(
+                        "  {} {} ({:.2}s)",
+                        "[FAIL]".red(),
+                        result.name.red(),
+                        result.duration.as_secs_f64()
+                    );
+                    if let Some(ref error) = result.error {
+                        println!("    Error: {}", error.bright_black());
+                    }
+                }
+                TestStatus::Skipped => {
+                    println!(
+                        "  {} {} (skipped)",
+                        "[SKIP]".yellow(),
+                        result.name.yellow()
+                    );
+                }
+            }
+        }
+    }
+    
+    let passed = results.iter().filter(|t| t.status == TestStatus::Passed).count();
+    let failed = results.iter().filter(|t| t.status == TestStatus::Failed).count();
+    let skipped = results.iter().filter(|t| t.status == TestStatus::Skipped).count();
     
     let suite_results = TestSuiteResults {
+        total: results.len(),
+        passed,
+        failed,
+        skipped,
+        duration: total_duration,
         tests: results,
-        total_duration,
     };
     
-    println!("  Total:      {}", suite_results.tests.len());
-    println!("  Passed:     {}", suite_results.passed_count().to_string().green());
-    println!("  Failed:     {}", suite_results.failed_count().to_string().red());
-    println!("  Skipped:    {}", suite_results.skipped_count().to_string().yellow());
-    println!("  Duration:   {:.2}s", total_duration.as_secs_f64());
-    println!();
-    
-    if suite_results.is_success() {
-        log::info!("All tests passed!");
+    if json_output {
+        // Output JSON
+        let json = serde_json::to_string_pretty(&suite_results)?;
+        println!("{}", json);
     } else {
-        log::error!("{} test(s) failed", suite_results.failed_count());
+        // Output text summary
+        println!();
+        println!("{}", "Test Summary".bold());
+        println!("{}", "==================================================".bright_black());
+        println!("  Total:      {}", suite_results.total);
+        println!("  Passed:     {}", suite_results.passed.to_string().green());
+        println!("  Failed:     {}", suite_results.failed.to_string().red());
+        println!("  Skipped:    {}", suite_results.skipped.to_string().yellow());
+        println!("  Duration:   {:.2}s", total_duration.as_secs_f64());
+        println!();
+        
+        if suite_results.is_success() {
+            log::info!("All tests passed!");
+        } else {
+            log::error!("{} test(s) failed", suite_results.failed);
+        }
     }
     
     Ok(suite_results)

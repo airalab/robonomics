@@ -6749,6 +6749,17 @@ name = "localnet"
 version = "4.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "env_logger",
+ "futures",
+ "indicatif",
+ "log",
+ "serde",
+ "serde_json",
+ "subxt 0.43.1",
+ "subxt-signer 0.43.0",
  "tokio",
  "zombienet-sdk",
 ]

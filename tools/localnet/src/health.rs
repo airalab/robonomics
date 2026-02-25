@@ -98,11 +98,9 @@ async fn check_node_health(name: &str, endpoint: &str) -> NodeHealth {
 
 /// Perform health checks on all network nodes
 pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
-    use colored::Colorize;
-    
     println!();
-    println!("{}", "🏥 Network Health Check".bold().cyan());
-    println!("{}", "━".repeat(50).bright_black());
+    println!("{}", ">> Network Health Check".bold().cyan());
+    println!("{}", "==================================================".bright_black());
     println!();
     
     let endpoints = NetworkEndpoints::new();
@@ -115,12 +113,13 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
     
     let mut health_results = Vec::new();
     
+    let nodes_len = nodes.len();
     for (name, endpoint) in nodes {
         let health = check_node_health(name, endpoint).await;
         
         // Display result
         if health.is_healthy {
-            print!("  {} {:<20}", "✓".green(), name.green());
+            print!("  {} {:<20}", "[OK]".green(), name.green());
             if let Some(block_num) = health.block_number {
                 println!("Block #{}", block_num.to_string().bright_black());
             } else {
@@ -131,7 +130,7 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
                 println!("    {}: {}", "Endpoint".bright_black(), endpoint.bright_black());
             }
         } else {
-            print!("  {} {:<20}", "✗".red(), name.red());
+            print!("  {} {:<20}", "[FAIL]".red(), name.red());
             if let Some(ref error) = health.error {
                 println!("{}", error.bright_black());
             } else {
@@ -151,8 +150,8 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
     
     // Display summary
     println!("{}", "Summary".bold());
-    println!("{}", "━".repeat(50).bright_black());
-    println!("  Total nodes:    {}", nodes.len());
+    println!("{}", "==================================================".bright_black());
+    println!("  Total nodes:    {}", nodes_len);
     println!("  Healthy:        {}", network_health.passed_count().to_string().green());
     println!("  Unhealthy:      {}", network_health.failed_count().to_string().red());
     println!();

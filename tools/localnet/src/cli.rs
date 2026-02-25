@@ -55,27 +55,17 @@ pub enum Commands {
         #[arg(long)]
         fail_fast: bool,
 
-        /// Test filter pattern (run only matching tests)
-        #[arg(short, long)]
-        filter: Option<String>,
+        /// Specific tests to run (can be specified multiple times)
+        #[arg(short = 't', long = "test")]
+        tests: Vec<String>,
 
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "60")]
         timeout: u64,
-    },
-
-    /// Check network health and connectivity
-    Health {
-        /// Show detailed health information
+        
+        /// Skip network spawning (assume network is already running)
         #[arg(long)]
-        detailed: bool,
-    },
-
-    /// Clean up network resources and processes
-    Clean {
-        /// Force cleanup without confirmation
-        #[arg(long)]
-        force: bool,
+        no_spawn: bool,
     },
 }
 

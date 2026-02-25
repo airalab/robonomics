@@ -18,9 +18,10 @@
 //! Network configuration and spawning logic.
 
 use anyhow::{Context, Result};
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
-use zombienet_sdk::{Network, NetworkConfigBuilder};
+use zombienet_sdk::{LocalFileSystem, Network, NetworkConfig, NetworkConfigBuilder, NetworkConfigExt};
 
 /// Hardcoded network configuration
 pub const RELAY_RPC_PORT: u16 = 9944;
@@ -53,7 +54,7 @@ impl Default for NetworkEndpoints {
 }
 
 /// Build the network configuration
-pub fn build_network_config() -> Result<zombienet_sdk::NetworkConfig> {
+pub fn build_network_config() -> Result<NetworkConfig> {
     log::debug!("Building network configuration...");
     
     let config = NetworkConfigBuilder::new()
@@ -78,19 +79,17 @@ pub fn build_network_config() -> Result<zombienet_sdk::NetworkConfig> {
                 })
         })
         .build()
-        .context("Failed to build network configuration")?;
+        .map_err(|e| anyhow::anyhow!("Failed to build network configuration: {:?}", e))?;
     
     log::debug!("Network configuration built successfully");
     Ok(config)
 }
 
 /// Spawn the network with progress indication
-pub async fn spawn_network(timeout: Duration) -> Result<Network> {
-    use colored::Colorize;
-    
+pub async fn spawn_network(timeout: Duration) -> Result<Network<LocalFileSystem>> {
     println!();
-    println!("{}", "🚀 Starting Robonomics Local Network".bold().green());
-    println!("{}", "━".repeat(50).bright_black());
+    println!("{}", ">> Starting Robonomics Local Network".bold().green());
+    println!("{}", "==================================================".bright_black());
     println!();
     
     let spinner = ProgressBar::new_spinner();
@@ -111,13 +110,12 @@ pub async fn spawn_network(timeout: Duration) -> Result<Network> {
     
     let network = tokio::time::timeout(timeout, config.spawn_native())
         .await
-        .context("Network spawn timeout")?
-        .context("Failed to spawn network")?;
+        .context("Network spawn timeout")??;
     
     spinner.finish_and_clear();
     
-    println!("{} Relay chain ready (alice, bob)", "✅".green());
-    println!("{} Parachain collators ready (collator-1, collator-2)", "✅".green());
+    println!("{} Relay chain ready (alice, bob)", "[OK]".green());
+    println!("{} Parachain collators ready (collator-1, collator-2)", "[OK]".green());
     
     // Wait a bit for parachain registration
     let spinner = ProgressBar::new_spinner();
@@ -132,12 +130,12 @@ pub async fn spawn_network(timeout: Duration) -> Result<Network> {
     tokio::time::sleep(Duration::from_secs(10)).await;
     
     spinner.finish_and_clear();
-    println!("{} Parachain {} registered", "✅".green(), PARA_ID);
+    println!("{} Parachain {} registered", "[OK]".green(), PARA_ID);
     println!();
     
     // Display connection info
-    println!("{}", "🌐 Network Ready".bold().green());
-    println!("{}", "━".repeat(50).bright_black());
+    println!("{}", ">> Network Ready".bold().green());
+    println!("{}", "==================================================".bright_black());
     let endpoints = NetworkEndpoints::new();
     println!("{:<20} {}", "Relay Chain:", endpoints.relay_ws.cyan());
     println!("{:<20} {}", "Collator 1:", endpoints.collator_1_ws.cyan());
@@ -151,8 +149,6 @@ pub async fn spawn_network(timeout: Duration) -> Result<Network> {
 
 /// Display network endpoints
 pub fn display_endpoints() {
-    use colored::Colorize;
-    
     let endpoints = NetworkEndpoints::new();
     println!("{}", "Network Endpoints:".bold());
     println!("  Relay Chain:  {}", endpoints.relay_ws.cyan());

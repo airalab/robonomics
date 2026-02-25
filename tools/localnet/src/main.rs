@@ -21,8 +21,6 @@ use anyhow::Result;
 use clap::Parser;
 use std::time::Duration;
 
-mod ci;
-mod cleanup;
 mod cli;
 mod health;
 mod logging;
@@ -61,14 +59,8 @@ async fn run() -> Result<i32> {
         Commands::Spawn { persist, timeout } => {
             cmd_spawn(persist, timeout).await?
         }
-        Commands::Test { fail_fast, filter, timeout } => {
-            cmd_test(fail_fast, filter.as_deref(), timeout, &cli.format).await?
-        }
-        Commands::Health { detailed } => {
-            cmd_health(detailed).await?
-        }
-        Commands::Clean { force } => {
-            cmd_clean(force).await?
+        Commands::Test { fail_fast, tests, timeout, no_spawn } => {
+            cmd_test(fail_fast, tests, timeout, no_spawn, &cli.format).await?
         }
     };
     
@@ -105,37 +97,36 @@ async fn cmd_spawn(persist: bool, timeout: u64) -> Result<i32> {
 }
 
 /// Test command handler
-async fn cmd_test(fail_fast: bool, filter: Option<&str>, timeout: u64, format: &OutputFormat) -> Result<i32> {
-    // First spawn the network
-    log::info!("Spawning network for testing...");
-    let timeout_duration = Duration::from_secs(timeout);
-    
-    let network = match network::spawn_network(timeout_duration).await {
-        Ok(n) => n,
-        Err(e) => {
-            log::error!("Failed to spawn network: {}", e);
-            return Ok(EXIT_NETWORK_SPAWN_FAILED);
+async fn cmd_test(fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: bool, format: &OutputFormat) -> Result<i32> {
+    let network = if no_spawn {
+        log::info!("Skipping network spawn (--no-spawn specified)");
+        None
+    } else {
+        // Spawn the network
+        log::info!("Spawning network for testing...");
+        let timeout_duration = Duration::from_secs(timeout);
+        
+        match network::spawn_network(timeout_duration).await {
+            Ok(n) => {
+                // Wait a bit for network to stabilize
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                Some(n)
+            }
+            Err(e) => {
+                log::error!("Failed to spawn network: {}", e);
+                return Ok(EXIT_NETWORK_SPAWN_FAILED);
+            }
         }
     };
     
-    // Wait a bit for network to stabilize
-    tokio::time::sleep(Duration::from_secs(5)).await;
-    
     // Run tests
-    let results = tests::run_integration_tests(fail_fast, filter).await?;
+    let test_filter = if tests.is_empty() {
+        None
+    } else {
+        Some(tests)
+    };
     
-    // Output results based on format
-    match format {
-        OutputFormat::Json => {
-            ci::output_json(&results)?;
-        }
-        OutputFormat::Text => {
-            // Results already printed in run_integration_tests
-            if std::env::var("GITHUB_ACTIONS").is_ok() {
-                ci::output_github_annotations(&results);
-            }
-        }
-    }
+    let results = tests::run_integration_tests(fail_fast, test_filter, matches!(format, OutputFormat::Json)).await?;
     
     // Clean up network
     drop(network);
@@ -148,19 +139,4 @@ async fn cmd_test(fail_fast: bool, filter: Option<&str>, timeout: u64, format: &
     }
 }
 
-/// Health command handler
-async fn cmd_health(detailed: bool) -> Result<i32> {
-    let health = health::check_network_health(detailed).await?;
-    
-    if health.is_healthy() {
-        Ok(EXIT_SUCCESS)
-    } else {
-        Ok(EXIT_TESTS_FAILED)
-    }
-}
 
-/// Clean command handler
-async fn cmd_clean(force: bool) -> Result<i32> {
-    cleanup::cleanup_resources(force).await?;
-    Ok(EXIT_SUCCESS)
-}
