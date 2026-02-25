@@ -6054,17 +6054,12 @@ dependencies = [
  "indicatif",
  "log",
  "parity-scale-codec",
- "robonomics-runtime",
+ "robonomics-runtime-subxt-api",
  "rumqttc",
- "sc-executor 0.47.0",
- "sc-executor-common 0.43.0",
  "serde",
  "serde_json",
  "sha2 0.10.9",
  "sp-core 39.0.0",
- "sp-io 44.0.0",
- "sp-maybe-compressed-blob",
- "sp-state-machine 0.49.0",
  "subxt 0.43.1",
  "subxt-signer 0.43.0",
  "tokio",
@@ -11032,6 +11027,7 @@ dependencies = [
  "libcps",
  "log",
  "parity-scale-codec",
+ "robonomics-runtime-subxt-api",
  "secp256k1 0.28.2",
  "serde",
  "serde_json",
@@ -11134,6 +11130,20 @@ dependencies = [
  "staging-xcm-executor",
  "substrate-wasm-builder",
  "xcm-runtime-apis",
+]
+
+[[package]]
+name = "robonomics-runtime-subxt-api"
+version = "4.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "robonomics-runtime",
+ "sc-executor 0.47.0",
+ "sc-executor-common 0.43.0",
+ "sp-io 44.0.0",
+ "sp-maybe-compressed-blob",
+ "sp-state-machine 0.49.0",
+ "subxt 0.43.1",
 ]
 
 [[package]]

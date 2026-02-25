@@ -1,0 +1,123 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+//  Copyright 2018-2026 Robonomics Network <research@robonomics.network>
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//
+///////////////////////////////////////////////////////////////////////////////
+/// # Robonomics Runtime Subxt API.
+///
+/// This library extracts metadata directly from the runtime at build time.
+/// This approach brings **much less dependencies** than embedding the runtime WASM
+/// in the subxt macro.
+///
+/// ## How It Works
+///
+/// The `build.rs` script extracts metadata from the runtime and saves it to the build directory:
+///
+/// 1. **Load runtime WASM**: Gets `WASM_BINARY` from robonomics-runtime build dependency
+/// 2. **Create RuntimeBlob**: Prepares the WASM for execution
+/// 3. **Execute metadata call**: Uses `WasmExecutor` to call the `Metadata_metadata` host function
+/// 4. **Decode and validate**: Decodes SCALE-encoded metadata and validates magic bytes
+/// 5. **Save to file**: Writes metadata to `$OUT_DIR/metadata.scale`
+/// 6. **Subxt macro**: Reads the metadata file at compile time to generate type-safe APIs
+///
+/// ## Benefits
+///
+/// - **Fewer dependencies**: No need to embed runtime WASM or pull in heavy runtime dependencies
+/// - **Faster builds**: Metadata extraction happens once during build
+/// - **Always in sync**: Metadata comes directly from runtime dependency version
+/// - **Type safe**: Compile-time verification of all runtime calls
+/// - **Self-contained**: Everything happens in the build process
+///
+// Re-export types
+pub use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
+pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
+
+use subxt::config::DefaultExtrinsicParams;
+use subxt::config::DefaultExtrinsicParamsBuilder;
+use subxt::SubstrateConfig;
+
+/// Type for extrinsic events from blockchain transactions.
+pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
+
+/// Default set of commonly used types by Robonomics nodes.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum RobonomicsConfig {}
+
+impl subxt::Config for RobonomicsConfig {
+    type AccountId = <SubstrateConfig as subxt::Config>::AccountId;
+    type Signature = <SubstrateConfig as subxt::Config>::Signature;
+    type Hasher = <SubstrateConfig as subxt::Config>::Hasher;
+    type Header = <SubstrateConfig as subxt::Config>::Header;
+    type AssetId = <SubstrateConfig as subxt::Config>::AssetId;
+    type Address = MultiAddress<Self::AccountId, ()>;
+    type ExtrinsicParams = RobonomicsExtrinsicParams<Self>;
+}
+
+/// A struct representing the signed extra and additional parameters required
+/// to construct a transaction for a robonomics node.
+pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
+
+/// A builder which leads to [`RobonomicsExtrinsicParams`] being constructed.
+/// This is what you provide to methods like `sign_and_submit()`.
+pub type RobonomicsExtrinsicParamsBuilder<T> = DefaultExtrinsicParamsBuilder<T>;
+
+/// Generated runtime metadata from subxt.
+#[allow(
+    dead_code,
+    unused_imports,
+    non_camel_case_types,
+    unreachable_patterns,
+    missing_docs
+)]
+#[allow(clippy::all)]
+#[allow(rustdoc::broken_intra_doc_links)]
+/// Robonomics runtime API generated from runtime metadata.
+/// This ensures metadata is always in sync with the runtime.
+#[subxt::subxt(
+    runtime_metadata_path = "$OUT_DIR/metadata.scale",
+    derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy"),
+    derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode"
+)]
+pub mod api {}
+
+pub mod cps_impls {
+    use super::api::runtime_types::pallet_robonomics_cps::{DefaultEncryptedData, NodeData};
+    use super::BoundedVec;
+
+    impl NodeData {
+        /// Create an encrypted AEAD NodeData from bytes
+        pub fn aead_from(v: Vec<u8>) -> Self {
+            NodeData::Encrypted(DefaultEncryptedData::Aead(BoundedVec(v)))
+        }
+    }
+
+    impl From<Vec<u8>> for NodeData {
+        fn from(v: Vec<u8>) -> Self {
+            NodeData::Plain(BoundedVec(v))
+        }
+    }
+
+    impl From<String> for NodeData {
+        fn from(s: String) -> Self {
+            Self::from(s.into_bytes())
+        }
+    }
+
+    impl From<&str> for NodeData {
+        fn from(s: &str) -> Self {
+            Self::from(s.as_bytes().to_vec())
+        }
+    }
+}

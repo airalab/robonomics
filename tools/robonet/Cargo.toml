@@ -11,9 +11,6 @@ repository.workspace = true
 name = "robonet"
 path = "src/main.rs"
 
-[build-dependencies]
-robonomics-metadata = { path = "../robonomics-metadata" }
-
 [dependencies]
 zombienet-sdk.workspace = true
 anyhow.workspace = true
@@ -31,7 +28,8 @@ env_logger.workspace = true
 futures.workspace = true
 
 # Integration test dependencies
-libcps = { path = "../libcps", default-features = false }
+libcps.workspace = true
+robonomics-runtime-subxt-api.workspace = true
 parity-scale-codec.workspace = true
 sp-core.workspace = true
 sp-runtime.workspace = true

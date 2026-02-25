@@ -89,45 +89,6 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 }
 ```
 
-## Blockchain Metadata
-
-libcps extracts metadata directly from the robonomics runtime at build time. This approach brings **much less dependencies** than embedding the runtime WASM in the subxt macro.
-
-### How It Works
-
-The `build.rs` script extracts metadata from the runtime and saves it to the build directory:
-
-1. **Load runtime WASM**: Gets `WASM_BINARY` from robonomics-runtime build dependency
-2. **Create RuntimeBlob**: Prepares the WASM for execution
-3. **Execute metadata call**: Uses `WasmExecutor` to call the `Metadata_metadata` host function
-4. **Decode and validate**: Decodes SCALE-encoded metadata and validates magic bytes
-5. **Save to file**: Writes metadata to `$OUT_DIR/metadata.scale`
-6. **Subxt macro**: Reads the metadata file at compile time to generate type-safe APIs
-
-### Benefits
-
-- **Fewer dependencies**: No need to embed runtime WASM or pull in heavy runtime dependencies
-- **Faster builds**: Metadata extraction happens once during build
-- **Always in sync**: Metadata comes directly from runtime dependency version
-- **Type safe**: Compile-time verification of all runtime calls
-- **Self-contained**: Everything happens in the build process
-
-### Build Dependencies
-
-The metadata extraction requires these dependencies (build-time only):
-
-```toml
-[build-dependencies]
-robonomics-runtime = { workspace = true }
-sp-io = { workspace = true }
-sp-state-machine = { workspace = true }
-sc-executor = { workspace = true }
-sc-executor-common = { workspace = true }
-parity-scale-codec = { workspace = true }
-```
-
-These are only needed during compilation and don't bloat the final binary.
-
 ## Testing
 
 ### Unit Tests

@@ -1,0 +1,23 @@
+[package]
+name = "robonomics-runtime-subxt-api"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Robonomics Runtime Subxt metadata exporter & API."
+build = "build.rs"
+
+[dependencies]
+parity-scale-codec.workspace = true
+subxt.workspace = true
+
+[build-dependencies]
+robonomics-runtime.workspace = true
+sp-io.workspace = true
+sp-state-machine.workspace = true
+sp-maybe-compressed-blob.workspace = true
+sc-executor.workspace = true
+sc-executor-common.workspace = true
+parity-scale-codec.workspace = true

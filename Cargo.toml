@@ -26,6 +26,7 @@ members = [
   "frame/cps",
   "frame/claim",
   "runtime/robonomics",
+  "runtime/robonomics/subxt-api",
   "tools/libcps",
   "tools/robonet",
 ]
@@ -251,4 +252,9 @@ pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
 parachain-info = { path = "./frame/parachain-info", default-features = false }
 
 # Robonomics runtimes
-robonomics-runtime = { path = "./runtime/robonomics" }
+robonomics-runtime.path = "./runtime/robonomics"
+robonomics-runtime-subxt-api.path = "./runtime/robonomics/subxt-api"
+
+# Tools
+libcps = { path = "./tools/libcps", default-features = false }
+robonet.path = "./tools/robonet"

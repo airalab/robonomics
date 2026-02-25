@@ -24,14 +24,14 @@ use std::io::Write;
 /// Initialize logging based on verbosity level
 pub fn init_logger(verbose: u8) {
     let mut builder = Builder::new();
-    
+
     // Set log level based on verbosity
     let level = match verbose {
         0 => LevelFilter::Info,
         1 => LevelFilter::Debug,
         _ => LevelFilter::Trace,
     };
-    
+
     builder
         .filter_level(level)
         .format(|buf, record| {
@@ -43,13 +43,8 @@ pub fn init_logger(verbose: u8) {
                 log::Level::Debug => "DEBUG".blue(),
                 log::Level::Trace => "TRACE".purple(),
             };
-            
-            writeln!(
-                buf,
-                "[{}] {}",
-                level_colored,
-                record.args()
-            )
+
+            writeln!(buf, "[{}] {}", level_colored, record.args())
         })
         .init();
 }
@@ -57,7 +52,7 @@ pub fn init_logger(verbose: u8) {
 /// Initialize JSON logging for CI environments
 pub fn init_json_logger() {
     let mut builder = Builder::new();
-    
+
     builder
         .filter_level(LevelFilter::Info)
         .format(|buf, record| {

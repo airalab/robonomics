@@ -28,21 +28,23 @@ required-features = ["cli"]
 
 [dependencies]
 # Blockchain
-subxt = { workspace = true }
-subxt-signer = { workspace = true }
-parity-scale-codec = { workspace = true, features = ["std"] }
+subxt.workspace = true
+subxt-signer.workspace = true
 sp-core = { workspace = true, features = ["std"] }
+parity-scale-codec = { workspace = true, features = ["std"] }
+robonomics-runtime-subxt-api.workspace = true
 
 # Cryptography
-curve25519-dalek = { workspace = true }
-x25519-dalek = { workspace = true }
-chacha20poly1305 = { workspace = true }
-aes-gcm = { workspace = true }
-hkdf = { workspace = true }
-sha2 = { workspace = true }
+curve25519-dalek.workspace = true
+x25519-dalek.workspace = true
+chacha20poly1305.workspace = true
+aes-gcm.workspace = true
+hkdf.workspace = true
+sha2.workspace = true
 
 # MQTT
-rumqttc = { workspace = true, optional = true }
+rumqttc.workspace = true
+rumqttc.optional = true
 
 # CLI & Output
 clap = { workspace = true, features = ["env"], optional = true }
@@ -53,22 +55,21 @@ easy-hex = { workspace = true, optional = true }
 # Serialization
 serde = { workspace = true, features = ["std"] }
 serde_json = { workspace = true, features = ["std"] }
-toml = { workspace = true, optional = true }
-base64 = { workspace = true }
-bs58 = { workspace = true }
-hex = { workspace = true }
+toml.workspace = true
+toml.optional = true
+base64.workspace = true
+bs58.workspace = true
+hex.workspace = true
 
 # Async
-tokio = { workspace = true }
-anyhow = { workspace = true }
-chrono = { workspace = true, optional = true }
+tokio.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+chrono.optional = true
 
 # Logging
-log = { workspace = true }
+log.workspace = true
 env_logger = { workspace = true, optional = true }
-
-[build-dependencies]
-robonomics-metadata = { path = "../robonomics-metadata" }
 
 [features]
 default = ["mqtt", "cli"]

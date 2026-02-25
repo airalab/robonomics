@@ -46,7 +46,13 @@ pub struct Cli {
     pub verbose: u8,
 
     /// Output format (text or json)
-    #[arg(short, long, value_name = "FORMAT", default_value = "text", global = true)]
+    #[arg(
+        short,
+        long,
+        value_name = "FORMAT",
+        default_value = "text",
+        global = true
+    )]
     pub format: OutputFormat,
 }
 
@@ -57,7 +63,7 @@ pub enum Commands {
         /// Network topology to spawn
         #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
         topology: NetworkTopology,
-        
+
         /// Keep network running after spawn (don't wait for Ctrl+C)
         #[arg(long)]
         persist: bool,
@@ -65,7 +71,7 @@ pub enum Commands {
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "300")]
         timeout: u64,
-        
+
         /// Directory to store node logs
         #[arg(long, value_name = "DIR")]
         log_dir: Option<String>,
@@ -76,7 +82,7 @@ pub enum Commands {
         /// Network topology to spawn (ignored if --no-spawn is used)
         #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
         topology: NetworkTopology,
-        
+
         /// Stop on first test failure
         #[arg(long)]
         fail_fast: bool,
@@ -88,11 +94,11 @@ pub enum Commands {
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "60")]
         timeout: u64,
-        
+
         /// Skip network spawning (assume network is already running)
         #[arg(long)]
         no_spawn: bool,
-        
+
         /// Directory to store node logs
         #[arg(long, value_name = "DIR")]
         log_dir: Option<String>,

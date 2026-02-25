@@ -41,50 +41,77 @@ async fn main() {
         eprintln!("Fatal error: {}", e);
         EXIT_NETWORK_SPAWN_FAILED
     });
-    
+
     std::process::exit(exit_code);
 }
 
 async fn run() -> Result<i32> {
     let cli = Cli::parse();
-    
+
     // Initialize logging
     match cli.format {
         OutputFormat::Text => logging::init_logger(cli.verbose),
         OutputFormat::Json => logging::init_json_logger(),
     }
-    
+
     // Execute command
     let exit_code = match cli.command.unwrap_or_default() {
-        Commands::Spawn { topology, persist, timeout, log_dir } => {
-            cmd_spawn(&topology, persist, timeout, log_dir).await?
-        }
-        Commands::Test { topology, fail_fast, tests, timeout, no_spawn, log_dir } => {
-            cmd_test(&topology, fail_fast, tests, timeout, no_spawn, log_dir, &cli.format).await?
+        Commands::Spawn {
+            topology,
+            persist,
+            timeout,
+            log_dir,
+        } => cmd_spawn(&topology, persist, timeout, log_dir).await?,
+        Commands::Test {
+            topology,
+            fail_fast,
+            tests,
+            timeout,
+            no_spawn,
+            log_dir,
+        } => {
+            cmd_test(
+                &topology,
+                fail_fast,
+                tests,
+                timeout,
+                no_spawn,
+                log_dir,
+                &cli.format,
+            )
+            .await?
         }
     };
-    
+
     Ok(exit_code)
 }
 
 /// Spawn command handler
-async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64, log_dir: Option<String>) -> Result<i32> {
+async fn cmd_spawn(
+    topology: &cli::NetworkTopology,
+    persist: bool,
+    timeout: u64,
+    log_dir: Option<String>,
+) -> Result<i32> {
     let timeout_duration = Duration::from_secs(timeout);
-    
+
     if let Some(ref dir) = log_dir {
         log::info!("Node logs will be stored in: {}", dir);
         // TODO: Pass log_dir to zombienet-sdk configuration
     }
-    
+
     match network::spawn_network(topology, timeout_duration).await {
         Ok(network) => {
             if persist {
                 use colored::Colorize;
-                println!("{}", "Network will remain running. Press Ctrl+C to stop.".bright_black());
+                println!(
+                    "{}",
+                    "Network will remain running. Press Ctrl+C to stop.".bright_black()
+                );
                 println!();
-                
+
                 tokio::signal::ctrl_c().await?;
-                
+
                 println!();
                 println!("{}", "Shutting down network...".yellow());
                 drop(network);
@@ -102,21 +129,29 @@ async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64,
 }
 
 /// Test command handler
-async fn cmd_test(topology: &cli::NetworkTopology, fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: bool, log_dir: Option<String>, format: &OutputFormat) -> Result<i32> {
+async fn cmd_test(
+    topology: &cli::NetworkTopology,
+    fail_fast: bool,
+    tests: Vec<String>,
+    timeout: u64,
+    no_spawn: bool,
+    log_dir: Option<String>,
+    format: &OutputFormat,
+) -> Result<i32> {
     let network = if no_spawn {
         log::info!("Skipping network spawn (--no-spawn specified)");
         None
     } else {
         // Spawn the network
         log::info!("Spawning network for testing...");
-        
+
         if let Some(ref dir) = log_dir {
             log::info!("Node logs will be stored in: {}", dir);
             // TODO: Pass log_dir to zombienet-sdk configuration
         }
-        
+
         let timeout_duration = Duration::from_secs(timeout);
-        
+
         match network::spawn_network(topology, timeout_duration).await {
             Ok(n) => {
                 // Wait a bit for network to stabilize
@@ -129,19 +164,21 @@ async fn cmd_test(topology: &cli::NetworkTopology, fail_fast: bool, tests: Vec<S
             }
         }
     };
-    
+
     // Run tests
-    let test_filter = if tests.is_empty() {
-        None
-    } else {
-        Some(tests)
-    };
-    
-    let results = tests::run_integration_tests(topology, fail_fast, test_filter, matches!(format, OutputFormat::Json)).await?;
-    
+    let test_filter = if tests.is_empty() { None } else { Some(tests) };
+
+    let results = tests::run_integration_tests(
+        topology,
+        fail_fast,
+        test_filter,
+        matches!(format, OutputFormat::Json),
+    )
+    .await?;
+
     // Clean up network
     drop(network);
-    
+
     // Return appropriate exit code
     if results.is_success() {
         Ok(EXIT_SUCCESS)
@@ -149,5 +186,3 @@ async fn cmd_test(topology: &cli::NetworkTopology, fail_fast: bool, tests: Vec<S
         Ok(EXIT_TESTS_FAILED)
     }
 }
-
-

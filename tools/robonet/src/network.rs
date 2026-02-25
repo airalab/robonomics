@@ -21,7 +21,9 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
-use zombienet_sdk::{LocalFileSystem, Network, NetworkConfig, NetworkConfigBuilder, NetworkConfigExt};
+use zombienet_sdk::{
+    LocalFileSystem, Network, NetworkConfig, NetworkConfigBuilder, NetworkConfigExt,
+};
 
 use crate::cli::NetworkTopology;
 
@@ -51,7 +53,7 @@ impl NetworkEndpoints {
             asset_hub_ws: None,
         }
     }
-    
+
     pub fn assethub() -> Self {
         Self {
             relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
@@ -64,16 +66,18 @@ impl NetworkEndpoints {
 
 /// Build the network configuration based on topology
 pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig> {
-    log::debug!("Building network configuration for topology: {:?}", topology);
-    
-    let mut builder = NetworkConfigBuilder::new()
-        .with_relaychain(|r| {
-            r.with_chain("rococo-local")
-                .with_default_command("polkadot")
-                .with_validator(|v| v.with_name("alice").with_rpc_port(RELAY_RPC_PORT))
-                .with_validator(|v| v.with_name("bob"))
-        });
-    
+    log::debug!(
+        "Building network configuration for topology: {:?}",
+        topology
+    );
+
+    let mut builder = NetworkConfigBuilder::new().with_relaychain(|r| {
+        r.with_chain("rococo-local")
+            .with_default_command("polkadot")
+            .with_validator(|v| v.with_name("alice").with_rpc_port(RELAY_RPC_PORT))
+            .with_validator(|v| v.with_name("bob"))
+    });
+
     match topology {
         NetworkTopology::Simple => {
             // Simple: Robonomics parachain with 2 collators
@@ -105,34 +109,38 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
                         })
                 })
                 .with_parachain(|p| {
-                    p.with_id(PARA_ID)
-                        .with_chain("local")
-                        .with_collator(|c| {
-                            c.with_name("robonomics-collator")
-                                .with_command("robonomics")
-                                .with_rpc_port(COLLATOR_1_RPC_PORT)
-                        })
+                    p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
+                        c.with_name("robonomics-collator")
+                            .with_command("robonomics")
+                            .with_rpc_port(COLLATOR_1_RPC_PORT)
+                    })
                 })
                 .with_hrmp_channel(|h| h.with_sender(ASSET_HUB_PARA_ID).with_recipient(PARA_ID))
                 .with_hrmp_channel(|h| h.with_sender(PARA_ID).with_recipient(ASSET_HUB_PARA_ID));
         }
     }
-    
+
     let config = builder
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to build network configuration: {:?}", e))?;
-    
+
     log::debug!("Network configuration built successfully");
     Ok(config)
 }
 
 /// Spawn the network with progress indication
-pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Result<Network<LocalFileSystem>> {
+pub async fn spawn_network(
+    topology: &NetworkTopology,
+    timeout: Duration,
+) -> Result<Network<LocalFileSystem>> {
     println!();
     println!("{}", ">> Starting Robonomics Local Network".bold().green());
-    println!("{}", "==================================================".bright_black());
+    println!(
+        "{}",
+        "==================================================".bright_black()
+    );
     println!();
-    
+
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
         ProgressStyle::default_spinner()
@@ -140,33 +148,39 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
             .unwrap(),
     );
     spinner.enable_steady_tick(Duration::from_millis(100));
-    
+
     // Build configuration
     spinner.set_message(format!("Building {:?} network configuration...", topology));
     let config = build_network_config(topology)?;
-    
+
     // Spawn network
     spinner.set_message("Spawning relay chain validators...");
-    log::info!("Spawning network with timeout of {} seconds", timeout.as_secs());
-    
+    log::info!(
+        "Spawning network with timeout of {} seconds",
+        timeout.as_secs()
+    );
+
     let network = tokio::time::timeout(timeout, config.spawn_native())
         .await
         .context("Network spawn timeout")??;
-    
+
     spinner.finish_and_clear();
-    
+
     println!("{} Relay chain ready (alice, bob)", "[OK]".green());
-    
+
     match topology {
         NetworkTopology::Simple => {
-            println!("{} Parachain collators ready (collator-1, collator-2)", "[OK]".green());
+            println!(
+                "{} Parachain collators ready (collator-1, collator-2)",
+                "[OK]".green()
+            );
         }
         NetworkTopology::Assethub => {
             println!("{} AssetHub collator ready", "[OK]".green());
             println!("{} Robonomics collator ready", "[OK]".green());
         }
     }
-    
+
     // Wait a bit for parachain registration
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
@@ -176,32 +190,39 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
     );
     spinner.enable_steady_tick(Duration::from_millis(100));
     spinner.set_message("Waiting for parachain registration...");
-    
+
     tokio::time::sleep(Duration::from_secs(10)).await;
-    
+
     spinner.finish_and_clear();
-    
+
     match topology {
         NetworkTopology::Simple => {
             println!("{} Parachain {} registered", "[OK]".green(), PARA_ID);
         }
         NetworkTopology::Assethub => {
-            println!("{} AssetHub {} registered", "[OK]".green(), ASSET_HUB_PARA_ID);
+            println!(
+                "{} AssetHub {} registered",
+                "[OK]".green(),
+                ASSET_HUB_PARA_ID
+            );
             println!("{} Robonomics {} registered", "[OK]".green(), PARA_ID);
             println!("{} HRMP channels established", "[OK]".green());
         }
     }
     println!();
-    
+
     // Display connection info
     println!("{}", ">> Network Ready".bold().green());
-    println!("{}", "==================================================".bright_black());
-    
+    println!(
+        "{}",
+        "==================================================".bright_black()
+    );
+
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
         NetworkTopology::Assethub => NetworkEndpoints::assethub(),
     };
-    
+
     println!("{:<20} {}", "Relay Chain:", endpoints.relay_ws.cyan());
     if let Some(asset_hub) = endpoints.asset_hub_ws {
         println!("{:<20} {}", "AssetHub:", asset_hub.cyan());
@@ -211,9 +232,9 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
         println!("{:<20} {}", "Collator 2:", collator_2.cyan());
     }
     println!();
-    
+
     log::info!("Network spawned successfully");
-    
+
     Ok(network)
 }
 
@@ -223,7 +244,7 @@ pub fn display_endpoints(topology: &NetworkTopology) {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
         NetworkTopology::Assethub => NetworkEndpoints::assethub(),
     };
-    
+
     println!("{}", "Network Endpoints:".bold());
     println!("  Relay Chain:  {}", endpoints.relay_ws.cyan());
     if let Some(asset_hub) = endpoints.asset_hub_ws {

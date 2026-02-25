@@ -43,11 +43,11 @@ impl NetworkHealth {
     pub fn is_healthy(&self) -> bool {
         self.nodes.iter().all(|n| n.is_healthy)
     }
-    
+
     pub fn passed_count(&self) -> usize {
         self.nodes.iter().filter(|n| n.is_healthy).count()
     }
-    
+
     pub fn failed_count(&self) -> usize {
         self.nodes.iter().filter(|n| !n.is_healthy).count()
     }
@@ -56,33 +56,31 @@ impl NetworkHealth {
 /// Check if a node is healthy
 async fn check_node_health(name: &str, endpoint: &str) -> NodeHealth {
     log::debug!("Checking health of {} at {}", name, endpoint);
-    
+
     match OnlineClient::<PolkadotConfig>::from_url(endpoint).await {
-        Ok(client) => {
-            match client.blocks().at_latest().await {
-                Ok(block) => {
-                    let block_number = block.number();
-                    log::debug!("{} is healthy at block #{}", name, block_number);
-                    NodeHealth {
-                        name: name.to_string(),
-                        endpoint: endpoint.to_string(),
-                        is_healthy: true,
-                        block_number: Some(block_number),
-                        error: None,
-                    }
-                }
-                Err(e) => {
-                    log::warn!("{} connection ok but failed to fetch block: {}", name, e);
-                    NodeHealth {
-                        name: name.to_string(),
-                        endpoint: endpoint.to_string(),
-                        is_healthy: false,
-                        block_number: None,
-                        error: Some(format!("Failed to fetch block: {}", e)),
-                    }
+        Ok(client) => match client.blocks().at_latest().await {
+            Ok(block) => {
+                let block_number = block.number();
+                log::debug!("{} is healthy at block #{}", name, block_number);
+                NodeHealth {
+                    name: name.to_string(),
+                    endpoint: endpoint.to_string(),
+                    is_healthy: true,
+                    block_number: Some(block_number),
+                    error: None,
                 }
             }
-        }
+            Err(e) => {
+                log::warn!("{} connection ok but failed to fetch block: {}", name, e);
+                NodeHealth {
+                    name: name.to_string(),
+                    endpoint: endpoint.to_string(),
+                    is_healthy: false,
+                    block_number: None,
+                    error: Some(format!("Failed to fetch block: {}", e)),
+                }
+            }
+        },
         Err(e) => {
             log::warn!("{} is not reachable: {}", name, e);
             NodeHealth {
@@ -100,27 +98,30 @@ async fn check_node_health(name: &str, endpoint: &str) -> NodeHealth {
 pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
     println!();
     println!("{}", ">> Network Health Check".bold().cyan());
-    println!("{}", "==================================================".bright_black());
+    println!(
+        "{}",
+        "==================================================".bright_black()
+    );
     println!();
-    
+
     // Use simple topology for health checks
     let endpoints = NetworkEndpoints::simple();
-    
+
     let mut nodes = vec![
         ("Relay Chain", endpoints.relay_ws.as_str()),
         ("Robonomics", endpoints.collator_1_ws.as_str()),
     ];
-    
+
     if let Some(ref collator_2) = endpoints.collator_2_ws {
         nodes.push(("Collator 2", collator_2.as_str()));
     }
-    
+
     let mut health_results = Vec::new();
-    
+
     let nodes_len = nodes.len();
     for (name, endpoint) in nodes {
         let health = check_node_health(name, endpoint).await;
-        
+
         // Display result
         if health.is_healthy {
             print!("  {} {:<20}", "[OK]".green(), name.green());
@@ -129,9 +130,13 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
             } else {
                 println!();
             }
-            
+
             if detailed {
-                println!("    {}: {}", "Endpoint".bright_black(), endpoint.bright_black());
+                println!(
+                    "    {}: {}",
+                    "Endpoint".bright_black(),
+                    endpoint.bright_black()
+                );
             }
         } else {
             print!("  {} {:<20}", "[FAIL]".red(), name.red());
@@ -140,34 +145,51 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
             } else {
                 println!();
             }
-            
+
             if detailed {
-                println!("    {}: {}", "Endpoint".bright_black(), endpoint.bright_black());
+                println!(
+                    "    {}: {}",
+                    "Endpoint".bright_black(),
+                    endpoint.bright_black()
+                );
             }
         }
-        
+
         health_results.push(health);
     }
-    
+
     println!();
-    let network_health = NetworkHealth { nodes: health_results };
-    
+    let network_health = NetworkHealth {
+        nodes: health_results,
+    };
+
     // Display summary
     println!("{}", "Summary".bold());
-    println!("{}", "==================================================".bright_black());
+    println!(
+        "{}",
+        "==================================================".bright_black()
+    );
     println!("  Total nodes:    {}", nodes_len);
-    println!("  Healthy:        {}", network_health.passed_count().to_string().green());
-    println!("  Unhealthy:      {}", network_health.failed_count().to_string().red());
+    println!(
+        "  Healthy:        {}",
+        network_health.passed_count().to_string().green()
+    );
+    println!(
+        "  Unhealthy:      {}",
+        network_health.failed_count().to_string().red()
+    );
     println!();
-    
+
     if network_health.is_healthy() {
         log::info!("All network nodes are healthy");
     } else {
-        log::warn!("{} out of {} nodes are unhealthy", 
-            network_health.failed_count(), 
-            network_health.nodes.len());
+        log::warn!(
+            "{} out of {} nodes are unhealthy",
+            network_health.failed_count(),
+            network_health.nodes.len()
+        );
     }
-    
+
     Ok(network_health)
 }
 
@@ -176,26 +198,30 @@ pub async fn verify_block_production(endpoint: &str, wait_secs: u64) -> Result<b
     let client = OnlineClient::<PolkadotConfig>::from_url(endpoint)
         .await
         .context("Failed to connect to node")?;
-    
+
     let block1 = client.blocks().at_latest().await?;
     let block_num1 = block1.number();
-    
+
     log::debug!("Initial block number: {}", block_num1);
-    
+
     tokio::time::sleep(tokio::time::Duration::from_secs(wait_secs)).await;
-    
+
     let block2 = client.blocks().at_latest().await?;
     let block_num2 = block2.number();
-    
+
     log::debug!("New block number: {}", block_num2);
-    
+
     let is_producing = block_num2 > block_num1;
-    
+
     if is_producing {
-        log::debug!("Block production verified: {} -> {}", block_num1, block_num2);
+        log::debug!(
+            "Block production verified: {} -> {}",
+            block_num1,
+            block_num2
+        );
     } else {
         log::warn!("No new blocks produced: {} -> {}", block_num1, block_num2);
     }
-    
+
     Ok(is_producing)
 }

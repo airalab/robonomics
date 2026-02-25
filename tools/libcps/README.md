@@ -14,7 +14,6 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 
 ## ✨ Features
 
-- 🎨 **Beautiful colored output** with emojis and ASCII art (CLI)
 - 🔐 **Multi-algorithm AEAD encryption** (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
 - 🔑 **Dual keypair support** (SR25519 for Substrate, ED25519 for IoT/Home Assistant)
 - 📡 **MQTT bridge** for IoT device integration (optional feature)
