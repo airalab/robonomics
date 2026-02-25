@@ -50,12 +50,24 @@ impl CliConfigT for CliConfig {
 
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
-        robonomics_runtime::WASM_BINARY.ok_or("wasm not available")?,
+        robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
         Extensions::new("westend-local".into(), 2048),
     )
     .with_name("Robonomics Local Develoment")
     .with_id("robonomics-local-development")
     .with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
+    .build();
+    Ok(config)
+}
+
+fn robonomics_localnet_config() -> Result<GenericChainSpec, String> {
+    let config = GenericChainSpec::builder(
+        robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
+        Extensions::new("rococo-local".into(), 2000),
+    )
+    .with_name("Robonomics Localnet")
+    .with_id("robonomics-localnet")
+    .with_genesis_config_preset_name(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET)
     .build();
     Ok(config)
 }
@@ -72,6 +84,7 @@ impl LoadSpec for RobonomicsChainSpecLoader {
             "kusama" => GenericChainSpec::from_json_bytes(
                 &include_bytes!("../../../chains/kusama-parachain.raw.json")[..],
             )?,
+            "localnet" => robonomics_localnet_config()?,
             "dev" => robonomics_development_config()?,
             path => GenericChainSpec::from_json_file(path.into())?,
         }))

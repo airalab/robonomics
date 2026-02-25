@@ -208,7 +208,7 @@ async function testXcmDownwardMessage(testResults) {
         },
         {
           Transact: {
-            origin_kind: 'Superuser',
+            origin_kind: 'SovereignAccount',
             call: {
               encoded: parachainApi.tx.system.remarkWithEvent('XCM downward test').toHex()
             }

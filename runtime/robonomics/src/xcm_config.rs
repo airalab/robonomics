@@ -116,11 +116,6 @@ pub type XcmOriginToTransactDispatchOrigin = (
     pallet_xcm::XcmPassthrough<RuntimeOrigin>,
 );
 
-parameter_types! {
-    // One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-    pub UnitWeightCost: Weight = Weight::from_parts(1_000_000, 4 * 1024);
-}
-
 pub struct ParentRelayOrSiblingParachains;
 impl Contains<Location> for ParentRelayOrSiblingParachains {
     fn contains(location: &Location) -> bool {

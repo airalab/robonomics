@@ -17,7 +17,7 @@ codegen-units = 1
 
 [workspace]
 members = [
-  "bin/robonomics",
+  "bin",
   "frame/rws",
   "frame/launch",
   "frame/datalog",
@@ -27,6 +27,7 @@ members = [
   "frame/claim",
   "runtime/robonomics",
   "tools/libcps",
+  "tools/localnet",
 ]
 resolver = "2"
 
@@ -62,6 +63,7 @@ anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
 log = "0.4"
+zombienet-sdk = "0.4.6"
 
 # Cryptography (for libcps)
 curve25519-dalek = "4.1"

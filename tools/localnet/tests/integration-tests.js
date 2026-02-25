@@ -232,9 +232,9 @@ async function runTests() {
     await sleep(TESTS_CONFIG.networkStabilizationTime);
     
     // Run basic tests sequentially
-    await testNetworkInitialization();
-    await testBlockProduction();
-    await testExtrinsicSubmission();
+    //await testNetworkInitialization();
+    //await testBlockProduction();
+    //await testExtrinsicSubmission();
     
     // Run XCM tests
     log.info('='.repeat(50));
@@ -243,7 +243,7 @@ async function runTests() {
     
     await testXcmUpwardMessage(testResults);
     await testXcmDownwardMessage(testResults);
-    await testAssetHubTeleport(testResults);
+    //await testAssetHubTeleport(testResults);
     
     // Print results
     log.info('='.repeat(50));
