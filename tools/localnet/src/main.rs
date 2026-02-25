@@ -15,56 +15,152 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! ZombieNet SDK based Robonomics local network.
+//! Robonomics local network spawner and integration test tool.
 
 use anyhow::Result;
-use zombienet_sdk::{NetworkConfigBuilder, NetworkConfigExt};
+use clap::Parser;
+use std::time::Duration;
 
-const RELAY_RPC_PORT: u16 = 9944;
-const ASSET_HUB_RPC_PORT: u16 = 9911;
-const ROBONOMICS_RPC_PORT: u16 = 9988;
+mod ci;
+mod cleanup;
+mod cli;
+mod health;
+mod logging;
+mod network;
+mod tests;
+
+use cli::{Cli, Commands, OutputFormat};
+
+/// Exit codes
+const EXIT_SUCCESS: i32 = 0;
+const EXIT_TESTS_FAILED: i32 = 1;
+const EXIT_NETWORK_SPAWN_FAILED: i32 = 2;
+const EXIT_TIMEOUT: i32 = 3;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let network = NetworkConfigBuilder::new()
-        .with_relaychain(|r| {
-            r.with_chain("rococo-local")
-                .with_default_command("polkadot")
-                .with_validator(|v| v.with_name("alice").with_rpc_port(RELAY_RPC_PORT))
-                .with_validator(|v| v.with_name("bob"))
-        })
-        .with_parachain(|p| {
-            p.with_id(1000)
-                .with_chain("asset-hub-rococo-local")
-                .with_collator(|c| {
-                    c.with_name("collator-1000")
-                        .with_command("polkadot-parachain")
-                        .with_rpc_port(ASSET_HUB_RPC_PORT)
-                })
-        })
-        .with_parachain(|p| {
-            p.with_id(2000).with_chain("local").with_collator(|c| {
-                c.with_name("collator-2000")
-                    .with_command("robonomics")
-                    .with_rpc_port(ROBONOMICS_RPC_PORT)
-            })
-        })
-        .with_hrmp_channel(|h| h.with_sender(1000).with_recipient(2000))
-        .with_hrmp_channel(|h| h.with_sender(2000).with_recipient(1000))
-        .build()
-        .unwrap()
-        .spawn_native()
-        .await?;
+async fn main() {
+    let exit_code = run().await.unwrap_or_else(|e| {
+        eprintln!("Fatal error: {}", e);
+        EXIT_NETWORK_SPAWN_FAILED
+    });
+    
+    std::process::exit(exit_code);
+}
 
-    println!("Alice WS: {}", network.get_node("alice")?.ws_uri());
-    println!(
-        "ParaId 1000 WS: {}",
-        network.get_node("collator-1000")?.ws_uri()
-    );
-    println!(
-        "ParaId 2000 WS: {}",
-        network.get_node("collator-2000")?.ws_uri()
-    );
-    tokio::signal::ctrl_c().await?;
-    Ok(())
+async fn run() -> Result<i32> {
+    let cli = Cli::parse();
+    
+    // Initialize logging
+    match cli.format {
+        OutputFormat::Text => logging::init_logger(cli.verbose),
+        OutputFormat::Json => logging::init_json_logger(),
+    }
+    
+    // Execute command
+    let exit_code = match cli.command.unwrap_or_default() {
+        Commands::Spawn { persist, timeout } => {
+            cmd_spawn(persist, timeout).await?
+        }
+        Commands::Test { fail_fast, filter, timeout } => {
+            cmd_test(fail_fast, filter.as_deref(), timeout, &cli.format).await?
+        }
+        Commands::Health { detailed } => {
+            cmd_health(detailed).await?
+        }
+        Commands::Clean { force } => {
+            cmd_clean(force).await?
+        }
+    };
+    
+    Ok(exit_code)
+}
+
+/// Spawn command handler
+async fn cmd_spawn(persist: bool, timeout: u64) -> Result<i32> {
+    let timeout_duration = Duration::from_secs(timeout);
+    
+    match network::spawn_network(timeout_duration).await {
+        Ok(network) => {
+            if persist {
+                use colored::Colorize;
+                println!("{}", "Network will remain running. Press Ctrl+C to stop.".bright_black());
+                println!();
+                
+                tokio::signal::ctrl_c().await?;
+                
+                println!();
+                println!("{}", "Shutting down network...".yellow());
+                drop(network);
+                println!("{}", "Network stopped.".green());
+            } else {
+                drop(network);
+            }
+            Ok(EXIT_SUCCESS)
+        }
+        Err(e) => {
+            log::error!("Failed to spawn network: {}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Test command handler
+async fn cmd_test(fail_fast: bool, filter: Option<&str>, timeout: u64, format: &OutputFormat) -> Result<i32> {
+    // First spawn the network
+    log::info!("Spawning network for testing...");
+    let timeout_duration = Duration::from_secs(timeout);
+    
+    let network = match network::spawn_network(timeout_duration).await {
+        Ok(n) => n,
+        Err(e) => {
+            log::error!("Failed to spawn network: {}", e);
+            return Ok(EXIT_NETWORK_SPAWN_FAILED);
+        }
+    };
+    
+    // Wait a bit for network to stabilize
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    
+    // Run tests
+    let results = tests::run_integration_tests(fail_fast, filter).await?;
+    
+    // Output results based on format
+    match format {
+        OutputFormat::Json => {
+            ci::output_json(&results)?;
+        }
+        OutputFormat::Text => {
+            // Results already printed in run_integration_tests
+            if std::env::var("GITHUB_ACTIONS").is_ok() {
+                ci::output_github_annotations(&results);
+            }
+        }
+    }
+    
+    // Clean up network
+    drop(network);
+    
+    // Return appropriate exit code
+    if results.is_success() {
+        Ok(EXIT_SUCCESS)
+    } else {
+        Ok(EXIT_TESTS_FAILED)
+    }
+}
+
+/// Health command handler
+async fn cmd_health(detailed: bool) -> Result<i32> {
+    let health = health::check_network_health(detailed).await?;
+    
+    if health.is_healthy() {
+        Ok(EXIT_SUCCESS)
+    } else {
+        Ok(EXIT_TESTS_FAILED)
+    }
+}
+
+/// Clean command handler
+async fn cmd_clean(force: bool) -> Result<i32> {
+    cleanup::cleanup_resources(force).await?;
+    Ok(EXIT_SUCCESS)
 }
