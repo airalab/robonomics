@@ -33,6 +33,13 @@ use crate::network::NetworkEndpoints;
 // Ethereum address type (20 bytes)
 type EthereumAddress = H160;
 
+// Test Ethereum account with predefined seed and address
+// Seed: 0x0000000000000000000000000000000000000000000000000000000000000001
+// Private key derived from seed
+// Public address: 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+const TEST_ETH_ADDRESS: &str = "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
+const TEST_ETH_SEED: [u8; 32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+
 /// Test: Pallet setup - add claims and fund pallet account
 async fn test_pallet_setup(client: &OnlineClient::<PolkadotConfig>) -> Result<()> {
     log::info!("Testing claim pallet setup");
@@ -41,16 +48,17 @@ async fn test_pallet_setup(client: &OnlineClient::<PolkadotConfig>) -> Result<()
     let alice = dev::alice();
     let signer = PairSigner::new(alice);
     
-    // Example Ethereum address (would be replaced with actual test address)
-    let eth_address = EthereumAddress::from_low_u64_be(0x1234567890abcdef);
+    // Use test Ethereum account with predefined address
+    let eth_address: EthereumAddress = TEST_ETH_ADDRESS.parse()
+        .context("Failed to parse test Ethereum address")?;
     let claim_amount = 1_000_000_000_000u128; // 1 token with 12 decimals
     
-    log::info!("Setting up claim for Ethereum address: {:?}", eth_address);
+    log::info!("Setting up claim for Ethereum address: {}", TEST_ETH_ADDRESS);
     log::info!("Claim amount: {}", claim_amount);
     
     // TODO: Once runtime metadata is available, implement:
     // 1. Calculate pallet account ID from PalletId
-    // 2. Fund pallet account with sufficient tokens
+    // 2. Fund pallet account using set_balance with sudo (not transfer)
     // 3. Add claim via sudo call: Claims::add_claim(origin, eth_address, amount)
     // 4. Verify claim was added to storage
     
@@ -63,15 +71,17 @@ async fn test_pallet_setup(client: &OnlineClient::<PolkadotConfig>) -> Result<()
         &frame_support::PalletId(*b"py/claim")
     );
     
-    // Fund pallet account
-    let fund_tx = robonomics::tx().balances().transfer(
+    // Fund pallet account using set_balance with sudo
+    let set_balance_call = robonomics::tx().balances().force_set_balance(
         pallet_id.clone().into(),
         claim_amount,
     );
     
+    let sudo_set_balance = robonomics::tx().sudo().sudo(set_balance_call);
+    
     let fund_events = client
         .tx()
-        .sign_and_submit_then_watch_default(&fund_tx, &signer)
+        .sign_and_submit_then_watch_default(&sudo_set_balance, &signer)
         .await?
         .wait_for_finalized_success()
         .await?;
@@ -121,15 +131,15 @@ async fn test_pallet_setup(client: &OnlineClient::<PolkadotConfig>) -> Result<()
 async fn test_claim_from_ethereum(client: &OnlineClient::<PolkadotConfig>) -> Result<()> {
     log::info!("Testing token claim from Ethereum account");
     
-    // Generate test Ethereum key
+    // Generate test Ethereum key using predefined seed
     use secp256k1::{Secp256k1, SecretKey, Message};
     use sp_core::hashing::keccak_256;
     
     let secp = Secp256k1::new();
     
-    // Create Ethereum keypair (in real test, would use actual keys)
-    let secret_key = SecretKey::from_slice(&[1u8; 32])
-        .context("Failed to create secret key")?;
+    // Create Ethereum keypair using test seed
+    let secret_key = SecretKey::from_slice(&TEST_ETH_SEED)
+        .context("Failed to create secret key from test seed")?;
     let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret_key);
     
     // Derive Ethereum address from public key
@@ -137,7 +147,8 @@ async fn test_claim_from_ethereum(client: &OnlineClient::<PolkadotConfig>) -> Re
     let eth_address_bytes = &keccak_256(public_key_bytes)[12..]; // Take last 20 bytes
     let eth_address = EthereumAddress::from_slice(eth_address_bytes);
     
-    log::info!("Test Ethereum address: {:?}", eth_address);
+    log::info!("Test Ethereum address: {}", TEST_ETH_ADDRESS);
+    log::info!("Derived Ethereum address: {:?}", eth_address);
     
     // Destination Substrate account
     let bob = dev::bob();

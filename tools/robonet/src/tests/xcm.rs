@@ -214,6 +214,15 @@ pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()
 }
 
 /// Test: Add foreign token to AssetHub from parachain
+/// 
+/// This test demonstrates registering a foreign asset following the Polkadot documentation:
+/// https://docs.polkadot.com/chain-interactions/token-operations/register-foreign-asset/
+/// 
+/// The process involves:
+/// 1. Creating an asset on AssetHub (if not exists)
+/// 2. Setting asset metadata (name, symbol, decimals)
+/// 3. Registering the asset as a foreign asset on the parachain
+/// 4. Setting up bidirectional asset mapping between chains
 async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
     log::info!("Testing foreign token registration on AssetHub");
     
@@ -228,16 +237,19 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
     log::info!("Connected to parachain and AssetHub");
     
     // TODO: Once runtime metadata is available, implement:
-    // 1. Create asset on AssetHub or use existing
-    // 2. Set up asset metadata
-    // 3. Register asset as foreign on parachain
-    // 4. Verify asset is accessible from parachain
+    // Following https://docs.polkadot.com/chain-interactions/token-operations/register-foreign-asset/
+    // 
+    // 1. Create asset on AssetHub (or use existing native token)
+    // 2. Set up asset metadata (name, symbol, decimals)
+    // 3. Register asset as foreign on parachain using ForeignAssets pallet
+    // 4. Configure asset location using MultiLocation
+    // 5. Verify asset is accessible from parachain via XCM
     
     // Example structure:
     /*
     let asset_id = 1000u32;
     
-    // Create asset on AssetHub via sudo
+    // Step 1: Create asset on AssetHub via sudo
     let create_asset = assethub::tx().assets().create(
         asset_id,
         dev::alice().public_key().into(),
@@ -255,7 +267,7 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
     
     log::info!("Asset created on AssetHub: {:?}", create_events);
     
-    // Set metadata
+    // Step 2: Set metadata
     let set_metadata = assethub::tx().assets().set_metadata(
         asset_id,
         b"Test Token".to_vec(),
@@ -270,9 +282,37 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
         .wait_for_finalized_success()
         .await?;
     
-    log::info!("✓ Foreign token registered on AssetHub");
+    log::info!("Asset metadata set on AssetHub");
     
-    // Verify asset exists
+    // Step 3: Register as foreign asset on parachain
+    // Define MultiLocation pointing to AssetHub asset
+    let asset_location = VersionedLocation::V3(MultiLocation {
+        parents: 1,
+        interior: X2(
+            Parachain(1000), // AssetHub para ID
+            GeneralIndex(asset_id as u128),
+        ),
+    });
+    
+    // Register the foreign asset
+    let register_foreign = robonomics::tx().foreign_assets().create(
+        asset_location.clone(),
+        dev::alice().public_key().into(),
+        1_000_000, // min balance
+    );
+    
+    let sudo_register = robonomics::tx().sudo().sudo(register_foreign);
+    
+    let register_events = para_client
+        .tx()
+        .sign_and_submit_then_watch_default(&sudo_register, &dev::alice())
+        .await?
+        .wait_for_finalized_success()
+        .await?;
+    
+    log::info!("Foreign asset registered on parachain: {:?}", register_events);
+    
+    // Step 4: Verify asset exists on AssetHub
     let asset_details = assethub::storage().assets().asset(asset_id);
     let details = assethub_client
         .storage()
@@ -285,6 +325,21 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
         log::info!("✓ Asset details verified on AssetHub");
     } else {
         anyhow::bail!("Asset not found on AssetHub");
+    }
+    
+    // Step 5: Verify foreign asset registration on parachain
+    let foreign_asset = robonomics::storage().foreign_assets().asset(asset_location);
+    let foreign_details = para_client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&foreign_asset)
+        .await?;
+    
+    if foreign_details.is_some() {
+        log::info!("✓ Foreign asset registration verified on parachain");
+    } else {
+        anyhow::bail!("Foreign asset not found on parachain");
     }
     */
     
