@@ -103,13 +103,17 @@ pub async fn check_network_health(detailed: bool) -> Result<NetworkHealth> {
     println!("{}", "==================================================".bright_black());
     println!();
     
-    let endpoints = NetworkEndpoints::new();
+    // Use simple topology for health checks
+    let endpoints = NetworkEndpoints::simple();
     
-    let nodes = vec![
+    let mut nodes = vec![
         ("Relay Chain", endpoints.relay_ws.as_str()),
-        ("Collator 1", endpoints.collator_1_ws.as_str()),
-        ("Collator 2", endpoints.collator_2_ws.as_str()),
+        ("Robonomics", endpoints.collator_1_ws.as_str()),
     ];
+    
+    if let Some(ref collator_2) = endpoints.collator_2_ws {
+        nodes.push(("Collator 2", collator_2.as_str()));
+    }
     
     let mut health_results = Vec::new();
     
