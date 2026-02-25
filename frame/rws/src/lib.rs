@@ -507,7 +507,8 @@ pub mod pallet {
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
-            let mut indexes_without_bids = BoundedVec::<T::AuctionIndex, T::MaxAuctionIndexesAmount>::new();
+            let mut indexes_without_bids =
+                BoundedVec::<T::AuctionIndex, T::MaxAuctionIndexesAmount>::new();
             let _ = next
                 .iter()
                 .map(|(i, _)| indexes_without_bids.try_push(i.clone()));
