@@ -18,8 +18,10 @@
 //! Basic network functionality tests.
 
 use anyhow::{Context, Result};
+use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 use std::time::Duration;
 use subxt::{OnlineClient, PolkadotConfig};
+use subxt_signer::sr25519::dev;
 
 use crate::cli::NetworkTopology;
 use crate::network::NetworkEndpoints;
@@ -37,8 +39,8 @@ pub async fn test_network_initialization(topology: &NetworkTopology) -> Result<(
         .context("Failed to connect to relay chain")?;
     log::debug!("Connected to relay chain");
 
-    // Connect to parachain collator 1
-    let _para_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+    // Connect to parachain collator 1 (using RobonomicsConfig for parachain)
+    let _para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
         .await
         .context("Failed to connect to robonomics parachain")?;
     log::debug!("Connected to robonomics parachain");
@@ -80,8 +82,8 @@ pub async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
         anyhow::bail!("Relay chain is not producing blocks");
     }
 
-    // Check parachain
-    let para_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+    // Check parachain (using RobonomicsConfig for parachain)
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
         .await
         .context("Failed to connect to parachain")?;
 
@@ -106,38 +108,29 @@ pub async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
 pub async fn test_extrinsic_submission(_topology: &NetworkTopology) -> Result<()> {
     let endpoints = NetworkEndpoints::simple();
 
-    let client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
         .await
         .context("Failed to connect to parachain")?;
 
-    let alice = subxt_signer::sr25519::dev::alice();
-    log::debug!("Using Alice account");
+    let alice = dev::alice();
+    log::debug!("Using Alice account: {:?}", alice.public_key());
 
-    // Create a remark transaction
-    let remark_call = subxt::dynamic::tx(
-        "System",
-        "remark",
-        vec![subxt::dynamic::Value::from_bytes(
-            "Localnet integration test",
-        )],
-    );
+    // Create a remark transaction using the generated API
+    let remark_tx = api::tx()
+        .system()
+        .remark(b"Robonet integration test".to_vec());
 
-    // Submit and watch for inclusion
-    let mut progress = client
+    // Submit and watch for finalization
+    let events = client
         .tx()
-        .sign_and_submit_then_watch_default(&remark_call, &alice)
+        .sign_and_submit_then_watch_default(&remark_tx, &alice)
         .await
-        .context("Failed to submit transaction")?;
+        .context("Failed to submit transaction")?
+        .wait_for_finalized_success()
+        .await
+        .context("Transaction failed")?;
 
-    // Wait for in block
-    use futures::StreamExt;
-    while let Some(status) = progress.next().await {
-        let status = status.context("Failed to get transaction status")?;
-        if let Some(in_block) = status.as_in_block() {
-            log::debug!("Transaction included in block: {:?}", in_block);
-            break;
-        }
-    }
+    log::info!("✓ Remark transaction finalized in block: {:?}", events.block_hash());
 
     Ok(())
 }

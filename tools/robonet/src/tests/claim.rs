@@ -22,9 +22,10 @@
 //! - Token claiming from Ethereum accounts
 
 use anyhow::{Context, Result};
+use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 use sp_core::{Pair, H160};
 use sp_runtime::AccountId32;
-use subxt::{tx::PairSigner, OnlineClient, PolkadotConfig};
+use subxt::{tx::PairSigner, OnlineClient};
 use subxt_signer::sr25519::dev;
 
 use crate::cli::NetworkTopology;
@@ -43,7 +44,7 @@ const TEST_ETH_SEED: [u8; 32] = [
 ];
 
 /// Test: Pallet setup - add claims and fund pallet account
-async fn test_pallet_setup(client: &OnlineClient<PolkadotConfig>) -> Result<()> {
+async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()> {
     log::info!("Testing claim pallet setup");
 
     // Get Alice (sudo) signer
@@ -62,81 +63,54 @@ async fn test_pallet_setup(client: &OnlineClient<PolkadotConfig>) -> Result<()> 
     );
     log::info!("Claim amount: {}", claim_amount);
 
-    // TODO: Once runtime metadata is available, implement:
-    // 1. Calculate pallet account ID from PalletId
-    // 2. Fund pallet account using set_balance with sudo (not transfer)
-    // 3. Add claim via sudo call: Claims::add_claim(origin, eth_address, amount)
-    // 4. Verify claim was added to storage
-
-    // Example of what the actual implementation would look like:
-    /*
-    use subxt::tx::TxPayload;
-
-    // Get pallet account
-    let pallet_id = sp_runtime::traits::AccountIdConversion::into_account_truncating(
-        &frame_support::PalletId(*b"py/claim")
-    );
-
-    // Fund pallet account using set_balance with sudo
-    let set_balance_call = robonomics::tx().balances().force_set_balance(
-        pallet_id.clone().into(),
-        claim_amount,
-    );
-
-    let sudo_set_balance = robonomics::tx().sudo().sudo(set_balance_call);
-
-    let fund_events = client
-        .tx()
-        .sign_and_submit_then_watch_default(&sudo_set_balance, &signer)
-        .await?
-        .wait_for_finalized_success()
-        .await?;
-
-    log::info!("Funded pallet account: {:?}", fund_events);
-
+    // Get the balance of the claims pallet account before funding
+    // The pallet account ID can be computed from the pallet's module prefix
+    // For robonomics-claim pallet, it's typically "py/claim"
+    
     // Add claim via sudo
-    let add_claim_call = robonomics::tx().claims().add_claim(eth_address, claim_amount);
-    let sudo_tx = robonomics::tx().sudo().sudo(add_claim_call);
+    let add_claim_tx = api::tx().claim().add_claim(eth_address.into(), claim_amount);
+    let sudo_add_claim = api::tx().sudo().sudo(add_claim_tx);
 
     let claim_events = client
         .tx()
-        .sign_and_submit_then_watch_default(&sudo_tx, &signer)
-        .await?
+        .sign_and_submit_then_watch_default(&sudo_add_claim, &signer)
+        .await
+        .context("Failed to submit add_claim transaction")?
         .wait_for_finalized_success()
-        .await?;
+        .await
+        .context("add_claim transaction failed")?;
 
-    log::info!("Added claim: {:?}", claim_events);
+    log::info!("Added claim via sudo: block {:?}", claim_events.block_hash());
 
     // Verify claim in storage
-    let claims_storage = robonomics::storage().claims().claims(eth_address);
-    let claim = client
+    let claims_query = api::storage().claim().claims(eth_address.into());
+    let stored_claim = client
         .storage()
         .at_latest()
         .await?
-        .fetch(&claims_storage)
-        .await?;
+        .fetch(&claims_query)
+        .await
+        .context("Failed to fetch claim from storage")?;
 
-    if let Some(stored_amount) = claim {
+    if let Some(stored_amount) = stored_claim {
         if stored_amount == claim_amount {
-            log::info!("✓ Claim verified in storage");
+            log::info!("✓ Claim verified in storage: {} units", stored_amount);
         } else {
-            anyhow::bail!("Claim amount mismatch");
+            anyhow::bail!(
+                "Claim amount mismatch: expected {}, got {}",
+                claim_amount,
+                stored_amount
+            );
         }
     } else {
         anyhow::bail!("Claim not found in storage");
     }
-    */
-
-    log::warn!(
-        "Claim pallet setup test requires runtime metadata - skipping actual implementation"
-    );
-    log::info!("✓ Pallet setup test structure verified");
 
     Ok(())
 }
 
 /// Test: Claim tokens from Ethereum account
-async fn test_claim_from_ethereum(client: &OnlineClient<PolkadotConfig>) -> Result<()> {
+async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Result<()> {
     log::info!("Testing token claim from Ethereum account");
 
     // Generate test Ethereum key using predefined seed
@@ -164,80 +138,108 @@ async fn test_claim_from_ethereum(client: &OnlineClient<PolkadotConfig>) -> Resu
 
     log::info!("Destination account: {:?}", dest_account);
 
-    // TODO: Once runtime metadata is available, implement:
-    // 1. Create message: prefix + hex(dest_account)
-    // 2. Sign message with Ethereum key (personal_sign format)
-    // 3. Submit claim extrinsic with signature
-    // 4. Verify tokens were transferred
-    // 5. Verify claim was removed from storage
-
-    // Example of what the actual implementation would look like:
-    /*
-    // Construct message to sign
+    // Construct message to sign (following Ethereum personal_sign format)
     let prefix = b"Pay RWS to the Robonomics account:";
     let account_hex = hex::encode(dest_account.as_ref());
     let message = format!("{}{}", String::from_utf8_lossy(prefix), account_hex);
+
+    log::debug!("Message to sign: {}", message);
 
     // Hash message with Ethereum prefix
     let eth_prefix = format!("\x19Ethereum Signed Message:\n{}", message.len());
     let full_message = format!("{}{}", eth_prefix, message);
     let message_hash = keccak_256(full_message.as_bytes());
 
-    // Sign with secp256k1
-    let message = Message::from_digest_slice(&message_hash)?;
-    let (recovery_id, signature_bytes) = secp.sign_ecdsa_recoverable(&message, &secret_key).serialize_compact();
+    log::debug!("Message hash: {}", hex::encode(&message_hash));
 
-    // Construct Ethereum signature (r, s, v)
+    // Sign with secp256k1
+    let secp_message = Message::from_digest_slice(&message_hash)
+        .context("Failed to create message from hash")?;
+    let (recovery_id, signature_bytes) = secp
+        .sign_ecdsa_recoverable(&secp_message, &secret_key)
+        .serialize_compact();
+
+    // Construct Ethereum signature (r, s, v) - 65 bytes total
     let mut eth_signature = [0u8; 65];
     eth_signature[..64].copy_from_slice(&signature_bytes);
-    eth_signature[64] = recovery_id.to_i32() as u8;
+    eth_signature[64] = recovery_id.to_i32() as u8 + 27; // Add 27 to recovery ID for Ethereum
 
     log::info!("Ethereum signature: {}", hex::encode(&eth_signature));
 
-    // Submit claim transaction
-    let claim_tx = robonomics::tx().claims().claim(
-        dest_account.clone(),
-        eth_signature,
-    );
+    // Get Bob's balance before claim
+    let balance_query = api::storage().system().account(dest_account.clone());
+    let account_before = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&balance_query)
+        .await
+        .context("Failed to fetch account")?;
+
+    let balance_before = account_before.map(|a| a.data.free).unwrap_or(0);
+    log::info!("Bob's balance before claim: {}", balance_before);
+
+    // Submit claim transaction (anyone can submit, not just the destination account)
+    let claim_tx = api::tx().claim().claim(dest_account.clone(), eth_signature);
 
     let claim_events = client
         .tx()
         .sign_and_submit_then_watch_default(&claim_tx, &dev::alice())
-        .await?
+        .await
+        .context("Failed to submit claim transaction")?
         .wait_for_finalized_success()
-        .await?;
+        .await
+        .context("Claim transaction failed")?;
 
-    log::info!("Claim submitted: {:?}", claim_events);
+    log::info!("Claim submitted in block: {:?}", claim_events.block_hash());
 
-    // Verify claim was processed
+    // Find the Claimed event
     let claimed_event = claim_events
-        .find_first::<robonomics::claims::events::Claimed>()?;
+        .find_first::<api::claim::events::Claimed>()
+        .context("Failed to find events")?;
 
     if let Some(event) = claimed_event {
-        log::info!("✓ Claim successful: {:?} tokens transferred to {:?}",
-            event.amount, event.who);
+        log::info!(
+            "✓ Claim successful: {} tokens transferred to {:?}",
+            event.amount,
+            event.who
+        );
     } else {
-        anyhow::bail!("Claimed event not found");
+        anyhow::bail!("Claimed event not found in transaction events");
     }
 
-    // Verify claim was removed
-    let claims_storage = robonomics::storage().claims().claims(eth_address);
-    let claim = client
+    // Verify claim was removed from storage
+    let claims_query = api::storage().claim().claims(eth_address.into());
+    let remaining_claim = client
         .storage()
         .at_latest()
         .await?
-        .fetch(&claims_storage)
+        .fetch(&claims_query)
         .await?;
 
-    if claim.is_none() {
+    if remaining_claim.is_none() {
         log::info!("✓ Claim removed from storage after processing");
     } else {
-        anyhow::bail!("Claim still exists in storage");
+        anyhow::bail!("Claim still exists in storage after claiming");
     }
-    */
 
-    log::warn!("Ethereum claim test requires runtime metadata - skipping actual implementation");
-    log::info!("✓ Ethereum claim test structure verified");
+    // Verify Bob's balance increased
+    let account_after = client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&balance_query)
+        .await
+        .context("Failed to fetch account after claim")?;
+
+    let balance_after = account_after.map(|a| a.data.free).unwrap_or(0);
+    log::info!("Bob's balance after claim: {}", balance_after);
+
+    if balance_after > balance_before {
+        log::info!("✓ Balance increased by {} units", balance_after - balance_before);
+    } else {
+        anyhow::bail!("Balance did not increase after claim");
+    }
 
     Ok(())
 }
@@ -247,7 +249,7 @@ pub async fn test_claim_pallet(_topology: &NetworkTopology) -> Result<()> {
     log::debug!("Starting Claim pallet tests");
 
     let endpoints = NetworkEndpoints::simple();
-    let client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
         .await
         .context("Failed to connect to parachain")?;
 
