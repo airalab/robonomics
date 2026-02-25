@@ -27,7 +27,7 @@ members = [
   "frame/claim",
   "runtime/robonomics",
   "tools/libcps",
-  "tools/localnet",
+  "tools/robonet",
 ]
 resolver = "2"
 

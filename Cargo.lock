@@ -6745,26 +6745,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "localnet"
-version = "4.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "colored",
- "env_logger",
- "futures",
- "indicatif",
- "log",
- "serde",
- "serde_json",
- "subxt 0.43.1",
- "subxt-signer 0.43.0",
- "tokio",
- "zombienet-sdk",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11035,6 +11015,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd124222d17ad93a644ed9d011a40f4fb64aa54275c08cc216524a9ea82fb09f"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "robonet"
+version = "4.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "colored",
+ "env_logger",
+ "futures",
+ "indicatif",
+ "log",
+ "serde",
+ "serde_json",
+ "subxt 0.43.1",
+ "subxt-signer 0.43.0",
+ "tokio",
+ "zombienet-sdk",
 ]
 
 [[package]]

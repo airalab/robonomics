@@ -1,5 +1,5 @@
 [package]
-name = "localnet"
+name = "robonet"
 description = "Robonomics local network spawner based on ZombieNet SDK."
 version.workspace = true
 authors.workspace = true
@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "localnet"
+name = "robonet"
 path = "src/main.rs"
 
 [dependencies]

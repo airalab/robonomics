@@ -56,11 +56,11 @@ async fn run() -> Result<i32> {
     
     // Execute command
     let exit_code = match cli.command.unwrap_or_default() {
-        Commands::Spawn { persist, timeout } => {
-            cmd_spawn(persist, timeout).await?
+        Commands::Spawn { topology, persist, timeout } => {
+            cmd_spawn(&topology, persist, timeout).await?
         }
-        Commands::Test { fail_fast, tests, timeout, no_spawn } => {
-            cmd_test(fail_fast, tests, timeout, no_spawn, &cli.format).await?
+        Commands::Test { topology, fail_fast, tests, timeout, no_spawn } => {
+            cmd_test(&topology, fail_fast, tests, timeout, no_spawn, &cli.format).await?
         }
     };
     
@@ -68,10 +68,10 @@ async fn run() -> Result<i32> {
 }
 
 /// Spawn command handler
-async fn cmd_spawn(persist: bool, timeout: u64) -> Result<i32> {
+async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64) -> Result<i32> {
     let timeout_duration = Duration::from_secs(timeout);
     
-    match network::spawn_network(timeout_duration).await {
+    match network::spawn_network(topology, timeout_duration).await {
         Ok(network) => {
             if persist {
                 use colored::Colorize;
@@ -97,7 +97,7 @@ async fn cmd_spawn(persist: bool, timeout: u64) -> Result<i32> {
 }
 
 /// Test command handler
-async fn cmd_test(fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: bool, format: &OutputFormat) -> Result<i32> {
+async fn cmd_test(topology: &cli::NetworkTopology, fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: bool, format: &OutputFormat) -> Result<i32> {
     let network = if no_spawn {
         log::info!("Skipping network spawn (--no-spawn specified)");
         None
@@ -106,7 +106,7 @@ async fn cmd_test(fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: b
         log::info!("Spawning network for testing...");
         let timeout_duration = Duration::from_secs(timeout);
         
-        match network::spawn_network(timeout_duration).await {
+        match network::spawn_network(topology, timeout_duration).await {
             Ok(n) => {
                 // Wait a bit for network to stabilize
                 tokio::time::sleep(Duration::from_secs(5)).await;
@@ -126,7 +126,7 @@ async fn cmd_test(fail_fast: bool, tests: Vec<String>, timeout: u64, no_spawn: b
         Some(tests)
     };
     
-    let results = tests::run_integration_tests(fail_fast, test_filter, matches!(format, OutputFormat::Json)).await?;
+    let results = tests::run_integration_tests(topology, fail_fast, test_filter, matches!(format, OutputFormat::Json)).await?;
     
     // Clean up network
     drop(network);

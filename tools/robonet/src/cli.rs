@@ -20,7 +20,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(name = "localnet")]
+#[command(name = "robonet")]
 #[command(about = "Robonomics local network spawner and integration test tool", long_about = None)]
 #[command(version)]
 pub struct Cli {
@@ -40,6 +40,10 @@ pub struct Cli {
 pub enum Commands {
     /// Spawn local network with relay chain and parachain
     Spawn {
+        /// Network topology to spawn
+        #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
+        topology: NetworkTopology,
+        
         /// Keep network running after spawn (don't wait for Ctrl+C)
         #[arg(long)]
         persist: bool,
@@ -51,6 +55,10 @@ pub enum Commands {
 
     /// Run integration tests on the spawned network
     Test {
+        /// Network topology to spawn (ignored if --no-spawn is used)
+        #[arg(long, value_name = "TOPOLOGY", default_value = "with-assethub")]
+        topology: NetworkTopology,
+        
         /// Stop on first test failure
         #[arg(long)]
         fail_fast: bool,
@@ -70,6 +78,14 @@ pub enum Commands {
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
+pub enum NetworkTopology {
+    /// Simple topology: relay chain + robonomics parachain only
+    Simple,
+    /// With AssetHub: relay chain + robonomics + asset-hub for XCM tests
+    WithAssethub,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
 pub enum OutputFormat {
     Text,
     Json,
@@ -78,6 +94,7 @@ pub enum OutputFormat {
 impl Default for Commands {
     fn default() -> Self {
         Commands::Spawn {
+            topology: NetworkTopology::Simple,
             persist: true,
             timeout: 300,
         }

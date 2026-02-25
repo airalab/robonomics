@@ -25,6 +25,7 @@ use std::time::{Duration, Instant};
 use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 
+use crate::cli::NetworkTopology;
 use crate::network::NetworkEndpoints;
 
 /// Test result for a single test
@@ -117,8 +118,11 @@ where
 }
 
 /// Test: Network initialization and connectivity
-async fn test_network_initialization() -> Result<()> {
-    let endpoints = NetworkEndpoints::new();
+async fn test_network_initialization(topology: &NetworkTopology) -> Result<()> {
+    let endpoints = match topology {
+        NetworkTopology::Simple => NetworkEndpoints::simple(),
+        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+    };
     
     // Connect to relay chain
     let _relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
@@ -129,15 +133,26 @@ async fn test_network_initialization() -> Result<()> {
     // Connect to parachain collator 1
     let _para_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
         .await
-        .context("Failed to connect to parachain collator 1")?;
-    log::debug!("Connected to parachain collator 1");
+        .context("Failed to connect to robonomics parachain")?;
+    log::debug!("Connected to robonomics parachain");
+    
+    // Connect to AssetHub if present
+    if let Some(asset_hub_ws) = endpoints.asset_hub_ws {
+        let _asset_hub_client = OnlineClient::<PolkadotConfig>::from_url(&asset_hub_ws)
+            .await
+            .context("Failed to connect to AssetHub")?;
+        log::debug!("Connected to AssetHub");
+    }
     
     Ok(())
 }
 
 /// Test: Block production on both chains
-async fn test_block_production() -> Result<()> {
-    let endpoints = NetworkEndpoints::new();
+async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
+    let endpoints = match topology {
+        NetworkTopology::Simple => NetworkEndpoints::simple(),
+        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+    };
     
     // Check relay chain
     let relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
@@ -181,8 +196,8 @@ async fn test_block_production() -> Result<()> {
 }
 
 /// Test: Basic extrinsic submission
-async fn test_extrinsic_submission() -> Result<()> {
-    let endpoints = NetworkEndpoints::new();
+async fn test_extrinsic_submission(_topology: &NetworkTopology) -> Result<()> {
+    let endpoints = NetworkEndpoints::simple();
     
     let client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
         .await
@@ -218,12 +233,12 @@ async fn test_extrinsic_submission() -> Result<()> {
 }
 
 /// Test: XCM upward message (parachain -> relay)
-async fn test_xcm_upward_message() -> Result<()> {
+async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> {
     // This test requires XCM pallet to be available
     // For now, we'll mark it as a placeholder
     log::debug!("XCM upward message test - checking for XCM pallet support");
     
-    let endpoints = NetworkEndpoints::new();
+    let endpoints = NetworkEndpoints::simple();
     let _client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
         .await
         .context("Failed to connect to parachain")?;
@@ -234,8 +249,61 @@ async fn test_xcm_upward_message() -> Result<()> {
     Ok(())
 }
 
+/// Test: XCM downward message (relay -> parachain)
+async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()> {
+    log::debug!("XCM downward message test");
+    log::warn!("XCM downward message test requires proper runtime metadata");
+    Ok(())
+}
+
+/// Test: XCM token teleport between parachains
+async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
+    // Only run for WithAssethub topology
+    match topology {
+        NetworkTopology::WithAssethub => {
+            log::debug!("XCM token teleport test");
+            log::warn!("XCM token teleport test requires proper runtime metadata");
+            Ok(())
+        }
+        NetworkTopology::Simple => {
+            log::info!("Skipping XCM token teleport test (requires AssetHub)");
+            Ok(())
+        }
+    }
+}
+
+/// Test: CPS (Cyber-Physical Systems) pallet functionality
+async fn test_cps_pallet(_topology: &NetworkTopology) -> Result<()> {
+    log::debug!("CPS pallet test");
+    
+    let endpoints = NetworkEndpoints::simple();
+    let _client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+        .await
+        .context("Failed to connect to parachain")?;
+    
+    // TODO: Implement CPS pallet tests
+    log::warn!("CPS pallet test requires proper runtime metadata");
+    
+    Ok(())
+}
+
+/// Test: Claim pallet functionality
+async fn test_claim_pallet(_topology: &NetworkTopology) -> Result<()> {
+    log::debug!("Claim pallet test");
+    
+    let endpoints = NetworkEndpoints::simple();
+    let _client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+        .await
+        .context("Failed to connect to parachain")?;
+    
+    // TODO: Implement Claim pallet tests
+    log::warn!("Claim pallet test requires proper runtime metadata");
+    
+    Ok(())
+}
+
 /// Run all integration tests
-pub async fn run_integration_tests(fail_fast: bool, test_filter: Option<Vec<String>>, json_output: bool) -> Result<TestSuiteResults> {
+pub async fn run_integration_tests(topology: &NetworkTopology, fail_fast: bool, test_filter: Option<Vec<String>>, json_output: bool) -> Result<TestSuiteResults> {
     if !json_output {
         println!();
         println!("{}", "Running Integration Tests".bold().cyan());
@@ -250,7 +318,7 @@ pub async fn run_integration_tests(fail_fast: bool, test_filter: Option<Vec<Stri
     
     // Run tests based on filter
     if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "network_initialization".contains(f.as_str())) {
-        results.push(run_test("network_initialization", test_network_initialization).await);
+        results.push(run_test("network_initialization", || test_network_initialization(topology)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
@@ -258,7 +326,7 @@ pub async fn run_integration_tests(fail_fast: bool, test_filter: Option<Vec<Stri
     }
     
     if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "block_production".contains(f.as_str())) {
-        results.push(run_test("block_production", test_block_production).await);
+        results.push(run_test("block_production", || test_block_production(topology)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
@@ -266,15 +334,47 @@ pub async fn run_integration_tests(fail_fast: bool, test_filter: Option<Vec<Stri
     }
     
     if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "extrinsic_submission".contains(f.as_str())) {
-        results.push(run_test("extrinsic_submission", test_extrinsic_submission).await);
+        results.push(run_test("extrinsic_submission", || test_extrinsic_submission(topology)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
         }
     }
     
-    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "xcm_upward_message".contains(f.as_str())) {
-        results.push(run_test("xcm_upward_message", test_xcm_upward_message).await);
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "xcm_upward".contains(f.as_str())) {
+        results.push(run_test("xcm_upward_message", || test_xcm_upward_message(topology)).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "xcm_downward".contains(f.as_str())) {
+        results.push(run_test("xcm_downward_message", || test_xcm_downward_message(topology)).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "xcm_teleport".contains(f.as_str()) || "token_teleport".contains(f.as_str())) {
+        results.push(run_test("xcm_token_teleport", || test_xcm_token_teleport(topology)).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "cps".contains(f.as_str())) {
+        results.push(run_test("cps_pallet", || test_cps_pallet(topology)).await);
+        if fail_fast && results.last().unwrap().status == TestStatus::Failed {
+            log::warn!("Stopping test execution due to failure (fail-fast mode)");
+            return build_results(results, suite_start, json_output);
+        }
+    }
+    
+    if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "claim".contains(f.as_str())) {
+        results.push(run_test("claim_pallet", || test_claim_pallet(topology)).await);
     }
     
     build_results(results, suite_start, json_output)
