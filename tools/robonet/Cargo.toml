@@ -26,3 +26,11 @@ chrono.workspace = true
 log.workspace = true
 env_logger.workspace = true
 futures.workspace = true
+
+# Integration test dependencies
+libcps = { path = "../libcps", default-features = false }
+parity-scale-codec.workspace = true
+sp-core.workspace = true
+sp-runtime.workspace = true
+hex.workspace = true
+secp256k1 = "0.28"
