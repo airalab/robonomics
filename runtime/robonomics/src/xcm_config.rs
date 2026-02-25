@@ -25,7 +25,6 @@ use frame_support::{
     pallet_prelude::PhantomData,
     parameter_types,
     traits::{Contains, Disabled, Equals, Everything, Nothing, TransformOrigin},
-    weights::Weight,
 };
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, ConstU32};

@@ -109,7 +109,7 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
             ],
             1_000 * XRT,
             ROBONOMICS_PARA_ID,
-            Default::default(),
+            NetworkId::ByGenesis(ROCOCO_GENESIS_HASH),
         ),
         _ => return None,
     };
