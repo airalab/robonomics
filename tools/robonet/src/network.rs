@@ -52,7 +52,7 @@ impl NetworkEndpoints {
         }
     }
     
-    pub fn with_assethub() -> Self {
+    pub fn assethub() -> Self {
         Self {
             relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
             collator_1_ws: format!("ws://127.0.0.1:{}", COLLATOR_1_RPC_PORT),
@@ -92,7 +92,7 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
                     })
             });
         }
-        NetworkTopology::WithAssethub => {
+        NetworkTopology::Assethub => {
             // With AssetHub: AssetHub + Robonomics + HRMP channels
             builder = builder
                 .with_parachain(|p| {
@@ -161,7 +161,7 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
         NetworkTopology::Simple => {
             println!("{} Parachain collators ready (collator-1, collator-2)", "[OK]".green());
         }
-        NetworkTopology::WithAssethub => {
+        NetworkTopology::Assethub => {
             println!("{} AssetHub collator ready", "[OK]".green());
             println!("{} Robonomics collator ready", "[OK]".green());
         }
@@ -185,7 +185,7 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
         NetworkTopology::Simple => {
             println!("{} Parachain {} registered", "[OK]".green(), PARA_ID);
         }
-        NetworkTopology::WithAssethub => {
+        NetworkTopology::Assethub => {
             println!("{} AssetHub {} registered", "[OK]".green(), ASSET_HUB_PARA_ID);
             println!("{} Robonomics {} registered", "[OK]".green(), PARA_ID);
             println!("{} HRMP channels established", "[OK]".green());
@@ -199,7 +199,7 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
     
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
     };
     
     println!("{:<20} {}", "Relay Chain:", endpoints.relay_ws.cyan());
@@ -221,7 +221,7 @@ pub async fn spawn_network(topology: &NetworkTopology, timeout: Duration) -> Res
 pub fn display_endpoints(topology: &NetworkTopology) {
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
     };
     
     println!("{}", "Network Endpoints:".bold());

@@ -121,7 +121,7 @@ where
 async fn test_network_initialization(topology: &NetworkTopology) -> Result<()> {
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+        NetworkTopology::Assethub => NetworkEndpoints::with_assethub(),
     };
     
     // Connect to relay chain
@@ -151,7 +151,7 @@ async fn test_network_initialization(topology: &NetworkTopology) -> Result<()> {
 async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+        NetworkTopology::Assethub => NetworkEndpoints::with_assethub(),
     };
     
     // Check relay chain
@@ -260,7 +260,7 @@ async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()> {
 async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
     // Only run for WithAssethub topology
     match topology {
-        NetworkTopology::WithAssethub => {
+        NetworkTopology::Assethub => {
             log::debug!("XCM token teleport test");
             log::warn!("XCM token teleport test requires proper runtime metadata");
             Ok(())

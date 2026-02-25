@@ -23,6 +23,20 @@ use clap::{Parser, Subcommand};
 #[command(name = "robonet")]
 #[command(about = "Robonomics local network spawner and integration test tool", long_about = None)]
 #[command(version)]
+#[command(before_help = r#"
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║   ██████╗  ██████╗ ██████╗  ██████╗ ███╗   ██╗███████╗   ║
+║   ██╔══██╗██╔═══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝   ║
+║   ██████╔╝██║   ██║██████╔╝██║   ██║██╔██╗ ██║█████╗     ║
+║   ██╔══██╗██║   ██║██╔══██╗██║   ██║██║╚██╗██║██╔══╝     ║
+║   ██║  ██║╚██████╔╝██████╔╝╚██████╔╝██║ ╚████║███████╗   ║
+║   ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ║
+║                                                      ║
+║   Local Network Spawner - Robonomics Network         ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+"#)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -51,12 +65,16 @@ pub enum Commands {
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "300")]
         timeout: u64,
+        
+        /// Directory to store node logs
+        #[arg(long, value_name = "DIR")]
+        log_dir: Option<String>,
     },
 
     /// Run integration tests on the spawned network
     Test {
         /// Network topology to spawn (ignored if --no-spawn is used)
-        #[arg(long, value_name = "TOPOLOGY", default_value = "with-assethub")]
+        #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
         topology: NetworkTopology,
         
         /// Stop on first test failure
@@ -74,6 +92,10 @@ pub enum Commands {
         /// Skip network spawning (assume network is already running)
         #[arg(long)]
         no_spawn: bool,
+        
+        /// Directory to store node logs
+        #[arg(long, value_name = "DIR")]
+        log_dir: Option<String>,
     },
 }
 
@@ -81,8 +103,8 @@ pub enum Commands {
 pub enum NetworkTopology {
     /// Simple topology: relay chain + robonomics parachain only
     Simple,
-    /// With AssetHub: relay chain + robonomics + asset-hub for XCM tests
-    WithAssethub,
+    /// AssetHub topology: relay chain + robonomics + asset-hub for XCM tests
+    Assethub,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -97,6 +119,7 @@ impl Default for Commands {
             topology: NetworkTopology::Simple,
             persist: true,
             timeout: 300,
+            log_dir: None,
         }
     }
 }
