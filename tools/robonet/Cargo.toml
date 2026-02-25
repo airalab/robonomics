@@ -11,6 +11,9 @@ repository.workspace = true
 name = "robonet"
 path = "src/main.rs"
 
+[build-dependencies]
+robonomics-metadata = { path = "../robonomics-metadata" }
+
 [dependencies]
 zombienet-sdk.workspace = true
 anyhow.workspace = true

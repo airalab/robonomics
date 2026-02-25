@@ -249,18 +249,43 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
     /*
     let asset_id = 1000u32;
     
-    // Step 1: Create asset on AssetHub via sudo
-    let create_asset = assethub::tx().assets().create(
+    // Step 1: Create asset on AssetHub via XCM from parachain
+    // The asset should be created using an XCM encoded call so that the admin
+    // is set to the parachain sovereign account, not Alice
+    
+    // First, encode the asset creation call
+    let create_asset_call = assethub::tx().assets().create(
         asset_id,
-        dev::alice().public_key().into(),
+        para_sovereign_account.into(), // Parachain's sovereign account as admin
         1_000_000, // min balance
     );
     
-    let sudo_create = assethub::tx().sudo().sudo(create_asset);
+    // Wrap in XCM Transact instruction
+    let xcm_message = VersionedXcm::V3(Xcm(vec![
+        WithdrawAsset(/* funds for execution */),
+        BuyExecution {
+            fees: /* asset for fees */,
+            weight_limit: Unlimited,
+        },
+        Transact {
+            origin_kind: OriginKind::SovereignAccount,
+            require_weight_at_most: /* weight */,
+            call: create_asset_call.encode().into(),
+        },
+    ]));
     
-    let create_events = assethub_client
+    // Send XCM from parachain to AssetHub
+    let send_xcm = robonomics::tx().polkadot_xcm().send(
+        Box::new(VersionedLocation::V3(MultiLocation {
+            parents: 1,
+            interior: X1(Parachain(1000)), // AssetHub
+        })),
+        Box::new(xcm_message),
+    );
+    
+    para_client
         .tx()
-        .sign_and_submit_then_watch_default(&sudo_create, &dev::alice())
+        .sign_and_submit_then_watch_default(&send_xcm, &dev::alice())
         .await?
         .wait_for_finalized_success()
         .await?;

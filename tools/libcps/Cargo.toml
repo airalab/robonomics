@@ -68,13 +68,7 @@ log = { workspace = true }
 env_logger = { workspace = true, optional = true }
 
 [build-dependencies]
-robonomics-runtime = { workspace = true }
-sp-io = { workspace = true }
-sp-state-machine = { workspace = true }
-sp-maybe-compressed-blob = { workspace = true }
-sc-executor = { workspace = true }
-sc-executor-common = { workspace = true }
-parity-scale-codec = { workspace = true }
+robonomics-metadata = { path = "../robonomics-metadata" }
 
 [features]
 default = ["mqtt", "cli"]
