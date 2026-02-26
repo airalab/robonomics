@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive XCM (Cross-Consensus Messaging) tests implemented for the Robonomics parachain using the robonet tool.
+This document describes the comprehensive XCM (Cross-Consensus Messaging) tests implemented for the Robonomics parachain using the robonet tool. The tests use type-safe static XCM APIs for compile-time verification.
 
 ## Architecture
 
@@ -21,13 +21,14 @@ The tests support two topology modes:
 
 **Test Flow**:
 - Connect to both parachain and relay chain
-- Construct a simple XCM message
-- Send message using `PolkadotXcm::send` extrinsic
+- Construct XCM destination and message using static types
+- Send message using `api::tx().polkadot_xcm().send()` 
 - Monitor for XCM events
 - Verify message structure and submission
 
 **Key Features**:
 - Tests UMP queue functionality
+- Uses static XCM v4 types for compile-time safety
 - Validates XCM message construction
 - Checks event emission
 
@@ -59,10 +60,10 @@ The tests support two topology modes:
 **Flow**:
 1. Connect to Robonomics parachain and AssetHub
 2. Query initial balance on Robonomics (Alice's account)
-3. Construct XCM destination (AssetHub location)
+3. Construct XCM destination (AssetHub location) using static types
 4. Construct XCM beneficiary (Alice's account on destination)
-5. Construct XCM assets (native XRT token, 1 XRT = 1,000,000,000 COASE)
-6. Execute `PolkadotXcm::limited_teleport_assets` extrinsic
+5. Construct XCM assets (native XRT token, 1 XRT = 1,000,000,000 COASE) using static Asset types
+6. Execute `api::tx().polkadot_xcm().limited_teleport_assets()` 
 7. Monitor XCM events:
    - `PolkadotXcm::Attempted` - XCM execution attempt
    - `PolkadotXcm::Sent` - XCM message sent
@@ -72,7 +73,7 @@ The tests support two topology modes:
 10. Verify balance decreased by teleport amount + fees
 
 **Validations**:
-- ✅ XCM message construction
+- ✅ Type-safe XCM message construction with static types
 - ✅ Transaction execution
 - ✅ Event emission
 - ✅ Balance changes
@@ -119,34 +120,58 @@ XcmReserveTransferFilter: Nothing  // Reserve transfers disabled
 
 ### XCM Message Structure
 
+The tests use type-safe static XCM types from `api::runtime_types::staging_xcm::v4`:
+
 #### Destination Format (AssetHub)
 ```rust
-Location {
+use api::runtime_types::staging_xcm::v4::{
+    junction::Junction,
+    junctions::Junctions,
+    location::Location,
+};
+
+let dest = VersionedLocation::V4(Location {
     parents: 1,  // Go up to relay chain
-    interior: X1(Parachain(1000))  // Target AssetHub
-}
+    interior: Junctions::X1([Junction::Parachain(1000)]),  // Target AssetHub
+});
 ```
 
 #### Beneficiary Format
 ```rust
-Location {
+let beneficiary = VersionedLocation::V4(Location {
     parents: 0,  // Same level
-    interior: X1(AccountId32 {
+    interior: Junctions::X1([Junction::AccountId32 {
         network: None,
-        id: [account_bytes]
-    })
-}
+        id: account_id,
+    }]),
+});
 ```
 
 #### Asset Format (Native)
 ```rust
-MultiAsset {
-    id: Concrete(Location {
+use api::runtime_types::staging_xcm::v4::{
+    asset::{Asset, AssetId, Assets, Fungibility},
+};
+
+let asset = Asset {
+    id: AssetId(Location {
         parents: 0,
-        interior: Here  // Native asset
+        interior: Junctions::Here,  // Native asset
     }),
-    fun: Fungible(amount_in_coase)
-}
+    fun: Fungibility::Fungible(amount_in_coase),
+};
+let assets = VersionedAssets::V4(Assets(vec![asset]));
+```
+
+#### Transaction Construction
+```rust
+let teleport_tx = api::tx().polkadot_xcm().limited_teleport_assets(
+    Box::new(dest),
+    Box::new(beneficiary),
+    Box::new(assets),
+    fee_asset_item,
+    weight_limit,
+);
 ```
 
 ### Event Monitoring
