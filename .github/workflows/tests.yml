@@ -68,7 +68,6 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
-          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             experimental-features = nix-command flakes
             accept-flake-config = true
@@ -84,4 +83,32 @@ jobs:
             
             # Run the benchmark script
             ./scripts/benchmark-pallets.sh
+          '
+
+  try-runtime:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v5
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Run benchmark checks using benchmark-pallets.sh
+        run: |
+          nix develop --command bash -c '
+            set -e
+
+            # Build runtime with try-runtime feature
+            cargo build --release -p robonomics-runtime --features try-runtime
+
+            # Run try-runtime on kusama
+            try-runtime on-runtime-upgrade --blocktime 6000 live --uri wss://kusama.rpc.robonomics.network
           '
