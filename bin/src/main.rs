@@ -84,7 +84,7 @@ impl LoadSpec for RobonomicsChainSpecLoader {
             "kusama" => GenericChainSpec::from_json_bytes(
                 &include_bytes!("../../chains/kusama-parachain.raw.json")[..],
             )?,
-            "localnet" => robonomics_localnet_config()?,
+            "local" => robonomics_localnet_config()?,
             "dev" => robonomics_development_config()?,
             path => GenericChainSpec::from_json_file(path.into())?,
         }))

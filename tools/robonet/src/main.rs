@@ -22,7 +22,6 @@ use clap::Parser;
 use std::time::Duration;
 
 mod cli;
-mod health;
 mod logging;
 mod network;
 mod tests;
@@ -33,7 +32,6 @@ use cli::{Cli, Commands, OutputFormat};
 const EXIT_SUCCESS: i32 = 0;
 const EXIT_TESTS_FAILED: i32 = 1;
 const EXIT_NETWORK_SPAWN_FAILED: i32 = 2;
-const EXIT_TIMEOUT: i32 = 3;
 
 #[tokio::main]
 async fn main() {
@@ -49,7 +47,7 @@ async fn run() -> Result<i32> {
     let cli = Cli::parse();
 
     // Initialize logging
-    match cli.format {
+    match cli.output {
         OutputFormat::Text => logging::init_logger(cli.verbose),
         OutputFormat::Json => logging::init_json_logger(),
     }
@@ -60,45 +58,22 @@ async fn run() -> Result<i32> {
             topology,
             persist,
             timeout,
-            log_dir,
-        } => cmd_spawn(&topology, persist, timeout, log_dir).await?,
+        } => cmd_spawn(&topology, persist, timeout).await?,
         Commands::Test {
             topology,
             fail_fast,
             tests,
             timeout,
             no_spawn,
-            log_dir,
-        } => {
-            cmd_test(
-                &topology,
-                fail_fast,
-                tests,
-                timeout,
-                no_spawn,
-                log_dir,
-                &cli.format,
-            )
-            .await?
-        }
+        } => cmd_test(&topology, fail_fast, tests, timeout, no_spawn, &cli.output).await?,
     };
 
     Ok(exit_code)
 }
 
 /// Spawn command handler
-async fn cmd_spawn(
-    topology: &cli::NetworkTopology,
-    persist: bool,
-    timeout: u64,
-    log_dir: Option<String>,
-) -> Result<i32> {
+async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64) -> Result<i32> {
     let timeout_duration = Duration::from_secs(timeout);
-
-    if let Some(ref dir) = log_dir {
-        log::info!("Node logs will be stored in: {}", dir);
-        // TODO: Pass log_dir to zombienet-sdk configuration
-    }
 
     match network::spawn_network(topology, timeout_duration).await {
         Ok(network) => {
@@ -135,8 +110,7 @@ async fn cmd_test(
     tests: Vec<String>,
     timeout: u64,
     no_spawn: bool,
-    log_dir: Option<String>,
-    format: &OutputFormat,
+    output: &OutputFormat,
 ) -> Result<i32> {
     let network = if no_spawn {
         log::info!("Skipping network spawn (--no-spawn specified)");
@@ -145,17 +119,11 @@ async fn cmd_test(
         // Spawn the network
         log::info!("Spawning network for testing...");
 
-        if let Some(ref dir) = log_dir {
-            log::info!("Node logs will be stored in: {}", dir);
-            // TODO: Pass log_dir to zombienet-sdk configuration
-        }
-
         let timeout_duration = Duration::from_secs(timeout);
-
         match network::spawn_network(topology, timeout_duration).await {
             Ok(n) => {
                 // Wait a bit for network to stabilize
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(30)).await;
                 Some(n)
             }
             Err(e) => {
@@ -172,7 +140,7 @@ async fn cmd_test(
         topology,
         fail_fast,
         test_filter,
-        matches!(format, OutputFormat::Json),
+        matches!(output, OutputFormat::Json),
     )
     .await?;
 

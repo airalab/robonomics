@@ -11014,7 +11014,7 @@ dependencies = [
 
 [[package]]
 name = "robonet"
-version = "4.1.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -11023,16 +11023,16 @@ dependencies = [
  "env_logger",
  "futures",
  "hex",
+ "hex-literal",
  "indicatif",
  "libcps",
+ "libsecp256k1",
  "log",
  "parity-scale-codec",
  "robonomics-runtime-subxt-api",
- "secp256k1 0.28.2",
  "serde",
  "serde_json",
  "sp-core 39.0.0",
- "sp-runtime 45.0.0",
  "subxt 0.43.1",
  "subxt-signer 0.43.0",
  "tokio",

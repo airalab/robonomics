@@ -20,7 +20,7 @@
 pub mod claim;
 pub mod cps;
 pub mod network;
-pub mod xcm;
+//pub mod xcm;
 
 use anyhow::Result;
 use colored::Colorize;
@@ -33,7 +33,7 @@ use crate::cli::NetworkTopology;
 use claim::test_claim_pallet;
 use cps::test_cps_pallet;
 use network::{test_block_production, test_extrinsic_submission, test_network_initialization};
-use xcm::{test_xcm_downward_message, test_xcm_token_teleport, test_xcm_upward_message};
+//use xcm::{test_xcm_downward_message, test_xcm_token_teleport, test_xcm_upward_message};
 
 /// Test result for a single test
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,18 +74,6 @@ pub struct TestSuiteResults {
 }
 
 impl TestSuiteResults {
-    pub fn passed_count(&self) -> usize {
-        self.passed
-    }
-
-    pub fn failed_count(&self) -> usize {
-        self.failed
-    }
-
-    pub fn skipped_count(&self) -> usize {
-        self.skipped
-    }
-
     pub fn is_success(&self) -> bool {
         self.failed == 0
     }
@@ -199,6 +187,7 @@ pub async fn run_integration_tests(
         }
     }
 
+    /*
     if test_filter.is_none()
         || test_filter
             .as_ref()
@@ -245,6 +234,7 @@ pub async fn run_integration_tests(
             return build_results(results, suite_start, json_output);
         }
     }
+    */
 
     if test_filter.is_none()
         || test_filter

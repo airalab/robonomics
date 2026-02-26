@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Working with CPS Pallet
 
 ```rust
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig, cps_impls::NodeData};
+use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 use subxt::OnlineClient;
 use subxt_signer::sr25519::dev;
 
@@ -130,8 +130,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let alice = dev::alice();
     
     // Create a CPS node with plain data
-    let node_data = NodeData::from("Hello from CPS!");
-    let create_tx = api::tx().cps().create(None, node_data);
+    let node_data = "Hello from CPS!";
+    let create_tx = api::tx().cps().create(None, node_data.into());
     
     let result = client
         .tx()
@@ -255,39 +255,6 @@ impl From<&str> for NodeData { /* ... */ }
 NodeData::aead_from(encrypted_bytes);
 ```
 
-## Build Requirements
-
-### Dependencies
-
-**Runtime Dependencies:**
-- `subxt` - Substrate RPC client and type generator
-- `parity-scale-codec` - SCALE encoding/decoding
-
-**Build Dependencies:**
-- `robonomics-runtime` - The runtime to extract metadata from
-- `sc-executor` - WASM executor for metadata extraction
-- `sp-state-machine` - Basic externalities for execution
-- `sp-maybe-compressed-blob` - WASM decompression
-- `sp-io` - Host functions for WASM execution
-
-### Build Process
-
-The build script (`build.rs`) performs these steps:
-
-1. **Load Runtime**: Gets `WASM_BINARY` from `robonomics-runtime::dev`
-2. **Decompress**: Handles compressed WASM blobs
-3. **Create Executor**: Sets up WASM execution environment
-4. **Extract Metadata**: Calls `Metadata_metadata` host function
-5. **Validate**: Checks metadata magic bytes (`[0x6d, 0x65, 0x74, 0x61]`)
-6. **Save**: Writes to `$OUT_DIR/metadata.scale`
-
-### Rebuild Triggers
-
-The build script automatically rebuilds when:
-- Runtime source changes (`../src`)
-- Runtime Cargo.toml changes (`../Cargo.toml`)
-- Any dependency updates
-
 ## Troubleshooting
 
 ### Build Errors
@@ -315,24 +282,6 @@ cargo build -p robonomics-runtime-subxt-api
 **Error**: `Invalid metadata magic sequence`
 
 **Solution**: The metadata format may have changed. This is usually a bug - report it.
-
-### Runtime Errors
-
-**Error**: `Metadata hash mismatch`
-
-**Solution**: The runtime on the node doesn't match your compiled metadata. Ensure:
-1. You're connecting to a node with matching runtime version
-2. Your `robonomics-runtime` dependency matches the node's runtime
-3. Rebuild if you updated runtime dependencies
-
----
-
-**Error**: `Call not found` or `Storage item not found`
-
-**Solution**: The pallet or call might not exist in this runtime version:
-1. Check the runtime includes the pallet
-2. Verify the pallet name and call/storage name are correct
-3. Check if the feature was added in a newer runtime version
 
 ### Connection Errors
 

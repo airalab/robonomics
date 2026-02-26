@@ -30,8 +30,7 @@ use crate::cli::NetworkTopology;
 /// Hardcoded network configuration
 pub const RELAY_RPC_PORT: u16 = 9944;
 pub const ASSET_HUB_RPC_PORT: u16 = 9910;
-pub const COLLATOR_1_RPC_PORT: u16 = 9988;
-pub const COLLATOR_2_RPC_PORT: u16 = 9989;
+pub const COLLATOR_RPC_PORT: u16 = 9988;
 pub const PARA_ID: u32 = 2000;
 pub const ASSET_HUB_PARA_ID: u32 = 1000;
 
@@ -39,27 +38,33 @@ pub const ASSET_HUB_PARA_ID: u32 = 1000;
 #[derive(Debug, Clone)]
 pub struct NetworkEndpoints {
     pub relay_ws: String,
-    pub collator_1_ws: String,
-    pub collator_2_ws: Option<String>,
-    pub asset_hub_ws: Option<String>,
+    pub collator_ws: String,
+    pub assethub_ws: Option<String>,
+}
+
+impl From<&NetworkTopology> for NetworkEndpoints {
+    fn from(value: &NetworkTopology) -> Self {
+        match value {
+            NetworkTopology::Simple => NetworkEndpoints::simple(),
+            NetworkTopology::AssetHub => NetworkEndpoints::assethub(),
+        }
+    }
 }
 
 impl NetworkEndpoints {
     pub fn simple() -> Self {
         Self {
             relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
-            collator_1_ws: format!("ws://127.0.0.1:{}", COLLATOR_1_RPC_PORT),
-            collator_2_ws: Some(format!("ws://127.0.0.1:{}", COLLATOR_2_RPC_PORT)),
-            asset_hub_ws: None,
+            collator_ws: format!("ws://127.0.0.1:{}", COLLATOR_RPC_PORT),
+            assethub_ws: None,
         }
     }
 
     pub fn assethub() -> Self {
         Self {
             relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
-            collator_1_ws: format!("ws://127.0.0.1:{}", COLLATOR_1_RPC_PORT),
-            collator_2_ws: None,
-            asset_hub_ws: Some(format!("ws://127.0.0.1:{}", ASSET_HUB_RPC_PORT)),
+            collator_ws: format!("ws://127.0.0.1:{}", COLLATOR_RPC_PORT),
+            assethub_ws: Some(format!("ws://127.0.0.1:{}", ASSET_HUB_RPC_PORT)),
         }
     }
 }
@@ -82,21 +87,14 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
         NetworkTopology::Simple => {
             // Simple: Robonomics parachain with 2 collators
             builder = builder.with_parachain(|p| {
-                p.with_id(PARA_ID)
-                    .with_chain("local")
-                    .with_collator(|c| {
-                        c.with_name("collator-1")
-                            .with_command("robonomics")
-                            .with_rpc_port(COLLATOR_1_RPC_PORT)
-                    })
-                    .with_collator(|c| {
-                        c.with_name("collator-2")
-                            .with_command("robonomics")
-                            .with_rpc_port(COLLATOR_2_RPC_PORT)
-                    })
+                p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
+                    c.with_name("robonomics-collator")
+                        .with_command("robonomics")
+                        .with_rpc_port(COLLATOR_RPC_PORT)
+                })
             });
         }
-        NetworkTopology::Assethub => {
+        NetworkTopology::AssetHub => {
             // With AssetHub: AssetHub + Robonomics + HRMP channels
             builder = builder
                 .with_parachain(|p| {
@@ -112,7 +110,7 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
                     p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
                         c.with_name("robonomics-collator")
                             .with_command("robonomics")
-                            .with_rpc_port(COLLATOR_1_RPC_PORT)
+                            .with_rpc_port(COLLATOR_RPC_PORT)
                     })
                 })
                 .with_hrmp_channel(|h| h.with_sender(ASSET_HUB_PARA_ID).with_recipient(PARA_ID))
@@ -170,12 +168,9 @@ pub async fn spawn_network(
 
     match topology {
         NetworkTopology::Simple => {
-            println!(
-                "{} Parachain collators ready (collator-1, collator-2)",
-                "[OK]".green()
-            );
+            println!("{} Robonomics collator ready", "[OK]".green());
         }
-        NetworkTopology::Assethub => {
+        NetworkTopology::AssetHub => {
             println!("{} AssetHub collator ready", "[OK]".green());
             println!("{} Robonomics collator ready", "[OK]".green());
         }
@@ -199,7 +194,7 @@ pub async fn spawn_network(
         NetworkTopology::Simple => {
             println!("{} Parachain {} registered", "[OK]".green(), PARA_ID);
         }
-        NetworkTopology::Assethub => {
+        NetworkTopology::AssetHub => {
             println!(
                 "{} AssetHub {} registered",
                 "[OK]".green(),
@@ -218,40 +213,16 @@ pub async fn spawn_network(
         "==================================================".bright_black()
     );
 
-    let endpoints = match topology {
-        NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
-    };
+    let endpoints = NetworkEndpoints::from(topology);
 
     println!("{:<20} {}", "Relay Chain:", endpoints.relay_ws.cyan());
-    if let Some(asset_hub) = endpoints.asset_hub_ws {
-        println!("{:<20} {}", "AssetHub:", asset_hub.cyan());
+    if let Some(assethub) = endpoints.assethub_ws {
+        println!("{:<20} {}", "AssetHub:", assethub.cyan());
     }
-    println!("{:<20} {}", "Robonomics:", endpoints.collator_1_ws.cyan());
-    if let Some(collator_2) = endpoints.collator_2_ws {
-        println!("{:<20} {}", "Collator 2:", collator_2.cyan());
-    }
+    println!("{:<20} {}", "Robonomics:", endpoints.collator_ws.cyan());
     println!();
 
     log::info!("Network spawned successfully");
 
     Ok(network)
-}
-
-/// Display network endpoints
-pub fn display_endpoints(topology: &NetworkTopology) {
-    let endpoints = match topology {
-        NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
-    };
-
-    println!("{}", "Network Endpoints:".bold());
-    println!("  Relay Chain:  {}", endpoints.relay_ws.cyan());
-    if let Some(asset_hub) = endpoints.asset_hub_ws {
-        println!("  AssetHub:     {}", asset_hub.cyan());
-    }
-    println!("  Robonomics:   {}", endpoints.collator_1_ws.cyan());
-    if let Some(collator_2) = endpoints.collator_2_ws {
-        println!("  Collator 2:   {}", collator_2.cyan());
-    }
 }

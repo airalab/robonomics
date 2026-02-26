@@ -28,10 +28,7 @@ use crate::network::NetworkEndpoints;
 
 /// Test: Network initialization and connectivity
 pub async fn test_network_initialization(topology: &NetworkTopology) -> Result<()> {
-    let endpoints = match topology {
-        NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
-    };
+    let endpoints: NetworkEndpoints = topology.into();
 
     // Connect to relay chain
     let _relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
@@ -40,14 +37,14 @@ pub async fn test_network_initialization(topology: &NetworkTopology) -> Result<(
     log::debug!("Connected to relay chain");
 
     // Connect to parachain collator 1 (using RobonomicsConfig for parachain)
-    let _para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
+    let _para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
         .await
         .context("Failed to connect to robonomics parachain")?;
     log::debug!("Connected to robonomics parachain");
 
     // Connect to AssetHub if present
-    if let Some(asset_hub_ws) = endpoints.asset_hub_ws {
-        let _asset_hub_client = OnlineClient::<PolkadotConfig>::from_url(&asset_hub_ws)
+    if let Some(assethub_ws) = endpoints.assethub_ws {
+        let _asset_hub_client = OnlineClient::<PolkadotConfig>::from_url(&assethub_ws)
             .await
             .context("Failed to connect to AssetHub")?;
         log::debug!("Connected to AssetHub");
@@ -58,10 +55,7 @@ pub async fn test_network_initialization(topology: &NetworkTopology) -> Result<(
 
 /// Test: Block production on both chains
 pub async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
-    let endpoints = match topology {
-        NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
-    };
+    let endpoints: NetworkEndpoints = topology.into();
 
     // Check relay chain
     let relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
@@ -83,7 +77,7 @@ pub async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
     }
 
     // Check parachain (using RobonomicsConfig for parachain)
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
         .await
         .context("Failed to connect to parachain")?;
 
@@ -105,15 +99,18 @@ pub async fn test_block_production(topology: &NetworkTopology) -> Result<()> {
 }
 
 /// Test: Basic extrinsic submission
-pub async fn test_extrinsic_submission(_topology: &NetworkTopology) -> Result<()> {
-    let endpoints = NetworkEndpoints::simple();
+pub async fn test_extrinsic_submission(topology: &NetworkTopology) -> Result<()> {
+    let endpoints: NetworkEndpoints = topology.into();
 
-    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
+    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
         .await
         .context("Failed to connect to parachain")?;
 
     let alice = dev::alice();
-    log::debug!("Using Alice account: {:?}", alice.public_key());
+    log::debug!(
+        "Using Alice account: {}",
+        alice.public_key().to_account_id()
+    );
 
     // Create a remark transaction using the generated API
     let remark_tx = api::tx()
@@ -130,7 +127,10 @@ pub async fn test_extrinsic_submission(_topology: &NetworkTopology) -> Result<()
         .await
         .context("Transaction failed")?;
 
-    log::info!("✓ Remark transaction finalized in block: {:?}", events.block_hash());
+    log::info!(
+        "✓ Remark transaction finalized: {:?}",
+        events.extrinsic_hash()
+    );
 
     Ok(())
 }

@@ -22,54 +22,57 @@
 //! - Token claiming from Ethereum accounts
 
 use anyhow::{Context, Result};
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
-use sp_core::{Pair, H160};
-use sp_runtime::AccountId32;
-use subxt::{tx::PairSigner, OnlineClient};
+use hex_literal::hex;
+use libsecp256k1::{Message, PublicKey, SecretKey};
+use robonomics_runtime_subxt_api::{
+    api::{
+        self, claim_xrt,
+        runtime_types::{
+            pallet_robonomics_claim::{EcdsaSignature, EthereumAddress},
+            robonomics_runtime::RuntimeCall,
+        },
+    },
+    RobonomicsConfig,
+};
+use sp_core::{hashing::keccak_256, H160};
+use subxt::OnlineClient;
 use subxt_signer::sr25519::dev;
 
 use crate::cli::NetworkTopology;
 use crate::network::NetworkEndpoints;
 
-// Ethereum address type (20 bytes)
-type EthereumAddress = H160;
-
 // Test Ethereum account with predefined seed and address
-// Seed: 0x0000000000000000000000000000000000000000000000000000000000000001
+// Seed: 0xbd9880d2511d8ce62bf3d11b6e6b71b06f306d09111f21c7a625394d3b06c9df
 // Private key derived from seed
-// Public address: 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
-const TEST_ETH_ADDRESS: &str = "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
-const TEST_ETH_SEED: [u8; 32] = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-];
+// Public address: 0x1FA7503931c8dC92F25269DE61f35d0558DD6Dcc
+const TEST_ETH_ADDRESS: [u8; 20] = hex!["1FA7503931c8dC92F25269DE61f35d0558DD6Dcc"];
+const TEST_ETH_SEED: [u8; 32] =
+    hex!["bd9880d2511d8ce62bf3d11b6e6b71b06f306d09111f21c7a625394d3b06c9df"];
 
 /// Test: Pallet setup - add claims and fund pallet account
 async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()> {
     log::info!("Testing claim pallet setup");
 
     // Get Alice (sudo) signer
-    let alice = dev::alice();
-    let signer = PairSigner::new(alice);
+    let signer = dev::alice();
 
     // Use test Ethereum account with predefined address
-    let eth_address: EthereumAddress = TEST_ETH_ADDRESS
-        .parse()
-        .context("Failed to parse test Ethereum address")?;
+    let eth_address = EthereumAddress(TEST_ETH_ADDRESS);
     let claim_amount = 1_000_000_000_000u128; // 1 token with 12 decimals
 
-    log::info!(
-        "Setting up claim for Ethereum address: {}",
-        TEST_ETH_ADDRESS
-    );
+    log::info!("Setting up claim for Ethereum address: {:?}", eth_address);
     log::info!("Claim amount: {}", claim_amount);
 
     // Get the balance of the claims pallet account before funding
     // The pallet account ID can be computed from the pallet's module prefix
     // For robonomics-claim pallet, it's typically "py/claim"
-    
+
     // Add claim via sudo
-    let add_claim_tx = api::tx().claim().add_claim(eth_address.into(), claim_amount);
-    let sudo_add_claim = api::tx().sudo().sudo(add_claim_tx);
+    let add_claim_call = RuntimeCall::ClaimXRT(claim_xrt::Call::add_claim {
+        who: eth_address.clone(),
+        value: claim_amount,
+    });
+    let sudo_add_claim = api::tx().sudo().sudo(add_claim_call);
 
     let claim_events = client
         .tx()
@@ -80,10 +83,10 @@ async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()
         .await
         .context("add_claim transaction failed")?;
 
-    log::info!("Added claim via sudo: block {:?}", claim_events.block_hash());
+    log::info!("Added claim via sudo: {:?}", claim_events.extrinsic_hash());
 
     // Verify claim in storage
-    let claims_query = api::storage().claim().claims(eth_address.into());
+    let claims_query = api::storage().claim_xrt().claims(eth_address.into());
     let stored_claim = client
         .storage()
         .at_latest()
@@ -113,34 +116,28 @@ async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()
 async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Result<()> {
     log::info!("Testing token claim from Ethereum account");
 
-    // Generate test Ethereum key using predefined seed
-    use secp256k1::{Message, Secp256k1, SecretKey};
-    use sp_core::hashing::keccak_256;
-
-    let secp = Secp256k1::new();
-
     // Create Ethereum keypair using test seed
-    let secret_key = SecretKey::from_slice(&TEST_ETH_SEED)
-        .context("Failed to create secret key from test seed")?;
-    let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret_key);
+    let secret_key =
+        SecretKey::parse(&TEST_ETH_SEED).context("Failed to create secret key from test seed")?;
+    let public_key = PublicKey::from_secret_key(&secret_key);
 
     // Derive Ethereum address from public key
-    let public_key_bytes = &public_key.serialize_uncompressed()[1..]; // Skip 0x04 prefix
+    let public_key_bytes = &public_key.serialize()[1..]; // Skip 0x04 prefix
     let eth_address_bytes = &keccak_256(public_key_bytes)[12..]; // Take last 20 bytes
-    let eth_address = EthereumAddress::from_slice(eth_address_bytes);
+    let eth_address = H160::from_slice(eth_address_bytes);
 
-    log::info!("Test Ethereum address: {}", TEST_ETH_ADDRESS);
-    log::info!("Derived Ethereum address: {:?}", eth_address);
+    // Derived address should match constant
+    assert!(TEST_ETH_ADDRESS == eth_address.0);
 
     // Destination Substrate account
     let bob = dev::bob();
-    let dest_account = AccountId32::from(bob.public_key().0);
+    let dest_account = bob.public_key().to_account_id();
 
     log::info!("Destination account: {:?}", dest_account);
 
     // Construct message to sign (following Ethereum personal_sign format)
     let prefix = b"Pay RWS to the Robonomics account:";
-    let account_hex = hex::encode(dest_account.as_ref());
+    let account_hex = hex::encode(dest_account.clone());
     let message = format!("{}{}", String::from_utf8_lossy(prefix), account_hex);
 
     log::debug!("Message to sign: {}", message);
@@ -152,17 +149,14 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
 
     log::debug!("Message hash: {}", hex::encode(&message_hash));
 
-    // Sign with secp256k1
-    let secp_message = Message::from_digest_slice(&message_hash)
-        .context("Failed to create message from hash")?;
-    let (recovery_id, signature_bytes) = secp
-        .sign_ecdsa_recoverable(&secp_message, &secret_key)
-        .serialize_compact();
+    // Sign message
+    let message_to_sign = Message::parse(&message_hash);
+    let (signature, recovery_id) = libsecp256k1::sign(&message_to_sign, &secret_key);
 
     // Construct Ethereum signature (r, s, v) - 65 bytes total
     let mut eth_signature = [0u8; 65];
-    eth_signature[..64].copy_from_slice(&signature_bytes);
-    eth_signature[64] = recovery_id.to_i32() as u8 + 27; // Add 27 to recovery ID for Ethereum
+    eth_signature[..64].copy_from_slice(&signature.serialize());
+    eth_signature[64] = recovery_id.serialize() + 27; // Add 27 to recovery ID for Ethereum
 
     log::info!("Ethereum signature: {}", hex::encode(&eth_signature));
 
@@ -180,7 +174,9 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     log::info!("Bob's balance before claim: {}", balance_before);
 
     // Submit claim transaction (anyone can submit, not just the destination account)
-    let claim_tx = api::tx().claim().claim(dest_account.clone(), eth_signature);
+    let claim_tx = api::tx()
+        .claim_xrt()
+        .claim(dest_account.clone(), EcdsaSignature(eth_signature));
 
     let claim_events = client
         .tx()
@@ -191,11 +187,11 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
         .await
         .context("Claim transaction failed")?;
 
-    log::info!("Claim submitted in block: {:?}", claim_events.block_hash());
+    log::info!("Claim submitted: {:?}", claim_events.extrinsic_hash());
 
     // Find the Claimed event
     let claimed_event = claim_events
-        .find_first::<api::claim::events::Claimed>()
+        .find_first::<claim_xrt::events::Claimed>()
         .context("Failed to find events")?;
 
     if let Some(event) = claimed_event {
@@ -209,7 +205,9 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     }
 
     // Verify claim was removed from storage
-    let claims_query = api::storage().claim().claims(eth_address.into());
+    let claims_query = api::storage()
+        .claim_xrt()
+        .claims(EthereumAddress(eth_address.0));
     let remaining_claim = client
         .storage()
         .at_latest()
@@ -236,7 +234,10 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     log::info!("Bob's balance after claim: {}", balance_after);
 
     if balance_after > balance_before {
-        log::info!("✓ Balance increased by {} units", balance_after - balance_before);
+        log::info!(
+            "✓ Balance increased by {} units",
+            balance_after - balance_before
+        );
     } else {
         anyhow::bail!("Balance did not increase after claim");
     }
@@ -245,11 +246,11 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
 }
 
 /// Test: Claim pallet functionality
-pub async fn test_claim_pallet(_topology: &NetworkTopology) -> Result<()> {
+pub async fn test_claim_pallet(topology: &NetworkTopology) -> Result<()> {
     log::debug!("Starting Claim pallet tests");
 
-    let endpoints = NetworkEndpoints::simple();
-    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
+    let endpoints: NetworkEndpoints = topology.into();
+    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
         .await
         .context("Failed to connect to parachain")?;
 

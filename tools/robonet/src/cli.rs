@@ -21,21 +21,21 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(name = "robonet")]
-#[command(about = "Robonomics local network spawner and integration test tool", long_about = None)]
+#[command(about = "Robonomics Network Testbed: local networks and integration testing.", long_about = None)]
 #[command(version)]
 #[command(before_help = r#"
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
 ║   ██████╗  ██████╗ ██████╗  ██████╗ ███╗   ██╗███████╗████████╗   ║
 ║   ██╔══██╗██╔═══██╗██╔══██╗██╔═══██╗████╗  ██║██╔════╝╚══██╔══╝   ║
 ║   ██████╔╝██║   ██║██████╔╝██║   ██║██╔██╗ ██║█████╗     ██║      ║
 ║   ██╔══██╗██║   ██║██╔══██╗██║   ██║██║╚██╗██║██╔══╝     ██║      ║
 ║   ██║  ██║╚██████╔╝██████╔╝╚██████╔╝██║ ╚████║███████╗   ██║      ║
 ║   ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝      ║
-║                                                            ║
-║       Local Network Spawner - Robonomics Network           ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
+║                                                                   ║
+║          Local Networks Testbed - Robonomics Network              ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
 "#)]
 pub struct Cli {
     #[command(subcommand)]
@@ -53,7 +53,7 @@ pub struct Cli {
         default_value = "text",
         global = true
     )]
-    pub format: OutputFormat,
+    pub output: OutputFormat,
 }
 
 #[derive(Subcommand, Debug)]
@@ -71,10 +71,6 @@ pub enum Commands {
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "300")]
         timeout: u64,
-
-        /// Directory to store node logs
-        #[arg(long, value_name = "DIR")]
-        log_dir: Option<String>,
     },
 
     /// Run integration tests on the spawned network
@@ -87,10 +83,6 @@ pub enum Commands {
         #[arg(long)]
         fail_fast: bool,
 
-        /// Specific tests to run (can be specified multiple times)
-        #[arg(short = 't', long = "test")]
-        tests: Vec<String>,
-
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "60")]
         timeout: u64,
@@ -99,9 +91,8 @@ pub enum Commands {
         #[arg(long)]
         no_spawn: bool,
 
-        /// Directory to store node logs
-        #[arg(long, value_name = "DIR")]
-        log_dir: Option<String>,
+        /// Specific tests to run (if not set then all tests will run)
+        tests: Vec<String>,
     },
 }
 
@@ -110,7 +101,7 @@ pub enum NetworkTopology {
     /// Simple topology: relay chain + robonomics parachain only
     Simple,
     /// AssetHub topology: relay chain + robonomics + asset-hub for XCM tests
-    Assethub,
+    AssetHub,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -125,7 +116,6 @@ impl Default for Commands {
             topology: NetworkTopology::Simple,
             persist: true,
             timeout: 300,
-            log_dir: None,
         }
     }
 }

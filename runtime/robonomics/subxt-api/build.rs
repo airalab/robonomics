@@ -77,7 +77,7 @@ fn main() {
     // Step 2: Decompress the WASM if it's compressed.
     // Runtime WASM may be compressed to reduce size. We need the raw WASM for execution.
     let uncompressed_wasm = decompress(&wasm, CODE_BLOB_BOMB_LIMIT).expect("WASM blob is invalid");
-    
+
     // Step 3: Create a RuntimeBlob from the uncompressed WASM.
     // This prepares the WASM for execution by parsing and validating it.
     let runtime_blob =
@@ -86,7 +86,7 @@ fn main() {
     // Step 4: Set up the execution environment.
     // BasicExternalities provides minimal host functions needed for metadata extraction.
     let mut ext = sp_state_machine::BasicExternalities::default();
-    
+
     // Step 5: Create a WASM executor with sensible defaults.
     // The executor runs the WASM code in a sandboxed environment.
     let executor: WasmExecutor<sp_io::SubstrateHostFunctions> = WasmExecutor::builder()
@@ -95,7 +95,7 @@ fn main() {
             maximum_pages: Some(64), // Limit heap to 64 pages (4MB)
         })
         .with_max_runtime_instances(8) // Allow up to 8 concurrent instances
-        .with_runtime_cache_size(2)    // Cache 2 runtime instances
+        .with_runtime_cache_size(2) // Cache 2 runtime instances
         .build();
 
     // Step 6: Execute the Metadata_metadata function in the runtime.

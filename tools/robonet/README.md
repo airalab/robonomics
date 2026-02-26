@@ -1,4 +1,4 @@
-# Robonet - Robonomics Local Network Tool
+# Robonet - Robonomics Network Testbed
 
 Robonet is a comprehensive CLI tool for spawning local Robonomics networks and running integration tests. Built on top of [ZombieNet SDK](https://github.com/paritytech/zombienet-sdk), it provides an easy way to test Robonomics functionality locally without needing external infrastructure.
 
@@ -6,9 +6,7 @@ Robonet is a comprehensive CLI tool for spawning local Robonomics networks and r
 
 - **Multiple Network Topologies**: Support for simple (single parachain) and complex (with AssetHub) network configurations
 - **Comprehensive Testing**: Built-in integration tests for XCM, CPS, Claim pallets, and more
-- **Developer-Friendly CLI**: Clean command-line interface with progress indicators and colored output
-- **CI/CD Ready**: JSON output format and proper exit codes for automation
-- **No Configuration Files**: All network configuration is hardcoded in Rust for simplicity
+- **Developer-Friendly**: Clean command-line interface with progress indicators and colored output
 
 ## Installation
 
@@ -26,10 +24,10 @@ cargo build --release -p robonet
 
 ```bash
 # Development shell with robonet available
-nix develop .#localnet
+nix develop .#robonet
 
 # Run directly
-nix develop .#localnet --command robonet --help
+nix develop .#robonet --command robonet --help
 ```
 
 ## Quick Start
@@ -38,7 +36,7 @@ nix develop .#localnet --command robonet --help
 
 ```bash
 # Spawn a simple network (relay + robonomics parachain)
-robonet spawn --topology simple
+robonet spawn
 
 # Network stays running, press Ctrl+C to stop
 ```
@@ -47,7 +45,7 @@ robonet spawn --topology simple
 
 ```bash
 # Spawn network with AssetHub for XCM testing
-robonet spawn --topology with-assethub
+robonet spawn --topology assethub
 ```
 
 ### Run Integration Tests
@@ -66,7 +64,7 @@ robonet test --no-spawn
 robonet test --fail-fast
 
 # Output results as JSON for CI
-robonet test --format json
+robonet test -o json
 ```
 
 ## Network Topologies
@@ -85,9 +83,9 @@ Use this topology for:
 - Parachain-specific feature testing
 - CPS and Claim pallet tests
 
-### With-AssetHub Topology
+### AssetHub Topology
 
-The with-assethub topology includes:
+The assethub topology includes:
 - **Relay Chain**: rococo-local with 2 validators (alice, bob)
 - **AssetHub Parachain** (para_id: 1000): `ws://127.0.0.1:9910`
 - **Robonomics Parachain** (para_id: 2000): `ws://127.0.0.1:9988`
@@ -114,8 +112,8 @@ Use this topology for:
 - **xcm_token_teleport**: Tests token transfers between parachains (requires AssetHub)
 
 ### Pallet Tests
-- **cps_pallet**: Tests Cyber-Physical Systems pallet functionality
-- **claim_pallet**: Tests Claim pallet functionality
+- **cps**: Tests Cyber-Physical Systems pallet functionality
+- **claim**: Tests Claim pallet functionality
 
 ## CLI Reference
 
@@ -123,7 +121,7 @@ Use this topology for:
 
 ```
 -v, --verbose        Verbose output (-v, -vv, -vvv for increasing verbosity)
--f, --format FORMAT  Output format: text (default) or json
+-o, --output FORMAT  Output format: text (default) or json
 ```
 
 ### Commands
@@ -136,7 +134,7 @@ Spawn a local network.
 robonet spawn [OPTIONS]
 
 Options:
-  --topology TOPOLOGY  Network topology [default: simple] [possible values: simple, with-assethub]
+  --topology TOPOLOGY  Network topology [default: simple] [possible values: simple, assethub]
   --persist            Keep network running (default: waits for Ctrl+C)
   --timeout SECONDS    Network spawn timeout [default: 300]
 ```
@@ -148,7 +146,7 @@ Options:
 robonet spawn
 
 # Spawn with AssetHub, custom timeout
-robonet spawn --topology with-assethub --timeout 600
+robonet spawn --topology assethub --timeout 600
 
 # Spawn without waiting
 robonet spawn --persist=false
@@ -176,18 +174,18 @@ Options:
 robonet test
 
 # Run specific tests
-robonet test -t network_initialization -t block_production
+robonet test network_initialization block_production
 
 # Run XCM tests only
-robonet test -t xcm_upward -t xcm_downward -t xcm_teleport
+robonet test xcm_upward xcm_downward xcm_teleport
 
 # Run on existing network
-robonet spawn --topology with-assethub &
+robonet spawn --topology assethub &
 sleep 30
 robonet test --no-spawn
 
 # CI-friendly output
-robonet test --format json > test-results.json
+robonet test --output json > test-results.json
 ```
 
 ## Test Guidelines
@@ -204,7 +202,7 @@ async fn test_my_new_feature(topology: &NetworkTopology) -> Result<()> {
     // Get appropriate endpoints based on topology
     let endpoints = match topology {
         NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::WithAssethub => NetworkEndpoints::with_assethub(),
+        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
     };
     
     // Connect to the parachain
@@ -263,10 +261,10 @@ if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "my_fea
 
 ```bash
 # Run just your test
-robonet test -t my_feature -v
+robonet test my_feature
 
 # Run with network debugging
-RUST_LOG=debug robonet test -t my_feature
+RUST_LOG=debug robonet test my_feature
 ```
 
 ### Test Best Practices
@@ -335,7 +333,7 @@ while let Some(status) = progress.next().await {
 - name: Run integration tests
   run: |
     ./target/release/robonet test \
-      --format json \
+      --output json \
       --fail-fast \
       > test-results.json
   
@@ -425,13 +423,11 @@ ls -la target/release/robonet
 ```
 tools/robonet/
 ├── Cargo.toml           # Package configuration
-├── build.rs             # Uses robonomics-runtime-subxt-api
 └── src/
     ├── main.rs          # CLI entry point
     ├── cli.rs           # Command-line argument parsing
     ├── network.rs       # Network configuration and spawning
     ├── logging.rs       # Logging setup
-    ├── health.rs        # Health check utilities
     └── tests/
         ├── mod.rs       # Test runner and infrastructure
         ├── network.rs   # ✅ Network tests (fully implemented)
@@ -453,19 +449,6 @@ Robonet uses the following Robonomics crates:
 - **`libcps`**: CPS pallet interaction library for test implementation
   - Located at `tools/libcps`
   - Also uses `robonomics-runtime-subxt-api` for blockchain interactions
-
-### Running Tests
-
-```bash
-# Check compilation
-cargo check -p robonet
-
-# Build
-cargo build -p robonet
-
-# Run with verbose logging
-RUST_LOG=debug ./target/debug/robonet spawn -vvv
-```
 
 ## License
 

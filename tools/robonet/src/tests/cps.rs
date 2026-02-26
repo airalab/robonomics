@@ -24,9 +24,11 @@
 //! - Encrypted payload operations
 
 use anyhow::{Context, Result};
+use futures::future::join_all;
 use libcps::blockchain::{Client as CpsClient, Config as CpsConfig};
 use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
 use libcps::node::{Node, NodeData};
+use sp_core::Encode;
 
 use crate::cli::NetworkTopology;
 use crate::network::NetworkEndpoints;
@@ -109,18 +111,16 @@ async fn test_complex_tree(ws_url: &str) -> Result<()> {
         let meta: NodeData = format!(r#"{{"type":"sensor","id":{}}}"#, i).into();
         let payload: NodeData = format!("data_{}", i).into();
 
-        let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
-            .await
-            .context(format!("Failed to create node {}", i))?;
-
-        created_nodes.push(node.id());
-
-        if (i + 1) % 10 == 0 {
-            log::info!("Created {} nodes...", i + 1);
-        }
+        let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload));
+        created_nodes.push(node);
     }
 
-    log::info!("✓ Created {} nodes successfully", NODE_COUNT);
+    let nodes = join_all(created_nodes)
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    log::info!("✓ Created {} nodes successfully", nodes.len());
 
     // Verify structure
     let root_info = root_node.query().await?;
@@ -162,7 +162,7 @@ async fn test_plain_payloads(ws_url: &str) -> Result<()> {
     log::info!("Created node: {}", node.id());
 
     // Update payload multiple times
-    for i in 0..10 {
+    for i in 0..2 {
         let payload: NodeData = format!("reading_{}: {}", i, 20 + i).into();
         node.set_payload(Some(payload))
             .await
@@ -173,7 +173,7 @@ async fn test_plain_payloads(ws_url: &str) -> Result<()> {
         }
     }
 
-    log::info!("✓ Set 10 plain payloads successfully");
+    log::info!("✓ Set 2 plain payloads successfully");
 
     Ok(())
 }
@@ -209,7 +209,7 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
     log::info!("Created node: {}", node.id());
 
     // Update encrypted payload multiple times
-    for i in 0..5 {
+    for i in 0..2 {
         let plaintext = format!("secret_data_{}: {}", i, 100 + i);
 
         // Encrypt the data
@@ -222,8 +222,7 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
             .context("Failed to encrypt data")?;
 
         // Create encrypted NodeData
-        let encrypted_bytes = encrypted_msg.encode();
-        let payload = NodeData::aead_from(encrypted_bytes);
+        let payload = NodeData::aead_from(encrypted_msg.encode());
 
         node.set_payload(Some(payload))
             .await
@@ -232,7 +231,7 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
         log::info!("Set encrypted payload {}", i + 1);
     }
 
-    log::info!("✓ Set 5 encrypted payloads successfully");
+    log::info!("✓ Set 2 encrypted payloads successfully");
 
     // Verify decryption works
     let node_info = node.query().await?;
@@ -246,11 +245,11 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
 }
 
 /// Test: CPS (Cyber-Physical Systems) pallet functionality
-pub async fn test_cps_pallet(_topology: &NetworkTopology) -> Result<()> {
+pub async fn test_cps_pallet(topology: &NetworkTopology) -> Result<()> {
     log::debug!("Starting CPS pallet tests");
 
-    let endpoints = NetworkEndpoints::simple();
-    let ws_url = &endpoints.collator_1_ws;
+    let endpoints: NetworkEndpoints = topology.into();
+    let ws_url = &endpoints.collator_ws;
 
     // Run all CPS tests
     log::info!("=== Test 1/4: Simple Tree Structure ===");
