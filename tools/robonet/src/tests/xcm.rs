@@ -18,8 +18,8 @@
 //! XCM (Cross-Consensus Messaging) integration tests.
 //!
 //! Tests verify XCM functionality:
-//! - Upward XCM (parachain → relay chain)
-//! - Downward XCM (relay chain → parachain)
+//! - Upward XCM (parachain -> relay chain)
+//! - Downward XCM (relay chain -> parachain)
 //! - Native asset teleportation between Robonomics and AssetHub
 //!
 //! # Important Notes
@@ -36,13 +36,20 @@ use subxt_signer::sr25519::dev;
 use crate::cli::NetworkTopology;
 use crate::network::{NetworkEndpoints, ASSET_HUB_PARA_ID, PARA_ID};
 
+// XCM types from the generated runtime API
+type RuntimeXcm = api::runtime_types::staging_xcm::v4::Xcm;
+type VersionedLocation = api::runtime_types::staging_xcm::VersionedLocation;
+type VersionedXcm = api::runtime_types::staging_xcm::VersionedXcm;
+type VersionedAssets = api::runtime_types::staging_xcm::VersionedAssets;
+type WeightLimit = api::runtime_types::xcm::v3::WeightLimit;
+
 /// Test: XCM upward message (parachain -> relay)
 ///
 /// This test verifies that the parachain can send XCM messages to the relay chain
 /// via the Upward Message Passing (UMP) queue. It sends a simple Remark instruction
 /// wrapped in an XCM message.
 pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> {
-    log::info!("=== Test: XCM Upward Message (Parachain → Relay) ===");
+    log::info!("=== Test: XCM Upward Message (Parachain -> Relay) ===");
 
     let endpoints = NetworkEndpoints::simple();
 
@@ -68,36 +75,27 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
     let alice = dev::alice();
     log::info!("  Using account: Alice");
 
-    // Create a simple XCM message: DescendOrigin + ClearOrigin
-    // This is a basic message that will pass through UMP without requiring execution
-    let xcm_message = subxt::dynamic::Value::unnamed_composite([
-        // WithdrawAsset instruction - withdraw 0 to verify XCM formatting
-        subxt::dynamic::Value::named_variant(
-            "WithdrawAsset",
-            [subxt::dynamic::Value::unnamed_composite([
-                // Empty asset vector - we're not actually withdrawing
-                subxt::dynamic::Value::unnamed_composite([]),
-            ])],
-        ),
-    ]);
+    // Create a simple XCM message to send to relay chain
+    // Using the static types from api::runtime_types
+    use api::runtime_types::staging_xcm::v4::{
+        junction::Junction, junctions::Junctions, location::Location,
+    };
 
-    let dest = subxt::dynamic::Value::named_variant("V3", [
-        subxt::dynamic::Value::unnamed_composite([
-            // parents: 1 (relay chain)
-            subxt::dynamic::Value::unnamed_variant("1", []),
-            // interior: Here
-            subxt::dynamic::Value::named_variant("Here", []),
-        ]),
-    ]);
+    // Construct destination: parent (relay chain)
+    let dest = VersionedLocation::V4(Location {
+        parents: 1,
+        interior: Junctions::Here,
+    });
+
+    // Create a minimal XCM message (empty) just to test the send mechanism
+    let xcm_message = VersionedXcm::V4(RuntimeXcm(vec![]));
 
     log::info!("  Sending XCM message via UMP...");
     
-    // Send XCM message using dynamic API
-    let send_tx = subxt::dynamic::tx(
-        "PolkadotXcm",
-        "send",
-        vec![dest, xcm_message],
-    );
+    // Send XCM message using static API
+    let send_tx = api::tx()
+        .polkadot_xcm()
+        .send(Box::new(dest), Box::new(xcm_message));
 
     // Submit transaction and wait for it to be included in a block
     match para_client
@@ -129,7 +127,7 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
 /// via the Downward Message Passing (DMP) queue. In a real scenario, this would
 /// require sudo access on the relay chain.
 pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()> {
-    log::info!("=== Test: XCM Downward Message (Relay → Parachain) ===");
+    log::info!("=== Test: XCM Downward Message (Relay -> Parachain) ===");
 
     let endpoints = NetworkEndpoints::simple();
 
@@ -193,7 +191,7 @@ pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()
 /// 3. Verify balance changes on both sides
 /// 4. Check XCM event emissions
 async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
-    log::info!("=== Test: Teleport Assets (Robonomics → AssetHub) ===");
+    log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) ===");
 
     // Connect to both chains
     let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
@@ -248,89 +246,54 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
     let teleport_amount: u128 = 1_000_000_000;
     log::info!("  Amount to teleport: {} COASE (1 XRT)", teleport_amount);
 
+    // Use XCM v4 types from the generated runtime API
+    use api::runtime_types::staging_xcm::v4::{
+        asset::{Asset, AssetId, Assets, Fungibility},
+        junction::Junction,
+        junctions::Junctions,
+        location::Location,
+    };
+
     // Construct XCM destination: AssetHub (parent 1, parachain 1000)
-    let dest = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            // parents: 1 (go up to relay)
-            subxt::dynamic::Value::from_value(1u8),
-            // interior: X1(Parachain(1000))
-            subxt::dynamic::Value::named_variant(
-                "X1",
-                [subxt::dynamic::Value::named_variant(
-                    "Parachain",
-                    [subxt::dynamic::Value::from_value(ASSET_HUB_PARA_ID)],
-                )],
-            ),
-        ])],
-    );
+    let dest = VersionedLocation::V4(Location {
+        parents: 1,
+        interior: Junctions::X1([Junction::Parachain(ASSET_HUB_PARA_ID)]),
+    });
 
     // Construct beneficiary: Alice's account on destination
-    let beneficiary = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            // parents: 0
-            subxt::dynamic::Value::from_value(0u8),
-            // interior: X1(AccountId32)
-            subxt::dynamic::Value::named_variant(
-                "X1",
-                [subxt::dynamic::Value::named_variant(
-                    "AccountId32",
-                    [
-                        subxt::dynamic::Value::unnamed_composite([
-                            // network: None
-                            subxt::dynamic::Value::named_variant("None", []),
-                            // id: Alice's account
-                            subxt::dynamic::Value::from_value(alice_account_id.0),
-                        ]),
-                    ],
-                )],
-            ),
-        ])],
-    );
+    let beneficiary = VersionedLocation::V4(Location {
+        parents: 0,
+        interior: Junctions::X1([Junction::AccountId32 {
+            network: None,
+            id: alice_account_id.0,
+        }]),
+    });
 
     // Construct assets: native asset with amount
-    let assets = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            subxt::dynamic::Value::unnamed_composite([
-                // Asset: id and fun
-                subxt::dynamic::Value::unnamed_composite([
-                    // id: Concrete(Here) - native asset
-                    subxt::dynamic::Value::named_variant(
-                        "Concrete",
-                        [subxt::dynamic::Value::unnamed_composite([
-                            subxt::dynamic::Value::from_value(0u8), // parents
-                            subxt::dynamic::Value::named_variant("Here", []), // interior
-                        ])],
-                    ),
-                    // fun: Fungible(amount)
-                    subxt::dynamic::Value::named_variant(
-                        "Fungible",
-                        [subxt::dynamic::Value::from_value(teleport_amount)],
-                    ),
-                ]),
-            ]),
-        ])],
-    );
+    let asset = Asset {
+        id: AssetId(Location {
+            parents: 0,
+            interior: Junctions::Here,
+        }),
+        fun: Fungibility::Fungible(teleport_amount),
+    };
+    let assets = VersionedAssets::V4(Assets(vec![asset]));
 
     // Fee asset index: 0 (use first asset for fees)
-    let fee_asset_item = subxt::dynamic::Value::from_value(0u32);
+    let fee_asset_item = 0u32;
+
+    // Weight limit: Unlimited
+    let weight_limit = WeightLimit::Unlimited;
 
     log::info!("  Constructing limited_teleport_assets transaction...");
 
-    // Create teleport transaction using dynamic API
-    let teleport_tx = subxt::dynamic::tx(
-        "PolkadotXcm",
-        "limited_teleport_assets",
-        vec![
-            dest.clone(),
-            beneficiary.clone(),
-            assets.clone(),
-            fee_asset_item,
-            // weight_limit: Unlimited
-            subxt::dynamic::Value::named_variant("Unlimited", []),
-        ],
+    // Create teleport transaction using static API
+    let teleport_tx = api::tx().polkadot_xcm().limited_teleport_assets(
+        Box::new(dest),
+        Box::new(beneficiary),
+        Box::new(assets),
+        fee_asset_item,
+        weight_limit,
     );
 
     log::info!("  Submitting teleport transaction...");
@@ -447,7 +410,7 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
 /// This test demonstrates the reverse teleportation flow, sending native assets
 /// from AssetHub back to the Robonomics parachain.
 async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
-    log::info!("=== Test: Teleport Assets (AssetHub → Robonomics) ===");
+    log::info!("=== Test: Teleport Assets (AssetHub -> Robonomics) ===");
 
     // Connect to both chains
     let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
@@ -482,102 +445,59 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
     let teleport_amount: u128 = 500_000_000;
     log::info!("  Amount to teleport: {} COASE (0.5 XRT)", teleport_amount);
 
+    // Use XCM v4 types from the generated runtime API
+    use api::runtime_types::staging_xcm::v4::{
+        asset::{Asset, AssetId, Assets, Fungibility},
+        junction::Junction,
+        junctions::Junctions,
+        location::Location,
+    };
+
     // Construct XCM destination: Robonomics parachain (parent 1, parachain 2000)
-    let dest = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            // parents: 1 (go up to relay)
-            subxt::dynamic::Value::from_value(1u8),
-            // interior: X1(Parachain(2000))
-            subxt::dynamic::Value::named_variant(
-                "X1",
-                [subxt::dynamic::Value::named_variant(
-                    "Parachain",
-                    [subxt::dynamic::Value::from_value(PARA_ID)],
-                )],
-            ),
-        ])],
-    );
+    let dest = VersionedLocation::V4(Location {
+        parents: 1,
+        interior: Junctions::X1([Junction::Parachain(PARA_ID)]),
+    });
 
     // Construct beneficiary: Bob's account on Robonomics
-    let beneficiary = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            // parents: 0
-            subxt::dynamic::Value::from_value(0u8),
-            // interior: X1(AccountId32)
-            subxt::dynamic::Value::named_variant(
-                "X1",
-                [subxt::dynamic::Value::named_variant(
-                    "AccountId32",
-                    [
-                        subxt::dynamic::Value::unnamed_composite([
-                            // network: None
-                            subxt::dynamic::Value::named_variant("None", []),
-                            // id: Bob's account
-                            subxt::dynamic::Value::from_value(bob_account_id.0),
-                        ]),
-                    ],
-                )],
-            ),
-        ])],
-    );
+    let beneficiary = VersionedLocation::V4(Location {
+        parents: 0,
+        interior: Junctions::X1([Junction::AccountId32 {
+            network: None,
+            id: bob_account_id.0,
+        }]),
+    });
 
     // Construct assets representing Robonomics' native token
-    // On AssetHub, this would be represented as a foreign asset
-    let assets = subxt::dynamic::Value::named_variant(
-        "V3",
-        [subxt::dynamic::Value::unnamed_composite([
-            subxt::dynamic::Value::unnamed_composite([
-                // Asset from Robonomics parachain
-                subxt::dynamic::Value::unnamed_composite([
-                    // id: Points to Robonomics' native asset
-                    subxt::dynamic::Value::named_variant(
-                        "Concrete",
-                        [subxt::dynamic::Value::unnamed_composite([
-                            subxt::dynamic::Value::from_value(1u8), // parents: 1
-                            subxt::dynamic::Value::named_variant(
-                                "X2",
-                                [
-                                    subxt::dynamic::Value::named_variant(
-                                        "Parachain",
-                                        [subxt::dynamic::Value::from_value(PARA_ID)],
-                                    ),
-                                    subxt::dynamic::Value::named_variant(
-                                        "GeneralIndex",
-                                        [subxt::dynamic::Value::from_value(0u128)],
-                                    ),
-                                ],
-                            ),
-                        ])],
-                    ),
-                    // fun: Fungible(amount)
-                    subxt::dynamic::Value::named_variant(
-                        "Fungible",
-                        [subxt::dynamic::Value::from_value(teleport_amount)],
-                    ),
-                ]),
+    // On AssetHub, this would be represented as a foreign asset from Robonomics
+    let asset = Asset {
+        id: AssetId(Location {
+            parents: 1,
+            interior: Junctions::X2([
+                Junction::Parachain(PARA_ID),
+                Junction::GeneralIndex(0),
             ]),
-        ])],
-    );
+        }),
+        fun: Fungibility::Fungible(teleport_amount),
+    };
+    let assets = VersionedAssets::V4(Assets(vec![asset]));
 
     // Fee asset index
-    let fee_asset_item = subxt::dynamic::Value::from_value(0u32);
+    let fee_asset_item = 0u32;
+
+    // Weight limit: Unlimited
+    let weight_limit = WeightLimit::Unlimited;
 
     log::info!("  Constructing limited_teleport_assets transaction...");
 
     // Note: This will likely fail because Bob may not have assets on AssetHub
     // This test primarily validates the message construction and XCM flow
-    let teleport_tx = subxt::dynamic::tx(
-        "PolkadotXcm",
-        "limited_teleport_assets",
-        vec![
-            dest.clone(),
-            beneficiary.clone(),
-            assets.clone(),
-            fee_asset_item,
-            subxt::dynamic::Value::named_variant("Unlimited", []),
-        ],
+    let teleport_tx = api::tx().polkadot_xcm().limited_teleport_assets(
+        Box::new(dest),
+        Box::new(beneficiary),
+        Box::new(assets),
+        fee_asset_item,
+        weight_limit,
     );
 
     log::info!("  Attempting reverse teleport (may fail due to insufficient balance)...");
@@ -589,16 +509,8 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
     {
         Ok(progress) => {
             match progress.wait_for_finalized_success().await {
-                Ok(events) => {
+                Ok(_events) => {
                     log::info!("  ✓ Reverse teleport transaction finalized");
-                    
-                    // Check for XCM events
-                    for event in events.iter() {
-                        let event = event?;
-                        let event_details = event.as_root_event::<subxt::dynamic::Value>()?;
-                        log::debug!("  Event: {:?}", event_details);
-                    }
-                    
                     log::info!("✓ Reverse teleport test completed successfully");
                 }
                 Err(e) => {
@@ -641,27 +553,27 @@ pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
     // Only run for AssetHub topology
     match topology {
         NetworkTopology::AssetHub => {
-            log::info!("╔════════════════════════════════════════════════════════════╗");
-            log::info!("║  XCM Token Teleportation Tests (AssetHub Topology)        ║");
-            log::info!("╚════════════════════════════════════════════════════════════╝");
+            log::info!("==================================================");
+            log::info!("  XCM Token Teleportation Tests (AssetHub Topology)");
+            log::info!("==================================================");
             log::info!("");
 
             let endpoints = NetworkEndpoints::assethub();
 
             // Test 1: Teleport from Robonomics to AssetHub
-            log::info!("[ 1/2 ] Teleport: Robonomics → AssetHub");
+            log::info!("[ 1/2 ] Teleport: Robonomics -> AssetHub");
             test_teleport_to_assethub(&endpoints).await?;
             
             log::info!("");
 
             // Test 2: Teleport from AssetHub back to Robonomics
-            log::info!("[ 2/2 ] Teleport: AssetHub → Robonomics");
+            log::info!("[ 2/2 ] Teleport: AssetHub -> Robonomics");
             test_teleport_from_assethub(&endpoints).await?;
 
             log::info!("");
-            log::info!("╔════════════════════════════════════════════════════════════╗");
-            log::info!("║  ✓ All XCM Token Teleport Tests Completed Successfully    ║");
-            log::info!("╚════════════════════════════════════════════════════════════╝");
+            log::info!("==================================================");
+            log::info!("  All XCM Token Teleport Tests Completed Successfully");
+            log::info!("==================================================");
 
             Ok(())
         }
