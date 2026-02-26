@@ -19,6 +19,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use colored::Colorize;
 use std::time::Duration;
 
 mod cli;
@@ -78,7 +79,6 @@ async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64)
     match network::spawn_network(topology, timeout_duration).await {
         Ok(network) => {
             if persist {
-                use colored::Colorize;
                 println!(
                     "{}",
                     "Network will remain running. Press Ctrl+C to stop.".bright_black()
@@ -142,13 +142,15 @@ async fn cmd_test(
         test_filter,
         matches!(output, OutputFormat::Json),
     )
-    .await?;
+    .await;
 
     // Clean up network
+    println!("{}", "Shutting down network...".yellow());
     drop(network);
+    println!("{}", "Network stopped.".green());
 
     // Return appropriate exit code
-    if results.is_success() {
+    if results?.is_success() {
         Ok(EXIT_SUCCESS)
     } else {
         Ok(EXIT_TESTS_FAILED)

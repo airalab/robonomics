@@ -365,13 +365,12 @@ client.tx().sign_and_submit_default(&batch, &alice).await?;
 
 See the following projects for real-world usage:
 
-- **libcps**: CPS pallet interaction library ([tools/libcps](../../tools/libcps))
-- **robonet**: Integration testing tool ([tools/robonet](../../tools/robonet))
+- **libcps**: CPS pallet interaction library ([tools/libcps](../../../tools/libcps))
+- **robonet**: Integration testing tool ([tools/robonet](../../../tools/robonet))
 
 ## Related Documentation
 
 - [Subxt Documentation](https://docs.rs/subxt)
-- [Robonomics Runtime](../README.md)
 - [Polkadot SDK](https://paritytech.github.io/polkadot-sdk)
 
 ## License

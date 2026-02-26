@@ -60,7 +60,10 @@ async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()
     let eth_address = EthereumAddress(TEST_ETH_ADDRESS);
     let claim_amount = 1_000_000_000_000u128; // 1 token with 12 decimals
 
-    log::info!("Setting up claim for Ethereum address: {:?}", eth_address);
+    log::info!(
+        "Setting up claim for Ethereum address: 0x{}",
+        hex::encode(eth_address.0)
+    );
     log::info!("Claim amount: {}", claim_amount);
 
     // Get the balance of the claims pallet account before funding
@@ -83,7 +86,10 @@ async fn test_pallet_setup(client: &OnlineClient<RobonomicsConfig>) -> Result<()
         .await
         .context("add_claim transaction failed")?;
 
-    log::info!("Added claim via sudo: {:?}", claim_events.extrinsic_hash());
+    log::info!(
+        "Added claim via sudo with tx-hash {}",
+        claim_events.extrinsic_hash()
+    );
 
     // Verify claim in storage
     let claims_query = api::storage().claim_xrt().claims(eth_address.into());
@@ -136,10 +142,10 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     let bob = dev::bob();
     let dest_account = bob.public_key().to_account_id();
 
-    log::info!("Destination account: {:?}", dest_account);
+    log::info!("Destination account: {}", dest_account.to_string());
 
     // Construct message to sign (following Ethereum personal_sign format)
-    let prefix = b"Pay RWS to the Robonomics account:";
+    let prefix = b"Claim ERC20 XRT to account:";
     let account_hex = hex::encode(dest_account.clone());
     let message = format!("{}{}", String::from_utf8_lossy(prefix), account_hex);
 
@@ -150,7 +156,7 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     let full_message = format!("{}{}", eth_prefix, message);
     let message_hash = keccak_256(full_message.as_bytes());
 
-    log::debug!("Message hash: {}", hex::encode(&message_hash));
+    log::debug!("Message hash: 0x{}", hex::encode(&message_hash));
 
     // Sign message
     let message_to_sign = Message::parse(&message_hash);
@@ -161,7 +167,7 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     eth_signature[..64].copy_from_slice(&signature.serialize());
     eth_signature[64] = recovery_id.serialize() + 27; // Add 27 to recovery ID for Ethereum
 
-    log::info!("Ethereum signature: {}", hex::encode(&eth_signature));
+    log::info!("Ethereum signature: 0x{}", hex::encode(&eth_signature));
 
     // Get Bob's balance before claim
     let balance_query = api::storage().system().account(dest_account.clone());
@@ -176,14 +182,16 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     let balance_before = account_before.map(|a| a.data.free).unwrap_or(0);
     log::info!("Bob's balance before claim: {}", balance_before);
 
-    // Submit claim transaction (anyone can submit, not just the destination account)
+    // Submit unsinged claim transaction (anyone can submit, not just the destination account)
     let claim_tx = api::tx()
         .claim_xrt()
         .claim(dest_account.clone(), EcdsaSignature(eth_signature));
 
     let claim_events = client
         .tx()
-        .sign_and_submit_then_watch_default(&claim_tx, &dev::alice())
+        .create_unsigned(&claim_tx)
+        .context("Failed to create unsinged claim transaction")?
+        .submit_and_watch()
         .await
         .context("Failed to submit claim transaction")?
         .wait_for_finalized_success()
@@ -199,9 +207,9 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
 
     if let Some(event) = claimed_event {
         log::info!(
-            "✓ Claim successful: {} tokens transferred to {:?}",
+            "✓ Claim successful: {} tokens transferred to {}",
             event.amount,
-            event.who
+            event.who.to_string()
         );
     } else {
         anyhow::bail!("Claimed event not found in transaction events");

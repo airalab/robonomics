@@ -25,6 +25,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
+use sp_runtime::traits::AccountIdConversion;
 use xcm::latest::{prelude::NetworkId, ROCOCO_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
@@ -75,7 +76,13 @@ fn robonomics_genesis(
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
-    let patch = match id.as_ref() {
+    let mut endowed_accounts = Vec::<AccountId>::new();
+    // Dev accounts
+    endowed_accounts.extend(Sr25519Keyring::well_known().map(|k| k.to_account_id()));
+    // Claim pallet
+    endowed_accounts.push(ClaimPalletId::get().into_account_truncating());
+
+    let chain_spec = match id.as_ref() {
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
             vec![
@@ -88,10 +95,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
                     Sr25519Keyring::Bob.public().into(),
                 ),
             ],
-            Sr25519Keyring::well_known()
-                .map(|k| k.to_account_id())
-                .collect(),
-            1_000 * XRT,
+            endowed_accounts,
+            1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
             NetworkId::ByGenesis(ROCOCO_GENESIS_HASH),
         ),
@@ -101,13 +106,8 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Alice.public().into(),
             )],
-            vec![
-                Sr25519Keyring::Alice.to_account_id(),
-                Sr25519Keyring::Bob.to_account_id(),
-                Sr25519Keyring::AliceStash.to_account_id(),
-                Sr25519Keyring::BobStash.to_account_id(),
-            ],
-            1_000 * XRT,
+            endowed_accounts,
+            1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
             NetworkId::ByGenesis(ROCOCO_GENESIS_HASH),
         ),
@@ -115,7 +115,7 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
     };
 
     Some(
-        serde_json::to_string(&patch)
+        serde_json::to_string(&chain_spec)
             .expect("serialization to json is expected to work. qed.")
             .into_bytes(),
     )

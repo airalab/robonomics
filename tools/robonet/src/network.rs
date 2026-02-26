@@ -142,6 +142,7 @@ pub async fn spawn_network(
     let spinner = ProgressBar::new_spinner();
     spinner.set_style(
         ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
             .template("{spinner:.green} {msg}")
             .unwrap(),
     );
@@ -177,12 +178,6 @@ pub async fn spawn_network(
     }
 
     // Wait a bit for parachain registration
-    let spinner = ProgressBar::new_spinner();
-    spinner.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap(),
-    );
     spinner.enable_steady_tick(Duration::from_millis(100));
     spinner.set_message("Waiting for parachain registration...");
 

@@ -24,7 +24,6 @@
 //! - Encrypted payload operations
 
 use anyhow::{Context, Result};
-use futures::future::join_all;
 use libcps::blockchain::{Client as CpsClient, Config as CpsConfig};
 use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
 use libcps::node::{Node, NodeData};
@@ -82,7 +81,7 @@ async fn test_simple_tree(ws_url: &str) -> Result<()> {
     Ok(())
 }
 
-/// Test: Create complex CPS tree with hundreds of nodes
+/// Test: Create complex CPS tree with many nodes
 async fn test_complex_tree(ws_url: &str) -> Result<()> {
     log::info!("Testing complex CPS tree with multiple nodes");
 
@@ -103,24 +102,19 @@ async fn test_complex_tree(ws_url: &str) -> Result<()> {
 
     log::info!("Created root node: {}", root_node.id());
 
-    // Create 50 child nodes (representing hundreds would take too long for quick tests)
-    const NODE_COUNT: usize = 50;
+    // Create 50 child nodes
+    const NODE_COUNT: usize = 60;
     let mut created_nodes = Vec::new();
-
     for i in 0..NODE_COUNT {
         let meta: NodeData = format!(r#"{{"type":"sensor","id":{}}}"#, i).into();
         let payload: NodeData = format!("data_{}", i).into();
 
-        let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload));
-        created_nodes.push(node);
+        let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
+            .await
+            .context("Failed to create node")?;
+        created_nodes.push(node.id());
     }
-
-    let nodes = join_all(created_nodes)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
-
-    log::info!("✓ Created {} nodes successfully", nodes.len());
+    log::info!("✓ Created {} nodes successfully", created_nodes.len());
 
     // Verify structure
     let root_info = root_node.query().await?;
