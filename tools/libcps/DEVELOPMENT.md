@@ -179,11 +179,14 @@ rust-gdb target/debug/cps
 
 **Problem**: Embedding runtime WASM directly in the code brings many heavy dependencies.
 
-**Solution**: Extract metadata once during build and save it to a file. This:
+**Solution**: The `robonomics-runtime-subxt-api` crate extracts metadata once during 
+the runtime build and provides it as a dependency. This:
 - Reduces compile-time dependencies significantly
-- Makes builds faster after initial metadata extraction
+- Makes builds faster - metadata is pre-extracted
 - Keeps the final binary smaller
 - Still ensures metadata is always in sync with runtime version
+
+For details, see the [subxt-api documentation](../../runtime/robonomics/subxt-api/README.md).
 
 ### Why XChaCha20-Poly1305?
 
@@ -228,13 +231,16 @@ This allows:
 
 ### Metadata Build Errors
 
-**Problem**: Build fails during metadata extraction
+**Problem**: Build fails during metadata extraction or type generation
 
 **Solution**: 
 1. Clean the build: `cargo clean -p libcps`
-2. Ensure robonomics-runtime dependency is up to date
+2. Ensure robonomics-runtime-subxt-api dependency is up to date
 3. Check that all build-dependencies are available
 4. Rebuild: `cargo build -p libcps`
+
+Note: libcps uses the `robonomics-runtime-subxt-api` crate for type-safe runtime 
+interactions. If you encounter metadata issues, check that crate's build status.
 
 ### Type Mismatch
 

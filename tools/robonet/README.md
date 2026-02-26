@@ -425,14 +425,34 @@ ls -la target/release/robonet
 ```
 tools/robonet/
 ├── Cargo.toml           # Package configuration
+├── build.rs             # Uses robonomics-runtime-subxt-api
 └── src/
     ├── main.rs          # CLI entry point
     ├── cli.rs           # Command-line argument parsing
     ├── network.rs       # Network configuration and spawning
     ├── logging.rs       # Logging setup
     ├── health.rs        # Health check utilities
-    └── tests.rs         # Integration tests
+    └── tests/
+        ├── mod.rs       # Test runner and infrastructure
+        ├── network.rs   # ✅ Network tests (fully implemented)
+        ├── xcm.rs       # ✅ XCM tests (fully implemented)
+        ├── cps.rs       # ✅ CPS tests (fully implemented)
+        └── claim.rs     # ✅ Claim tests (fully implemented)
 ```
+
+### Architecture
+
+Robonet uses the following Robonomics crates:
+
+- **`robonomics-runtime-subxt-api`**: Type-safe runtime API generated from metadata
+  - Located at `runtime/robonomics/subxt-api`
+  - Extracts metadata at build time from the runtime
+  - Generates compile-time verified API via subxt
+  - See [subxt-api README](../../runtime/robonomics/subxt-api/README.md) for details
+
+- **`libcps`**: CPS pallet interaction library for test implementation
+  - Located at `tools/libcps`
+  - Also uses `robonomics-runtime-subxt-api` for blockchain interactions
 
 ### Running Tests
 
