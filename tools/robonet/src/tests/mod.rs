@@ -20,7 +20,8 @@
 pub mod claim;
 pub mod cps;
 pub mod network;
-//pub mod xcm;
+// TODO: XCM tests are currently disabled pending completion of test implementation
+// pub mod xcm;
 
 use anyhow::Result;
 use colored::Colorize;

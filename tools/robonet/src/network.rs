@@ -85,7 +85,7 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
 
     match topology {
         NetworkTopology::Simple => {
-            // Simple: Robonomics parachain with 2 collators
+            // Simple: Robonomics parachain with 1 collator
             builder = builder.with_parachain(|p| {
                 p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
                     c.with_name("robonomics-collator")

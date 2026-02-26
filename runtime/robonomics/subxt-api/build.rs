@@ -64,7 +64,7 @@ use std::{env, fs, path::PathBuf};
 /// This is prepended to all Substrate metadata to identify it as valid metadata.
 /// The magic sequence helps detect corrupted or invalid metadata early.
 pub type ReservedMeta = [u8; 4];
-pub const META: ReservedMeta = [0x6d, 0x65, 0x74, 0x61]; // 1635018093 in decimal, 'atem' as string...
+pub const META: ReservedMeta = [0x6d, 0x65, 0x74, 0x61]; // 1635018093 in decimal, "meta" as ASCII
 
 fn main() {
     // The way to get metadata is to call the runtime's `Metadata_metadata` host function.

@@ -881,8 +881,7 @@ cps mqtt subscribe "machines/cnc001/telemetry" 2 --receiver-public <RECEIVER_ADD
 
 ```
 tools/libcps/
-├── Cargo.toml            # Dependencies and features
-├── build.rs              # Uses robonomics-runtime-subxt-api for type generation
+├── Cargo.toml            # Dependencies and features (uses robonomics-runtime-subxt-api)
 ├── README.md             # This file
 ├── DEVELOPMENT.md        # Developer guide
 └── src/

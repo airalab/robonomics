@@ -64,7 +64,7 @@ pub enum Commands {
         #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
         topology: NetworkTopology,
 
-        /// Keep network running after spawn (don't wait for Ctrl+C)
+        /// Keep network running after spawn (wait for Ctrl+C to stop)
         #[arg(long)]
         persist: bool,
 

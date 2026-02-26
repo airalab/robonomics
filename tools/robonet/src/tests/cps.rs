@@ -168,9 +168,7 @@ async fn test_plain_payloads(ws_url: &str) -> Result<()> {
             .await
             .context(format!("Failed to set payload {}", i))?;
 
-        if (i + 1) % 3 == 0 {
-            log::info!("Updated payload {} times", i + 1);
-        }
+        log::info!("Updated payload {} times", i + 1);
     }
 
     log::info!("✓ Set 2 plain payloads successfully");

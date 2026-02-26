@@ -55,7 +55,7 @@ robonet spawn --topology assethub
 robonet test
 
 # Run specific tests
-robonet test -t xcm_upward -t xcm_downward
+robonet test network_health claim_token
 
 # Run tests on already running network
 robonet test --no-spawn
@@ -73,9 +73,8 @@ robonet test -o json
 
 The simple topology includes:
 - **Relay Chain**: rococo-local with 2 validators (alice, bob)
-- **Robonomics Parachain** (para_id: 2000): 2 collators
-  - collator-1: `ws://127.0.0.1:9988`
-  - collator-2: `ws://127.0.0.1:9989`
+- **Robonomics Parachain** (para_id: 2000): 1 collator
+  - collator: `ws://127.0.0.1:9988`
 - **Relay RPC**: `ws://127.0.0.1:9944`
 
 Use this topology for:
@@ -148,8 +147,8 @@ robonet spawn
 # Spawn with AssetHub, custom timeout
 robonet spawn --topology assethub --timeout 600
 
-# Spawn without waiting
-robonet spawn --persist=false
+# Spawn and keep network running
+robonet spawn --persist
 ```
 
 #### `robonet test`
@@ -157,13 +156,15 @@ robonet spawn --persist=false
 Run integration tests.
 
 ```bash
-robonet test [OPTIONS]
+robonet test [OPTIONS] [TESTS]...
+
+Arguments:
+  [TESTS]...            Specific test(s) to run (e.g., network_health claim_token)
 
 Options:
-  --topology TOPOLOGY   Network topology [default: with-assethub]
+  --topology TOPOLOGY   Network topology [default: simple]
   --fail-fast           Stop on first test failure
-  -t, --test TEST       Specific test(s) to run (can be specified multiple times)
-  --timeout SECONDS     Network spawn timeout [default: 60]
+  --timeout SECONDS     Network spawn timeout [default: 300]
   --no-spawn            Skip network spawning
 ```
 

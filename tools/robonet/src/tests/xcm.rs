@@ -38,7 +38,7 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
     let endpoints = NetworkEndpoints::simple();
 
     // Connect to parachain and relay
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
         .await
         .context("Failed to connect to parachain")?;
 
@@ -201,9 +201,9 @@ async fn test_asset_teleport(endpoints: &NetworkTopology) -> Result<()> {
 
 /// Test: XCM token teleport between parachains
 pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
-    // Only run for Assethub topology
+    // Only run for AssetHub topology
     match topology {
-        NetworkTopology::Assethub => {
+        NetworkTopology::AssetHub => {
             log::debug!("XCM token teleport test");
 
             let endpoints = NetworkEndpoints::assethub();

@@ -127,7 +127,10 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
     let eth_address = H160::from_slice(eth_address_bytes);
 
     // Derived address should match constant
-    assert!(TEST_ETH_ADDRESS == eth_address.0);
+    anyhow::ensure!(
+        TEST_ETH_ADDRESS == eth_address.0,
+        "Derived Ethereum address does not match TEST_ETH_ADDRESS constant"
+    );
 
     // Destination Substrate account
     let bob = dev::bob();
