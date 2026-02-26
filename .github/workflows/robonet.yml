@@ -1,0 +1,33 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cachix:
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+  robonet-tests:
+    needs: cachix
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v25
+
+      - name: Run integration tests
+        run: nix develop .#robonet --command robonet test 
