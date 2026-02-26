@@ -1,0 +1,35 @@
+[package]
+name = "robonet"
+description = "Robonomics local network spawner based on ZombieNet SDK."
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "robonet"
+path = "src/main.rs"
+
+[dependencies]
+zombienet-sdk.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+clap.workspace = true
+colored.workspace = true
+indicatif.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+subxt.workspace = true
+subxt-signer.workspace = true
+sp-core.workspace = true
+chrono.workspace = true
+log.workspace = true
+env_logger.workspace = true
+futures.workspace = true
+libcps.workspace = true
+robonomics-runtime-subxt-api.workspace = true
+parity-scale-codec.workspace = true
+hex.workspace = true
+hex-literal.workspace = true
+libsecp256k1 = { workspace = true, features = ["hmac", "static-context"] }

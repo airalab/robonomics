@@ -89,45 +89,6 @@ pub async fn execute(config: &Config, param: String) -> Result<()> {
 }
 ```
 
-## Blockchain Metadata
-
-libcps extracts metadata directly from the robonomics runtime at build time. This approach brings **much less dependencies** than embedding the runtime WASM in the subxt macro.
-
-### How It Works
-
-The `build.rs` script extracts metadata from the runtime and saves it to the build directory:
-
-1. **Load runtime WASM**: Gets `WASM_BINARY` from robonomics-runtime build dependency
-2. **Create RuntimeBlob**: Prepares the WASM for execution
-3. **Execute metadata call**: Uses `WasmExecutor` to call the `Metadata_metadata` host function
-4. **Decode and validate**: Decodes SCALE-encoded metadata and validates magic bytes
-5. **Save to file**: Writes metadata to `$OUT_DIR/metadata.scale`
-6. **Subxt macro**: Reads the metadata file at compile time to generate type-safe APIs
-
-### Benefits
-
-- **Fewer dependencies**: No need to embed runtime WASM or pull in heavy runtime dependencies
-- **Faster builds**: Metadata extraction happens once during build
-- **Always in sync**: Metadata comes directly from runtime dependency version
-- **Type safe**: Compile-time verification of all runtime calls
-- **Self-contained**: Everything happens in the build process
-
-### Build Dependencies
-
-The metadata extraction requires these dependencies (build-time only):
-
-```toml
-[build-dependencies]
-robonomics-runtime = { workspace = true }
-sp-io = { workspace = true }
-sp-state-machine = { workspace = true }
-sc-executor = { workspace = true }
-sc-executor-common = { workspace = true }
-parity-scale-codec = { workspace = true }
-```
-
-These are only needed during compilation and don't bloat the final binary.
-
 ## Testing
 
 ### Unit Tests
@@ -218,11 +179,14 @@ rust-gdb target/debug/cps
 
 **Problem**: Embedding runtime WASM directly in the code brings many heavy dependencies.
 
-**Solution**: Extract metadata once during build and save it to a file. This:
+**Solution**: The `robonomics-runtime-subxt-api` crate extracts metadata once during 
+the runtime build and provides it as a dependency. This:
 - Reduces compile-time dependencies significantly
-- Makes builds faster after initial metadata extraction
+- Makes builds faster - metadata is pre-extracted
 - Keeps the final binary smaller
 - Still ensures metadata is always in sync with runtime version
+
+For details, see the [subxt-api documentation](../../runtime/robonomics/subxt-api/README.md).
 
 ### Why XChaCha20-Poly1305?
 
@@ -267,13 +231,16 @@ This allows:
 
 ### Metadata Build Errors
 
-**Problem**: Build fails during metadata extraction
+**Problem**: Build fails during metadata extraction or type generation
 
 **Solution**: 
 1. Clean the build: `cargo clean -p libcps`
-2. Ensure robonomics-runtime dependency is up to date
+2. Ensure robonomics-runtime-subxt-api dependency is up to date
 3. Check that all build-dependencies are available
 4. Rebuild: `cargo build -p libcps`
+
+Note: libcps uses the `robonomics-runtime-subxt-api` crate for type-safe runtime 
+interactions. If you encounter metadata issues, check that crate's build status.
 
 ### Type Mismatch
 

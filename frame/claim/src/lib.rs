@@ -198,7 +198,7 @@ pub mod pallet {
         /// Prefix string prepended to signed messages.
         ///
         /// This is used in the Ethereum signed message format to prevent signature replay attacks
-        /// across different contexts. Example: b"Pay RWS to the Robonomics account:"
+        /// across different contexts. Example: b"Claim ERC20 XRT to account:"
         #[pallet::constant]
         type Prefix: Get<&'static [u8]>;
 

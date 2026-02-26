@@ -14,7 +14,6 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 
 ## ✨ Features
 
-- 🎨 **Beautiful colored output** with emojis and ASCII art (CLI)
 - 🔐 **Multi-algorithm AEAD encryption** (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
 - 🔑 **Dual keypair support** (SR25519 for Substrate, ED25519 for IoT/Home Assistant)
 - 📡 **MQTT bridge** for IoT device integration (optional feature)
@@ -882,8 +881,7 @@ cps mqtt subscribe "machines/cnc001/telemetry" 2 --receiver-public <RECEIVER_ADD
 
 ```
 tools/libcps/
-├── Cargo.toml            # Dependencies and features
-├── build.rs              # Build script for metadata extraction
+├── Cargo.toml            # Dependencies and features (uses robonomics-runtime-subxt-api)
 ├── README.md             # This file
 ├── DEVELOPMENT.md        # Developer guide
 └── src/
@@ -926,13 +924,14 @@ cargo build --package libcps
 cargo test --package libcps
 ```
 
-### Generating Blockchain Metadata
+### Generating Blockchain Types
 
-Metadata is **automatically extracted** during the build process. The robonomics runtime is added as a build dependency, and the build script:
+Type-safe blockchain interactions are **automatically generated** using the 
+`robonomics-runtime-subxt-api` crate. This crate:
 
-1. Accesses the embedded `WASM_BINARY` from robonomics-runtime
-2. Writes it as `robonomics_runtime.compact.wasm`
-3. subxt macro reads this WASM and generates type-safe APIs at compile time
+1. Extracts metadata from the robonomics runtime at build time
+2. Saves metadata to `$OUT_DIR/metadata.scale`  
+3. subxt macro reads the metadata and generates type-safe APIs at compile time
 
 **No external tools required!** Just build the project:
 
@@ -940,7 +939,8 @@ Metadata is **automatically extracted** during the build process. The robonomics
 cargo build -p libcps
 ```
 
-The metadata is always in sync with the runtime dependency version.
+The generated types are always in sync with the runtime dependency version.
+For more details, see the [subxt-api documentation](../../runtime/robonomics/subxt-api/README.md).
 
 ## 🤝 Contributing
 

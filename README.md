@@ -105,6 +105,13 @@ This repository is organized as a Cargo workspace with the following structure:
 
 ### Tools
 
+- **`tools/robonet/`** - Local network spawner and integration test framework
+  - CLI tool for spawning multi-node test networks using ZombieNet SDK
+  - Built-in integration tests for XCM, CPS, Claim pallets, and network functionality
+  - Multiple network topologies (simple parachain, with AssetHub for XCM testing)
+  - Developer-friendly interface with progress indicators and detailed logging
+  - See [robonet/README.md](tools/robonet/README.md) for detailed documentation
+
 - **`tools/libcps/`** - Robonomics CPS (Cyber-Physical Systems) library and CLI
   - Comprehensive Rust library for managing hierarchical CPS nodes on-chain
   - Beautiful CLI interface with colored output and tree visualization

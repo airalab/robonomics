@@ -17,13 +17,13 @@
   in {
     devShells.default = defaultShell;
 
-    devShells.localnet =
+    devShells.robonet =
       let robonomics = config.rust-project.crates."robonomics".crane.outputs.drv.crate;
           libcps = config.rust-project.crates."libcps".crane.outputs.drv.crate;
-          localnet = config.rust-project.crates."localnet".crane.outputs.drv.crate;
+          robonet = config.rust-project.crates."robonet".crane.outputs.drv.crate;
       in pkgs.mkShell {
         inputsFrom = [ defaultShell ];
-        buildInputs = [ robonomics libcps localnet ];
+        buildInputs = [ robonomics libcps robonet ];
       };
 
     devShells.benchmarking = with pkgs; mkShell {
