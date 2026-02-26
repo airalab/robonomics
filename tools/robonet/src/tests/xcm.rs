@@ -166,16 +166,8 @@ async fn test_add_foreign_token(endpoints: &NetworkEndpoints) -> Result<()> {
     Ok(())
 }
 
-    // Example structure:
-
-    log::warn!("Foreign token test requires runtime metadata - skipping actual implementation");
-    log::info!("✓ Foreign token test structure verified");
-
-    Ok(())
-}
-
 /// Test: Teleport asset between parachains
-async fn test_asset_teleport(endpoints: &NetworkEndpoints) -> Result<()> {
+async fn test_asset_teleport(endpoints: &NetworkTopology) -> Result<()> {
     log::info!("Testing asset teleportation");
 
     let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_1_ws)
@@ -206,13 +198,6 @@ async fn test_asset_teleport(endpoints: &NetworkEndpoints) -> Result<()> {
     Ok(())
 }
 
-    // Example structure:
-
-    log::warn!("Asset teleport test requires runtime metadata - skipping actual implementation");
-    log::info!("✓ Asset teleport test structure verified");
-
-    Ok(())
-}
 
 /// Test: XCM token teleport between parachains
 pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
