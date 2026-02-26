@@ -28,7 +28,6 @@
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
 use anyhow::{Context, Result};
-use parity_scale_codec::Encode;
 use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 use std::time::Duration;
 use subxt::{OnlineClient, PolkadotConfig};
