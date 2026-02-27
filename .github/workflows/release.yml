@@ -13,6 +13,7 @@ jobs:
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   publish-release-draft:
     needs: nightly
@@ -21,7 +22,7 @@ jobs:
       release_url: ${{ steps.create-release.outputs.html_url }}
       upload_url: ${{ steps.create-release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
     - name: Download runtime
       uses: actions/download-artifact@v4

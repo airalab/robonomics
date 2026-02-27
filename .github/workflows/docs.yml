@@ -19,23 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install deps
-        run: sudo apt -y install pkg-config protobuf-compiler
+      - uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
 
       - name: Setup pages
         id: pages
         uses: actions/configure-pages@v5
 
       - name: Clean docs folder
-        run: cargo clean --doc
+        run: nix develop --command cargo clean --doc
 
       - name: Build docs
-        run: cargo doc --workspace --no-deps
+        run: nix develop --command cargo doc --workspace --no-deps
 
       - name: Add redirect
         run: echo '<meta http-equiv="refresh" content="0;url=robonomics/index.html">' > target/doc/index.html

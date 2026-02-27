@@ -13,23 +13,40 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
+      CACHIX_AUTH_TOKEN:
+        required: true
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.release-binary.outputs.status && jobs.docker.outputs.status && jobs.srtool.outputs.status }}
+        value: ${{ jobs.release-binary.outputs.status == 'success' && jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   SUBWASM_VERSION: 0.16.1
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
+  cachix:
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
   tests:
     uses: ./.github/workflows/tests.yml
 
   release-binary:
     needs: tests
+    if: ${{ always() && needs.tests.result == 'success' }}
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
+    outputs:
+      status: ${{ job.status }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - os-name: Linux-x86_64
@@ -43,7 +60,7 @@ jobs:
             target: x86_64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install Protoc
         if: ${{ matrix.platform.runs-on != 'ubuntu-latest' }}
         uses: arduino/setup-protoc@v3
@@ -63,6 +80,7 @@ jobs:
         with:
           name: robonomics-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/production/robonomics
+          retention-days: 1
 
   docker:
     needs: release-binary
@@ -72,7 +90,7 @@ jobs:
 
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -115,6 +133,8 @@ jobs:
         labels: ${{ steps.docker_meta.outputs.labels }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         push: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   srtool:
     needs: tests
@@ -123,7 +143,7 @@ jobs:
       status: ${{ job.status }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
     - name: Srtool build
       id: srtool_build

@@ -1,5 +1,6 @@
 [package]
 name = "robonomics-runtime"
+description = "Robonomics Network WASM runtime"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -12,7 +13,6 @@ build = "build.rs"
 parity-scale-codec.workspace = true
 smallvec.workspace = true
 scale-info.workspace = true
-hex-literal.workspace = true
 serde_json = { features = ["alloc"], workspace = true }
 
 # primitives
@@ -40,14 +40,13 @@ pallet-collator-selection.workspace = true
 pallet-democracy.workspace = true
 frame-executive.workspace = true
 frame-metadata-hash-extension.workspace = true
-pallet-identity.workspace = true
 pallet-scheduler.workspace = true
 pallet-session.workspace = true
 pallet-treasury.workspace = true
 pallet-membership.workspace = true
-pallet-migrations.workspace = true
 frame-support.workspace = true
 pallet-multisig.workspace = true
+pallet-message-queue.workspace = true
 pallet-preimage.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-system.workspace = true
@@ -67,6 +66,8 @@ pallet-robonomics-digital-twin.workspace = true
 pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
+pallet-robonomics-cps.workspace = true
+pallet-robonomics-claim.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -75,6 +76,7 @@ cumulus-pallet-dmp-queue.workspace = true
 cumulus-pallet-xcmp-queue.workspace = true
 cumulus-pallet-xcm.workspace = true
 cumulus-pallet-weight-reclaim.workspace = true
+cumulus-pallet-session-benchmarking = { workspace = true, optional = true }
 cumulus-primitives-aura.workspace = true
 cumulus-primitives-core.workspace = true
 cumulus-primitives-utility.workspace = true
@@ -85,12 +87,18 @@ parachain-info.workspace = true
 xcm.workspace = true
 xcm-builder.workspace = true
 xcm-executor.workspace = true
-#pallet-xcm.workspace = true
-pallet-xcm-info = { path = "../../frame/xcm-info", default-features = false }
+xcm-runtime-apis.workspace = true
+pallet-xcm.workspace = true
+pallet-xcm-benchmarks.workspace = true
 polkadot-primitives.workspace = true
+polkadot-parachain-primitives.workspace = true
+polkadot-runtime-common.workspace = true
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex-literal.workspace = true
 
 [features]
 default = ["std"]
@@ -120,11 +128,11 @@ std = [
   "pallet-democracy/std",
   "frame-executive/std",
   "frame-metadata-hash-extension/std",
-  "pallet-identity/std",
   "pallet-scheduler/std",
   "pallet-session/std",
   "pallet-treasury/std",
   "pallet-membership/std",
+  "pallet-message-queue/std",
   "pallet-multisig/std",
   "pallet-preimage/std",
   "frame-support/std",
@@ -140,6 +148,8 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
+  "pallet-robonomics-claim/std",
+  "pallet-robonomics-cps/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -153,9 +163,12 @@ std = [
   "xcm/std",
   "xcm-builder/std",
   "xcm-executor/std",
-  #  "pallet-xcm/std",
-  "pallet-xcm-info/std",
+  "xcm-runtime-apis/std",
+  "pallet-xcm-benchmarks/std",
+  "pallet-xcm/std",
   "polkadot-primitives/std",
+  "polkadot-parachain-primitives/std",
+  "polkadot-runtime-common/std",
   "parachain-info/std",
   "scale-info/std",
 ]
@@ -168,19 +181,29 @@ runtime-benchmarks = [
   "pallet-balances/runtime-benchmarks",
   "pallet-assets/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
+  "pallet-utility/runtime-benchmarks",
+  "pallet-multisig/runtime-benchmarks",
+  "pallet-message-queue/runtime-benchmarks",
+  "pallet-vesting/runtime-benchmarks",
+  "pallet-collator-selection/runtime-benchmarks",
+  "pallet-session/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
-  #  "pallet-xcm/runtime-benchmarks",
+  "pallet-robonomics-cps/runtime-benchmarks",
+  "pallet-robonomics-claim/runtime-benchmarks",
+  "pallet-xcm-benchmarks/runtime-benchmarks",
+  "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
   "frame-system-benchmarking",
   "cumulus-pallet-parachain-system/runtime-benchmarks",
   "cumulus-pallet-xcmp-queue/runtime-benchmarks",
   "cumulus-pallet-dmp-queue/runtime-benchmarks",
   "cumulus-pallet-weight-reclaim/runtime-benchmarks",
-  "pallet-collator-selection/runtime-benchmarks",
+  "cumulus-pallet-session-benchmarking/runtime-benchmarks",
+  "cumulus-primitives-utility/runtime-benchmarks",
 ]
 try-runtime = [
   "cumulus-pallet-aura-ext/try-runtime",
@@ -195,12 +218,18 @@ try-runtime = [
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
-  "pallet-migrations/try-runtime",
   "pallet-multisig/try-runtime",
   "pallet-session/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
   "pallet-utility/try-runtime",
+  "pallet-robonomics-datalog/try-runtime",
+  "pallet-robonomics-digital-twin/try-runtime",
+  "pallet-robonomics-launch/try-runtime",
+  "pallet-robonomics-liability/try-runtime",
+  "pallet-robonomics-rws/try-runtime",
+  "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-claim/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",
 ]
@@ -212,3 +241,6 @@ metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller, like logging for example.
 on-chain-release-build = ["metadata-hash"]
+
+# Use development pallets & parameters in runtime.
+dev-runtime = []

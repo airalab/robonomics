@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2026 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Runtime genesis config presets
 
-use crate::common::{currency::XRT, AccountId, AuraId};
+use crate::common::{currency::XRT, xcm_version, AccountId, AuraId};
 use crate::*;
 
 use alloc::{vec, vec::Vec};
@@ -25,6 +25,8 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
+use sp_runtime::traits::AccountIdConversion;
+use xcm::latest::{prelude::NetworkId, ROCOCO_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
 
@@ -32,7 +34,8 @@ fn robonomics_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
     endowed_accounts: Vec<AccountId>,
     endowment: Balance,
-    id: ParaId,
+    parachain_id: ParaId,
+    relay_network: NetworkId,
 ) -> serde_json::Value {
     build_struct_json_patch!(RuntimeGenesisConfig {
         balances: BalancesConfig {
@@ -42,7 +45,10 @@ fn robonomics_genesis(
                 .map(|k| (k, endowment))
                 .collect(),
         },
-        parachain_info: ParachainInfoConfig { parachain_id: id },
+        parachain_info: ParachainInfoConfig {
+            parachain_id,
+            relay_network,
+        },
         collator_selection: CollatorSelectionConfig {
             invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
             candidacy_bond: 32 * XRT,
@@ -59,13 +65,24 @@ fn robonomics_genesis(
                 })
                 .collect(),
         },
-        //polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+        polkadot_xcm: PolkadotXcmConfig {
+            safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
+        },
+        sudo: SudoConfig {
+            key: Some(Sr25519Keyring::Alice.to_account_id())
+        },
     })
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
-    let patch = match id.as_ref() {
+    let mut endowed_accounts = Vec::<AccountId>::new();
+    // Dev accounts
+    endowed_accounts.extend(Sr25519Keyring::well_known().map(|k| k.to_account_id()));
+    // Claim pallet
+    endowed_accounts.push(ClaimPalletId::get().into_account_truncating());
+
+    let chain_spec = match id.as_ref() {
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
             vec![
@@ -78,11 +95,10 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
                     Sr25519Keyring::Bob.public().into(),
                 ),
             ],
-            Sr25519Keyring::well_known()
-                .map(|k| k.to_account_id())
-                .collect(),
-            1_000 * XRT,
+            endowed_accounts,
+            1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
+            NetworkId::ByGenesis(ROCOCO_GENESIS_HASH),
         ),
         sp_genesis_builder::DEV_RUNTIME_PRESET => robonomics_genesis(
             // initial collators.
@@ -90,20 +106,16 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Alice.public().into(),
             )],
-            vec![
-                Sr25519Keyring::Alice.to_account_id(),
-                Sr25519Keyring::Bob.to_account_id(),
-                Sr25519Keyring::AliceStash.to_account_id(),
-                Sr25519Keyring::BobStash.to_account_id(),
-            ],
-            1_000 * XRT,
+            endowed_accounts,
+            1_000_000 * XRT,
             ROBONOMICS_PARA_ID,
+            NetworkId::ByGenesis(ROCOCO_GENESIS_HASH),
         ),
         _ => return None,
     };
 
     Some(
-        serde_json::to_string(&patch)
+        serde_json::to_string(&chain_spec)
             .expect("serialization to json is expected to work. qed.")
             .into_bytes(),
     )

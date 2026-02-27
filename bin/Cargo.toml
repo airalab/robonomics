@@ -1,0 +1,26 @@
+[package]
+name = "robonomics"
+description = "The Robonomics Network Omni Node."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "robonomics"
+path = "src/main.rs"
+
+[dependencies]
+color-eyre.workspace = true
+polkadot-omni-node-lib.workspace = true
+robonomics-runtime.workspace = true
+robonomics-runtime.features = ["dev-runtime"]
+sp-genesis-builder.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+
+[build-dependencies]
+substrate-build-script-utils.workspace = true

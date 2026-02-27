@@ -1,0 +1,81 @@
+[package]
+name = "libcps"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Library for interacting with Robonomics CPS (Cyber-Physical Systems) pallet"
+readme = "README.md"
+keywords = [
+  "robonomics",
+  "blockchain",
+  "iot",
+  "cyber-physical-systems",
+  "encryption",
+]
+categories = ["cryptography", "network-programming"]
+
+[lib]
+name = "libcps"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cps"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+# Blockchain
+subxt.workspace = true
+subxt-signer.workspace = true
+sp-core = { workspace = true, features = ["std"] }
+parity-scale-codec = { workspace = true, features = ["std"] }
+robonomics-runtime-subxt-api.workspace = true
+
+# Cryptography
+curve25519-dalek.workspace = true
+x25519-dalek.workspace = true
+chacha20poly1305.workspace = true
+aes-gcm.workspace = true
+hkdf.workspace = true
+sha2.workspace = true
+
+# MQTT
+rumqttc.workspace = true
+rumqttc.optional = true
+
+# CLI & Output
+clap = { workspace = true, features = ["env"], optional = true }
+colored = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
+
+# Serialization
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true, features = ["std"] }
+easy-hex.workspace = true
+toml.workspace = true
+toml.optional = true
+base64.workspace = true
+bs58.workspace = true
+hex.workspace = true
+
+# Async
+tokio.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+chrono.optional = true
+
+# Logging
+log.workspace = true
+env_logger = { workspace = true, optional = true }
+
+[features]
+default = ["mqtt", "cli"]
+mqtt = ["dep:rumqttc", "dep:toml"]
+cli = ["mqtt", "clap", "colored", "chrono", "indicatif", "env_logger"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,0 +1,37 @@
+{
+  description = "Robonomics Network Flakes";
+
+  nixConfig = {
+    extra-substituters = [
+      "https://polkadot.cachix.org"
+      "https://robonomics.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "polkadot.cachix.org-1:qOFthM8M0DTotg8A48wWTZBgJD6h1rV9Jaszt6QE/N0="
+      "robonomics.cachix.org-1:H3FwZ3khWXfEZ2OlPEiqRenpW1pDMAgRRRXMoksO2Bw="
+    ];
+  };
+
+  inputs = {
+    systems.url = "github:nix-systems/default";
+    nixpkgs.url = "github:NixOS/nixpkgs/bcc4a9d9533c033d806a46b37dc444f9b0da49dd";
+
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
+
+    rust-flake.url = "github:juspay/rust-flake";
+    rust-flake.inputs.nixpkgs.follows = "nixpkgs";
+
+    polkadot.url = "github:andresilva/polkadot.nix";
+    polkadot.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs = inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
+      imports = with builtins;
+        map
+          (fn: ./nix/modules/flake/${fn})
+          (attrNames (readDir ./nix/modules/flake));
+  };
+}

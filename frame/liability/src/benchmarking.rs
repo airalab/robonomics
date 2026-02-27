@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2026 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ mod benchmark_runtime {
             sp_runtime::MultiSignature,
             crate::technics::IPFS,
         >;
-        type WeightInfo = ();
+        type WeightInfo = weights::TestWeightInfo;
     }
 }
 
