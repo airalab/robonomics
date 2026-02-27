@@ -42,8 +42,6 @@ jobs:
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        cache: true
 
     - name: Install deps
       run: sudo apt -y install pkg-config protobuf-compiler libclang-dev
@@ -81,8 +79,8 @@ jobs:
           curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2512-2/frame-omni-bencher \
           | sudo install -m 755 /dev/stdin /usr/local/bin/frame-omni-bencher
 
-      - name: Run benchmark checks using benchmark-pallets.sh
-        run: BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 ./scripts/benchmark-pallets.sh
+      - name: Run benchmark checks using runtime-benchmarks.sh
+        run: BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 ./scripts/runtime-benchmarks.sh
 
   try-runtime:
     needs: static-checks
