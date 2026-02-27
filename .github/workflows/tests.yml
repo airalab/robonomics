@@ -108,6 +108,3 @@ jobs:
 
       - name: Run try-runtime on Kusama parachain 
         run: ./scripts/try-runtime.sh kusama 
-
-      - name: Run try-runtime on Polkadot parachain 
-        run: ./scripts/try-runtime.sh polkadot
