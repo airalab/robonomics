@@ -21,17 +21,6 @@ POLKADOT_PUBLIC_ENDPOINT="wss://polkadot.rpc.robonomics.network"
 # Change to project root
 cd "${PROJECT_ROOT}"
 
-if [ -z "$1" ]; then
-    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
-elif [ "$1" == "kusama" ]; then
-    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
-elif [ "$1" == "polkadot" ]; then
-    ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
-else
-    echo -e "${RED} Invaid argument: should be set to 'kusama' or 'polkadot'.${NC}"
-    exit 1
-fi
-
 # Check if we're in a nix shell or need to use the built runtime
 if [ -z "$RUNTIME_WASM" ]; then
     # Default runtime path for cargo build
@@ -58,8 +47,21 @@ echo -e "${GREEN}Using runtime: $RUNTIME${NC}"
 echo ""
 
 # Main execution
-echo -e "${GREEN}Starting try-runtime on live chain $1 ${NC}"
+echo -e "${GREEN}Starting try-runtime on live chain${NC}"
 echo "=================================================="
+
+if [ -z "$1" ]; then
+    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
+elif [ "$1" == "kusama" ]; then
+    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
+elif [ "$1" == "polkadot" ]; then
+    ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
+else
+    echo -e "${RED} Invaid argument: should be set to 'kusama' or 'polkadot'.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN} Endpoint: ${ENDPOINT}${NC}"
 echo ""
 
 try-runtime --runtime $RUNTIME on-runtime-upgrade --checks all --blocktime 6000 live --uri $ENDPOINT 
