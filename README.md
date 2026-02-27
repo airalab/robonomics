@@ -1,4 +1,4 @@
-# Robonomics
+# Robonomics Network
 
 [![Web3 Foundation Grants — Wave Two Recipient](https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg)](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
 
@@ -96,8 +96,9 @@ This repository is organized as a Cargo workspace with the following structure:
   - `launch/` - Robot/device launch commands with parameter support
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
-  - `xcm-info/` - XCM integration utilities
-  - `wrapped-asset/` - Native token wrapping functionality
+  - `cps/` - Cyber-physical Systems pallet for IoT integration
+  - `claim/` - Pallet for ERC20 token claim support
+  - `parachain-info/` - Original cumulus pallet extended with relay network info
 
 ### Chain Specifications
 
@@ -123,217 +124,20 @@ This repository is organized as a Cargo workspace with the following structure:
 
 - **`nix/`** - Nix flake modules and build configurations
 - **`scripts/`** - Build, deployment, and testing scripts
-  - `benchmark-pallets.sh` - Automated runtime benchmarking for all pallets
+  - `runtime-benchmarks.sh` - Automated runtime benchmarking for all pallets
+  - `try-runtime.sh` - Automated runtime upgrade checks
   - `build-deb.sh` - Debian package builder
-  - `build-runtime.sh` - Runtime WASM builder
-  - `resolc` - Solang compiler wrapper for Solidity contracts
+  - `build-runtime.sh` - Deterministic runtime WASM builder
   - `docker/` - Docker configuration and healthcheck scripts
   - `weights/` - Weight template for runtime benchmarks
-  - `zombienet/` - Multi-node test network configurations and integration tests
 
 ### Documentation
 
-Full API documentation is available at https://crates.robonomics.network.
+Development guidelines available at [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+Crates API is available at https://crates.robonomics.network.
 
 Each component is designed to be modular and reusable, following Substrate's framework architecture. The workspace structure allows for efficient development and testing of individual components while maintaining consistency across the project.
-
-## Development
-
-### Nix Development Shells
-
-We provide two specialized development environments through Nix flakes:
-
-#### Default Development Shell
-
-For general node development, building, and testing:
-
-```bash
-# Clone the repository
-git clone https://github.com/airalab/robonomics.git
-cd robonomics
-
-# Enter the development shell
-nix develop
-```
-
-This shell provides:
-- **Rust toolchain** - Complete Rust environment with `cargo`, `rustc`, and `rustfmt`
-- **Build dependencies** - `clang`, `openssl`, `protobuf`, and other system libraries
-- **Development tools**:
-  - `taplo` - TOML file formatter
-  - `subxt-cli` - Substrate metadata tool
-  - `srtool-cli` - Deterministic WASM runtime builder
-  - `psvm` - Polkadot SDK version manager
-  - `frame-omni-bencher` - Benchmarking tool
-  - `actionlint` - GitHub Actions workflow linter
-- **Environment variables** - Pre-configured `LIBCLANG_PATH`, `PROTOC`, `RUST_SRC_PATH`
-
-Common development tasks:
-
-```bash
-# Build in release mode
-cargo build --release
-
-# Run the node in development mode
-./target/release/robonomics --dev
-
-# Run all tests
-cargo test --all
-
-# Format code
-cargo fmt
-
-# Lint with clippy
-cargo clippy --all-targets --all-features
-
-# Format TOML files
-taplo fmt
-```
-
-#### Local Testnet Shell
-
-For multi-node testing with Zombienet:
-
-```bash
-nix develop .#local-testnet
-```
-
-This shell provides:
-- **`robonomics`** - Your built Robonomics node binary
-- **`polkadot`** - Polkadot relay chain binary
-- **`polkadot-parachain`** - Generic parachain binary
-- **`zombienet`** - Network orchestration tool for testing
-
-Use this for testing parachain functionality with multiple collators and relay chain nodes:
-
-```bash
-# Launch a test network with zombienet
-zombienet spawn scripts/zombienet/<config-file>.toml
-
-# Run integration tests
-zombienet test scripts/zombienet/<test-file>.toml
-```
-
-### Development Workflow
-
-**Running a Local Development Node:**
-
-The `--dev` flag starts a single-node development chain:
-
-```bash
-robonomics --dev
-```
-
-This creates:
-- A local testnet with pre-funded accounts (Alice, Bob, Charlie, Dave, Eve, Ferdie)
-- Temporary storage (cleared on restart)
-- WebSocket RPC endpoint at `ws://127.0.0.1:9944`
-- Block production every 6 seconds
-
-**Persisting Chain Data:**
-
-```bash
-# Store chain data in a custom directory
-robonomics --dev --base-path ./my-dev-chain
-
-# Clear the chain and start fresh
-robonomics --dev --base-path ./my-dev-chain purge-chain
-```
-
-**Testing Changes:**
-
-```bash
-# Run all tests
-cargo test --all
-
-# Run tests for a specific pallet
-cargo test -p pallet-robonomics-datalog
-
-# Run integration tests
-cargo test --features runtime-benchmarks
-```
-
-### Runtime Benchmarking
-
-Runtime benchmarking generates accurate weight functions for all pallets, which are crucial for accurate transaction fee calculation and preventing DoS attacks by ensuring extrinsics don't exceed block computational limits.
-
-#### Quick Start: One-Line Benchmarking with Nix
-
-The easiest way to run benchmarks is using the dedicated benchmarking shell:
-
-```bash
-# Enter the benchmarking shell and run all benchmarks
-nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
-```
-
-This single command will:
-1. Set up the complete benchmarking environment (Rust toolchain, frame-omni-bencher, etc.)
-2. Build the runtime with `runtime-benchmarks` feature
-3. Run benchmarks for all runtime pallets
-4. Generate weight files → `runtime/robonomics/src/weights/`
-
-**Customizing Benchmark Parameters:**
-
-You can customize the benchmark steps and repeats using environment variables:
-
-```bash
-# Use fewer steps/repeats for faster testing (default: steps=50, repeat=20)
-BENCHMARK_STEPS=10 BENCHMARK_REPEAT=5 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
-
-# Minimal settings for quick validation
-BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 nix develop .#benchmarking -c ./scripts/benchmark-pallets.sh
-```
-
-#### Benchmarking Individual Pallets
-
-To benchmark a specific pallet:
-
-```bash
-# Enter the benchmarking shell
-nix develop .#benchmarking
-
-# Benchmark a specific pallet
-frame-omni-bencher v1 benchmark pallet \
-  --runtime ./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm \
-  --pallet pallet_robonomics_datalog \
-  --extrinsic "*" \
-  --output ./weights.rs \
-  --header ./.github/license-check/HEADER-APACHE2 \
-  --steps 50 \
-  --repeat 20
-```
-
-#### Manual Benchmarking (Without Nix)
-
-If you prefer not to use Nix:
-
-```bash
-# 1. Install frame-omni-bencher
-cargo install --git https://github.com/paritytech/polkadot-sdk frame-omni-bencher
-
-# 2. Run the benchmark script
-./scripts/benchmark-pallets.sh
-```
-
-#### Understanding Benchmark Results
-
-Benchmark results are written as weight functions in Rust code. For example, in `runtime/robonomics/src/weights/pallet_robonomics_datalog.rs`:
-
-```rust
-// Example pseudocode - actual implementation uses trait methods
-impl WeightInfo for WeightInfo<T> {
-    fn record() -> Weight {
-        Weight::from_parts(50_000_000, 0)
-            .saturating_add(T::DbWeight::get().reads(2))
-            .saturating_add(T::DbWeight::get().writes(1))
-    }
-}
-```
-
-These weights are used by the runtime to:
-- Calculate transaction fees accurately
-- Prevent block overloading
-- Ensure fair resource allocation
 
 ## Contributing
 
@@ -341,10 +145,10 @@ We welcome contributions! Please see our [Contributing Guidelines](https://githu
 
 ## Support
 
-- **Documentation**: https://wiki.robonomics.network
+- **Robonomics Wiki**: https://wiki.robonomics.network
 - **GitHub Issues**: https://github.com/airalab/robonomics/issues
 - **Website**: https://robonomics.network
 
 ## License
 
-Robonomics is licensed under the Apache License 2.0. See [LICENSE](https://github.com/airalab/robonomics/blob/master/LICENSE) for details.
+Robonomics is licensed under the Apache License 2.0. See [LICENSE](./LICENSE) for details.

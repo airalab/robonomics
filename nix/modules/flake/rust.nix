@@ -21,6 +21,11 @@
         OPENSSL_NO_VENDOR = 1;
         PROTOC = "${protobuf}/bin/protoc";
       };
+      crates."robonet".crane.args = with pkgs; {
+        buildInputs = [ openssl ];
+        OPENSSL_NO_VENDOR = 1;
+        PROTOC = "${protobuf}/bin/protoc";
+      };
     };
 
     packages = let inherit (config.rust-project) crates; in rec {
