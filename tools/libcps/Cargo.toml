@@ -74,14 +74,7 @@ env_logger = { workspace = true, optional = true }
 [features]
 default = ["mqtt", "cli"]
 mqtt = ["dep:rumqttc", "dep:toml"]
-cli = [
-  "mqtt",
-  "clap",
-  "colored",
-  "chrono",
-  "indicatif",
-  "env_logger",
-]
+cli = ["mqtt", "clap", "colored", "chrono", "indicatif", "env_logger"]
 
 [package.metadata.docs.rs]
 all-features = true
