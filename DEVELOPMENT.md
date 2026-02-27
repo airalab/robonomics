@@ -198,3 +198,32 @@ These weights are used by the runtime to:
 - Calculate transaction fees accurately
 - Prevent block overloading
 - Ensure fair resource allocation
+
+## Runtime Upgrade Testing
+
+Before deploying runtime upgrades to production, you can dry-run them against live chain state using the `scripts/try-runtime.sh` script. This performs all migration and upgrade checks without modifying the actual chain.
+
+### Basic Usage
+
+Test against Kusama network (default):
+
+```bash
+./scripts/try-runtime.sh
+# or explicitly
+./scripts/try-runtime.sh kusama
+```
+
+Test against Polkadot network:
+
+```bash
+./scripts/try-runtime.sh polkadot
+```
+
+### What It Does
+
+The script:
+- Connects to public RPC endpoints (wss://kusama.rpc.robonomics.network or wss://polkadot.rpc.robonomics.network)
+- Automatically builds the runtime with `try-runtime` features if not found
+- Runs `on-runtime-upgrade` checks against live chain state
+- Validates that migrations execute successfully without errors
+- Reports any issues before they reach production
