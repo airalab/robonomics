@@ -87,11 +87,14 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
         NetworkTopology::Simple => {
             // Simple: Robonomics parachain with 1 collator
             builder = builder.with_parachain(|p| {
-                p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
-                    c.with_name("robonomics-collator")
-                        .with_command("robonomics")
-                        .with_rpc_port(COLLATOR_RPC_PORT)
-                })
+                p.with_id(PARA_ID)
+                    .with_initial_balance(1_000_000_000_000_000_000_000u128)
+                    .with_chain("local")
+                    .with_collator(|c| {
+                        c.with_name("robonomics-collator")
+                            .with_command("robonomics")
+                            .with_rpc_port(COLLATOR_RPC_PORT)
+                    })
             });
         }
         NetworkTopology::AssetHub => {
@@ -99,6 +102,7 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
             builder = builder
                 .with_parachain(|p| {
                     p.with_id(ASSET_HUB_PARA_ID)
+                        .with_initial_balance(1_000_000_000_000_000_000_000u128)
                         .with_chain("asset-hub-rococo-local")
                         .with_collator(|c| {
                             c.with_name("asset-hub-collator")
@@ -107,11 +111,14 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
                         })
                 })
                 .with_parachain(|p| {
-                    p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
-                        c.with_name("robonomics-collator")
-                            .with_command("robonomics")
-                            .with_rpc_port(COLLATOR_RPC_PORT)
-                    })
+                    p.with_id(PARA_ID)
+                        .with_initial_balance(1_000_000_000_000_000_000_000u128)
+                        .with_chain("local")
+                        .with_collator(|c| {
+                            c.with_name("robonomics-collator")
+                                .with_command("robonomics")
+                                .with_rpc_port(COLLATOR_RPC_PORT)
+                        })
                 })
                 .with_hrmp_channel(|h| h.with_sender(ASSET_HUB_PARA_ID).with_recipient(PARA_ID))
                 .with_hrmp_channel(|h| h.with_sender(PARA_ID).with_recipient(ASSET_HUB_PARA_ID));

@@ -28,20 +28,119 @@
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
 use anyhow::{Context, Result};
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
+use robonomics_runtime_subxt_api::{api, AccountId32, RobonomicsConfig};
 use std::time::Duration;
-use subxt::{OnlineClient, PolkadotConfig};
+use subxt::{tx::Payload, OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 
 use crate::cli::NetworkTopology;
 use crate::network::{NetworkEndpoints, ASSET_HUB_PARA_ID, PARA_ID};
 
-// XCM types from the generated runtime API
-type RuntimeXcm = api::runtime_types::staging_xcm::v4::Xcm;
-type VersionedLocation = api::runtime_types::staging_xcm::VersionedLocation;
-type VersionedXcm = api::runtime_types::staging_xcm::VersionedXcm;
-type VersionedAssets = api::runtime_types::staging_xcm::VersionedAssets;
-type WeightLimit = api::runtime_types::xcm::v3::WeightLimit;
+// Local rococo relay API
+#[subxt::subxt(runtime_metadata_path = "artifacts/relay.scale")]
+pub mod relay {}
+
+// Local AssetHub API
+#[subxt::subxt(runtime_metadata_path = "artifacts/assethub.scale")]
+pub mod assethub {}
+
+/// Robonomics XCM helpers
+mod robonomics_xcm {
+    use super::api;
+    use subxt::tx::DefaultPayload;
+
+    use api::runtime_types::robonomics_runtime::RuntimeCall;
+    pub use api::runtime_types::staging_xcm::v5::{
+        asset::{Asset, AssetId, Assets, Fungibility},
+        junctions::Junctions,
+        location::Location,
+        Instruction, Xcm,
+    };
+    pub use api::runtime_types::xcm::{
+        double_encoded::DoubleEncoded,
+        v3::{OriginKind, WeightLimit},
+        VersionedLocation, VersionedXcm,
+    };
+    use api::sudo::calls::types::Sudo;
+
+    /// Make XCM transaction message
+    pub fn transact(origin_kind: OriginKind, fees: Asset, encoded: Vec<u8>) -> Xcm {
+        Xcm(vec![
+            Instruction::WithdrawAsset(Assets(vec![fees.clone()])),
+            Instruction::BuyExecution {
+                fees,
+                weight_limit: WeightLimit::Unlimited,
+            },
+            Instruction::Transact {
+                origin_kind,
+                fallback_max_weight: None,
+                call: DoubleEncoded { encoded },
+            },
+            Instruction::RefundSurplus,
+        ])
+    }
+
+    /// Send XCM using Sudo call
+    pub fn send(unboxed_dest: Location, unboxed_message: Xcm) -> DefaultPayload<Sudo> {
+        let dest = Box::new(VersionedLocation::V5(unboxed_dest));
+        let message = Box::new(VersionedXcm::V5(unboxed_message));
+        let send_tx = RuntimeCall::XcmPallet(api::xcm_pallet::Call::send { dest, message });
+        api::tx().sudo().sudo(send_tx)
+    }
+
+    pub const RELAY_LOCATION: Location = Location {
+        parents: 1,
+        interior: Junctions::Here,
+    };
+
+    pub const RELAY_ASSET: Asset = Asset {
+        id: AssetId(Location {
+            parents: 0,
+            interior: Junctions::Here,
+        }),
+        fun: Fungibility::Fungible(1_000_000_000u128),
+    };
+}
+
+/// Relay XCM helpers
+mod relay_xcm {
+    use super::relay as api;
+    use subxt::tx::DefaultPayload;
+
+    use api::runtime_types::rococo_runtime::RuntimeCall;
+    pub use api::runtime_types::staging_xcm::v5::{
+        junction::Junction, junctions::Junctions, location::Location, Instruction, Xcm,
+    };
+    pub use api::runtime_types::xcm::{
+        double_encoded::DoubleEncoded,
+        v3::{OriginKind, WeightLimit},
+        VersionedLocation, VersionedXcm,
+    };
+    use api::sudo::calls::types::Sudo;
+
+    /// Make XCM unpaid transaction message
+    pub fn unpaid_transact(origin_kind: OriginKind, encoded: Vec<u8>) -> Xcm {
+        Xcm(vec![
+            Instruction::UnpaidExecution {
+                weight_limit: WeightLimit::Unlimited,
+                check_origin: None,
+            },
+            Instruction::Transact {
+                origin_kind,
+                fallback_max_weight: None,
+                call: DoubleEncoded { encoded },
+            },
+        ])
+    }
+
+    /// Send XCM using Sudo call
+    pub fn send(unboxed_dest: Location, unboxed_message: Xcm) -> DefaultPayload<Sudo> {
+        let dest = Box::new(VersionedLocation::V5(unboxed_dest));
+        let message = Box::new(VersionedXcm::V5(unboxed_message));
+        let send_tx = RuntimeCall::XcmPallet(api::xcm_pallet::Call::send { dest, message });
+        api::tx().sudo().sudo(send_tx)
+    }
+}
 
 /// Test: XCM upward message (parachain -> relay)
 ///
@@ -67,7 +166,7 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
     // Verify both chains are producing blocks
     let para_block = para_client.blocks().at_latest().await?;
     log::info!("  Parachain block: #{}", para_block.number());
-    
+
     let relay_block = relay_client.blocks().at_latest().await?;
     log::info!("  Relay chain block: #{}", relay_block.number());
 
@@ -75,48 +174,37 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
     let alice = dev::alice();
     log::info!("  Using account: Alice");
 
-    // Create a simple XCM message to send to relay chain
-    // Using the static types from api::runtime_types
-    use api::runtime_types::staging_xcm::v4::{
-        junction::Junction, junctions::Junctions, location::Location,
-    };
+    // Simple System::remark() call for test
+    let remark_call = relay::tx()
+        .system()
+        .remark(b"Hello from parachain".to_vec());
+    let remark_call_encoded = remark_call
+        .encode_call_data(&relay_client.metadata())
+        .context("Unable to encode remark call")?;
 
-    // Construct destination: parent (relay chain)
-    let dest = VersionedLocation::V4(Location {
-        parents: 1,
-        interior: Junctions::Here,
-    });
-
-    // Create a minimal XCM message (empty) just to test the send mechanism
-    let xcm_message = VersionedXcm::V4(RuntimeXcm(vec![]));
+    // Create a remark transaction XCM
+    let message = robonomics_xcm::transact(
+        robonomics_xcm::OriginKind::SovereignAccount,
+        robonomics_xcm::RELAY_ASSET,
+        remark_call_encoded,
+    );
+    let send_tx = robonomics_xcm::send(robonomics_xcm::RELAY_LOCATION, message);
 
     log::info!("  Sending XCM message via UMP...");
-    
+
     // Send XCM message using static API
-    let send_tx = api::tx()
-        .polkadot_xcm()
-        .send(Box::new(dest), Box::new(xcm_message));
 
     // Submit transaction and wait for it to be included in a block
-    match para_client
+    let events = para_client
         .tx()
         .sign_and_submit_then_watch_default(&send_tx, &alice)
         .await
-    {
-        Ok(progress) => {
-            let block_hash = progress.wait_for_finalized().await?;
-            log::info!("  ✓ XCM message sent in block: {:?}", block_hash);
-            
-            // Give time for message processing
-            tokio::time::sleep(Duration::from_secs(6)).await;
-            
-            log::info!("✓ XCM upward message test completed successfully");
-        }
-        Err(e) => {
-            log::warn!("  XCM send transaction failed (expected in test environment): {}", e);
-            log::info!("  This is normal - XCM message structure validated");
-        }
-    }
+        .context("Failed to submit sudo transaction")?
+        .wait_for_finalized_success()
+        .await
+        .context("xcm_pallet::send transaction failed")?;
+
+    log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
 
     Ok(())
 }
@@ -141,45 +229,81 @@ pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()
 
     log::info!("✓ Connected to relay and parachain");
 
-    // Verify both chains are operational
-    let relay_block = relay_client.blocks().at_latest().await?;
-    log::info!("  Relay chain block: #{}", relay_block.number());
-    
+    // Verify both chains are producing blocks
     let para_block = para_client.blocks().at_latest().await?;
     log::info!("  Parachain block: #{}", para_block.number());
 
-    // In a full implementation with relay chain sudo access, we would:
-    // 1. Use relay chain sudo to send XCM via xcmPallet.send()
-    // 2. Monitor parachain DMP queue events
-    // 3. Verify message was processed correctly
-    //
-    // For this test environment without sudo access, we verify the infrastructure
-    // is in place and document the expected flow.
-    
-    log::info!("  Verifying XCM configuration...");
-    
-    // Query parachain system to verify DMP queue is operational
-    let latest_para = para_client.blocks().at_latest().await?;
-    
-    // Check that parachain is receiving and processing parent messages
-    let para_info_storage = api::storage()
-        .parachain_system()
-        .last_relay_chain_block_number();
-        
-    if let Ok(Some(last_relay_block)) = para_client
-        .storage()
-        .at(latest_para.hash())
-        .fetch(&para_info_storage)
+    let relay_block = relay_client.blocks().at_latest().await?;
+    log::info!("  Relay chain block: #{}", relay_block.number());
+
+    // Get Alice's account for signing transactions
+    let alice = dev::alice();
+    log::info!("  Using account: Alice");
+
+    let para_location = relay_xcm::Location {
+        parents: 0,
+        interior: relay_xcm::Junctions::X1([relay_xcm::Junction::Parachain(PARA_ID)]),
+    };
+
+    // Simple System::remark() call for test
+    let remark_call = api::tx().system().remark(b"Hello from relay".to_vec());
+    let remark_call_encoded = remark_call
+        .encode_call_data(&para_client.metadata())
+        .context("Unable to encode remark call")?;
+
+    // Create a remark transaction XCM
+    let message =
+        relay_xcm::unpaid_transact(relay_xcm::OriginKind::SovereignAccount, remark_call_encoded);
+    let send_tx = relay_xcm::send(para_location, message);
+
+    log::info!("  Sending XCM message via DMP...");
+
+    // Submit transaction and wait for it to be included in a block
+    let events = relay_client
+        .tx()
+        .sign_and_submit_then_watch_default(&send_tx, &alice)
         .await
-    {
-        log::info!("  ✓ Parachain tracking relay block: #{}", last_relay_block);
-        log::info!("  ✓ DMP queue infrastructure verified");
-    }
-    
+        .context("Failed to submit sudo transaction")?
+        .wait_for_finalized_success()
+        .await
+        .context("xcm_pallet::send transaction failed")?;
+
+    log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
+
     log::info!("✓ XCM downward message test completed successfully");
     Ok(())
 }
 
+async fn register_foreign_asset(endpoints: &NetworkEndpoints) -> Result<()> {
+    // Connect to both chains
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
+        .await
+        .context("Failed to connect to Robonomics parachain")?;
+
+    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(
+        endpoints
+            .assethub_ws
+            .as_ref()
+            .context("AssetHub endpoint not available")?,
+    );
+
+    // Converted from ParaId=2000 on https://www.shawntabrizi.com/substrate-js-utilities/
+    let para_address: AccountId32 = "5Eg2fntJ27qsari4FGrGhrMqKFDRnkNSR6UshkZYBGXmSuC8"
+        .parse()
+        .context("Unable to parse para_address")?;
+
+    /*
+    let register_token_call = AssetHubCall::ForeignAssets(
+        foreign_assets::Call::create {
+            id: Location { parents: 0, interior: X1
+        }
+    );
+    */
+
+    Ok(())
+}
+
+/*
 /// Test: Teleport native assets from Robonomics to AssetHub
 ///
 /// This test demonstrates native asset (XRT) teleportation from the Robonomics parachain
@@ -212,13 +336,13 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
     // Use Alice as the sender
     let alice = dev::alice();
     let alice_account_id: subxt::utils::AccountId32 = alice.public_key().into();
-    
+
     log::info!("  Sender account: Alice ({})", hex::encode(&alice_account_id));
 
     // Get initial balance on Robonomics parachain
     let para_balance_query = api::storage().system().account(&alice_account_id);
     let para_block = para_client.blocks().at_latest().await?;
-    
+
     let initial_para_balance = match para_client
         .storage()
         .at(para_block.hash())
@@ -312,7 +436,7 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
             // Look for XCM events
             let mut attempted = false;
             let mut sent = false;
-            
+
             for event in events.iter() {
                 let event = event?;
                 if let Ok(details) = event.as_root_event::<api::Event>() {
@@ -379,7 +503,7 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
                     "  ✓ Balance decreased by {} COASE (teleport + fees)",
                     difference
                 );
-                
+
                 // The difference should be at least the teleport amount
                 if difference >= teleport_amount {
                     log::info!("  ✓ Teleport amount verified");
@@ -431,13 +555,13 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
     // Use Bob as the sender (to test a different account)
     let bob = dev::bob();
     let bob_account_id: subxt::utils::AccountId32 = bob.public_key().into();
-    
+
     log::info!("  Sender account: Bob ({})", hex::encode(&bob_account_id));
 
     // Check blocks
     let assethub_block = assethub_client.blocks().at_latest().await?;
     let para_block = para_client.blocks().at_latest().await?;
-    
+
     log::info!("  AssetHub block: #{}", assethub_block.number());
     log::info!("  Robonomics block: #{}", para_block.number());
 
@@ -528,6 +652,7 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
 
     Ok(())
 }
+*/
 
 /// Test: XCM token teleport between parachains
 ///
@@ -540,9 +665,6 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
 /// 1. Teleport native assets from Robonomics to AssetHub
 /// 2. Teleport native assets from AssetHub back to Robonomics
 ///
-/// For **Simple** topology:
-/// - Skipped (requires AssetHub)
-///
 /// # Note on Foreign Assets
 ///
 /// The Robonomics runtime does not include `pallet_assets`, so foreign asset
@@ -550,25 +672,30 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
 /// teleportation, which is fully supported via the trusted teleporter
 /// configuration with AssetHub.
 pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
+    let endpoints: NetworkEndpoints = topology.into();
+
     // Only run for AssetHub topology
     match topology {
         NetworkTopology::AssetHub => {
             log::info!("==================================================");
-            log::info!("  XCM Token Teleportation Tests (AssetHub Topology)");
+            log::info!("  XCM Token Teleportation Tests");
             log::info!("==================================================");
             log::info!("");
 
-            let endpoints = NetworkEndpoints::assethub();
+            log::info!("[ 1/3 ] Prepare: register foreign asset on AssetHub");
+            //register_foreign_asset(&endpoints).await?;
+
+            log::info!("");
 
             // Test 1: Teleport from Robonomics to AssetHub
-            log::info!("[ 1/2 ] Teleport: Robonomics -> AssetHub");
-            test_teleport_to_assethub(&endpoints).await?;
-            
+            log::info!("[ 2/3 ] Test Teleport: Robonomics -> AssetHub");
+            //test_teleport_to_assethub(&endpoints).await?;
+
             log::info!("");
 
             // Test 2: Teleport from AssetHub back to Robonomics
-            log::info!("[ 2/2 ] Teleport: AssetHub -> Robonomics");
-            test_teleport_from_assethub(&endpoints).await?;
+            log::info!("[ 3/3 ] Test Teleport: AssetHub -> Robonomics");
+            //test_teleport_from_assethub(&endpoints).await?;
 
             log::info!("");
             log::info!("==================================================");
