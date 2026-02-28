@@ -37,9 +37,7 @@ use robonomics_runtime_subxt_api::{
 use sp_core::{hashing::keccak_256, H160};
 use subxt::OnlineClient;
 use subxt_signer::sr25519::dev;
-
-use crate::cli::NetworkTopology;
-use crate::network::NetworkEndpoints;
+use zombienet_sdk::{LocalFileSystem, Network};
 
 // Test Ethereum account with predefined seed and address
 // Seed: 0xbd9880d2511d8ce62bf3d11b6e6b71b06f306d09111f21c7a625394d3b06c9df
@@ -257,11 +255,11 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
 }
 
 /// Test: Claim pallet functionality
-pub async fn test_claim_pallet(topology: &NetworkTopology) -> Result<()> {
+pub async fn test_claim_pallet(network: &Network<LocalFileSystem>) -> Result<()> {
     log::debug!("Starting Claim pallet tests");
 
-    let endpoints: NetworkEndpoints = topology.into();
-    let client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
+    let client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
         .await
         .context("Failed to connect to parachain")?;
 

@@ -65,7 +65,7 @@ fn robonomics_genesis(
                 })
                 .collect(),
         },
-        polkadot_xcm: PolkadotXcmConfig {
+        xcm_pallet: XcmPalletConfig {
             safe_xcm_version: Some(xcm_version::SAFE_XCM_VERSION)
         },
         sudo: SudoConfig {

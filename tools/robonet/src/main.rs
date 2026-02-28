@@ -136,13 +136,17 @@ async fn cmd_test(
     // Run tests
     let test_filter = if tests.is_empty() { None } else { Some(tests) };
 
-    let results = tests::run_integration_tests(
-        topology,
-        fail_fast,
-        test_filter,
-        matches!(output, OutputFormat::Json),
-    )
-    .await;
+    let results = if let Some(ref network) = network {
+        tests::run_integration_tests(
+            network,
+            fail_fast,
+            test_filter,
+            matches!(output, OutputFormat::Json),
+        )
+        .await
+    } else {
+        anyhow::bail!("Cannot run tests without a network (--no-spawn was used but tests require a network)");
+    };
 
     // Clean up network
     println!("{}", "Shutting down network...".yellow());

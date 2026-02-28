@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
-    ParachainSystem, PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee,
+    ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
     XcmpQueue, COASE, TREASURY_PALLET_ID,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
@@ -53,7 +53,7 @@ parameter_types! {
     pub AssetHubParaId: ParaId = 1000.into();
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     pub AssetHubTrustedTeleporter: (AssetFilter, Location) = (NativeAssetFilter::get(), AssetHubLocation::get());
-    pub CheckingAccount: AccountId = PolkadotXcm::check_account();
+    pub CheckingAccount: AccountId = XcmPallet::check_account();
     pub TreasuryAccount: AccountId = TREASURY_PALLET_ID.into_account_truncating();
     pub const NativeAssetId: AssetId = AssetId(Location::here());
     pub const NativeAssetFilter: AssetFilter = Wild(AllOf { fun: WildFungible, id: NativeAssetId::get() });
@@ -156,7 +156,7 @@ pub type Barrier = TrailingSetTopicAsId<
             // Allow local users to buy weight credit.
             TakeWeightCredit,
             // Expected responses are OK.
-            AllowKnownQueryResponses<PolkadotXcm>,
+            AllowKnownQueryResponses<XcmPallet>,
             // Allow XCMs with some computed origins to pass through.
             WithComputedOrigin<
                 (
@@ -190,8 +190,8 @@ pub struct XcmConfig;
 impl Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
     type XcmSender = XcmRouter;
-    type XcmRecorder = PolkadotXcm;
-    type XcmEventEmitter = PolkadotXcm;
+    type XcmRecorder = XcmPallet;
+    type XcmEventEmitter = XcmPallet;
     type AssetTransactor = AssetTransactors;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
     type IsReserve = ();
@@ -204,10 +204,10 @@ impl Config for XcmConfig {
         MaxInstructions,
     >;
     type Trader = UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>;
-    type ResponseHandler = PolkadotXcm;
-    type AssetTrap = PolkadotXcm;
-    type AssetClaims = PolkadotXcm;
-    type SubscriptionService = PolkadotXcm;
+    type ResponseHandler = XcmPallet;
+    type AssetTrap = XcmPallet;
+    type AssetClaims = XcmPallet;
+    type SubscriptionService = XcmPallet;
     type PalletInstancesInfo = AllPalletsWithSystem;
     type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
     type AssetLocker = ();
@@ -234,7 +234,7 @@ pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, R
 /// queues.
 pub type XcmRouter = (
     // Two routers - use UMP to communicate with the relay chain:
-    cumulus_primitives_utility::ParentAsUmp<ParachainSystem, PolkadotXcm, ()>,
+    cumulus_primitives_utility::ParentAsUmp<ParachainSystem, XcmPallet, ()>,
     // ..and XCMP to communicate with the sibling chains.
     XcmpQueue,
 );
@@ -308,7 +308,7 @@ impl sp_runtime::traits::Convert<ParaId, AggregateMessageOrigin> for ParaIdToSib
 impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type ChannelInfo = ParachainSystem;
-    type VersionWrapper = PolkadotXcm;
+    type VersionWrapper = XcmPallet;
     type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
     type MaxInboundSuspended = MaxInboundSuspended;
     type MaxActiveOutboundChannels = MaxActiveOutboundChannels;

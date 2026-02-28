@@ -20,21 +20,19 @@
 pub mod claim;
 pub mod cps;
 pub mod network;
-// TODO: XCM tests are currently disabled pending completion of test implementation
-// pub mod xcm;
+pub mod xcm;
 
 use anyhow::Result;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
-
-use crate::cli::NetworkTopology;
+use zombienet_sdk::{LocalFileSystem, Network};
 
 // Re-export test functions
 use claim::test_claim_pallet;
 use cps::test_cps_pallet;
 use network::{test_block_production, test_extrinsic_submission, test_network_initialization};
-//use xcm::{test_xcm_downward_message, test_xcm_token_teleport, test_xcm_upward_message};
+use xcm::{test_xcm_downward_message, test_xcm_token_teleport, test_xcm_upward_message};
 
 /// Test result for a single test
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,7 +113,7 @@ where
 
 /// Run all integration tests
 pub async fn run_integration_tests(
-    topology: &NetworkTopology,
+    network: &Network<LocalFileSystem>,
     fail_fast: bool,
     test_filter: Option<Vec<String>>,
     json_output: bool,
@@ -145,7 +143,7 @@ pub async fn run_integration_tests(
     {
         results.push(
             run_test("network_initialization", || {
-                test_network_initialization(topology)
+                test_network_initialization(network)
             })
             .await,
         );
@@ -162,7 +160,7 @@ pub async fn run_integration_tests(
             .iter()
             .any(|f| "block_production".contains(f.as_str()))
     {
-        results.push(run_test("block_production", || test_block_production(topology)).await);
+        results.push(run_test("block_production", || test_block_production(network)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
@@ -178,7 +176,7 @@ pub async fn run_integration_tests(
     {
         results.push(
             run_test("extrinsic_submission", || {
-                test_extrinsic_submission(topology)
+                test_extrinsic_submission(network)
             })
             .await,
         );
@@ -188,7 +186,6 @@ pub async fn run_integration_tests(
         }
     }
 
-    /*
     if test_filter.is_none()
         || test_filter
             .as_ref()
@@ -196,7 +193,7 @@ pub async fn run_integration_tests(
             .iter()
             .any(|f| "xcm_upward".contains(f.as_str()))
     {
-        results.push(run_test("xcm_upward_message", || test_xcm_upward_message(topology)).await);
+        results.push(run_test("xcm_upward_message", || test_xcm_upward_message(network)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
@@ -212,7 +209,7 @@ pub async fn run_integration_tests(
     {
         results.push(
             run_test("xcm_downward_message", || {
-                test_xcm_downward_message(topology)
+                test_xcm_downward_message(network)
             })
             .await,
         );
@@ -229,13 +226,12 @@ pub async fn run_integration_tests(
             .iter()
             .any(|f| "xcm_teleport".contains(f.as_str()) || "token_teleport".contains(f.as_str()))
     {
-        results.push(run_test("xcm_token_teleport", || test_xcm_token_teleport(topology)).await);
+        results.push(run_test("xcm_token_teleport", || test_xcm_token_teleport(network)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
         }
     }
-    */
 
     if test_filter.is_none()
         || test_filter
@@ -244,7 +240,7 @@ pub async fn run_integration_tests(
             .iter()
             .any(|f| "cps".contains(f.as_str()))
     {
-        results.push(run_test("cps_pallet", || test_cps_pallet(topology)).await);
+        results.push(run_test("cps_pallet", || test_cps_pallet(network)).await);
         if fail_fast && results.last().unwrap().status == TestStatus::Failed {
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
@@ -258,7 +254,7 @@ pub async fn run_integration_tests(
             .iter()
             .any(|f| "claim".contains(f.as_str()))
     {
-        results.push(run_test("claim_pallet", || test_claim_pallet(topology)).await);
+        results.push(run_test("claim_pallet", || test_claim_pallet(network)).await);
     }
 
     build_results(results, suite_start, json_output)
