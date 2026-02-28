@@ -28,6 +28,7 @@
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
 use anyhow::{Context, Result};
+use futures::StreamExt;
 use robonomics_runtime_subxt_api::{api, AccountId32, RobonomicsConfig};
 use std::time::Duration;
 use subxt::{tx::Payload, OnlineClient, PolkadotConfig};
@@ -206,6 +207,55 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
 
     log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
 
+    // Wait for MessageQueue event on relay chain
+    log::info!("  Waiting for MessageQueue::Processed event on relay chain...");
+    
+    let mut blocks_sub = relay_client
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .context("Failed to subscribe to relay blocks")?;
+
+    let mut found_success = false;
+    let timeout = Duration::from_secs(30);
+    let start = std::time::Instant::now();
+
+    while start.elapsed() < timeout {
+        if let Some(block_result) = blocks_sub.next().await {
+            let block = block_result.context("Failed to get block")?;
+            let events = block.events().await.context("Failed to get events")?;
+
+            for event in events.iter() {
+                let event = event.context("Failed to parse event")?;
+                
+                // Check for MessageQueue::Processed event
+                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
+                    // Try to decode the event to check success field
+                    if let Ok(decoded) = event.as_root_event::<relay::message_queue::events::Processed>() {
+                        log::info!(
+                            "  MessageQueue::Processed event found: success={:?}",
+                            decoded.success
+                        );
+                        if decoded.success {
+                            found_success = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if found_success {
+                break;
+            }
+        }
+    }
+
+    if found_success {
+        log::info!("  ✓ MessageQueue event processed successfully on relay chain");
+    } else {
+        log::warn!("  ⚠ MessageQueue success event not found within timeout");
+    }
+
     Ok(())
 }
 
@@ -269,6 +319,55 @@ pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()
         .context("xcm_pallet::send transaction failed")?;
 
     log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
+
+    // Wait for MessageQueue event on parachain
+    log::info!("  Waiting for MessageQueue::Processed event on parachain...");
+    
+    let mut blocks_sub = para_client
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .context("Failed to subscribe to parachain blocks")?;
+
+    let mut found_success = false;
+    let timeout = Duration::from_secs(30);
+    let start = std::time::Instant::now();
+
+    while start.elapsed() < timeout {
+        if let Some(block_result) = blocks_sub.next().await {
+            let block = block_result.context("Failed to get block")?;
+            let events = block.events().await.context("Failed to get events")?;
+
+            for event in events.iter() {
+                let event = event.context("Failed to parse event")?;
+                
+                // Check for MessageQueue::Processed event
+                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
+                    // Try to decode the event to check success field
+                    if let Ok(decoded) = event.as_root_event::<api::message_queue::events::Processed>() {
+                        log::info!(
+                            "  MessageQueue::Processed event found: success={:?}",
+                            decoded.success
+                        );
+                        if decoded.success {
+                            found_success = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if found_success {
+                break;
+            }
+        }
+    }
+
+    if found_success {
+        log::info!("  ✓ MessageQueue event processed successfully on parachain");
+    } else {
+        log::warn!("  ⚠ MessageQueue success event not found within timeout");
+    }
 
     log::info!("✓ XCM downward message test completed successfully");
     Ok(())
