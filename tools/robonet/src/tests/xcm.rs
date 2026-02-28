@@ -28,14 +28,13 @@
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
 use anyhow::{Context, Result};
-use futures::StreamExt;
-use robonomics_runtime_subxt_api::{api, AccountId32, RobonomicsConfig};
+use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 use std::time::Duration;
 use subxt::{tx::Payload, OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
+use zombienet_sdk::{LocalFileSystem, Network};
 
-use crate::cli::NetworkTopology;
-use crate::network::{NetworkEndpoints, ASSET_HUB_PARA_ID, PARA_ID};
+use crate::network::PARA_ID;
 
 // Local rococo relay API
 #[subxt::subxt(runtime_metadata_path = "artifacts/relay.scale")]
@@ -148,17 +147,19 @@ mod relay_xcm {
 /// This test verifies that the parachain can send XCM messages to the relay chain
 /// via the Upward Message Passing (UMP) queue. It sends a simple Remark instruction
 /// wrapped in an XCM message.
-pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> {
+pub async fn test_xcm_upward_message(network: &Network<LocalFileSystem>) -> Result<()> {
     log::info!("=== Test: XCM Upward Message (Parachain -> Relay) ===");
 
-    let endpoints = NetworkEndpoints::simple();
+    // Get WebSocket URLs from network
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
+    let relay_ws = network.get_node("alice")?.ws_uri();
 
     // Connect to parachain and relay
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
         .await
         .context("Failed to connect to parachain")?;
 
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
+    let relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
         .await
         .context("Failed to connect to relay chain")?;
 
@@ -264,16 +265,18 @@ pub async fn test_xcm_upward_message(_topology: &NetworkTopology) -> Result<()> 
 /// This test verifies that the relay chain can send XCM messages to parachains
 /// via the Downward Message Passing (DMP) queue. In a real scenario, this would
 /// require sudo access on the relay chain.
-pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()> {
+pub async fn test_xcm_downward_message(network: &Network<LocalFileSystem>) -> Result<()> {
     log::info!("=== Test: XCM Downward Message (Relay -> Parachain) ===");
 
-    let endpoints = NetworkEndpoints::simple();
+    // Get WebSocket URLs from network
+    let relay_ws = network.get_node("alice")?.ws_uri();
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
 
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.relay_ws)
+    let relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
         .await
         .context("Failed to connect to relay chain")?;
 
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
         .await
         .context("Failed to connect to parachain")?;
 
@@ -370,35 +373,6 @@ pub async fn test_xcm_downward_message(_topology: &NetworkTopology) -> Result<()
     }
 
     log::info!("✓ XCM downward message test completed successfully");
-    Ok(())
-}
-
-async fn register_foreign_asset(endpoints: &NetworkEndpoints) -> Result<()> {
-    // Connect to both chains
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
-        .await
-        .context("Failed to connect to Robonomics parachain")?;
-
-    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(
-        endpoints
-            .assethub_ws
-            .as_ref()
-            .context("AssetHub endpoint not available")?,
-    );
-
-    // Converted from ParaId=2000 on https://www.shawntabrizi.com/substrate-js-utilities/
-    let para_address: AccountId32 = "5Eg2fntJ27qsari4FGrGhrMqKFDRnkNSR6UshkZYBGXmSuC8"
-        .parse()
-        .context("Unable to parse para_address")?;
-
-    /*
-    let register_token_call = AssetHubCall::ForeignAssets(
-        foreign_assets::Call::create {
-            id: Location { parents: 0, interior: X1
-        }
-    );
-    */
-
     Ok(())
 }
 
@@ -770,19 +744,18 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
 /// registration is not supported. These tests focus on native token (XRT)
 /// teleportation, which is fully supported via the trusted teleporter
 /// configuration with AssetHub.
-pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
-    let endpoints: NetworkEndpoints = topology.into();
+pub async fn test_xcm_token_teleport(network: &Network<LocalFileSystem>) -> Result<()> {
+    // Check if AssetHub node exists to determine topology
+    let has_assethub = network.get_node("asset-hub-collator").is_ok();
 
-    // Only run for AssetHub topology
-    match topology {
-        NetworkTopology::AssetHub => {
+    if has_assethub {
             log::info!("==================================================");
             log::info!("  XCM Token Teleportation Tests");
             log::info!("==================================================");
             log::info!("");
 
             log::info!("[ 1/3 ] Prepare: register foreign asset on AssetHub");
-            //register_foreign_asset(&endpoints).await?;
+            //register_foreign_asset(network).await?;
 
             log::info!("");
 
@@ -794,7 +767,7 @@ pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
 
             // Test 2: Teleport from AssetHub back to Robonomics
             log::info!("[ 3/3 ] Test Teleport: AssetHub -> Robonomics");
-            //test_teleport_from_assethub(&endpoints).await?;
+            //test_teleport_from_assethub(network).await?;
 
             log::info!("");
             log::info!("==================================================");
@@ -802,12 +775,10 @@ pub async fn test_xcm_token_teleport(topology: &NetworkTopology) -> Result<()> {
             log::info!("==================================================");
 
             Ok(())
-        }
-        NetworkTopology::Simple => {
-            log::info!("⊘ Skipping XCM token teleport tests");
-            log::info!("  Reason: Requires AssetHub topology");
-            log::info!("  Run with: --topology assethub");
-            Ok(())
-        }
+    } else {
+        log::info!("⊘ Skipping XCM token teleport tests");
+        log::info!("  Reason: Requires AssetHub topology");
+        log::info!("  Run with: --topology assethub");
+        Ok(())
     }
 }
