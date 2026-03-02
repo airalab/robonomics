@@ -25,6 +25,7 @@ members = [
   "frame/digital-twin",
   "frame/cps",
   "frame/claim",
+  "frame/teleport",
   "runtime/robonomics",
   "runtime/robonomics/subxt-api",
   "tools/libcps",
@@ -249,6 +250,7 @@ pallet-robonomics-liability = { path = "./frame/liability", default-features = f
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
+pallet-robonomics-teleport = { path = "./frame/teleport", default-features = false }
 parachain-info = { path = "./frame/parachain-info", default-features = false }
 
 # Robonomics runtimes

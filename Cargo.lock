@@ -8174,6 +8174,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-robonomics-teleport"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-xcm",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 39.0.0",
+ "sp-io 44.0.0",
+ "sp-runtime 45.0.0",
+ "sp-std",
+ "staging-xcm",
+ "staging-xcm-executor",
+]
+
+[[package]]
 name = "pallet-scheduler"
 version = "46.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
