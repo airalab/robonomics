@@ -627,7 +627,7 @@ mod runtime {
     pub type XcmpQueue = cumulus_pallet_xcmp_queue;
 
     #[runtime::pallet_index(71)]
-    pub type PolkadotXcm = pallet_xcm;
+    pub type XcmPallet = pallet_xcm;
 
     #[runtime::pallet_index(72)]
     pub type CumulusXcm = cumulus_pallet_xcm;
@@ -927,21 +927,21 @@ impl_runtime_apis! {
             // Currently only the native token (LocalLocation) is accepted for XCM fees
             // Additional assets can be added here when multi-asset fee payment is supported
             let acceptable_assets = vec![AssetId(xcm_config::LocalLocation::get())];
-            PolkadotXcm::query_acceptable_payment_assets(xcm_version, acceptable_assets)
+            XcmPallet::query_acceptable_payment_assets(xcm_version, acceptable_assets)
         }
 
         fn query_weight_to_asset_fee(weight: Weight, asset: xcm::VersionedAssetId) -> Result<u128, xcm_runtime_apis::fees::Error> {
             type Trader = <xcm_config::XcmConfig as xcm_executor::Config>::Trader;
-            PolkadotXcm::query_weight_to_asset_fee::<Trader>(weight, asset)
+            XcmPallet::query_weight_to_asset_fee::<Trader>(weight, asset)
         }
 
         fn query_xcm_weight(message: xcm::VersionedXcm<()>) -> Result<Weight, xcm_runtime_apis::fees::Error> {
-            PolkadotXcm::query_xcm_weight(message)
+            XcmPallet::query_xcm_weight(message)
         }
 
         fn query_delivery_fees(destination: xcm::VersionedLocation, message: xcm::VersionedXcm<()>, asset_id: xcm::VersionedAssetId) -> Result<xcm::VersionedAssets, xcm_runtime_apis::fees::Error> {
             type AssetExchanger = <xcm_config::XcmConfig as xcm_executor::Config>::AssetExchanger;
-            PolkadotXcm::query_delivery_fees::<AssetExchanger>(destination, message, asset_id)
+            XcmPallet::query_delivery_fees::<AssetExchanger>(destination, message, asset_id)
         }
     }
 
@@ -949,11 +949,11 @@ impl_runtime_apis! {
     // implements the required Encode and TypeInfo traits for the XCM runtime API
     impl xcm_runtime_apis::dry_run::DryRunApi<Block, RuntimeCall, RuntimeEvent, OriginCaller> for Runtime {
         fn dry_run_call(origin: OriginCaller, call: RuntimeCall, result_xcms_version: xcm::Version) -> Result<xcm_runtime_apis::dry_run::CallDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
-            PolkadotXcm::dry_run_call::<Runtime, xcm_config::XcmRouter, _, _>(origin, call, result_xcms_version)
+            XcmPallet::dry_run_call::<Runtime, xcm_config::XcmRouter, _, _>(origin, call, result_xcms_version)
         }
 
         fn dry_run_xcm(origin_location: xcm::VersionedLocation, xcm: xcm::VersionedXcm<RuntimeCall>) -> Result<xcm_runtime_apis::dry_run::XcmDryRunEffects<RuntimeEvent>, xcm_runtime_apis::dry_run::Error> {
-            PolkadotXcm::dry_run_xcm::<xcm_config::XcmRouter>(origin_location, xcm)
+            XcmPallet::dry_run_xcm::<xcm_config::XcmRouter>(origin_location, xcm)
         }
     }
 
@@ -968,21 +968,21 @@ impl_runtime_apis! {
 
     impl xcm_runtime_apis::trusted_query::TrustedQueryApi<Block> for Runtime {
         fn is_trusted_reserve(asset: xcm::VersionedAsset, location: xcm::VersionedLocation) -> xcm_runtime_apis::trusted_query::XcmTrustedQueryResult {
-            PolkadotXcm::is_trusted_reserve(asset, location)
+            XcmPallet::is_trusted_reserve(asset, location)
         }
 
         fn is_trusted_teleporter(asset: xcm::VersionedAsset, location: xcm::VersionedLocation) -> xcm_runtime_apis::trusted_query::XcmTrustedQueryResult {
-            PolkadotXcm::is_trusted_teleporter(asset, location)
+            XcmPallet::is_trusted_teleporter(asset, location)
         }
     }
 
     impl xcm_runtime_apis::authorized_aliases::AuthorizedAliasersApi<Block> for Runtime {
         fn authorized_aliasers(target: xcm::VersionedLocation) -> Result<Vec<xcm_runtime_apis::authorized_aliases::OriginAliaser>, xcm_runtime_apis::authorized_aliases::Error> {
-            PolkadotXcm::authorized_aliasers(target)
+            XcmPallet::authorized_aliasers(target)
         }
 
         fn is_authorized_alias(origin: xcm::VersionedLocation, target: xcm::VersionedLocation) -> Result<bool, xcm_runtime_apis::authorized_aliases::Error> {
-            PolkadotXcm::is_authorized_alias(origin, target)
+            XcmPallet::is_authorized_alias(origin, target)
         }
     }
 

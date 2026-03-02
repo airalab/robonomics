@@ -28,9 +28,7 @@ use libcps::blockchain::{Client as CpsClient, Config as CpsConfig};
 use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
 use libcps::node::{Node, NodeData};
 use sp_core::Encode;
-
-use crate::cli::NetworkTopology;
-use crate::network::NetworkEndpoints;
+use zombienet_sdk::{LocalFileSystem, Network};
 
 /// Test: Create simple CPS tree structure
 async fn test_simple_tree(ws_url: &str) -> Result<()> {
@@ -237,11 +235,11 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
 }
 
 /// Test: CPS (Cyber-Physical Systems) pallet functionality
-pub async fn test_cps_pallet(topology: &NetworkTopology) -> Result<()> {
+pub async fn test_cps_pallet(network: &Network<LocalFileSystem>) -> Result<()> {
     log::debug!("Starting CPS pallet tests");
 
-    let endpoints: NetworkEndpoints = topology.into();
-    let ws_url = &endpoints.collator_ws;
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
+    let ws_url = para_ws;
 
     // Run all CPS tests
     log::info!("=== Test 1/4: Simple Tree Structure ===");

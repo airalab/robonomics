@@ -100,7 +100,7 @@ pub enum Commands {
 pub enum NetworkTopology {
     /// Simple topology: relay chain + robonomics parachain only
     Simple,
-    /// AssetHub topology: relay chain + robonomics + asset-hub for XCM tests
+    /// AssetHub topology: relay chain + robonomics + assethub for XCM tests
     AssetHub,
 }
 
