@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Logging configuration and initialization.
 
+use colored::Colorize;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::io::Write;
@@ -35,7 +36,6 @@ pub fn init_logger(verbose: u8) {
     builder
         .filter_level(level)
         .format(|buf, record| {
-            use colored::Colorize;
             let level_colored = match record.level() {
                 log::Level::Error => "ERROR".red().bold(),
                 log::Level::Warn => "WARN".yellow().bold(),

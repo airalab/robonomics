@@ -64,10 +64,6 @@ pub enum Commands {
         #[arg(long, value_name = "TOPOLOGY", default_value = "simple")]
         topology: NetworkTopology,
 
-        /// Keep network running after spawn (wait for Ctrl+C to stop)
-        #[arg(long)]
-        persist: bool,
-
         /// Network spawn timeout in seconds
         #[arg(long, default_value = "300")]
         timeout: u64,
@@ -114,7 +110,6 @@ impl Default for Commands {
     fn default() -> Self {
         Commands::Spawn {
             topology: NetworkTopology::Simple,
-            persist: true,
             timeout: 300,
         }
     }

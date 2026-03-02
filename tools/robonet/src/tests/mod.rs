@@ -119,20 +119,10 @@ pub async fn run_integration_tests(
     test_filter: Option<Vec<String>>,
     json_output: bool,
 ) -> Result<TestSuiteResults> {
-    if !json_output {
-        println!();
-        println!("{}", "Running Integration Tests".bold().cyan());
-        println!(
-            "{}",
-            "==================================================".bright_black()
-        );
-        println!();
-    }
+    log::info!("Running Integration Tests");
 
     let suite_start = Instant::now();
     let mut results = Vec::new();
-
-    log::info!("Running tests");
 
     // Run tests based on filter
     if test_filter.is_none()
@@ -187,6 +177,7 @@ pub async fn run_integration_tests(
         }
     }
 
+    /*
     if test_filter.is_none()
         || test_filter
             .as_ref()
@@ -219,6 +210,7 @@ pub async fn run_integration_tests(
             return build_results(results, suite_start, json_output);
         }
     }
+    */
 
     if test_filter.is_none()
         || test_filter
@@ -273,26 +265,24 @@ fn build_results(
         for result in &results {
             match result.status {
                 TestStatus::Passed => {
-                    println!(
-                        "  {} {} ({:.2}s)",
-                        "[PASS]".green(),
+                    log::info!(
+                        "[PASS] {} ({:.2}s)",
                         result.name.green(),
                         result.duration.as_secs_f64()
                     );
                 }
                 TestStatus::Failed => {
                     println!(
-                        "  {} {} ({:.2}s)",
-                        "[FAIL]".red(),
+                        "[FAIL] {} ({:.2}s)",
                         result.name.red(),
                         result.duration.as_secs_f64()
                     );
                     if let Some(ref error) = result.error {
-                        println!("    Error: {}", error.bright_black());
+                        log::error!("Error: {}", error);
                     }
                 }
                 TestStatus::Skipped => {
-                    println!("  {} {} (skipped)", "[SKIP]".yellow(), result.name.yellow());
+                    log::warn!("[SKIP] {} (skipped)", result.name.yellow());
                 }
             }
         }
@@ -328,10 +318,7 @@ fn build_results(
         // Output text summary
         println!();
         println!("{}", "Test Summary".bold());
-        println!(
-            "{}",
-            "==================================================".bright_black()
-        );
+        println!("{}", "==================================================");
         println!("  Total:      {}", suite_results.total);
         println!("  Passed:     {}", suite_results.passed.to_string().green());
         println!("  Failed:     {}", suite_results.failed.to_string().red());

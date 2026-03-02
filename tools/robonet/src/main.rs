@@ -19,7 +19,6 @@
 
 use anyhow::Result;
 use clap::Parser;
-use colored::Colorize;
 use std::time::Duration;
 
 mod cli;
@@ -55,11 +54,7 @@ async fn run() -> Result<i32> {
 
     // Execute command
     let exit_code = match cli.command.unwrap_or_default() {
-        Commands::Spawn {
-            topology,
-            persist,
-            timeout,
-        } => cmd_spawn(&topology, persist, timeout).await?,
+        Commands::Spawn { topology, timeout } => cmd_spawn(&topology, timeout).await?,
         Commands::Test {
             topology,
             fail_fast,
@@ -73,27 +68,18 @@ async fn run() -> Result<i32> {
 }
 
 /// Spawn command handler
-async fn cmd_spawn(topology: &cli::NetworkTopology, persist: bool, timeout: u64) -> Result<i32> {
+async fn cmd_spawn(topology: &cli::NetworkTopology, timeout: u64) -> Result<i32> {
     let timeout_duration = Duration::from_secs(timeout);
 
     match network::spawn_network(topology, timeout_duration).await {
         Ok(network) => {
-            if persist {
-                println!(
-                    "{}",
-                    "Network will remain running. Press Ctrl+C to stop.".bright_black()
-                );
-                println!();
+            log::info!("Network will remain running. Press Ctrl+C to stop.");
 
-                tokio::signal::ctrl_c().await?;
+            tokio::signal::ctrl_c().await?;
 
-                println!();
-                println!("{}", "Shutting down network...".yellow());
-                drop(network);
-                println!("{}", "Network stopped.".green());
-            } else {
-                drop(network);
-            }
+            log::info!("Shutting down network...");
+            drop(network);
+            log::info!("Network stopped.");
             Ok(EXIT_SUCCESS)
         }
         Err(e) => {
@@ -145,9 +131,9 @@ async fn cmd_test(
     .await;
 
     // Clean up network
-    println!("{}", "Shutting down network...".yellow());
+    log::info!("Shutting down network...");
     drop(network);
-    println!("{}", "Network stopped.".green());
+    log::info!("Network stopped.");
 
     // Return appropriate exit code
     if results?.is_success() {

@@ -72,7 +72,6 @@ pallet-robonomics-claim.workspace = true
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
 cumulus-pallet-parachain-system.workspace = true
-cumulus-pallet-dmp-queue.workspace = true
 cumulus-pallet-xcmp-queue.workspace = true
 cumulus-pallet-xcm.workspace = true
 cumulus-pallet-weight-reclaim.workspace = true
@@ -157,7 +156,6 @@ std = [
   "cumulus-primitives-core/std",
   "cumulus-primitives-utility/std",
   "cumulus-primitives-timestamp/std",
-  "cumulus-pallet-dmp-queue/std",
   "cumulus-pallet-xcmp-queue/std",
   "cumulus-pallet-xcm/std",
   "xcm/std",
@@ -200,7 +198,6 @@ runtime-benchmarks = [
   "frame-system-benchmarking",
   "cumulus-pallet-parachain-system/runtime-benchmarks",
   "cumulus-pallet-xcmp-queue/runtime-benchmarks",
-  "cumulus-pallet-dmp-queue/runtime-benchmarks",
   "cumulus-pallet-weight-reclaim/runtime-benchmarks",
   "cumulus-pallet-session-benchmarking/runtime-benchmarks",
   "cumulus-primitives-utility/runtime-benchmarks",
