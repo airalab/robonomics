@@ -632,6 +632,9 @@ mod runtime {
     #[runtime::pallet_index(72)]
     pub type CumulusXcm = cumulus_pallet_xcm;
 
+    #[runtime::pallet_index(73)]
+    pub type RobonomicsTeleport = pallet_robonomics_teleport;
+
     #[runtime::pallet_index(75)]
     pub type MessageQueue = pallet_message_queue;
 

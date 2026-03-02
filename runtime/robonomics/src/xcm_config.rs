@@ -282,6 +282,20 @@ impl cumulus_pallet_xcm::Config for Runtime {
 }
 
 parameter_types! {
+    pub const RobonomicsTeleportPalletId: frame_support::PalletId = frame_support::PalletId(*b"robo/tel");
+}
+
+impl pallet_robonomics_teleport::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type XcmSender = XcmRouter;
+    type XcmExecutor = XcmExecutor<XcmConfig>;
+    type LocationToAccountId = LocationToAccountId;
+    type AssetHubParaId = AssetHubParaId;
+    type PalletId = RobonomicsTeleportPalletId;
+}
+
+parameter_types! {
     pub const MaxInboundSuspended: u32 = 1000;
     pub const MaxActiveOutboundChannels: u32 = 128;
     pub const MaxPageSize: u32 = 65536;

@@ -68,6 +68,7 @@ pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
 pallet-robonomics-claim.workspace = true
+pallet-robonomics-teleport.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -150,6 +151,7 @@ std = [
   "pallet-robonomics-rws/std",
   "pallet-robonomics-claim/std",
   "pallet-robonomics-cps/std",
+  "pallet-robonomics-teleport/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -194,6 +196,7 @@ runtime-benchmarks = [
   "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-cps/runtime-benchmarks",
   "pallet-robonomics-claim/runtime-benchmarks",
+  "pallet-robonomics-teleport/runtime-benchmarks",
   "pallet-xcm-benchmarks/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
@@ -229,6 +232,7 @@ try-runtime = [
   "pallet-robonomics-liability/try-runtime",
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
+  "pallet-robonomics-teleport/try-runtime",
   "pallet-robonomics-claim/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",

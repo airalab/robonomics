@@ -48,7 +48,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use parity_scale_codec::Encode;
     use sp_runtime::traits::BlakeTwo256;
-    use sp_std::boxed::Box;
+    use sp_std::{boxed::Box, vec};
     use xcm::prelude::*;
     use xcm_executor::traits::ConvertLocation;
 
