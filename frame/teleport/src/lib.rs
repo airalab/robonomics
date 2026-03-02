@@ -178,7 +178,9 @@ pub mod pallet {
                     destination: dest.clone(),
                     remote_fees: Some(AssetTransferFilter::Teleport(Wild(AllCounted(1)))),
                     preserve_origin: false,
-                    assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))].try_into().unwrap(),
+                    assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))]
+                        .try_into()
+                        .map_err(|_| Error::<T>::InvalidAsset)?,
                     remote_xcm: Xcm(vec![
                         BuyExecution {
                             fees: relay_asset,
