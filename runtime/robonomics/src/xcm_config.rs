@@ -281,18 +281,12 @@ impl cumulus_pallet_xcm::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
-parameter_types! {
-    pub const RobonomicsTeleportPalletId: frame_support::PalletId = frame_support::PalletId(*b"robo/tel");
-}
-
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type XcmSender = XcmRouter;
     type XcmExecutor = XcmExecutor<XcmConfig>;
-    type LocationToAccountId = LocationToAccountId;
-    type AssetHubParaId = AssetHubParaId;
-    type PalletId = RobonomicsTeleportPalletId;
+    type AssetHubLocation = AssetHubLocation;
 }
 
 parameter_types! {

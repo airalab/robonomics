@@ -69,16 +69,9 @@ pub mod pallet {
         /// XCM executor
         type XcmExecutor: ExecuteXcm<<Self as frame_system::Config>::RuntimeCall>;
 
-        /// Convert XCM Location to AccountId
-        type LocationToAccountId: ConvertLocation<Self::AccountId>;
-
-        /// Asset Hub parachain ID
+        /// Asset Hub Location
         #[pallet::constant]
-        type AssetHubParaId: Get<u32>;
-
-        /// The pallet ID, used for deriving sovereign account
-        #[pallet::constant]
-        type PalletId: Get<frame_support::PalletId>;
+        type AssetHubLocation: Get<Location>;
     }
 
     #[pallet::pallet]
@@ -108,8 +101,6 @@ pub mod pallet {
         InvalidAsset,
         /// Unsupported XCM version
         UnsupportedVersion,
-        /// Insufficient balance for teleport
-        InsufficientBalance,
         /// Amount must be greater than zero
         ZeroAmount,
     }
@@ -131,8 +122,7 @@ pub mod pallet {
         ///
         /// # Errors
         /// - `ZeroAmount`: Amount to teleport is zero
-        /// - `InsufficientBalance`: Caller doesn't have enough balance
-        /// - `LocalExecutionFailed`: Failed to execute XCM locally
+        /// - `LocalExecutionFailed`: Failed to execute XCM locally (e.g., insufficient balance)
         /// - `SendFailure`: Failed to send XCM message
         #[pallet::call_index(0)]
         #[pallet::weight({
@@ -154,15 +144,8 @@ pub mod pallet {
             // Ensure amount is not zero
             ensure!(amount > BalanceOf::<T>::from(0u32), Error::<T>::ZeroAmount);
 
-            // Check if sender has sufficient balance
-            ensure!(
-                T::Currency::free_balance(&origin_account) >= amount,
-                Error::<T>::InsufficientBalance
-            );
-
             // Destination is always Asset Hub
-            let asset_hub_para_id = T::AssetHubParaId::get();
-            let dest = Location::new(1, [Parachain(asset_hub_para_id)]);
+            let dest = T::AssetHubLocation::get();
 
             // Convert amount to u128 for XCM
             let xcm_amount: u128 = amount
@@ -170,18 +153,24 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::InvalidAsset)?;
 
             // Build the native asset
-            let asset = Asset {
+            let native_asset = Asset {
                 id: AssetId(Location::here()),
                 fun: Fungibility::Fungible(xcm_amount),
             };
 
-            let assets: Assets = vec![asset.clone()].into();
+            let assets: Assets = vec![native_asset.clone()].into();
+
+            // Build the relay asset for fees (on Asset Hub, fees are paid in relay chain asset)
+            let relay_asset = Asset {
+                id: AssetId(Location::parent()),
+                fun: Fungibility::Fungible(xcm_amount),
+            };
 
             // Build the XCM message following the teleport pattern
             // The message will:
             // 1. WithdrawAsset from holding register
             // 2. InitiateTeleport to start the teleport
-            // 3. On destination, BuyExecution and DepositAsset to beneficiary
+            // 3. On destination, BuyExecution with relay asset and DepositAsset to beneficiary
             let message: Xcm<<T as frame_system::Config>::RuntimeCall> = Xcm(vec![
                 WithdrawAsset(assets.clone()),
                 InitiateTeleport {
@@ -189,7 +178,7 @@ pub mod pallet {
                     dest: dest.clone(),
                     xcm: Xcm(vec![
                         BuyExecution {
-                            fees: asset,
+                            fees: relay_asset,
                             weight_limit: Unlimited,
                         },
                         DepositAsset {

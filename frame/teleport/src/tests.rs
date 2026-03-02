@@ -20,8 +20,7 @@
 use crate as pallet_robonomics_teleport;
 use frame_support::{
     assert_err, assert_ok, derive_impl, parameter_types,
-    traits::{ConstU32, ConstU64, Everything},
-    PalletId,
+    traits::{ConstU32, ConstU64},
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
 use xcm::prelude::*;
@@ -126,20 +125,8 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
     }
 }
 
-// Mock location to account converter
-pub struct MockLocationToAccountId;
-impl xcm_executor::traits::ConvertLocation<u64> for MockLocationToAccountId {
-    fn convert_location(location: &Location) -> Option<u64> {
-        match location.unpack() {
-            (0, [AccountId32 { id, .. }]) => Some(u64::from_le_bytes(id[0..8].try_into().ok()?)),
-            _ => None,
-        }
-    }
-}
-
 parameter_types! {
-    pub const AssetHubParaId: u32 = 1000;
-    pub const RobonomicsTeleportPalletId: PalletId = PalletId(*b"robo/tel");
+    pub AssetHubLocationTest: Location = Location::new(1, [Parachain(1000)]);
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
@@ -147,9 +134,7 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type Currency = Balances;
     type XcmSender = MockXcmSender;
     type XcmExecutor = MockXcmExecutor;
-    type LocationToAccountId = MockLocationToAccountId;
-    type AssetHubParaId = AssetHubParaId;
-    type PalletId = RobonomicsTeleportPalletId;
+    type AssetHubLocation = AssetHubLocationTest;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -191,30 +176,6 @@ fn test_teleport_assets_validates_zero_amount() {
                 0, // Zero amount
             ),
             pallet_robonomics_teleport::Error::<Runtime>::ZeroAmount
-        );
-    });
-}
-
-#[test]
-fn test_teleport_assets_validates_sufficient_balance() {
-    new_test_ext().execute_with(|| {
-        let origin = 1u64;
-        let beneficiary = Box::new(VersionedLocation::V5(Location::new(
-            0,
-            [AccountId32 {
-                network: None,
-                id: [2u8; 32],
-            }],
-        )));
-
-        // Amount exceeds balance (origin has 1000)
-        assert_err!(
-            RobonomicsTeleport::teleport_assets(
-                RuntimeOrigin::signed(origin),
-                beneficiary,
-                2000,
-            ),
-            pallet_robonomics_teleport::Error::<Runtime>::InsufficientBalance
         );
     });
 }
