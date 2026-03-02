@@ -51,7 +51,6 @@ parameter_types! {
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
     type Currency = Balances;
     type XcmSender = XcmRouter;
     type XcmExecutor = XcmExecutor<XcmConfig>;

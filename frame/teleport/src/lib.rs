@@ -201,9 +201,16 @@ pub mod pallet {
             ]);
 
             // Execute the message locally to withdraw assets from the origin account
+            // Encode the account ID and pad to 32 bytes for AccountId32
+            let mut account_bytes = origin_account.encode();
+            account_bytes.resize(32, 0);
+            let account_id: [u8; 32] = account_bytes
+                .try_into()
+                .map_err(|_| Error::<T>::InvalidAsset)?;
+            
             let origin_location: Location = AccountId32 {
                 network: None,
-                id: origin_account.encode().try_into().unwrap_or([0u8; 32]),
+                id: account_id,
             }
             .into();
 
