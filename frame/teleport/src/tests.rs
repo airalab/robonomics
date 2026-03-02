@@ -161,13 +161,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 fn test_teleport_assets_validates_zero_amount() {
     new_test_ext().execute_with(|| {
         let origin = 1u64;
-        let beneficiary = Box::new(VersionedLocation::V5(Location::new(
-            0,
-            [AccountId32 {
-                network: None,
-                id: [2u8; 32],
-            }],
-        )));
+        let beneficiary = [2u8; 32];
 
         assert_err!(
             RobonomicsTeleport::teleport_assets(
@@ -187,13 +181,7 @@ fn test_teleport_assets_success() {
         System::set_block_number(1);
         
         let origin = 1u64;
-        let beneficiary = Box::new(VersionedLocation::V5(Location::new(
-            0,
-            [AccountId32 {
-                network: None,
-                id: [2u8; 32],
-            }],
-        )));
+        let beneficiary = [2u8; 32];
 
         assert_ok!(RobonomicsTeleport::teleport_assets(
             RuntimeOrigin::signed(origin),
@@ -224,13 +212,7 @@ fn test_teleport_assets_success() {
 fn test_teleport_assets_with_maximum_balance() {
     new_test_ext().execute_with(|| {
         let origin = 1u64;
-        let beneficiary = Box::new(VersionedLocation::V5(Location::new(
-            0,
-            [AccountId32 {
-                network: None,
-                id: [2u8; 32],
-            }],
-        )));
+        let beneficiary = [2u8; 32];
 
         // Teleport entire balance
         assert_ok!(RobonomicsTeleport::teleport_assets(

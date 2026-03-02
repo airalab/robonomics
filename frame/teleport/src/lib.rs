@@ -25,12 +25,13 @@
 //! The pallet implements a strict version of XCM teleport with the following constraints:
 //! - Only supports teleporting the native asset (pallet_balances)
 //! - Only supports teleporting to Asset Hub parachain
-//! - Uses parachain balance on Asset Hub for fees
+//! - Uses relay chain asset for fees on Asset Hub
+//! - Beneficiary specified as AccountId32 (32-byte account ID)
 //!
 //! The teleport process follows this pattern:
-//! 1. Build XCM message with WithdrawAsset, InitiateTeleport, and DepositAsset instructions
+//! 1. Build XCM message with WithdrawAsset and InitiateTransfer instructions
 //! 2. Execute the message locally to withdraw assets
-//! 3. Send the message to Asset Hub destination
+//! 3. Send the message to Asset Hub destination with teleport semantics
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -48,9 +49,9 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use parity_scale_codec::Encode;
     use sp_runtime::traits::BlakeTwo256;
-    use sp_std::{boxed::Box, vec};
+    use sp_std::vec;
     use xcm::prelude::*;
-    use xcm_executor::traits::ConvertLocation;
+    use xcm::opaque::latest::AssetTransferFilter;
 
     pub type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -99,8 +100,6 @@ pub mod pallet {
         InvalidBeneficiary,
         /// Invalid asset
         InvalidAsset,
-        /// Unsupported XCM version
-        UnsupportedVersion,
         /// Amount must be greater than zero
         ZeroAmount,
     }
@@ -110,14 +109,14 @@ pub mod pallet {
         /// Teleport native assets to Asset Hub parachain.
         ///
         /// This extrinsic teleports native assets (XRT) from the caller's account to a beneficiary
-        /// account on the Asset Hub parachain. The teleport uses XCM to:
+        /// account on the Asset Hub parachain. The teleport uses XCM InitiateTransfer to:
         /// 1. Withdraw assets from the caller
-        /// 2. Initiate teleport to Asset Hub
+        /// 2. Initiate transfer to Asset Hub with teleport semantics
         /// 3. Deposit assets to beneficiary on Asset Hub
         ///
         /// # Parameters
         /// - `origin`: The account teleporting the assets
-        /// - `beneficiary`: The recipient account on Asset Hub
+        /// - `beneficiary`: The recipient AccountId32 (32-byte account ID) on Asset Hub
         /// - `amount`: The amount of native asset to teleport
         ///
         /// # Errors
@@ -131,15 +130,17 @@ pub mod pallet {
         })]
         pub fn teleport_assets(
             origin: OriginFor<T>,
-            beneficiary: Box<VersionedLocation>,
+            beneficiary: [u8; 32],
             amount: BalanceOf<T>,
         ) -> DispatchResult {
             let origin_account = ensure_signed(origin)?;
 
-            // Convert versioned beneficiary to latest version
-            let beneficiary: Location = (*beneficiary)
-                .try_into()
-                .map_err(|_| Error::<T>::UnsupportedVersion)?;
+            // Build beneficiary location from AccountId32
+            let beneficiary_location: Location = AccountId32 {
+                network: None,
+                id: beneficiary,
+            }
+            .into();
 
             // Ensure amount is not zero
             ensure!(amount > BalanceOf::<T>::from(0u32), Error::<T>::ZeroAmount);
@@ -166,24 +167,26 @@ pub mod pallet {
                 fun: Fungibility::Fungible(xcm_amount),
             };
 
-            // Build the XCM message following the teleport pattern
-            // The message will:
+            // Build the XCM message using InitiateTransfer for teleport
+            // InitiateTransfer will:
             // 1. WithdrawAsset from holding register
-            // 2. InitiateTeleport to start the teleport
-            // 3. On destination, BuyExecution with relay asset and DepositAsset to beneficiary
+            // 2. InitiateTransfer to Asset Hub with teleport semantics
+            // 3. On destination, BuyExecution and DepositAsset to beneficiary
             let message: Xcm<<T as frame_system::Config>::RuntimeCall> = Xcm(vec![
                 WithdrawAsset(assets.clone()),
-                InitiateTeleport {
-                    assets: Wild(AllCounted(1)),
-                    dest: dest.clone(),
-                    xcm: Xcm(vec![
+                InitiateTransfer {
+                    destination: dest.clone(),
+                    remote_fees: Some(AssetTransferFilter::Teleport(Wild(AllCounted(1)))),
+                    preserve_origin: false,
+                    assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))].try_into().unwrap(),
+                    remote_xcm: Xcm(vec![
                         BuyExecution {
                             fees: relay_asset,
                             weight_limit: Unlimited,
                         },
                         DepositAsset {
                             assets: Wild(AllCounted(1)),
-                            beneficiary: beneficiary.clone(),
+                            beneficiary: beneficiary_location.clone(),
                         },
                     ]),
                 },
@@ -226,7 +229,7 @@ pub mod pallet {
             Self::deposit_event(Event::AssetsTeleported {
                 origin: origin_account,
                 destination: dest,
-                beneficiary,
+                beneficiary: beneficiary_location,
                 amount,
             });
 
