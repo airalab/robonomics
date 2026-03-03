@@ -286,13 +286,14 @@ parameter_types! {
     pub const MaxInboundSuspended: u32 = 1000;
     pub const MaxActiveOutboundChannels: u32 = 128;
     pub const MaxPageSize: u32 = 65536;
+    pub const XcmpFeeAssetId: AssetId = AssetId(Location::parent());
     pub const BaseXcmpDeliveryFee: u128 = 100 * COASE;
     pub const XcmpByteFee: u128 = COASE;
 }
 
 /// Price for delivering an XCM to a sibling parachain destination.
 pub type PriceForSiblingParachainDelivery = polkadot_runtime_common::xcm_sender::ExponentialPrice<
-    NativeAssetId,
+    XcmpFeeAssetId,
     BaseXcmpDeliveryFee,
     XcmpByteFee,
     XcmpQueue,
@@ -316,7 +317,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type MaxPageSize = MaxPageSize;
     type ControllerOrigin = frame_system::EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
-    // Charge a conservative fee for XCM message delivery to siblings
     type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
     type WeightInfo = crate::weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
 }

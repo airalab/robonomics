@@ -27,11 +27,9 @@ use zombienet_sdk::{LocalFileSystem, Network};
 /// Test: Network initialization and connectivity
 pub async fn test_network_initialization(network: &Network<LocalFileSystem>) -> Result<()> {
     // Get nodes from network
-    let alice = network
-        .get_node("alice")?;
-    
-    let collator = network
-        .get_node("robonomics-collator")?;
+    let alice = network.get_node("alice")?;
+
+    let collator = network.get_node("robonomics-collator")?;
 
     // Connect to relay chain via alice node
     let relay_ws = alice.ws_uri();
@@ -62,11 +60,9 @@ pub async fn test_network_initialization(network: &Network<LocalFileSystem>) -> 
 /// Test: Block production on both chains
 pub async fn test_block_production(network: &Network<LocalFileSystem>) -> Result<()> {
     // Get nodes from network
-    let alice = network
-        .get_node("alice")?;
-    
-    let collator = network
-        .get_node("robonomics-collator")?;
+    let alice = network.get_node("alice")?;
+
+    let collator = network.get_node("robonomics-collator")?;
 
     // Check relay chain
     let relay_ws = alice.ws_uri();
@@ -114,9 +110,8 @@ pub async fn test_block_production(network: &Network<LocalFileSystem>) -> Result
 /// Test: Basic extrinsic submission
 pub async fn test_extrinsic_submission(network: &Network<LocalFileSystem>) -> Result<()> {
     // Get collator node
-    let collator = network
-        .get_node("robonomics-collator")?;
-    
+    let collator = network.get_node("robonomics-collator")?;
+
     let para_ws = collator.ws_uri();
     let client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
         .await

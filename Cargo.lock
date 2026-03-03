@@ -2440,24 +2440,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cumulus-pallet-dmp-queue"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "521e8fc5dd3c9082f5eac34987dab53aa9c9edde403b30794ee194b7de32345b"
-dependencies = [
- "cumulus-primitives-core",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-io 44.0.0",
- "sp-runtime 45.0.0",
- "staging-xcm",
-]
-
-[[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11051,7 +11033,6 @@ dependencies = [
  "futures",
  "hex",
  "hex-literal",
- "indicatif",
  "libcps",
  "libsecp256k1",
  "log",
@@ -11083,7 +11064,6 @@ name = "robonomics-runtime"
 version = "4.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
  "cumulus-pallet-weight-reclaim",

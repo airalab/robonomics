@@ -56,7 +56,6 @@ serde_json = { version = "1.0.138", default-features = false }
 # (native)
 bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
-color-print = "0.3.4"
 futures = { version = "0.3.21", features = ["thread-pool"] }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
 thiserror = "1.0.43"

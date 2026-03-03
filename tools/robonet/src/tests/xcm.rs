@@ -27,31 +27,43 @@
 //! The Robonomics runtime supports teleportation of native assets (XRT) with AssetHub.
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
-use anyhow::{Context, Result};
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use robonomics_runtime_subxt_api::{api, AccountId32, MultiAddress, RobonomicsConfig};
 use std::time::Duration;
-use subxt::{tx::Payload, OnlineClient, PolkadotConfig};
+use subxt::{
+    client::OnlineClientT,
+    config::HashFor,
+    tx::{Payload, TxProgress, TxStatus},
+    Config, OnlineClient, PolkadotConfig,
+};
 use subxt_signer::sr25519::dev;
 use zombienet_sdk::{LocalFileSystem, Network};
 
-use crate::network::PARA_ID;
+use crate::network::{ASSET_HUB_PARA_ID, PARA_ID, PARA_SIB_ACCOUNT};
 
 // Local rococo relay API
-#[subxt::subxt(runtime_metadata_path = "artifacts/relay.scale")]
+#[subxt::subxt(
+    runtime_metadata_path = "artifacts/relay.scale",
+    derive_for_all_types = "Eq, PartialEq, Clone"
+)]
 pub mod relay {}
 
 // Local AssetHub API
-#[subxt::subxt(runtime_metadata_path = "artifacts/assethub.scale")]
+#[subxt::subxt(
+    runtime_metadata_path = "artifacts/assethub.scale",
+    derive_for_all_types = "Eq, PartialEq, Clone"
+)]
 pub mod assethub {}
 
 /// Robonomics XCM helpers
 mod robonomics_xcm {
-    use super::api;
+    use super::{api, ASSET_HUB_PARA_ID};
     use subxt::tx::DefaultPayload;
 
     use api::runtime_types::robonomics_runtime::RuntimeCall;
     pub use api::runtime_types::staging_xcm::v5::{
         asset::{Asset, AssetId, Assets, Fungibility},
+        junction::Junction,
         junctions::Junctions,
         location::Location,
         Instruction, Xcm,
@@ -93,9 +105,22 @@ mod robonomics_xcm {
         interior: Junctions::Here,
     };
 
+    pub const ASSET_HUB_LOCATION: Location = Location {
+        parents: 1,
+        interior: Junctions::X1([Junction::Parachain(ASSET_HUB_PARA_ID)]),
+    };
+
     pub const RELAY_ASSET: Asset = Asset {
         id: AssetId(Location {
             parents: 0,
+            interior: Junctions::Here,
+        }),
+        fun: Fungibility::Fungible(1_000_000_000u128),
+    };
+
+    pub const AH_RELAY_ASSET: Asset = Asset {
+        id: AssetId(Location {
+            parents: 1,
             interior: Junctions::Here,
         }),
         fun: Fungibility::Fungible(1_000_000_000u128),
@@ -140,6 +165,30 @@ mod relay_xcm {
         let send_tx = RuntimeCall::XcmPallet(api::xcm_pallet::Call::send { dest, message });
         api::tx().sudo().sudo(send_tx)
     }
+}
+
+mod assethub_xcm {
+    use super::assethub as api;
+
+    pub use api::runtime_types::staging_xcm::v5::{
+        junction::Junction, junctions::Junctions, location::Location,
+    };
+}
+
+/// Wait for transaction appears in best block
+pub async fn wait_for_best<T: Config, C: OnlineClientT<T>>(
+    mut tx_process: TxProgress<T, C>,
+) -> Result<HashFor<T>> {
+    while let Some(status) = tx_process.next().await {
+        match status? {
+            TxStatus::Error { message } => bail!(message),
+            TxStatus::Invalid { message } => bail!(message),
+            TxStatus::Dropped { message } => bail!(message),
+            TxStatus::InBestBlock(block) => return Ok(block.extrinsic_hash()),
+            _ => continue,
+        }
+    }
+    Err(anyhow!("Subscription dropped"))
 }
 
 /// Test: XCM upward message (parachain -> relay)
@@ -194,33 +243,27 @@ pub async fn test_xcm_upward_message(network: &Network<LocalFileSystem>) -> Resu
 
     log::info!("  Sending XCM message via UMP...");
 
-    // Send XCM message using static API
-
     // Submit transaction and wait for it to be included in a block
-    let events = para_client
+    let tx_process = para_client
         .tx()
         .sign_and_submit_then_watch_default(&send_tx, &alice)
         .await
-        .context("Failed to submit sudo transaction")?
-        .wait_for_finalized_success()
-        .await
-        .context("xcm_pallet::send transaction failed")?;
+        .context("Failed to submit sudo transaction")?;
 
-    log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
+    let tx_hash = wait_for_best(tx_process).await?;
+    log::info!("XCM sent by sudo with tx-hash {}", tx_hash);
 
     // Wait for MessageQueue event on relay chain
     log::info!("  Waiting for MessageQueue::Processed event on relay chain...");
-    
+
     let mut blocks_sub = relay_client
         .blocks()
         .subscribe_finalized()
         .await
         .context("Failed to subscribe to relay blocks")?;
 
-    let mut found_success = false;
-    let timeout = Duration::from_secs(30);
+    let timeout = Duration::from_secs(60);
     let start = std::time::Instant::now();
-
     while start.elapsed() < timeout {
         if let Some(block_result) = blocks_sub.next().await {
             let block = block_result.context("Failed to get block")?;
@@ -228,33 +271,32 @@ pub async fn test_xcm_upward_message(network: &Network<LocalFileSystem>) -> Resu
 
             for event in events.iter() {
                 let event = event.context("Failed to parse event")?;
-                
+
                 // Check for MessageQueue::Processed event
-                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
+                if event.pallet_name() == "messageQueue" && event.variant_name() == "Processed" {
                     // Try to decode the event to check success field
-                    if let Ok(decoded) = event.as_root_event::<relay::message_queue::events::Processed>() {
-                        log::info!(
-                            "  MessageQueue::Processed event found: success={:?}",
-                            decoded.success
-                        );
+                    if let Ok(decoded) =
+                        event.as_root_event::<relay::message_queue::events::Processed>()
+                    {
+                        log::info!("  MessageQueue::Processed event found: {:?}", decoded);
                         if decoded.success {
-                            found_success = true;
-                            break;
+                            log::info!(
+                                "  ✓ MessageQueue event processed successfully on relay chain"
+                            );
+                        } else {
+                            log::error!("  ⚠ MessageQueue event is not success");
+                            bail!("Transaction failed on destination chain")
                         }
+                        break;
                     }
                 }
-            }
-            
-            if found_success {
-                break;
             }
         }
     }
 
-    if found_success {
-        log::info!("  ✓ MessageQueue event processed successfully on relay chain");
-    } else {
+    if start.elapsed() > timeout {
         log::warn!("  ⚠ MessageQueue success event not found within timeout");
+        bail!("XCM not processed")
     }
 
     Ok(())
@@ -312,30 +354,26 @@ pub async fn test_xcm_downward_message(network: &Network<LocalFileSystem>) -> Re
     log::info!("  Sending XCM message via DMP...");
 
     // Submit transaction and wait for it to be included in a block
-    let events = relay_client
+    let tx_process = relay_client
         .tx()
         .sign_and_submit_then_watch_default(&send_tx, &alice)
         .await
-        .context("Failed to submit sudo transaction")?
-        .wait_for_finalized_success()
-        .await
-        .context("xcm_pallet::send transaction failed")?;
+        .context("Failed to submit sudo transaction")?;
 
-    log::info!("XCM sent by sudo with tx-hash {}", events.extrinsic_hash());
+    let tx_hash = wait_for_best(tx_process).await?;
+    log::info!("XCM sent by sudo with tx-hash {}", tx_hash);
 
     // Wait for MessageQueue event on parachain
     log::info!("  Waiting for MessageQueue::Processed event on parachain...");
-    
+
     let mut blocks_sub = para_client
         .blocks()
         .subscribe_finalized()
         .await
         .context("Failed to subscribe to parachain blocks")?;
 
-    let mut found_success = false;
     let timeout = Duration::from_secs(30);
     let start = std::time::Instant::now();
-
     while start.elapsed() < timeout {
         if let Some(block_result) = blocks_sub.next().await {
             let block = block_result.context("Failed to get block")?;
@@ -343,36 +381,288 @@ pub async fn test_xcm_downward_message(network: &Network<LocalFileSystem>) -> Re
 
             for event in events.iter() {
                 let event = event.context("Failed to parse event")?;
-                
+
                 // Check for MessageQueue::Processed event
-                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
+                if event.pallet_name() == "messageQueue" && event.variant_name() == "Processed" {
                     // Try to decode the event to check success field
-                    if let Ok(decoded) = event.as_root_event::<api::message_queue::events::Processed>() {
+                    if let Ok(decoded) =
+                        event.as_root_event::<api::message_queue::events::Processed>()
+                    {
                         log::info!(
                             "  MessageQueue::Processed event found: success={:?}",
                             decoded.success
                         );
                         if decoded.success {
-                            found_success = true;
-                            break;
+                            log::info!(
+                                "  ✓ MessageQueue event processed successfully on parachain"
+                            );
+                        } else {
+                            log::error!("  ⚠ MessageQueue event is not success");
+                            bail!("Transaction failed on destination chain")
                         }
+                        break;
                     }
                 }
-            }
-            
-            if found_success {
-                break;
             }
         }
     }
 
-    if found_success {
-        log::info!("  ✓ MessageQueue event processed successfully on parachain");
-    } else {
+    if start.elapsed() > timeout {
         log::warn!("  ⚠ MessageQueue success event not found within timeout");
+        bail!("XCM message not processed")
     }
 
-    log::info!("✓ XCM downward message test completed successfully");
+    Ok(())
+}
+
+pub async fn test_hrmp_create_channel(network: &Network<LocalFileSystem>) -> Result<()> {
+    log::info!("=== Test: XCM Create HRMP with system parachain ===");
+
+    // Get WebSocket URLs from network
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
+    let relay_ws = network.get_node("alice")?.ws_uri();
+
+    // Connect to parachain and relay
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&para_ws)
+        .await
+        .context("Failed to connect to parachain")?;
+
+    let relay_client = OnlineClient::<PolkadotConfig>::from_url(&relay_ws)
+        .await
+        .context("Failed to connect to relay chain")?;
+
+    log::info!("✓ Connected to parachain and relay chain");
+
+    // Verify both chains are producing blocks
+    let para_block = para_client.blocks().at_latest().await?;
+    log::info!("  Parachain block: #{}", para_block.number());
+
+    let relay_block = relay_client.blocks().at_latest().await?;
+    log::info!("  Relay chain block: #{}", relay_block.number());
+
+    // Get Alice's account for signing transactions
+    let alice = dev::alice();
+    log::info!("  Using account: Alice");
+
+    use relay::runtime_types::polkadot_parachain_primitives::primitives::Id;
+
+    let hrmp_call = relay::tx()
+        .hrmp()
+        .establish_channel_with_system(Id(ASSET_HUB_PARA_ID));
+    let hrmp_call_encoded = hrmp_call
+        .encode_call_data(&relay_client.metadata())
+        .context("Unable to encode hrmp call")?;
+
+    // Create a remark transaction XCM
+    let message = robonomics_xcm::transact(
+        robonomics_xcm::OriginKind::Native,
+        robonomics_xcm::RELAY_ASSET,
+        hrmp_call_encoded,
+    );
+    let send_tx = robonomics_xcm::send(robonomics_xcm::RELAY_LOCATION, message);
+
+    log::info!("  Sending XCM message via UMP...");
+
+    // Submit transaction and wait for it to be included in a block
+    let tx_process = para_client
+        .tx()
+        .sign_and_submit_then_watch_default(&send_tx, &alice)
+        .await
+        .context("Failed to submit sudo transaction")?;
+
+    let tx_hash = wait_for_best(tx_process).await?;
+    log::info!("  XCM sent by sudo with tx-hash {}", tx_hash);
+
+    // Wait for Hrmp event on relay chain
+    log::info!("  Waiting for Hrmp.HrmpSystemChannelOpened event on relay chain...");
+
+    let mut blocks_sub = relay_client
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .context("Failed to subscribe to relay blocks")?;
+
+    let timeout = Duration::from_secs(120);
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        if let Some(block_result) = blocks_sub.next().await {
+            let block = block_result.context("Failed to get block")?;
+            let events = block.events().await.context("Failed to get events")?;
+
+            for event in events.iter() {
+                let event = event.context("Failed to parse event")?;
+                log::trace!(
+                    "  New Event(name: {}, variant: {})",
+                    event.pallet_name(),
+                    event.variant_name(),
+                );
+
+                // Check for Hrmp::HrmpSystemChannelOpened event
+                if event.pallet_name() == "Hrmp"
+                    && event.variant_name() == "HrmpSystemChannelOpened"
+                {
+                    // Try to decode the event to check success field
+                    if let Some(decoded) = event.as_event::<relay::hrmp::events::HrmpSystemChannelOpened>()
+                        .context("  event.as_event::<relay::hrmp::events::HrmpSystemChannelOpened> fails")? {
+                        log::info!("  Event found: {:?}", decoded);
+
+                        ensure!(
+                            decoded.sender.0 == PARA_ID,
+                            "Sender should be {} but was {:?}",
+                            PARA_ID, decoded.sender,
+                        );
+                        ensure!(
+                            decoded.recipient.0 == ASSET_HUB_PARA_ID,
+                            "Sender should be {} but was {:?}",
+                            ASSET_HUB_PARA_ID, decoded.recipient,
+                        );
+
+                        return Ok(())
+                    } else {
+                        bail!("Unable to decode HrmpSystemChannelOpened event");
+                    }
+                }
+            }
+        }
+    }
+
+    if start.elapsed() > timeout {
+        log::warn!("  ⚠ HRMP event not found within timeout");
+        bail!("XCM failed")
+    }
+
+    Ok(())
+}
+
+async fn test_create_foreign_asset(network: &Network<LocalFileSystem>) -> Result<()> {
+    log::info!("=== Test: Create Foreign Asset ===");
+
+    // Get WebSocket URLs from network
+    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
+    let assethub_ws = network.get_node("assethub-collator")?.ws_uri();
+
+    // Connect to both chains
+    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&para_ws)
+        .await
+        .context("Failed to connect to Robonomics parachain")?;
+
+    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(&assethub_ws)
+        .await
+        .context("Failed to connect to AssetHub parachain")?;
+
+    // Verify both chains are producing blocks
+    let para_block = para_client.blocks().at_latest().await?;
+    log::info!("  Parachain block: #{}", para_block.number());
+
+    let assethub_block = assethub_client.blocks().at_latest().await?;
+    log::info!("  AssetHub chain block: #{}", assethub_block.number());
+
+    // Get Alice's account for signing transactions
+    let alice = dev::alice();
+    log::info!("  Using account: Alice");
+
+    let admin: AccountId32 = PARA_SIB_ACCOUNT
+        .parse()
+        .context("Unable to parse para_address")?;
+
+    let id = assethub_xcm::Location {
+        parents: 1,
+        interior: assethub_xcm::Junctions::X1([assethub_xcm::Junction::Parachain(PARA_ID)]),
+    };
+    let create_asset = assethub::tx()
+        .foreign_assets()
+        .create(id.clone(), MultiAddress::Id(admin.clone()), 1_000)
+        .encode_call_data(&assethub_client.metadata())
+        .context("Unable to encode remark call")?;
+
+    // Create transaction XCM
+    let message = robonomics_xcm::transact(
+        robonomics_xcm::OriginKind::Xcm,
+        robonomics_xcm::AH_RELAY_ASSET,
+        create_asset,
+    );
+    let send_tx = robonomics_xcm::send(robonomics_xcm::ASSET_HUB_LOCATION, message);
+
+    log::info!("  Sending XCM message via XCMP...");
+
+    // Submit transaction and wait for it to be included in a block
+    let tx_process = para_client
+        .tx()
+        .sign_and_submit_then_watch_default(&send_tx, &alice)
+        .await
+        .context("Failed to submit sudo transaction")?;
+
+    let tx_hash = wait_for_best(tx_process).await?;
+    log::info!("  XCM sent by sudo with tx-hash {}", tx_hash);
+
+    // Wait for MessageQueue event on relay chain
+    log::info!("  Waiting for ForeignAssets::Created event on AssetHub chain...");
+
+    let mut blocks_sub = assethub_client
+        .blocks()
+        .subscribe_finalized()
+        .await
+        .context("Failed to subscribe to relay blocks")?;
+
+    let timeout = Duration::from_secs(120);
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        if let Some(block_result) = blocks_sub.next().await {
+            let block = block_result.context("Failed to get block")?;
+            let events = block.events().await.context("Failed to get events")?;
+
+            for event in events.iter() {
+                let event = event.context("Failed to parse event")?;
+                log::trace!(
+                    "  New Event(name: {}, variant: {})",
+                    event.pallet_name(),
+                    event.variant_name(),
+                );
+
+                // Check for hrmp::HrmpSystemChannelOpened event
+                if event.pallet_name() == "ForeignAssets" && event.variant_name() == "Created" {
+                    // Try to decode the event to check success field
+                    if let Some(decoded) = event
+                        .as_event::<assethub::foreign_assets::events::Created>()
+                        .context(
+                            "  event.as_event::<assethub::foreign_assets::events::Created> fails",
+                        )?
+                    {
+                        log::info!("  ForeignAssets::Created event found: {:?}", decoded);
+
+                        ensure!(
+                            decoded.asset_id == id,
+                            "AssetId should be {:?} but was {:?}",
+                            id,
+                            decoded.asset_id,
+                        );
+                        ensure!(
+                            decoded.creator == admin,
+                            "Creator should be {} but was {:?}",
+                            admin,
+                            decoded.creator,
+                        );
+                        ensure!(
+                            decoded.owner == admin,
+                            "Creator should be {} but was {:?}",
+                            admin,
+                            decoded.owner,
+                        );
+
+                        return Ok(());
+                    } else {
+                        bail!("Unable to decode Created event");
+                    }
+                }
+            }
+        }
+    }
+
+    if start.elapsed() > timeout {
+        log::warn!("  ⚠ ForeignAssets event not found within timeout");
+        bail!("XCM failed")
+    }
+
     Ok(())
 }
 
@@ -749,32 +1039,33 @@ pub async fn test_xcm_token_teleport(network: &Network<LocalFileSystem>) -> Resu
     let has_assethub = network.get_node("asset-hub-collator").is_ok();
 
     if has_assethub {
-            log::info!("==================================================");
-            log::info!("  XCM Token Teleportation Tests");
-            log::info!("==================================================");
-            log::info!("");
+        log::info!("==================================================");
+        log::info!("  XCM Token Teleportation Tests");
+        log::info!("==================================================");
+        log::info!("");
 
-            log::info!("[ 1/3 ] Prepare: register foreign asset on AssetHub");
-            //register_foreign_asset(network).await?;
+        log::info!("[ 1/4 ] Register foreign asset on AssetHub");
+        test_hrmp_create_channel(network).await?;
 
-            log::info!("");
+        log::info!("[ 2/4 ] Register foreign asset on AssetHub");
+        test_create_foreign_asset(network).await?;
 
-            // Test 1: Teleport from Robonomics to AssetHub
-            log::info!("[ 2/3 ] Test Teleport: Robonomics -> AssetHub");
-            //test_teleport_to_assethub(&endpoints).await?;
+        // Test 1: Teleport from Robonomics to AssetHub
+        log::info!("[ 3/4 ] Test Teleport: Robonomics -> AssetHub");
+        //test_teleport_to_assethub(&endpoints).await?;
 
-            log::info!("");
+        log::info!("");
 
-            // Test 2: Teleport from AssetHub back to Robonomics
-            log::info!("[ 3/3 ] Test Teleport: AssetHub -> Robonomics");
-            //test_teleport_from_assethub(network).await?;
+        // Test 2: Teleport from AssetHub back to Robonomics
+        log::info!("[ 4/4 ] Test Teleport: AssetHub -> Robonomics");
+        //test_teleport_from_assethub(network).await?;
 
-            log::info!("");
-            log::info!("==================================================");
-            log::info!("  All XCM Token Teleport Tests Completed Successfully");
-            log::info!("==================================================");
+        log::info!("");
+        log::info!("==================================================");
+        log::info!("  All XCM Token Teleport Tests Completed Successfully");
+        log::info!("==================================================");
 
-            Ok(())
+        Ok(())
     } else {
         log::info!("⊘ Skipping XCM token teleport tests");
         log::info!("  Reason: Requires AssetHub topology");
