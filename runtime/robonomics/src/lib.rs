@@ -632,6 +632,8 @@ mod runtime {
     #[runtime::pallet_index(72)]
     pub type CumulusXcm = cumulus_pallet_xcm;
 
+    // Indices 73-75 reserved for future XCM-related pallets
+    
     #[runtime::pallet_index(76)]
     pub type TeleportXrt = pallet_robonomics_teleport;
 

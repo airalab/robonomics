@@ -93,6 +93,10 @@ pub mod pallet {
         SendFailure,
         /// Failed to execute XCM locally
         LocalExecutionFailed,
+        /// Amount too large to convert to u128
+        AmountOverflow,
+        /// Invalid asset filter configuration
+        InvalidAssetFilter,
     }
 
     #[pallet::call]
@@ -137,7 +141,7 @@ pub mod pallet {
             let dest = T::AssetHubLocation::get();
 
             // Convert amount to u128 for XCM (u128 is the widest type available)
-            let xcm_amount: u128 = amount.try_into().unwrap_or(u128::MAX);
+            let xcm_amount: u128 = amount.try_into().map_err(|_| Error::<T>::AmountOverflow)?;
 
             // Build the native asset
             let native_asset = Asset {
@@ -155,6 +159,7 @@ pub mod pallet {
 
             // Build the XCM message using InitiateTransfer for teleport
             // InitiateTransfer will execute locally and send to destination
+            // Note: Using Xcm<()> instead of Xcm<RuntimeCall> because SendXcm trait requires ()
             let message: Xcm<()> = Xcm(vec![
                 WithdrawAsset(assets.clone()),
                 InitiateTransfer {
@@ -163,7 +168,7 @@ pub mod pallet {
                     preserve_origin: false,
                     assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))]
                         .try_into()
-                        .unwrap_or_default(),
+                        .map_err(|_| Error::<T>::InvalidAssetFilter)?,
                     remote_xcm: Xcm(vec![
                         PayFees {
                             asset: relay_fee_asset,
