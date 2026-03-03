@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, TREASURY_PALLET_ID,
+    XcmpQueue, COASE, TREASURY_PALLET_ID, MAXIMUM_BLOCK_WEIGHT,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{
@@ -55,8 +55,9 @@ parameter_types! {
     pub AssetHubTrustedTeleporter: (AssetFilter, Location) = (NativeAssetFilter::get(), AssetHubLocation::get());
     pub CheckingAccount: AccountId = XcmPallet::check_account();
     pub TreasuryAccount: AccountId = TREASURY_PALLET_ID.into_account_truncating();
-    pub const NativeAssetId: AssetId = AssetId(Location::here());
+    pub const NativeAssetId: AssetId = AssetId(LocalLocation::get());
     pub const NativeAssetFilter: AssetFilter = Wild(AllOf { fun: WildFungible, id: NativeAssetId::get() });
+    pub const RelayAssetId: AssetId = AssetId(RelayLocation::get());
     pub const RelayLocation: Location = Location::parent();
     pub const LocalLocation: Location = Location::here();
     pub const MaxInstructions: u32 = 100;
@@ -281,13 +282,6 @@ impl cumulus_pallet_xcm::Config for Runtime {
     type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
-impl pallet_robonomics_teleport::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type XcmSender = XcmRouter;
-    type AssetHubLocation = AssetHubLocation;
-}
-
 parameter_types! {
     pub const MaxInboundSuspended: u32 = 1000;
     pub const MaxActiveOutboundChannels: u32 = 128;
@@ -329,6 +323,31 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 
 impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
     type ChannelList = ParachainSystem;
+}
+
+parameter_types! {
+    // 5% of block weight is good enough
+    pub TeleportMaxWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 20;
+    pub ParachainLocation: Location = Location::new(
+        1,
+        [Parachain(ParachainInfo::parachain_id().into())],
+    );
+    pub TeleportFeeAsset: Asset = RelayAssetId::get().into_asset(
+        Fungibility::Fungible(TeleportFee::get())
+    );
+    const TeleportFee: u128 = 1_000_000_000_000_000u128;
+}
+
+impl pallet_robonomics_teleport::Config for Runtime {
+    type AssetId = NativeAssetId;
+    type FeeAsset = TeleportFeeAsset;
+    type UniversalLocation = UniversalLocation;
+    type ParachainLocation = ParachainLocation;
+    type TargetLocation = AssetHubLocation;
+    type XcmPallet = XcmPallet;
+    type MaxWeight = TeleportMaxWeight; 
+    type WeightInfo = pallet_robonomics_teleport::weights::TestWeightInfo;
+    type RuntimeEvent = RuntimeEvent;
 }
 
 #[cfg(test)]

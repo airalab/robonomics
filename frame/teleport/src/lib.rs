@@ -41,36 +41,56 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{
-        pallet_prelude::*,
-        traits::Currency,
-    };
+    use super::*;
+    use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use sp_std::vec;
+    use xcm_builder::{ExecuteController, SendController};
+    use sp_std::{vec, boxed::Box};
     use xcm::prelude::*;
-    use xcm::opaque::latest::AssetTransferFilter;
-
-    pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         /// The overarching event type.
+        #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Currency type for balance operations
-        type Currency: Currency<Self::AccountId>;
+        /// XCM pallet instance (used for execute & send XCM)
+        type XcmPallet: ExecuteController<OriginFor<Self>, Self::RuntimeCall>
+            + SendController<OriginFor<Self>>;
 
-        /// XCM message sender
-        type XcmSender: SendXcm;
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
 
-        /// Asset Hub Location
+        /// Max weight for local XCM execution (relatively small - just burn asset) 
         #[pallet::constant]
-        type AssetHubLocation: Get<Location>;
+        type MaxWeight: Get<Weight>;
+
+        /// AssetId for teleport (usually native asset)
+        #[pallet::constant]
+        type AssetId: Get<AssetId>;
+
+        /// Teleport fee amount (will be deducted from parachain account on destination)
+        #[pallet::constant]
+        type FeeAsset: Get<Asset>;
+
+        /// Teleport Target Location (usually AssetHub or sibling parachain)
+        #[pallet::constant]
+        type TargetLocation: Get<Location>;
+
+        /// Parachain Location (in Asset Hub perspective)
+        #[pallet::constant]
+        type ParachainLocation: Get<Location>;
+
+        /// This chain's Universal Location (used for asset reanchor).
+        #[pallet::constant]
+        type UniversalLocation: Get<InteriorLocation>;
     }
 
     #[pallet::pallet]
@@ -79,27 +99,26 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Assets have been sent to Asset Hub. [origin, beneficiary, asset]
-        Sent {
+        /// Assets have been sent. [origin, beneficiary, amount, xcm_hash]
+        Teleported {
             origin: T::AccountId,
             beneficiary: Location,
-            asset: Asset,
+            amount: u128,
+            xcm_hash: XcmHash,
         },
     }
 
     #[pallet::error]
     pub enum Error<T> {
+        /// Unable to burn asset (not enough balance?) 
+        BurnFailure,
         /// Failed to send XCM message
         SendFailure,
-        /// Failed to execute XCM locally
-        LocalExecutionFailed,
-        /// Amount too large to convert to u128
-        AmountOverflow,
-        /// Invalid asset filter configuration
-        InvalidAssetFilter,
+        /// Failed to reanchor asset (wrong pallet configuration).
+        CannotReanchor,
     }
 
-    #[pallet::call]
+    #[pallet::call(weight(<T as Config>::WeightInfo))]
     impl<T: Config> Pallet<T> {
         /// Send native assets to Asset Hub parachain.
         ///
@@ -118,83 +137,77 @@ pub mod pallet {
         /// # Errors
         /// - `SendFailure`: Failed to send XCM message
         #[pallet::call_index(0)]
-        #[pallet::weight({
-            // Simple weight based on XCM execution
-            Weight::from_parts(100_000_000, 10_000)
-        })]
         pub fn send(
             origin: OriginFor<T>,
-            beneficiary: [u8; 32],
-            amount: BalanceOf<T>,
-            fee: u128,
-        ) -> DispatchResult {
-            let origin_account = ensure_signed(origin)?;
+            beneficiary: Location,
+            amount: u128,
+        ) -> DispatchResultWithPostInfo {
+            let origin_account = ensure_signed(origin.clone())?;
 
-            // Build beneficiary location from AccountId32
-            let beneficiary_location: Location = AccountId32 {
-                network: None,
-                id: beneficiary,
-            }
-            .into();
+            // Create asset from amount 
+            let assets: Assets = vec![T::AssetId::get().into_asset(Fungible(amount))].into();
 
-            // Destination is always Asset Hub
-            let dest = T::AssetHubLocation::get();
-
-            // Convert amount to u128 for XCM (u128 is the widest type available)
-            let xcm_amount: u128 = amount.try_into().map_err(|_| Error::<T>::AmountOverflow)?;
-
-            // Build the native asset
-            let native_asset = Asset {
-                id: AssetId(Location::here()),
-                fun: Fungibility::Fungible(xcm_amount),
-            };
-
-            let assets: Assets = vec![native_asset.clone()].into();
-
-            // Build the relay asset for fees (on Asset Hub, fees are paid in relay chain asset)
-            let relay_fee_asset = Asset {
-                id: AssetId(Location::parent()),
-                fun: Fungibility::Fungible(fee),
-            };
-
-            // Build the XCM message using InitiateTransfer for teleport
-            // InitiateTransfer will execute locally and send to destination
-            // Note: Using Xcm<()> instead of Xcm<RuntimeCall> because SendXcm trait requires ()
-            let message: Xcm<()> = Xcm(vec![
+            // Burn asset locally (prepare for teleport)
+            let local_xcm: VersionedXcm<T::RuntimeCall> = VersionedXcm::V5(Xcm(vec![
                 WithdrawAsset(assets.clone()),
-                InitiateTransfer {
-                    destination: dest.clone(),
-                    remote_fees: Some(AssetTransferFilter::Teleport(Wild(AllCounted(1)))),
-                    preserve_origin: false,
-                    assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))]
-                        .try_into()
-                        .map_err(|_| Error::<T>::InvalidAssetFilter)?,
-                    remote_xcm: Xcm(vec![
-                        PayFees {
-                            asset: relay_fee_asset,
-                        },
-                        DepositAsset {
-                            assets: Wild(AllCounted(1)),
-                            beneficiary: beneficiary_location.clone(),
-                        },
-                    ]),
-                },
-            ]);
+                ExpectAsset(assets.clone()),
+                BurnAsset(assets.clone()),
+            ]));
+            let weight_used = T::XcmPallet::execute(
+                origin,
+                Box::new(local_xcm),
+                T::MaxWeight::get(),
+            ).map_err(|_| Error::<T>::BurnFailure)?;
 
-            // Send the message using XcmSender
-            let (ticket, _) = T::XcmSender::validate(&mut Some(dest.clone()), &mut Some(message))
-                .map_err(|_| Error::<T>::SendFailure)?;
-            T::XcmSender::deliver(ticket)
-                .map_err(|_| Error::<T>::SendFailure)?;
+            // Get asset for fees (parachain pays it)
+            let fee_asset = T::FeeAsset::get();
+
+            // Reanchor asset for remote chain
+            let reanchored_assets = assets.reanchored(
+                    &T::TargetLocation::get(),
+                    &T::UniversalLocation::get(),
+                ).map_err(|_| Error::<T>::CannotReanchor)?;
+
+            // Build the XCM message
+            let message: VersionedXcm<()> = VersionedXcm::V5(Xcm(vec![
+                // Pay forward
+                WithdrawAsset(vec![fee_asset.clone()].into()),
+                PayFees { asset: fee_asset },
+
+                // Deposit teleported asset
+                ReceiveTeleportedAsset(reanchored_assets),
+                DepositAsset {
+                    assets: AssetFilter::Wild(WildAsset::All),
+                    beneficiary: beneficiary.clone(),
+                },
+
+                // Refund fees back to parachain account
+                RefundSurplus,
+                DepositAsset {
+                    assets: AssetFilter::Wild(WildAsset::All),
+                    beneficiary: T::ParachainLocation::get(),
+                }
+            ]));
+
+            // Get destination location
+            let dest = VersionedLocation::V5(T::TargetLocation::get());
+
+            // Send XCM
+            let xcm_hash = T::XcmPallet::send(
+                T::RuntimeOrigin::root(),
+                Box::new(dest),
+                Box::new(message),
+            ).map_err(|_| Error::<T>::SendFailure)?;
 
             // Emit event
-            Self::deposit_event(Event::Sent {
+            Self::deposit_event(Event::Teleported {
                 origin: origin_account,
-                beneficiary: beneficiary_location,
-                asset: native_asset,
+                beneficiary,
+                amount,
+                xcm_hash,
             });
 
-            Ok(())
+            Ok(Some(weight_used.saturating_add(T::WeightInfo::send())).into())
         }
     }
 }
