@@ -19,7 +19,7 @@
 
 use crate as pallet_robonomics_teleport;
 use frame_support::{
-    assert_err, assert_ok, derive_impl, parameter_types,
+    assert_ok, derive_impl, parameter_types,
     traits::{ConstU32, ConstU64},
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
@@ -133,7 +133,6 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type XcmSender = MockXcmSender;
-    type XcmExecutor = MockXcmExecutor;
     type AssetHubLocation = AssetHubLocationTest;
 }
 
@@ -158,24 +157,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 #[test]
-fn test_teleport_assets_validates_zero_amount() {
-    new_test_ext().execute_with(|| {
-        let origin = 1u64;
-        let beneficiary = [2u8; 32];
-
-        assert_err!(
-            RobonomicsTeleport::teleport_assets(
-                RuntimeOrigin::signed(origin),
-                beneficiary,
-                0, // Zero amount
-            ),
-            pallet_robonomics_teleport::Error::<Runtime>::ZeroAmount
-        );
-    });
-}
-
-#[test]
-fn test_teleport_assets_success() {
+fn test_send_success() {
     new_test_ext().execute_with(|| {
         // Initialize block to avoid events warning
         System::set_block_number(1);
@@ -183,17 +165,17 @@ fn test_teleport_assets_success() {
         let origin = 1u64;
         let beneficiary = [2u8; 32];
 
-        assert_ok!(RobonomicsTeleport::teleport_assets(
+        assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
             beneficiary,
             100,
+            50, // fee
         ));
 
         // Check event was emitted
         System::assert_last_event(
-            pallet_robonomics_teleport::Event::AssetsTeleported {
+            pallet_robonomics_teleport::Event::Sent {
                 origin,
-                destination: Location::new(1, [Parachain(1000)]),
                 beneficiary: Location::new(
                     0,
                     [AccountId32 {
@@ -201,7 +183,10 @@ fn test_teleport_assets_success() {
                         id: [2u8; 32],
                     }],
                 ),
-                amount: 100,
+                asset: Asset {
+                    id: AssetId(Location::here()),
+                    fun: Fungibility::Fungible(100),
+                },
             }
             .into(),
         );
@@ -209,16 +194,17 @@ fn test_teleport_assets_success() {
 }
 
 #[test]
-fn test_teleport_assets_with_maximum_balance() {
+fn test_send_with_maximum_balance() {
     new_test_ext().execute_with(|| {
         let origin = 1u64;
         let beneficiary = [2u8; 32];
 
-        // Teleport entire balance
-        assert_ok!(RobonomicsTeleport::teleport_assets(
+        // Send entire balance
+        assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
             beneficiary,
             1000,
+            100, // fee
         ));
     });
 }

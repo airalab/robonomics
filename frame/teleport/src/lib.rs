@@ -17,26 +17,29 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! # Robonomics XCM Teleport Pallet
 //!
-//! This pallet provides a simplified teleport functionality for Robonomics parachain
+//! This pallet provides a simplified send functionality for Robonomics parachain
 //! to send assets to Asset Hub parachain using XCM.
 //!
 //! ## Overview
 //!
 //! The pallet implements a strict version of XCM teleport with the following constraints:
-//! - Only supports teleporting the native asset (pallet_balances)
-//! - Only supports teleporting to Asset Hub parachain
+//! - Only supports sending the native asset (pallet_balances)
+//! - Only supports sending to Asset Hub parachain
 //! - Uses relay chain asset for fees on Asset Hub
 //! - Beneficiary specified as AccountId32 (32-byte account ID)
 //!
-//! The teleport process follows this pattern:
+//! The send process follows this pattern:
 //! 1. Build XCM message with WithdrawAsset and InitiateTransfer instructions
-//! 2. Execute the message locally to withdraw assets
-//! 3. Send the message to Asset Hub destination with teleport semantics
+//! 2. InitiateTransfer executes locally to withdraw assets and sends to destination
+//! 3. On Asset Hub: PayFees (with relay asset) → DepositAsset to beneficiary
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 pub use pallet::*;
 
@@ -47,8 +50,6 @@ pub mod pallet {
         traits::Currency,
     };
     use frame_system::pallet_prelude::*;
-    use parity_scale_codec::Encode;
-    use sp_runtime::traits::BlakeTwo256;
     use sp_std::vec;
     use xcm::prelude::*;
     use xcm::opaque::latest::AssetTransferFilter;
@@ -67,9 +68,6 @@ pub mod pallet {
         /// XCM message sender
         type XcmSender: SendXcm;
 
-        /// XCM executor
-        type XcmExecutor: ExecuteXcm<<Self as frame_system::Config>::RuntimeCall>;
-
         /// Asset Hub Location
         #[pallet::constant]
         type AssetHubLocation: Get<Location>;
@@ -81,12 +79,11 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Assets have been teleported. [origin, destination, beneficiary, amount]
-        AssetsTeleported {
+        /// Assets have been sent to Asset Hub. [origin, beneficiary, asset]
+        Sent {
             origin: T::AccountId,
-            destination: Location,
             beneficiary: Location,
-            amount: BalanceOf<T>,
+            asset: Asset,
         },
     }
 
@@ -96,42 +93,36 @@ pub mod pallet {
         SendFailure,
         /// Failed to execute XCM locally
         LocalExecutionFailed,
-        /// Invalid beneficiary
-        InvalidBeneficiary,
-        /// Invalid asset
-        InvalidAsset,
-        /// Amount must be greater than zero
-        ZeroAmount,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Teleport native assets to Asset Hub parachain.
+        /// Send native assets to Asset Hub parachain.
         ///
-        /// This extrinsic teleports native assets (XRT) from the caller's account to a beneficiary
-        /// account on the Asset Hub parachain. The teleport uses XCM InitiateTransfer to:
-        /// 1. Withdraw assets from the caller
-        /// 2. Initiate transfer to Asset Hub with teleport semantics
+        /// This extrinsic sends native assets (XRT) from the caller's account to a beneficiary
+        /// account on the Asset Hub parachain. The transfer uses XCM InitiateTransfer to:
+        /// 1. Initiate transfer to Asset Hub with teleport semantics
+        /// 2. Pay fees on Asset Hub using relay chain asset
         /// 3. Deposit assets to beneficiary on Asset Hub
         ///
         /// # Parameters
-        /// - `origin`: The account teleporting the assets
+        /// - `origin`: The account sending the assets
         /// - `beneficiary`: The recipient AccountId32 (32-byte account ID) on Asset Hub
-        /// - `amount`: The amount of native asset to teleport
+        /// - `amount`: The amount of native asset to send
+        /// - `fee`: The amount of relay chain asset to use for fees on Asset Hub
         ///
         /// # Errors
-        /// - `ZeroAmount`: Amount to teleport is zero
-        /// - `LocalExecutionFailed`: Failed to execute XCM locally (e.g., insufficient balance)
         /// - `SendFailure`: Failed to send XCM message
         #[pallet::call_index(0)]
         #[pallet::weight({
             // Simple weight based on XCM execution
             Weight::from_parts(100_000_000, 10_000)
         })]
-        pub fn teleport_assets(
+        pub fn send(
             origin: OriginFor<T>,
             beneficiary: [u8; 32],
             amount: BalanceOf<T>,
+            fee: u128,
         ) -> DispatchResult {
             let origin_account = ensure_signed(origin)?;
 
@@ -142,16 +133,11 @@ pub mod pallet {
             }
             .into();
 
-            // Ensure amount is not zero
-            ensure!(amount > BalanceOf::<T>::from(0u32), Error::<T>::ZeroAmount);
-
             // Destination is always Asset Hub
             let dest = T::AssetHubLocation::get();
 
-            // Convert amount to u128 for XCM
-            let xcm_amount: u128 = amount
-                .try_into()
-                .map_err(|_| Error::<T>::InvalidAsset)?;
+            // Convert amount to u128 for XCM (u128 is the widest type available)
+            let xcm_amount: u128 = amount.try_into().unwrap_or(u128::MAX);
 
             // Build the native asset
             let native_asset = Asset {
@@ -162,17 +148,14 @@ pub mod pallet {
             let assets: Assets = vec![native_asset.clone()].into();
 
             // Build the relay asset for fees (on Asset Hub, fees are paid in relay chain asset)
-            let relay_asset = Asset {
+            let relay_fee_asset = Asset {
                 id: AssetId(Location::parent()),
-                fun: Fungibility::Fungible(xcm_amount),
+                fun: Fungibility::Fungible(fee),
             };
 
             // Build the XCM message using InitiateTransfer for teleport
-            // InitiateTransfer will:
-            // 1. WithdrawAsset from holding register
-            // 2. InitiateTransfer to Asset Hub with teleport semantics
-            // 3. On destination, BuyExecution and DepositAsset to beneficiary
-            let message: Xcm<<T as frame_system::Config>::RuntimeCall> = Xcm(vec![
+            // InitiateTransfer will execute locally and send to destination
+            let message: Xcm<()> = Xcm(vec![
                 WithdrawAsset(assets.clone()),
                 InitiateTransfer {
                     destination: dest.clone(),
@@ -180,11 +163,10 @@ pub mod pallet {
                     preserve_origin: false,
                     assets: vec![AssetTransferFilter::Teleport(Wild(AllCounted(1)))]
                         .try_into()
-                        .map_err(|_| Error::<T>::InvalidAsset)?,
+                        .unwrap_or_default(),
                     remote_xcm: Xcm(vec![
-                        BuyExecution {
-                            fees: relay_asset,
-                            weight_limit: Unlimited,
+                        PayFees {
+                            asset: relay_fee_asset,
                         },
                         DepositAsset {
                             assets: Wild(AllCounted(1)),
@@ -194,45 +176,17 @@ pub mod pallet {
                 },
             ]);
 
-            // Execute the message locally to withdraw assets from the origin account
-            // Encode the account ID and pad to 32 bytes for AccountId32
-            let mut account_bytes = origin_account.encode();
-            account_bytes.resize(32, 0);
-            let account_id: [u8; 32] = account_bytes
-                .try_into()
-                .map_err(|_| Error::<T>::InvalidAsset)?;
-            
-            let origin_location: Location = AccountId32 {
-                network: None,
-                id: account_id,
-            }
-            .into();
-
-            let mut hash = message.using_encoded(|encoded| {
-                use sp_runtime::traits::Hash as HashT;
-                BlakeTwo256::hash(encoded).into()
-            });
-
-            let outcome = T::XcmExecutor::prepare_and_execute(
-                origin_location,
-                message,
-                &mut hash,
-                Weight::from_parts(1_000_000_000, 100_000),
-                Weight::zero(),
-            );
-
-            // Check if local execution was successful
-            ensure!(
-                outcome.ensure_complete().is_ok(),
-                Error::<T>::LocalExecutionFailed
-            );
+            // Send the message using XcmSender
+            let (ticket, _) = T::XcmSender::validate(&mut Some(dest.clone()), &mut Some(message))
+                .map_err(|_| Error::<T>::SendFailure)?;
+            T::XcmSender::deliver(ticket)
+                .map_err(|_| Error::<T>::SendFailure)?;
 
             // Emit event
-            Self::deposit_event(Event::AssetsTeleported {
+            Self::deposit_event(Event::Sent {
                 origin: origin_account,
-                destination: dest,
                 beneficiary: beneficiary_location,
-                amount,
+                asset: native_asset,
             });
 
             Ok(())

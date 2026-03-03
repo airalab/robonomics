@@ -285,7 +285,6 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type XcmSender = XcmRouter;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
     type AssetHubLocation = AssetHubLocation;
 }
 
