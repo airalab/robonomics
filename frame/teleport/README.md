@@ -1,41 +1,35 @@
-# Robonomics XCM Teleport Pallet
+# Robonomics XCM Teleport Pallet (`TeleportXrt`)
 
-A specialized pallet for teleporting native assets from the Robonomics parachain to the Asset Hub parachain using XCM (Cross-Consensus Messaging).
+A specialized pallet for sending native assets from the Robonomics parachain to the Asset Hub parachain using XCM (Cross-Consensus Messaging).
 
 ## Overview
 
-This pallet provides a simplified and restricted version of XCM teleport functionality specifically designed for the Robonomics network. It enables users to teleport native XRT tokens to the Asset Hub parachain where they can be used for various cross-chain operations.
+This pallet provides a simplified and restricted version of XCM teleport functionality specifically designed for the Robonomics network. It enables users to send native XRT tokens to the Asset Hub parachain where they can be used for various cross-chain operations.
 
 ## Features
 
 - **Single Asset Support**: Only supports the native asset (XRT via pallet_balances)
-- **Asset-Hub Only**: Teleports are restricted to the Asset Hub parachain
-- **Simplified Interface**: No separate fees parameter needed
-- **Secure**: Validates all inputs and ensures proper XCM execution
+- **Asset Hub Only**: Transfers are restricted to the Asset Hub parachain
+- **Simplified Interface**: Explicit fee parameter for fine-grained control
+- **Modern XCM**: Uses XCM v5 instructions (InitiateTransfer, PayFees)
+- **Secure**: Validates all inputs and ensures proper error handling
 
 ## Usage
 
-### Teleporting Assets
+### Sending Assets
 
-To teleport assets to Asset Hub:
+To send assets to Asset Hub:
 
 ```rust
-use xcm::prelude::*;
-
-let beneficiary = Box::new(VersionedLocation::V5(Location::new(
-    0,
-    [AccountId32 {
-        network: None,
-        id: recipient_account_id,
-    }]
-)));
-
+let beneficiary = [1u8; 32]; // Recipient AccountId32 on Asset Hub
 let amount = 1_000_000_000; // Amount in native token (e.g., XRT)
+let fee = 100_000; // Fee amount in relay chain asset
 
-RobonomicsTeleport::teleport_assets(
+TeleportXrt::send(
     origin,
     beneficiary,
-    amount
+    amount,
+    fee
 )?;
 ```
 
@@ -45,58 +39,54 @@ The pallet requires the following configuration in your runtime:
 
 ```rust
 parameter_types! {
-    pub const AssetHubParaId: u32 = 1000;
-    pub const RobonomicsTeleportPalletId: PalletId = PalletId(*b"robo/tel");
+    pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type XcmSender = XcmRouter;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
-    type LocationToAccountId = LocationToAccountId;
-    type AssetHubParaId = AssetHubParaId;
-    type PalletId = RobonomicsTeleportPalletId;
+    type AssetHubLocation = AssetHubLocation;
 }
 ```
 
 ## How It Works
 
-The teleport process follows these steps:
+The send process follows these steps:
 
 1. **Validation**: The pallet validates:
-   - The destination is Asset Hub (parachain 1000)
-   - The asset is the native asset (Location::here())
-   - The amount is greater than zero
-   - The sender has sufficient balance
+   - The amount can be converted to u128
+   - The asset transfer filter is valid
 
 2. **XCM Message Construction**: An XCM message is built with:
-   - `WithdrawAsset`: Withdraws assets from the holding register
-   - `InitiateTeleport`: Starts the teleport to Asset Hub with:
-     - `BuyExecution`: Pays for execution on Asset Hub
-     - `DepositAsset`: Deposits assets to the beneficiary
+   - `WithdrawAsset`: Withdraws assets from the sender
+   - `InitiateTransfer`: Initiates transfer to Asset Hub with teleport semantics
+   - `PayFees`: Pays for execution on Asset Hub using relay chain asset
+   - `DepositAsset`: Deposits assets to the beneficiary
 
-3. **Local Execution**: The XCM message is executed locally to:
-   - Withdraw the assets from the sender's account
-   - Prepare them for teleportation
+3. **Execution**: `InitiateTransfer` handles local execution automatically:
+   - Withdraws the assets from the sender's account
+   - Sends the XCM message to Asset Hub
+   - No manual local execution needed
 
-4. **Send to Destination**: The message is sent to Asset Hub where:
-   - Execution fees are paid from the teleported assets
-   - Remaining assets are deposited to the beneficiary
+4. **Delivery**: The message is delivered to Asset Hub where:
+   - Fees are paid using the relay chain asset
+   - Assets are deposited to the beneficiary
 
 ## Fees
 
-Fees are handled automatically using the teleported assets:
-- A portion of the teleported assets is used to pay for execution on Asset Hub
-- The remaining assets are deposited to the beneficiary account
-- The parachain's sovereign account balance on Asset Hub must have sufficient funds for the initial execution
+Fees are specified explicitly as a separate parameter:
+- The `fee` parameter specifies the amount of relay chain asset to use for execution on Asset Hub
+- Fees are independent of the teleported amount
+- This provides fine-grained control over execution costs
 
 ## Security Considerations
 
-- The pallet only allows teleportation to Asset Hub to prevent misuse
-- Only native assets can be teleported (no foreign assets)
+- The pallet only allows sending to Asset Hub to prevent misuse
+- Only native assets can be sent (no foreign assets)
 - All parameters are validated before execution
-- Local XCM execution is checked for success before sending
+- Proper error handling for amount overflow and invalid configurations
+- No unwraps or panics in the code path
 
 ## Testing
 
@@ -104,6 +94,36 @@ Run the pallet tests with:
 
 ```bash
 cargo test -p pallet-robonomics-teleport
+```
+
+### XCM Simulator Tests
+
+For comprehensive XCM delivery testing using the xcm-simulator framework, see [XCM_SIMULATOR_TESTING.md](./XCM_SIMULATOR_TESTING.md).
+
+The simulator tests validate:
+- Cross-chain message delivery
+- Asset teleportation between parachains
+- Fee handling and payment
+- Various edge cases and error conditions
+
+## Runtime Integration
+
+Add to your runtime's `construct_runtime!` macro:
+
+```rust
+#[runtime::pallet_index(76)]
+pub type TeleportXrt = pallet_robonomics_teleport;
+```
+
+Configure in `xcm_config.rs`:
+
+```rust
+impl pallet_robonomics_teleport::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type XcmSender = XcmRouter;
+    type AssetHubLocation = AssetHubLocation;
+}
 ```
 
 ## License
