@@ -44,6 +44,7 @@ pub mod pallet_robonomics_digital_twin;
 pub mod pallet_robonomics_launch;
 pub mod pallet_robonomics_liability;
 pub mod pallet_robonomics_rws;
+pub mod pallet_robonomics_teleport;
 
 #[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
 pub mod pallet_robonomics_cps;

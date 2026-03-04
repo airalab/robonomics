@@ -72,6 +72,7 @@ PALLETS=(
     "pallet_robonomics_rws,runtime/robonomics/src/weights/pallet_robonomics_rws.rs"
     "pallet_robonomics_cps,runtime/robonomics/src/weights/pallet_robonomics_cps.rs"
     "pallet_robonomics_claim,runtime/robonomics/src/weights/pallet_robonomics_claim.rs"
+    "pallet_robonomics_teleport,runtime/robonomics/src/weights/pallet_robonomics_teleport.rs"
 )
 
 # List of XCM pallets to benchmark with their output paths

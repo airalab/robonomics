@@ -346,7 +346,7 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type TargetLocation = AssetHubLocation;
     type XcmPallet = XcmPallet;
     type MaxWeight = TeleportMaxWeight;
-    type WeightInfo = pallet_robonomics_teleport::weights::TestWeightInfo;
+    type WeightInfo = weights::pallet_robonomics_teleport::WeightInfo<Runtime>;
     type RuntimeEvent = RuntimeEvent;
 }
 
