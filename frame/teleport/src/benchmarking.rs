@@ -25,6 +25,7 @@
 use super::{Pallet as RobonomicsTeleport, *};
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
+use xcm::prelude::*;
 
 #[benchmarks]
 mod benchmarks {
@@ -35,12 +36,19 @@ mod benchmarks {
     /// This measures the computational cost of:
     /// - Constructing the XCM message
     /// - Validating and sending the message to Asset Hub
-    /// - Emitting the Sent event
+    /// - Emitting the Teleported event
     #[benchmark]
     fn send() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
-        let beneficiary: T::AccountId = whitelisted_caller();
-        let amount: T::Balance = 1000u32.into();
+        let beneficiary_id = [1u8; 32];
+        let beneficiary = Location::new(
+            0,
+            [AccountId32 {
+                network: None,
+                id: beneficiary_id,
+            }],
+        );
+        let amount: u128 = 1_000_000_000;
 
         #[extrinsic_call]
         send(RawOrigin::Signed(caller), beneficiary, amount);

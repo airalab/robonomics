@@ -1,19 +1,19 @@
 # Robonomics XCM Teleport Pallet (`TeleportXrt`)
 
-A specialized pallet for sending native XRT tokens from the Robonomics parachain to Asset Hub using XCM teleport with explicit fee control.
+A specialized pallet for sending native XRT tokens from the Robonomics parachain to Asset Hub using XCM teleport.
 
 ## Overview
 
-This pallet provides a simplified and restricted XCM teleport interface specifically designed for the Robonomics network. It enables users to send native XRT tokens to the Asset Hub parachain for cross-chain operations with precise control over execution fees.
+This pallet provides a simplified and restricted XCM teleport interface specifically designed for the Robonomics network. It enables users to send native XRT tokens to the Asset Hub parachain for cross-chain operations with configurable execution fees.
 
 ## Features
 
 - **Single Asset Support**: Only supports native asset (XRT via pallet_balances)
 - **Hardcoded Destination**: Asset Hub parachain only (para ID 1000)
-- **Explicit Fee Control**: Separate fee parameter for relay chain asset fees
-- **Modern XCM v5**: Uses InitiateTransfer and PayFees instructions
-- **Simple API**: Beneficiary as raw AccountId32 bytes ([u8; 32])
-- **Automatic Execution**: InitiateTransfer handles local execution
+- **Configurable Fees**: Fee asset configured at runtime level
+- **Modern XCM v5**: Uses WithdrawAsset, BurnAsset, and ReceiveTeleportedAsset
+- **Simple API**: Beneficiary as XCM Location
+- **Automatic Execution**: Local burn handled via XCM execute
 
 ## API
 
@@ -22,38 +22,42 @@ This pallet provides a simplified and restricted XCM teleport interface specific
 ```rust
 pub fn send(
     origin: OriginFor<T>,
-    beneficiary: [u8; 32],
-    amount: BalanceOf<T>,
-    fee: u128,
-) -> DispatchResult
+    beneficiary: Location,
+    amount: u128,
+) -> DispatchResultWithPostInfo
 ```
 
 **Parameters:**
 - `origin`: Signed origin (sender account)
-- `beneficiary`: 32-byte AccountId32 of recipient on Asset Hub
-- `amount`: Amount of native XRT to send
-- `fee`: Relay chain asset amount for execution fees on Asset Hub
+- `beneficiary`: XCM Location of recipient (typically AccountId32 on Asset Hub)
+- `amount`: Amount of native XRT to send (as u128)
 
 **Errors:**
-- `AmountOverflow`: Amount exceeds u128::MAX
-- `InvalidAssetFilter`: Asset transfer filter construction failed
+- `BurnFailure`: Failed to burn assets locally
 - `SendFailure`: XCM message send failed
+- `CannotReanchor`: Failed to reanchor asset for destination chain
 
 ## Usage Example
 
 ```rust
 use pallet_robonomics_teleport;
+use xcm::prelude::*;
 
 // Send 1000 XRT to beneficiary on Asset Hub
-let beneficiary = [0x01; 32]; // AccountId32 on Asset Hub
+let beneficiary_id = [0x01; 32]; // AccountId32 on Asset Hub
+let beneficiary = Location::new(
+    0,
+    [AccountId32 {
+        network: None,
+        id: beneficiary_id,
+    }],
+);
 let amount = 1_000_000_000_000; // 1000 XRT (12 decimals)
-let fee = 50_000_000; // 0.05 DOT for fees (10 decimals)
 
 TeleportXrt::send(
     RuntimeOrigin::signed(alice),
     beneficiary,
     amount,
-    fee
 )?;
 ```
 
@@ -66,23 +70,54 @@ use frame_support::parameter_types;
 use xcm::prelude::*;
 
 parameter_types! {
-    // Asset Hub is typically parachain 1000 on the relay chain
+    // Asset Hub location (typically parachain 1000)
     pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
+    
+    // Fee asset (relay chain native asset with amount)
+    pub TeleportFeeAsset: Asset = Asset {
+        id: AssetId(Location::parent()),
+        fun: Fungibility::Fungible(1_000_000_000), // 1 DOT
+    };
+    
+    // Parachain location for fee refunds
+    pub ParachainLocation: Location = Location::new(1, [Parachain(2000)]);
+    
+    // Universal location for asset reanchoring
+    pub UniversalLocation: InteriorLocation = [
+        GlobalConsensus(NetworkId::Rococo),
+        Parachain(2000)
+    ].into();
+    
+    // Native asset ID
+    pub NativeAssetId: AssetId = AssetId(Location::here());
+    
+    // Max weight for local XCM execution
+    pub TeleportMaxWeight: Weight = Weight::from_parts(10_000_000, 10_000);
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type XcmSender = XcmRouter;
-    type AssetHubLocation = AssetHubLocation;
+    type XcmPallet = PolkadotXcm;
+    type WeightInfo = weights::pallet_robonomics_teleport::WeightInfo<Runtime>;
+    type MaxWeight = TeleportMaxWeight;
+    type AssetId = NativeAssetId;
+    type FeeAsset = TeleportFeeAsset;
+    type TargetLocation = AssetHubLocation;
+    type ParachainLocation = ParachainLocation;
+    type UniversalLocation = UniversalLocation;
 }
 ```
 
 **Configuration Parameters:**
 - `RuntimeEvent`: Runtime event type for event emission
-- `Currency`: Native asset currency implementation (typically pallet_balances)
-- `XcmSender`: XCM router for sending cross-chain messages
-- `AssetHubLocation`: Constant location of Asset Hub (1, Parachain(1000))
+- `XcmPallet`: XCM pallet for execute and send operations
+- `WeightInfo`: Weight information from benchmarks
+- `MaxWeight`: Maximum weight for local XCM execution
+- `AssetId`: Native asset identifier (Location::here())
+- `FeeAsset`: Fee asset and amount for Asset Hub execution
+- `TargetLocation`: Destination location (Asset Hub)
+- `ParachainLocation`: This parachain's location (for fee refunds)
+- `UniversalLocation`: Universal location for asset reanchoring
 
 ## Runtime Integration
 
@@ -93,41 +128,24 @@ Add to `construct_runtime!` macro:
 pub type TeleportXrt = pallet_robonomics_teleport;
 ```
 
-Configure in runtime (typically in `lib.rs` or `xcm_config.rs`):
-
-```rust
-impl pallet_robonomics_teleport::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type XcmSender = XcmRouter;
-    type AssetHubLocation = AssetHubLocation;
-}
-```
-
 ## How It Works
 
 ### XCM Message Flow
 
-The `send` extrinsic constructs and sends an XCM message with the following instruction sequence:
+The `send` extrinsic constructs and sends two XCM messages:
 
-1. **WithdrawAsset**
-   - Withdraws native assets from the sender's account
-   - Assets are placed in the holding register
+**Local Execution (burn assets):**
+1. **WithdrawAsset** - Withdraws native assets from sender
+2. **ExpectAsset** - Validates assets in holding
+3. **BurnAsset** - Burns the assets (preparing for teleport)
 
-2. **InitiateTransfer**
-   - Teleports assets to Asset Hub with teleport semantics
-   - Executes locally to burn assets on source chain
-   - Sends XCM message to destination
-   - Parameters:
-     - `destination`: Asset Hub location (1, Parachain(1000))
-     - `remote_fees`: Teleport filter for fee assets
-     - `assets`: Teleport filter for transferred assets
-     - `remote_xcm`: Instructions to execute on Asset Hub
-
-3. **Remote XCM Execution on Asset Hub**
-   - **PayFees**: Pays execution fees using relay chain asset
-   - **DepositAsset**: Mints and deposits teleported assets to beneficiary
-
+**Remote Message (to Asset Hub):**
+1. **WithdrawAsset** - Withdraws fee asset from parachain account on Asset Hub
+2. **PayFees** - Pays execution fees using withdrawn relay asset
+3. **ReceiveTeleportedAsset** - Receives the teleported assets
+4. **DepositAsset** - Deposits received assets to beneficiary
+5. **RefundSurplus** - Refunds unused fees
+6. **DepositAsset** - Returns refunded fees to parachain account
 ### Teleport Semantics
 
 Teleport is a trust-based transfer mechanism where:
@@ -138,11 +156,11 @@ Teleport is a trust-based transfer mechanism where:
 
 ### Fee Payment
 
-Fees on Asset Hub are paid in **relay chain asset** (DOT/KSM):
-- The `fee` parameter specifies relay asset amount
-- Fees are independent of the teleported amount
-- Sender must ensure Asset Hub account has relay tokens
-- Failed fee payment will cause the transfer to fail
+Fees on Asset Hub are paid from the **parachain's account** using relay chain assets:
+- Configured via `FeeAsset` parameter at runtime level
+- Fee amount is pre-determined in configuration
+- Surplus fees are refunded back to the parachain account
+- Ensure parachain has sufficient relay tokens on Asset Hub
 
 ## Error Handling
 
@@ -150,11 +168,9 @@ The pallet implements comprehensive error handling:
 
 | Error | Description | Cause |
 |-------|-------------|-------|
-| `AmountOverflow` | Amount exceeds u128 | Balance type larger than u128 |
-| `InvalidAssetFilter` | Asset filter construction failed | Internal XCM configuration error |
+| `BurnFailure` | Failed to burn assets locally | Insufficient balance or XCM execution error |
+| `CannotReanchor` | Failed to reanchor asset | Invalid configuration or unsupported asset |
 | `SendFailure` | XCM message send failed | XCM router error or destination unreachable |
-
-**Note:** Balance validation (insufficient funds) is performed during XCM local execution by InitiateTransfer, not in the extrinsic itself.
 
 ## Testing
 

@@ -67,9 +67,10 @@ impl pallet_balances::Config for Runtime {
     type DoneSlashHandler = ();
 }
 
-// Mock XCM sender that always succeeds for testing
-pub struct MockXcmSender;
-impl SendXcm for MockXcmSender {
+// Mock XCM controller that supports both execute and send
+pub struct MockXcmController;
+
+impl SendXcm for MockXcmController {
     type Ticket = ();
 
     fn validate(
@@ -85,6 +86,51 @@ impl SendXcm for MockXcmSender {
         Ok([0u8; 32])
     }
 }
+
+impl<Origin, Call> ExecuteXcm<Call> for MockXcmController
+where
+    Origin: Into<Location>,
+{
+    type Prepared = MockPreparedMessage;
+
+    fn prepare_and_execute(
+        _origin: Origin,
+        _message: Xcm<Call>,
+        _id: &mut XcmHash,
+        _weight_limit: Weight,
+        _weight_credit: Weight,
+    ) -> Outcome {
+        // Return success for testing
+        Outcome::Complete {
+            used: Weight::from_parts(1000, 1000),
+        }
+    }
+
+    fn prepare(
+        _message: Xcm<Call>,
+        _weight_limit: Weight,
+    ) -> Result<Self::Prepared, InstructionError> {
+        Ok(MockPreparedMessage)
+    }
+
+    fn execute(
+        _origin: Origin,
+        _prepared: Self::Prepared,
+        _id: &mut XcmHash,
+        _weight_credit: Weight,
+    ) -> Outcome {
+        Outcome::Complete {
+            used: Weight::from_parts(1000, 1000),
+        }
+    }
+
+    fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> Result<(), xcm::v5::Error> {
+        Ok(())
+    }
+}
+
+impl<Origin: Clone> SendController<Origin> for MockXcmController {}
+impl<Origin, Call> ExecuteController<Origin, Call> for MockXcmController where Origin: Into<Location> {}
 
 // Mock XCM executor (unused in current implementation but kept for testing infrastructure)
 pub struct MockPreparedMessage;
@@ -138,16 +184,35 @@ parameter_types! {
     /// Target location for teleports in tests (e.g. an asset hub parachain).
     pub TargetLocationTest: Location = Location::new(1, [Parachain(1000)]);
 
-    /// Default fee asset used by the teleport pallet in tests: (asset_id, amount).
-    pub FeeAssetTest: (u32, Balance) = (0, 0);
+    /// Default fee asset used by the teleport pallet in tests.
+    pub FeeAssetTest: Asset = Asset {
+        id: AssetId(Location::parent()),
+        fun: Fungibility::Fungible(1000),
+    };
+
+    /// Parachain location for refund tests
+    pub ParachainLocationTest: Location = Location::new(1, [Parachain(2000)]);
+
+    /// Universal location for asset reanchoring
+    pub UniversalLocationTest: InteriorLocation = [GlobalConsensus(NetworkId::Rococo), Parachain(2000)].into();
+
+    /// Native asset ID (here means native asset)
+    pub NativeAssetIdTest: AssetId = AssetId(Location::here());
+
+    /// Max weight for local XCM execution
+    pub MaxWeightTest: Weight = Weight::from_parts(10_000_000, 10_000);
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type XcmPallet = MockXcmSender;
-    type AssetId = u32;
+    type XcmPallet = MockXcmController;
+    type WeightInfo = ();
+    type MaxWeight = MaxWeightTest;
+    type AssetId = NativeAssetIdTest;
     type FeeAsset = FeeAssetTest;
     type TargetLocation = TargetLocationTest;
+    type ParachainLocation = ParachainLocationTest;
+    type UniversalLocation = UniversalLocationTest;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -195,10 +260,8 @@ fn test_send_success() {
             pallet_robonomics_teleport::Event::Teleported {
                 origin,
                 beneficiary,
-                asset: Asset {
-                    id: AssetId(Location::here()),
-                    fun: Fungibility::Fungible(amount),
-                },
+                amount,
+                xcm_hash: [0u8; 32],
             }
             .into(),
         );
@@ -211,16 +274,21 @@ fn test_send_with_maximum_balance() {
         System::set_block_number(1);
 
         let origin = 1u64;
-        let beneficiary = [2u8; 32];
-        let amount = 1000u64; // Entire balance
-        let fee = 100u128;
+        let beneficiary_id = [2u8; 32];
+        let beneficiary = Location::new(
+            0,
+            [AccountId32 {
+                network: None,
+                id: beneficiary_id,
+            }],
+        );
+        let amount = 1000u128; // Entire balance
 
         // Send entire balance should succeed (balance validation happens in XCM execution)
         assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
             beneficiary,
             amount,
-            fee,
         ));
     });
 }
@@ -231,41 +299,51 @@ fn test_send_with_different_beneficiaries() {
         System::set_block_number(1);
 
         let origin = 1u64;
-        let amount = 50u64;
-        let fee = 25u128;
+        let amount = 50u128;
 
         // Test with various beneficiary addresses
-        let beneficiaries = vec![[0u8; 32], [1u8; 32], [255u8; 32]];
+        let beneficiary_ids = vec![[0u8; 32], [1u8; 32], [255u8; 32]];
 
-        for beneficiary in beneficiaries {
+        for beneficiary_id in beneficiary_ids {
+            let beneficiary = Location::new(
+                0,
+                [AccountId32 {
+                    network: None,
+                    id: beneficiary_id,
+                }],
+            );
             assert_ok!(RobonomicsTeleport::send(
                 RuntimeOrigin::signed(origin),
                 beneficiary,
                 amount,
-                fee,
             ));
         }
     });
 }
 
 #[test]
-fn test_send_with_varying_fees() {
+fn test_send_with_varying_amounts() {
     new_test_ext().execute_with(|| {
         System::set_block_number(1);
 
         let origin = 2u64;
-        let beneficiary = [3u8; 32];
-        let amount = 100u64;
+        let beneficiary_id = [3u8; 32];
+        let beneficiary = Location::new(
+            0,
+            [AccountId32 {
+                network: None,
+                id: beneficiary_id,
+            }],
+        );
 
-        // Test with different fee amounts
-        let fees = vec![10u128, 50u128, 100u128, 1000u128];
+        // Test with different amounts
+        let amounts = vec![10u128, 50u128, 100u128, 500u128];
 
-        for fee in fees {
+        for amount in amounts {
             assert_ok!(RobonomicsTeleport::send(
                 RuntimeOrigin::signed(origin),
-                beneficiary,
+                beneficiary.clone(),
                 amount,
-                fee,
             ));
         }
     });
