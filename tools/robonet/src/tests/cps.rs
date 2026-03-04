@@ -31,11 +31,11 @@ use sp_core::Encode;
 use zombienet_sdk::{LocalFileSystem, Network};
 
 /// Test: Create simple CPS tree structure
-async fn test_simple_tree(ws_url: &str) -> Result<()> {
+async fn test_simple_tree(ws_url: String) -> Result<()> {
     log::info!("Testing simple CPS tree creation");
 
     let config = CpsConfig {
-        ws_url: ws_url.to_string(),
+        ws_url,
         suri: Some("//Alice".to_string()),
     };
 
@@ -80,11 +80,11 @@ async fn test_simple_tree(ws_url: &str) -> Result<()> {
 }
 
 /// Test: Create complex CPS tree with many nodes
-async fn test_complex_tree(ws_url: &str) -> Result<()> {
+async fn test_complex_tree(ws_url: String) -> Result<()> {
     log::info!("Testing complex CPS tree with multiple nodes");
 
     let config = CpsConfig {
-        ws_url: ws_url.to_string(),
+        ws_url,
         suri: Some("//Alice".to_string()),
     };
 
@@ -133,11 +133,11 @@ async fn test_complex_tree(ws_url: &str) -> Result<()> {
 }
 
 /// Test: Set multiple plain payloads
-async fn test_plain_payloads(ws_url: &str) -> Result<()> {
+async fn test_plain_payloads(ws_url: String) -> Result<()> {
     log::info!("Testing multiple plain payload updates");
 
     let config = CpsConfig {
-        ws_url: ws_url.to_string(),
+        ws_url,
         suri: Some("//Alice".to_string()),
     };
 
@@ -169,11 +169,11 @@ async fn test_plain_payloads(ws_url: &str) -> Result<()> {
 }
 
 /// Test: Set multiple encrypted payloads
-async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
+async fn test_encrypted_payloads(ws_url: String) -> Result<()> {
     log::info!("Testing multiple encrypted payload updates");
 
     let config = CpsConfig {
-        ws_url: ws_url.to_string(),
+        ws_url,
         suri: Some("//Alice".to_string()),
     };
 
@@ -235,21 +235,27 @@ async fn test_encrypted_payloads(ws_url: &str) -> Result<()> {
 }
 
 /// Test: CPS (Cyber-Physical Systems) pallet functionality
-pub async fn test_cps_pallet(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_cps_pallet(mb_net: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::debug!("Starting CPS pallet tests");
 
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-    let ws_url = para_ws;
+    let ws_url = if let Some(network) = mb_net {
+        network
+            .get_node("robonomics-collator")?
+            .ws_uri()
+            .to_string()
+    } else {
+        format!("ws://127.0.0.1:{}", crate::network::ROBONOMICS_RPC_PORT)
+    };
 
     // Run all CPS tests
     log::info!("=== Test 1/4: Simple Tree Structure ===");
-    test_simple_tree(ws_url).await?;
+    test_simple_tree(ws_url.clone()).await?;
 
     log::info!("=== Test 2/4: Complex Tree (50 nodes) ===");
-    test_complex_tree(ws_url).await?;
+    test_complex_tree(ws_url.clone()).await?;
 
     log::info!("=== Test 3/4: Multiple Plain Payloads ===");
-    test_plain_payloads(ws_url).await?;
+    test_plain_payloads(ws_url.clone()).await?;
 
     log::info!("=== Test 4/4: Multiple Encrypted Payloads ===");
     test_encrypted_payloads(ws_url).await?;

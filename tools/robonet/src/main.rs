@@ -98,51 +98,41 @@ async fn cmd_test(
     no_spawn: bool,
     output: &OutputFormat,
 ) -> Result<i32> {
-    let network = if no_spawn {
+    let test_filter = if tests.is_empty() { None } else { Some(tests) };
+
+    let results = if no_spawn {
         log::info!("Skipping network spawn (--no-spawn specified)");
-        None
+        // Run tests
+        tests::run_integration_tests(
+            None,
+            fail_fast,
+            test_filter,
+            matches!(output, OutputFormat::Json),
+        )
+        .await?
     } else {
         // Spawn the network
         log::info!("Spawning network for testing...");
 
         let timeout_duration = Duration::from_secs(timeout);
-        match network::spawn_network(topology, timeout_duration).await {
-            Ok(n) => {
-                // Wait a bit for network to stabilize
-                tokio::time::sleep(Duration::from_secs(30)).await;
-                Some(n)
-            }
-            Err(e) => {
-                log::error!("Failed to spawn network: {}", e);
-                return Ok(EXIT_NETWORK_SPAWN_FAILED);
-            }
-        }
-    };
-
-    // Run tests
-    let test_filter = if tests.is_empty() { None } else { Some(tests) };
-
-    let results = if let Some(ref network) = network {
-        tests::run_integration_tests(
-            network,
+        let network = network::spawn_network(topology, timeout_duration).await?;
+        // Run tests
+        let test_results = tests::run_integration_tests(
+            Some(&network),
             fail_fast,
             test_filter,
             matches!(output, OutputFormat::Json),
         )
-        .await
-    } else {
-        anyhow::bail!(
-            "Cannot run tests without a network (--no-spawn was used but tests require a network)"
-        );
+        .await?;
+        // Clean up network
+        log::info!("Shutting down network...");
+        drop(network);
+        log::info!("Network stopped.");
+        test_results
     };
 
-    // Clean up network
-    log::info!("Shutting down network...");
-    drop(network);
-    log::info!("Network stopped.");
-
     // Return appropriate exit code
-    if results?.is_success() {
+    if results.is_success() {
         Ok(EXIT_SUCCESS)
     } else {
         Ok(EXIT_TESTS_FAILED)

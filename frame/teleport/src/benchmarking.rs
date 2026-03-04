@@ -43,5 +43,9 @@ mod benchmarks {
         Ok(())
     }
 
-    impl_benchmark_test_suite!(RobonomicsTeleport, crate::tests::new_test_ext(), crate::tests::Runtime);
+    impl_benchmark_test_suite!(
+        RobonomicsTeleport,
+        crate::tests::new_test_ext(),
+        crate::tests::Runtime
+    );
 }

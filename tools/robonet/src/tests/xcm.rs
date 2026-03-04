@@ -28,18 +28,18 @@
 //! Foreign asset registration is not supported as the runtime does not include pallet_assets.
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use robonomics_runtime_subxt_api::{api, AccountId32, MultiAddress, RobonomicsConfig};
+use robonomics_runtime_subxt_api::{api, AccountId32, MultiAddress};
 use std::time::Duration;
 use subxt::{
     client::OnlineClientT,
     config::HashFor,
     tx::{Payload, TxProgress, TxStatus},
-    Config, OnlineClient, PolkadotConfig,
+    Config,
 };
 use subxt_signer::sr25519::dev;
 use zombienet_sdk::{LocalFileSystem, Network};
 
-use crate::network::{ASSET_HUB_PARA_ID, PARA_ID, PARA_SIB_ACCOUNT};
+use crate::network::{NetworkClient, ASSET_HUB_PARA_ID, PARA_ID, PARA_SIB_ACCOUNT};
 
 // Local rococo relay API
 #[subxt::subxt(
@@ -196,21 +196,12 @@ pub async fn wait_for_best<T: Config, C: OnlineClientT<T>>(
 /// This test verifies that the parachain can send XCM messages to the relay chain
 /// via the Upward Message Passing (UMP) queue. It sends a simple Remark instruction
 /// wrapped in an XCM message.
-pub async fn test_xcm_upward_message(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_xcm_upward_message(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: XCM Upward Message (Parachain -> Relay) ===");
 
-    // Get WebSocket URLs from network
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-    let relay_ws = network.get_node("alice")?.ws_uri();
-
     // Connect to parachain and relay
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
-
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
-        .await
-        .context("Failed to connect to relay chain")?;
+    let para_client = NetworkClient::robonomics(network).await?;
+    let relay_client = NetworkClient::relay(network).await?;
 
     log::info!("✓ Connected to parachain and relay chain");
 
@@ -307,20 +298,12 @@ pub async fn test_xcm_upward_message(network: &Network<LocalFileSystem>) -> Resu
 /// This test verifies that the relay chain can send XCM messages to parachains
 /// via the Downward Message Passing (DMP) queue. In a real scenario, this would
 /// require sudo access on the relay chain.
-pub async fn test_xcm_downward_message(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_xcm_downward_message(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: XCM Downward Message (Relay -> Parachain) ===");
 
-    // Get WebSocket URLs from network
-    let relay_ws = network.get_node("alice")?.ws_uri();
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
-        .await
-        .context("Failed to connect to relay chain")?;
-
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
+    // Connect to parachain and relay
+    let para_client = NetworkClient::robonomics(network).await?;
+    let relay_client = NetworkClient::relay(network).await?;
 
     log::info!("✓ Connected to relay and parachain");
 
@@ -415,21 +398,12 @@ pub async fn test_xcm_downward_message(network: &Network<LocalFileSystem>) -> Re
     Ok(())
 }
 
-pub async fn test_hrmp_create_channel(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_hrmp_create_channel(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: XCM Create HRMP with system parachain ===");
 
-    // Get WebSocket URLs from network
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-    let relay_ws = network.get_node("alice")?.ws_uri();
-
     // Connect to parachain and relay
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
-
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(&relay_ws)
-        .await
-        .context("Failed to connect to relay chain")?;
+    let para_client = NetworkClient::robonomics(network).await?;
+    let relay_client = NetworkClient::relay(network).await?;
 
     log::info!("✓ Connected to parachain and relay chain");
 
@@ -534,21 +508,12 @@ pub async fn test_hrmp_create_channel(network: &Network<LocalFileSystem>) -> Res
     Ok(())
 }
 
-async fn test_create_foreign_asset(network: &Network<LocalFileSystem>) -> Result<()> {
+async fn test_create_foreign_asset(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: Create Foreign Asset ===");
 
-    // Get WebSocket URLs from network
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-    let assethub_ws = network.get_node("assethub-collator")?.ws_uri();
-
-    // Connect to both chains
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&para_ws)
-        .await
-        .context("Failed to connect to Robonomics parachain")?;
-
-    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(&assethub_ws)
-        .await
-        .context("Failed to connect to AssetHub parachain")?;
+    // Connect to parachain and asset-hub
+    let para_client = NetworkClient::robonomics(network).await?;
+    let assethub_client = NetworkClient::assethub(network).await?;
 
     // Verify both chains are producing blocks
     let para_block = para_client.blocks().at_latest().await?;
@@ -1034,42 +999,32 @@ async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()>
 /// registration is not supported. These tests focus on native token (XRT)
 /// teleportation, which is fully supported via the trusted teleporter
 /// configuration with AssetHub.
-pub async fn test_xcm_token_teleport(network: &Network<LocalFileSystem>) -> Result<()> {
-    // Check if AssetHub node exists to determine topology
-    let has_assethub = network.get_node("asset-hub-collator").is_ok();
+pub async fn test_xcm_token_teleport(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
+    log::info!("==================================================");
+    log::info!("  XCM Token Teleportation Tests");
+    log::info!("==================================================");
+    log::info!("");
 
-    if has_assethub {
-        log::info!("==================================================");
-        log::info!("  XCM Token Teleportation Tests");
-        log::info!("==================================================");
-        log::info!("");
+    log::info!("[ 1/4 ] Register foreign asset on AssetHub");
+    test_hrmp_create_channel(network).await?;
 
-        log::info!("[ 1/4 ] Register foreign asset on AssetHub");
-        test_hrmp_create_channel(network).await?;
+    log::info!("[ 2/4 ] Register foreign asset on AssetHub");
+    test_create_foreign_asset(network).await?;
 
-        log::info!("[ 2/4 ] Register foreign asset on AssetHub");
-        test_create_foreign_asset(network).await?;
+    // Test 1: Teleport from Robonomics to AssetHub
+    log::info!("[ 3/4 ] Test Teleport: Robonomics -> AssetHub");
+    //test_teleport_to_assethub(&endpoints).await?;
 
-        // Test 1: Teleport from Robonomics to AssetHub
-        log::info!("[ 3/4 ] Test Teleport: Robonomics -> AssetHub");
-        //test_teleport_to_assethub(&endpoints).await?;
+    log::info!("");
 
-        log::info!("");
+    // Test 2: Teleport from AssetHub back to Robonomics
+    log::info!("[ 4/4 ] Test Teleport: AssetHub -> Robonomics");
+    //test_teleport_from_assethub(network).await?;
 
-        // Test 2: Teleport from AssetHub back to Robonomics
-        log::info!("[ 4/4 ] Test Teleport: AssetHub -> Robonomics");
-        //test_teleport_from_assethub(network).await?;
+    log::info!("");
+    log::info!("==================================================");
+    log::info!("  All XCM Token Teleport Tests Completed Successfully");
+    log::info!("==================================================");
 
-        log::info!("");
-        log::info!("==================================================");
-        log::info!("  All XCM Token Teleport Tests Completed Successfully");
-        log::info!("==================================================");
-
-        Ok(())
-    } else {
-        log::info!("⊘ Skipping XCM token teleport tests");
-        log::info!("  Reason: Requires AssetHub topology");
-        log::info!("  Run with: --topology assethub");
-        Ok(())
-    }
+    Ok(())
 }

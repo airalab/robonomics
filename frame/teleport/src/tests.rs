@@ -89,7 +89,7 @@ impl PreparedMessage for MockPreparedMessage {
 pub struct MockXcmExecutor;
 impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
     type Prepared = MockPreparedMessage;
-    
+
     fn prepare_and_execute(
         _origin: impl Into<Location>,
         _message: Xcm<Call>,
@@ -98,7 +98,9 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
         _weight_credit: Weight,
     ) -> Outcome {
         // Return success for testing
-        Outcome::Complete { used: Weight::from_parts(1000, 1000) }
+        Outcome::Complete {
+            used: Weight::from_parts(1000, 1000),
+        }
     }
 
     fn prepare(
@@ -114,13 +116,12 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
         _id: &mut XcmHash,
         _weight_credit: Weight,
     ) -> Outcome {
-        Outcome::Complete { used: Weight::from_parts(1000, 1000) }
+        Outcome::Complete {
+            used: Weight::from_parts(1000, 1000),
+        }
     }
 
-    fn charge_fees(
-        _location: impl Into<Location>,
-        _fees: Assets,
-    ) -> Result<(), xcm::v5::Error> {
+    fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> Result<(), xcm::v5::Error> {
         Ok(())
     }
 }
@@ -143,11 +144,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<Runtime> {
-        balances: vec![
-            (1, 1000),
-            (2, 2000),
-            (3, 3000),
-        ],
+        balances: vec![(1, 1000), (2, 2000), (3, 3000)],
         dev_accounts: None,
     }
     .assimilate_storage(&mut t)
@@ -161,7 +158,7 @@ fn test_send_success() {
     new_test_ext().execute_with(|| {
         // Initialize block to avoid events warning
         System::set_block_number(1);
-        
+
         let origin = 1u64;
         let beneficiary = [2u8; 32];
 
@@ -208,4 +205,3 @@ fn test_send_with_maximum_balance() {
         ));
     });
 }
-

@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, TREASURY_PALLET_ID, MAXIMUM_BLOCK_WEIGHT,
+    XcmpQueue, COASE, MAXIMUM_BLOCK_WEIGHT, TREASURY_PALLET_ID,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{
@@ -345,7 +345,7 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type ParachainLocation = ParachainLocation;
     type TargetLocation = AssetHubLocation;
     type XcmPallet = XcmPallet;
-    type MaxWeight = TeleportMaxWeight; 
+    type MaxWeight = TeleportMaxWeight;
     type WeightInfo = pallet_robonomics_teleport::weights::TestWeightInfo;
     type RuntimeEvent = RuntimeEvent;
 }

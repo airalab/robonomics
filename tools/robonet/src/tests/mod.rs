@@ -113,7 +113,7 @@ where
 
 /// Run all integration tests
 pub async fn run_integration_tests(
-    network: &Network<LocalFileSystem>,
+    network: Option<&Network<LocalFileSystem>>,
     fail_fast: bool,
     test_filter: Option<Vec<String>>,
     json_output: bool,

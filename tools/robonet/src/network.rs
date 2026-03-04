@@ -18,8 +18,10 @@
 //! Network configuration and spawning logic.
 
 use anyhow::{Context, Result};
+use robonomics_runtime_subxt_api::RobonomicsConfig;
 use serde_json::json;
 use std::time::Duration;
+use subxt::{Config, OnlineClient, PolkadotConfig};
 use zombienet_sdk::{
     LocalFileSystem, Network, NetworkConfig, NetworkConfigBuilder, NetworkConfigExt,
 };
@@ -29,7 +31,7 @@ use crate::cli::NetworkTopology;
 /// Hardcoded network configuration
 pub const RELAY_RPC_PORT: u16 = 9944;
 pub const ASSET_HUB_RPC_PORT: u16 = 9910;
-pub const COLLATOR_RPC_PORT: u16 = 9988;
+pub const ROBONOMICS_RPC_PORT: u16 = 9988;
 pub const PARA_ID: u32 = 2000;
 pub const ASSET_HUB_PARA_ID: u32 = 1000;
 
@@ -40,38 +42,46 @@ pub const PARA_ACCOUNT: &str = "5Ec4AhPUwPeyTFyuhGuBbD224mY85LKLMSqSSo33JYWCazU4
 // Converted from ParaId=2000 as sibling on https://www.shawntabrizi.com/substrate-js-utilities/
 pub const PARA_SIB_ACCOUNT: &str = "5Eg2fntJ27qsari4FGrGhrMqKFDRnkNSR6UshkZYBGXmSuC8";
 
-/// Network endpoint information
-#[derive(Debug, Clone)]
-pub struct NetworkEndpoints {
-    pub relay_ws: String,
-    pub collator_ws: String,
-    pub assethub_ws: Option<String>,
-}
-
-impl From<&NetworkTopology> for NetworkEndpoints {
-    fn from(value: &NetworkTopology) -> Self {
-        match value {
-            NetworkTopology::Simple => NetworkEndpoints::simple(),
-            NetworkTopology::AssetHub => NetworkEndpoints::assethub(),
+/// Get network client for given node
+/// Note: use default RPC ports in case of network is None
+#[derive(Clone)]
+pub struct NetworkClient;
+impl NetworkClient {
+    pub async fn get_client<T: Config>(
+        mb_net: Option<&Network<LocalFileSystem>>,
+        node_name: &str,
+        default_port: u16,
+    ) -> Result<OnlineClient<T>> {
+        if let Some(network) = mb_net {
+            network
+                .get_node(node_name)
+                .with_context(|| format!("Node {} not found", node_name))?
+                .wait_client()
+                .await
+                .context("Unable to get parachain RPC client")
+        } else {
+            OnlineClient::from_url(format!("ws://127.0.0.1:{}", default_port))
+                .await
+                .context("Failed to connect to parachain")
         }
     }
-}
 
-impl NetworkEndpoints {
-    pub fn simple() -> Self {
-        Self {
-            relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
-            collator_ws: format!("ws://127.0.0.1:{}", COLLATOR_RPC_PORT),
-            assethub_ws: None,
-        }
+    pub async fn robonomics(
+        mb_net: Option<&Network<LocalFileSystem>>,
+    ) -> Result<OnlineClient<RobonomicsConfig>> {
+        Self::get_client(mb_net, "robonomics-collator", ROBONOMICS_RPC_PORT).await
     }
 
-    pub fn assethub() -> Self {
-        Self {
-            relay_ws: format!("ws://127.0.0.1:{}", RELAY_RPC_PORT),
-            collator_ws: format!("ws://127.0.0.1:{}", COLLATOR_RPC_PORT),
-            assethub_ws: Some(format!("ws://127.0.0.1:{}", ASSET_HUB_RPC_PORT)),
-        }
+    pub async fn assethub(
+        mb_net: Option<&Network<LocalFileSystem>>,
+    ) -> Result<OnlineClient<PolkadotConfig>> {
+        Self::get_client(mb_net, "asset-hub-collator", ASSET_HUB_RPC_PORT).await
+    }
+
+    pub async fn relay(
+        mb_net: Option<&Network<LocalFileSystem>>,
+    ) -> Result<OnlineClient<PolkadotConfig>> {
+        Self::get_client(mb_net, "alice", RELAY_RPC_PORT).await
     }
 }
 
@@ -201,14 +211,11 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
         NetworkTopology::Simple => {
             // Simple: Robonomics parachain with 1 collator
             builder = builder.with_parachain(|p| {
-                p.with_id(PARA_ID)
-                    .with_initial_balance(1_000_000_000_000_000_000_000u128)
-                    .with_chain("local")
-                    .with_collator(|c| {
-                        c.with_name("robonomics-collator")
-                            .with_command("robonomics")
-                            .with_rpc_port(COLLATOR_RPC_PORT)
-                    })
+                p.with_id(PARA_ID).with_chain("local").with_collator(|c| {
+                    c.with_name("robonomics-collator")
+                        .with_command("robonomics")
+                        .with_rpc_port(ROBONOMICS_RPC_PORT)
+                })
             });
         }
         NetworkTopology::AssetHub => {
@@ -216,7 +223,6 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
             builder = builder
                 .with_parachain(|p| {
                     p.with_id(ASSET_HUB_PARA_ID)
-                        .with_initial_balance(1_000_000_000_000_000_000_000u128)
                         .with_chain("asset-hub-rococo-local")
                         .with_default_args(vec!["-lxcm=trace".into()])
                         .with_genesis_overrides(json!({
@@ -235,7 +241,7 @@ pub fn build_network_config(topology: &NetworkTopology) -> Result<NetworkConfig>
                         .with_collator(|c| {
                             c.with_name("robonomics-collator")
                                 .with_command("robonomics")
-                                .with_rpc_port(COLLATOR_RPC_PORT)
+                                .with_rpc_port(ROBONOMICS_RPC_PORT)
                         })
                 })
         }
@@ -268,13 +274,6 @@ pub async fn spawn_network(
         .await
         .context("Network spawn timeout")??;
     log::info!(">> Network Ready");
-
-    let endpoints = NetworkEndpoints::from(topology);
-    log::info!("Relay Chain: {}", endpoints.relay_ws);
-    if let Some(assethub) = endpoints.assethub_ws {
-        log::info!("AssetHub: {}", assethub);
-    }
-    log::info!("Robonomics: {}", endpoints.collator_ws);
 
     Ok(network)
 }

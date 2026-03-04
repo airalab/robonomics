@@ -17,58 +17,33 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Basic network functionality tests.
 
+use crate::network::NetworkClient;
 use anyhow::{Context, Result};
-use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
+use robonomics_runtime_subxt_api::api;
 use std::time::Duration;
-use subxt::{OnlineClient, PolkadotConfig};
 use subxt_signer::sr25519::dev;
 use zombienet_sdk::{LocalFileSystem, Network};
 
 /// Test: Network initialization and connectivity
-pub async fn test_network_initialization(network: &Network<LocalFileSystem>) -> Result<()> {
-    // Get nodes from network
-    let alice = network.get_node("alice")?;
-
-    let collator = network.get_node("robonomics-collator")?;
-
+pub async fn test_network_initialization(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     // Connect to relay chain via alice node
-    let relay_ws = alice.ws_uri();
-    let _relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
-        .await
-        .context("Failed to connect to relay chain")?;
+    let _ = NetworkClient::relay(network).await?;
     log::debug!("Connected to relay chain");
 
     // Connect to parachain collator
-    let para_ws = collator.ws_uri();
-    let _para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to robonomics parachain")?;
+    let _ = NetworkClient::robonomics(network).await?;
     log::debug!("Connected to robonomics parachain");
 
     // Connect to AssetHub if present
-    if let Ok(asset_hub_collator) = network.get_node("asset-hub-collator") {
-        let assethub_ws = asset_hub_collator.ws_uri();
-        let _asset_hub_client = OnlineClient::<PolkadotConfig>::from_url(assethub_ws)
-            .await
-            .context("Failed to connect to AssetHub")?;
-        log::debug!("Connected to AssetHub");
-    }
+    let _ = NetworkClient::assethub(network).await?;
+    log::debug!("Connected to AssetHub");
 
     Ok(())
 }
 
 /// Test: Block production on both chains
-pub async fn test_block_production(network: &Network<LocalFileSystem>) -> Result<()> {
-    // Get nodes from network
-    let alice = network.get_node("alice")?;
-
-    let collator = network.get_node("robonomics-collator")?;
-
-    // Check relay chain
-    let relay_ws = alice.ws_uri();
-    let relay_client = OnlineClient::<PolkadotConfig>::from_url(relay_ws)
-        .await
-        .context("Failed to connect to relay chain")?;
+pub async fn test_block_production(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
+    let relay_client = NetworkClient::relay(network).await?;
 
     let block1 = relay_client.blocks().at_latest().await?;
     let block_num1 = block1.number();
@@ -85,10 +60,7 @@ pub async fn test_block_production(network: &Network<LocalFileSystem>) -> Result
     }
 
     // Check parachain
-    let para_ws = collator.ws_uri();
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
+    let para_client = NetworkClient::robonomics(network).await?;
 
     let para_block1 = para_client.blocks().at_latest().await?;
     let para_block_num1 = para_block1.number();
@@ -108,14 +80,9 @@ pub async fn test_block_production(network: &Network<LocalFileSystem>) -> Result
 }
 
 /// Test: Basic extrinsic submission
-pub async fn test_extrinsic_submission(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_extrinsic_submission(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     // Get collator node
-    let collator = network.get_node("robonomics-collator")?;
-
-    let para_ws = collator.ws_uri();
-    let client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
+    let client = NetworkClient::robonomics(network).await?;
 
     let alice = dev::alice();
     log::debug!(

@@ -21,6 +21,7 @@
 //! - Pallet setup when chain is live
 //! - Token claiming from Ethereum accounts
 
+use crate::network::NetworkClient;
 use anyhow::{Context, Result};
 use hex_literal::hex;
 use libsecp256k1::{Message, PublicKey, SecretKey};
@@ -255,13 +256,11 @@ async fn test_claim_from_ethereum(client: &OnlineClient<RobonomicsConfig>) -> Re
 }
 
 /// Test: Claim pallet functionality
-pub async fn test_claim_pallet(network: &Network<LocalFileSystem>) -> Result<()> {
+pub async fn test_claim_pallet(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::debug!("Starting Claim pallet tests");
 
-    let para_ws = network.get_node("robonomics-collator")?.ws_uri();
-    let client = OnlineClient::<RobonomicsConfig>::from_url(para_ws)
-        .await
-        .context("Failed to connect to parachain")?;
+    // Connect to robonomics collator
+    let client = NetworkClient::robonomics(network).await?;
 
     // Run all claim tests
     log::info!("=== Test 1/2: Pallet Setup ===");

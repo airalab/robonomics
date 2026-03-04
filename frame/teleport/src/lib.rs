@@ -51,9 +51,9 @@ pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use xcm_builder::{ExecuteController, SendController};
-    use sp_std::{vec, boxed::Box};
+    use sp_std::{boxed::Box, vec};
     use xcm::prelude::*;
+    use xcm_builder::{ExecuteController, SendController};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -68,7 +68,7 @@ pub mod pallet {
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
 
-        /// Max weight for local XCM execution (relatively small - just burn asset) 
+        /// Max weight for local XCM execution (relatively small - just burn asset)
         #[pallet::constant]
         type MaxWeight: Get<Weight>;
 
@@ -110,7 +110,7 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Unable to burn asset (not enough balance?) 
+        /// Unable to burn asset (not enough balance?)
         BurnFailure,
         /// Failed to send XCM message
         SendFailure,
@@ -144,7 +144,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let origin_account = ensure_signed(origin.clone())?;
 
-            // Create asset from amount 
+            // Create asset from amount
             let assets: Assets = vec![T::AssetId::get().into_asset(Fungible(amount))].into();
 
             // Burn asset locally (prepare for teleport)
@@ -153,51 +153,44 @@ pub mod pallet {
                 ExpectAsset(assets.clone()),
                 BurnAsset(assets.clone()),
             ]));
-            let weight_used = T::XcmPallet::execute(
-                origin,
-                Box::new(local_xcm),
-                T::MaxWeight::get(),
-            ).map_err(|_| Error::<T>::BurnFailure)?;
+            let weight_used =
+                T::XcmPallet::execute(origin, Box::new(local_xcm), T::MaxWeight::get())
+                    .map_err(|_| Error::<T>::BurnFailure)?;
 
             // Get asset for fees (parachain pays it)
             let fee_asset = T::FeeAsset::get();
 
             // Reanchor asset for remote chain
-            let reanchored_assets = assets.reanchored(
-                    &T::TargetLocation::get(),
-                    &T::UniversalLocation::get(),
-                ).map_err(|_| Error::<T>::CannotReanchor)?;
+            let reanchored_assets = assets
+                .reanchored(&T::TargetLocation::get(), &T::UniversalLocation::get())
+                .map_err(|_| Error::<T>::CannotReanchor)?;
 
             // Build the XCM message
             let message: VersionedXcm<()> = VersionedXcm::V5(Xcm(vec![
                 // Pay forward
                 WithdrawAsset(vec![fee_asset.clone()].into()),
                 PayFees { asset: fee_asset },
-
                 // Deposit teleported asset
                 ReceiveTeleportedAsset(reanchored_assets),
                 DepositAsset {
                     assets: AssetFilter::Wild(WildAsset::All),
                     beneficiary: beneficiary.clone(),
                 },
-
                 // Refund fees back to parachain account
                 RefundSurplus,
                 DepositAsset {
                     assets: AssetFilter::Wild(WildAsset::All),
                     beneficiary: T::ParachainLocation::get(),
-                }
+                },
             ]));
 
             // Get destination location
             let dest = VersionedLocation::V5(T::TargetLocation::get());
 
             // Send XCM
-            let xcm_hash = T::XcmPallet::send(
-                T::RuntimeOrigin::root(),
-                Box::new(dest),
-                Box::new(message),
-            ).map_err(|_| Error::<T>::SendFailure)?;
+            let xcm_hash =
+                T::XcmPallet::send(T::RuntimeOrigin::root(), Box::new(dest), Box::new(message))
+                    .map_err(|_| Error::<T>::SendFailure)?;
 
             // Emit event
             Self::deposit_event(Event::Teleported {

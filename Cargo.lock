@@ -6042,8 +6042,8 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "sp-core 39.0.0",
- "subxt 0.43.1",
- "subxt-signer 0.43.0",
+ "subxt 0.44.2",
+ "subxt-signer 0.44.2",
  "tokio",
  "toml 0.8.23",
  "x25519-dalek",
@@ -11041,8 +11041,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-core 39.0.0",
- "subxt 0.43.1",
- "subxt-signer 0.43.0",
+ "subxt 0.44.2",
+ "subxt-signer 0.44.2",
  "tokio",
  "zombienet-sdk",
 ]
@@ -11151,7 +11151,7 @@ dependencies = [
  "sp-io 44.0.0",
  "sp-maybe-compressed-blob",
  "sp-state-machine 0.49.0",
- "subxt 0.43.1",
+ "subxt 0.44.2",
 ]
 
 [[package]]
@@ -15368,7 +15368,6 @@ dependencies = [
  "frame-metadata",
  "futures",
  "hex",
- "jsonrpsee",
  "parity-scale-codec",
  "primitive-types",
  "scale-bits",
@@ -15389,7 +15388,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
- "wasm-bindgen-futures",
  "web-time",
 ]
 
@@ -15641,7 +15639,6 @@ dependencies = [
  "subxt-core 0.43.0",
  "subxt-lightclient 0.43.0",
  "thiserror 2.0.18",
- "tokio-util",
  "tracing",
  "url",
 ]
@@ -16070,9 +16067,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.49.0"
+version = "1.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72a2903cd7736441aac9df9d7688bd0ce48edccaadf181c3b90be801e81d3d86"
+checksum = "27ad5e34374e03cfffefc301becb44e9dc3c17584f414349ebe29ed26661822d"
 dependencies = [
  "bytes",
  "libc",
