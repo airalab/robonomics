@@ -24,9 +24,10 @@
 use crate as pallet_robonomics_teleport;
 use frame_support::{
     assert_ok, derive_impl, parameter_types,
-    traits::{ConstU32, ConstU64},
+    traits::ConstU64,
+    dispatch::PostDispatchInfo,
 };
-use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchErrorWithPostInfo};
 use xcm::prelude::*;
 use xcm_builder::{ExecuteController, SendController};
 
@@ -77,14 +78,11 @@ impl SendXcm for MockXcmController {
     }
 }
 
-impl<Origin, Call> ExecuteXcm<Call> for MockXcmController
-where
-    Origin: Into<Location>,
-{
+impl<Call> ExecuteXcm<Call> for MockXcmController {
     type Prepared = MockPreparedMessage;
 
     fn prepare_and_execute(
-        _origin: Origin,
+        _origin: impl Into<Location>,
         _message: Xcm<Call>,
         _id: &mut XcmHash,
         _weight_limit: Weight,
@@ -104,7 +102,7 @@ where
     }
 
     fn execute(
-        _origin: Origin,
+        _origin: impl Into<Location>,
         _prepared: Self::Prepared,
         _id: &mut XcmHash,
         _weight_credit: Weight,
@@ -119,9 +117,29 @@ where
     }
 }
 
-impl<Origin: Clone> SendController<Origin> for MockXcmController {}
-impl<Origin, Call> ExecuteController<Origin, Call> for MockXcmController where Origin: Into<Location>
-{}
+impl SendController<RuntimeOrigin> for MockXcmController {
+    type WeightInfo = ();
+
+    fn send(
+        _origin: RuntimeOrigin,
+        _dest: Box<VersionedLocation>,
+        _message: Box<VersionedXcm<()>>,
+    ) -> Result<XcmHash, DispatchError> {
+        Ok([0u8; 32])
+    }
+}
+
+impl ExecuteController<RuntimeOrigin, RuntimeCall> for MockXcmController {
+    type WeightInfo = ();
+
+    fn execute(
+        _origin: RuntimeOrigin,
+        _message: Box<VersionedXcm<RuntimeCall>>,
+        _max_weight: Weight,
+    ) -> Result<Weight, DispatchErrorWithPostInfo<PostDispatchInfo>> {
+        Ok(Weight::from_parts(1000, 1000))
+    }
+}
 
 // Mock XCM executor (unused in current implementation but kept for testing infrastructure)
 pub struct MockPreparedMessage;
