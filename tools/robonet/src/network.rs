@@ -42,11 +42,66 @@ pub const PARA_ACCOUNT: &str = "5Ec4AhPUwPeyTFyuhGuBbD224mY85LKLMSqSSo33JYWCazU4
 // Converted from ParaId=2000 as sibling on https://www.shawntabrizi.com/substrate-js-utilities/
 pub const PARA_SIB_ACCOUNT: &str = "5Eg2fntJ27qsari4FGrGhrMqKFDRnkNSR6UshkZYBGXmSuC8";
 
-/// Get network client for given node
-/// Note: use default RPC ports in case of network is None
+/// Network client helper for connecting to blockchain nodes.
+///
+/// `NetworkClient` provides a convenient way to obtain typed `OnlineClient` instances
+/// for different nodes in the test network. It supports two modes:
+///
+/// 1. **With Network**: When a `Network<LocalFileSystem>` is provided, it automatically
+///    discovers node endpoints from the running zombienet network.
+/// 2. **Without Network**: When `None` is provided, it connects to nodes using default
+///    RPC ports on localhost (useful for connecting to already running networks).
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use crate::network::NetworkClient;
+///
+/// // Connect to Robonomics parachain in a spawned network
+/// let network = spawn_network(&topology, timeout).await?;
+/// let robonomics = NetworkClient::robonomics(Some(&network)).await?;
+///
+/// // Connect to AssetHub
+/// let assethub = NetworkClient::assethub(Some(&network)).await?;
+///
+/// // Connect to relay chain
+/// let relay = NetworkClient::relay(Some(&network)).await?;
+///
+/// // Connect to standalone nodes (without network)
+/// let robonomics = NetworkClient::robonomics(None).await?;
+/// ```
+///
+/// # Node Names
+///
+/// - Robonomics parachain: `"robonomics-collator"` (port 9988)
+/// - AssetHub parachain: `"asset-hub-collator"` (port 9910)
+/// - Relay chain: `"alice"` validator (port 9944)
 #[derive(Clone)]
 pub struct NetworkClient;
+
 impl NetworkClient {
+    /// Get a typed client for a specific node in the network.
+    ///
+    /// This is the generic method used by the convenience methods (`robonomics`, `assethub`, `relay`).
+    /// It handles both spawned networks and standalone node connections.
+    ///
+    /// # Arguments
+    ///
+    /// * `mb_net` - Optional reference to a running Network. If `Some`, queries the network for
+    ///              the node. If `None`, connects directly using the default port.
+    /// * `node_name` - Name of the node in the zombienet network (e.g., "robonomics-collator")
+    /// * `default_port` - Default WebSocket port to use when connecting without a network
+    ///
+    /// # Returns
+    ///
+    /// A typed `OnlineClient<T>` configured for the requested node.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The node is not found in the network
+    /// - Connection to the node fails
+    /// - Client initialization fails
     pub async fn get_client<T: Config>(
         mb_net: Option<&Network<LocalFileSystem>>,
         node_name: &str,
@@ -66,18 +121,54 @@ impl NetworkClient {
         }
     }
 
+    /// Get a client for the Robonomics parachain collator.
+    ///
+    /// Connects to the `robonomics-collator` node in the network, or to
+    /// `ws://127.0.0.1:9988` if no network is provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `mb_net` - Optional reference to the running network
+    ///
+    /// # Returns
+    ///
+    /// A typed `OnlineClient<RobonomicsConfig>` for the Robonomics runtime.
     pub async fn robonomics(
         mb_net: Option<&Network<LocalFileSystem>>,
     ) -> Result<OnlineClient<RobonomicsConfig>> {
         Self::get_client(mb_net, "robonomics-collator", ROBONOMICS_RPC_PORT).await
     }
 
+    /// Get a client for the AssetHub parachain collator.
+    ///
+    /// Connects to the `asset-hub-collator` node in the network, or to
+    /// `ws://127.0.0.1:9910` if no network is provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `mb_net` - Optional reference to the running network
+    ///
+    /// # Returns
+    ///
+    /// A typed `OnlineClient<PolkadotConfig>` for the AssetHub runtime.
     pub async fn assethub(
         mb_net: Option<&Network<LocalFileSystem>>,
     ) -> Result<OnlineClient<PolkadotConfig>> {
         Self::get_client(mb_net, "asset-hub-collator", ASSET_HUB_RPC_PORT).await
     }
 
+    /// Get a client for the relay chain validator.
+    ///
+    /// Connects to the `alice` validator node in the network, or to
+    /// `ws://127.0.0.1:9944` if no network is provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `mb_net` - Optional reference to the running network
+    ///
+    /// # Returns
+    ///
+    /// A typed `OnlineClient<PolkadotConfig>` for the relay chain runtime.
     pub async fn relay(
         mb_net: Option<&Network<LocalFileSystem>>,
     ) -> Result<OnlineClient<PolkadotConfig>> {
