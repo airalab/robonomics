@@ -15,7 +15,11 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Tests for the Robonomics Teleport pallet.
+//! Unit tests for the Robonomics Teleport pallet.
+//!
+//! These tests verify the core functionality of the `send` extrinsic using mock
+//! XCM components. For comprehensive XCM delivery testing with actual cross-chain
+//! message delivery, see XCM_SIMULATOR_TESTING.md.
 
 use crate as pallet_robonomics_teleport;
 use frame_support::{
@@ -63,22 +67,26 @@ impl pallet_balances::Config for Runtime {
     type DoneSlashHandler = ();
 }
 
-// Mock XCM sender that always succeeds
+// Mock XCM sender that always succeeds for testing
 pub struct MockXcmSender;
 impl SendXcm for MockXcmSender {
     type Ticket = ();
+    
     fn validate(
         _dest: &mut Option<Location>,
         _msg: &mut Option<Xcm<()>>,
     ) -> SendResult<Self::Ticket> {
+        // Always succeed for testing
         Ok(((), Assets::new()))
     }
+    
     fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
+        // Return a mock XCM hash
         Ok([0u8; 32])
     }
 }
 
-// Mock XCM executor that always succeeds
+// Mock XCM executor (unused in current implementation but kept for testing infrastructure)
 pub struct MockPreparedMessage;
 impl PreparedMessage for MockPreparedMessage {
     fn weight_of(&self) -> Weight {
@@ -97,7 +105,6 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
         _weight_limit: Weight,
         _weight_credit: Weight,
     ) -> Outcome {
-        // Return success for testing
         Outcome::Complete { used: Weight::from_parts(1000, 1000) }
     }
 
@@ -164,15 +171,18 @@ fn test_send_success() {
         
         let origin = 1u64;
         let beneficiary = [2u8; 32];
+        let amount = 100u64;
+        let fee = 50u128;
 
+        // Execute send extrinsic
         assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
             beneficiary,
-            100,
-            50, // fee
+            amount,
+            fee,
         ));
 
-        // Check event was emitted
+        // Verify the Sent event was emitted with correct parameters
         System::assert_last_event(
             pallet_robonomics_teleport::Event::Sent {
                 origin,
@@ -180,12 +190,12 @@ fn test_send_success() {
                     0,
                     [AccountId32 {
                         network: None,
-                        id: [2u8; 32],
+                        id: beneficiary,
                     }],
                 ),
                 asset: Asset {
                     id: AssetId(Location::here()),
-                    fun: Fungibility::Fungible(100),
+                    fun: Fungibility::Fungible(amount as u128),
                 },
             }
             .into(),
@@ -196,16 +206,79 @@ fn test_send_success() {
 #[test]
 fn test_send_with_maximum_balance() {
     new_test_ext().execute_with(|| {
+        System::set_block_number(1);
+        
         let origin = 1u64;
         let beneficiary = [2u8; 32];
+        let amount = 1000u64; // Entire balance
+        let fee = 100u128;
 
-        // Send entire balance
+        // Send entire balance should succeed (balance validation happens in XCM execution)
         assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
             beneficiary,
-            1000,
-            100, // fee
+            amount,
+            fee,
         ));
     });
 }
 
+#[test]
+fn test_send_with_different_beneficiaries() {
+    new_test_ext().execute_with(|| {
+        System::set_block_number(1);
+        
+        let origin = 1u64;
+        let amount = 50u64;
+        let fee = 25u128;
+
+        // Test with various beneficiary addresses
+        let beneficiaries = vec![
+            [0u8; 32],
+            [1u8; 32],
+            [255u8; 32],
+        ];
+
+        for beneficiary in beneficiaries {
+            assert_ok!(RobonomicsTeleport::send(
+                RuntimeOrigin::signed(origin),
+                beneficiary,
+                amount,
+                fee,
+            ));
+        }
+    });
+}
+
+#[test]
+fn test_send_with_varying_fees() {
+    new_test_ext().execute_with(|| {
+        System::set_block_number(1);
+        
+        let origin = 2u64;
+        let beneficiary = [3u8; 32];
+        let amount = 100u64;
+
+        // Test with different fee amounts
+        let fees = vec![10u128, 50u128, 100u128, 1000u128];
+
+        for fee in fees {
+            assert_ok!(RobonomicsTeleport::send(
+                RuntimeOrigin::signed(origin),
+                beneficiary,
+                amount,
+                fee,
+            ));
+        }
+    });
+}
+
+#[test]
+fn test_runtime_genesis_builds() {
+    new_test_ext().execute_with(|| {
+        // Verify genesis configuration is valid
+        assert_eq!(Balances::free_balance(1), 1000);
+        assert_eq!(Balances::free_balance(2), 2000);
+        assert_eq!(Balances::free_balance(3), 3000);
+    });
+}

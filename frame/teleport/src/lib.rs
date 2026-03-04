@@ -15,23 +15,47 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # Robonomics XCM Teleport Pallet
+//! # Robonomics XCM Teleport Pallet (TeleportXrt)
 //!
-//! This pallet provides a simplified send functionality for Robonomics parachain
-//! to send assets to Asset Hub parachain using XCM.
+//! This pallet provides a simplified interface for sending native XRT tokens from the
+//! Robonomics parachain to Asset Hub using XCM teleport with explicit fee control.
 //!
 //! ## Overview
 //!
-//! The pallet implements a strict version of XCM teleport with the following constraints:
-//! - Only supports sending the native asset (pallet_balances)
-//! - Only supports sending to Asset Hub parachain
-//! - Uses relay chain asset for fees on Asset Hub
-//! - Beneficiary specified as AccountId32 (32-byte account ID)
+//! The pallet implements a restricted XCM teleport with the following characteristics:
+//! - **Single Asset**: Only supports the native asset (via pallet_balances)
+//! - **Single Destination**: Hardcoded to Asset Hub parachain (para ID 1000)
+//! - **Explicit Fees**: Separate fee parameter for relay chain asset fees on Asset Hub
+//! - **Simple API**: Beneficiary specified as raw AccountId32 bytes ([u8; 32])
 //!
-//! The send process follows this pattern:
-//! 1. Build XCM message with WithdrawAsset and InitiateTransfer instructions
-//! 2. InitiateTransfer executes locally to withdraw assets and sends to destination
-//! 3. On Asset Hub: PayFees (with relay asset) → DepositAsset to beneficiary
+//! ## XCM Flow
+//!
+//! The send operation constructs an XCM message with the following instruction sequence:
+//! 1. `WithdrawAsset` - Withdraws native assets from the sender's account
+//! 2. `InitiateTransfer` - Initiates the teleport to Asset Hub with:
+//!    - Teleport filter for both remote_fees and assets
+//!    - Local execution handled automatically
+//! 3. Remote XCM on Asset Hub:
+//!    - `PayFees` - Pays execution fees using relay chain asset
+//!    - `DepositAsset` - Deposits teleported assets to beneficiary
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use pallet_robonomics_teleport;
+//!
+//! // Send 1000 XRT to beneficiary on Asset Hub, paying 50 relay chain tokens for fees
+//! let beneficiary = [0x01; 32]; // AccountId32 on Asset Hub
+//! let amount = 1_000_000_000; // 1000 XRT (assuming 9 decimals)
+//! let fee = 50_000_000; // Fee in relay chain asset
+//!
+//! TeleportXrt::send(
+//!     origin,
+//!     beneficiary,
+//!     amount,
+//!     fee
+//! )?;
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -59,16 +83,16 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        /// The overarching event type.
+        /// The overarching runtime event type.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Currency type for balance operations
+        /// Currency type for balance operations on native asset
         type Currency: Currency<Self::AccountId>;
 
-        /// XCM message sender
+        /// XCM message sender for cross-chain communication
         type XcmSender: SendXcm;
 
-        /// Asset Hub Location
+        /// Location of Asset Hub parachain (typically parachain 1000 on relay chain)
         #[pallet::constant]
         type AssetHubLocation: Get<Location>;
     }
@@ -79,7 +103,12 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Assets have been sent to Asset Hub. [origin, beneficiary, asset]
+        /// Native assets have been sent to Asset Hub via XCM teleport.
+        /// 
+        /// Parameters:
+        /// - `origin`: The account that initiated the send
+        /// - `beneficiary`: The destination account location on Asset Hub
+        /// - `asset`: The XCM asset that was sent (contains amount and asset ID)
         Sent {
             origin: T::AccountId,
             beneficiary: Location,
@@ -89,34 +118,57 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Failed to send XCM message
+        /// Failed to send XCM message to destination
         SendFailure,
-        /// Failed to execute XCM locally
+        /// Failed to execute XCM locally (unused but kept for compatibility)
         LocalExecutionFailed,
-        /// Amount too large to convert to u128
+        /// Amount exceeds maximum u128 value
         AmountOverflow,
-        /// Invalid asset filter configuration
+        /// Failed to construct asset transfer filter for XCM
         InvalidAssetFilter,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Send native assets to Asset Hub parachain.
+        /// Send native assets to Asset Hub parachain via XCM teleport.
         ///
         /// This extrinsic sends native assets (XRT) from the caller's account to a beneficiary
-        /// account on the Asset Hub parachain. The transfer uses XCM InitiateTransfer to:
-        /// 1. Initiate transfer to Asset Hub with teleport semantics
-        /// 2. Pay fees on Asset Hub using relay chain asset
-        /// 3. Deposit assets to beneficiary on Asset Hub
+        /// account on the Asset Hub parachain using XCM's InitiateTransfer instruction with
+        /// teleport semantics.
+        ///
+        /// # Process
+        /// 
+        /// 1. Validates and converts the amount to u128 for XCM
+        /// 2. Constructs an XCM message with:
+        ///    - `WithdrawAsset`: Withdraws native assets from sender
+        ///    - `InitiateTransfer`: Teleports to Asset Hub (handles local execution automatically)
+        ///    - Remote XCM: `PayFees` (relay asset) + `DepositAsset` to beneficiary
+        /// 3. Sends the XCM message to Asset Hub
+        /// 4. Emits `Sent` event with transfer details
         ///
         /// # Parameters
-        /// - `origin`: The account sending the assets
-        /// - `beneficiary`: The recipient AccountId32 (32-byte account ID) on Asset Hub
-        /// - `amount`: The amount of native asset to send
-        /// - `fee`: The amount of relay chain asset to use for fees on Asset Hub
+        /// 
+        /// - `origin`: Must be a signed account with sufficient native asset balance
+        /// - `beneficiary`: The 32-byte AccountId32 of the recipient on Asset Hub
+        /// - `amount`: Amount of native asset to send (will be converted to u128)
+        /// - `fee`: Amount of relay chain asset to use for execution fees on Asset Hub
         ///
         /// # Errors
-        /// - `SendFailure`: Failed to send XCM message
+        /// 
+        /// - `AmountOverflow`: If amount cannot be converted to u128
+        /// - `InvalidAssetFilter`: If asset transfer filter construction fails
+        /// - `SendFailure`: If XCM message cannot be sent to Asset Hub
+        ///
+        /// # Example
+        /// 
+        /// ```rust,ignore
+        /// TeleportXrt::send(
+        ///     Origin::signed(alice),
+        ///     [0x01; 32],        // Beneficiary AccountId32
+        ///     1_000_000_000,     // 1000 XRT
+        ///     50_000_000,        // 50 relay tokens for fees
+        /// )?;
+        /// ```
         #[pallet::call_index(0)]
         #[pallet::weight({
             // Simple weight based on XCM execution
