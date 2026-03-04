@@ -195,19 +195,16 @@ robonet test --output json > test-results.json
 
 1. **Define the Test Function**
 
-Add your test function to `tools/robonet/src/tests.rs`:
+Add your test function to the appropriate test module (e.g., `tools/robonet/src/tests/mod.rs`):
 
 ```rust
+use crate::network::NetworkClient;
+use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
+
 /// Test: My new feature
-async fn test_my_new_feature(topology: &NetworkTopology) -> Result<()> {
-    // Get appropriate endpoints based on topology
-    let endpoints = match topology {
-        NetworkTopology::Simple => NetworkEndpoints::simple(),
-        NetworkTopology::Assethub => NetworkEndpoints::assethub(),
-    };
-    
-    // Connect to the parachain
-    let client = OnlineClient::<PolkadotConfig>::from_url(&endpoints.collator_1_ws)
+pub async fn test_my_new_feature(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
+    // Connect to the Robonomics parachain using NetworkClient
+    let client = NetworkClient::robonomics(network)
         .await
         .context("Failed to connect to parachain")?;
     
@@ -217,12 +214,8 @@ async fn test_my_new_feature(topology: &NetworkTopology) -> Result<()> {
     // Use dev accounts for signing
     let alice = dev::alice();
     
-    // Create and submit extrinsic
-    let call = subxt::dynamic::tx(
-        "MyPallet",
-        "my_extrinsic",
-        vec![/* parameters */],
-    );
+    // Create and submit extrinsic using type-safe API
+    let call = api::tx().my_pallet().my_extrinsic(/* parameters */);
     
     let mut progress = client
         .tx()
@@ -245,12 +238,12 @@ async fn test_my_new_feature(topology: &NetworkTopology) -> Result<()> {
 
 2. **Register the Test**
 
-Add your test to the `run_integration_tests` function:
+Add your test to the `run_integration_tests` function in `tools/robonet/src/tests/mod.rs`:
 
 ```rust
 // In run_integration_tests function
 if test_filter.is_none() || test_filter.as_ref().unwrap().iter().any(|f| "my_feature".contains(f.as_str())) {
-    results.push(run_test("test_my_new_feature", || test_my_new_feature(topology)).await);
+    results.push(run_test("test_my_new_feature", || test_my_new_feature(network)).await);
     if fail_fast && results.last().unwrap().status == TestStatus::Failed {
         log::warn!("Stopping test execution due to failure (fail-fast mode)");
         return build_results(results, suite_start, json_output);
@@ -271,21 +264,44 @@ RUST_LOG=debug robonet test my_feature
 ### Test Best Practices
 
 1. **Use Descriptive Names**: Test names should clearly describe what they're testing
-2. **Handle Topology**: Consider whether your test needs AssetHub or can run on simple topology
-3. **Add Context to Errors**: Use `.context()` to provide meaningful error messages
-4. **Log Progress**: Use `log::debug!` and `log::info!` for debugging
-5. **Clean Up**: Tests run sequentially on the same network, ensure state doesn't leak
-6. **Fast Feedback**: Keep tests focused and fast; avoid unnecessary waiting
+2. **Accept Network Parameter**: All test functions should accept `network: Option<&Network<LocalFileSystem>>`
+3. **Use NetworkClient**: Use the `NetworkClient` helper to get typed clients for different nodes
+4. **Add Context to Errors**: Use `.context()` to provide meaningful error messages
+5. **Log Progress**: Use `log::debug!` and `log::info!` for debugging
+6. **Clean Up**: Tests run sequentially on the same network, ensure state doesn't leak
+7. **Fast Feedback**: Keep tests focused and fast; avoid unnecessary waiting
 
 ### Common Test Patterns
+
+#### Using NetworkClient Helper
+
+```rust
+use crate::network::NetworkClient;
+
+// Connect to Robonomics parachain
+let robonomics = NetworkClient::robonomics(Some(network)).await?;
+
+// Connect to AssetHub (if available)
+let assethub = NetworkClient::assethub(Some(network)).await?;
+
+// Connect to relay chain
+let relay = NetworkClient::relay(Some(network)).await?;
+
+// When network is None (testing against already running network)
+let robonomics = NetworkClient::robonomics(None).await?;
+```
 
 #### Testing Pallet Extrinsics
 
 ```rust
-let client = OnlineClient::<PolkadotConfig>::from_url(&endpoint).await?;
+use crate::network::NetworkClient;
+use robonomics_runtime_subxt_api::api;
+
+let client = NetworkClient::robonomics(Some(network)).await?;
 let signer = dev::alice();
 
-let call = subxt::dynamic::tx("Pallet", "extrinsic", vec![]);
+// Use type-safe API from robonomics_runtime_subxt_api
+let call = api::tx().my_pallet().my_extrinsic(/* params */);
 let mut progress = client.tx().sign_and_submit_then_watch_default(&call, &signer).await?;
 
 while let Some(status) = progress.next().await {
@@ -299,13 +315,22 @@ while let Some(status) = progress.next().await {
 #### Testing Storage Queries
 
 ```rust
-let storage_query = subxt::dynamic::storage("Pallet", "StorageItem", vec![]);
+use robonomics_runtime_subxt_api::api;
+
+let client = NetworkClient::robonomics(Some(network)).await?;
+let storage_query = api::storage().my_pallet().my_storage_item();
 let result = client.storage().at_latest().await?.fetch(&storage_query).await?;
 ```
 
 #### Testing Events
 
 ```rust
+use robonomics_runtime_subxt_api::api;
+
+let client = NetworkClient::robonomics(Some(network)).await?;
+let signer = dev::alice();
+
+let call = api::tx().my_pallet().my_extrinsic(/* params */);
 let mut progress = client.tx().sign_and_submit_then_watch_default(&call, &signer).await?;
 
 while let Some(status) = progress.next().await {
@@ -439,13 +464,19 @@ tools/robonet/
 
 ### Architecture
 
-Robonet uses the following Robonomics crates:
+Robonet uses the following Robonomics crates and helpers:
 
 - **`robonomics-runtime-subxt-api`**: Type-safe runtime API generated from metadata
   - Located at `runtime/robonomics/subxt-api`
   - Extracts metadata at build time from the runtime
   - Generates compile-time verified API via subxt
   - See [subxt-api README](../../runtime/robonomics/subxt-api/README.md) for details
+
+- **`NetworkClient`**: Helper struct for connecting to network nodes
+  - Located in `tools/robonet/src/network.rs`
+  - Provides convenient methods: `robonomics()`, `assethub()`, `relay()`
+  - Works with both running networks (via `Network<LocalFileSystem>`) and standalone nodes
+  - Automatically resolves node endpoints from the network or uses default ports
 
 - **`libcps`**: CPS pallet interaction library for test implementation
   - Located at `tools/libcps`
