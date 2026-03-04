@@ -25,9 +25,15 @@
 use super::*;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
+use sp_runtime::traits::StaticLookup;
 use xcm::prelude::*;
 
-#[benchmarks]
+#[benchmarks(
+    where
+        T: pallet_balances::Config,
+        <T as pallet_balances::Config>::Balance: From<u128>,
+        <<T as frame_system::Config>::Lookup as StaticLookup>::Source: From<T::AccountId>,
+)]
 mod benchmarks {
     use super::*;
 
@@ -50,15 +56,18 @@ mod benchmarks {
         );
         let amount: u128 = 1_000_000_000;
 
+        // set beneficiary balance
+        let _ = pallet_balances::Pallet::<T>::force_set_balance(
+            RawOrigin::Root.into(),
+            caller.clone().into(),
+            (amount * 2).into(),
+        );
+
         #[extrinsic_call]
-        send(RawOrigin::Signed(caller), beneficiary, amount);
+        _(RawOrigin::Signed(caller), beneficiary, amount);
 
         Ok(())
     }
 
-    impl_benchmark_test_suite!(
-        RobonomicsTeleport,
-        crate::tests::new_test_ext(),
-        crate::tests::Runtime
-    );
+    impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
 }

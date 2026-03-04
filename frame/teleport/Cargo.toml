@@ -15,6 +15,7 @@ sp-runtime.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
+pallet-balances = { workspace = true, optional = true }
 
 # XCM dependencies
 xcm.workspace = true
@@ -39,10 +40,12 @@ std = [
   "xcm/std",
   "xcm-executor/std",
   "xcm-builder/std",
+  "pallet-balances?/std",
 ]
 
 runtime-benchmarks = [
   "frame-benchmarking",
+  "pallet-balances",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",

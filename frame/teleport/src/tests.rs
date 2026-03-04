@@ -28,6 +28,7 @@ use frame_support::{
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
 use xcm::prelude::*;
+use xcm_builder::{ExecuteController, SendController};
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 type Balance = u64;
@@ -50,21 +51,10 @@ impl frame_system::Config for Runtime {
     type AccountData = pallet_balances::AccountData<Balance>;
 }
 
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Runtime {
-    type MaxLocks = ConstU32<50>;
-    type MaxReserves = ();
-    type ReserveIdentifier = [u8; 8];
-    type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
     type ExistentialDeposit = ConstU64<1>;
     type AccountStore = System;
-    type WeightInfo = ();
-    type FreezeIdentifier = ();
-    type MaxFreezes = ();
-    type RuntimeHoldReason = ();
-    type RuntimeFreezeReason = ();
-    type DoneSlashHandler = ();
 }
 
 // Mock XCM controller that supports both execute and send
@@ -196,7 +186,7 @@ parameter_types! {
     pub ParachainLocationTest: Location = Location::new(1, [Parachain(2000)]);
 
     /// Universal location for asset reanchoring
-    pub UniversalLocationTest: InteriorLocation = [GlobalConsensus(NetworkId::Rococo), Parachain(2000)].into();
+    pub UniversalLocationTest: InteriorLocation = [GlobalConsensus(NetworkId::Kusama), Parachain(2000)].into();
 
     /// Native asset ID (here means native asset)
     pub NativeAssetIdTest: AssetId = AssetId(Location::here());
@@ -208,7 +198,7 @@ parameter_types! {
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type XcmPallet = MockXcmController;
-    type WeightInfo = ();
+    type WeightInfo = crate::weights::TestWeightInfo;
     type MaxWeight = MaxWeightTest;
     type AssetId = NativeAssetIdTest;
     type FeeAsset = FeeAssetTest;
