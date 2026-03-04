@@ -35,8 +35,6 @@ pub const ROBONOMICS_RPC_PORT: u16 = 9988;
 pub const PARA_ID: u32 = 2000;
 pub const ASSET_HUB_PARA_ID: u32 = 1000;
 
-/// Hardcoded Genesis Parameters
-pub const INITIAL_BALANCE: u128 = 1_000_000_000_000_000_000_000;
 // Converted from ParaId=2000 as child on https://www.shawntabrizi.com/substrate-js-utilities/
 pub const PARA_ACCOUNT: &str = "5Ec4AhPUwPeyTFyuhGuBbD224mY85LKLMSqSSo33JYWCazU4";
 // Converted from ParaId=2000 as sibling on https://www.shawntabrizi.com/substrate-js-utilities/
