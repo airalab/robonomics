@@ -135,14 +135,19 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
 }
 
 parameter_types! {
-    pub AssetHubLocationTest: Location = Location::new(1, [Parachain(1000)]);
+    /// Target location for teleports in tests (e.g. an asset hub parachain).
+    pub TargetLocationTest: Location = Location::new(1, [Parachain(1000)]);
+
+    /// Default fee asset used by the teleport pallet in tests: (asset_id, amount).
+    pub FeeAssetTest: (u32, Balance) = (0, 0);
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type XcmSender = MockXcmSender;
-    type AssetHubLocation = AssetHubLocationTest;
+    type XcmPallet = MockXcmSender;
+    type AssetId = u32;
+    type FeeAsset = FeeAssetTest;
+    type TargetLocation = TargetLocationTest;
 }
 
 // Build genesis storage according to the mock runtime.
