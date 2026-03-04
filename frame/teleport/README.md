@@ -204,7 +204,7 @@ The benchmark measures the computational cost of the `send` extrinsic including:
 
 ### XCM Simulator Tests
 
-For comprehensive integration testing with actual XCM message delivery between chains, see [XCM_SIMULATOR_TESTING.md](./XCM_SIMULATOR_TESTING.md).
+For comprehensive integration testing with actual XCM message delivery between chains, refer to the XCM simulator testing documentation in the main project repository.
 
 **Simulator Test Scenarios:**
 - Cross-chain message delivery validation
