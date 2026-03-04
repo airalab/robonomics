@@ -855,7 +855,7 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
         .blocks()
         .subscribe_finalized()
         .await
-        .context("Failed to subscribe to relay blocks")?;
+        .context("Failed to subscribe to AssetHub blocks")?;
 
     let timeout = Duration::from_secs(120);
     let start = std::time::Instant::now();
