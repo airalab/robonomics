@@ -173,32 +173,31 @@ fn test_send_success() {
         System::set_block_number(1);
 
         let origin = 1u64;
-        let beneficiary = [2u8; 32];
-        let amount = 100u64;
-        let fee = 50u128;
+        let beneficiary_id = [2u8; 32];
+        let beneficiary = Location::new(
+            0,
+            [AccountId32 {
+                network: None,
+                id: beneficiary_id,
+            }],
+        );
+        let amount: u128 = 100;
 
         // Execute send extrinsic
         assert_ok!(RobonomicsTeleport::send(
             RuntimeOrigin::signed(origin),
-            beneficiary,
+            beneficiary.clone(),
             amount,
-            fee,
         ));
 
-        // Verify the Sent event was emitted with correct parameters
+        // Verify the Teleported event was emitted with correct parameters
         System::assert_last_event(
-            pallet_robonomics_teleport::Event::Sent {
+            pallet_robonomics_teleport::Event::Teleported {
                 origin,
-                beneficiary: Location::new(
-                    0,
-                    [AccountId32 {
-                        network: None,
-                        id: beneficiary,
-                    }],
-                ),
+                beneficiary,
                 asset: Asset {
                     id: AssetId(Location::here()),
-                    fun: Fungibility::Fungible(amount as u128),
+                    fun: Fungibility::Fungible(amount),
                 },
             }
             .into(),
