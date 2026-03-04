@@ -15,7 +15,10 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-// Benchmarks for Robonomics Teleport Pallet
+//! Benchmarks for Robonomics Teleport Pallet
+//!
+//! This module provides runtime benchmarks for the `send` extrinsic to determine
+//! appropriate weight values for XCM teleport operations.
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -27,6 +30,12 @@ use frame_system::RawOrigin;
 mod benchmarks {
     use super::*;
 
+    /// Benchmark the `send` extrinsic
+    ///
+    /// This measures the computational cost of:
+    /// - Constructing the XCM message
+    /// - Validating and sending the message to Asset Hub
+    /// - Emitting the Sent event
     #[benchmark]
     fn send() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
@@ -34,7 +43,7 @@ mod benchmarks {
         let amount: BalanceOf<T> = 1000u32.into();
         let fee: u128 = 100;
 
-        // Fund the caller account
+        // Ensure the caller has sufficient balance
         T::Currency::make_free_balance_be(&caller, amount * 2u32.into());
 
         #[extrinsic_call]
