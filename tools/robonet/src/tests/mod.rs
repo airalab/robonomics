@@ -176,7 +176,6 @@ pub async fn run_integration_tests(
         }
     }
 
-    /*
     if test_filter.is_none()
         || test_filter
             .as_ref()
@@ -209,7 +208,6 @@ pub async fn run_integration_tests(
             return build_results(results, suite_start, json_output);
         }
     }
-    */
 
     if test_filter.is_none()
         || test_filter

@@ -11055,6 +11055,7 @@ dependencies = [
  "color-eyre",
  "polkadot-omni-node-lib",
  "robonomics-runtime",
+ "rustls 0.23.37",
  "sp-genesis-builder 0.21.0",
  "substrate-build-script-utils",
 ]

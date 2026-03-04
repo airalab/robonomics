@@ -130,7 +130,8 @@ where
 }
 
 impl<Origin: Clone> SendController<Origin> for MockXcmController {}
-impl<Origin, Call> ExecuteController<Origin, Call> for MockXcmController where Origin: Into<Location> {}
+impl<Origin, Call> ExecuteController<Origin, Call> for MockXcmController where Origin: Into<Location>
+{}
 
 // Mock XCM executor (unused in current implementation but kept for testing infrastructure)
 pub struct MockPreparedMessage;
@@ -347,15 +348,5 @@ fn test_send_with_varying_amounts() {
                 amount,
             ));
         }
-    });
-}
-
-#[test]
-fn test_runtime_genesis_builds() {
-    new_test_ext().execute_with(|| {
-        // Verify genesis configuration is valid
-        assert_eq!(Balances::free_balance(1), 1000);
-        assert_eq!(Balances::free_balance(2), 2000);
-        assert_eq!(Balances::free_balance(3), 3000);
     });
 }

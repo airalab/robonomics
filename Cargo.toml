@@ -56,8 +56,10 @@ serde_json = { version = "1.0.138", default-features = false }
 # (native)
 bs58 = "0.5.0"
 clap = { version = "4.2.5", features = ["derive"] }
+color-eyre = { version = "0.6.3", default-features = false }
 futures = { version = "0.3.21", features = ["thread-pool"] }
 jsonrpsee = { version = "0.24.7", features = ["server"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 thiserror = "1.0.43"
 async-trait = "0.1.71"
 anyhow = "1.0"
@@ -92,7 +94,6 @@ rumqttc = "0.25"
 colored = "3.1"
 chrono = "0.4"
 indicatif = "0.18"
-color-eyre = { version = "0.6.3", default-features = false }
 polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
 easy-hex = "1.0"

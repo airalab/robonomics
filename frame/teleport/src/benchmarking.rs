@@ -22,7 +22,7 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::{Pallet as RobonomicsTeleport, *};
+use super::*;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 use xcm::prelude::*;

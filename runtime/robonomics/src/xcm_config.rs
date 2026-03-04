@@ -286,14 +286,13 @@ parameter_types! {
     pub const MaxInboundSuspended: u32 = 1000;
     pub const MaxActiveOutboundChannels: u32 = 128;
     pub const MaxPageSize: u32 = 65536;
-    pub const XcmpFeeAssetId: AssetId = AssetId(Location::parent());
     pub const BaseXcmpDeliveryFee: u128 = 100 * COASE;
     pub const XcmpByteFee: u128 = COASE;
 }
 
 /// Price for delivering an XCM to a sibling parachain destination.
 pub type PriceForSiblingParachainDelivery = polkadot_runtime_common::xcm_sender::ExponentialPrice<
-    XcmpFeeAssetId,
+    NativeAssetId,
     BaseXcmpDeliveryFee,
     XcmpByteFee,
     XcmpQueue,
