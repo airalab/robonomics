@@ -124,7 +124,7 @@ where
         }
     }
 
-    fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> Result<(), xcm::v5::Error> {
+    fn charge_fees(_: impl Into<Location>, _: Assets) -> Result<(), xcm::v5::Error> {
         Ok(())
     }
 }
@@ -185,6 +185,7 @@ parameter_types! {
     pub TargetLocationTest: Location = Location::new(1, [Parachain(1000)]);
 
     /// Default fee asset used by the teleport pallet in tests.
+    /// Amount: 1000 units of relay chain asset for testing
     pub FeeAssetTest: Asset = Asset {
         id: AssetId(Location::parent()),
         fun: Fungibility::Fungible(1000),

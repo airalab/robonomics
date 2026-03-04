@@ -76,7 +76,7 @@ parameter_types! {
     // Fee asset (relay chain native asset with amount)
     pub TeleportFeeAsset: Asset = Asset {
         id: AssetId(Location::parent()),
-        fun: Fungibility::Fungible(1_000_000_000), // 1 DOT
+        fun: Fungibility::Fungible(10_000_000_000), // 1 DOT (10 decimals)
     };
     
     // Parachain location for fee refunds
