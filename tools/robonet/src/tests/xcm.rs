@@ -826,7 +826,7 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
         .foreign_assets()
         .set_reserves(id.clone(), assethub_xcm::BoundedVec(reserves.clone()))
         .encode_call_data(&assethub_client.metadata())
-        .context("Unable to encode remark call")?;
+        .context("Unable to encode foreign_assets.set_reserves call")?;
 
     // Create transaction XCM
     let message = robonomics_xcm::transact(
