@@ -39,15 +39,11 @@ mod benchmarks {
     #[benchmark]
     fn send() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
-        let beneficiary = [1u8; 32];
-        let amount: BalanceOf<T> = 1000u32.into();
-        let fee: u128 = 100;
-
-        // Ensure the caller has sufficient balance
-        T::Currency::make_free_balance_be(&caller, amount * 2u32.into());
+        let beneficiary: T::AccountId = whitelisted_caller();
+        let amount: T::Balance = 1000u32.into();
 
         #[extrinsic_call]
-        send(RawOrigin::Signed(caller), beneficiary, amount, fee);
+        send(RawOrigin::Signed(caller), beneficiary, amount);
 
         Ok(())
     }
