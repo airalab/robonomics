@@ -34,6 +34,11 @@ use xcm_builder::{ExecuteController, SendController};
 type Block = frame_system::mocking::MockBlock<Runtime>;
 type Balance = u64;
 
+// Mock constants for XCM testing
+const MOCK_XCM_HASH: XcmHash = [0u8; 32];
+const MOCK_REF_TIME: u64 = 1000;
+const MOCK_PROOF_SIZE: u64 = 1000;
+
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
     pub enum Runtime
@@ -73,8 +78,7 @@ impl SendXcm for MockXcmController {
     }
 
     fn deliver(_ticket: Self::Ticket) -> Result<XcmHash, SendError> {
-        // Return a mock XCM hash
-        Ok([0u8; 32])
+        Ok(MOCK_XCM_HASH)
     }
 }
 
@@ -125,7 +129,7 @@ impl SendController<RuntimeOrigin> for MockXcmController {
         _dest: Box<VersionedLocation>,
         _message: Box<VersionedXcm<()>>,
     ) -> Result<XcmHash, DispatchError> {
-        Ok([0u8; 32])
+        Ok(MOCK_XCM_HASH)
     }
 }
 
@@ -137,7 +141,7 @@ impl ExecuteController<RuntimeOrigin, RuntimeCall> for MockXcmController {
         _message: Box<VersionedXcm<RuntimeCall>>,
         _max_weight: Weight,
     ) -> Result<Weight, DispatchErrorWithPostInfo<PostDispatchInfo>> {
-        Ok(Weight::from_parts(1000, 1000))
+        Ok(Weight::from_parts(MOCK_REF_TIME, MOCK_PROOF_SIZE))
     }
 }
 
@@ -145,7 +149,7 @@ impl ExecuteController<RuntimeOrigin, RuntimeCall> for MockXcmController {
 pub struct MockPreparedMessage;
 impl PreparedMessage for MockPreparedMessage {
     fn weight_of(&self) -> Weight {
-        Weight::from_parts(1000, 1000)
+        Weight::from_parts(MOCK_REF_TIME, MOCK_PROOF_SIZE)
     }
 }
 
@@ -160,9 +164,8 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
         _weight_limit: Weight,
         _weight_credit: Weight,
     ) -> Outcome {
-        // Return success for testing
         Outcome::Complete {
-            used: Weight::from_parts(1000, 1000),
+            used: Weight::from_parts(MOCK_REF_TIME, MOCK_PROOF_SIZE),
         }
     }
 
@@ -180,7 +183,7 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
         _weight_credit: Weight,
     ) -> Outcome {
         Outcome::Complete {
-            used: Weight::from_parts(1000, 1000),
+            used: Weight::from_parts(MOCK_REF_TIME, MOCK_PROOF_SIZE),
         }
     }
 
@@ -271,7 +274,7 @@ fn test_send_success() {
                 origin,
                 beneficiary,
                 amount,
-                xcm_hash: [0u8; 32],
+                xcm_hash: MOCK_XCM_HASH,
             }
             .into(),
         );
