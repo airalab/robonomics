@@ -23,9 +23,7 @@
 
 use crate as pallet_robonomics_teleport;
 use frame_support::{
-    assert_ok, derive_impl, parameter_types,
-    traits::ConstU64,
-    dispatch::PostDispatchInfo,
+    assert_ok, derive_impl, dispatch::PostDispatchInfo, parameter_types, traits::ConstU64,
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchErrorWithPostInfo};
 use xcm::prelude::*;

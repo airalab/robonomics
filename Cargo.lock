@@ -11153,6 +11153,8 @@ dependencies = [
  "sp-maybe-compressed-blob",
  "sp-state-machine 0.49.0",
  "subxt 0.44.2",
+ "subxt-signer 0.44.2",
+ "tokio",
 ]
 
 [[package]]

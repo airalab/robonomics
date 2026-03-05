@@ -21,3 +21,7 @@ sp-maybe-compressed-blob.workspace = true
 sc-executor.workspace = true
 sc-executor-common.workspace = true
 parity-scale-codec.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+subxt-signer.workspace = true

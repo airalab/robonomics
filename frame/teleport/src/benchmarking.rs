@@ -28,12 +28,9 @@ use frame_system::RawOrigin;
 use sp_runtime::traits::StaticLookup;
 use xcm::prelude::*;
 
-#[benchmarks(
-    where
-        T: pallet_balances::Config,
-        <T as pallet_balances::Config>::Balance: From<u128>,
-        <<T as frame_system::Config>::Lookup as StaticLookup>::Source: From<T::AccountId>,
-)]
+pub type AssetTransactorOf<T> = <<T as Config>::XcmConfig as xcm_executor::Config>::AssetTransactor;
+
+#[benchmarks]
 mod benchmarks {
     use super::*;
 
@@ -56,12 +53,7 @@ mod benchmarks {
         );
         let amount: u128 = 1_000_000_000;
 
-        // set beneficiary balance
-        let _ = pallet_balances::Pallet::<T>::force_set_balance(
-            RawOrigin::Root.into(),
-            caller.clone().into(),
-            (amount * 2).into(),
-        );
+        <AssetTransactorOf<T>>::deposit_asset(&T::AssetId::get(), &sender_location, None).unwrap();
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), beneficiary, amount);

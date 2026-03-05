@@ -6,15 +6,6 @@ A specialized pallet for sending native XRT tokens from the Robonomics parachain
 
 This pallet provides a simplified and restricted XCM teleport interface specifically designed for the Robonomics network. It enables users to send native XRT tokens to the Asset Hub parachain for cross-chain operations with configurable execution fees.
 
-## Features
-
-- **Single Asset Support**: Only supports native asset (XRT via pallet_balances)
-- **Hardcoded Destination**: Asset Hub parachain only (para ID 1000)
-- **Configurable Fees**: Fee asset configured at runtime level
-- **Modern XCM v5**: Uses WithdrawAsset, BurnAsset, and ReceiveTeleportedAsset
-- **Simple API**: Beneficiary as XCM Location
-- **Automatic Execution**: Local burn handled via XCM execute
-
 ## API
 
 ### Extrinsic: `send`
@@ -30,12 +21,12 @@ pub fn send(
 **Parameters:**
 - `origin`: Signed origin (sender account)
 - `beneficiary`: XCM Location of recipient (typically AccountId32 on Asset Hub)
-- `amount`: Amount of native XRT to send (as u128)
+- `amount`: Amount of token to send (as u128)
 
 **Errors:**
 - `BurnFailure`: Failed to burn assets locally
 - `SendFailure`: XCM message send failed
-- `CannotReanchor`: Failed to reanchor asset for destination chain
+- `CannotReanchor`: Failed to reanchor asset for destination chain (usually configuration issues)
 
 ## Usage Example
 
@@ -74,6 +65,7 @@ parameter_types! {
     pub AssetHubLocation: Location = Location::new(1, [Parachain(1000)]);
     
     // Fee asset (relay chain native asset with amount)
+    // Note: Parachain account on destination chain will cover execution fees
     pub TeleportFeeAsset: Asset = Asset {
         id: AssetId(Location::parent()),
         fun: Fungibility::Fungible(10_000_000_000), // 1 DOT (10 decimals)
@@ -84,7 +76,7 @@ parameter_types! {
     
     // Universal location for asset reanchoring
     pub UniversalLocation: InteriorLocation = [
-        GlobalConsensus(NetworkId::Rococo),
+        GlobalConsensus(NetworkId::Kusama),
         Parachain(2000)
     ].into();
     
@@ -113,20 +105,11 @@ impl pallet_robonomics_teleport::Config for Runtime {
 - `XcmPallet`: XCM pallet for execute and send operations
 - `WeightInfo`: Weight information from benchmarks
 - `MaxWeight`: Maximum weight for local XCM execution
-- `AssetId`: Native asset identifier (Location::here())
-- `FeeAsset`: Fee asset and amount for Asset Hub execution
-- `TargetLocation`: Destination location (Asset Hub)
-- `ParachainLocation`: This parachain's location (for fee refunds)
+- `AssetId`: Asset identifier (For native asset use Location::here())
+- `FeeAsset`: Execution fee asset and amount (Relay token for Asset Hub)
+- `TargetLocation`: Destination location (Usually Asset Hub)
+- `ParachainLocation`: This parachain's location (for execution fee refunds)
 - `UniversalLocation`: Universal location for asset reanchoring
-
-## Runtime Integration
-
-Add to `construct_runtime!` macro:
-
-```rust
-#[runtime::pallet_index(76)]
-pub type TeleportXrt = pallet_robonomics_teleport;
-```
 
 ## How It Works
 
@@ -140,11 +123,11 @@ The `send` extrinsic constructs and sends two XCM messages:
 3. **BurnAsset** - Burns the assets (preparing for teleport)
 
 **Remote Message (to Asset Hub):**
-1. **WithdrawAsset** - Withdraws fee asset from parachain account on Asset Hub
+1. **WithdrawAsset** - Withdraws fee asset from parachain account
 2. **PayFees** - Pays execution fees using withdrawn relay asset
 3. **ReceiveTeleportedAsset** - Receives the teleported assets
 4. **DepositAsset** - Deposits received assets to beneficiary
-5. **RefundSurplus** - Refunds unused fees
+5. **RefundSurplus** - Refunds unused execution fees
 6. **DepositAsset** - Returns refunded fees to parachain account
 ### Teleport Semantics
 
@@ -172,47 +155,6 @@ The pallet implements comprehensive error handling:
 | `CannotReanchor` | Failed to reanchor asset | Invalid configuration or unsupported asset |
 | `SendFailure` | XCM message send failed | XCM router error or destination unreachable |
 
-## Testing
-
-### Unit Tests
-
-Run the pallet unit tests:
-
-```bash
-cargo test -p pallet-robonomics-teleport
-```
-
-**Test Coverage:**
-- ✅ Basic send functionality with event emission
-- ✅ Send with maximum balance
-- ✅ Send with different beneficiary addresses
-- ✅ Send with varying fee amounts
-- ✅ Genesis configuration validation
-
-### Benchmarking
-
-Run benchmarks to determine weight values:
-
-```bash
-cargo bench -p pallet-robonomics-teleport
-```
-
-The benchmark measures the computational cost of the `send` extrinsic including:
-- XCM message construction
-- Message validation and sending
-- Event emission
-
-### XCM Simulator Tests
-
-For comprehensive integration testing with actual XCM message delivery between chains, refer to the XCM simulator testing documentation in the main project repository.
-
-**Simulator Test Scenarios:**
-- Cross-chain message delivery validation
-- Asset teleportation between parachains
-- Fee handling and payment verification
-- Edge cases (minimum balances, large amounts)
-- Error conditions (insufficient balance, overflow)
-
 ## Security Considerations
 
 - ✅ **Single Destination**: Hardcoded to Asset Hub prevents misuse
@@ -226,7 +168,6 @@ For comprehensive integration testing with actual XCM message delivery between c
 
 - **Fixed Destination**: Cannot send to other parachains
 - **Native Asset Only**: Cannot send foreign or multi-assets
-- **No Fee Estimation**: Fee must be specified by caller
 - **Trust Required**: Both chains must support teleport
 - **No Retry Logic**: Failed transfers must be initiated again
 
