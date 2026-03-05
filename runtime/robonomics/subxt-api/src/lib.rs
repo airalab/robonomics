@@ -99,7 +99,7 @@
 //!     .storage()
 //!     .at_latest()
 //!     .await?
-//!     .fetch(&api::storage().system().account(&alice))
+//!     .fetch(&api::storage().system().account(alice))
 //!     .await?;
 //! println!("Account: {:?}", account);
 //! # Ok(())
@@ -224,7 +224,6 @@ pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
 /// ```no_run
 /// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsExtrinsicParamsBuilder};
 /// # use subxt::OnlineClient;
-/// # use subxt::config::polkadot::PlainTip;
 /// # use subxt_signer::sr25519::dev;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
@@ -233,7 +232,7 @@ pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
 ///
 /// // Build custom params with a tip
 /// let params = RobonomicsExtrinsicParamsBuilder::<RobonomicsConfig>::new()
-///     .tip(PlainTip::new(1_000_000))
+///     .tip(1_000_000)
 ///     .build();
 ///
 /// let hash = client.tx().sign_and_submit(&tx, &alice, params).await?;
@@ -278,7 +277,7 @@ pub mod cps_impls {
         /// # Example
         ///
         /// ```no_run
-        /// use robonomics_runtime_subxt_api::cps_impls::NodeData;
+        /// use robonomics_runtime_subxt_api::api::runtime_types::pallet_robonomics_cps::NodeData;
         ///
         /// // Assume we have encrypted bytes from an AEAD cipher
         /// let encrypted_bytes = vec![/* encrypted data */];
@@ -295,10 +294,10 @@ pub mod cps_impls {
         /// # Example
         ///
         /// ```no_run
-        /// use robonomics_runtime_subxt_api::cps_impls::NodeData;
+        /// use robonomics_runtime_subxt_api::api::runtime_types::pallet_robonomics_cps::NodeData;
         ///
         /// let data = vec![1, 2, 3, 4];
-        /// let node_data = NodeData::from(data);
+        /// let node_data: NodeData = data.into();
         /// ```
         fn from(v: Vec<u8>) -> Self {
             NodeData::Plain(BoundedVec(v))
@@ -313,7 +312,7 @@ pub mod cps_impls {
         /// # Example
         ///
         /// ```no_run
-        /// use robonomics_runtime_subxt_api::cps_impls::NodeData;
+        /// use robonomics_runtime_subxt_api::api::runtime_types::pallet_robonomics_cps::NodeData;
         ///
         /// let node_data = NodeData::from("Hello, CPS!".to_string());
         /// ```
@@ -328,9 +327,9 @@ pub mod cps_impls {
         /// # Example
         ///
         /// ```no_run
-        /// use robonomics_runtime_subxt_api::cps_impls::NodeData;
+        /// use robonomics_runtime_subxt_api::api::runtime_types::pallet_robonomics_cps::NodeData;
         ///
-        /// let node_data = NodeData::from("Hello, CPS!");
+        /// let node_data: NodeData = "Hello, CPS!".into();
         /// ```
         fn from(s: &str) -> Self {
             Self::from(s.as_bytes().to_vec())

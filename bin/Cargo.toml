@@ -13,11 +13,12 @@ name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
-color-eyre.workspace = true
 polkadot-omni-node-lib.workspace = true
 robonomics-runtime.workspace = true
 robonomics-runtime.features = ["dev-runtime"]
 sp-genesis-builder.workspace = true
+rustls.workspace = true
+color-eyre.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true

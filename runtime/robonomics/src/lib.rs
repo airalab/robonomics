@@ -616,7 +616,7 @@ mod runtime {
     pub type Liability = pallet_robonomics_liability;
 
     #[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-    #[runtime::pallet_index(57)]
+    #[runtime::pallet_index(59)]
     pub type CPS = pallet_robonomics_cps;
 
     //
@@ -634,6 +634,9 @@ mod runtime {
 
     #[runtime::pallet_index(75)]
     pub type MessageQueue = pallet_message_queue;
+
+    #[runtime::pallet_index(76)]
+    pub type TeleportXRT = pallet_robonomics_teleport;
 
     //
     // Elastic scaling consensus pallets.
@@ -774,6 +777,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
     [pallet_robonomics_claim, ClaimXRT]
+    [pallet_robonomics_teleport, TeleportXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     [pallet_message_queue, MessageQueue]

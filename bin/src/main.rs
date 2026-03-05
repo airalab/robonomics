@@ -29,10 +29,8 @@ struct CliConfig;
 impl CliConfigT for CliConfig {
     fn impl_version() -> String {
         let commit_hash = env!("SUBSTRATE_CLI_COMMIT_HASH");
-        format!(
-            "robonomics-{commit_hash} :: polkadot omni node v{}",
-            NODE_VERSION
-        )
+        let version = env!("CARGO_PKG_VERSION");
+        format!("{version}({commit_hash}) :: Polkadot {}", NODE_VERSION)
     }
 
     fn author() -> String {
@@ -93,6 +91,10 @@ impl LoadSpec for RobonomicsChainSpecLoader {
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
+
+    // Install the ring CryptoProvider for rustls before any TLS connections are made.
+    // Ignore the error if a provider was already installed.
+    let _ = rustls::crypto::ring::default_provider().install_default();
 
     let config = RunConfig::new(
         Box::new(DefaultRuntimeResolver),

@@ -113,7 +113,7 @@ where
 
 /// Run all integration tests
 pub async fn run_integration_tests(
-    network: &Network<LocalFileSystem>,
+    network: Option<&Network<LocalFileSystem>>,
     fail_fast: bool,
     test_filter: Option<Vec<String>>,
     json_output: bool,
@@ -176,7 +176,6 @@ pub async fn run_integration_tests(
         }
     }
 
-    /*
     if test_filter.is_none()
         || test_filter
             .as_ref()
@@ -209,7 +208,6 @@ pub async fn run_integration_tests(
             return build_results(results, suite_start, json_output);
         }
     }
-    */
 
     if test_filter.is_none()
         || test_filter
