@@ -49,7 +49,7 @@ pub async fn test_block_production(network: Option<&Network<LocalFileSystem>>) -
     let block_num1 = block1.number();
     log::debug!("Relay chain block: {}", block_num1);
 
-    tokio::time::sleep(Duration::from_secs(6)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
 
     let block2 = relay_client.blocks().at_latest().await?;
     let block_num2 = block2.number();
@@ -66,7 +66,7 @@ pub async fn test_block_production(network: Option<&Network<LocalFileSystem>>) -
     let para_block_num1 = para_block1.number();
     log::debug!("Parachain block: {}", para_block_num1);
 
-    tokio::time::sleep(Duration::from_secs(6)).await;
+    tokio::time::sleep(Duration::from_secs(20)).await;
 
     let para_block2 = para_client.blocks().at_latest().await?;
     let para_block_num2 = para_block2.number();

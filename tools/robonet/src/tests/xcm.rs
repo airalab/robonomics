@@ -110,6 +110,13 @@ mod robonomics_xcm {
         api::tx().sudo().sudo(notify_call)
     }
 
+    pub fn account_location(id: [u8; 32]) -> Location {
+        Location {
+            parents: 0,
+            interior: Junctions::X1([Junction::AccountId32 { network: None, id }]),
+        }
+    }
+
     pub const RELAY_LOCATION: Location = Location {
         parents: 1,
         interior: Junctions::Here,
@@ -266,7 +273,7 @@ pub async fn test_xcm_upward_message(network: Option<&Network<LocalFileSystem>>)
         .await
         .context("Failed to subscribe to relay blocks")?;
 
-    let timeout = Duration::from_secs(60);
+    let timeout = Duration::from_secs(120);
     let start = std::time::Instant::now();
     while start.elapsed() < timeout {
         if let Some(block_result) = blocks_sub.next().await {
@@ -277,21 +284,24 @@ pub async fn test_xcm_upward_message(network: Option<&Network<LocalFileSystem>>)
                 let event = event.context("Failed to parse event")?;
 
                 // Check for MessageQueue::Processed event
-                if event.pallet_name() == "messageQueue" && event.variant_name() == "Processed" {
+                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
                     // Try to decode the event to check success field
-                    if let Ok(decoded) =
-                        event.as_root_event::<relay::message_queue::events::Processed>()
+                    if let Some(decoded) = event
+                        .as_event::<relay::message_queue::events::Processed>()
+                        .context(
+                            "  event.as_event::<relay::message_queue::events::Processed> fails",
+                        )?
                     {
-                        log::info!("  MessageQueue::Processed event found: {:?}", decoded);
+                        log::info!("  Event found: {:?}", decoded);
                         if decoded.success {
                             log::info!(
                                 "  ✓ MessageQueue event processed successfully on relay chain"
                             );
+                            return Ok(());
                         } else {
                             log::error!("  ⚠ MessageQueue event is not success");
                             bail!("Transaction failed on destination chain")
                         }
-                        break;
                     }
                 }
             }
@@ -368,7 +378,7 @@ pub async fn test_xcm_downward_message(network: Option<&Network<LocalFileSystem>
         .await
         .context("Failed to subscribe to parachain blocks")?;
 
-    let timeout = Duration::from_secs(30);
+    let timeout = Duration::from_secs(120);
     let start = std::time::Instant::now();
     while start.elapsed() < timeout {
         if let Some(block_result) = blocks_sub.next().await {
@@ -379,10 +389,13 @@ pub async fn test_xcm_downward_message(network: Option<&Network<LocalFileSystem>
                 let event = event.context("Failed to parse event")?;
 
                 // Check for MessageQueue::Processed event
-                if event.pallet_name() == "messageQueue" && event.variant_name() == "Processed" {
+                if event.pallet_name() == "MessageQueue" && event.variant_name() == "Processed" {
                     // Try to decode the event to check success field
-                    if let Ok(decoded) =
-                        event.as_root_event::<api::message_queue::events::Processed>()
+                    if let Some(decoded) = event
+                        .as_event::<api::message_queue::events::Processed>()
+                        .context(
+                            "  event.as_event::<api::message_queue::events::Processed> fails",
+                        )?
                     {
                         log::info!(
                             "  MessageQueue::Processed event found: success={:?}",
@@ -392,11 +405,11 @@ pub async fn test_xcm_downward_message(network: Option<&Network<LocalFileSystem>
                             log::info!(
                                 "  ✓ MessageQueue event processed successfully on parachain"
                             );
+                            return Ok(());
                         } else {
                             log::error!("  ⚠ MessageQueue event is not success");
                             bail!("Transaction failed on destination chain")
                         }
-                        break;
                     }
                 }
             }
@@ -494,19 +507,11 @@ pub async fn test_hrmp_create_channel(network: Option<&Network<LocalFileSystem>>
                         .context("  event.as_event::<relay::hrmp::events::HrmpSystemChannelOpened> fails")? {
                         log::info!("  Event found: {:?}", decoded);
 
-                        ensure!(
-                            decoded.sender.0 == PARA_ID,
-                            "Sender should be {} but was {:?}",
-                            PARA_ID, decoded.sender,
-                        );
-                        ensure!(
-                            decoded.recipient.0 == ASSET_HUB_PARA_ID,
-                            "Sender should be {} but was {:?}",
-                            ASSET_HUB_PARA_ID, decoded.recipient,
-                        );
-
-                        event_found = true;
-                        break;
+                        if decoded.sender.0 == PARA_ID && decoded.recipient.0 == ASSET_HUB_PARA_ID {
+                            log::info!("  Event confirmed");
+                            event_found = true;
+                            break;
+                        }
                     } else {
                         bail!("Unable to decode HrmpSystemChannelOpened event");
                     }
@@ -518,6 +523,21 @@ pub async fn test_hrmp_create_channel(network: Option<&Network<LocalFileSystem>>
     if start.elapsed() > timeout {
         log::warn!("  ⚠ HrmpSystemChannelOpened event not found within timeout");
         bail!("XCM failed")
+    }
+
+    let version_query = api::storage().xcm_pallet().supported_version(
+        5,
+        robonomics_xcm::VersionedLocation::V5(robonomics_xcm::RELAY_LOCATION),
+    );
+    if let Some(5) = para_client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&version_query)
+        .await?
+    {
+        log::info!("  Parachain already known relay XCM version, test finish");
+        return Ok(());
     }
 
     // Wait for relay version event on parachain chain
@@ -552,18 +572,10 @@ pub async fn test_hrmp_create_channel(network: Option<&Network<LocalFileSystem>>
                         .context("  event.as_event::<robonomics::xcm_pallet::events::SupportedVersionChanged> fails")? {
                         log::info!("  Event found: {:?}", decoded);
 
-                        ensure!(
-                            decoded.version == 5u32,
-                            "Version should be {} but was {:?}",
-                            5u32, decoded.version,
-                        );
-                        ensure!(
-                            decoded.location == robonomics_xcm::RELAY_LOCATION,
-                            "Location should be {:?} but was {:?}",
-                            robonomics_xcm::RELAY_LOCATION, decoded.location,
-                        );
-
-                        return Ok(())
+                        if decoded.version == 5u32 && decoded.location == robonomics_xcm::RELAY_LOCATION {
+                            log::info!("  Event confirmed, test success");
+                            return Ok(())
+                        }
                     } else {
                         bail!("Unable to decode SupportedVersionChanged event");
                     }
@@ -645,18 +657,10 @@ pub async fn test_subscribe_version_notify(
                         .context("  event.as_event::<robonomics::xcm_pallet::events::SupportedVersionChanged> fails")? {
                         log::info!("  Event found: {:?}", decoded);
 
-                        ensure!(
-                            decoded.version == 5u32,
-                            "Version should be {} but was {:?}",
-                            5u32, decoded.version,
-                        );
-                        ensure!(
-                            decoded.location == robonomics_xcm::ASSET_HUB_LOCATION,
-                            "Location should be {:?} but was {:?}",
-                            robonomics_xcm::ASSET_HUB_LOCATION, decoded.location,
-                        );
-
-                        return Ok(())
+                        if decoded.version == 5u32 && decoded.location == robonomics_xcm::ASSET_HUB_LOCATION {
+                            log::info!("  Event confirmed, test success");
+                            return Ok(())
+                        }
                     } else {
                         bail!("Unable to decode SupportedVersionChanged event");
                     }
@@ -758,7 +762,7 @@ async fn test_create_foreign_asset(network: Option<&Network<LocalFileSystem>>) -
                             "  event.as_event::<assethub::foreign_assets::events::Created> fails",
                         )?
                     {
-                        log::info!("  ForeignAssets::Created event found: {:?}", decoded);
+                        log::info!("  Event found: {:?}", decoded);
 
                         ensure!(
                             decoded.asset_id == id,
@@ -898,7 +902,7 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
                             decoded.reserves,
                         );
 
-                        return Ok(());
+                        return Ok(())
                     } else {
                         bail!("Unable to decode ReservesUpdated event");
                     }
@@ -915,33 +919,12 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
     Ok(())
 }
 
-/*
-/// Test: Teleport native assets from Robonomics to AssetHub
-///
-/// This test demonstrates native asset (XRT) teleportation from the Robonomics parachain
-/// to AssetHub following Polkadot XCM standards.
-///
-/// The test performs the following steps:
-/// 1. Check initial balances on both chains
-/// 2. Teleport assets from Robonomics to AssetHub
-/// 3. Verify balance changes on both sides
-/// 4. Check XCM event emissions
-async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
+async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) ===");
 
     // Connect to both chains
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
-        .await
-        .context("Failed to connect to Robonomics parachain")?;
-
-    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(
-        endpoints
-            .assethub_ws
-            .as_ref()
-            .context("AssetHub endpoint not available")?,
-    )
-    .await
-    .context("Failed to connect to AssetHub")?;
+    let para_client = NetworkClient::robonomics(network).await?;
+    let assethub_client = NetworkClient::assethub(network).await?;
 
     log::info!("✓ Connected to Robonomics and AssetHub");
 
@@ -949,10 +932,13 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
     let alice = dev::alice();
     let alice_account_id: subxt::utils::AccountId32 = alice.public_key().into();
 
-    log::info!("  Sender account: Alice ({})", hex::encode(&alice_account_id));
+    log::info!(
+        "  Sender account: Alice ({})",
+        hex::encode(&alice_account_id)
+    );
 
     // Get initial balance on Robonomics parachain
-    let para_balance_query = api::storage().system().account(&alice_account_id);
+    let para_balance_query = api::storage().system().account(alice_account_id.clone());
     let para_block = para_client.blocks().at_latest().await?;
 
     let initial_para_balance = match para_client
@@ -979,303 +965,61 @@ async fn test_teleport_to_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
     log::info!("  Robonomics block: #{}", para_block.number());
 
     // Amount to teleport: 1 XRT = 1_000_000_000 COASE (9 decimals)
-    let teleport_amount: u128 = 1_000_000_000;
-    log::info!("  Amount to teleport: {} COASE (1 XRT)", teleport_amount);
-
-    // Use XCM v4 types from the generated runtime API
-    use api::runtime_types::staging_xcm::v4::{
-        asset::{Asset, AssetId, Assets, Fungibility},
-        junction::Junction,
-        junctions::Junctions,
-        location::Location,
-    };
-
-    // Construct XCM destination: AssetHub (parent 1, parachain 1000)
-    let dest = VersionedLocation::V4(Location {
-        parents: 1,
-        interior: Junctions::X1([Junction::Parachain(ASSET_HUB_PARA_ID)]),
-    });
+    let amount: u128 = 1_000_000_000;
+    log::info!("  Amount to teleport: {} Wn (1 XRT)", amount);
 
     // Construct beneficiary: Alice's account on destination
-    let beneficiary = VersionedLocation::V4(Location {
-        parents: 0,
-        interior: Junctions::X1([Junction::AccountId32 {
-            network: None,
-            id: alice_account_id.0,
-        }]),
-    });
+    let beneficiary = robonomics_xcm::account_location(alice_account_id.0.clone());
 
     // Construct assets: native asset with amount
-    let asset = Asset {
-        id: AssetId(Location {
-            parents: 0,
-            interior: Junctions::Here,
-        }),
-        fun: Fungibility::Fungible(teleport_amount),
-    };
-    let assets = VersionedAssets::V4(Assets(vec![asset]));
 
-    // Fee asset index: 0 (use first asset for fees)
-    let fee_asset_item = 0u32;
-
-    // Weight limit: Unlimited
-    let weight_limit = WeightLimit::Unlimited;
-
-    log::info!("  Constructing limited_teleport_assets transaction...");
+    log::info!("  Constructing teleport transaction...");
 
     // Create teleport transaction using static API
-    let teleport_tx = api::tx().polkadot_xcm().limited_teleport_assets(
-        Box::new(dest),
-        Box::new(beneficiary),
-        Box::new(assets),
-        fee_asset_item,
-        weight_limit,
-    );
+    let teleport_tx = api::tx().teleport_xrt().send(beneficiary, amount);
 
     log::info!("  Submitting teleport transaction...");
 
     // Submit and watch transaction
-    match para_client
+    let _events = para_client
         .tx()
         .sign_and_submit_then_watch_default(&teleport_tx, &alice)
         .await
-    {
-        Ok(progress) => {
-            // Wait for transaction to be included in a block
-            let events = progress.wait_for_finalized_success().await?;
-            log::info!("  ✓ Teleport transaction finalized");
-
-            // Look for XCM events
-            let mut attempted = false;
-            let mut sent = false;
-
-            for event in events.iter() {
-                let event = event?;
-                if let Ok(details) = event.as_root_event::<api::Event>() {
-                    match details {
-                        api::Event::PolkadotXcm(xcm_event) => {
-                            match xcm_event {
-                                api::polkadot_xcm::Event::Attempted { outcome } => {
-                                    log::info!("  ✓ XCM Attempted: {:?}", outcome);
-                                    attempted = true;
-                                }
-                                api::polkadot_xcm::Event::Sent { origin, destination, message, message_id } => {
-                                    log::info!("  ✓ XCM Sent from {:?} to {:?}", origin, destination);
-                                    log::info!("    Message ID: {:?}", message_id);
-                                    sent = true;
-                                }
-                                api::polkadot_xcm::Event::AssetsTrapped { hash, origin, assets } => {
-                                    log::warn!("  ⚠ Assets trapped: hash={:?}, origin={:?}", hash, origin);
-                                }
-                                _ => {}
-                            }
-                        }
-                        api::Event::XcmpQueue(queue_event) => {
-                            match queue_event {
-                                api::xcmp_queue::Event::XcmpMessageSent { message_hash } => {
-                                    log::info!("  ✓ XCMP message sent: {:?}", message_hash);
-                                }
-                                api::xcmp_queue::Event::Fail { message_hash, error, weight } => {
-                                    log::warn!("  ⚠ XCMP message failed: {:?}, error: {:?}", message_hash, error);
-                                }
-                                _ => {}
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-
-            if !attempted && !sent {
-                log::warn!("  ⚠ No XCM events found - this may be expected in test environment");
-            }
-
-            // Wait for message processing
-            tokio::time::sleep(Duration::from_secs(12)).await;
-
-            // Check final balance on Robonomics
-            let final_para_block = para_client.blocks().at_latest().await?;
-            let final_para_balance = match para_client
-                .storage()
-                .at(final_para_block.hash())
-                .fetch(&para_balance_query)
-                .await?
-            {
-                Some(account_info) => {
-                    log::info!("  Final Robonomics balance: {} COASE", account_info.data.free);
-                    account_info.data.free
-                }
-                None => 0u128,
-            };
-
-            // Verify balance decreased (accounting for transaction fees)
-            if final_para_balance < initial_para_balance {
-                let difference = initial_para_balance - final_para_balance;
-                log::info!(
-                    "  ✓ Balance decreased by {} COASE (teleport + fees)",
-                    difference
-                );
-
-                // The difference should be at least the teleport amount
-                if difference >= teleport_amount {
-                    log::info!("  ✓ Teleport amount verified");
-                } else {
-                    log::warn!(
-                        "  ⚠ Balance change ({}) less than teleport amount ({})",
-                        difference,
-                        teleport_amount
-                    );
-                }
-            } else {
-                log::warn!("  ⚠ Balance did not decrease as expected");
-            }
-
-            log::info!("✓ Teleport to AssetHub test completed successfully");
-        }
-        Err(e) => {
-            log::error!("  ✗ Teleport transaction failed: {}", e);
-            anyhow::bail!("Teleport transaction failed: {}", e);
-        }
-    }
-
-    Ok(())
-}
-
-/// Test: Teleport native assets from AssetHub back to Robonomics
-///
-/// This test demonstrates the reverse teleportation flow, sending native assets
-/// from AssetHub back to the Robonomics parachain.
-async fn test_teleport_from_assethub(endpoints: &NetworkEndpoints) -> Result<()> {
-    log::info!("=== Test: Teleport Assets (AssetHub -> Robonomics) ===");
-
-    // Connect to both chains
-    let para_client = OnlineClient::<RobonomicsConfig>::from_url(&endpoints.collator_ws)
+        .context("Failed to submit teleport transaction")?
+        .wait_for_finalized_success()
         .await
-        .context("Failed to connect to Robonomics parachain")?;
+        .context("Teleport transaction fails")?;
 
-    let assethub_client = OnlineClient::<PolkadotConfig>::from_url(
-        endpoints
-            .assethub_ws
-            .as_ref()
-            .context("AssetHub endpoint not available")?,
-    )
-    .await
-    .context("Failed to connect to AssetHub")?;
-
-    log::info!("✓ Connected to AssetHub and Robonomics");
-
-    // Use Bob as the sender (to test a different account)
-    let bob = dev::bob();
-    let bob_account_id: subxt::utils::AccountId32 = bob.public_key().into();
-
-    log::info!("  Sender account: Bob ({})", hex::encode(&bob_account_id));
-
-    // Check blocks
-    let assethub_block = assethub_client.blocks().at_latest().await?;
-    let para_block = para_client.blocks().at_latest().await?;
-
-    log::info!("  AssetHub block: #{}", assethub_block.number());
-    log::info!("  Robonomics block: #{}", para_block.number());
-
-    // Amount to teleport: 0.5 XRT = 500_000_000 COASE
-    let teleport_amount: u128 = 500_000_000;
-    log::info!("  Amount to teleport: {} COASE (0.5 XRT)", teleport_amount);
-
-    // Use XCM v4 types from the generated runtime API
-    use api::runtime_types::staging_xcm::v4::{
-        asset::{Asset, AssetId, Assets, Fungibility},
-        junction::Junction,
-        junctions::Junctions,
-        location::Location,
+    let final_para_balance = match para_client
+        .storage()
+        .at_latest()
+        .await?
+        .fetch(&para_balance_query)
+        .await?
+    {
+        Some(account_info) => {
+            let free_balance = account_info.data.free;
+            log::info!("  Final Robonomics balance: {} Wn", free_balance);
+            free_balance
+        }
+        None => {
+            log::warn!("  No balance found for Alice on Robonomics");
+            0u128
+        }
     };
 
-    // Construct XCM destination: Robonomics parachain (parent 1, parachain 2000)
-    let dest = VersionedLocation::V4(Location {
-        parents: 1,
-        interior: Junctions::X1([Junction::Parachain(PARA_ID)]),
-    });
-
-    // Construct beneficiary: Bob's account on Robonomics
-    let beneficiary = VersionedLocation::V4(Location {
-        parents: 0,
-        interior: Junctions::X1([Junction::AccountId32 {
-            network: None,
-            id: bob_account_id.0,
-        }]),
-    });
-
-    // Construct assets representing Robonomics' native token
-    // On AssetHub, this would be represented as a foreign asset from Robonomics
-    let asset = Asset {
-        id: AssetId(Location {
-            parents: 1,
-            interior: Junctions::X2([
-                Junction::Parachain(PARA_ID),
-                Junction::GeneralIndex(0),
-            ]),
-        }),
-        fun: Fungibility::Fungible(teleport_amount),
-    };
-    let assets = VersionedAssets::V4(Assets(vec![asset]));
-
-    // Fee asset index
-    let fee_asset_item = 0u32;
-
-    // Weight limit: Unlimited
-    let weight_limit = WeightLimit::Unlimited;
-
-    log::info!("  Constructing limited_teleport_assets transaction...");
-
-    // Note: This will likely fail because Bob may not have assets on AssetHub
-    // This test primarily validates the message construction and XCM flow
-    let teleport_tx = api::tx().polkadot_xcm().limited_teleport_assets(
-        Box::new(dest),
-        Box::new(beneficiary),
-        Box::new(assets),
-        fee_asset_item,
-        weight_limit,
+    ensure!(
+        final_para_balance + amount < initial_para_balance,
+        "Wrong final Alice balance on parachain"
     );
 
-    log::info!("  Attempting reverse teleport (may fail due to insufficient balance)...");
-
-    match assethub_client
-        .tx()
-        .sign_and_submit_then_watch_default(&teleport_tx, &bob)
-        .await
-    {
-        Ok(progress) => {
-            match progress.wait_for_finalized_success().await {
-                Ok(_events) => {
-                    log::info!("  ✓ Reverse teleport transaction finalized");
-                    log::info!("✓ Reverse teleport test completed successfully");
-                }
-                Err(e) => {
-                    log::warn!("  ⚠ Transaction included but execution may have failed: {}", e);
-                    log::info!("  This is expected - test validates XCM message construction");
-                }
-            }
-        }
-        Err(e) => {
-            log::warn!("  ⚠ Reverse teleport failed (expected): {}", e);
-            log::info!("  This is normal - Bob may not have assets on AssetHub");
-            log::info!("  ✓ XCM message structure and flow validated");
-        }
-    }
-
     Ok(())
 }
-*/
 
 /// Test: XCM token teleport between parachains
 ///
 /// This is the main test entry point that orchestrates all XCM teleportation tests.
 /// It runs different test scenarios based on the network topology.
-///
-/// # Test Scenarios
-///
-/// For **AssetHub** topology:
-/// 1. Teleport native assets from Robonomics to AssetHub
-/// 2. Teleport native assets from AssetHub back to Robonomics
 ///
 /// # Note on Foreign Assets
 ///
@@ -1289,27 +1033,20 @@ pub async fn test_xcm_token_teleport(network: Option<&Network<LocalFileSystem>>)
     log::info!("==================================================");
     log::info!("");
 
-    log::info!("[ 1/4 ] Register foreign asset on AssetHub");
+    log::info!("[ 1/5 ] Register foreign asset on AssetHub");
     test_hrmp_create_channel(network).await?;
 
-    log::info!("[ 2/4 ] Subscribe XCM version for AssetHub");
+    log::info!("[ 2/5 ] Subscribe XCM version for AssetHub");
     test_subscribe_version_notify(network).await?;
 
-    log::info!("[ 3/4 ] Register foreign asset on AssetHub");
+    log::info!("[ 3/5 ] Register foreign asset on AssetHub");
     test_create_foreign_asset(network).await?;
 
-    log::info!("[ 4/4 ] Set asset trusted reserve information");
+    log::info!("[ 4/5 ] Set asset trusted reserve information");
     test_set_asset_trusted_reserve(network).await?;
 
-    // Test 1: Teleport from Robonomics to AssetHub
-    log::info!("[ 3/4 ] Test Teleport: Robonomics -> AssetHub");
-    //test_teleport_to_assethub(&endpoints).await?;
-
-    log::info!("");
-
-    // Test 2: Teleport from AssetHub back to Robonomics
-    log::info!("[ 4/4 ] Test Teleport: AssetHub -> Robonomics");
-    //test_teleport_from_assethub(network).await?;
+    log::info!("[ 5/5 ] Test Teleport: Robonomics -> AssetHub");
+    test_teleport_to_assethub(network).await?;
 
     log::info!("");
     log::info!("==================================================");

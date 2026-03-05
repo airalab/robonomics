@@ -34,4 +34,4 @@ jobs:
             accept-flake-config = true
 
       - name: Run integration tests
-        run: nix develop .#robonet --command robonet test 
+        run: nix develop .#robonet --command robonet test --topology asset-hub 

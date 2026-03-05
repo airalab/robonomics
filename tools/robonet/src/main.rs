@@ -116,6 +116,8 @@ async fn cmd_test(
 
         let timeout_duration = Duration::from_secs(timeout);
         let network = network::spawn_network(topology, timeout_duration).await?;
+        // Wait some time until network start producing blocks
+        tokio::time::sleep(Duration::from_secs(120)).await;
         // Run tests
         let test_results = tests::run_integration_tests(
             Some(&network),
