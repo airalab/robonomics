@@ -343,10 +343,16 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type UniversalLocation = UniversalLocation;
     type ParachainLocation = ParachainLocation;
     type TargetLocation = AssetHubLocation;
+    #[cfg(not(feature = "runtime-benchmarks"))]
     type XcmPallet = XcmPallet;
     type MaxWeight = TeleportMaxWeight;
     type WeightInfo = crate::weights::pallet_robonomics_teleport::WeightInfo<Runtime>;
     type RuntimeEvent = RuntimeEvent;
+
+    #[cfg(feature = "runtime-benchmarks")]
+    type XcmPallet = pallet_robonomics_teleport::benchmarking::BenchmarkingXcmController;
+    #[cfg(feature = "runtime-benchmarks")]
+    type AssetTransactor = AssetTransactors;
 }
 
 #[cfg(test)]

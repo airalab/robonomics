@@ -15,69 +15,56 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Benchmarks for Robonomics Teleport Pallet
+//! Unit tests for the Robonomics Teleport pallet.
 //!
-//! This module provides runtime benchmarks for the `send` extrinsic to determine
-//! appropriate weight values for XCM teleport operations.
+//! These tests verify the core functionality of the `send` extrinsic using mock
+//! XCM components. For comprehensive XCM delivery testing with actual cross-chain
+//! message delivery, see XCM_SIMULATOR_TESTING.md.
 
-#![cfg(feature = "runtime-benchmarks")]
-
-use super::*;
-use frame_benchmarking::v2::*;
+use crate as pallet_robonomics_teleport;
+use frame_support::{
+    assert_ok, derive_impl, dispatch::PostDispatchInfo, parameter_types, traits::ConstU64,
+};
+use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchErrorWithPostInfo};
 use xcm::prelude::*;
-
-use frame_support::{dispatch::DispatchErrorWithPostInfo, traits::Get};
-use frame_system::RawOrigin;
-use sp_runtime::DispatchError;
-use sp_std::boxed::Box;
 use xcm_builder::{ExecuteController, SendController};
-use xcm_executor::traits::TransactAsset;
 
-#[benchmarks(where Location: From<<T as frame_system::Config>::AccountId>)]
-mod benchmarks {
-    use super::*;
+type Block = frame_system::mocking::MockBlock<Runtime>;
+type Balance = u64;
 
-    /// Benchmark the `send` extrinsic
-    ///
-    /// This measures the computational cost of:
-    /// - Constructing the XCM message
-    /// - Validating and sending the message to Asset Hub
-    /// - Emitting the Teleported event
-    #[benchmark]
-    fn send() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = whitelisted_caller();
-        let beneficiary_id = [1u8; 32];
-        let beneficiary = Location::new(
-            0,
-            [AccountId32 {
-                network: None,
-                id: beneficiary_id,
-            }],
-        );
-        let amount: u128 = 1_000_000_000;
+// Mock constants for XCM testing
+const MOCK_XCM_HASH: XcmHash = [0u8; 32];
+const MOCK_REF_TIME: u64 = 1000;
+const MOCK_PROOF_SIZE: u64 = 1000;
 
-        let asset = T::AssetId::get().into_asset(Fungibility::Fungible(amount));
-        let caller_location: Location = caller.clone().into();
-        T::AssetTransactor::deposit_asset(&asset, &caller_location, None).unwrap();
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), beneficiary, amount);
-
-        Ok(())
+// Configure a mock runtime to test the pallet.
+frame_support::construct_runtime!(
+    pub enum Runtime
+    {
+        System: frame_system,
+        Balances: pallet_balances,
+        RobonomicsTeleport: pallet_robonomics_teleport,
     }
+);
 
-    impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
+impl frame_system::Config for Runtime {
+    type Block = Block;
+    type AccountId = u64;
+    type Lookup = IdentityLookup<Self::AccountId>;
+    type AccountData = pallet_balances::AccountData<Balance>;
 }
 
-// Mock constants for XCM benchmarks
-const MOCK_XCM_HASH: XcmHash = [0u8; 32];
-const MOCK_REF_TIME: u64 = 0;
-const MOCK_PROOF_SIZE: u64 = 0;
+#[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
+impl pallet_balances::Config for Runtime {
+    type ExistentialDeposit = ConstU64<1>;
+    type AccountStore = System;
+}
 
 // Mock XCM controller that supports both execute and send
-pub struct BenchmarkingXcmController;
+pub struct MockXcmController;
 
-impl SendXcm for BenchmarkingXcmController {
+impl SendXcm for MockXcmController {
     type Ticket = ();
 
     fn validate(
@@ -93,7 +80,7 @@ impl SendXcm for BenchmarkingXcmController {
     }
 }
 
-impl<Call> ExecuteXcm<Call> for BenchmarkingXcmController {
+impl<Call> ExecuteXcm<Call> for MockXcmController {
     type Prepared = MockPreparedMessage;
 
     fn prepare_and_execute(
@@ -132,7 +119,7 @@ impl<Call> ExecuteXcm<Call> for BenchmarkingXcmController {
     }
 }
 
-impl<RuntimeOrigin> SendController<RuntimeOrigin> for BenchmarkingXcmController {
+impl SendController<RuntimeOrigin> for MockXcmController {
     type WeightInfo = ();
 
     fn send(
@@ -144,16 +131,14 @@ impl<RuntimeOrigin> SendController<RuntimeOrigin> for BenchmarkingXcmController 
     }
 }
 
-impl<RuntimeOrigin, RuntimeCall> ExecuteController<RuntimeOrigin, RuntimeCall>
-    for BenchmarkingXcmController
-{
+impl ExecuteController<RuntimeOrigin, RuntimeCall> for MockXcmController {
     type WeightInfo = ();
 
     fn execute(
         _origin: RuntimeOrigin,
         _message: Box<VersionedXcm<RuntimeCall>>,
         _max_weight: Weight,
-    ) -> Result<Weight, DispatchErrorWithPostInfo> {
+    ) -> Result<Weight, DispatchErrorWithPostInfo<PostDispatchInfo>> {
         Ok(Weight::from_parts(MOCK_REF_TIME, MOCK_PROOF_SIZE))
     }
 }
@@ -203,4 +188,56 @@ impl<Call> ExecuteXcm<Call> for MockXcmExecutor {
     fn charge_fees(_location: impl Into<Location>, _fees: Assets) -> Result<(), xcm::v5::Error> {
         Ok(())
     }
+}
+
+parameter_types! {
+    /// Target location for teleports in tests (e.g. an asset hub parachain).
+    pub TargetLocationTest: Location = Location::new(1, [Parachain(1000)]);
+
+    /// Default fee asset used by the teleport pallet in tests.
+    /// Amount: 1000 units of relay chain asset for testing
+    pub FeeAssetTest: Asset = Asset {
+        id: AssetId(Location::parent()),
+        fun: Fungibility::Fungible(1000),
+    };
+
+    /// Parachain location for refund tests
+    pub ParachainLocationTest: Location = Location::new(1, [Parachain(2000)]);
+
+    /// Universal location for asset reanchoring
+    pub UniversalLocationTest: InteriorLocation = [GlobalConsensus(NetworkId::Kusama), Parachain(2000)].into();
+
+    /// Native asset ID (here means native asset)
+    pub NativeAssetIdTest: AssetId = AssetId(Location::here());
+
+    /// Max weight for local XCM execution
+    pub MaxWeightTest: Weight = Weight::from_parts(10_000_000, 10_000);
+}
+
+impl pallet_robonomics_teleport::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type XcmPallet = MockXcmController;
+    type WeightInfo = crate::weights::TestWeightInfo;
+    type MaxWeight = MaxWeightTest;
+    type AssetId = NativeAssetIdTest;
+    type FeeAsset = FeeAssetTest;
+    type TargetLocation = TargetLocationTest;
+    type ParachainLocation = ParachainLocationTest;
+    type UniversalLocation = UniversalLocationTest;
+}
+
+// Build genesis storage according to the mock runtime.
+pub fn new_test_ext() -> sp_io::TestExternalities {
+    let mut t = frame_system::GenesisConfig::<Runtime>::default()
+        .build_storage()
+        .unwrap();
+
+    pallet_balances::GenesisConfig::<Runtime> {
+        balances: vec![(1, 1000), (2, 2000), (3, 3000)],
+        dev_accounts: None,
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    t.into()
 }

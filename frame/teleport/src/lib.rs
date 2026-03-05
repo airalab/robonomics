@@ -63,7 +63,7 @@
 mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub mod benchmarking;
 
 pub mod weights;
 pub use weights::WeightInfo;
@@ -115,6 +115,11 @@ pub mod pallet {
         /// This chain's Universal Location (used for asset reanchor).
         #[pallet::constant]
         type UniversalLocation: Get<InteriorLocation>;
+
+        /// This parameter used for benchmarking only,
+        /// transactor helps deposit asset to test account
+        #[cfg(feature = "runtime-benchmarks")]
+        type AssetTransactor: xcm_executor::traits::TransactAsset;
     }
 
     #[pallet::pallet]
@@ -165,7 +170,6 @@ pub mod pallet {
         /// - `origin`: Must be a signed account with sufficient native asset balance
         /// - `beneficiary`: The 32-byte AccountId32 of the recipient on Asset Hub
         /// - `amount`: Amount of native asset to send (will be converted to u128)
-        /// - `fee`: Amount of relay chain asset to use for execution fees on Asset Hub
         ///
         /// # Errors
         ///
@@ -179,8 +183,7 @@ pub mod pallet {
         /// TeleportXrt::send(
         ///     Origin::signed(alice),
         ///     [0x01; 32],        // Beneficiary AccountId32
-        ///     1_000_000_000,     // 1000 XRT
-        ///     50_000_000,        // 50 relay tokens for fees
+        ///     1_000_000_000,     // 1 XRT
         /// )?;
         /// ```
         #[pallet::call_index(0)]
