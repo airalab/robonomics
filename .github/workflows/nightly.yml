@@ -80,7 +80,17 @@ jobs:
         with:
           name: robonomics-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/production/robonomics
-          retention-days: 1
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robonet-${{ matrix.platform.target }}
+          path: target/${{ matrix.platform.target }}/production/robonet
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cps-${{ matrix.platform.target }}
+          path: target/${{ matrix.platform.target }}/production/cps
+          retention-days: 7
 
   docker:
     needs: release-binary

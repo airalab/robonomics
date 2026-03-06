@@ -15,79 +15,17 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
+//! Robonomics Node binary
+
+#![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-use polkadot_omni_node_lib::{
-    chain_spec::{ChainSpec, Extensions, GenericChainSpec, LoadSpec},
-    run,
-    runtime::DefaultRuntimeResolver,
-    CliConfig as CliConfigT, RunConfig, NODE_VERSION,
-};
+// Force the linker to keep the polkadot_jemalloc_shim crate (and its #[global_allocator]).
+#[cfg(target_os = "linux")]
+extern crate polkadot_jemalloc_shim;
 
-struct CliConfig;
-
-impl CliConfigT for CliConfig {
-    fn impl_version() -> String {
-        let commit_hash = env!("SUBSTRATE_CLI_COMMIT_HASH");
-        let version = env!("CARGO_PKG_VERSION");
-        format!("{version}({commit_hash}) :: Polkadot {}", NODE_VERSION)
-    }
-
-    fn author() -> String {
-        env!("CARGO_PKG_AUTHORS").into()
-    }
-
-    fn support_url() -> String {
-        "https://github.com/airalab/robonomics/issues/new".into()
-    }
-
-    fn copyright_start_year() -> u16 {
-        2018
-    }
-}
-
-fn robonomics_development_config() -> Result<GenericChainSpec, String> {
-    let config = GenericChainSpec::builder(
-        robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("westend-local".into(), 2048),
-    )
-    .with_name("Robonomics Local Develoment")
-    .with_id("robonomics-local-development")
-    .with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
-    .build();
-    Ok(config)
-}
-
-fn robonomics_localnet_config() -> Result<GenericChainSpec, String> {
-    let config = GenericChainSpec::builder(
-        robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("rococo-local".into(), 2000),
-    )
-    .with_name("Robonomics Localnet")
-    .with_id("robonomics-localnet")
-    .with_genesis_config_preset_name(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET)
-    .build();
-    Ok(config)
-}
-
-/// OMNI chain spec loader with buildin robonomics chains.
-struct RobonomicsChainSpecLoader;
-
-impl LoadSpec for RobonomicsChainSpecLoader {
-    fn load_spec(&self, path: &str) -> Result<Box<dyn ChainSpec>, String> {
-        Ok(Box::new(match path {
-            "" | "polkadot" => GenericChainSpec::from_json_bytes(
-                &include_bytes!("../../chains/polkadot-parachain.raw.json")[..],
-            )?,
-            "kusama" => GenericChainSpec::from_json_bytes(
-                &include_bytes!("../../chains/kusama-parachain.raw.json")[..],
-            )?,
-            "local" => robonomics_localnet_config()?,
-            "dev" => robonomics_development_config()?,
-            path => GenericChainSpec::from_json_file(path.into())?,
-        }))
-    }
-}
+/// OMNI Node based CLI
+mod cli;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
@@ -96,9 +34,5 @@ fn main() -> color_eyre::eyre::Result<()> {
     // Ignore the error if a provider was already installed.
     let _ = rustls::crypto::ring::default_provider().install_default();
 
-    let config = RunConfig::new(
-        Box::new(DefaultRuntimeResolver),
-        Box::new(RobonomicsChainSpecLoader),
-    );
-    Ok(run::<CliConfig>(config)?)
+    cli::run()
 }

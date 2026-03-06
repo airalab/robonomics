@@ -66,35 +66,24 @@ anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
 log = "0.4"
-
-# Robonet dependencies
 zombienet-sdk = "0.4.6"
 # NOTE: subxt and subxt-signer are intentionally pinned to 0.44.0 for
 # compatibility with zombienet-sdk code.
 subxt = "0.44.0"
 subxt-signer = "0.44.0"
-
-# Cryptography (for libcps)
 curve25519-dalek = "4.1"
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 chacha20poly1305 = "0.10"
 aes-gcm = "0.10"
 hkdf = "0.12"
 sha2 = "0.10"
-
-# Serialization (for libcps)
 base64 = "0.22"
 hex = "0.4.3"
 toml = "0.8.12"
-
-# MQTT (for libcps)
 rumqttc = "0.25"
-
-# CLI (for libcps)
 colored = "3.1"
 chrono = "0.4"
 indicatif = "0.18"
-polkadot-omni-node-lib = { version = "0.13.0" }
 assert_cmd = "2.0.14"
 easy-hex = "1.0"
 
@@ -121,41 +110,41 @@ sp-genesis-builder = { version = "0.21.0", default-features = false }
 sp-keyring = { version = "45.0.0", default-features = false }
 
 # (native)
-frame-benchmarking-cli = { version = "53.0.0" }
-pallet-transaction-payment-rpc = { version = "48.0.0" }
-substrate-build-script-utils = { version = "11.0.0" }
-substrate-frame-rpc-system = { version = "49.0.0" }
-substrate-prometheus-endpoint = { version = "0.17.7" }
-sc-basic-authorship = { version = "0.53.0" }
-sc-cli = { version = "0.57.0" }
-sc-client-api = { version = "44.0.0" }
-sc-chain-spec = { version = "48.0.0" }
-sc-consensus = { version = "0.54.0" }
-sc-consensus-aura = { version = "0.55.0" }
-sc-consensus-grandpa = { version = "0.40.0" }
-sc-executor = { version = "0.47.0" }
-sc-executor-common = { version = "0.43.0" }
-sc-offchain = { version = "50.0.0" }
-sc-finality-grandpa = { version = "0.24.0" }
-sc-keystore = { version = "39.0.0" }
-sc-network = { version = "0.55.1" }
-sc-network-sync = { version = "0.54.0" }
-sc-rpc = { version = "50.0.0" }
-sc-rpc-api = { version = "0.54.0" }
-sc-service = { version = "0.56.0" }
-sc-storage-monitor = { version = "0.27.0" }
-sc-sysinfo = { version = "46.0.0" }
-sc-telemetry = { version = "30.0.0" }
-sc-tracing = { version = "44.0.0" }
-sc-transaction-pool = { version = "44.1.0" }
-sc-transaction-pool-api = { version = "43.0.0" }
-sp-blockchain = { version = "43.0.0" }
-sp-consensus = { version = "0.46.0" }
-sp-consensus-grandpa = { version = "27.0.0" }
-sp-keystore = { version = "0.45.0" }
-sp-maybe-compressed-blob = { version = "11.1.0" }
-sp-timestamp = { version = "40.0.0" }
-try-runtime-cli = { version = "0.42.0" }
+frame-benchmarking-cli = "53.0.0"
+pallet-transaction-payment-rpc = "48.0.0"
+substrate-build-script-utils = "11.0.0"
+substrate-frame-rpc-system = "49.0.0"
+substrate-prometheus-endpoint = "0.17.7"
+sc-basic-authorship = "0.53.0"
+sc-cli = "0.57.0"
+sc-client-api = "44.0.0"
+sc-chain-spec = "48.0.0"
+sc-consensus = "0.54.0"
+sc-consensus-aura = "0.55.0"
+sc-consensus-grandpa = "0.40.0"
+sc-executor = "0.47.0"
+sc-executor-common = "0.43.0"
+sc-offchain = "50.0.0"
+sc-finality-grandpa = "0.24.0"
+sc-keystore = "39.0.0"
+sc-network = "0.55.1"
+sc-network-sync = "0.54.0"
+sc-rpc = "50.0.0"
+sc-rpc-api = "0.54.0"
+sc-service = "0.56.0"
+sc-storage-monitor = "0.27.0"
+sc-sysinfo = "46.0.0"
+sc-telemetry = "30.0.0"
+sc-tracing = "44.0.0"
+sc-transaction-pool = "44.1.0"
+sc-transaction-pool-api = "43.0.0"
+sp-blockchain = "43.0.0"
+sp-consensus = "0.46.0"
+sp-consensus-grandpa = "27.0.0"
+sp-keystore = "0.45.0"
+sp-maybe-compressed-blob = "11.1.0"
+sp-timestamp = "40.0.0"
+try-runtime-cli = "0.42.0"
 
 # Substrate pallets
 # (wasm)
@@ -198,15 +187,15 @@ parachains-common = { version = "27.1.0", default-features = false }
 
 # Cumulus
 # (native)
-cumulus-client-cli = { version = "0.28.0" }
-cumulus-client-consensus-common = { version = "0.28.0" }
-cumulus-client-consensus-relay-chain = { version = "0.28.0" }
-cumulus-client-network = { version = "0.28.0" }
-cumulus-client-service = { version = "0.31.0" }
-cumulus-client-parachain-inherent = { version = "0.22.0" }
-cumulus-primitives-parachain-inherent = { version = "0.23.0" }
-cumulus-relay-chain-interface = { version = "0.28.0" }
-cumulus-relay-chain-rpc-interface = { version = "0.28.0" }
+cumulus-client-cli = "0.28.0"
+cumulus-client-consensus-common = "0.28.0"
+cumulus-client-consensus-relay-chain = "0.28.0"
+cumulus-client-network = "0.28.0"
+cumulus-client-service = "0.31.0"
+cumulus-client-parachain-inherent = "0.22.0"
+cumulus-primitives-parachain-inherent = "0.23.0"
+cumulus-relay-chain-interface = "0.28.0"
+cumulus-relay-chain-rpc-interface = "0.28.0"
 
 # Cumulus
 # (wasm)
@@ -224,7 +213,9 @@ cumulus-primitives-utility = { version = "0.25.0", default-features = false }
 
 # Polkadot
 # (native)
-polkadot-cli = { version = "31.0.0" }
+polkadot-cli = "31.0.0"
+polkadot-omni-node-lib = "0.13.0"
+polkadot-jemalloc-shim = "0.1.1"
 
 # Polkadot
 # (wasm)

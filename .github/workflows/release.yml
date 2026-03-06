@@ -83,21 +83,52 @@ jobs:
         name: robonomics-${{ matrix.arch }}-${{ matrix.platform }}
         path: ${{ matrix.arch }}-${{ matrix.platform }}-bin
 
-    - name: Make binary executable and tar gzip
+    - name: Download pre-built robonet binary
+      uses: actions/download-artifact@v4
+      with:
+        name: robonet-${{ matrix.arch }}-${{ matrix.platform }}
+        path: ${{ matrix.arch }}-${{ matrix.platform }}-bin
+
+    - name: Download pre-built cps binary
+      uses: actions/download-artifact@v4
+      with:
+        name: robonet-${{ matrix.arch }}-${{ matrix.platform }}
+        path: ${{ matrix.arch }}-${{ matrix.platform }}-bin
+
+    - name: Make binaries executable
       run: |
         cd ${{ matrix.arch }}-${{ matrix.platform }}-bin
-        chmod +x robonomics
-        tar zcvf robonomics.tar.gz robonomics
+        chmod +x robonomics robonet cps
 
-    - name: Upload binary artifact
+    - name: Upload robonomics artifact
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.arch }}-${{ matrix.platform }}-bin/robonomics.tar.gz
-        asset_name: robonomics-${{ github.ref_name }}-${{ matrix.arch }}-${{ matrix.platform }}.tar.gz
-        asset_content_type: application/gzip
+        asset_path: ${{ matrix.arch }}-${{ matrix.platform }}-bin/robonomics
+        asset_name: robonomics-${{ matrix.arch }}-${{ matrix.platform }}
+        asset_content_type: application/octet-stream
+
+    - name: Upload robonet artifact
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
+        asset_path: ${{ matrix.arch }}-${{ matrix.platform }}-bin/robonet
+        asset_name: robonet-${{ matrix.arch }}-${{ matrix.platform }}
+        asset_content_type: application/octet-stream
+
+    - name: Upload cps artifact
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
+        asset_path: ${{ matrix.arch }}-${{ matrix.platform }}-bin/cps
+        asset_name: cps-${{ matrix.arch }}-${{ matrix.platform }}
+        asset_content_type: application/octet-stream
 
   upload-runtimes:
     needs: publish-release-draft
