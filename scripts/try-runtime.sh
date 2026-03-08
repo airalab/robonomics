@@ -57,7 +57,7 @@ elif [ "$1" == "kusama" ]; then
 elif [ "$1" == "polkadot" ]; then
     ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
 else
-    echo -e "${RED} Invaid argument: should be set to 'kusama' or 'polkadot'.${NC}"
+    echo -e "${RED} Invalid argument: should be set to 'kusama' or 'polkadot'.${NC}"
     exit 1
 fi
 

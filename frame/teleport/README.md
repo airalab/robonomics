@@ -43,7 +43,7 @@ let beneficiary = Location::new(
         id: beneficiary_id,
     }],
 );
-let amount = 1_000_000_000_000; // 1000 XRT (12 decimals)
+let amount = 1_000_000_000_000; // 1000 XRT (9 decimals)
 
 TeleportXrt::send(
     RuntimeOrigin::signed(alice),

@@ -43,8 +43,7 @@ hkdf.workspace = true
 sha2.workspace = true
 
 # MQTT
-rumqttc.workspace = true
-rumqttc.optional = true
+rumqttc = { workspace = true, optional = true }
 
 # CLI & Output
 clap = { workspace = true, features = ["env"], optional = true }
