@@ -116,7 +116,7 @@ async fn test_complex_tree(ws_url: String) -> Result<()> {
         for j in 0..GCHILD_COUNT {
             let meta: NodeData = format!(r#"{{"type":"sensor","id":"{}:{}"}}"#, i, j).into();
             let payload: NodeData = format!("data_{}_{}", i, j).into();
-            let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
+            let gcnode = Node::create(&client, Some(node.id()), Some(meta), Some(payload))
                 .await
                 .context("Failed to create node")?;
             created_nodes.push(node.id());
