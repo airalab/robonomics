@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-rws"
 description = "Robonomics Web Services subscription runtime module."
-version = "1.6.0"
+version = "1.6.1"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -15,13 +15,6 @@ sp-runtime = { workspace = true }
 frame-system = { workspace = true }
 frame-support = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
-
-[dev-dependencies]
-sp-io = { workspace = true }
-sp-core = { workspace = true }
-pallet-balances = { workspace = true }
-pallet-timestamp = { workspace = true }
-pallet-robonomics-datalog = { path = "../datalog" }
 
 [features]
 default = ["std"]
@@ -40,4 +33,10 @@ runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
+]
+
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "sp-runtime/try-runtime",
 ]

@@ -1,50 +1,61 @@
-name: Syntax
+name: Static Checks 
 permissions:
   contents: read
 
-on: 
+on:
   workflow_call:
     outputs:
       status:
         description: "Status of the static checks"
-        value: ${{ jobs.fmt.outputs.status && jobs.check-license.outputs.status }}
+        value: ${{ jobs.check-formatting.outputs.status == 'success' && jobs.check-license.outputs.status == 'success' }}
+
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  fmt:
-    if: github.event.pull_request.draft == false
+  check-formatting:
+    if: always() && (github.event.pull_request.draft == false || github.event_name == 'workflow_call')
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
     steps:
       - name: Checkout the source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: false
+          components: rustfmt
 
-      - name: Check fmt
+      - name: Check Rust formatting
         run: cargo fmt -- --check
 
-      - name: Check Cargo.toml format
+      - name: Cache taplo binary
+        id: cache-taplo
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/taplo
+          key: taplo-cli-${{ runner.os }}
+
+      - name: Install taplo
+        if: steps.cache-taplo.outputs.cache-hit != 'true'
         run: |
-          if taplo --version &> /dev/null; then
-            echo "taplo-cli is already installed"
-          else
-            curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
-              | gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
-          fi
-          taplo fmt --check
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz \
+            | gzip -d - | sudo install -m 755 /dev/stdin /usr/local/bin/taplo
+
+      - name: Check Cargo.toml format
+        run: taplo fmt --check
 
   check-license:
-    if: github.event.pull_request.draft == false
+    if: always() && (github.event.pull_request.draft == false || github.event_name == 'workflow_call')
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
     steps:
       - name: Checkout the source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Check license
         uses: viperproject/check-license-header@v2

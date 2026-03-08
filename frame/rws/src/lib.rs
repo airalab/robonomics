@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2026 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -31,9 +31,6 @@ pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
-
-//#[cfg(test)]
-//mod tests;
 
 #[derive(
     PartialEq,
@@ -120,6 +117,34 @@ impl<Moment: HasCompact + MaxEncodedLen + Clone> SubscriptionLedger<Moment> {
             issue_time: last_update.clone(),
             last_update,
             kind,
+        }
+    }
+}
+
+pub mod migration {
+    use super::*;
+    use frame_support::{
+        pallet_prelude::PhantomData,
+        traits::{Get, UncheckedOnRuntimeUpgrade},
+        BoundedVec,
+    };
+    use sp_std::vec::Vec;
+
+    pub type MigrationToV1<T> = frame_support::migrations::VersionedMigration<
+        0,
+        1,
+        UncheckedMigrationToV1<T>,
+        Pallet<T>,
+        <T as frame_system::Config>::DbWeight,
+    >;
+    pub struct UncheckedMigrationToV1<T>(PhantomData<T>);
+    impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV1<T> {
+        fn on_runtime_upgrade() -> Weight {
+            Devices::<T>::translate_values(|pre: Vec<T::AccountId>| {
+                Some(BoundedVec::truncate_from(pre))
+            });
+            let keys = Devices::<T>::iter_keys().count() as u64;
+            T::DbWeight::get().reads_writes(keys, keys)
         }
     }
 }
@@ -482,7 +507,8 @@ pub mod pallet {
                 .partition(|(_, auction)| auction.winner.is_some());
 
             // store auction indexes without bids to queue
-            let mut indexes_without_bids = BoundedVec::new();
+            let mut indexes_without_bids =
+                BoundedVec::<T::AuctionIndex, T::MaxAuctionIndexesAmount>::new();
             let _ = next
                 .iter()
                 .map(|(i, _)| indexes_without_bids.try_push(i.clone()));

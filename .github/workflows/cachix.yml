@@ -1,0 +1,69 @@
+name: Cachix
+
+on:
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: true
+    outputs:
+      status:
+        description: "Status of the cachix builds"
+        value: ${{ jobs.cachix-upload.outputs.status }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cachix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cachix-upload:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Aggressive cleanup
+        run: |
+          # Remove Java (JDKs)
+          sudo rm -rf /usr/lib/jvm
+          # Remove .NET SDKs
+          sudo rm -rf /usr/share/dotnet
+          # Remove Swift toolchain
+          sudo rm -rf /usr/share/swift
+          # Remove Haskell (GHC)
+          sudo rm -rf /usr/local/.ghcup
+          # Remove Julia
+          sudo rm -rf /usr/local/julia*
+          # Remove Android SDKs
+          sudo rm -rf /usr/local/lib/android
+          # Remove Chromium (optional if not using for browser tests)
+          sudo rm -rf /usr/local/share/chromium
+          # Remove Microsoft/Edge and Google Chrome builds
+          sudo rm -rf /opt/microsoft /opt/google
+          # Remove Azure CLI
+          sudo rm -rf /opt/az
+          # Remove PowerShell
+          sudo rm -rf /usr/local/share/powershell
+          # Remove CodeQL and other toolcaches
+          sudo rm -rf /opt/hostedtoolcache
+          docker system prune -af || true
+          docker builder prune -af || true
+          df -h
+
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v25
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+      - uses: cachix/cachix-action@v15
+        with:
+          name: robonomics
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build
+      - run: nix build .#libcps
+      - run: nix build .#robonet
+      - run: nix develop --command bash -c "echo OK"
+      - run: nix develop .#robonet --command bash -c "echo OK"
+      - run: nix develop .#benchmarking --command bash -c "echo OK"

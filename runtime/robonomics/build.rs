@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright 2018-2025 Robonomics Network <research@robonomics.network>
+//  Copyright 2018-2026 Robonomics Network <research@robonomics.network>
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -19,11 +19,22 @@
 #[cfg(all(not(feature = "metadata-hash"), feature = "std"))]
 fn main() {
     substrate_wasm_builder::WasmBuilder::build_using_defaults();
+
+    substrate_wasm_builder::WasmBuilder::init_with_defaults()
+        .set_file_name("development_runtime.rs")
+        .enable_feature("dev-runtime")
+        .build();
 }
 
 #[cfg(all(feature = "metadata-hash", feature = "std"))]
 fn main() {
     substrate_wasm_builder::WasmBuilder::init_with_defaults()
+        .enable_metadata_hash("XRT", 9)
+        .build();
+
+    substrate_wasm_builder::WasmBuilder::init_with_defaults()
+        .set_file_name("development_runtime.rs")
+        .enable_feature("dev-runtime")
         .enable_metadata_hash("XRT", 9)
         .build();
 }

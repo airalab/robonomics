@@ -2,10 +2,21 @@ name: Tests
 permissions:
   contents: read
 
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
+  push:
+    branches:
+    - 'feat/*'
+    - 'fix/*'
+    - 'release/*'
   pull_request:
     types:
       - opened
+      - synchronize
+      - reopened
     branches:
     - 'feat/*'
     - 'fix/*'
@@ -14,7 +25,7 @@ on:
     outputs:
       status:
         description: "Status of the tests"
-        value: ${{ jobs.unit-tests.outputs.status && jobs.runtime-benchmarks.outputs.status }}
+        value: ${{ jobs.unit-tests.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
 
 jobs:
   static-checks:
@@ -27,19 +38,23 @@ jobs:
       status: ${{ job.status }}
     steps:
     - name: Checkout the source code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install rust toolchain
       uses: actions-rust-lang/setup-rust-toolchain@v1
 
     - name: Install deps
       run: |
-        sudo add-apt-repository ppa:ethereum/ethereum -y
         sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler
+        sudo apt -y install pkg-config protobuf-compiler libclang-dev
+
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
 
     - name: Run all workspace tests
-      run: cargo test --workspace --locked
+      run: cargo nextest run --workspace --locked
 
   runtime-benchmarks:
     needs: static-checks
@@ -47,18 +62,52 @@ jobs:
     outputs:
       status: ${{ job.status }}
     steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v4
+      - name: Checkout the source code
+        uses: actions/checkout@v5
 
-    - name: Install rust toolchain
-      uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
-    - name: Install deps
-      run: |
-        sudo add-apt-repository ppa:ethereum/ethereum -y
-        sudo apt update
-        sudo apt -y install pkg-config protobuf-compiler solc
-        sudo cp ./scripts/resolc /usr/local/bin/resolc
+      - name: Cache frame-omni-bencher binary
+        id: cache-frame-omni-bencher
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/frame-omni-bencher
+          key: frame-omni-bencher-${{ runner.os }}
 
-    - name: Build runtime with benchmarks
-      run: cargo build -p robonomics-runtime --features runtime-benchmarks --locked
+      - name: Install frame-omni-bencher
+        if: steps.cache-frame-omni-bencher.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2512-2/frame-omni-bencher \
+          | sudo install -m 755 /dev/stdin /usr/local/bin/frame-omni-bencher
+
+      - name: Run benchmark checks using runtime-benchmarks.sh
+        run: BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 ./scripts/runtime-benchmarks.sh
+
+  try-runtime:
+    needs: static-checks
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v5
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Cache try-runtime binary
+        id: cache-try-runtime
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/try-runtime
+          key: try-runtime-${{ runner.os }}
+
+      - name: Install try-runtime
+        if: steps.cache-try-runtime.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://github.com/paritytech/try-runtime-cli/releases/download/v0.10.1/try-runtime-x86_64-unknown-linux-musl \
+          | sudo install -m 755 /dev/stdin /usr/local/bin/try-runtime
+
+      - name: Run try-runtime on Kusama parachain 
+        run: ./scripts/try-runtime.sh kusama 

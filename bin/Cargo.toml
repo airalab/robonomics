@@ -1,0 +1,37 @@
+[package]
+name = "robonomics"
+description = "The Robonomics Network Omni Node."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "robonomics"
+path = "src/main.rs"
+
+[dependencies]
+polkadot-jemalloc-shim.workspace = true
+polkadot-omni-node-lib.workspace = true
+robonomics-runtime.workspace = true
+robonomics-runtime.features = ["dev-runtime"]
+sp-genesis-builder.workspace = true
+rustls.workspace = true
+color-eyre.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+polkadot-jemalloc-shim = { workspace = true, features = ["jemalloc-allocator"] }
+
+[dev-dependencies]
+assert_cmd.workspace = true
+
+[build-dependencies]
+substrate-build-script-utils.workspace = true
+
+[features]
+default = []
+jemalloc-allocator = ["polkadot-jemalloc-shim/jemalloc-allocator"]
+runtime-benchmarks = ["polkadot-omni-node-lib/runtime-benchmarks"]
+try-runtime = ["polkadot-omni-node-lib/try-runtime"]
