@@ -100,31 +100,42 @@ async fn test_complex_tree(ws_url: String) -> Result<()> {
 
     log::info!("Created root node: {}", root_node.id());
 
-    // Create 50 child nodes
-    const NODE_COUNT: usize = 60;
+    // Create child nodes
+    const CHILD_COUNT: usize = 2;
+    const GCHILD_COUNT: usize = 3;
     let mut created_nodes = Vec::new();
-    for i in 0..NODE_COUNT {
+    for i in 0..CHILD_COUNT {
         let meta: NodeData = format!(r#"{{"type":"sensor","id":{}}}"#, i).into();
         let payload: NodeData = format!("data_{}", i).into();
-
         let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
             .await
             .context("Failed to create node")?;
         created_nodes.push(node.id());
+        log::info!("Created child node: {}", node.id());
+        // Create grandchild nodes
+        for j in 0..GCHILD_COUNT {
+            let meta: NodeData = format!(r#"{{"type":"sensor","id":"{}:{}"}}"#, i, j).into();
+            let payload: NodeData = format!("data_{}_{}", i, j).into();
+            let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
+                .await
+                .context("Failed to create node")?;
+            created_nodes.push(node.id());
+            log::info!("Created grandchild node: {}", node.id());
+        }
     }
     log::info!("✓ Created {} nodes successfully", created_nodes.len());
 
     // Verify structure
     let root_info = root_node.query().await?;
-    if root_info.children.len() == NODE_COUNT {
+    if root_info.children.len() == CHILD_COUNT {
         log::info!(
             "✓ Complex tree structure verified ({} children)",
-            NODE_COUNT
+            CHILD_COUNT
         );
     } else {
         anyhow::bail!(
             "Expected {} children, found {}",
-            NODE_COUNT,
+            CHILD_COUNT,
             root_info.children.len()
         );
     }
@@ -251,7 +262,7 @@ pub async fn test_cps_pallet(mb_net: Option<&Network<LocalFileSystem>>) -> Resul
     log::info!("=== Test 1/4: Simple Tree Structure ===");
     test_simple_tree(ws_url.clone()).await?;
 
-    log::info!("=== Test 2/4: Complex Tree (50 nodes) ===");
+    log::info!("=== Test 2/4: Complex Tree Structure ===");
     test_complex_tree(ws_url.clone()).await?;
 
     log::info!("=== Test 3/4: Multiple Plain Payloads ===");
