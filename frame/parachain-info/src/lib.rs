@@ -15,7 +15,8 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Minimal Pallet that injects a ParachainId into Runtime storage from
+//! Minimal Pallet that injects a ParachainId into Runtime storage from the
+//! genesis configuration.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
