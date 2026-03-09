@@ -6,6 +6,7 @@ on:
   push:
     branches:
     - 'master'
+    - 'nightly'
 
   workflow_call:
     secrets:
@@ -52,6 +53,15 @@ jobs:
           - os-name: Linux-x86_64
             runs-on: ubuntu-latest
             target: x86_64-unknown-linux-musl
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+          - os-name: Linux-riscv64
+            runs-on: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+          - os-name: Windows-x86_64
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
           - os-name: macOS-x86_64
             runs-on: macOS-latest
             target: x86_64-apple-darwin
