@@ -71,7 +71,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install LLVM on MacOS 
-        if: ${{ matrix.platform.runs-on != 'macOS-latest' }}
+        if: ${{ matrix.platform.runs-on == 'macOS-latest' }}
         run: brew install llvm
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1
