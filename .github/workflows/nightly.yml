@@ -154,7 +154,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: tests
+#    needs: tests
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
