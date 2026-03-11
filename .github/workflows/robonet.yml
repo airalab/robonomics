@@ -4,10 +4,15 @@ on:
   pull_request:
     branches:
       - master
-  push:
-    branches:
-      - master
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: true
+    outputs:
+      status:
+        description: "Status of the cachix builds"
+        value: ${{ jobs.robonet-tests.outputs.status }}
 
 permissions:
   contents: read
@@ -22,6 +27,8 @@ jobs:
     needs: cachix
     name: Run Tests
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     
     steps:
       - name: Checkout repository
