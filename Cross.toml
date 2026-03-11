@@ -3,19 +3,19 @@ pre-build = [
   "apt-get update",
   "DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes lsb-release wget software-properties-common gnupg",
   "bash -c \"$(curl https://apt.llvm.org/llvm.sh)\"",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler clang-20 clang-tools-20 clang-20-doc libclang-common-20-dev libclang-20-dev libclang1-20 clang-format-20 python3-clang-20 clangd-20"
 ]
 [target.riscv64gc-unknown-linux-gnu]
 pre-build = [
   "apt-get update",
   "DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes lsb-release wget software-properties-common gnupg",
   "bash -c \"$(curl https://apt.llvm.org/llvm.sh)\"",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler clang-20 clang-tools-20 clang-20-doc libclang-common-20-dev libclang-20-dev libclang1-20 clang-format-20 python3-clang-20 clangd-20"
 ]
 [target.x86_64-unknown-linux-musl]
 pre-build = [
   "apt-get update",
   "DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes lsb-release wget software-properties-common gnupg",
   "bash -c \"$(curl https://apt.llvm.org/llvm.sh)\"",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler clang-20 clang-tools-20 clang-20-doc libclang-common-20-dev libclang-20-dev libclang1-20 clang-format-20 python3-clang-20 clangd-20"
 ]
