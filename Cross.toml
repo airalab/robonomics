@@ -1,21 +1,15 @@
 [target.aarch64-unknown-linux-musl]
 pre-build = [
-  "ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime",
   "apt-get update",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler llvm-18 llvm-18-tools clang-18",
-  "update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-18 200",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler libclang-dev",
 ]
 [target.riscv64gc-unknown-linux-gnu]
 pre-build = [
-  "ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime",
   "apt-get update",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler llvm-18 llvm-18-tools clang-18",
-  "update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-18 200",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler libclang-dev",
 ]
 [target.x86_64-unknown-linux-musl]
 pre-build = [
-  "ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime",
   "apt-get update",
-  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler llvm-18 llvm-18-tools clang-18",
-  "update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-18 200",
+  "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler libclang-dev",
 ]
