@@ -75,6 +75,8 @@ jobs:
         run: brew install llvm
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1
+        env:
+          LIBCLANG_PATH: /usr/lib/llvm-20/lib
         with:
           command: build
           toolchain: "1.88.0"
