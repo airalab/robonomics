@@ -18,9 +18,8 @@ on:
       - synchronize
       - reopened
     branches:
-    - 'feat/*'
-    - 'fix/*'
     - 'release/*'
+    - 'master'
   workflow_call:
     outputs:
       status:

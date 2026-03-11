@@ -6,6 +6,7 @@ on:
   push:
     branches:
     - 'master'
+    - 'nightly'
 
   workflow_call:
     secrets:
@@ -18,7 +19,8 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.release-binary.outputs.status == 'success' && jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
+#        value: ${{ jobs.release-binary.outputs.status == 'success' && jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
+        value: ${{ jobs.srtool.outputs.status == 'success' }}
 
 concurrency:
   group: nightly-${{ github.ref }}
@@ -30,121 +32,132 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  cachix:
-    uses: ./.github/workflows/cachix.yml
-    secrets:
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
   tests:
     uses: ./.github/workflows/tests.yml
 
-  release-binary:
+  robonet:
     needs: tests
-    if: ${{ always() && needs.tests.result == 'success' }}
-    name: Binary - ${{ matrix.platform.os-name }}
-    runs-on: ${{ matrix.platform.runs-on }}
-    outputs:
-      status: ${{ job.status }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - os-name: Linux-x86_64
-            runs-on: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - os-name: macOS-x86_64
-            runs-on: macOS-latest
-            target: x86_64-apple-darwin
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Install Protoc
-        if: ${{ matrix.platform.runs-on != 'ubuntu-latest' }}
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build binary
-        uses: houseabsolute/actions-rust-cross@v1
-        with:
-          command: build
-          toolchain: "1.88.0"
-          force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
-          use-rust-cache: true
-          strip: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
-          target: ${{ matrix.platform.target }}
-          args: "--locked --profile production"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: robonomics-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/production/robonomics
-          retention-days: 7
-      - uses: actions/upload-artifact@v4
-        with:
-          name: robonet-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/production/robonet
-          retention-days: 7
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cps-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/production/cps
-          retention-days: 7
+    uses: ./.github/workflows/robonet.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-  docker:
-    needs: release-binary
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
+#  release-binary:
+#    needs: robonet
+#    name: Binary - ${{ matrix.platform.os-name }}
+#    runs-on: ${{ matrix.platform.runs-on }}
+#    outputs:
+#      status: ${{ job.status }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        platform:
+#          - os-name: Linux-x86_64
+#            runs-on: ubuntu-latest
+#            target: x86_64-unknown-linux-musl
+#          - os-name: Linux-aarch64
+#            runs-on: ubuntu-latest
+#            target: aarch64-unknown-linux-musl
+#          - os-name: Linux-riscv64
+#            runs-on: ubuntu-latest
+#            target: riscv64gc-unknown-linux-gnu
+#          - os-name: macOS-x86_64
+#            runs-on: macOS-latest
+#            target: x86_64-apple-darwin
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v5
+#      - name: Install Protoc
+#        if: ${{ matrix.platform.runs-on == 'macOS-latest' }}
+#        uses: arduino/setup-protoc@v3
+#        with:
+#          repo-token: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Install LLVM on MacOS 
+#        if: ${{ matrix.platform.runs-on == 'macOS-latest' }}
+#        run: brew install llvm
+#      - name: Build binary
+#        uses: houseabsolute/actions-rust-cross@v1
+#        env:
+#          LIBCLANG_PATH: /usr/lib/llvm-11/lib
+#        with:
+#          command: build
+#          toolchain: "1.88.0"
+#          force-use-cross: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
+#          use-rust-cache: true
+#          strip: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
+#          target: ${{ matrix.platform.target }}
+#          args: "--locked --profile production"
+#      - uses: actions/upload-artifact@v4
+#        with:
+#          name: robonomics-${{ matrix.platform.target }}
+#          path: target/${{ matrix.platform.target }}/production/robonomics
+#          retention-days: 7
+#      - uses: actions/upload-artifact@v4
+#        with:
+#          name: robonet-${{ matrix.platform.target }}
+#          path: target/${{ matrix.platform.target }}/production/robonet
+#          retention-days: 7
+#      - uses: actions/upload-artifact@v4
+#        with:
+#          name: cps-${{ matrix.platform.target }}
+#          path: target/${{ matrix.platform.target }}/production/cps
+#          retention-days: 7
 
-    steps:
-    - name: Checkout the source code
-      uses: actions/checkout@v5
+#  docker:
+#    needs: release-binary
+#    runs-on: ubuntu-latest
+#    outputs:
+#      status: ${{ job.status }}
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+#    steps:
+#    - name: Checkout the source code
+#      uses: actions/checkout@v5
 
-    - name: Login to DockerHub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+#    - name: Set up Docker Buildx
+#      uses: docker/setup-buildx-action@v3
 
-    - name: Docker meta
-      id: docker_meta
-      uses: docker/metadata-action@v5
-      with:
-        images: robonomics/robonomics
-        tags: type=sha # add git short SHA as Docker tag
+#    - name: Login to DockerHub
+#      uses: docker/login-action@v3
+#      with:
+#        username: ${{ secrets.DOCKER_USERNAME }}
+#        password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Download pre-built amd64 linux collator binary
-      uses: actions/download-artifact@v4
-      with:
-        name: robonomics-x86_64-unknown-linux-musl
-        path: scripts/docker/amd64/
+#    - name: Docker meta
+#      id: docker_meta
+#      uses: docker/metadata-action@v5
+#      with:
+#        images: robonomics/robonomics
+#        tags: type=sha # add git short SHA as Docker tag
 
-    - name: Download pre-built aarch64 linux collator binary
-      uses: actions/download-artifact@v4
-      with:
-        name: robonomics-aarch64-unknown-linux-musl
-        path: scripts/docker/arm64/
+#    - name: Download pre-built amd64 linux collator binary
+#      uses: actions/download-artifact@v4
+#      with:
+#        name: robonomics-x86_64-unknown-linux-musl
+#        path: scripts/docker/amd64/
 
-    - name: Make binary executable and copy it to docker folder
-      run: |
-        chmod +x scripts/docker/amd64/robonomics
-        chmod +x scripts/docker/arm64/robonomics
+#    - name: Download pre-built aarch64 linux collator binary
+#      uses: actions/download-artifact@v4
+#      with:
+#        name: robonomics-aarch64-unknown-linux-musl
+#        path: scripts/docker/arm64/
 
-    - name: Build & Push docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: scripts/docker
-        platforms: linux/amd64,linux/arm64
-        labels: ${{ steps.docker_meta.outputs.labels }}
-        tags: ${{ steps.docker_meta.outputs.tags }}
-        push: true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+#    - name: Make binary executable and copy it to docker folder
+#      run: |
+#        chmod +x scripts/docker/amd64/robonomics
+#        chmod +x scripts/docker/arm64/robonomics
+
+#    - name: Build & Push docker image
+#      uses: docker/build-push-action@v6
+#      with:
+#        context: scripts/docker
+#        platforms: linux/amd64,linux/arm64
+#        labels: ${{ steps.docker_meta.outputs.labels }}
+#        tags: ${{ steps.docker_meta.outputs.tags }}
+#        push: true
+#        cache-from: type=gha
+#        cache-to: type=gha,mode=max
 
   srtool:
-    needs: tests
+    needs: robonet
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
