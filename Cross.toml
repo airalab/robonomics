@@ -12,3 +12,4 @@ pre-build = [
 pre-build = [
   "apt-get update",
   "DEBIAN_FRONTEND=noninteractive apt-get --assume-yes install protobuf-compiler libclang-11-dev"
+]
