@@ -255,7 +255,7 @@ impl pallet_xcm::Config for Runtime {
     type XcmExecuteFilter = Everything;
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type XcmTeleportFilter = Everything;
-    type XcmReserveTransferFilter = Nothing;
+    type XcmReserveTransferFilter = Everything;
     type Weigher = WeightInfoBounds<
         crate::weights::xcm::RobonomicsXcmWeight<RuntimeCall>,
         RuntimeCall,
@@ -334,7 +334,7 @@ parameter_types! {
     pub TeleportFeeAsset: Asset = RelayAssetId::get().into_asset(
         Fungibility::Fungible(TeleportFee::get())
     );
-    const TeleportFee: u128 = 1_000_000_000_000_000u128;
+    const TeleportFee: u128 = 100_000_000_000u128;
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {

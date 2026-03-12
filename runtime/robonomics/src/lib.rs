@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 41,
+    spec_version: 42,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 3,
@@ -703,49 +703,8 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
-parameter_types! {
-    pub const AssetsName: &'static str = "Assets";
-    pub const IdentityName: &'static str = "Identity";
-    pub const StateTrieMigrationName: &'static str = "StateTrieMigration";
-    pub const MultiBlockMigrationsName: &'static str = "MultiBlockMigrations";
-    pub const XcmInfoName: &'static str = "XcmInfo";
-    pub const DmpQueueName: &'static str = "DmpQueue";
-    pub const LighthouseName: &'static str = "Lighthouse";
-}
-
-pub struct InitStorageVersions;
-impl frame_support::traits::OnRuntimeUpgrade for InitStorageVersions {
-    fn on_runtime_upgrade() -> Weight {
-        use frame_support::traits::{GetStorageVersion, StorageVersion};
-        use sp_runtime::traits::Saturating;
-        let mut writes = 0;
-        if Datalog::on_chain_storage_version() == StorageVersion::new(0) {
-            Datalog::in_code_storage_version().put::<Datalog>();
-            writes.saturating_inc();
-        }
-        <Runtime as frame_system::Config>::DbWeight::get().reads_writes(1, writes)
-    }
-}
-
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
-    InitStorageVersions,
-    pallet_robonomics_rws::migration::MigrationToV1<Runtime>,
-    // Cleanup old pallets
-    frame_support::migrations::RemovePallet<AssetsName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<StateTrieMigrationName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<XcmInfoName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<DmpQueueName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<LighthouseName, RocksDbWeight>,
-    // System
-    cumulus_pallet_parachain_system::migration::Migration<Runtime>,
-    pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
-    // XCM
-    pallet_xcm::migration::v1::MigrateToV1<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v2::MigrationToV2<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v3::MigrationToV3<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v4::MigrationToV4<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v5::MigrateV4ToV5<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
