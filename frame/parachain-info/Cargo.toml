@@ -1,9 +1,9 @@
 [package]
 name = "parachain-info"
 description = "Pallet to store the parachain ID & relay network"
+version = "1.0.0"
 authors.workspace = true
 edition.workspace = true
-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true

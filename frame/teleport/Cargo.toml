@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-teleport"
 description = "Robonomics Network XCM teleport pallet for asset-hub integration"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -30,6 +30,7 @@ pallet-balances = { workspace = true }
 default = ["std"]
 std = [
   "parity-scale-codec/std",
+  "sp-io/std",
   "sp-std/std",
   "sp-runtime/std",
   "frame-system/std",
@@ -39,6 +40,7 @@ std = [
   "xcm/std",
   "xcm-executor/std",
   "xcm-builder/std",
+  "pallet-balances/std",
 ]
 
 runtime-benchmarks = [

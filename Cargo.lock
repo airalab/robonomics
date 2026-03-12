@@ -8570,7 +8570,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-rws"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8583,7 +8583,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-teleport"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9034,7 +9034,7 @@ dependencies = [
 
 [[package]]
 name = "parachain-info"
-version = "4.1.0"
+version = "1.0.0"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -11699,7 +11699,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "assert_cmd",
  "color-eyre",
@@ -11713,7 +11713,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -11794,7 +11794,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime-subxt-api"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "parity-scale-codec",
  "robonomics-runtime",

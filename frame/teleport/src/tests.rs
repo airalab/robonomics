@@ -23,7 +23,8 @@
 
 use crate as pallet_robonomics_teleport;
 use frame_support::{
-    assert_ok, derive_impl, dispatch::PostDispatchInfo, parameter_types, traits::ConstU64,
+    assert_err, assert_ok, derive_impl, dispatch::PostDispatchInfo, parameter_types,
+    traits::ConstU64,
 };
 use sp_runtime::{traits::IdentityLookup, BuildStorage, DispatchError, DispatchErrorWithPostInfo};
 use xcm::prelude::*;
@@ -212,6 +213,8 @@ parameter_types! {
 
     /// Max weight for local XCM execution
     pub MaxWeightTest: Weight = Weight::from_parts(10_000_000, 10_000);
+
+    pub const MinimalAmount: u128 = 2u128;
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
@@ -224,6 +227,7 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type TargetLocation = TargetLocationTest;
     type ParachainLocation = ParachainLocationTest;
     type UniversalLocation = UniversalLocationTest;
+    type MinimalAmount = MinimalAmount;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -275,6 +279,30 @@ fn test_send_success() {
                 xcm_hash: MOCK_XCM_HASH,
             }
             .into(),
+        );
+    });
+}
+
+#[test]
+fn test_send_with_small_amount() {
+    new_test_ext().execute_with(|| {
+        System::set_block_number(1);
+
+        let origin = 1u64;
+        let beneficiary_id = [2u8; 32];
+        let beneficiary = Location::new(
+            0,
+            [AccountId32 {
+                network: None,
+                id: beneficiary_id,
+            }],
+        );
+        let amount = 1u128; // Less than minimal balance
+
+        // Send small amount should fail
+        assert_err!(
+            RobonomicsTeleport::send(RuntimeOrigin::signed(origin), beneficiary, amount,),
+            pallet_robonomics_teleport::Error::<Runtime>::TooSmallAmount
         );
     });
 }

@@ -212,6 +212,8 @@ parameter_types! {
 
     /// Max weight for local XCM execution
     pub MaxWeightTest: Weight = Weight::from_parts(10_000_000, 10_000);
+
+    const MinimalAmount: u128 = 1_000_000_000u128;
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
@@ -224,6 +226,7 @@ impl pallet_robonomics_teleport::Config for Runtime {
     type TargetLocation = TargetLocationTest;
     type ParachainLocation = ParachainLocationTest;
     type UniversalLocation = UniversalLocationTest;
+    type MinimalAmount = MinimalAmount;
 }
 
 // Build genesis storage according to the mock runtime.
