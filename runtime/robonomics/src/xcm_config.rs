@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, MAXIMUM_BLOCK_WEIGHT, TREASURY_PALLET_ID,
+    XcmpQueue, COASE, MAXIMUM_BLOCK_WEIGHT, TREASURY_PALLET_ID, XRT,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{
@@ -334,11 +334,13 @@ parameter_types! {
     pub TeleportFeeAsset: Asset = RelayAssetId::get().into_asset(
         Fungibility::Fungible(TeleportFee::get())
     );
-    const TeleportFee: u128 = 100_000_000_000u128;
+    pub const TeleportFee: u128 = 10_000_000_000u128;
+    pub const MinimalAmount: u128 = 1 * XRT;
 }
 
 impl pallet_robonomics_teleport::Config for Runtime {
     type AssetId = NativeAssetId;
+    type MinimalAmount = MinimalAmount;
     type FeeAsset = TeleportFeeAsset;
     type UniversalLocation = UniversalLocation;
     type ParachainLocation = ParachainLocation;

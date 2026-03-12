@@ -52,7 +52,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 parachain_id: 100.into(),
-                relay_network: NetworkId::Polkadot,
+                relay_network: NetworkId::Kusama,
                 _config: Default::default(),
             }
         }

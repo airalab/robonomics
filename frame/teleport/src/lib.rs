@@ -100,6 +100,10 @@ pub mod pallet {
         #[pallet::constant]
         type AssetId: Get<AssetId>;
 
+        /// Minimal amount of asset (usually native asset)
+        #[pallet::constant]
+        type MinimalAmount: Get<u128>;
+
         /// Teleport fee amount (will be deducted from parachain account on destination)
         #[pallet::constant]
         type FeeAsset: Get<Asset>;
@@ -145,6 +149,8 @@ pub mod pallet {
         SendFailure,
         /// Failed to reanchor asset (wrong pallet configuration).
         CannotReanchor,
+        /// Unable to send teleport (amount is too small).
+        TooSmallAmount,
     }
 
     #[pallet::call(weight(<T as Config>::WeightInfo))]
@@ -193,6 +199,10 @@ pub mod pallet {
             amount: u128,
         ) -> DispatchResultWithPostInfo {
             let origin_account = ensure_signed(origin.clone())?;
+            ensure!(
+                amount >= T::MinimalAmount::get(),
+                Error::<T>::TooSmallAmount
+            );
 
             // Create asset from amount
             let assets: Assets = vec![T::AssetId::get().into_asset(Fungible(amount))].into();
