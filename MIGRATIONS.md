@@ -2,25 +2,71 @@
 
 This guide explains how to upgrade your Robonomics node to **version 4.x**.
 
-## 1. Download binary
+## 1. Download Binary
 
 Download the official v4.0 binary from GitHub:
 
 * **Release:** `v4.0.4`
 * Link: [https://github.com/airalab/robonomics/releases/tag/v4.0.4](https://github.com/airalab/robonomics/releases/tag/v4.0.4)
 
-Replace your existing node binary with the new one.
+Asset filenames follow the pattern `robonomics-<version>-<os>-<arch>.tar.gz`, for example:
+* `robonomics-v4.0.4-ubuntu-x86_64.tar.gz`
+* `robonomics-v4.0.4-macos-aarch64.tar.gz`
 
-## 2. Download Parachain Snapshot
+Download and install:
 
-Download parachain snapsot from:
+```bash
+curl -sL -o robonomics.tar.gz \
+  https://github.com/airalab/robonomics/releases/download/v4.0.4/robonomics-v4.0.4-ubuntu-x86_64.tar.gz
+tar -xzf robonomics.tar.gz
+sudo mv robonomics /usr/local/bin/
+sudo chmod +x /usr/local/bin/robonomics
+```
+
+## 2. Download Chain Specification
+
+The v4.0 binary does **not** include built-in chain specifications. You must download the chain spec file before starting the node.
+
+For **Kusama** parachain:
+
+```bash
+sudo curl -sL -o /etc/robonomics-kusama.raw.json \
+  https://raw.githubusercontent.com/airalab/robonomics/master/chains/kusama-parachain.raw.json
+```
+
+For **Polkadot** parachain:
+
+```bash
+sudo curl -sL -o /etc/robonomics-polkadot.raw.json \
+  https://raw.githubusercontent.com/airalab/robonomics/master/chains/polkadot-parachain.raw.json
+```
+
+Use the downloaded file with the `--chain` flag, e.g. `--chain /etc/robonomics-kusama.raw.json`.
+
+## 3. Generate Network Key
+
+v4.0 refuses to start without a valid network key. Generate one before first launch:
+
+```bash
+robonomics key generate-node-key \
+  --base-path /var/lib/robonomics \
+  --chain /etc/robonomics-kusama.raw.json
+```
+
+Replace the `--chain` value with your chain spec path.
+
+## 4. Download Parachain Snapshot (Optional)
+
+Snapshots are currently available **only for the Kusama parachain**:
 
 * Link: [https://snapshots.robonomics.network/](https://snapshots.robonomics.network/)
 
-Clear your parachain base and extract from archive to ```/path/to/your/parachain/database```.
+Clear your parachain base and extract from archive to `/path/to/your/parachain/database`.
 Fix permissions if necessary.
 
-## 3. Remove the Deprecated `--lighthouse-account` Flag
+For the **Polkadot** parachain (or if you prefer not to use a snapshot), use `--sync warp` instead — it is typically faster than downloading and extracting a snapshot.
+
+## 5. Remove the Deprecated `--lighthouse-account` Flag
 
 Starting from v4.0, the `--lighthouse-account` CLI flag is no longer supported.
 
@@ -32,9 +78,35 @@ If your systemd service or startup script contains:
 
 Remove this line entirely before restarting the node.
 
-## 4. Generate New Session Keys
+## 6. Recommended Startup Flags
+
+Below is a recommended systemd `ExecStart` configuration:
+
+```ini
+ExecStart=/usr/local/bin/robonomics \
+  --name "YOUR_NODE_NAME" \
+  --chain /etc/robonomics-kusama.raw.json \
+  --base-path /var/lib/robonomics \
+  --collator \
+  --sync warp \
+  --trie-cache-size 0 \
+  --telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0" \
+  -- \
+  --sync warp
+```
+
+Key flags:
+
+* `--sync warp` — enables warp sync for the parachain. Much faster initial sync.
+* `-- --sync warp` — enables warp sync for the **relay chain** (after the `--` separator). Without this, the embedded relay chain can take weeks to sync.
+* `--trie-cache-size 0` — disables the trie cache, significantly reducing RAM usage. Recommended by the Robonomics team.
+* `--telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0"` — the chain spec has `telemetryEndpoints: null`, so telemetry must be enabled explicitly via this flag.
+
+## 7. Generate New Session Keys
 
 Robonomics v4.0 follows the updated Polkadot SDK requirements, so collators must generate fresh session keys.
+
+**Important:** You must temporarily start the node with `--rpc-methods unsafe` for the `author_rotateKeys` RPC call to work. Remove this flag after generating keys.
 
 To generate session keys:
 
@@ -47,7 +119,7 @@ To generate session keys:
    ```
 2. The command returns a hex-encoded public key bundle.
 3. Copy this value and store it — you will need it for on-chain registration.
-4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).    
+4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).
    You can verify this using the following command:
 
    ```
@@ -62,9 +134,9 @@ To generate session keys:
    ```
    NOTE: Replace `ROTATE_KEYS_RESULT` with the hex-encoded public key you just received from `author_rotateKeys`.
 
-Restart the node after generating the keys to ensure they are active.
+5. **Remove `--rpc-methods unsafe`** from your startup configuration and restart the node.
 
-## 5. Register Your Collator On-Chain
+## 8. Register Your Collator On-Chain
 
 Once the node is running with the new session keys, you must register your collator.
 
@@ -75,10 +147,10 @@ Typical steps:
    ```
    session.setKeys(keys, proof)
    ```
-   
+
    - In the **"keys"** field paste the full hex string from `author_rotateKeys` (the one you generated earlier).
 
-   - In the **"proof"** field you can enter "spacebar" key.
+   - In the **"proof"** field enter `0x` (empty bytes).
 
 2. Then Submit the extrinsic using the same collator account as origin:
 
@@ -88,3 +160,29 @@ Typical steps:
    **Requirement:** The collator account needs **> 32 XRT** free balance to register as a candidate.
 
 3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
+
+## Collator Rewards
+
+Collator rewards on Robonomics are **transaction fee-based only** — there is no fixed block reward.
+
+The fee distribution mechanism (see `DealWithFees` in `runtime/robonomics/src/lib.rs`):
+
+1. **100% of transaction fees and tips** are routed to the `PotStake` account managed by `pallet_collator_selection`.
+2. The block author receives a share from the pot when producing a block.
+
+At low network utilization, collator rewards are minimal. This is important to consider when planning collator operations.
+
+### Hardware Cost Estimate
+
+| | Kusama | Polkadot |
+|---|---|---|
+| CPU | 8 cores | 8 cores |
+| RAM | 32–64 GB | 64 GB |
+| Storage | 1 TB NVMe | 2 TB NVMe |
+| Estimated cost | ~$80–120/mo | ~$120–150/mo |
+
+## Disk Requirements
+
+* **Kusama:** parachain ~235 GB + relay chain ~550 GB (growing). Minimum **1 TB** recommended.
+* **Polkadot:** parachain + relay chain ~1.1 TB (growing). Minimum **2 TB** recommended.
+* **Running both networks:** minimum **5 TB** recommended.
