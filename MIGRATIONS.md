@@ -161,6 +161,26 @@ Typical steps:
 
 3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
 
+## Collator Rewards
+
+Collator rewards on Robonomics are **transaction fee-based only** — there is no fixed block reward.
+
+The fee distribution mechanism (see `DealWithFees` in `runtime/robonomics/src/lib.rs`):
+
+1. **100% of transaction fees and tips** are routed to the `PotStake` account managed by `pallet_collator_selection`.
+2. The block author receives a share from the pot when producing a block.
+
+At low network utilization, collator rewards are minimal. This is important to consider when planning collator operations.
+
+### Hardware Cost Estimate
+
+| | Kusama | Polkadot |
+|---|---|---|
+| CPU | 8 cores | 8 cores |
+| RAM | 32–64 GB | 64 GB |
+| Storage | 1 TB NVMe | 2 TB NVMe |
+| Estimated cost | ~$80–120/mo | ~$120–150/mo |
+
 ## Disk Requirements
 
 * **Kusama:** parachain ~235 GB + relay chain ~550 GB (growing). Minimum **1 TB** recommended.
