@@ -35,13 +35,15 @@ extern crate alloc;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::AggregateMessageOrigin;
 use frame_support::{
+    defensive,
     derive_impl,
     dispatch::DispatchClass,
     genesis_builder_helper::{build_state, get_preset},
     parameter_types,
     traits::{
-        fungible, tokens::imbalance::ResolveTo, ConstBool, ConstU32, ConstU64, Imbalance,
-        OnUnbalanced, WithdrawReasons,
+        fungible::{self, Mutate},
+        tokens::imbalance::ResolveTo,
+        ConstBool, ConstU32, ConstU64, Imbalance, OnUnbalanced, WithdrawReasons,
     },
     weights::{ConstantMultiplier, Weight},
     PalletId,
@@ -80,7 +82,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 43,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 3,
@@ -109,6 +111,60 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
             // These modules are not allowed to be called by transactions:
             // Other modules should works:
             _ => true,
+        }
+    }
+}
+
+/// Per-block reward minted directly to the block author (collator).
+///
+/// Derivation (see `MIGRATIONS.md` and issue #510):
+///   reward = (server_cost_per_year * collators * 1.3) / blocks_per_year / XRT_price
+///          = (2040 * 7 * 1.3) / 4_505_143 / 1
+///          ≈ 0.0042 XRT
+///
+/// Encoded in the smallest unit (XRT has 9 decimals, so 0.0042 XRT = 4_200_000).
+pub const COLLATOR_BLOCK_REWARD: Balance = 4_200_000;
+
+/// `pallet_authorship::EventHandler` that mints `COLLATOR_BLOCK_REWARD` directly
+/// to the block author.
+///
+/// Minting goes straight to the author (rather than into the
+/// `pallet_collator_selection` pot) because `pallet_collator_selection::note_author`
+/// pays only HALF of the pot to the current author — routing the reward via the
+/// pot would halve the per-block reward seen by the collator. Minting directly
+/// guarantees the author receives exactly `COLLATOR_BLOCK_REWARD` per authored
+/// block.
+///
+/// This handler MUST be ordered before `CollatorSelection` in the
+/// `pallet_authorship::Config::EventHandler` tuple so that the author is paid
+/// regardless of the pot's state.
+pub struct AuthorRewards;
+impl pallet_authorship::EventHandler<AccountId, BlockNumber> for AuthorRewards {
+    fn note_author(author: AccountId) {
+        // `note_author` runs from `on_initialize`. Account for the extra storage
+        // mutation (one read + one write on `System::Account`) as mandatory weight
+        // so the block weight limits are respected. The numbers below are taken
+        // from the benchmarked `pallet_balances::force_set_balance_creating`
+        // weight, which performs the same `System::Account` access pattern.
+        let mint_weight = <Runtime as frame_system::Config>::DbWeight::get()
+            .reads_writes(1, 1)
+            .saturating_add(Weight::from_parts(25_000_000, 3593));
+        frame_system::Pallet::<Runtime>::register_extra_weight_unchecked(
+            mint_weight,
+            DispatchClass::Mandatory,
+        );
+
+        // Mint the per-block reward to the author. Failure should be impossible
+        // here: `COLLATOR_BLOCK_REWARD` is well above the existential deposit and
+        // the total issuance cannot overflow `Balance` (u128) within any
+        // realistic chain lifetime. We therefore log defensively rather than
+        // panic, to avoid bricking block production on an unexpected runtime
+        // invariant violation.
+        if let Err(e) = <Balances as Mutate<AccountId>>::mint_into(&author, COLLATOR_BLOCK_REWARD) {
+            defensive!(
+                "failed to mint collator block reward to author",
+                (author, COLLATOR_BLOCK_REWARD, e)
+            );
         }
     }
 }
@@ -211,7 +267,9 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-    type EventHandler = (CollatorSelection,);
+    // `AuthorRewards` MUST come first so the author receives the full
+    // `COLLATOR_BLOCK_REWARD` independently of the collator-selection pot.
+    type EventHandler = (AuthorRewards, CollatorSelection);
 }
 
 parameter_types! {
@@ -1196,4 +1254,79 @@ impl_runtime_apis! {
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
     BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
+}
+
+#[cfg(test)]
+mod author_rewards_tests {
+    use super::*;
+    use frame_support::traits::fungible::Inspect;
+    use pallet_authorship::EventHandler;
+
+    fn new_test_ext() -> sp_io::TestExternalities {
+        frame_system::GenesisConfig::<Runtime>::default()
+            .build_storage()
+            .unwrap()
+            .into()
+    }
+
+    /// Reward constant must encode exactly 0.0042 XRT per block.
+    ///
+    /// XRT has 9 decimals, so 0.0042 XRT == 4_200_000 in the smallest unit.
+    /// See `MIGRATIONS.md` and issue #510 for the full derivation.
+    #[test]
+    fn reward_constant_matches_specification() {
+        assert_eq!(COLLATOR_BLOCK_REWARD, 4_200_000);
+        // 0.0042 XRT == 42 * (XRT / 10_000).
+        assert_eq!(COLLATOR_BLOCK_REWARD, 42 * (XRT / 10_000));
+    }
+
+    /// The block author MUST receive the FULL `COLLATOR_BLOCK_REWARD`, not half
+    /// of it. `pallet_collator_selection::note_author` only forwards HALF of its
+    /// pot to the current author, so routing this reward via the pot would
+    /// silently halve it. This test pins the exact end balance to guard against
+    /// regressions where the reward is accidentally re-routed through the pot.
+    #[test]
+    fn block_author_receives_full_reward() {
+        new_test_ext().execute_with(|| {
+            let author: AccountId = AccountId::from([7u8; 32]);
+            assert_eq!(<Balances as Inspect<AccountId>>::balance(&author), 0);
+
+            AuthorRewards::note_author(author.clone());
+
+            assert_eq!(
+                <Balances as Inspect<AccountId>>::balance(&author),
+                COLLATOR_BLOCK_REWARD,
+            );
+        });
+    }
+
+    #[test]
+    fn block_author_reward_is_cumulative_across_blocks() {
+        new_test_ext().execute_with(|| {
+            let author: AccountId = AccountId::from([9u8; 32]);
+            for _ in 0..10 {
+                AuthorRewards::note_author(author.clone());
+            }
+            assert_eq!(
+                <Balances as Inspect<AccountId>>::balance(&author),
+                COLLATOR_BLOCK_REWARD * 10,
+            );
+        });
+    }
+
+    /// The mandatory weight registered by `AuthorRewards::note_author` must be
+    /// reflected in `frame_system::BlockWeight` so that the parachain weight
+    /// limits are respected.
+    #[test]
+    fn note_author_registers_extra_weight() {
+        new_test_ext().execute_with(|| {
+            let before = frame_system::Pallet::<Runtime>::block_weight().total();
+            AuthorRewards::note_author(AccountId::from([1u8; 32]));
+            let after = frame_system::Pallet::<Runtime>::block_weight().total();
+            assert!(
+                after.ref_time() > before.ref_time(),
+                "extra weight for the mint must be accounted for",
+            );
+        });
+    }
 }
