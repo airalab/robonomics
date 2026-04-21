@@ -167,14 +167,15 @@ Typical steps:
 
 ## Collator Rewards
 
-Collator rewards on Robonomics are **transaction fee-based only** — there is no fixed block reward.
+Collators earn from two sources:
 
-The fee distribution mechanism (see `DealWithFees` in `runtime/robonomics/src/lib.rs`):
-
-1. **100% of transaction fees and tips** are routed to the `PotStake` account managed by `pallet_collator_selection`.
-2. The block author receives a share from the pot when producing a block.
-
-At low network utilization, collator rewards are minimal. This is important to consider when planning collator operations.
+1. **Per-block author reward** — a fixed `0.0042 XRT` is minted directly to the
+   block author every block. See [Per-Block Author Reward](#per-block-author-reward)
+   below.
+2. **Transaction fees and tips** — `100 %` of fees and tips are routed to the
+   `PotStake` account managed by `pallet_collator_selection` (see
+   `DealWithFees` in `runtime/robonomics/src/lib.rs`); the block author then
+   receives a share from that pot when producing a block.
 
 ### Hardware Cost Estimate
 
@@ -185,8 +186,69 @@ At low network utilization, collator rewards are minimal. This is important to c
 | Storage | 1 TB NVMe | 2 TB NVMe |
 | Estimated cost | ~$80–120/mo | ~$120–150/mo |
 
+## Per-Block Author Reward
+
+Starting from spec_version **43**, the Robonomics Polkadot parachain mints a
+**fixed per-block reward of `0.0042 XRT` directly to the block author** (in
+addition to any transaction fees and tips collected by `pallet_collator_selection`).
+
+The reward is implemented by an `AuthorRewards` event handler wired into
+`pallet_authorship::Config::EventHandler` *before* `CollatorSelection`. It
+mints directly into the author's account so the author receives the full
+reward, rather than half of it (which would happen if the reward were paid
+into the `PotStake` account, since
+`pallet_collator_selection::note_author` distributes only **half** of the pot
+to the current author).
+
+### Formula
+
+```
+reward_per_block =
+    (server_cost_per_year * number_of_collators * 1.3)
+    / number_of_blocks_per_year
+    / XRT_price
+```
+
+Substituting the values from issue #510:
+
+| Parameter              | Value                                 |
+| ---------------------- | ------------------------------------- |
+| Server cost / year     | `$2_040` (OVH Epyc 4345P, 64 GB, 2×960 GB NVMe) |
+| Minimum collators      | `7`                                   |
+| Profit margin          | `30 %` (factor `1.3`)                 |
+| Avg block time         | `7 s` ⇒ `4_505_143` blocks / year     |
+| XRT price              | `$1`                                  |
+
+```
+(2_040 * 7 * 1.3) / 4_505_143 / 1  ≈  0.004120624 XRT
+                                   ≈  0.0042 XRT  (rounded up)
+```
+
+Encoded constant in `runtime/robonomics/src/lib.rs`:
+
+```rust
+pub const COLLATOR_BLOCK_REWARD: Balance = 4_200_000; // 0.0042 XRT (9 decimals)
+```
+
+### When to revisit
+
+The reward should be recalculated and a new runtime upgrade shipped whenever
+**any** of the input parameters change significantly:
+
+* the cost of the reference hardware moves materially up or down,
+* the minimum desired number of active collators changes,
+* the actual average block time drifts (changing the blocks-per-year base),
+* the XRT market price moves enough that the resulting USD-equivalent reward
+  no longer covers the reference hardware cost plus a 30 % margin.
+
+When updating the reward, change `COLLATOR_BLOCK_REWARD`, bump `spec_version`,
+and update both the table above and the unit tests in
+`runtime/robonomics/src/lib.rs::author_rewards_tests`.
+
 ## Disk Requirements
 
 * **Kusama:** parachain ~235 GB + relay chain ~550 GB (growing). Minimum **1 TB** recommended.
 * **Polkadot:** parachain + relay chain ~1.1 TB (growing). Minimum **2 TB** recommended.
 * **Running both networks:** minimum **5 TB** recommended.
+
+
