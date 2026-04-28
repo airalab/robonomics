@@ -69,6 +69,7 @@ pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
 pallet-robonomics-claim.workspace = true
 pallet-robonomics-teleport.workspace = true
+robonomics-collator-rewards.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -151,6 +152,7 @@ std = [
   "pallet-robonomics-claim/std",
   "pallet-robonomics-cps/std",
   "pallet-robonomics-teleport/std",
+  "robonomics-collator-rewards/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -230,6 +232,7 @@ try-runtime = [
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
   "pallet-robonomics-teleport/try-runtime",
+  "robonomics-collator-rewards/try-runtime",
   "pallet-robonomics-claim/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",
