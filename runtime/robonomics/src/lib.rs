@@ -113,15 +113,15 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
     }
 }
 
-/// Per-block reward minted directly to the block author (collator).
-///
-/// Derivation (see `MIGRATIONS.md` and issue #510):
-///   reward = (server_cost_per_year * collators * 1.3) / blocks_per_year / XRT_price
-///          = (2040 * 7 * 1.3) / 4_505_143 / 1
-///          ≈ 0.0042 XRT
-///
-/// Encoded in the smallest unit (XRT has 9 decimals, so 0.0042 XRT = 4_200_000).
 parameter_types! {
+    /// Per-block reward minted directly to the block author (collator).
+    ///
+    /// Derivation (see `MIGRATIONS.md` and issue #510):
+    ///   reward = (server_cost_per_year * collators * 1.3) / blocks_per_year / XRT_price
+    ///          = (2040 * 7 * 1.3) / 4_505_143 / 1
+    ///          ≈ 0.0042 XRT
+    ///
+    /// Encoded in the smallest unit (XRT has 9 decimals, so 0.0042 XRT = 4_200_000).
     pub const CollatorBlockReward: Balance = 4_200_000;
 }
 

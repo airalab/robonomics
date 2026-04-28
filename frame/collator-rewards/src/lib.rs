@@ -119,7 +119,7 @@ where
         if let Err(e) = Currency::mint_into(&author, reward) {
             defensive!(
                 "failed to mint collator block reward to author",
-                (author, reward, e)
+                (&author, reward, e)
             );
         }
     }
