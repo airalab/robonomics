@@ -37,13 +37,13 @@
 //!
 //! 3. **`RootNodes`**: Global list of `BoundedVec<NodeId>`
 //!    - Tracks all nodes without parents
-//!    - Limited by `MaxRootNodes` configuration
+//!    - Limited by `MaxRootNodes` const 
 //!
 //! ### Performance Characteristics
 //!
 //! All core operations are O(1) time complexity:
 //! - **Cycle detection**: `new_parent.path.contains(&node_id)` → O(1)
-//! - **Depth validation**: `parent.path.len() < MaxTreeDepth` → O(1)
+//! - **Depth validation**: `parent.path.len() < MAX_TREE_DEPTH` → O(1)
 //! - **Child lookup**: Direct index access via `NodesByParent` → O(1)
 //!
 //! Trade-off: Requires O(depth) storage per node for path tracking, but eliminates
@@ -126,7 +126,7 @@
 //! use frame_support::traits::InstanceFilter;
 //! use parity_scale_codec::{Decode, Encode};
 //!
-//! #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+//! #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo, MaxEncodedLen)]
 //! pub enum ProxyType {
 //!     Any,       // Allows all operations
 //!     /// CPS write access with optional node restriction
@@ -379,7 +379,7 @@
 //! 2. **Ownership Consistency**: Children always have parent's owner
 //! 3. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
 //! 4. **Deletion Safety**: Cannot delete nodes with children
-//! 5. **Depth Limits**: Tree depth never exceeds `MaxTreeDepth`
+//! 5. **Depth Limits**: Tree depth never exceeds `MAX_TREE_DEPTH`
 //! 6. **Proxy Delegation** (optional): When using `pallet-proxy`, access can be delegated
 //!    while maintaining all ownership invariants. Proxies act on behalf of owners but
 //!    cannot transfer ownership or elevate privileges.
@@ -419,9 +419,7 @@ use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
-
-#[cfg(not(feature = "std"))]
-use sp_runtime::RuntimeDebug;
+use sp_runtime::Debug;
 
 /// Callback trait invoked when a payload is set on a node.
 ///
@@ -464,7 +462,7 @@ use sp_runtime::RuntimeDebug;
 /// ```ignore
 /// type OnPayloadSet = (HandlerA, HandlerB, HandlerC);
 /// ```
-pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
+pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen + Debug> {
     /// Called when a payload is set on a node.
     ///
     /// # Parameters
@@ -483,7 +481,7 @@ pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
 ///
 /// This allows using `type OnPayloadSet = ()` in the runtime configuration
 /// to disable the callback without requiring an explicit implementation.
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> for () {
+impl<AccountId, EncryptedData: MaxEncodedLen + Debug> OnPayloadSet<AccountId, EncryptedData> for () {
     fn on_payload_set(
         _node_id: NodeId,
         _meta: Option<NodeData<EncryptedData>>,
@@ -501,7 +499,7 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 /// ```
 macro_rules! impl_on_payload_set_for_tuples {
     ($($t:ident),+) => {
-        impl<AccountId, EncryptedData: MaxEncodedLen + Clone, $($t: OnPayloadSet<AccountId, EncryptedData>),+> OnPayloadSet<AccountId, EncryptedData> for ($($t,)+) {
+        impl<AccountId, EncryptedData: MaxEncodedLen + Debug + Clone, $($t: OnPayloadSet<AccountId, EncryptedData>),+> OnPayloadSet<AccountId, EncryptedData> for ($($t,)+) {
             fn on_payload_set(node_id: NodeId, meta: Option<NodeData<EncryptedData>>, payload: Option<NodeData<EncryptedData>>) {
                 $(
                     $t::on_payload_set(node_id, meta.clone(), payload.clone());
@@ -521,7 +519,21 @@ impl_on_payload_set_for_tuples!(A, B, C, D, E);
 ///
 /// Set to 2048 bytes to accommodate typical sensor readings, configuration data,
 /// and encrypted payloads while preventing DoS attacks via large data submissions.
-pub type MaxDataSize = ConstU32<2048>;
+pub const MAX_DATA_SIZE: u32 = 2048;
+
+pub const MAX_TREE_DEPTH: u32 = 32;
+
+pub const MAX_CHILDREN_PER_NODE: u32 = 100;
+
+pub const MAX_MOVABLE_SUBTREE_SIZE: u32 = 50;
+
+pub const MAX_ROOT_NODES: u32 = 100;
+
+pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
+pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
+pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
+pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
+
 
 /// Node identifier newtype with compact encoding for efficient storage.
 ///
@@ -540,8 +552,6 @@ pub type MaxDataSize = ConstU32<2048>;
 /// let node_id = NodeId(42);  // Uses 1 byte in compact encoding
 /// let next_id = node_id.saturating_add(1);  // NodeId(43)
 /// ```
-#[cfg_attr(feature = "std", derive(Debug))]
-#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
 #[derive(
     Encode,
     Decode,
@@ -555,6 +565,7 @@ pub type MaxDataSize = ConstU32<2048>;
     PartialOrd,
     Ord,
     Default,
+    Debug,
 )]
 pub struct NodeId(#[codec(compact)] pub u64);
 
@@ -635,9 +646,7 @@ impl NodeId {
 /// );
 /// let payload = NodeData::Encrypted(encrypted);
 /// ```
-#[cfg_attr(feature = "std", derive(Debug))]
-#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq)]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug)]
 pub enum DefaultEncryptedData {
     /// AEAD (Authenticated Encryption with Associated Data) encrypted payload.
     ///
@@ -703,8 +712,7 @@ pub enum DefaultEncryptedData {
 ///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
-#[cfg_attr(not(feature = "std"), derive(RuntimeDebug))]
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug)]
 #[scale_info(skip_type_params(EncryptedData))]
 #[allow(clippy::multiple_bound_locations)]
 /// Type parameter for encrypted payloads stored in `NodeData`.
@@ -718,13 +726,13 @@ pub enum DefaultEncryptedData {
 /// # Example
 /// ```ignore
 /// // Define a runtime struct for encrypted data
-/// #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq)]
+/// #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Clone, PartialEq, Eq, Debug)]
 /// pub struct MyEncryptedPayload { ... }
 ///
 /// // Use in NodeData
 /// let payload: NodeData<MyEncryptedPayload> = NodeData::Encrypted(my_encrypted);
 /// ```
-pub enum NodeData<EncryptedData: MaxEncodedLen> {
+pub enum NodeData<EncryptedData: MaxEncodedLen + Debug> {
     /// Plain unencrypted data visible to all.
     ///
     /// Use for:
@@ -743,28 +751,6 @@ pub enum NodeData<EncryptedData: MaxEncodedLen> {
     /// Note: Encryption/decryption happens off-chain. The pallet only stores
     /// the encrypted data structure as defined by the runtime.
     Encrypted(EncryptedData),
-}
-
-impl<EncryptedData: MaxEncodedLen> MaxEncodedLen for NodeData<EncryptedData> {
-    fn max_encoded_len() -> usize {
-        // 1 byte for enum variant + max of the two variant sizes
-        1 + sp_std::cmp::max(
-            <BoundedVec<u8, MaxDataSize>>::max_encoded_len(),
-            EncryptedData::max_encoded_len(),
-        )
-    }
-}
-
-#[cfg(feature = "std")]
-impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug
-    for NodeData<EncryptedData>
-{
-    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-        match self {
-            Self::Plain(vec) => f.debug_tuple("Plain").field(&vec.len()).finish(),
-            Self::Encrypted(data) => f.debug_tuple("Encrypted").field(data).finish(),
-        }
-    }
 }
 
 /// Node structure representing a cyber-physical system in the tree.
@@ -826,46 +812,23 @@ impl<EncryptedData: MaxEncodedLen + sp_std::fmt::Debug> sp_std::fmt::Debug
 ///     payload: Some(NodeData::Encrypted(encrypted_data)),
 /// };
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq)]
-#[scale_info(skip_type_params(T))]
-#[allow(clippy::multiple_bound_locations)]
-pub struct Node<AccountId: MaxEncodedLen, T: Config> {
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug)]
+pub struct Node<AccountId, EncryptedData>
+where
+    AccountId: MaxEncodedLen + Debug,
+    EncryptedData: MaxEncodedLen + Debug,
+{
     /// Parent node ID (None for root nodes)
     pub parent: Option<NodeId>,
     /// Node owner
     pub owner: AccountId,
     /// Complete path from root to this node (includes all ancestor IDs in order)
     /// NodeId uses compact encoding for efficient storage
-    pub path: BoundedVec<NodeId, T::MaxTreeDepth>,
+    pub path: BoundedVec<NodeId, MaxTreeDepth>,
     /// Metadata
-    pub meta: Option<NodeData<T::EncryptedData>>,
+    pub meta: Option<NodeData<EncryptedData>>,
     /// Payload data
-    pub payload: Option<NodeData<T::EncryptedData>>,
-}
-
-impl<AccountId: MaxEncodedLen, T: Config> MaxEncodedLen for Node<AccountId, T> {
-    fn max_encoded_len() -> usize {
-        Option::<NodeId>::max_encoded_len()
-            .saturating_add(AccountId::max_encoded_len())
-            .saturating_add(BoundedVec::<NodeId, T::MaxTreeDepth>::max_encoded_len())
-            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
-            .saturating_add(Option::<NodeData<T::EncryptedData>>::max_encoded_len())
-    }
-}
-
-#[cfg(feature = "std")]
-impl<AccountId: MaxEncodedLen + sp_std::fmt::Debug, T: Config> sp_std::fmt::Debug
-    for Node<AccountId, T>
-{
-    fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-        f.debug_struct("Node")
-            .field("parent", &self.parent)
-            .field("owner", &self.owner)
-            .field("path", &self.path)
-            .field("meta", &self.meta)
-            .field("payload", &self.payload)
-            .finish()
-    }
+    pub payload: Option<NodeData<EncryptedData>>,
 }
 
 #[frame_support::pallet]
@@ -879,22 +842,6 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-        /// Maximum tree depth
-        #[pallet::constant]
-        type MaxTreeDepth: Get<u32>;
-
-        /// Maximum children per node
-        #[pallet::constant]
-        type MaxChildrenPerNode: Get<u32>;
-
-        /// Maximum root nodes
-        #[pallet::constant]
-        type MaxRootNodes: Get<u32>;
-
-        /// Maximum number of nodes in a subtree that can be moved in a single operation
-        #[pallet::constant]
-        type MaxMovableSubtreeSize: Get<u32>;
 
         /// Encrypted data type for encrypted node data.
         ///
@@ -948,7 +895,12 @@ pub mod pallet {
     /// Nodes storage
     #[pallet::storage]
     #[pallet::getter(fn nodes)]
-    pub type Nodes<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Node<T::AccountId, T>>;
+    pub type Nodes<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        NodeId,
+        Node<T::AccountId, T::EncryptedData>,
+    >;
 
     /// Index of children by parent node
     #[pallet::storage]
@@ -957,7 +909,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         NodeId,
-        BoundedVec<NodeId, T::MaxChildrenPerNode>,
+        BoundedVec<NodeId, MaxChildrenPerNode>,
         ValueQuery,
     >;
 
@@ -965,7 +917,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn root_nodes)]
     pub type RootNodes<T: Config> =
-        StorageValue<_, BoundedVec<NodeId, T::MaxRootNodes>, ValueQuery>;
+        StorageValue<_, BoundedVec<NodeId, MaxRootNodes>, ValueQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -1033,7 +985,7 @@ pub mod pallet {
 
                 // Check tree depth - path already includes all ancestors
                 ensure!(
-                    parent.path.len() < T::MaxTreeDepth::get() as usize,
+                    parent.path.len() < MAX_TREE_DEPTH as usize,
                     Error::<T>::MaxDepthExceeded
                 );
 
@@ -1154,7 +1106,7 @@ pub mod pallet {
             // Check subtree size BEFORE attempting the move
             let subtree_size = Self::count_descendants(node_id)?;
             ensure!(
-                subtree_size <= T::MaxMovableSubtreeSize::get(),
+                subtree_size <= MAX_MOVABLE_SUBTREE_SIZE,
                 Error::<T>::SubtreeTooLarge
             );
 
@@ -1167,7 +1119,7 @@ pub mod pallet {
 
             // Check tree depth after move
             ensure!(
-                new_parent.path.len() < T::MaxTreeDepth::get() as usize,
+                new_parent.path.len() < MAX_TREE_DEPTH as usize,
                 Error::<T>::MaxDepthExceeded
             );
 
@@ -1277,7 +1229,7 @@ pub mod pallet {
                 count = count.saturating_add(1);
 
                 // Early exit if we've already exceeded the limit to save computation
-                if count > T::MaxMovableSubtreeSize::get() {
+                if count > MAX_MOVABLE_SUBTREE_SIZE {
                     // Return the count as-is, the caller will validate against the limit
                     return Ok(count);
                 }
@@ -1295,7 +1247,7 @@ pub mod pallet {
         /// Recursively update paths of all descendant nodes
         fn update_descendant_paths(
             parent_id: NodeId,
-            parent_path: &BoundedVec<NodeId, T::MaxTreeDepth>,
+            parent_path: &BoundedVec<NodeId, MaxTreeDepth>,
         ) -> DispatchResult {
             let children = <NodesByParent<T>>::get(parent_id);
 

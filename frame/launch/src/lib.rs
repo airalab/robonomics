@@ -111,9 +111,7 @@ mod tests {
         type WeightInfo = ();
     }
 
-    const WINDOW: u64 = 20;
     parameter_types! {
-        pub const WindowSize: u64 = WINDOW;
         pub const MaximumMessageSize: u32 = 512;
     }
 

@@ -2,7 +2,6 @@
   perSystem = { self', config, pkgs, pkgs', lib, ... }:
   let defaultShell = with pkgs; mkShell.override { stdenv = clangStdenv; } {
         inputsFrom = [ self'.devShells.rust ];
-        nativeBuildInputs = [ pkg-config rustPlatform.bindgenHook ];
         buildInputs = [
           openssl rustfmt taplo actionlint cargo-nextest
           psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher

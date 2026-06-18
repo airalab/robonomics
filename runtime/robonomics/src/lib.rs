@@ -80,10 +80,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 43,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 3,
+    transaction_version: 4,
     system_version: 1,
 };
 
@@ -473,34 +473,8 @@ impl pallet_robonomics_rws::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_rws::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-    pub ClaimMessagePrefix: &'static [u8] = b"Claim ERC20 XRT to account:";
-    pub ClaimPalletId: PalletId = PalletId(*b"ClaimXrt");
-}
-
-impl pallet_robonomics_claim::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type PalletId = ClaimPalletId;
-    type Prefix = ClaimMessagePrefix;
-    type WeightInfo = weights::pallet_robonomics_claim::WeightInfo<Runtime>;
-}
-
-#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-parameter_types! {
-    pub const MaxTreeDepth: u32 = 32;
-    pub const MaxChildrenPerNode: u32 = 100;
-    pub const MaxRootNodes: u32 = 100;
-    pub const MaxMovableSubtreeSize: u32 = 50;
-}
-
-#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxTreeDepth = MaxTreeDepth;
-    type MaxChildrenPerNode = MaxChildrenPerNode;
-    type MaxRootNodes = MaxRootNodes;
-    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
     type EncryptedData = pallet_robonomics_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
@@ -593,9 +567,6 @@ mod runtime {
     #[runtime::pallet_index(33)]
     pub type Vesting = pallet_vesting;
 
-    #[runtime::pallet_index(35)]
-    pub type ClaimXRT = pallet_robonomics_claim;
-
     //
     // Robonomics Network pallets.
     //
@@ -615,8 +586,7 @@ mod runtime {
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
 
-    #[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-    #[runtime::pallet_index(59)]
+    #[runtime::pallet_index(57)]
     pub type CPS = pallet_robonomics_cps;
 
     //
@@ -634,9 +604,6 @@ mod runtime {
 
     #[runtime::pallet_index(75)]
     pub type MessageQueue = pallet_message_queue;
-
-    #[runtime::pallet_index(76)]
-    pub type TeleportXRT = pallet_robonomics_teleport;
 
     //
     // Elastic scaling consensus pallets.
@@ -735,8 +702,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
-    [pallet_robonomics_claim, ClaimXRT]
-    [pallet_robonomics_teleport, TeleportXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     [pallet_message_queue, MessageQueue]

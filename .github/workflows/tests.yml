@@ -108,5 +108,5 @@ jobs:
           curl -fsSL https://github.com/paritytech/try-runtime-cli/releases/download/v0.10.1/try-runtime-x86_64-unknown-linux-musl \
           | sudo install -m 755 /dev/stdin /usr/local/bin/try-runtime
 
-      - name: Run try-runtime on Kusama parachain 
-        run: ./scripts/try-runtime.sh kusama 
+      - name: Run try-runtime on parachain 
+        run: ./scripts/try-runtime.sh

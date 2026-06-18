@@ -3,10 +3,12 @@
 
   nixConfig = {
     extra-substituters = [
+      "https://fenix.cachix.org"
       "https://polkadot.cachix.org"
       "https://robonomics.cachix.org"
     ];
     extra-trusted-public-keys = [
+      "fenix.cachix.org-1:ecJhr+RdYEdcVgUkjruiYhjbBloIEGov7bos90cZi0Q="
       "polkadot.cachix.org-1:qOFthM8M0DTotg8A48wWTZBgJD6h1rV9Jaszt6QE/N0="
       "robonomics.cachix.org-1:H3FwZ3khWXfEZ2OlPEiqRenpW1pDMAgRRRXMoksO2Bw="
     ];
@@ -14,24 +16,64 @@
 
   inputs = {
     systems.url = "github:nix-systems/default";
-    nixpkgs.url = "github:NixOS/nixpkgs/bcc4a9d9533c033d806a46b37dc444f9b0da49dd";
+    nixpkgs.url = "github:NixOS/nixpkgs/cbb5cf358f50aa6acc9efd6113b7bcfbc352cd73";
 
-    flake-parts.url = "github:hercules-ci/flake-parts";
-    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-
-    rust-flake.url = "github:juspay/rust-flake";
-    rust-flake.inputs.nixpkgs.follows = "nixpkgs";
+    fenix.url = "github:nix-community/fenix";
+    fenix.inputs.nixpkgs.follows = "nixpkgs";
 
     polkadot.url = "github:andresilva/polkadot.nix";
     polkadot.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs:
-    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
-      imports = with builtins;
-        map
-          (fn: ./nix/modules/flake/${fn})
-          (attrNames (readDir ./nix/modules/flake));
-  };
+  outputs =
+    {
+      self,
+      nixpkgs,
+      systems,
+      fenix,
+      polkadot,
+      ...
+    }:
+    let 
+      mkPkgs = system: import nixpkgs {
+        inherit system;
+        overlays = [ polkadot.overlays.default ];
+      };
+      eachSystem = f: nixpkgs.lib.genAttrs (import systems) (system: f system (mkPkgs system));
+    in
+    {
+      checks = eachSystem (
+        system: pkgs: {
+          buildAll = pkgs.symlinkJoin {
+            name = "build-all-packages";
+            paths = builtins.attrValues self.packages.${system};
+          };
+        }
+      );
+
+      devShells = eachSystem (
+        system: pkgs: rec {
+          default = polkadot.lib.${system}.mkDevShell {
+            linker = "mold";
+            packages = with pkgs; [
+              openssl taplo actionlint cargo-nextest
+              psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher
+              pkgs.polkadot polkadot-parachain
+            ];
+            env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
+          }; 
+          benchmarking = polkadot.lib.${system}.mkDevShell {
+            linker = "mold";
+            packages = with pkgs; [ frame-omni-bencher ];
+            env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
+          }; 
+          robonet = pkgs.mkShell {
+            inputsFrom = [ default ];
+            buildInputs = with pkgs; [ robonomics ];
+          };
+        }
+      );
+
+      packages = eachSystem (system: pkgs: import ./nix/pkgs { inherit pkgs; });
+    };
 }

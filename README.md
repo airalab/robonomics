@@ -97,7 +97,6 @@ This repository is organized as a Cargo workspace with the following structure:
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
   - `cps/` - Cyber-physical Systems pallet for IoT integration
-  - `claim/` - Pallet for ERC20 token claim support
   - `parachain-info/` - Original cumulus pallet extended with relay network info
 
 ### Chain Specifications

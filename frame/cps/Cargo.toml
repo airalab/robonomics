@@ -1,7 +1,7 @@
 [package]
 name = "pallet-robonomics-cps"
 description = "Robonomics Network Cyber-Physical System Substrate runtime module"
-version = "0.1.0"
+version = "0.9.0"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true

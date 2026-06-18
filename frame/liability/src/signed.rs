@@ -28,7 +28,7 @@ use scale_info::TypeInfo;
 use sp_core::crypto::{Pair, Public};
 use sp_runtime::{
     traits::{IdentifyAccount, Verify},
-    DispatchResult, RuntimeDebug,
+    DispatchResult,
 };
 use sp_std::marker::PhantomData;
 
@@ -43,7 +43,7 @@ use crate::traits::*;
     PartialEq,
     Eq,
     TypeInfo,
-    RuntimeDebug,
+    Debug,
     MaxEncodedLen,
     DecodeWithMemTracking,
 )]
@@ -145,7 +145,7 @@ where
     PartialEq,
     Eq,
     TypeInfo,
-    RuntimeDebug,
+    Debug,
     MaxEncodedLen,
     DecodeWithMemTracking,
 )]

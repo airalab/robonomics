@@ -82,7 +82,7 @@ parameter_types! {
     Encode,
     Decode,
     parity_scale_codec::DecodeWithMemTracking,
-    sp_runtime::RuntimeDebug,
+    Debug,
     MaxEncodedLen,
     TypeInfo,
 )]
@@ -177,19 +177,8 @@ impl pallet_proxy::Config for Runtime {
     type BlockNumberProvider = System;
 }
 
-parameter_types! {
-    pub const MaxTreeDepth: u32 = 32;
-    pub const MaxChildrenPerNode: u32 = 100;
-    pub const MaxRootNodes: u32 = 100;
-    pub const MaxMovableSubtreeSize: u32 = 50;
-}
-
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxTreeDepth = MaxTreeDepth;
-    type MaxChildrenPerNode = MaxChildrenPerNode;
-    type MaxRootNodes = MaxRootNodes;
-    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
     type EncryptedData = pallet_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::TestWeightInfo;
@@ -980,10 +969,6 @@ fn on_payload_set_callback_invoked() {
 
     impl pallet_cps::Config for TestRuntime {
         type RuntimeEvent = RuntimeEvent;
-        type MaxTreeDepth = MaxTreeDepth;
-        type MaxChildrenPerNode = MaxChildrenPerNode;
-        type MaxRootNodes = MaxRootNodes;
-        type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
         type OnPayloadSet = TestPayloadHandler;
         type EncryptedData = DefaultEncryptedData;
         type WeightInfo = weights::TestWeightInfo;

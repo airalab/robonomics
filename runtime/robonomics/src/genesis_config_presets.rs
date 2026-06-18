@@ -79,8 +79,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
     let mut endowed_accounts = Vec::<AccountId>::new();
     // Dev accounts
     endowed_accounts.extend(Sr25519Keyring::well_known().map(|k| k.to_account_id()));
-    // Claim pallet
-    endowed_accounts.push(ClaimPalletId::get().into_account_truncating());
 
     let chain_spec = match id.as_ref() {
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => robonomics_genesis(
