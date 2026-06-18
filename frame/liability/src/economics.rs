@@ -23,15 +23,7 @@ use scale_info::TypeInfo;
 
 /// Simple market as approach: liability has a price of execution.
 #[derive(
-    Encode,
-    Decode,
-    PartialEq,
-    Clone,
-    Eq,
-    TypeInfo,
-    Debug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    Encode, Decode, PartialEq, Clone, Eq, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 #[scale_info(skip_type_params(C))]
 pub struct SimpleMarket<AccountId, C: Currency<AccountId>> {

@@ -63,9 +63,7 @@
             env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
           }; 
           benchmarking = polkadot.lib.${system}.mkDevShell {
-            linker = "mold";
             packages = with pkgs; [ frame-omni-bencher ];
-            env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
           }; 
           robonet = pkgs.mkShell {
             inputsFrom = [ default ];

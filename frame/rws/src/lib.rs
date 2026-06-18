@@ -32,15 +32,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[derive(
-    PartialEq,
-    Eq,
-    Clone,
-    Encode,
-    Decode,
-    TypeInfo,
-    Debug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 pub enum Subscription {
     /// Lifetime subscription.
@@ -483,10 +475,7 @@ pub mod pallet {
         /// # </weight>
         #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::transfer())]
-        pub fn transfer(
-            origin: OriginFor<T>,
-            target: T::AccountId,
-        ) -> DispatchResultWithPostInfo {
+        pub fn transfer(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
             // There is no subscription in target

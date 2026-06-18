@@ -130,4 +130,6 @@ impl<T: frame_system::Config> pallet_robonomics_rws::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
+
+    fn transfer() -> sp_runtime::Weight { todo!() }
 }

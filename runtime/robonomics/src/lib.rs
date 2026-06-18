@@ -799,8 +799,8 @@ impl_runtime_apis! {
     }
 
     impl sp_session::SessionKeys<Block> for Runtime {
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            SessionKeys::generate(seed)
+        fn generate_session_keys(owner: Vec<u8>, seed: Option<Vec<u8>>) -> sp_session::OpaqueGeneratedSessionKeys {
+            SessionKeys::generate(&owner, seed).into()
         }
 
         fn decode_session_keys(
@@ -979,7 +979,15 @@ impl_runtime_apis! {
             }
 
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-            impl cumulus_pallet_session_benchmarking::Config for Runtime {}
+            impl cumulus_pallet_session_benchmarking::Config for Runtime {
+                fn generate_session_keys_and_proof(owner: Self::AccountId) -> (Self::Keys, Vec<u8>) {
+                    use parity_scale_codec::Encode;
+                    let keys = SessionKeys::generate(&owner.encode(), None);
+                    (keys.keys, keys.proof.encode())
+                }
+            }
+
+            impl pallet_transaction_payment::BenchmarkConfig for Runtime {}
 
             use xcm::latest::prelude::*;
             use xcm_config::{
@@ -1056,14 +1064,14 @@ impl_runtime_apis! {
                 fn valid_destination() -> Result<Location, BenchmarkError> {
                     Ok(AssetHubLocation::get())
                 }
-                fn worst_case_holding(_depositable_count: u32) -> Assets {
-                    let assets: Vec<Asset> = vec![
-                        Asset {
-                            id: NativeAssetId::get(),
-                            fun: Fungible(1_000_000 * XRT),
-                        }
-                    ];
-                    assets.into()
+                fn worst_case_holding(_depositable_count: u32) -> xcm_executor::AssetsInHolding {
+                    use pallet_xcm_benchmarks::MockCredit;
+                    let mut holding = xcm_executor::AssetsInHolding::new();
+                    holding.fungible.insert(
+                        NativeAssetId::get(),
+                        alloc::boxed::Box::new(MockCredit(1_000_000 * XRT)),
+                    );
+                    holding
                 }
             }
 

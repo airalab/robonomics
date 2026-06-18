@@ -37,7 +37,7 @@
 //!
 //! 3. **`RootNodes`**: Global list of `BoundedVec<NodeId>`
 //!    - Tracks all nodes without parents
-//!    - Limited by `MaxRootNodes` const 
+//!    - Limited by `MaxRootNodes` const
 //!
 //! ### Performance Characteristics
 //!
@@ -418,8 +418,8 @@ pub use weights::WeightInfo;
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_std::prelude::*;
 use sp_runtime::Debug;
+use sp_std::prelude::*;
 
 /// Callback trait invoked when a payload is set on a node.
 ///
@@ -481,7 +481,9 @@ pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen + Debug> {
 ///
 /// This allows using `type OnPayloadSet = ()` in the runtime configuration
 /// to disable the callback without requiring an explicit implementation.
-impl<AccountId, EncryptedData: MaxEncodedLen + Debug> OnPayloadSet<AccountId, EncryptedData> for () {
+impl<AccountId, EncryptedData: MaxEncodedLen + Debug> OnPayloadSet<AccountId, EncryptedData>
+    for ()
+{
     fn on_payload_set(
         _node_id: NodeId,
         _meta: Option<NodeData<EncryptedData>>,
@@ -533,7 +535,6 @@ pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
 pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
-
 
 /// Node identifier newtype with compact encoding for efficient storage.
 ///
@@ -646,7 +647,9 @@ impl NodeId {
 /// );
 /// let payload = NodeData::Encrypted(encrypted);
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug)]
+#[derive(
+    Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
+)]
 pub enum DefaultEncryptedData {
     /// AEAD (Authenticated Encryption with Associated Data) encrypted payload.
     ///
@@ -712,7 +715,9 @@ pub enum DefaultEncryptedData {
 ///     Some(NodeData::Encrypted(encrypted_data))      // Private
 /// )?;
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug)]
+#[derive(
+    Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug,
+)]
 #[scale_info(skip_type_params(EncryptedData))]
 #[allow(clippy::multiple_bound_locations)]
 /// Type parameter for encrypted payloads stored in `NodeData`.
@@ -812,7 +817,9 @@ pub enum NodeData<EncryptedData: MaxEncodedLen + Debug> {
 ///     payload: Some(NodeData::Encrypted(encrypted_data)),
 /// };
 /// ```
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug)]
+#[derive(
+    Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, MaxEncodedLen, Debug,
+)]
 pub struct Node<AccountId, EncryptedData>
 where
     AccountId: MaxEncodedLen + Debug,
@@ -895,29 +902,19 @@ pub mod pallet {
     /// Nodes storage
     #[pallet::storage]
     #[pallet::getter(fn nodes)]
-    pub type Nodes<T: Config> = StorageMap<
-        _,
-        Blake2_128Concat,
-        NodeId,
-        Node<T::AccountId, T::EncryptedData>,
-    >;
+    pub type Nodes<T: Config> =
+        StorageMap<_, Blake2_128Concat, NodeId, Node<T::AccountId, T::EncryptedData>>;
 
     /// Index of children by parent node
     #[pallet::storage]
     #[pallet::getter(fn nodes_by_parent)]
-    pub type NodesByParent<T: Config> = StorageMap<
-        _,
-        Blake2_128Concat,
-        NodeId,
-        BoundedVec<NodeId, MaxChildrenPerNode>,
-        ValueQuery,
-    >;
+    pub type NodesByParent<T: Config> =
+        StorageMap<_, Blake2_128Concat, NodeId, BoundedVec<NodeId, MaxChildrenPerNode>, ValueQuery>;
 
     /// Root nodes (nodes without parents)
     #[pallet::storage]
     #[pallet::getter(fn root_nodes)]
-    pub type RootNodes<T: Config> =
-        StorageValue<_, BoundedVec<NodeId, MaxRootNodes>, ValueQuery>;
+    pub type RootNodes<T: Config> = StorageValue<_, BoundedVec<NodeId, MaxRootNodes>, ValueQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]

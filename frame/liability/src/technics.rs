@@ -24,15 +24,7 @@ use sp_std::prelude::*;
 
 /// Using IPFS to handle technical aspects of agreement without confirmation.
 #[derive(
-    Encode,
-    Decode,
-    Clone,
-    PartialEq,
-    Eq,
-    TypeInfo,
-    Debug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    Encode, Decode, Clone, PartialEq, Eq, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 pub struct IPFS {
     pub hash: H256,
