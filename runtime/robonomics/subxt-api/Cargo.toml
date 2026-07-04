@@ -15,13 +15,34 @@ subxt.workspace = true
 
 [build-dependencies]
 robonomics-runtime.workspace = true
+robonomics-runtime.optional = true
 sp-io.workspace = true
+sp-io.optional = true
 sp-state-machine.workspace = true
+sp-state-machine.optional = true
 sp-maybe-compressed-blob.workspace = true
+sp-maybe-compressed-blob.optional = true
 sc-executor.workspace = true
+sc-executor.optional = true
 sc-executor-common.workspace = true
+sc-executor-common.optional = true
 parity-scale-codec.workspace = true
+parity-scale-codec.optional = true
+sha2.workspace = true
+sha2.optional = true
 
 [dev-dependencies]
 tokio.workspace = true
 subxt-signer.workspace = true
+
+[features]
+build-metadata = [
+  "robonomics-runtime",
+  "sp-io",
+  "sp-state-machine",
+  "sp-maybe-compressed-blob",
+  "sc-executor",
+  "sc-executor-common",
+  "parity-scale-codec",
+]
+check-metadata = ["build-metadata", "sha2"]

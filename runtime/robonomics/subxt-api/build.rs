@@ -53,10 +53,6 @@
 //! - Magic sequence is invalid (warns but continues)
 //! - File I/O fails (can't write metadata file)
 
-use parity_scale_codec::Decode;
-use sc_executor::{WasmExecutionMethod, WasmExecutor};
-use sc_executor_common::runtime_blob::RuntimeBlob;
-use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
 use std::{env, fs, path::PathBuf};
 
 /// Metadata magic number: `[0x6d, 0x65, 0x74, 0x61]` (spells "meta" in ASCII)
@@ -66,7 +62,43 @@ use std::{env, fs, path::PathBuf};
 pub type ReservedMeta = [u8; 4];
 pub const META: ReservedMeta = [0x6d, 0x65, 0x74, 0x61]; // 1635018093 in decimal, "meta" as ASCII
 
+#[cfg(feature = "check-metadata")]
+fn check_metadata() {
+    fn sha256_digest(file_path: PathBuf) -> Vec<u8> {
+        use sha2::{Digest, Sha256};
+
+        let mut hasher = Sha256::new();
+        let mut file = std::fs::File::open(&file_path)
+            .expect(format!("Unable to open file: {}", file_path.display()).as_str());
+        std::io::copy(&mut file, &mut hasher)
+            .expect(format!("Unable to read file: {}", file_path.display()).as_str());
+        hasher.finalize().to_vec()
+    }
+
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
+    let metadata_digest = sha256_digest(metadata_path);
+
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
+    let saved_metadata_digest = sha256_digest(saved_metadata_path);
+
+    if metadata_digest != saved_metadata_digest {
+        panic!(
+            "Metadata SHA256 mismatch: {:?} vs {:?}",
+            metadata_digest, saved_metadata_digest
+        );
+    }
+}
+
+/// Build runtime and extract metadata into file.
+#[cfg(feature = "build-metadata")]
 fn main() {
+    use parity_scale_codec::Decode;
+    use sc_executor::{WasmExecutionMethod, WasmExecutor};
+    use sc_executor_common::runtime_blob::RuntimeBlob;
+    use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
+
     // The way to get metadata is to call the runtime's `Metadata_metadata` host function.
     // This approach is inspired by subwasm (https://github.com/chevdor/subwasm).
 
@@ -123,8 +155,21 @@ fn main() {
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
     fs::write(&metadata_path, metadata).expect("Failed to write metadata");
 
+    #[cfg(feature = "check-metadata")]
+    check_metadata();
+
     // Step 10: Set up rebuild triggers.
     // These tell cargo to re-run this build script when the runtime changes.
     println!("cargo:rerun-if-changed=../src");
     println!("cargo:rerun-if-changed=../Cargo.toml");
+}
+
+/// Just use already extracted metadata.
+#[cfg(not(feature = "build-metadata"))]
+fn main() {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
+    fs::copy(saved_metadata_path, metadata_path).expect("Unable to copy saved metadata");
 }

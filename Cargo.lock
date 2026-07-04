@@ -13354,6 +13354,7 @@ dependencies = [
  "robonomics-runtime",
  "sc-executor 0.48.0",
  "sc-executor-common 0.44.0",
+ "sha2 0.10.9",
  "sp-io 45.0.0",
  "sp-maybe-compressed-blob",
  "sp-state-machine 0.50.0",
