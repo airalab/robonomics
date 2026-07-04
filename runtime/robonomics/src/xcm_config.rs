@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, MAXIMUM_BLOCK_WEIGHT, TREASURY_PALLET_ID, XRT,
+    XcmpQueue, COASE, TREASURY_PALLET_ID,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{

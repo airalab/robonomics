@@ -25,7 +25,6 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
-use sp_runtime::traits::AccountIdConversion;
 use xcm::latest::{prelude::NetworkId, ROCOCO_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);

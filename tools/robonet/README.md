@@ -54,9 +54,6 @@ robonet spawn --topology assethub
 # Run all tests (spawns network automatically)
 robonet test
 
-# Run specific tests
-robonet test network_health claim_token
-
 # Run tests on already running network
 robonet test --no-spawn
 
@@ -112,7 +109,6 @@ Use this topology for:
 
 ### Pallet Tests
 - **cps**: Tests Cyber-Physical Systems pallet functionality
-- **claim**: Tests Claim pallet functionality
 
 ## CLI Reference
 
@@ -159,7 +155,7 @@ Run integration tests.
 robonet test [OPTIONS] [TESTS]...
 
 Arguments:
-  [TESTS]...            Specific test(s) to run (e.g., network_health claim_token)
+  [TESTS]...            Specific test(s) to run (e.g xcm)
 
 Options:
   --topology TOPOLOGY   Network topology [default: simple]
@@ -459,7 +455,6 @@ tools/robonet/
         ├── network.rs   # ✅ Network tests (fully implemented)
         ├── xcm.rs       # ✅ XCM tests (fully implemented)
         ├── cps.rs       # ✅ CPS tests (fully implemented)
-        └── claim.rs     # ✅ Claim tests (fully implemented)
 ```
 
 ### Architecture

@@ -35,13 +35,17 @@
       ...
     }:
     let 
-      mkPkgs = system: import nixpkgs {
-        inherit system;
-        overlays = [ polkadot.overlays.default ];
-      };
+      mkPkgs = system: nixpkgs.legacyPackages.${system}.appendOverlays [
+        polkadot.overlays.default
+        (final: prev: {
+          rust-toolchain = fenix.packages.${system}.fromToolchainFile { 
+            file = ./rust-toolchain.toml;
+            sha256 = "sha256-vra6TkHITpwRyA5oBKAHSX0Mi6CBDNQD+ryPSpxFsfg=";
+          };
+        })
+      ];
       eachSystem = f: nixpkgs.lib.genAttrs (import systems) (system: f system (mkPkgs system));
-    in
-    {
+    in {
       checks = eachSystem (
         system: pkgs: {
           buildAll = pkgs.symlinkJoin {
@@ -51,10 +55,13 @@
         }
       );
 
+      lib = eachSystem (system: pkgs: {
+        mkDevShell = args: import ./shell.nix ({ inherit pkgs; } // args);
+      });
+
       devShells = eachSystem (
         system: pkgs: rec {
-          default = polkadot.lib.${system}.mkDevShell {
-            linker = "mold";
+          default = self.lib.${system}.mkDevShell {
             packages = with pkgs; [
               openssl taplo actionlint cargo-nextest
               psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher
@@ -62,16 +69,20 @@
             ];
             env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
           }; 
-          benchmarking = polkadot.lib.${system}.mkDevShell {
+          benchmarking = self.lib.${system}.mkDevShell {
             packages = with pkgs; [ frame-omni-bencher ];
           }; 
-          robonet = pkgs.mkShell {
-            inputsFrom = [ default ];
-            buildInputs = with pkgs; [ robonomics ];
+          robonet = with pkgs; mkShell {
+            buildInputs = [ robonomics libcps ];
           };
         }
       );
 
       packages = eachSystem (system: pkgs: import ./nix/pkgs { inherit pkgs; });
+    }
+    // {
+      overlays = {
+        default = final: prev: import ./overlay.nix final prev;
+      };
     };
 }
