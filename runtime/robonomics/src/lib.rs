@@ -344,6 +344,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
     type ConsensusHook = ConsensusHook;
     type RelayParentOffset = ConstU32<0>;
+    type SchedulingSignatureVerifier = ();
     type WeightInfo = weights::cumulus_pallet_parachain_system::WeightInfo<Runtime>;
 }
 
@@ -696,6 +697,11 @@ pub type Executive = frame_executive::Executive<
 type SingleBlockMigrations = (
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+    // Cumulus pallets migrations
+    cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
+    // XCMP Queue migrations: v5 → v6 → v7
+    cumulus_pallet_xcmp_queue::migration::v6::MigrateV5ToV6<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v7::MigrateV6ToV7<Runtime>,
 );
 
 #[cfg(feature = "runtime-benchmarks")]

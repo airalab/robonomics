@@ -1,13 +1,9 @@
 {
-  cacert,
   lib,
-  rocksdb,
   openssl,
-  pkg-config,
   protobuf,
-  rust-jemalloc-sys-unprefixed,
+  pkg-config,
   rust-toolchain,
-  llvmPackages,
   stdenv,
   pkgs,
 }:
@@ -19,41 +15,32 @@ let
   };
 in
 rustPlatform.buildRustPackage rec {
-  pname = "robonomics";
-  version = "4.3.0";
+  pname = "libcps";
+  version = "0.2.0";
 
   cargoLock.lockFile = ../../../Cargo.lock;
   src = lib.cleanSource ../../..;
 
   buildType = "production";
-  buildAndTestSubdir = "bin";
+  buildAndTestSubdir = "tools/robonet";
 
   nativeBuildInputs = [
-    pkg-config
     rustPlatform.bindgenHook
-    llvmPackages.lld
     rust-toolchain
+    pkg-config
   ];
 
-  # NOTE: jemalloc is used by default on Linux
   buildInputs = [
     openssl
-  ]
-  ++ lib.optionals stdenv.hostPlatform.isLinux [ rust-jemalloc-sys-unprefixed ];
-
-  checkInputs = [
-    cacert
   ];
 
   env = {
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf}/bin/protoc";
-    LIBCLANG_PATH = lib.makeLibraryPath [ llvmPackages.libclang ];
-    ROCKSDB_LIB_DIR = lib.makeLibraryPath [ rocksdb ];
   };
 
   meta = with lib; {
-    description = "Implementation of a https://robonomics.network node in Rust based on the Substrate framework";
+    description = "Robonomics local network spawner based on ZombieNet SDK.";
     license = licenses.asl20;
     homepage = "https://github.com/airalab/robonomics";
     maintainers = with maintainers; [ akru ];

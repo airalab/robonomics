@@ -15,5 +15,8 @@ in {
   libcps-aarch64 = aarch64.callPackage ./libcps {};
   libcps-aarch64-musl = aarch64-musl.callPackage ./libcps {};
 
-  #robonet = pkgs.callPackage ./robonet { };
+  robonet = pkgs.callPackage ./robonet {};
+  robonet-musl = musl.callPackage ./robonet {};
+  robonet-aarch64 = aarch64.callPackage ./robonet {};
+  robonet-aarch64-musl = aarch64-musl.callPackage ./robonet {};
 }
