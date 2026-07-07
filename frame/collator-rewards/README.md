@@ -81,12 +81,15 @@ impl pallet_authorship::Config for Runtime {
 
 ## Weight accounting
 
-Each call to `note_author` performs one extra `System::Account` read +
-write to mint the reward. The crate registers that cost as
-`DispatchClass::Mandatory` weight via
-`register_extra_weight_unchecked`, so the parachain's per-block weight
-limits remain respected. The numeric overhead matches the benchmarked
-`pallet_balances::force_set_balance_creating` weight.
+Each call to `note_author` performs extra storage mutations to mint the reward.
+
+The crate registers that cost as `DispatchClass::Mandatory` weight via
+`register_extra_weight_unchecked`, so the parachain's per-block weight limits
+remain respected.
+
+**Note:** the hard-coded overhead is calibrated against the Robonomics runtime's
+`pallet_balances::WeightInfo::force_set_balance_creating` benchmark; if you use a
+different `Currency` implementation, re-audit/benchmark the minting cost.
 
 ## Error handling
 
