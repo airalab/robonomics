@@ -27,6 +27,8 @@ members = [
   "runtime/robonomics",
   "runtime/robonomics/subxt-api",
   "tools/libcps",
+]
+exclude = [
   "tools/robonet",
 ]
 resolver = "2"
@@ -43,7 +45,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 ] }
 libsecp256k1 = { version = "0.7.0", default-features = false }
 smallvec = { version = "1.11", default-features = false }
-hex-literal = { version = "0.4.1", default-features = false }
+hex-literal = { version = "1.1", default-features = false }
 rustc-hex = { version = "2.1.0", default-features = false }
 serde = { version = "1.0.171", default-features = false, features = [
   "derive",
@@ -64,20 +66,18 @@ anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
 log = "0.4"
-zombienet-sdk = "0.4.15"
-# NOTE: subxt and subxt-signer are intentionally pinned to 0.44 for
-# compatibility with zombienet-sdk code.
-subxt = "0.44.3"
-subxt-signer = "0.44.3"
-curve25519-dalek = "4.1"
-x25519-dalek = { version = "2.0", features = ["static_secrets"] }
-chacha20poly1305 = "0.10"
-aes-gcm = "0.10"
-hkdf = "0.12"
-sha2 = "0.10"
+#zombienet-sdk = "0.4.15"
+subxt = "0.50"
+subxt-signer = "0.50"
+curve25519-dalek = "5.0"
+x25519-dalek = { version = "3.0", features = ["static_secrets"] }
+chacha20poly1305 = "0.11"
+aes-gcm = "0.11"
+hkdf = "0.13"
+sha2 = "0.11"
 base64 = "0.22"
 hex = "0.4.3"
-toml = "0.8.12"
+toml = "1.1"
 rumqttc = "0.25"
 colored = "3.1"
 chrono = "0.4"
