@@ -11,8 +11,6 @@ jobs:
   # Check metadata integrity before proceeding with release
   check-metadata:
     uses: ./.github/workflows/metadata-check.yml
-    secrets:
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   nightly:
     needs: check-metadata

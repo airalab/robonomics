@@ -1,4 +1,4 @@
-name: Metadata Check
+name: Subxt API Metadata Check
 permissions:
   contents: read
 
@@ -20,9 +20,6 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
   workflow_call:
-    secrets:
-      CACHIX_AUTH_TOKEN:
-        required: true
 
 concurrency:
   group: metadata-check-${{ github.ref }}
@@ -34,30 +31,14 @@ env:
 
 jobs:
   check-metadata:
-    name: Check Subxt Metadata Integrity
+    name: Runtime Metadata Integrity
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v13
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Setup Cachix
-        uses: cachix/cachix-action@v15
-        with:
-          name: robonomics
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-
-      - name: Build runtime
-        run: |
-          nix develop -c cargo build -p robonomics-runtime --release
-
-      - name: Check metadata integrity
-        run: |
-          nix develop -c cargo build -p robonomics-runtime-subxt-api --features check-metadata --release
-
-      - name: Metadata check passed
-        run: |
-          echo "✅ Metadata integrity verified!"
-          echo "The prebuilt metadata.scale matches the current runtime."
+      - name: Check metadata
+        run: cargo build -p robonomics-runtime-subxt-api --features check-metadata --release --locked
