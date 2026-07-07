@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 43,
+    spec_version: 44,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -112,6 +112,27 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
         }
     }
 }
+
+parameter_types! {
+    /// Per-block reward minted directly to the block author (collator).
+    ///
+    /// Derivation (see `MIGRATIONS.md` and issue #510):
+    ///   reward = (server_cost_per_year * collators * 1.3) / blocks_per_year / XRT_price
+    ///          = (2040 * 7 * 1.3) / 4_505_143 / 1
+    ///          ≈ 0.0042 XRT
+    ///
+    /// Encoded in the smallest unit (XRT has 9 decimals, so 0.0042 XRT = 4_200_000).
+    pub const CollatorBlockReward: Balance = 4_200_000;
+}
+
+/// `pallet_authorship::EventHandler` that mints `CollatorBlockReward` directly
+/// to the block author. The implementation lives in
+/// `robonomics-collator-rewards`; see that crate's README for the rationale
+/// (notably why we mint to the author rather than the collator-selection pot).
+///
+/// MUST be ordered before `CollatorSelection` in the `EventHandler` tuple.
+pub type AuthorRewards =
+    robonomics_collator_rewards::AuthorRewards<Runtime, CollatorBlockReward, Balances>;
 
 /// Fungible implementation of `OnUnbalanced` that deals with the fees.
 pub struct DealWithFees;
@@ -210,7 +231,9 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-    type EventHandler = (CollatorSelection,);
+    // `AuthorRewards` MUST come first so the author receives the full
+    // `CollatorBlockReward` independently of the collator-selection pot.
+    type EventHandler = (AuthorRewards, CollatorSelection);
 }
 
 parameter_types! {
@@ -1175,4 +1198,26 @@ impl_runtime_apis! {
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
     BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
+}
+
+#[cfg(test)]
+mod author_rewards_tests {
+    use super::*;
+    use frame_support::traits::Get;
+
+    /// Reward constant must encode exactly 0.0042 XRT per block.
+    ///
+    /// XRT has 9 decimals, so 0.0042 XRT == 4_200_000 in the smallest unit.
+    /// Behavioural tests for the handler itself live in
+    /// `robonomics-collator-rewards`; this test only pins the chain-specific
+    /// constant. See `MIGRATIONS.md` and issue #510 for the full derivation.
+    #[test]
+    fn reward_constant_matches_specification() {
+        assert_eq!(<CollatorBlockReward as Get<Balance>>::get(), 4_200_000);
+        // 0.0042 XRT == 42 * (XRT / 10_000).
+        assert_eq!(
+            <CollatorBlockReward as Get<Balance>>::get(),
+            42 * (XRT / 10_000)
+        );
+    }
 }
