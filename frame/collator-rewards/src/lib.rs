@@ -92,12 +92,13 @@ where
 {
     fn note_author(author: T::AccountId) {
         // `note_author` runs from `on_initialize`. Account for the extra
-        // storage mutation (one read + one write on `System::Account`)
-        // performed by `mint_into` as mandatory weight so the block weight
-        // limits are respected. The `from_parts` overhead matches the
-        // benchmarked `pallet_balances::force_set_balance_creating`
-        // weight, which performs the same `System::Account` access
-        // pattern.
+        // storage mutation performed by `mint_into` as mandatory weight so the
+        // block weight limits are respected.
+        //
+        // NOTE: The `from_parts` constants below are calibrated against the
+        // Robonomics runtime's `pallet_balances::WeightInfo::force_set_balance_creating`.
+        // If `Currency` is not backed by `pallet_balances`, this weight should be
+        // re-audited/benchmarked for the chosen implementation.
         let mint_weight = T::DbWeight::get()
             .reads_writes(1, 1)
             .saturating_add(Weight::from_parts(25_000_000, 3593));
