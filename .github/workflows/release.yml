@@ -8,7 +8,14 @@ on:
     - v[0-9]+.[0-9]+.[0-9]+*
 
 jobs:
+  # Check metadata integrity before proceeding with release
+  check-metadata:
+    uses: ./.github/workflows/metadata-check.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
   nightly:
+    needs: check-metadata
     uses: ./.github/workflows/nightly.yml
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}

@@ -1,0 +1,63 @@
+name: Metadata Check
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'runtime/**'
+      - 'frame/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    branches:
+      - 'master'
+    paths:
+      - 'runtime/**'
+      - 'frame/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: true
+
+concurrency:
+  group: metadata-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check-metadata:
+    name: Check Subxt Metadata Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: robonomics
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build runtime
+        run: |
+          nix develop -c cargo build -p robonomics-runtime --release
+
+      - name: Check metadata integrity
+        run: |
+          nix develop -c cargo build -p robonomics-runtime-subxt-api --features check-metadata --release
+
+      - name: Metadata check passed
+        run: |
+          echo "✅ Metadata integrity verified!"
+          echo "The prebuilt metadata.scale matches the current runtime."
