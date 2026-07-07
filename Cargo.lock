@@ -13268,6 +13268,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "robonomics-collator-rewards"
+version = "0.1.0"
+dependencies = [
+ "frame-support 46.0.1",
+ "frame-system 46.0.0",
+ "pallet-authorship 46.0.0",
+ "pallet-balances 47.0.0",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 40.0.0",
+ "sp-io 45.0.0",
+ "sp-runtime 46.0.0",
+]
+
+[[package]]
 name = "robonomics-runtime"
 version = "4.3.0"
 dependencies = [
@@ -13322,6 +13337,7 @@ dependencies = [
  "polkadot-parachain-primitives 21.0.0",
  "polkadot-primitives 23.0.0",
  "polkadot-runtime-common 25.0.0",
+ "robonomics-collator-rewards",
  "scale-info",
  "serde_json",
  "smallvec",
