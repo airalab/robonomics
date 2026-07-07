@@ -48,8 +48,7 @@ rustPlatform.buildRustPackage rec {
   env = {
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf}/bin/protoc";
-    LIBCLANG_PATH = lib.makeLibraryPath [ llvmPackages.libclang ];
-    ROCKSDB_LIB_DIR = lib.makeLibraryPath [ rocksdb ];
+    ROCKSDB_LIB_DIR = "${rocksdb}/lib";
   };
 
   meta = with lib; {
