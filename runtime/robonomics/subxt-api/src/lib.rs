@@ -33,7 +33,7 @@
 //!     let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
 //!     
 //!     // Query storage
-//!     let block_number = client.blocks().at_latest().await?.number();
+//!     let block_number = client.at_current_block().await?.block_number();
 //!     println!("Latest block: {}", block_number);
 //!     
 //!     Ok(())
@@ -79,7 +79,7 @@
 //!
 //! // Create and submit a transaction
 //! let tx = api::tx().system().remark(vec![1, 2, 3, 4]);
-//! let hash = client.tx().sign_and_submit_default(&tx, &alice).await?;
+//! let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
 //! println!("Transaction hash: {:?}", hash);
 //! # Ok(())
 //! # }
@@ -95,11 +95,10 @@
 //! let alice: AccountId32 = subxt_signer::sr25519::dev::alice().public_key().into();
 //!
 //! // Query account information
-//! let account = client
+//! let at_block = client.at_current_block().await?;
+//! let account = at_block
 //!     .storage()
-//!     .at_latest()
-//!     .await?
-//!     .fetch(&api::storage().system().account(alice))
+//!     .try_fetch(api::storage().system().account(), (alice,))
 //!     .await?;
 //! println!("Account: {:?}", account);
 //! # Ok(())
@@ -113,6 +112,8 @@ pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
 
 use subxt::config::DefaultExtrinsicParamsBuilder;
 use subxt::config::DefaultTransactionExtensions;
+use subxt::config::HashFor;
+use subxt::metadata::ArcMetadata;
 use subxt::SubstrateConfig;
 
 /// Type for extrinsic events from blockchain transactions.
@@ -127,14 +128,15 @@ use subxt::SubstrateConfig;
 /// # use subxt::OnlineClient;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
-/// let block = client.blocks().at_latest().await?;
-/// let extrinsics = block.extrinsics().await?;
+/// let block = client.at_current_block().await?;
+/// let extrinsics = block.extrinsics().fetch().await?;
 ///
 /// for ext in extrinsics.iter() {
+///     let ext = ext?;
 ///     let events = ext.events().await?;
 ///     for event in events.iter() {
 ///         let event = event?;
-///         println!("Event: {}::{}", event.pallet_name(), event.variant_name());
+///         println!("Event: {}::{}", event.pallet_name(), event.event_name());
 ///     }
 /// }
 /// # Ok(())
@@ -170,8 +172,19 @@ pub type ExtrinsicEvents = subxt::extrinsics::ExtrinsicEvents<RobonomicsConfig>;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum RobonomicsConfig {}
+/// # Note on subxt 0.50
+///
+/// Starting with subxt 0.50 the [`subxt::Config`] trait is implemented on a
+/// *value* rather than a marker type: the client instantiates the configuration
+/// (hence the [`Default`] bound required by `OnlineClient::from_url`) and uses it
+/// to cache chain state such as the genesis hash, runtime spec/transaction
+/// versions and metadata for each spec version. For that reason `RobonomicsConfig`
+/// is a newtype wrapper around [`SubstrateConfig`] and delegates the stateful
+/// [`subxt::Config`] methods to it, while overriding the associated types that are
+/// specific to Robonomics (the [`MultiAddress`] format and the transaction
+/// extensions).
+#[derive(Clone, Debug, Default)]
+pub struct RobonomicsConfig(SubstrateConfig);
 
 impl subxt::Config for RobonomicsConfig {
     type AccountId = <SubstrateConfig as subxt::Config>::AccountId;
@@ -181,6 +194,34 @@ impl subxt::Config for RobonomicsConfig {
     type AssetId = <SubstrateConfig as subxt::Config>::AssetId;
     type Address = MultiAddress<Self::AccountId, ()>;
     type TransactionExtensions = RobonomicsTransactionExtensions<Self>;
+
+    /// The genesis hash of the connected chain, cached by the inner
+    /// [`SubstrateConfig`] once it has been fetched from the node.
+    fn genesis_hash(&self) -> Option<HashFor<Self>> {
+        self.0.genesis_hash()
+    }
+
+    /// The runtime spec and transaction versions for a given block number,
+    /// cached by the inner [`SubstrateConfig`].
+    fn spec_and_transaction_version_for_block_number(
+        &self,
+        block_number: u64,
+    ) -> Option<(u32, u32)> {
+        self.0
+            .spec_and_transaction_version_for_block_number(block_number)
+    }
+
+    /// Cached metadata for a given runtime spec version, if the inner
+    /// [`SubstrateConfig`] has already retrieved it.
+    fn metadata_for_spec_version(&self, spec_version: u32) -> Option<ArcMetadata> {
+        self.0.metadata_for_spec_version(spec_version)
+    }
+
+    /// Cache the metadata for a given runtime spec version in the inner
+    /// [`SubstrateConfig`] so it does not need to be fetched again.
+    fn set_metadata_for_spec_version(&self, spec_version: u32, metadata: ArcMetadata) {
+        self.0.set_metadata_for_spec_version(spec_version, metadata)
+    }
 }
 
 /// A struct representing the signed extra and additional parameters required
@@ -208,7 +249,7 @@ impl subxt::Config for RobonomicsConfig {
 /// let tx = api::tx().system().remark(vec![1, 2, 3]);
 ///
 /// // Use default params
-/// let hash = client.tx().sign_and_submit_default(&tx, &alice).await?;
+/// let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -235,7 +276,7 @@ pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 ///     .tip(1_000_000)
 ///     .build();
 ///
-/// let hash = client.tx().sign_and_submit(&tx, &alice, params).await?;
+/// let hash = client.tx().await?.sign_and_submit(&tx, &alice, params).await?;
 /// # Ok(())
 /// # }
 /// ```

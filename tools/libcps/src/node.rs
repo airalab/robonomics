@@ -222,6 +222,8 @@ impl<'a> Node<'a> {
         let events = client
             .api
             .tx()
+            .await
+            .map_err(|e| anyhow!("Failed to prepare transaction client: {}", e))?
             .sign_and_submit_then_watch_default(&create_call, keypair)
             .await
             .map_err(|e| anyhow!("Failed to submit create_node transaction: {}", e))?
@@ -233,8 +235,8 @@ impl<'a> Node<'a> {
         trace!("Extracting node ID from NodeCreated event");
         let node_created_event = events
             .find_first::<NodeCreated>()
-            .map_err(|e| anyhow!("Failed to find NodeCreated event: {}", e))?
-            .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?;
+            .ok_or_else(|| anyhow!("NodeCreated event not found in transaction events"))?
+            .map_err(|e| anyhow!("Failed to decode NodeCreated event: {}", e))?;
 
         let node_id = node_created_event.0 .0; // Extract u64 from NodeId(u64)
         debug!("CPS node created successfully: id={}", node_id);
@@ -275,10 +277,10 @@ impl<'a> Node<'a> {
         let block_hash = self
             .client
             .api
-            .backend()
-            .latest_finalized_block_ref()
-            .await?
-            .hash();
+            .at_current_block()
+            .await
+            .map_err(|e| anyhow!("Failed to get latest finalized block: {}", e))?
+            .block_hash();
 
         trace!("Latest finalized block hash: {:?}", block_hash);
         self.query_at(block_hash).await
@@ -310,7 +312,7 @@ impl<'a> Node<'a> {
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
     /// // Get the finalized block hash
-    /// let block_hash = client.api.backend().latest_finalized_block_ref().await?.hash();
+    /// let block_hash = client.api.at_current_block().await?.block_hash();
     /// let info = node.query_at(block_hash).await?;
     /// println!("Node owner: {:?}", info.owner);
     /// # Ok(())
@@ -319,31 +321,40 @@ impl<'a> Node<'a> {
     pub async fn query_at(&self, block_hash: subxt::utils::H256) -> Result<NodeInfo> {
         // Query the node from storage at specific block
         let node_id = NodeId(self.id);
-        let nodes_query = api::storage().cps().nodes(node_id);
 
-        let node = self
+        // In subxt 0.50 storage entries are addressed without keys and the key
+        // parts are supplied to `fetch`/`try_fetch`. Instantiate a client bound
+        // to the requested block once and reuse it for both queries.
+        let at_block = self
             .client
             .api
+            .at_block(block_hash)
+            .await
+            .map_err(|e| anyhow!("Failed to access block {:?}: {}", block_hash, e))?;
+
+        let nodes_query = api::storage().cps().nodes();
+        let node = at_block
             .storage()
-            .at(block_hash)
-            .fetch(&nodes_query)
+            .try_fetch(nodes_query, (node_id,))
             .await
             .map_err(|e| anyhow!("Failed to query node storage at block: {}", e))?
-            .ok_or_else(|| anyhow!("Node {} not found", self.id))?;
+            .ok_or_else(|| anyhow!("Node {} not found", self.id))?
+            .decode()
+            .map_err(|e| anyhow!("Failed to decode node storage value: {}", e))?;
 
         // Query children
-        let children_query = api::storage().cps().nodes_by_parent(node_id);
+        let children_query = api::storage().cps().nodes_by_parent();
 
-        let children = self
-            .client
-            .api
+        let children = at_block
             .storage()
-            .at(block_hash)
-            .fetch(&children_query)
+            .try_fetch(children_query, (node_id,))
             .await
             .map_err(|e| anyhow!("Failed to query children at block: {}", e))?
+            .map(|v| v.decode())
+            .transpose()
+            .map_err(|e| anyhow!("Failed to decode children storage value: {}", e))?
             .map(|v| v.0)
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
 
         Ok(NodeInfo {
             id: self.id,
@@ -413,6 +424,8 @@ impl<'a> Node<'a> {
             .client
             .api
             .tx()
+            .await
+            .map_err(|e| anyhow!("Failed to prepare transaction client: {}", e))?
             .sign_and_submit_then_watch_default(&set_meta_call, keypair)
             .await
             .map_err(|e| anyhow!("Failed to submit set_meta transaction: {}", e))?
@@ -476,6 +489,8 @@ impl<'a> Node<'a> {
             .client
             .api
             .tx()
+            .await
+            .map_err(|e| anyhow!("Failed to prepare transaction client: {}", e))?
             .sign_and_submit_then_watch_default(&set_payload_call, keypair)
             .await
             .map_err(|e| anyhow!("Failed to submit set_payload transaction: {}", e))?
@@ -532,6 +547,8 @@ impl<'a> Node<'a> {
             .client
             .api
             .tx()
+            .await
+            .map_err(|e| anyhow!("Failed to prepare transaction client: {}", e))?
             .sign_and_submit_then_watch_default(&move_node_call, keypair)
             .await
             .map_err(|e| anyhow!("Failed to submit move_node transaction: {}", e))?
@@ -586,6 +603,8 @@ impl<'a> Node<'a> {
             .client
             .api
             .tx()
+            .await
+            .map_err(|e| anyhow!("Failed to prepare transaction client: {}", e))?
             .sign_and_submit_then_watch_default(&delete_node_call, keypair)
             .await
             .map_err(|e| anyhow!("Failed to submit delete_node transaction: {}", e))?
