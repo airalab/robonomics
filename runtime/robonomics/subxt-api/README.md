@@ -367,7 +367,7 @@ pub struct RobonomicsConfig(SubstrateConfig);
 impl subxt::Config for RobonomicsConfig {
     type AccountId = AccountId32;           // Standard SS58 accounts
     type Signature = MultiSignature;        // Supports multiple signature types
-    type Hasher = DynamicHasher256;         // Blake2b hashing
+    type Hasher = <SubstrateConfig as subxt::Config>::Hasher; // Delegated to SubstrateConfig
     type Header = SubstrateHeader<u32>;     // Standard Substrate header
     type AssetId = u32;                     // Asset ID type
     type Address = MultiAddress<AccountId32, ()>;  // Address format
