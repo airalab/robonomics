@@ -205,11 +205,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Query chain state - e.g., get system account info
     let alice: AccountId32 = subxt_signer::sr25519::dev::alice().public_key().into();
-    let account_info = client
+    let at_block = client.at_current_block().await?;
+    let account_info = at_block
         .storage()
-        .at_latest()
-        .await?
-        .fetch(&api::storage().system().account(&alice))
+        .try_fetch(api::storage().system().account(), (alice,))
         .await?;
     
     println!("Alice's account info: {:?}", account_info);
@@ -237,6 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Sign and submit
     let hash = client
         .tx()
+        .await?
         .sign_and_submit_default(&tx, &alice)
         .await?;
     
@@ -264,6 +264,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let result = client
         .tx()
+        .await?
         .sign_and_submit_then_watch_default(&create_tx, &alice)
         .await?
         .wait_for_finalized_success()
@@ -273,11 +274,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Query the node
     let node_id = 0; // Your node ID
-    let node = client
+    let at_block = client.at_current_block().await?;
+    let node = at_block
         .storage()
-        .at_latest()
-        .await?
-        .fetch(&api::storage().cps().nodes(node_id))
+        .try_fetch(api::storage().cps().nodes(), (node_id,))
         .await?;
     
     println!("Node data: {:?}", node);
@@ -297,23 +297,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
     
     // Subscribe to finalized blocks
-    let mut blocks = client.blocks().subscribe_finalized().await?;
+    let mut blocks = client.stream_blocks().await?;
     
     while let Some(block) = blocks.next().await {
         let block = block?;
         println!("Block #{}", block.number());
         
         // Process events in this block
-        let events = block.events().await?;
+        let at_block = block.at().await?;
+        let events = at_block.events().fetch().await?;
         for event in events.iter() {
             let event = event?;
             println!("  Event: {}::{}", 
                 event.pallet_name(), 
-                event.variant_name()
+                event.event_name()
             );
             
             // Handle specific events
-            if let Ok(transfer) = event.as_event::<api::balances::events::Transfer>() {
+            if let Some(Ok(transfer)) = events.find::<api::balances::events::Transfer>().next() {
                 println!("    Transfer: {:?} -> {:?}, amount: {:?}",
                     transfer.from, transfer.to, transfer.amount);
             }
@@ -331,10 +332,10 @@ The generated API follows this structure:
 ```rust
 use robonomics_runtime_subxt_api::api;
 
-// Storage queries
-api::storage().system().account(account_id);
-api::storage().cps().nodes(node_id);
-api::storage().claim().claims(eth_address);
+// Storage queries (keys are supplied to `fetch`/`try_fetch`, not the address)
+api::storage().system().account();
+api::storage().cps().nodes();
+api::storage().claim().claims();
 
 // Transactions
 api::tx().system().remark(data);
@@ -354,19 +355,26 @@ api::cps::events::NodeCreated { node_id, owner };
 
 ### RobonomicsConfig
 
-The `RobonomicsConfig` type is pre-configured for Robonomics nodes:
+The `RobonomicsConfig` type is pre-configured for Robonomics nodes. Since
+subxt 0.50 the [`subxt::Config`] trait is implemented on a *value* (the client
+instantiates it, hence the `Default` bound and the newtype wrapper around
+`SubstrateConfig` that caches chain state such as genesis hash and metadata):
 
 ```rust
-pub enum RobonomicsConfig {}
+#[derive(Clone, Debug, Default)]
+pub struct RobonomicsConfig(SubstrateConfig);
 
 impl subxt::Config for RobonomicsConfig {
     type AccountId = AccountId32;           // Standard SS58 accounts
     type Signature = MultiSignature;        // Supports multiple signature types
-    type Hasher = BlakeTwo256;              // Blake2b hashing
+    type Hasher = DynamicHasher256;         // Blake2b hashing
     type Header = SubstrateHeader<u32>;     // Standard Substrate header
     type AssetId = u32;                     // Asset ID type
     type Address = MultiAddress<AccountId32, ()>;  // Address format
-    type ExtrinsicParams = RobonomicsExtrinsicParams<Self>;
+    type TransactionExtensions = RobonomicsTransactionExtensions<Self>;
+
+    // Stateful methods (genesis_hash, metadata_for_spec_version, ...) are
+    // delegated to the inner SubstrateConfig.
 }
 ```
 
@@ -466,6 +474,7 @@ let params = RobonomicsExtrinsicParamsBuilder::<RobonomicsConfig>::new()
 
 // Use with transaction
 client.tx()
+    .await?
     .sign_and_submit(&tx, &signer, params)
     .await?;
 ```
@@ -481,11 +490,12 @@ let tx = api::tx().system().remark(vec![1, 2, 3]);
 
 // Sign offline
 let signed = client.tx()
+    .await?
     .create_signed(&tx, &alice, Default::default())
     .await?;
 
 // Submit later (online)
-let hash = client.tx().submit(signed).await?;
+let hash = signed.submit().await?;
 ```
 
 ### Batch Transactions
@@ -500,7 +510,7 @@ let call2 = api::tx().system().remark(vec![2]);
 // Batch them
 let batch = api::tx().utility().batch(vec![call1, call2]);
 
-client.tx().sign_and_submit_default(&batch, &alice).await?;
+client.tx().await?.sign_and_submit_default(&batch, &alice).await?;
 ```
 
 ## Examples

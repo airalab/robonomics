@@ -747,8 +747,7 @@ impl Config {
         // Subscribe to finalized blocks
         let mut blocks_sub = client
             .api
-            .blocks()
-            .subscribe_finalized()
+            .stream_blocks()
             .await
             .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?;
 
@@ -761,8 +760,16 @@ impl Config {
                 }
             };
 
+            // Instantiate a client bound to this block to access its events.
+            let at_block = match block.at().await {
+                Ok(c) => c,
+                Err(_e) => {
+                    continue;
+                }
+            };
+
             // Check events in this block for PayloadSet events related to our node
-            let events = match block.events().await {
+            let events = match at_block.events().fetch().await {
                 Ok(e) => e,
                 Err(_e) => {
                     continue;
@@ -803,7 +810,10 @@ impl Config {
                                     Ok(_) => {
                                         // Call publish handler if provided
                                         if let Some(ref handler) = publish_handler {
-                                            handler(topic, block.number(), &data);
+                                            // The runtime uses 32-bit block numbers; subxt 0.50
+                                            // exposes them as u64, so narrow it back for the
+                                            // public `PublishHandler` signature.
+                                            handler(topic, block.number() as u32, &data);
                                         }
                                     }
                                     Err(e) => {
