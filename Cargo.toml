@@ -29,9 +29,7 @@ members = [
   "runtime/robonomics/subxt-api",
   "tools/libcps",
 ]
-exclude = [
-  "tools/robonet",
-]
+exclude = ["tools/robonet"]
 resolver = "2"
 
 [workspace.dependencies]

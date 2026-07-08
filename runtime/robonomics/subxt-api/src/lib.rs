@@ -111,8 +111,8 @@
 pub use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
 
-use subxt::config::DefaultExtrinsicParams;
 use subxt::config::DefaultExtrinsicParamsBuilder;
+use subxt::config::DefaultTransactionExtensions;
 use subxt::SubstrateConfig;
 
 /// Type for extrinsic events from blockchain transactions.
@@ -140,7 +140,7 @@ use subxt::SubstrateConfig;
 /// # Ok(())
 /// # }
 /// ```
-pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
+pub type ExtrinsicEvents = subxt::extrinsics::ExtrinsicEvents<RobonomicsConfig>;
 
 /// Default configuration type for Robonomics blockchain nodes.
 ///
@@ -180,7 +180,7 @@ impl subxt::Config for RobonomicsConfig {
     type Header = <SubstrateConfig as subxt::Config>::Header;
     type AssetId = <SubstrateConfig as subxt::Config>::AssetId;
     type Address = MultiAddress<Self::AccountId, ()>;
-    type ExtrinsicParams = RobonomicsExtrinsicParams<Self>;
+    type TransactionExtensions = RobonomicsTransactionExtensions<Self>;
 }
 
 /// A struct representing the signed extra and additional parameters required
@@ -199,7 +199,7 @@ impl subxt::Config for RobonomicsConfig {
 /// # Example
 ///
 /// ```no_run
-/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsExtrinsicParams};
+/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsTransactionExtensions};
 /// # use subxt::OnlineClient;
 /// # use subxt_signer::sr25519::dev;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -212,9 +212,9 @@ impl subxt::Config for RobonomicsConfig {
 /// # Ok(())
 /// # }
 /// ```
-pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
+pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 
-/// A builder which leads to [`RobonomicsExtrinsicParams`] being constructed.
+/// A builder which leads to [`RobonomicsTransactionExtensions`] being constructed.
 ///
 /// This builder allows you to customize transaction parameters before submitting.
 /// Use this when you need to set custom values for tips, mortality, nonce, etc.
