@@ -64,29 +64,38 @@ pub const META: ReservedMeta = [0x6d, 0x65, 0x74, 0x61]; // 1635018093 in decima
 
 #[cfg(feature = "check-metadata")]
 fn check_metadata() {
-    fn sha256_digest(file_path: PathBuf) -> Vec<u8> {
-        use sha2::{Digest, Sha256};
+    fn hash_file(file_path: PathBuf) -> u64 {
+        use seahash::SeaHasher;
+        use std::hash::Hasher;
+        use std::io::{BufReader, Read};
 
-        let mut hasher = Sha256::new();
-        let mut file = std::fs::File::open(&file_path)
+        let mut hasher = SeaHasher::new();
+        let file = fs::File::open(&file_path)
             .expect(format!("Unable to open file: {}", file_path.display()).as_str());
-        std::io::copy(&mut file, &mut hasher)
-            .expect(format!("Unable to read file: {}", file_path.display()).as_str());
-        hasher.finalize().to_vec()
+        let mut reader = BufReader::new(file);
+        let mut buffer = [0; 8192]; // 8KB read chunk
+        loop {
+            let bytes_read = reader.read(&mut buffer).expect("File read error");
+            if bytes_read == 0 {
+                break; // End
+            }
+            hasher.write(&buffer[..bytes_read]);
+        }
+        hasher.finish()
     }
 
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
-    let metadata_digest = sha256_digest(metadata_path);
+    let metadata_hash = hash_file(metadata_path);
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
-    let saved_metadata_digest = sha256_digest(saved_metadata_path);
+    let saved_metadata_hash = hash_file(saved_metadata_path);
 
-    if metadata_digest != saved_metadata_digest {
+    if metadata_hash != saved_metadata_hash {
         panic!(
-            "Metadata SHA256 mismatch: {:?} vs {:?}",
-            metadata_digest, saved_metadata_digest
+            "Metadata hash mismatch: {} vs {}",
+            metadata_hash, saved_metadata_hash
         );
     }
 }

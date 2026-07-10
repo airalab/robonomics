@@ -28,8 +28,8 @@ sc-executor-common.workspace = true
 sc-executor-common.optional = true
 parity-scale-codec.workspace = true
 parity-scale-codec.optional = true
-sha2.workspace = true
-sha2.optional = true
+seahash.workspace = true
+seahash.optional = true
 
 [dev-dependencies]
 tokio.workspace = true
@@ -45,4 +45,4 @@ build-metadata = [
   "sc-executor-common",
   "parity-scale-codec",
 ]
-check-metadata = ["build-metadata", "sha2"]
+check-metadata = ["build-metadata", "seahash"]

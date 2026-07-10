@@ -4,7 +4,7 @@ let
   musl = pkgs.pkgsCross.musl64;
   aarch64 = pkgs.pkgsCross.aarch64-multiplatform-musl;
   aarch64-musl = pkgs.pkgsCross.aarch64-multiplatform-musl;
-in {
+in rec {
   robonomics = pkgs.callPackage ./robonomics {};
   robonomics-musl = musl.callPackage ./robonomics {};
   robonomics-aarch64 = aarch64.callPackage ./robonomics {};
@@ -19,4 +19,6 @@ in {
   robonet-musl = musl.callPackage ./robonet {};
   robonet-aarch64 = aarch64.callPackage ./robonet {};
   robonet-aarch64-musl = aarch64-musl.callPackage ./robonet {};
+
+  default = robonomics;
 }

@@ -11851,7 +11851,7 @@ dependencies = [
  "robonomics-runtime",
  "sc-executor",
  "sc-executor-common",
- "sha2 0.11.0",
+ "seahash",
  "sp-io",
  "sp-maybe-compressed-blob",
  "sp-state-machine",
@@ -13889,6 +13889,12 @@ dependencies = [
  "salsa20",
  "sha2 0.10.9",
 ]
+
+[[package]]
+name = "seahash"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 
 [[package]]
 name = "sec1"

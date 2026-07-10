@@ -31,7 +31,7 @@ use chacha20poly1305::{
 };
 use hkdf::Hkdf;
 use log::{debug, trace};
-use sha2::Sha256;
+use sha2::{Digest, Sha256, Sha512};
 use sp_core::Pair;
 
 /// HKDF salt for key derivation.
@@ -158,7 +158,6 @@ impl Cipher {
                 // SR25519: Use Ristretto255 for ECDH
                 use curve25519_dalek::ristretto::CompressedRistretto;
                 use curve25519_dalek::scalar::Scalar;
-                use sha2::{Digest, Sha512};
 
                 // Create scalar from secret key
                 let scalar = Scalar::from_bytes_mod_order(self.secret);
@@ -186,7 +185,6 @@ impl Cipher {
             CryptoScheme::Ed25519 => {
                 // ED25519: Use X25519 for ECDH
                 use curve25519_dalek::edwards::CompressedEdwardsY;
-                use sha2::{Digest, Sha512};
 
                 // Hash and clamp secret for X25519
                 let mut hasher = Sha512::new();
