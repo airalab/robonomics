@@ -37,6 +37,8 @@ jobs:
 
   cachix-builds:
     uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 #  robonet:
 #    needs: tests
