@@ -16,7 +16,7 @@ let
 in
 rustPlatform.buildRustPackage rec {
   pname = "robonet";
-  version = "0.3.0";
+  version = "0.2.0";
 
   cargoLock.lockFile = ../../../Cargo.lock;
   src = lib.cleanSource ../../..;
