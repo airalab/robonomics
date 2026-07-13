@@ -975,8 +975,9 @@ async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -
 
     log::info!("  Constructing teleport transaction...");
 
-    /* TODO: Update to new approach
-     *
+    bail!("Teleport test is disabled (TODO: update to new approach)");
+
+    /* (disabled code below; keep until updated)
     // Create teleport transaction using static API
     let teleport_tx = api::tx().teleport_xrt().send(beneficiary, amount);
 
