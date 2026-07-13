@@ -75,9 +75,8 @@ jobs:
           key: frame-omni-bencher-${{ runner.os }}
 
       - name: Install frame-omni-bencher
-        if: steps.cache-frame-omni-bencher.outputs.cache-hit != 'true'
         run: |
-          curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2512-2/frame-omni-bencher \
+          curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2606/frame-omni-bencher \
           | sudo install -m 755 /dev/stdin /usr/local/bin/frame-omni-bencher
 
       - name: Run benchmark checks using runtime-benchmarks.sh
