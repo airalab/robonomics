@@ -52,22 +52,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install LLVM on MacOS 
         run: brew install llvm
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build robonomics 
+        run: cargo build --profile production --bin robonomics 
+
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/production/robonomics
+          name: robonomics-macos-x86_64
+          path: target/production/robonomics
           retention-days: 7
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cps-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/production/cps
-          retention-days: 7
+
 #      - uses: actions/upload-artifact@v4
 #        with:
 #          name: robonet-${{ matrix.platform.target }}
@@ -103,19 +108,14 @@ jobs:
     - name: Download pre-built amd64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-x86_64-unknown-linux-musl
+        name: robonomics-linux-x86_64
         path: scripts/docker/amd64/
 
     - name: Download pre-built aarch64 linux collator binary
       uses: actions/download-artifact@v4
       with:
-        name: robonomics-aarch64-unknown-linux-musl
+        name: robonomics-linux-aarch64
         path: scripts/docker/arm64/
-
-    - name: Make binary executable and copy it to docker folder
-      run: |
-        chmod +x scripts/docker/amd64/robonomics
-        chmod +x scripts/docker/arm64/robonomics
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6
@@ -129,7 +129,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: robonet
+    needs: tests 
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

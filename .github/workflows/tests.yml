@@ -67,13 +67,6 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Cache frame-omni-bencher binary
-        id: cache-frame-omni-bencher
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/bin/frame-omni-bencher
-          key: frame-omni-bencher-${{ runner.os }}
-
       - name: Install frame-omni-bencher
         run: |
           curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2606/frame-omni-bencher \
@@ -94,15 +87,7 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Cache try-runtime binary
-        id: cache-try-runtime
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/bin/try-runtime
-          key: try-runtime-${{ runner.os }}
-
       - name: Install try-runtime
-        if: steps.cache-try-runtime.outputs.cache-hit != 'true'
         run: |
           curl -fsSL https://github.com/paritytech/try-runtime-cli/releases/download/v0.10.1/try-runtime-x86_64-unknown-linux-musl \
           | sudo install -m 755 /dev/stdin /usr/local/bin/try-runtime
