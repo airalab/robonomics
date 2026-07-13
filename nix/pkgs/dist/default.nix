@@ -1,15 +1,17 @@
 {
   lib,
   stdenv,
-  pkgs,
-  target ? "x86_64",
+  gnutar,
+  libcps,
 }:
 
 stdenv.mkDerivation {
-  name = "robonomics-dist-${target}";
-  builder = "${pkgs.bash}/bin/bash";
-  args = with pkgs; ["-c" ''
+  name = "robonomics-distribution";
+  dontUnpack = true;
+  dontBuild = true;
+  dontConfigure = true;
+  installPhase = ''
     mkdir -p $out
-    ${pkgs.gnutar}/bin/tar -czvf $out/dist.tar.gz ${libcps-musl}/bin/cps
-  ''];
+    ${gnutar}/bin/tar -czvf $out/dist.tar.gz ${libcps}/bin/cps
+  '';
 }

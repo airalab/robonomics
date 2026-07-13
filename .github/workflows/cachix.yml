@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cachix-upload:
+  cachix-builds:
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -61,9 +61,19 @@ jobs:
         with:
           name: robonomics
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-      - run: nix build
-      - run: nix build .#libcps
-      - run: nix build .#robonet
       - run: nix develop --command bash -c "echo OK"
-      - run: nix develop .#robonet --command bash -c "echo OK"
       - run: nix develop .#benchmarking --command bash -c "echo OK"
+
+      - run: nix build .#dist-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robonomics-linux-x86_64
+          path: result/dist.tar.gz
+          retention-days: 7
+
+      - run: nix build .#dist-aarch64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robonomics-linux-aarch64
+          path: result/dist.tar.gz 
+          retention-days: 7
