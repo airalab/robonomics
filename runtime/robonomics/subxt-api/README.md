@@ -74,9 +74,9 @@ The `check-metadata` feature verifies that the prebuilt metadata matches the run
 │     ↓                                                       │
 │  2. Extracts metadata from runtime WASM                     │
 │     ↓                                                       │
-│  3. Computes SHA256 of extracted metadata                   │
+│  3. Computes SeaHash (u64) of extracted metadata            │
 │     ↓                                                       │
-│  4. Computes SHA256 of prebuilt metadata.scale              │
+│  4. Computes SeaHash (u64) of prebuilt metadata.scale       │
 │     ↓                                                       │
 │  5. Compares digests                                        │
 │     ↓                                                       │
