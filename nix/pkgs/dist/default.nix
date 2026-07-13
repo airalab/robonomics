@@ -12,6 +12,6 @@ stdenv.mkDerivation {
   dontConfigure = true;
   installPhase = ''
     mkdir -p $out
-    ${gnutar}/bin/tar -czvf $out/dist.tar.gz ${libcps}/bin/cps
+    ${gnutar}/bin/tar -czvf $out/dist.tar.gz --transform='s|.*/||' ${libcps}/bin/cps
   '';
 }
