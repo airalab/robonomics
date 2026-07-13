@@ -20,5 +20,8 @@ in rec {
   robonet-aarch64 = aarch64.callPackage ./robonet {};
   robonet-aarch64-musl = aarch64-musl.callPackage ./robonet {};
 
+  dist-x86_64 = pkgs.callPackage ./dist { target = "x86_64"; };
+  dist-aarch64 = pkgs.callPackage ./dist { target = "aarch64"; };
+
   default = robonomics;
 }
