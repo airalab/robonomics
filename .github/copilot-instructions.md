@@ -7,7 +7,7 @@
 ## Code Style
 
 - Use Polkadot SDK / Rust coding best practices
-- Always add add descriptive in code documentation 
+- Always add descriptive in-code documentation
 
 ## Workflow
 
