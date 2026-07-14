@@ -152,7 +152,7 @@ cargo build -p robonomics-runtime-subxt-api --features check-metadata
 
 **Behavior:**
 - Extracts metadata from runtime WASM
-- Compares SHA256 hash with prebuilt `metadata.scale`
+- Computes SeaHash (u64) of extracted metadata and of the prebuilt `metadata.scale`
 - **Panics with mismatch error** if hashes don't match
 - Succeeds silently if hashes match
 
