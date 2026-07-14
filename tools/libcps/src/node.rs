@@ -272,17 +272,17 @@ impl<'a> Node<'a> {
     /// # }
     /// ```
     pub async fn query(&self) -> Result<NodeInfo> {
-        trace!("Querying node {} at latest finalized block", self.id);
-        // Get the latest finalized block and query at that block
+        trace!("Querying node {} at latest block", self.id);
+        // Get the latest block and query at that block
         let block_hash = self
             .client
             .api
             .at_current_block()
             .await
-            .map_err(|e| anyhow!("Failed to get latest finalized block: {}", e))?
+            .map_err(|e| anyhow!("Failed to get latest block: {}", e))?
             .block_hash();
 
-        trace!("Latest finalized block hash: {:?}", block_hash);
+        trace!("Latest block hash: {:?}", block_hash);
         self.query_at(block_hash).await
     }
 
