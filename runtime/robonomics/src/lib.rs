@@ -698,7 +698,6 @@ type SingleBlockMigrations = (
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
     // Cumulus pallets migrations
-    cumulus_pallet_aura_ext::migration::MigrateV0ToV1<Runtime>,
     cumulus_pallet_parachain_system::migration::Migration<Runtime>,
     // XCMP Queue migrations: v5 → v6 → v7
     cumulus_pallet_xcmp_queue::migration::v6::MigrateV5ToV6<Runtime>,
