@@ -277,10 +277,14 @@ impl<'a> Node<'a> {
         let block_hash = self
             .client
             .api
-            .at_current_block()
+            .stream_blocks()
             .await
+            .map_err(|e| anyhow!("Failed to subscribe to finalized blocks: {}", e))?
+            .next()
+            .await
+            .ok_or_else(|| anyhow!("Failed to get latest finalized block: stream ended"))?
             .map_err(|e| anyhow!("Failed to get latest finalized block: {}", e))?
-            .block_hash();
+            .hash();
 
         trace!("Latest finalized block hash: {:?}", block_hash);
         self.query_at(block_hash).await
@@ -312,7 +316,8 @@ impl<'a> Node<'a> {
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
     /// // Get the finalized block hash
-    /// let block_hash = client.api.at_current_block().await?.block_hash();
+    /// let mut blocks = client.api.stream_blocks().await?;
+    /// let block_hash = blocks.next().await.unwrap()?.hash();
     /// let info = node.query_at(block_hash).await?;
     /// println!("Node owner: {:?}", info.owner);
     /// # Ok(())

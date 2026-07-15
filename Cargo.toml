@@ -236,8 +236,6 @@ pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
 pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
 pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
-pallet-robonomics-claim = { path = "./frame/claim", default-features = false }
-pallet-robonomics-teleport = { path = "./frame/teleport", default-features = false }
 robonomics-collator-rewards = { path = "./frame/collator-rewards", default-features = false }
 parachain-info = { path = "./frame/parachain-info", default-features = false }
 

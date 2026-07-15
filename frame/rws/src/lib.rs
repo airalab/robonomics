@@ -209,6 +209,8 @@ pub mod pallet {
         TooSmallBid,
         /// Subscription is not registered.
         NoSubscription,
+        /// Target account already has subscription.
+        TargetAlreadyHasSubscription,
         /// Devices isn't assigned to this subscription.
         NotLinkedDevice,
         /// The origin account have no enough free weight to process these call: [free_weight, required_weight].
@@ -478,15 +480,15 @@ pub mod pallet {
         pub fn transfer(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             // This is a public call, so we ensure that the origin is some signed account.
             let sender = ensure_signed(origin)?;
-            // There is no subscription in target
-            if !<Ledger<T>>::contains_key(&target) {
-                // Sender have a subscription
-                if let Some(subscription) = <Ledger<T>>::take(&sender) {
-                    // Insert subscription taken subscription to target
-                    <Ledger<T>>::insert(&target, subscription);
-                    Self::deposit_event(Event::UpdateSubscriptionOwner(sender, target));
-                }
-            }
+            ensure!(
+                !<Ledger<T>>::contains_key(&target),
+                Error::<T>::TargetAlreadyHasSubscription
+            );
+            let subscription = <Ledger<T>>::take(&sender).ok_or(Error::<T>::NoSubscription)?;
+
+            // Insert sender subscription to target.
+            <Ledger<T>>::insert(&target, subscription);
+            Self::deposit_event(Event::UpdateSubscriptionOwner(sender, target));
             Ok(().into())
         }
     }

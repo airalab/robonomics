@@ -415,10 +415,10 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+use core::fmt::Debug;
 use frame_support::{traits::ConstU32, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::Debug;
 use sp_std::prelude::*;
 
 /// Callback trait invoked when a payload is set on a node.

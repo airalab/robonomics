@@ -810,10 +810,9 @@ impl Config {
                                     Ok(_) => {
                                         // Call publish handler if provided
                                         if let Some(ref handler) = publish_handler {
-                                            // The runtime uses 32-bit block numbers; subxt 0.50
-                                            // exposes them as u64, so narrow it back for the
-                                            // public `PublishHandler` signature.
-                                            handler(topic, block.number() as u32, &data);
+                                            if let Ok(block_no) = u32::try_from(block.number()) {
+                                                handler(topic, block_no, &data);
+                                            }
                                         }
                                     }
                                     Err(e) => {
