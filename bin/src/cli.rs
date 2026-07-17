@@ -46,6 +46,7 @@ impl CliConfigT for CliConfig {
     }
 }
 
+#[cfg(feature = "dev-runtime")]
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
@@ -58,6 +59,7 @@ fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     Ok(config)
 }
 
+#[cfg(feature = "dev-runtime")]
 fn robonomics_localnet_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
@@ -82,7 +84,9 @@ impl LoadSpec for RobonomicsChainSpecLoader {
             "kusama" => GenericChainSpec::from_json_bytes(
                 &include_bytes!("../../chains/kusama-parachain.raw.json")[..],
             )?,
+            #[cfg(feature = "dev-runtime")]
             "local" => robonomics_localnet_config()?,
+            #[cfg(feature = "dev-runtime")]
             "dev" => robonomics_development_config()?,
             path => GenericChainSpec::from_json_file(path.into())?,
         }))

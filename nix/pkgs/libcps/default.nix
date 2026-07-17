@@ -1,17 +1,11 @@
 {
   lib,
-  rust-toolchain,
+  rustPlatform,
   stdenv,
   pkgs,
 }:
 
-let
-  rustPlatform = pkgs.makeRustPlatform {
-    rustc = rust-toolchain;
-    cargo = rust-toolchain;
-  };
-in
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage {
   pname = "libcps";
   version = "0.3.0";
 
@@ -20,11 +14,6 @@ rustPlatform.buildRustPackage rec {
 
   buildType = "production";
   buildAndTestSubdir = "tools/libcps";
-
-  nativeBuildInputs = [
-    rustPlatform.bindgenHook
-    rust-toolchain
-  ];
 
   meta = with lib; {
     description = "Interacting with Robonomics CPS (Cyber-Physical Systems) pallet";

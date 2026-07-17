@@ -19,8 +19,7 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-#        value: ${{ jobs.release-binary.outputs.status == 'success' && jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
-        value: ${{ jobs.srtool.outputs.status == 'success' }}
+        value: ${{ jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
 
 concurrency:
   group: nightly-${{ github.ref }}
@@ -61,25 +60,19 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install LLVM on MacOS 
-        run: brew install llvm
+        run: brew install llvm clang
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Build robonomics 
-        run: cargo build --profile production --bin robonomics 
+        run: cargo build --profile production --bin robonomics
 
       - uses: actions/upload-artifact@v4
         with:
           name: robonomics-macos-x86_64
           path: target/production/robonomics
           retention-days: 7
-
-#      - uses: actions/upload-artifact@v4
-#        with:
-#          name: robonet-${{ matrix.platform.target }}
-#          path: target/${{ matrix.platform.target }}/production/robonet
-#          retention-days: 7
 
   docker:
     needs: cachix-builds
@@ -107,17 +100,19 @@ jobs:
         images: robonomics/robonomics
         tags: type=sha # add git short SHA as Docker tag
 
-    - name: Download pre-built amd64 linux collator binary
+    - name: Download pre-built amd64 binaries
       uses: actions/download-artifact@v4
       with:
         name: robonomics-linux-x86_64
         path: scripts/docker/amd64/
+    - run: cd scripts/docker/amd64 && tar xvf dist.tar.gz
 
-    - name: Download pre-built aarch64 linux collator binary
+    - name: Download pre-built aarch64 binaries 
       uses: actions/download-artifact@v4
       with:
         name: robonomics-linux-aarch64
         path: scripts/docker/arm64/
+    - run: cd scripts/docker/arm64 && tar xvf dist.tar.gz
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6

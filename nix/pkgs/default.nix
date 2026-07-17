@@ -20,8 +20,14 @@ in rec {
   robonet-aarch64 = aarch64.callPackage ./robonet {};
   robonet-aarch64-musl = aarch64-musl.callPackage ./robonet {};
 
-  dist-x86_64 = pkgs.callPackage ./dist { libcps = libcps-musl; };
-  dist-aarch64 = pkgs.callPackage ./dist { libcps = libcps-aarch64-musl; };
+  dist-x86_64 = pkgs.callPackage ./dist {
+    libcps = libcps-musl;
+    robonomics = robonomics-musl;
+  };
+  dist-aarch64 = pkgs.callPackage ./dist {
+    libcps = libcps-aarch64-musl;
+    robonomics = robonomics-aarch64-musl;
+  };
 
   default = robonomics;
 }

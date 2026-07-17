@@ -18,8 +18,8 @@ let
       rustTarget = stdenv.hostPlatform.rust.cargoEnvVarTarget;
       linkerFlags = {
         lld = "-Clink-arg=-fuse-ld=${llvmPackages.lld}/bin/ld.lld -Clink-arg=-Wl,--no-rosegment";
-        mold = "-Clink-arg=-fuse-ld=${mold}/bin/ld.mold -Clink-arg=-Wl,--no-rosegment";
-        wild = "-Clink-arg=-fuse-ld=${wild}/bin/ld.wild";
+        mold = "-Clink-arg=-fuse-ld=${mold}/bin/ld.mold -Clink-arg=-Wl,--no-rosegment -Clink-arg=-flto";
+        wild = "-Clink-arg=-fuse-ld=${wild}/bin/ld.wild -Clink-arg=-flto";
       };
       rustflags =
         if stdenv.isDarwin then

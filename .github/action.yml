@@ -1,0 +1,34 @@
+name: Setup runner
+inputs:
+  cachix_token:
+    description: Cachix token
+runs:
+  using: composite
+  steps:
+    - name: Increase swap size
+      uses: pierotofy/set-swap-space@fc79b3f67fa8a838184ce84a674ca12238d2c761
+      with:
+        swap-size-gb: 16
+    - name: Enable zswap
+      shell: bash
+      run: |
+        echo "zswap (before)"
+        grep -r . /sys/module/zswap/parameters/
+        echo 0 | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+        echo 40 | sudo tee /sys/module/zswap/parameters/max_pool_percent >/dev/null
+        echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null
+        echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null
+        echo 1 | sudo tee /sys/module/zswap/parameters/shrinker_enabled >/dev/null
+        echo 1 | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+        sudo sysctl vm.swappiness=80
+        echo "zswap (after)"
+        grep -r . /sys/module/zswap/parameters/
+    - name: Free disk space
+      uses: wimpysworld/nothing-but-nix@v10
+    - name: Install nix
+      uses: cachix/install-nix-action@v31
+    - name: Setup cachix
+      uses: cachix/cachix-action@v17
+      with:
+        authToken: "${{ inputs.cachix_token }}"
+        name: polkadot
