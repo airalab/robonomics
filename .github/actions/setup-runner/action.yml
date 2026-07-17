@@ -31,4 +31,4 @@ runs:
       uses: cachix/cachix-action@v17
       with:
         authToken: "${{ inputs.cachix_token }}"
-        name: polkadot
+        name: robonomics
