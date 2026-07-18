@@ -5,6 +5,8 @@ let
   aarch64 = pkgs.pkgsCross.aarch64-multiplatform-musl;
   aarch64-musl = pkgs.pkgsCross.aarch64-multiplatform-musl;
 in rec {
+  default = robonomics;
+
   robonomics = pkgs.callPackage ./robonomics {};
   robonomics-musl = musl.callPackage ./robonomics {};
   robonomics-aarch64 = aarch64.callPackage ./robonomics {};
@@ -29,5 +31,5 @@ in rec {
     robonomics = robonomics-aarch64-musl;
   };
 
-  default = robonomics;
+  runtime-metadata = pkgs.callPackage ./metadata {};
 }

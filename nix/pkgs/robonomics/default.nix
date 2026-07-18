@@ -20,6 +20,10 @@ rustPlatform.buildRustPackage {
   cargoLock.lockFile = ../../../Cargo.lock;
   src = lib.cleanSource ../../..;
 
+  preBuild = ''
+    export SUBSTRATE_CLI_GIT_COMMIT_HASH=$(cd ../../.. && git rev-parse --short HEAD)
+  '';
+
   buildType = "production";
   buildAndTestSubdir = "bin";
 
