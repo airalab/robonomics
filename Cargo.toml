@@ -65,9 +65,10 @@ anyhow = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 env_logger = "0.11"
 log = "0.4"
-#zombienet-sdk = "0.4.15"
-subxt = "0.50"
-subxt-signer = "0.50"
+zombienet-sdk = "0.4.15"
+# Subxt 0.44 used by Polkadot SDK, update when it switch out
+subxt = "0.44"
+subxt-signer = "0.44"
 curve25519-dalek = "5.0"
 x25519-dalek = { version = "3.0", features = ["static_secrets"] }
 chacha20poly1305 = "0.11"

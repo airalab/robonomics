@@ -29,10 +29,5 @@ mod cli;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
-
-    // Install the ring CryptoProvider for rustls before any TLS connections are made.
-    // Ignore the error if a provider was already installed.
-    let _ = rustls::crypto::ring::default_provider().install_default();
-
     cli::run()
 }

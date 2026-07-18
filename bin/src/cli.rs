@@ -19,7 +19,7 @@
 
 use color_eyre::eyre::Result;
 use polkadot_omni_node_lib::{
-    chain_spec::{ChainSpec, Extensions, GenericChainSpec, LoadSpec},
+    chain_spec::{ChainSpec, GenericChainSpec, LoadSpec},
     runtime::DefaultRuntimeResolver,
     CliConfig as CliConfigT, RunConfig, NODE_VERSION,
 };
@@ -50,7 +50,7 @@ impl CliConfigT for CliConfig {
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("westend-local".into(), 2048),
+        polkadot_omni_node_lib::chain_spec::Extensions::new("westend-local".into(), 2048),
     )
     .with_name("Robonomics Local Develoment")
     .with_id("robonomics-local-development")
@@ -63,7 +63,7 @@ fn robonomics_development_config() -> Result<GenericChainSpec, String> {
 fn robonomics_localnet_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("rococo-local".into(), 2000),
+        polkadot_omni_node_lib::chain_spec::Extensions::new("rococo-local".into(), 2000),
     )
     .with_name("Robonomics Localnet")
     .with_id("robonomics-localnet")

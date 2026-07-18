@@ -291,7 +291,7 @@ docs: update README with new examples
 
 ### Blockchain Queries
 
-- Use `at_current_block()` for most recent state
+- Use `backend().latest_finalized_block_ref()` for most recent state
 - Consider caching frequently accessed data
 - Batch queries when possible
 
