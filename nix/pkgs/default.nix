@@ -1,4 +1,4 @@
-{ pkgs }:
+{ pkgs, revHash }:
 
 let
   musl = pkgs.pkgsCross.musl64;
@@ -7,10 +7,10 @@ let
 in rec {
   default = robonomics;
 
-  robonomics = pkgs.callPackage ./robonomics {};
-  robonomics-musl = musl.callPackage ./robonomics {};
-  robonomics-aarch64 = aarch64.callPackage ./robonomics {};
-  robonomics-aarch64-musl = aarch64-musl.callPackage ./robonomics {};
+  robonomics = pkgs.callPackage ./robonomics { inherit revHash; };
+  robonomics-musl = musl.callPackage ./robonomics { inherit revHash; };
+  robonomics-aarch64 = aarch64.callPackage ./robonomics {inherit revHash; };
+  robonomics-aarch64-musl = aarch64-musl.callPackage ./robonomics { inherit revHash; };
 
   libcps = pkgs.callPackage ./libcps {};
   libcps-musl = musl.callPackage ./libcps {};

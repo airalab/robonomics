@@ -6,23 +6,24 @@
   pkg-config,
   protobuf,
   rust-jemalloc-sys-unprefixed,
-  llvmPackages,
-  rustPlatform,
-  rustc,
+  rust-toolchain,
+  makeRustPlatform,
+  revHash,
   stdenv,
   pkgs,
 }:
 
-rustPlatform.buildRustPackage {
+let
+  rustPlatform = makeRustPlatform {
+    rustc = rust-toolchain;
+    cargo = rust-toolchain;
+};
+in rustPlatform.buildRustPackage {
   pname = "robonomics";
   version = "4.3.0";
 
   cargoLock.lockFile = ../../../Cargo.lock;
   src = lib.cleanSource ../../..;
-
-  preBuild = ''
-    export SUBSTRATE_CLI_GIT_COMMIT_HASH=$(cd ../../.. && git rev-parse --short HEAD)
-  '';
 
   buildType = "production";
   buildAndTestSubdir = "bin";
@@ -30,8 +31,7 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     pkg-config
     rustPlatform.bindgenHook
-    rustc
-    llvmPackages.lld
+    rust-toolchain
   ];
 
   # NOTE: jemalloc is used by default on Linux
@@ -48,6 +48,7 @@ rustPlatform.buildRustPackage {
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf}/bin/protoc";
     ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+    SUBSTRATE_CLI_GIT_COMMIT_HASH="${revHash}";
   };
 
   meta = with lib; {
