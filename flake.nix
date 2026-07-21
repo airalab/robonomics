@@ -63,7 +63,7 @@
         system: pkgs: rec {
           default = self.lib.${system}.mkDevShell {
             packages = with pkgs; [
-              openssl taplo actionlint cargo-nextest
+              openssl taplo actionlint cargo-nextest cargo-audit
               psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher
               pkgs.polkadot polkadot-parachain
             ];
@@ -78,10 +78,7 @@
         }
       );
 
-      packages = eachSystem (system: pkgs: import ./nix/pkgs {
-        revHash = self.rev;
-        inherit pkgs;
-      });
+      packages = eachSystem (system: pkgs: import ./nix/pkgs { inherit pkgs self; });
     }
     // {
       overlays = {

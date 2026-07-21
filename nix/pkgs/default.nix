@@ -1,9 +1,10 @@
-{ pkgs, revHash }:
+{ pkgs, self }:
 
 let
   musl = pkgs.pkgsCross.musl64;
   aarch64 = pkgs.pkgsCross.aarch64-multiplatform-musl;
   aarch64-musl = pkgs.pkgsCross.aarch64-multiplatform-musl;
+  revHash = if (self ? rev) then self.rev else self.dirtyRev;
 in rec {
   default = robonomics;
 
@@ -22,11 +23,13 @@ in rec {
   robonet-aarch64 = aarch64.callPackage ./robonet {};
   robonet-aarch64-musl = aarch64-musl.callPackage ./robonet {};
 
-  dist-x86_64 = pkgs.callPackage ./dist {
+  package-x86_64 = pkgs.callPackage ./package {
+    inherit revHash;
     libcps = libcps-musl;
     robonomics = robonomics-musl;
   };
-  dist-aarch64 = pkgs.callPackage ./dist {
+  package-aarch64 = pkgs.callPackage ./package {
+    inherit revHash;
     libcps = libcps-aarch64-musl;
     robonomics = robonomics-aarch64-musl;
   };

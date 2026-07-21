@@ -1,24 +1,19 @@
 {
   cacert,
   lib,
+  rustc,
   rocksdb,
   openssl,
   pkg-config,
   protobuf,
   rust-jemalloc-sys-unprefixed,
-  rust-toolchain,
-  makeRustPlatform,
+  rustPlatform,
   revHash,
   stdenv,
   pkgs,
 }:
 
-let
-  rustPlatform = makeRustPlatform {
-    rustc = rust-toolchain;
-    cargo = rust-toolchain;
-};
-in rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage {
   pname = "robonomics";
   version = "4.3.0";
 
@@ -31,7 +26,7 @@ in rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     pkg-config
     rustPlatform.bindgenHook
-    rust-toolchain
+    rustc
   ];
 
   # NOTE: jemalloc is used by default on Linux
@@ -45,10 +40,11 @@ in rustPlatform.buildRustPackage {
   ];
 
   env = {
+    SKIP_WASM_BUILD = 1;
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf}/bin/protoc";
-    ROCKSDB_LIB_DIR = "${rocksdb}/lib";
     SUBSTRATE_CLI_GIT_COMMIT_HASH="${revHash}";
+    ROCKSDB_LIB_DIR = lib.makeLibraryPath [ rocksdb ];
   };
 
   meta = with lib; {

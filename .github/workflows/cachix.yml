@@ -38,12 +38,12 @@ jobs:
           CORES=$(nproc)
           CORES=$((CORES - 1))
           echo "Using $CORES cores."
-          nix build -L --cores "$CORES" .#dist-x86_64
+          nix build -L --cores "$CORES" .#package-x86_64
 
       - uses: actions/upload-artifact@v4
         with:
           name: robonomics-linux-x86_64
-          path: result/dist.tar.gz
+          path: result/package.tar.gz
           retention-days: 7
 
       - name: Build aarch64 distribution 
@@ -51,10 +51,10 @@ jobs:
           CORES=$(nproc)
           CORES=$((CORES - 1))
           echo "Using $CORES cores."
-          nix build -L --cores "$CORES" .#dist-aarch64
+          nix build -L --cores "$CORES" .#package-aarch64
 
       - uses: actions/upload-artifact@v4
         with:
           name: robonomics-linux-aarch64
-          path: result/dist.tar.gz 
+          path: result/package.tar.gz 
           retention-days: 7
