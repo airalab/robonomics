@@ -177,6 +177,7 @@ fn main() {
 #[cfg(not(feature = "build-metadata"))]
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    println!("cargo:rerun-if-changed={manifest_dir}/metadata.scale");
     let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");

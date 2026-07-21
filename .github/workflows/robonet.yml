@@ -26,7 +26,6 @@ jobs:
   robonet-tests:
     needs: cachix
     name: Run Tests
-    if: false
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
