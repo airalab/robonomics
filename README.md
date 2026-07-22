@@ -69,7 +69,7 @@ This repository is organized as a Cargo workspace with the following structure:
 
 - **`tools/robonet/`** - Local network spawner and integration test framework
   - CLI tool for spawning multi-node test networks using ZombieNet SDK
-  - Built-in integration tests for XCM, CPS, Claim pallets, and network functionality
+  - Built-in integration tests for XCM, CPS, and network functionality
   - Multiple network topologies (simple parachain, with AssetHub for XCM testing)
   - Developer-friendly interface with progress indicators and detailed logging
   - See [robonet/README.md](tools/robonet/README.md) for detailed documentation
