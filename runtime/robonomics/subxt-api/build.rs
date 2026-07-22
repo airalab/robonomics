@@ -181,5 +181,9 @@ fn main() {
     let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
+
+    // Re-run the build script if the committed metadata changes.
+    println!("cargo:rerun-if-changed=metadata.scale");
+
     fs::copy(saved_metadata_path, metadata_path).expect("Unable to copy saved metadata");
 }
