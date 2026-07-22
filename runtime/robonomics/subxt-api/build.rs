@@ -166,25 +166,14 @@ fn main() {
 
     #[cfg(feature = "check-metadata")]
     check_metadata();
-
-// Step 10: Set up rebuild triggers.
-// These tell cargo to re-run this build script when inputs change.
-println!("cargo:rerun-if-changed=../src");
-println!("cargo:rerun-if-changed=../Cargo.toml");
-println!("cargo:rerun-if-changed=metadata.scale");
 }
 
 /// Just use already extracted metadata.
 #[cfg(not(feature = "build-metadata"))]
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-    println!("cargo:rerun-if-changed={manifest_dir}/metadata.scale");
     let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
-
-    // Re-run the build script if the committed metadata changes.
-    println!("cargo:rerun-if-changed=metadata.scale");
-
     fs::copy(saved_metadata_path, metadata_path).expect("Unable to copy saved metadata");
 }
