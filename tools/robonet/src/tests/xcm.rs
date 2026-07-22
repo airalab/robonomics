@@ -919,6 +919,29 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
     Ok(())
 }
 
+/// Test: Teleport Assets using XcmPallet with XRT fee payment
+///
+/// This test implements native asset (XRT) teleportation from Robonomics to AssetHub
+/// using the XcmPallet instead of the deprecated teleportXRT pallet.
+///
+/// # Implementation Details
+///
+/// - Uses `XcmPallet::execute` to initiate the teleport locally
+/// - Constructs an XCM message with `InitiateTeleport` instruction
+/// - Uses XRT (native asset) for fee payment via `BuyExecution` instruction
+/// - Verifies balance decrease on source chain (Robonomics)
+///
+/// # Note on Asset Conversion
+///
+/// The original requirement included creating an asset-conversion pool (XRT-DOT), but
+/// this is not possible as the Robonomics runtime does not include `pallet_asset_conversion`
+/// or `pallet_asset_conversion_tx_payment`. The runtime configuration (runtime/robonomics/src/lib.rs)
+/// shows that only basic asset handling through the native Balances pallet is supported.
+///
+/// # Replaces
+///
+/// This replaces the deprecated `pallet_teleport_xrt::send()` approach with a more
+/// generic XCM-based implementation using standard XCM instructions.
 async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) using XcmPallet ===");
 
