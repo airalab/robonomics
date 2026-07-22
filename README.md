@@ -16,7 +16,7 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 
 | Code Builder | Network Guard |
 | --- | --- |
-|[<img src="https://github.com/user-attachments/assets/fc522054-48de-4f6d-a913-f9204f8047bc" width="30%">](./DEVELOPER_GUIDE.md)|[<img src="https://github.com/user-attachments/assets/02b4152c-7f14-4896-a406-55e60f6362e6" width="30%">](./COLLATOR_GUIDE.md)|
+|[<img src="https://github.com/user-attachments/assets/fc522054-48de-4f6d-a913-f9204f8047bc">](./DEVELOPER_GUIDE.md)|[<img src="https://github.com/user-attachments/assets/ee3b6d88-da2c-4620-b72f-92ca7fdef7a6">](./COLLATOR_GUIDE.md)|
 
 ## Repository Structure
 
