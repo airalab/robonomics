@@ -229,3 +229,53 @@ The script:
 - Runs `on-runtime-upgrade` checks against live chain state
 - Validates that migrations execute successfully without errors
 - Reports any issues before they reach production
+
+## GitHub Actions CI/CD
+
+The Robonomics project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline includes automated testing, building, and release workflows optimized for speed and reliability.
+
+**Key workflows:**
+- Nightly builds and artifact publishing
+- Comprehensive test suite (unit tests, runtime benchmarks)
+- Release pipeline with multi-platform binaries
+- Docker image builds and SRTOOL runtime generation
+
+For detailed documentation on workflow structure, caching strategies, and maintenance guidelines, see [.github/workflows/README.md](./.github/workflows/README.md).
+
+## Development Tooling
+
+The Robonomics workspace includes specialized tools for working with the network:
+
+### libcps - CPS Library & CLI
+
+A comprehensive library and command-line interface for managing hierarchical Cyber-Physical Systems on Robonomics. Features multi-algorithm encryption, dual keypair support, and MQTT bridge for IoT integration.
+
+Documentation: [tools/libcps/README.md](./tools/libcps/README.md)
+
+### robonet - Network Testbed
+
+Built on ZombieNet SDK, `robonet` provides an easy way to spawn local Robonomics networks for integration testing. Supports multiple network topologies and includes comprehensive tests for XCM, CPS, and other pallets.
+
+Documentation: [tools/robonet/README.md](./tools/robonet/README.md)
+
+## Nix Workflow and Binary Cache
+
+This project uses [Nix](https://nixos.org/) to provide reproducible development environments with all necessary dependencies pre-configured. The Nix flake defines multiple development shells optimized for different workflows (see [Nix Development Shells](#nix-development-shells) above).
+
+### Using the Robonomics Binary Cache
+
+To speed up builds, the project uses [Cachix](https://cachix.org/) to cache pre-built Nix artifacts. This eliminates the need to build dependencies from source:
+
+**Setup Cachix cache (one-time):**
+
+```bash
+# Install cachix
+nix-env -iA cachix -f https://cachix.org/api/v1/install
+
+# Add the Robonomics cache
+cachix use robonomics
+```
+
+After setup, Nix will automatically download pre-built binaries from `robonomics.cachix.org` instead of building from source, significantly reducing build times.
+
+**Note:** The CI/CD pipeline automatically builds and uploads artifacts to Cachix on every master branch push, ensuring the cache stays up-to-date with the latest changes.
