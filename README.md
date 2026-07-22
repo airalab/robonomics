@@ -1,4 +1,4 @@
-[<img align="right" height="50" src="https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg">](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
+[<img align="right" src="https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg">](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
 
 # Robonomics Network
 
@@ -12,15 +12,11 @@
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
-## Quick Start
-
-<p align="center">
-Choose your path
+## Quick Start - Choose Your Destiny...
 
 | Code Builder | Network Guard |
 | --- | --- |
-|[<img src="https://robonomics.network/pages/wallpapers/space-shiva/robonomics.network-space-shiva-1-1.png" width="30%">](./DEVELOPER_GUIDE.md)|[<img src="https://robonomics.network/pages/wallpapers/astronaut-coloured/robonomics.network-astronaut-coloured-1-1.png" width="30%">](./COLLATOR_GUIDE.md)|
-</p>
+|[<img src="https://github.com/user-attachments/assets/fc522054-48de-4f6d-a913-f9204f8047bc" width="30%">](./DEVELOPER_GUIDE.md)|[<img src="https://github.com/user-attachments/assets/02b4152c-7f14-4896-a406-55e60f6362e6" width="30%">](./COLLATOR_GUIDE.md)|
 
 ## Repository Structure
 
