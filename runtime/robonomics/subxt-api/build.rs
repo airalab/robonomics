@@ -167,10 +167,11 @@ fn main() {
     #[cfg(feature = "check-metadata")]
     check_metadata();
 
-    // Step 10: Set up rebuild triggers.
-    // These tell cargo to re-run this build script when the runtime changes.
-    println!("cargo:rerun-if-changed=../src");
-    println!("cargo:rerun-if-changed=../Cargo.toml");
+// Step 10: Set up rebuild triggers.
+// These tell cargo to re-run this build script when inputs change.
+println!("cargo:rerun-if-changed=../src");
+println!("cargo:rerun-if-changed=../Cargo.toml");
+println!("cargo:rerun-if-changed=metadata.scale");
 }
 
 /// Just use already extracted metadata.
