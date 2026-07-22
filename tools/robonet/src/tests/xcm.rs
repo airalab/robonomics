@@ -71,7 +71,7 @@ mod robonomics_xcm {
     pub use api::runtime_types::xcm::{
         double_encoded::DoubleEncoded,
         v3::{OriginKind, WeightLimit},
-        VersionedLocation, VersionedXcm,
+        VersionedAssets, VersionedLocation, VersionedXcm,
     };
     use api::sudo::calls::types::Sudo;
 
@@ -919,16 +919,19 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
     Ok(())
 }
 
-/// Test: Teleport Assets using XcmPallet with XRT fee payment
+/// Test: Teleport Assets using XcmPallet::teleport_assets with XRT fee payment
 ///
 /// This test implements native asset (XRT) teleportation from Robonomics to AssetHub
-/// using the XcmPallet instead of the deprecated teleportXRT pallet.
+/// using the XcmPallet::teleport_assets call instead of manually building XCM.
 ///
 /// # Implementation Details
 ///
-/// - Uses `XcmPallet::execute` to initiate the teleport locally
-/// - Constructs an XCM message with `InitiateTeleport` instruction
-/// - Uses XRT (native asset) for fee payment via `BuyExecution` instruction
+/// - Uses `XcmPallet::teleport_assets` to initiate the teleport
+/// - This high-level call internally handles:
+///   - Withdrawing assets from the source account
+///   - Initiating the teleport with the destination chain
+///   - Buying execution on the destination using XRT
+///   - Depositing assets to the beneficiary
 /// - Verifies balance decrease on source chain (Robonomics)
 ///
 /// # Note on Asset Conversion
@@ -940,8 +943,8 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
 ///
 /// # Replaces
 ///
-/// This replaces the deprecated `pallet_teleport_xrt::send()` approach with a more
-/// generic XCM-based implementation using standard XCM instructions.
+/// This replaces the manual XCM construction approach with a simpler, more maintainable
+/// implementation using the standard `pallet_xcm::teleport_assets` call.
 async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
     log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) using XcmPallet ===");
 
@@ -1002,49 +1005,29 @@ async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -
         fun: robonomics_xcm::Fungibility::Fungible(amount),
     };
 
-    // Create XCM message for teleport with fee payment in XRT
-    // This uses InitiateTeleport with BuyExecution using XRT for fees
-    let xcm_message = robonomics_xcm::Xcm(vec![
-        // Withdraw the asset from the sender's account
-        robonomics_xcm::Instruction::WithdrawAsset(robonomics_xcm::Assets(vec![
-            native_asset.clone()
-        ])),
-        // Initiate teleport to AssetHub
-        robonomics_xcm::Instruction::InitiateTeleport {
-            assets: robonomics_xcm::asset::AssetFilter::Definite(robonomics_xcm::Assets(vec![
-                native_asset.clone()
-            ])),
-            dest: robonomics_xcm::ASSET_HUB_LOCATION,
-            xcm: robonomics_xcm::Xcm(vec![
-                // Buy execution on destination using XRT for fees
-                robonomics_xcm::Instruction::BuyExecution {
-                    fees: native_asset.clone(),
-                    weight_limit: robonomics_xcm::WeightLimit::Unlimited,
-                },
-                // Deposit asset to beneficiary
-                robonomics_xcm::Instruction::DepositAsset {
-                    assets: robonomics_xcm::asset::AssetFilter::Wild(
-                        robonomics_xcm::asset::WildAsset::All
-                    ),
-                    beneficiary,
-                },
-            ]),
-        },
-    ]);
+    // Use XcmPallet::teleport_assets instead of manually building XCM
+    // This high-level call handles WithdrawAsset, InitiateTeleport, BuyExecution, and DepositAsset internally
+    log::info!("  Constructing teleport transaction using XcmPallet::teleport_assets...");
 
-    log::info!("  Constructing teleport transaction using XcmPallet::execute...");
-
-    // Execute the XCM message locally
+    // Prepare destination: AssetHub parachain
     let dest = Box::new(robonomics_xcm::VersionedLocation::V5(
-        robonomics_xcm::Location {
-            parents: 0,
-            interior: robonomics_xcm::Junctions::Here,
-        },
+        robonomics_xcm::ASSET_HUB_LOCATION,
     ));
-    let message = Box::new(robonomics_xcm::VersionedXcm::V5(xcm_message));
-    let max_weight = robonomics_xcm::WeightLimit::Unlimited;
 
-    let teleport_tx = api::tx().xcm_pallet().execute(message, max_weight);
+    // Prepare beneficiary: Alice's account on destination
+    let beneficiary_location = Box::new(robonomics_xcm::VersionedLocation::V5(beneficiary));
+
+    // Prepare assets: the native asset (XRT) to teleport
+    let assets = Box::new(robonomics_xcm::VersionedAssets::V5(
+        robonomics_xcm::Assets(vec![native_asset.clone()])
+    ));
+
+    // fee_asset_item: use the first (and only) asset for fees
+    let fee_asset_item = 0u32;
+
+    let teleport_tx = api::tx()
+        .xcm_pallet()
+        .teleport_assets(dest, beneficiary_location, assets, fee_asset_item);
 
     log::info!("  Submitting teleport transaction via XcmPallet...");
 
