@@ -1,8 +1,18 @@
 # Robonomics Development Guidelines
 
+> Crates API is available at https://crates.robonomics.network.
+
+Each component is designed to be modular and reusable, following Substrate's framework architecture. The workspace structure allows for efficient development and testing of individual components while maintaining consistency across the project.
+
 ## Nix Development Shells
 
-We provide two specialized development environments through Nix flakes:
+1. Install Nix with flakes support (one-time setup):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+2. We provide two specialized development environments through Nix flakes:
 
 ### Default Development Shell
 
@@ -85,7 +95,7 @@ Detailed **robonet** documentation available at crate [README](./tools/robonet/R
 The `--dev` flag starts a single-node development chain:
 
 ```bash
-robonomics --dev
+cargo run -- --dev
 ```
 
 This creates:
@@ -98,17 +108,17 @@ This creates:
 
 ```bash
 # Store chain data in a custom directory
-robonomics --dev --base-path ./my-dev-chain
+./target/debug/robonomics --dev --base-path ./my-dev-chain
 
 # Clear the chain and start fresh
-robonomics --dev --base-path ./my-dev-chain purge-chain
+./target/debug/robonomics --dev --base-path ./my-dev-chain purge-chain
 ```
 
 **Testing Changes:**
 
 ```bash
-# Run all tests
-cargo test --all
+# Run all tests (use nextest for speedup)
+cargo nextest run --all 
 
 # Run tests for a specific pallet
 cargo test -p pallet-robonomics-datalog
@@ -205,24 +215,16 @@ Before deploying runtime upgrades to production, you can dry-run them against li
 
 ### Basic Usage
 
-Test against Kusama network (default):
+Test against Live network:
 
 ```bash
 ./scripts/try-runtime.sh
-# or explicitly
-./scripts/try-runtime.sh kusama
-```
-
-Test against Polkadot network:
-
-```bash
-./scripts/try-runtime.sh polkadot
 ```
 
 ### What It Does
 
 The script:
-- Connects to public RPC endpoints (wss://kusama.rpc.robonomics.network or wss://polkadot.rpc.robonomics.network)
+- Connects to public RPC endpoints (wss://polkadot.rpc.robonomics.network)
 - Automatically builds the runtime with `try-runtime` features if not found
 - Runs `on-runtime-upgrade` checks against live chain state
 - Validates that migrations execute successfully without errors

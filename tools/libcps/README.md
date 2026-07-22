@@ -85,6 +85,12 @@ libcps = { version = "0.1.0", default-features = false, features = ["mqtt"] }
 cargo install libcps
 ```
 
+### Run CLI using Nix caches
+
+```bash
+nix run github:airalab/robonomics#libcps
+```
+
 ### From Source
 
 ```bash

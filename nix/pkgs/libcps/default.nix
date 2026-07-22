@@ -16,6 +16,7 @@ rustPlatform.buildRustPackage {
   buildAndTestSubdir = "tools/libcps";
 
   meta = with lib; {
+    mainProgram = "cps";
     description = "Interacting with Robonomics CPS (Cyber-Physical Systems) pallet";
     license = licenses.asl20;
     homepage = "https://github.com/airalab/robonomics";

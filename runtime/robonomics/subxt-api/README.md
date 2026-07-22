@@ -388,7 +388,7 @@ NodeData::aead_from(encrypted_bytes);
 
 ### Build Errors
 
-**Error**: `Metadata SHA256 mismatch`
+**Error**: `Metadata hash mismatch`
 
 **Solution**: The prebuilt metadata is out of sync with the runtime. Update it:
 ```bash

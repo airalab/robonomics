@@ -1,51 +1,30 @@
-# Migrating to Robonomics Node v4.2.0
+# Robonomics Collator Guidelines 
 
-This guide explains how to upgrade your Robonomics node to **version 4.2.0**.
+This guide explains how to upgrade your Robonomics node to **version 4.3.0**.
 
 In this manual we are assuming the following things:
 - The service is run on behalf of the `robonomics` user
 - The `robonomics` user's home directory is `/var/lib/robonomics/`
 - The `base-path` of service is `/var/lib/robonomics/base/` 
 
-## 1. Download Binary
+## Download Binary
 
-Download the official v4.2.0 binary from GitHub:
+Download the official v4.3.0 binary from GitHub:
 
-* **Release:** `v4.2.0`
-* Link: [https://github.com/airalab/robonomics/releases/tag/v4.2.0](https://github.com/airalab/robonomics/releases/tag/v4.2.0)
+* **Release:** `v4.3.0`
+* Link: [https://github.com/airalab/robonomics/releases/tag/v4.3.0](https://github.com/airalab/robonomics/releases/tag/v4.3.0)
 
 Download and install:
 
 ```bash
 wget -o robonomics.tar.gz \
-  https://github.com/airalab/robonomics/releases/download/v4.2.0/robonomics-v4.2.0-ubuntu-x86_64.tar.gz
+  https://github.com/airalab/robonomics/releases/download/v4.3.0/robonomics-v4.3.0-ubuntu-x86_64.tar.gz
 tar -xzf robonomics.tar.gz
 sudo mv robonomics /usr/local/bin/
 sudo chmod +x /usr/local/bin/robonomics
 ```
 
-## 2. Download Chain Specification
-
-The v4.2.0 binary does **not** include built-in chain specifications. You must download the chain spec file before starting the node.
-We recommend to store it in the robonomics user's home directory (`/var/lib/robonomics/` in this manual)
-
-For **Kusama** parachain:
-
-```bash
-wget -o /var/lib/robonomics/robonomics-kusama.raw.json \
-  https://raw.githubusercontent.com/airalab/robonomics/refs/heads/master/chains/kusama-parachain.raw.json
-```
-
-For **Polkadot** parachain:
-
-```bash
-wget -o /var/lib/robonomics/robonomics-polkadot.raw.json \
-  https://raw.githubusercontent.com/airalab/robonomics/refs/heads/master/chains/polkadot-parachain.raw.json
-```
-
-Use the downloaded file with the `--chain` flag, e.g. `--chain /var/lib/robonomics/robonomics-kusama.raw.json`.
-
-## 3. Generate Network Key
+## Generate Network Key
 
 v4.2.0 refuses to start without a valid network key. Generate one before first launch:
 
@@ -59,7 +38,9 @@ Replace the `--chain` value with your chain spec path.
 
 After this the network key file `/var/lib/robonomics/base/chains/robonomics/network/secret_ed25519` will be appear. Don't forget to save it for the future possible migrations.
 
-## 4. Download Parachain Snapshot (required for Kusama parachain only)
+## Download Parachain Snapshot (required for Kusama parachain only)
+
+> For the **Polkadot** parachain, use `--sync warp` instead.
 
 Snapshots are currently available **only for the Kusama parachain**:
 
@@ -68,9 +49,7 @@ Snapshots are currently available **only for the Kusama parachain**:
 Clear your parachain base and extract from archive to `/path/to/your/parachain/database`. In this example this path is `/var/lib/robonomics/base/chains/robonomics/db/`
 Fix permissions if necessary.
 
-For the **Polkadot** parachain, use `--sync warp` instead.
-
-## 5. Remove the Deprecated `--lighthouse-account` Flag
+## Remove the Deprecated `--lighthouse-account` Flag
 
 Starting from v4.0, the `--lighthouse-account` CLI flag is no longer supported.
 
@@ -82,18 +61,17 @@ If your systemd service or startup script contains:
 
 Remove this line entirely before restarting the node.
 
-## 6. Recommended Startup Flags
+## Recommended Startup Flags
 
 Below is a recommended systemd `ExecStart` configuration:
 
 ```
 ExecStart=/usr/local/bin/robonomics \
   --name "YOUR_NODE_NAME" \
-  --chain /var/lib/robonomics/robonomics-kusama.raw.json \
+  --chain polkadot \
   --base-path /var/lib/robonomics/base/ \
   --collator \
   --sync warp \
-  --trie-cache-size 0 \
   --telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0" \
   -- \
   --sync warp
@@ -102,11 +80,10 @@ ExecStart=/usr/local/bin/robonomics \
 Key flags:
 
 * `--sync warp` — enables warp sync for the parachain. Much faster initial sync.
-* `--trie-cache-size 0` — disables the trie cache, significantly reducing RAM usage. Recommended by the Robonomics team.
 * `--telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0"` — the chain spec has `telemetryEndpoints: null`, so telemetry must be enabled explicitly via this flag.
 * `-- --sync warp` — enables warp sync for the **relay chain** (after the `--` separator). Without this, the embedded relay chain can take weeks to sync.
 
-## 7. Generate New Session Keys
+## Generate New Session Keys
 
 Robonomics >= v4.0 follows the updated Polkadot SDK requirements, so collators must generate fresh session keys.
 
@@ -140,7 +117,7 @@ To generate session keys:
 
 5. **Remove `--rpc-methods unsafe`** from your startup configuration and restart the node.
 
-## 8. Register Your Collator On-Chain
+## Register Your Collator On-Chain
 
 Once the node is running with the new session keys, you must register your collator.
 
@@ -188,7 +165,7 @@ Collators earn from two sources:
 
 ## Per-Block Author Reward
 
-Starting from spec_version **44**, the Robonomics Polkadot parachain mints a
+Starting from spec_version **43**, the Robonomics Polkadot parachain mints a
 **fixed per-block reward of `0.0042 XRT` directly to the block author** (in
 addition to any transaction fees and tips collected by `pallet_collator_selection`).
 
