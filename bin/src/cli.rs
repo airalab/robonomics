@@ -52,7 +52,7 @@ fn robonomics_development_config() -> Result<GenericChainSpec, String> {
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
         polkadot_omni_node_lib::chain_spec::Extensions::new("westend-local".into(), 2048),
     )
-    .with_name("Robonomics Local Develoment")
+    .with_name("Robonomics Local Development")
     .with_id("robonomics-local-development")
     .with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
     .build();
