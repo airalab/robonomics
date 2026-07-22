@@ -8,7 +8,7 @@
 }:
 
 stdenv.mkDerivation {
-  name = "robonomics-package-${revHash}";
+  name = "robonomics-package-${builtins.substring 0 7 revHash}";
   dontUnpack = true;
   dontBuild = true;
   dontConfigure = true;

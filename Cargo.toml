@@ -214,7 +214,6 @@ cumulus-primitives-utility = { version = "0.30.0", default-features = false }
 # (native)
 polkadot-cli = "36.0.0"
 polkadot-omni-node-lib = "0.18.0"
-polkadot-jemalloc-shim = "0.6.0"
 
 # Polkadot
 # (wasm)

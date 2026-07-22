@@ -29,11 +29,9 @@ rustPlatform.buildRustPackage {
     rustc
   ];
 
-  # NOTE: jemalloc is used by default on Linux
   buildInputs = [
     openssl
-  ]
-  ++ lib.optionals stdenv.hostPlatform.isLinux [ rust-jemalloc-sys-unprefixed ];
+  ];
 
   checkInputs = [
     cacert
@@ -43,8 +41,8 @@ rustPlatform.buildRustPackage {
     SKIP_WASM_BUILD = 1;
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf}/bin/protoc";
-    SUBSTRATE_CLI_GIT_COMMIT_HASH="${revHash}";
     ROCKSDB_LIB_DIR = lib.makeLibraryPath [ rocksdb ];
+    SUBSTRATE_CLI_GIT_COMMIT_HASH = "${builtins.substring 0 7 revHash}";
   };
 
   meta = with lib; {
