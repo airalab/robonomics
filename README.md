@@ -1,4 +1,4 @@
-[<img align="right" height="75" src="https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg">](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
+[<img align="right" height="35" src="https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg">](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
 
 # Robonomics Network
 
@@ -14,10 +14,13 @@ Robonomics platform includes a set of open-source packages and infrastructure fo
 
 ## Quick Start
 
-Choose your path:
+<p align="center">
+Choose your path
 
-[![Code Builder]()](./DEVELOPER_GUIDE.md)
-[![Network Guard]()](./COLLATOR_GUIDE.md)
+| Code Builder | Network Guard |
+|[![Code Builder](https://robonomics.network/pages/wallpapers/space-shiva/robonomics.network-space-shiva-1-1.png)](./DEVELOPER_GUIDE.md)|[![Network Guard](https://robonomics.network/pages/wallpapers/astronaut-coloured/robonomics.network-astronaut-coloured-1-1.png)](./COLLATOR_GUIDE.md)|
+| :---: | :---: |
+</p>
 
 ## Repository Structure
 
