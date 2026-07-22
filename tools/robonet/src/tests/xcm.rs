@@ -62,7 +62,7 @@ mod robonomics_xcm {
 
     use api::runtime_types::robonomics_runtime::RuntimeCall;
     pub use api::runtime_types::staging_xcm::v5::{
-        asset::{Asset, AssetId, Assets, Fungibility},
+        asset::{Asset, AssetFilter, AssetId, Assets, Fungibility, WildAsset},
         junction::Junction,
         junctions::Junctions,
         location::Location,
@@ -920,7 +920,7 @@ async fn test_set_asset_trusted_reserve(network: Option<&Network<LocalFileSystem
 }
 
 async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -> Result<()> {
-    log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) ===");
+    log::info!("=== Test: Teleport Assets (Robonomics -> AssetHub) using XcmPallet ===");
 
     // Connect to both chains
     let para_client = NetworkClient::robonomics(network).await?;
@@ -959,7 +959,6 @@ async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -
     };
 
     // Check initial AssetHub balance (if exists)
-    // Note: AssetHub uses a similar account structure
     let assethub_block = assethub_client.blocks().at_latest().await?;
     log::info!("  AssetHub block: #{}", assethub_block.number());
     log::info!("  Robonomics block: #{}", para_block.number());
@@ -971,28 +970,75 @@ async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -
     // Construct beneficiary: Alice's account on destination
     let beneficiary = robonomics_xcm::account_location(alice_account_id.0.clone());
 
-    // Construct assets: native asset with amount
+    // Construct native asset (XRT) to teleport
+    let native_asset = robonomics_xcm::Asset {
+        id: robonomics_xcm::AssetId(robonomics_xcm::Location {
+            parents: 0,
+            interior: robonomics_xcm::Junctions::Here,
+        }),
+        fun: robonomics_xcm::Fungibility::Fungible(amount),
+    };
 
-    log::info!("  Constructing teleport transaction...");
+    // Create XCM message for teleport with fee payment in XRT
+    // This uses InitiateTeleport with BuyExecution using XRT for fees
+    let xcm_message = robonomics_xcm::Xcm(vec![
+        // Withdraw the asset from the sender's account
+        robonomics_xcm::Instruction::WithdrawAsset(robonomics_xcm::Assets(vec![
+            native_asset.clone()
+        ])),
+        // Initiate teleport to AssetHub
+        robonomics_xcm::Instruction::InitiateTeleport {
+            assets: robonomics_xcm::asset::AssetFilter::Definite(robonomics_xcm::Assets(vec![
+                native_asset.clone()
+            ])),
+            dest: robonomics_xcm::ASSET_HUB_LOCATION,
+            xcm: robonomics_xcm::Xcm(vec![
+                // Buy execution on destination using XRT for fees
+                robonomics_xcm::Instruction::BuyExecution {
+                    fees: native_asset.clone(),
+                    weight_limit: robonomics_xcm::WeightLimit::Unlimited,
+                },
+                // Deposit asset to beneficiary
+                robonomics_xcm::Instruction::DepositAsset {
+                    assets: robonomics_xcm::asset::AssetFilter::Wild(
+                        robonomics_xcm::asset::WildAsset::All
+                    ),
+                    beneficiary,
+                },
+            ]),
+        },
+    ]);
 
-    return Ok(());
+    log::info!("  Constructing teleport transaction using XcmPallet::execute...");
 
-    /* (disabled code below; keep until updated)
-    // Create teleport transaction using static API
-    let teleport_tx = api::tx().teleport_xrt().send(beneficiary, amount);
+    // Execute the XCM message locally
+    let dest = Box::new(robonomics_xcm::VersionedLocation::V5(
+        robonomics_xcm::Location {
+            parents: 0,
+            interior: robonomics_xcm::Junctions::Here,
+        },
+    ));
+    let message = Box::new(robonomics_xcm::VersionedXcm::V5(xcm_message));
+    let max_weight = robonomics_xcm::WeightLimit::Unlimited;
 
-    log::info!("  Submitting teleport transaction...");
+    let teleport_tx = api::tx().xcm_pallet().execute(message, max_weight);
+
+    log::info!("  Submitting teleport transaction via XcmPallet...");
 
     // Submit and watch transaction
-    let _events = para_client
+    let tx_process = para_client
         .tx()
         .sign_and_submit_then_watch_default(&teleport_tx, &alice)
         .await
-        .context("Failed to submit teleport transaction")?
-        .wait_for_finalized_success()
-        .await
-        .context("Teleport transaction fails")?;
+        .context("Failed to submit teleport transaction")?;
 
+    let tx_hash = wait_for_best(tx_process).await?;
+    log::info!("  Teleport transaction submitted with tx-hash: {}", tx_hash);
+
+    // Wait a bit for the teleport to complete
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    // Check final balance on Robonomics
     let final_para_balance = match para_client
         .storage()
         .at_latest()
@@ -1011,11 +1057,26 @@ async fn test_teleport_to_assethub(network: Option<&Network<LocalFileSystem>>) -
         }
     };
 
+    // Verify balance decreased (amount + fees)
     ensure!(
-        final_para_balance + amount < initial_para_balance,
-        "Wrong final Alice balance on parachain"
+        final_para_balance < initial_para_balance,
+        "Balance should decrease after teleport"
     );
-    */
+
+    let balance_diff = initial_para_balance - final_para_balance;
+    ensure!(
+        balance_diff >= amount,
+        "Balance difference ({}) should be at least the teleported amount ({})",
+        balance_diff,
+        amount
+    );
+
+    log::info!(
+        "  ✓ Teleport successful! Balance decreased by {} Wn (amount: {} + fees: {})",
+        balance_diff,
+        amount,
+        balance_diff - amount
+    );
 
     Ok(())
 }
