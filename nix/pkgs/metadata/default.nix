@@ -23,7 +23,7 @@ in rustPlatform.buildRustPackage {
 
   postInstall = ''
     mkdir -p $out
-    install -Dm644 target/$cargoBuildType/metadata.scale $out/metadata.scale
+    install -Dm644 target/$cargoBuildType/build/robonomics-runtime-subxt-api-*/out/metadata.scale $out/metadata.scale
   '';
 
   meta = with lib; {
