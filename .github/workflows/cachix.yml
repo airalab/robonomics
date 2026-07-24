@@ -54,10 +54,10 @@ jobs:
           CORES=$(nproc)
           CORES=$((CORES - 1))
           echo "Using $CORES cores."
-          nix build -L --cores "$CORES" -o ${matrix.arch} .#package-${matrix.arch}
+          nix build -L --cores "$CORES" -o ${{ matrix.arch }} .#package-${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-linux-${matrix.arch}
-          path: ${matrix.arch}/package.tar.gz
+          name: robonomics-linux-${{ matrix.arch }}
+          path: ${{ matrix.arch }}/package.tar.gz
           retention-days: 7
