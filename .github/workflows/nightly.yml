@@ -47,16 +47,12 @@ jobs:
 
   macos-binary:
     needs: tests
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest 
     strategy:
       matrix:
         include:
-          - os: macOS-13
-            arch: x86_64
-            libclang_path: /usr/local/opt/llvm/lib
-          - os: macOS-latest
-            arch: aarch64
-            libclang_path: /opt/homebrew/opt/llvm/lib
+          - arch: x86_64
+          - arch: aarch64
     outputs:
       status: ${{ job.status }}
     steps:
@@ -76,21 +72,17 @@ jobs:
         with:
           target: ${{ matrix.arch }}-apple-darwin
 
-      - name: Build robonomics and cps
-        run: cargo build --profile production --target ${{ matrix.arch }}-apple-darwin --bin robonomics --bin cps
+      - name: Build robonomics tarball
+        run: |
+          cargo build --profile production --target ${{ matrix.arch }}-apple-darwin --bin robonomics --bin cps
+          cd target/${{ matrix.arch }}-apple-darwin/production && tar czvf package.tar.gz robonomics cps
         env:
-          LIBCLANG_PATH: ${{ matrix.libclang_path }}
+          LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
 
       - uses: actions/upload-artifact@v4
         with:
           name: robonomics-macos-${{ matrix.arch }}
-          path: target/${{ matrix.arch }}-apple-darwin/production/robonomics
-          retention-days: 7
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cps-macos-${{ matrix.arch }}
-          path: target/${{ matrix.arch }}-apple-darwin/production/cps
+          path: target/${{ matrix.arch }}-apple-darwin/production/package.tar.gz
           retention-days: 7
 
   docker:

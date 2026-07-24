@@ -8,7 +8,7 @@ on:
     outputs:
       status:
         description: "Status of the cachix builds"
-        value: ${{ jobs.cachix-upload.outputs.status }}
+        value: ${{ jobs.developer-shell-check.outputs.status && jobs.package-build.outputs.status }}
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  cachix-builds:
+  developer-shell-check:
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -33,28 +33,31 @@ jobs:
       - run: nix develop --command bash -c "echo OK"
       - run: nix develop .#benchmarking --command bash -c "echo OK"
 
-      - name: Build x86_64 distribution 
-        run: |
+  package-build:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+          - arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup runner
+        uses: ./.github/actions/setup-runner
+        with:
+          cachix_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - run: |
           CORES=$(nproc)
           CORES=$((CORES - 1))
           echo "Using $CORES cores."
-          nix build -L --cores "$CORES" .#package-x86_64
+          nix build -L --cores "$CORES" -o ${matrix.arch} .#package-${matrix.arch}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-linux-x86_64
-          path: result/package.tar.gz
-          retention-days: 7
-
-      - name: Build aarch64 distribution 
-        run: |
-          CORES=$(nproc)
-          CORES=$((CORES - 1))
-          echo "Using $CORES cores."
-          nix build -L --cores "$CORES" .#package-aarch64
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: robonomics-linux-aarch64
-          path: result/package.tar.gz 
+          name: robonomics-linux-${matrix.arch}
+          path: ${matrix.arch}/package.tar.gz
           retention-days: 7
