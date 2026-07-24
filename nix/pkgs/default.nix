@@ -2,9 +2,9 @@
 
 let
   # Cross-compilation targets
-  musl = pkgs.pkgsCross.musl64;
-  aarch64 = pkgs.pkgsCross.aarch64-multiplatform-musl;
-  aarch64-musl = pkgs.pkgsCross.aarch64-multiplatform-musl;
+  musl = pkgs.pkgsCross.musl64.pkgsStatic;
+  aarch64 = pkgs.pkgsCross.aarch64-multiplatform-musl.pkgsStatic;
+  aarch64-musl = pkgs.pkgsCross.aarch64-multiplatform-musl.pkgsStatic;
   # Common parameters
   revHash = if (self ? rev) then self.rev else self.dirtyRev;
   protobuf-compiler = "${pkgs.protobuf}/bin/protoc";
