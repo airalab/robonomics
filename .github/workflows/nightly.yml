@@ -47,7 +47,16 @@ jobs:
 
   macos-binary:
     needs: tests
-    runs-on: macOS-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macOS-13
+            arch: x86_64
+            libclang_path: /usr/local/opt/llvm/lib
+          - os: macOS-latest
+            arch: aarch64
+            libclang_path: /opt/homebrew/opt/llvm/lib
     outputs:
       status: ${{ job.status }}
     steps:
@@ -64,16 +73,18 @@ jobs:
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.arch }}-apple-darwin
 
       - name: Build robonomics 
-        run: cargo build --profile production --bin robonomics
+        run: cargo build --profile production --target ${{ matrix.arch }}-apple-darwin --bin robonomics
         env:
-          LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+          LIBCLANG_PATH: ${{ matrix.libclang_path }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-macos-x86_64
-          path: target/production/robonomics
+          name: robonomics-macos-${{ matrix.arch }}
+          path: target/${{ matrix.arch }}-apple-darwin/production/robonomics
           retention-days: 7
 
   docker:

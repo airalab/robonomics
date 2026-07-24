@@ -41,8 +41,8 @@
 //!
 //! ### Performance Characteristics
 //!
-//! All core operations are O(1) time complexity:
-//! - **Cycle detection**: `new_parent.path.contains(&node_id)` → O(1)
+//! Core operation time complexity:
+//! - **Cycle detection**: `new_parent.path.contains(&node_id)` → O(depth)
 //! - **Depth validation**: `parent.path.len() < MAX_TREE_DEPTH` → O(1)
 //! - **Child lookup**: Direct index access via `NodesByParent` → O(1)
 //!
