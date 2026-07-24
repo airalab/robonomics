@@ -11,7 +11,7 @@ This document describes the **currently active** CI/CD workflows in this reposit
 | `static.yml` | `workflow_call` | Formatting and license header checks |
 | `cachix.yml` | `workflow_call` | Builds Linux distribution packages with Nix and uploads build artifacts/cache |
 | `metadata-check.yml` | Push/PR touching runtime/frame/Cargo files; `workflow_call` | Verifies Subxt metadata integrity (`check-metadata`) |
-| `release.yml` | Tag push `v*` | Release flow: metadata check, nightly pipeline, release draft, runtime asset upload |
+| `release.yml` | Tag push `v*` | Release flow: metadata check, nightly pipeline, release draft, binary + runtime asset upload |
 | `docs.yml` | Push to `master` | Builds and deploys Rust docs to GitHub Pages |
 
 ## Pipeline overview
@@ -35,6 +35,7 @@ This document describes the **currently active** CI/CD workflows in this reposit
   - Runs `metadata-check.yml`
   - Runs `nightly.yml`
   - Creates release draft with generated notes
+  - Uploads Linux and macOS binaries from nightly artifacts
   - Uploads runtime artifacts (WASM, metadata, SRTool outputs)
 
 ## Nix Linux static binary builds
@@ -60,6 +61,4 @@ The following are not active and should not be treated as current pipeline behav
 
 - `zombienet.yml` (no longer present)
 - `robonet.yml` nightly call (commented out)
-- `upload-binaries` section in `release.yml` (currently commented out)
-
 If workflow behavior changes, update this file in the same PR.
