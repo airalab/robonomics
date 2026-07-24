@@ -34,7 +34,11 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
-  cachix-builds:
+  check-metadata:
+    uses: ./.github/workflows/metadata-check.yml
+
+  cachix:
+    needs: [tests, check-metadata]
     uses: ./.github/workflows/cachix.yml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -46,7 +50,7 @@ jobs:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   macos-binary:
-    needs: tests
+    needs: [tests, check-metadata]
     runs-on: macos-latest 
     strategy:
       matrix:
@@ -81,12 +85,12 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-macos-${{ matrix.arch }}
+          name: package-macos-${{ matrix.arch }}
           path: target/${{ matrix.arch }}-apple-darwin/production/package.tar.gz
           retention-days: 7
 
   docker:
-    needs: cachix-builds
+    needs: cachix
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

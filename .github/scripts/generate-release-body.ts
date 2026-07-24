@@ -268,7 +268,7 @@ async function main() {
     getRuntimeInfo(argv["srtool-report-folder"], runtimeName)
   );
 
-  const moduleLinks = ["polkadot-sdk", "frontier"].map((repoName) => ({
+  const moduleLinks = ["polkadot-sdk"].map((repoName) => ({
     name: repoName,
     link: getCompareLink(repoName, previousTag, newTag),
   }));
@@ -314,7 +314,7 @@ ${runtimes
           (runtime) => `### ${capitalize(runtime.name)}
 \`\`\`
 ✨ spec_version:                ${runtime.version}
-🏋 Runtime Size:                ${runtime.srtool.runtimes.compressed.size}
+🏋 Runtime Size:                 ${runtime.srtool.runtimes.compressed.size}
 🗜 Compressed:                  ${runtime.srtool.runtimes.compressed.subwasm.compression.compressed ? "Yes" : "No"}
 🎁 Metadata version:            ${runtime.srtool.runtimes.compressed.subwasm.metadata_version}
 🗳️ sha256:                      ${runtime.srtool.runtimes.compressed.sha256}
@@ -348,9 +348,10 @@ ${moduleLinks.map((modules) => `${capitalize(modules.name)}: ${modules.link}`).j
 ## Download Links
 | Arch |  Link  |
 | ----------- | ------- |
-|  \`MacOS x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-${newTag}-macOS-x86_64.tar.gz) |
-| \`Ubuntu x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-${newTag}-ubuntu-x86_64.tar.gz) |
-| \`Ubuntu aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-${newTag}-ubuntu-aarch64.tar.gz) |
+|  \`MacOS x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-x86_64.tar.gz) |
+|  \`MacOS aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-aarch64.tar.gz) |
+| \`Ubuntu x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-ubuntu-x86_64.tar.gz) |
+| \`Ubuntu aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-ubuntu-aarch64.tar.gz) |
 
 [<img src="https://github.com/airalab/robonomics/blob/master/.github/images/docker.webp" height="200px">](https://hub.docker.com/r/robonomics/robonomics/tags)
 `

@@ -58,6 +58,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: robonomics-linux-${{ matrix.arch }}
+          name: package-linux-${{ matrix.arch }}
           path: ${{ matrix.arch }}/package.tar.gz
           retention-days: 7

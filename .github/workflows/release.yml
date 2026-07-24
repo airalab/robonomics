@@ -8,12 +8,7 @@ on:
     - v[0-9]+.[0-9]+.[0-9]+*
 
 jobs:
-  # Check metadata integrity before proceeding with release
-  check-metadata:
-    uses: ./.github/workflows/metadata-check.yml
-
   nightly:
-    needs: check-metadata
     uses: ./.github/workflows/nightly.yml
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -72,44 +67,23 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - artifact_name: robonomics-linux-x86_64
-            artifact_file: package.tar.gz
-            asset_name: robonomics-linux-x86_64.tar.gz
-          - artifact_name: robonomics-linux-aarch64
-            artifact_file: package.tar.gz
-            asset_name: robonomics-linux-aarch64.tar.gz
-          - artifact_name: robonomics-macos-x86_64
-            artifact_file: robonomics
-            asset_name: robonomics-macos-x86_64
-          - artifact_name: robonomics-macos-aarch64
-            artifact_file: robonomics
-            asset_name: robonomics-macos-aarch64
-          - artifact_name: cps-macos-x86_64
-            artifact_file: cps
-            asset_name: cps-macos-x86_64
-          - artifact_name: cps-macos-aarch64
-            artifact_file: cps
-            asset_name: cps-macos-aarch64
+        os: [linux, macos] 
+        arch: [x86_64, aarch64]
     steps:
     - name: Download pre-built artifact
       uses: actions/download-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.artifact_name }}
+        name: package-${{ matrix.os }}-${{ matrix.arch }}
+        path: ${{ matrix.os }}-${{ matrix.arch }} 
 
-    - name: Make binary executable
-      if: ${{ !endsWith(matrix.asset_name, '.tar.gz') }}
-      run: chmod +x ${{ matrix.artifact_name }}/${{ matrix.artifact_file }}
-
-    - name: Upload release asset
+    - name: Upload robonomics
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.artifact_name }}/${{ matrix.artifact_file }}
-        asset_name: ${{ matrix.asset_name }}
+        asset_path: ${{ matrix.os}}-${{ matrix.arch }}
+        asset_name: package-${{ matrix.os }}-${{ matrix.arch }}
         asset_content_type: application/octet-stream
 
   upload-runtimes:
@@ -127,8 +101,8 @@ jobs:
         ls -R
         runtime_version=$(cat robonomics-compressed-info.json | jq '.core_version' | tr -d '"' | cut -d ' ' -f 1)
         echo $runtime_version
-        echo "runtime=$(echo $runtime_version)" >> $GITHUB_ENV
-        echo "robonomics=$(echo $runtime_version)" >> $GITHUB_OUTPUT
+        echo "runtime=$runtime_version" >> $GITHUB_ENV
+        echo "robonomics=$runtime_version" >> $GITHUB_OUTPUT
 
     - name: Upload Robonomics Wasm
       uses: actions/upload-release-asset@v1

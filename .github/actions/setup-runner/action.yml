@@ -1,4 +1,5 @@
-name: Setup runner
+name: Setup Nix runner
+description: Cleanup space and enable zswap 
 inputs:
   cachix_token:
     description: Cachix token
