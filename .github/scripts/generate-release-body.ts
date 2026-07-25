@@ -348,10 +348,10 @@ ${moduleLinks.map((modules) => `${capitalize(modules.name)}: ${modules.link}`).j
 ## Download Links
 | Arch |  Link  |
 | ----------- | ------- |
+| \`Linux x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-linux-x86_64.tar.gz) |
+| \`Linux aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-linux-aarch64.tar.gz) |
 |  \`MacOS x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-x86_64.tar.gz) |
 |  \`MacOS aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-aarch64.tar.gz) |
-| \`Ubuntu x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-ubuntu-x86_64.tar.gz) |
-| \`Ubuntu aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-ubuntu-aarch64.tar.gz) |
 
 [<img src="https://github.com/airalab/robonomics/blob/master/.github/images/docker.webp" height="200px">](https://hub.docker.com/r/robonomics/robonomics/tags)
 `
