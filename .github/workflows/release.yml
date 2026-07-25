@@ -82,9 +82,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.os}}-${{ matrix.arch }}
-        asset_name: package-${{ matrix.os }}-${{ matrix.arch }}
-        asset_content_type: application/octet-stream
+        asset_path: ${{ matrix.os }}-${{ matrix.arch }}/package.tar.gz
+        asset_name: package-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+        asset_content_type: application/gzip
 
   upload-runtimes:
     needs: publish-release-draft
