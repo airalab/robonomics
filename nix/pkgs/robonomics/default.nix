@@ -1,14 +1,12 @@
 {
-  cacert,
   lib,
-  rustc,
+  cacert,
   openssl,
   pkg-config,
   protobuf-compiler,
   rust-jemalloc-sys-unprefixed,
   rustPlatform,
   revHash,
-  stdenv,
   pkgs,
 }:
 
@@ -25,7 +23,6 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     pkg-config
     rustPlatform.bindgenHook
-    rustc
   ];
 
   buildInputs = [
