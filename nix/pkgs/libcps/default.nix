@@ -21,7 +21,7 @@ rustPlatform.buildRustPackage {
     homepage = "https://github.com/airalab/robonomics";
     maintainers = with maintainers; [ akru ];
     platforms = intersectLists platforms.unix (
-      platforms.aarch64 ++ platforms.x86
+      platforms.riscv64 ++ platforms.aarch64 ++ platforms.x86
     );
   };
 }

@@ -40,8 +40,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86_64
-          - arch: aarch64
+          - arch: [x86_64,aarch64,riscv64]
     steps:
       - uses: actions/checkout@v4
 
