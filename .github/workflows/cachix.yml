@@ -39,8 +39,7 @@ jobs:
       status: ${{ job.status }}
     strategy:
       matrix:
-        include:
-          - arch: [x86_64,aarch64,riscv64]
+        arch: [x86_64,aarch64,riscv64]
     steps:
       - uses: actions/checkout@v4
 

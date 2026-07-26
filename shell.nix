@@ -1,6 +1,6 @@
 {
   pkgs,
-  linker ? "mold",
+  linker ? "wild",
   packages ? [ ],
   env ? { },
 }:
