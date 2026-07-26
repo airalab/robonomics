@@ -1,5 +1,6 @@
 {
   lib,
+  gcc,
   cacert,
   openssl,
   pkg-config,
@@ -22,6 +23,7 @@ rustPlatform.buildRustPackage {
 
   nativeBuildInputs = [
     pkg-config
+    gcc.cc.lib
     rustPlatform.bindgenHook
   ];
 
