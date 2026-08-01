@@ -1,7 +1,9 @@
 {
   lib,
   pkgs,
+  stdenv,
   rustPlatform,
+  isStatic ? stdenv.hostPlatform.isStatic,
 }:
 
 rustPlatform.buildRustPackage {
@@ -13,6 +15,10 @@ rustPlatform.buildRustPackage {
 
   buildType = "production";
   buildAndTestSubdir = "tools/libcps";
+
+  env = {
+    RUSTFLAGS = if isStatic then "-C target-feature=+crt-static" else "";
+  };
 
   meta = with lib; {
     mainProgram = "cps";

@@ -58,7 +58,7 @@ in rustPlatform.buildRustPackage {
     ROCKSDB_STATIC = if isStatic then "1" else "0";
     SNAPPY_LIB_DIR = "${if isStatic then staticSnappy else snappy}/lib";
     SNAPPY_STATIC = if isStatic then "1" else "0";
-    RUSTFLAGS = "-Clink-arg=-lc++ -Clink-arg=-lc++abi";
+    RUSTFLAGS = if isStatic then "-C target-feature=+crt-static -Clink-arg=-lc++ -Clink-arg=-lc++abi" else "";
   };
 
   meta = with lib; {
