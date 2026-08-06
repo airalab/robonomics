@@ -51,17 +51,21 @@ jobs:
 
   build-binaries:
     needs: [tests, check-metadata]
-    matrix:
-      platform:
-        - os-name: Linux-x86_64
-          runs-on: ubuntu-24.04
-          target: x86_64-unknown-linux-musl
-        - os-name: Linux-aarch64
-          runs-on: ubuntu-24.04
-          target: aarch64-unknown-linux-musl 
-        - os-name: macOS-x86_64
-          runs-on: macOS-latest
-          target: x86_64-apple-darwin
+    name: Binary - ${{ matrix.platform.os-name }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-24.04
+            target: aarch64-unknown-linux-musl 
+          - os-name: macOS-x86_64
+            runs-on: macOS-latest
+            target: x86_64-apple-darwin
     steps:
       - name: Checkout
         uses: actions/checkout@v6
