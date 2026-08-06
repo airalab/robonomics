@@ -37,11 +37,11 @@ jobs:
   check-metadata:
     uses: ./.github/workflows/metadata-check.yml
 
-  cachix:
-    needs: [tests, check-metadata]
-    uses: ./.github/workflows/cachix.yml
-    secrets:
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+#  cachix:
+#    needs: [tests, check-metadata]
+#    uses: ./.github/workflows/cachix.yml
+#    secrets:
+#      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 #  robonet:
 #    needs: tests
@@ -49,48 +49,43 @@ jobs:
 #    secrets:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-  macos-binary:
+  build-binaries:
     needs: [tests, check-metadata]
-    runs-on: macos-latest 
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-          - arch: aarch64
-    outputs:
-      status: ${{ job.status }}
+    matrix:
+      platform:
+        - os-name: Linux-x86_64
+          runs-on: ubuntu-24.04
+          target: x86_64-unknown-linux-musl
+        - os-name: Linux-aarch64
+          runs-on: ubuntu-24.04
+          target: aarch64-unknown-linux-musl 
+        - os-name: macOS-x86_64
+          runs-on: macOS-latest
+          target: x86_64-apple-darwin
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: actions/checkout@v6
+      - name: Build binaries 
+        uses: houseabsolute/actions-rust-cross@v1
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install LLVM on MacOS 
-        run: brew install llvm
-
-      - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          target: ${{ matrix.arch }}-apple-darwin
-
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: "--locked --profile production"
+          force-use-cross: true
+          use-rust-cache: true
+          strip: true
       - name: Build robonomics tarball
         run: |
-          cargo build --profile production --target ${{ matrix.arch }}-apple-darwin --bin robonomics --bin cps
-          cd target/${{ matrix.arch }}-apple-darwin/production && tar czvf package.tar.gz robonomics cps
-        env:
-          LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+          cd target/${{ matrix.platform.target }}/production && tar czvf package.tar.gz robonomics cps
 
       - uses: actions/upload-artifact@v4
         with:
-          name: package-macos-${{ matrix.arch }}
-          path: target/${{ matrix.arch }}-apple-darwin/production/package.tar.gz
+          name: package-${{ matrix.platform.os-name }}
+          path: target/${{ matrix.platform.target }}/production/package.tar.gz
           retention-days: 7
 
   docker:
-    needs: cachix
+    needs: build-binaries 
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -118,14 +113,14 @@ jobs:
     - name: Download pre-built amd64 binaries
       uses: actions/download-artifact@v4
       with:
-        name: package-linux-x86_64
+        name: package-Linux-x86_64
         path: scripts/docker/amd64/
     - run: cd scripts/docker/amd64 && tar xvf package.tar.gz
 
     - name: Download pre-built aarch64 binaries 
       uses: actions/download-artifact@v4
       with:
-        name: package-linux-aarch64
+        name: package-Linux-aarch64
         path: scripts/docker/arm64/
     - run: cd scripts/docker/arm64 && tar xvf package.tar.gz
 
