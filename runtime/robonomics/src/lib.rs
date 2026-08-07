@@ -41,7 +41,7 @@ use frame_support::{
     parameter_types,
     traits::{
         fungible, tokens::imbalance::ResolveTo, ConstBool, ConstU32, ConstU64, Imbalance,
-        OnUnbalanced, WithdrawReasons,
+        InstanceFilter, OnUnbalanced, WithdrawReasons,
     },
     weights::{ConstantMultiplier, Weight},
     PalletId,
@@ -109,6 +109,105 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
             // These modules are not allowed to be called by transactions:
             // Other modules should works:
             _ => true,
+        }
+    }
+}
+
+/// Proxy type for filtering allowed calls
+#[derive(
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    parity_scale_codec::Encode,
+    parity_scale_codec::Decode,
+    parity_scale_codec::DecodeWithMemTracking,
+    core::fmt::Debug,
+    parity_scale_codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+    /// Allow CPS operations with optional node restriction
+    /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
+    /// - `CpsWrite(Some(nodes))`: Access only to specified nodes and their descendants
+    CpsWrite(Option<BoundedVec<pallet_robonomics_cps::NodeId, ConstU32<32>>>),
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::CpsWrite(allowed_nodes) => {
+                // Check if it's a CPS call
+                let is_cps_call = matches!(
+                    c,
+                    RuntimeCall::CPS(
+                        pallet_robonomics_cps::Call::create_node { .. }
+                            | pallet_robonomics_cps::Call::set_meta { .. }
+                            | pallet_robonomics_cps::Call::set_payload { .. }
+                            | pallet_robonomics_cps::Call::move_node { .. }
+                            | pallet_robonomics_cps::Call::delete_node { .. }
+                    )
+                );
+
+                if !is_cps_call {
+                    return false;
+                }
+
+                // If no specific node restriction, allow all CPS calls
+                if allowed_nodes.is_none() {
+                    return true;
+                }
+
+                // Check if call targets an allowed node
+                let allowed_nodes = allowed_nodes.as_ref().unwrap();
+                match c {
+                    RuntimeCall::CPS(pallet_robonomics_cps::Call::set_meta { node_id, .. })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::set_payload {
+                        node_id, ..
+                    })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::move_node {
+                        node_id, ..
+                    })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::delete_node {
+                        node_id, ..
+                    }) => allowed_nodes.contains(node_id),
+                    RuntimeCall::CPS(pallet_robonomics_cps::Call::create_node {
+                        parent_id,
+                        ..
+                    }) => {
+                        if let Some(parent_id) = parent_id {
+                            allowed_nodes.contains(parent_id)
+                        } else {
+                            // Creating root nodes - deny if there's a restriction
+                            false
+                        }
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
+            (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => {
+                // Check if all nodes in b are contained in a
+                b.iter().all(|node| a.contains(node))
+            }
+            (ProxyType::CpsWrite(Some(_)), ProxyType::CpsWrite(None)) => false,
         }
     }
 }
@@ -320,6 +419,34 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 40);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const MaxProxies: u16 = 32;
+    // One storage item; key size 32, value size 16
+    pub const AnnouncementDepositBase: Balance = deposit(1, 48);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+    pub const MaxPending: u16 = 32;
+}
+
+impl pallet_proxy::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = MaxProxies;
+    type WeightInfo = weights::pallet_proxy::WeightInfo<Runtime>;
+    type MaxPending = MaxPending;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+    type BlockNumberProvider = frame_system::Pallet<Runtime>;
+}
+
+parameter_types! {
     pub ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
@@ -498,7 +625,6 @@ impl pallet_robonomics_rws::Config for Runtime {
 
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type EncryptedData = pallet_robonomics_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
 }
@@ -563,6 +689,9 @@ mod runtime {
 
     #[runtime::pallet_index(15)]
     pub type Multisig = pallet_multisig;
+
+    #[runtime::pallet_index(16)]
+    pub type Proxy = pallet_proxy;
 
     //
     // Parachain core pallets

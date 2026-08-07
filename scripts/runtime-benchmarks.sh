@@ -55,6 +55,7 @@ PALLETS=(
     "pallet_timestamp,runtime/robonomics/src/weights/pallet_timestamp.rs"
     "pallet_utility,runtime/robonomics/src/weights/pallet_utility.rs"
     "pallet_multisig,runtime/robonomics/src/weights/pallet_multisig.rs"
+    "pallet_proxy,runtime/robonomics/src/weights/pallet_proxy.rs"
     "pallet_vesting,runtime/robonomics/src/weights/pallet_vesting.rs"
     "pallet_collator_selection,runtime/robonomics/src/weights/pallet_collator_selection.rs"
     "pallet_session,runtime/robonomics/src/weights/pallet_session.rs"

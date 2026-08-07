@@ -8572,7 +8572,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-cps"
-version = "0.9.0"
+version = "0.9.9"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11736,6 +11736,7 @@ dependencies = [
  "pallet-message-queue",
  "pallet-multisig",
  "pallet-preimage",
+ "pallet-proxy",
  "pallet-robonomics-cps",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
