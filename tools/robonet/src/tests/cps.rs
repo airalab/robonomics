@@ -24,9 +24,9 @@
 //! - Encrypted payload operations
 
 use anyhow::{Context, Result};
-use libcps::blockchain::{Client as CpsClient, Config as CpsConfig};
+use libcps::blockchain::{BoundedVec, Client as CpsClient, Config as CpsConfig};
 use libcps::crypto::{Cipher, CryptoScheme, EncryptionAlgorithm};
-use libcps::node::{Node, NodeData};
+use libcps::node::Node;
 use sp_core::Encode;
 use zombienet_sdk::{LocalFileSystem, Network};
 
@@ -44,8 +44,8 @@ async fn test_simple_tree(ws_url: String) -> Result<()> {
         .context("Failed to create CPS client")?;
 
     // Create root node
-    let root_meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
-    let root_payload: NodeData = r#"{"status":"online"}"#.into();
+    let root_meta = BoundedVec(r#"{"type":"building","name":"HQ"}"#.as_bytes().to_vec());
+    let root_payload = BoundedVec(r#"{"status":"online"}"#.as_bytes().to_vec());
 
     let root_node = Node::create(&client, None, Some(root_meta), Some(root_payload))
         .await
@@ -54,8 +54,8 @@ async fn test_simple_tree(ws_url: String) -> Result<()> {
     log::info!("Created root node: {}", root_node.id());
 
     // Create child node
-    let child_meta: NodeData = r#"{"type":"floor","number":1}"#.into();
-    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
+    let child_meta = BoundedVec(r#"{"type":"floor","number":1}"#.as_bytes().to_vec());
+    let child_payload = BoundedVec(r#"{"temp":"22C"}"#.as_bytes().to_vec());
 
     let child_node = Node::create(
         &client,
@@ -93,7 +93,7 @@ async fn test_complex_tree(ws_url: String) -> Result<()> {
         .context("Failed to create CPS client")?;
 
     // Create root node
-    let root_meta: NodeData = r#"{"type":"datacenter"}"#.into();
+    let root_meta = BoundedVec(r#"{"type":"datacenter"}"#.as_bytes().to_vec());
     let root_node = Node::create(&client, None, Some(root_meta), None)
         .await
         .context("Failed to create root node")?;
@@ -105,8 +105,12 @@ async fn test_complex_tree(ws_url: String) -> Result<()> {
     const GCHILD_COUNT: usize = 3;
     let mut created_nodes = Vec::new();
     for i in 0..CHILD_COUNT {
-        let meta: NodeData = format!(r#"{{"type":"sensor","id":{}}}"#, i).into();
-        let payload: NodeData = format!("data_{}", i).into();
+        let meta = BoundedVec(
+            format!(r#"{{"type":"sensor","id":{}}}"#, i)
+                .as_bytes()
+                .to_vec(),
+        );
+        let payload = BoundedVec(format!("data_{}", i).as_bytes().to_vec());
         let node = Node::create(&client, Some(root_node.id()), Some(meta), Some(payload))
             .await
             .context("Failed to create node")?;
@@ -114,8 +118,12 @@ async fn test_complex_tree(ws_url: String) -> Result<()> {
         log::info!("Created child node: {}", node.id());
         // Create grandchild nodes
         for j in 0..GCHILD_COUNT {
-            let meta: NodeData = format!(r#"{{"type":"sensor","id":"{}:{}"}}"#, i, j).into();
-            let payload: NodeData = format!("data_{}_{}", i, j).into();
+            let meta = BoundedVec(
+                format!(r#"{{"type":"sensor","id":"{}:{}"}}"#, i, j)
+                    .as_bytes()
+                    .to_vec(),
+            );
+            let payload = BoundedVec(format!("data_{}_{}", i, j).as_bytes().to_vec());
             let _ = Node::create(&client, Some(node.id()), Some(meta), Some(payload))
                 .await
                 .context("Failed to create node")?;
@@ -157,7 +165,7 @@ async fn test_plain_payloads(ws_url: String) -> Result<()> {
         .context("Failed to create CPS client")?;
 
     // Create node
-    let meta: NodeData = r#"{"type":"sensor"}"#.into();
+    let meta = BoundedVec(r#"{"type":"sensor"}"#.as_bytes().to_vec());
     let node = Node::create(&client, None, Some(meta), None)
         .await
         .context("Failed to create node")?;
@@ -166,7 +174,7 @@ async fn test_plain_payloads(ws_url: String) -> Result<()> {
 
     // Update payload multiple times
     for i in 0..2 {
-        let payload: NodeData = format!("reading_{}: {}", i, 20 + i).into();
+        let payload = BoundedVec(format!("reading_{}: {}", i, 20 + i).as_bytes().to_vec());
         node.set_payload(Some(payload))
             .await
             .context(format!("Failed to set payload {}", i))?;
@@ -202,7 +210,7 @@ async fn test_encrypted_payloads(ws_url: String) -> Result<()> {
     let receiver_public = receiver_cipher.public_key();
 
     // Create node
-    let meta: NodeData = r#"{"type":"encrypted_sensor"}"#.into();
+    let meta = BoundedVec(r#"{"type":"encrypted_sensor"}"#.as_bytes().to_vec());
     let node = Node::create(&client, None, Some(meta), None)
         .await
         .context("Failed to create node")?;
@@ -222,8 +230,8 @@ async fn test_encrypted_payloads(ws_url: String) -> Result<()> {
             )
             .context("Failed to encrypt data")?;
 
-        // Create encrypted NodeData
-        let payload = NodeData::aead_from(encrypted_msg.encode());
+        // Create encrypted payload
+        let payload = BoundedVec(encrypted_msg.encode());
 
         node.set_payload(Some(payload))
             .await
@@ -234,12 +242,12 @@ async fn test_encrypted_payloads(ws_url: String) -> Result<()> {
 
     log::info!("✓ Set 2 encrypted payloads successfully");
 
-    // Verify decryption works
+    // Verify encrypted payload exists
     let node_info = node.query().await?;
-    if let Some(NodeData::Encrypted(_)) = node_info.payload {
-        log::info!("✓ Payload is properly encrypted");
+    if node_info.payload.is_some() {
+        log::info!("✓ Payload is set");
     } else {
-        anyhow::bail!("Expected encrypted payload");
+        anyhow::bail!("Expected payload to be set");
     }
 
     Ok(())

@@ -41,9 +41,6 @@ mkShell.override { stdenv = clangStdenv; } {
       openssl
       pkg-config
       rust-toolchain
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isLinux [
-      rust-jemalloc-sys-unprefixed
     ];
 
   env = {

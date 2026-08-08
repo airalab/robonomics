@@ -845,6 +845,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_timestamp, Timestamp]
     [pallet_utility, Utility]
     [pallet_multisig, Multisig]
+    [pallet_proxy, Proxy]
     [pallet_vesting, Vesting]
     [pallet_transaction_payment, TransactionPayment]
     [cumulus_pallet_weight_reclaim, WeightReclaim]

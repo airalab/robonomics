@@ -19,9 +19,9 @@
 
 use crate::display;
 use anyhow::Result;
-use libcps::blockchain::{Client, Config};
+use libcps::blockchain::{BoundedVec, Client, Config};
 use libcps::crypto::{Cipher, EncryptedMessage};
-use libcps::node::{EncryptedData, Node, NodeData};
+use libcps::node::Node;
 use parity_scale_codec::Decode;
 use std::future::Future;
 use std::pin::Pin;
@@ -53,19 +53,15 @@ fn print_node_tree<'a>(
         let node = Node::new(client, node_id);
         let node_info = node.query().await?;
 
-        let node_data_to_string = |nd| match nd {
-            NodeData::Plain(bytes) => {
-                String::from_utf8(bytes.0).map_err(|_| anyhow::anyhow!("Unvalid UTF-8 character"))
-            }
-            NodeData::Encrypted(EncryptedData::Aead(bytes)) => {
-                let message: EncryptedMessage = Decode::decode(&mut &bytes.0[..])
-                    .map_err(|e| anyhow::anyhow!("Failed to decode encrypted metadata: {}", e))?;
+        let node_data_to_string = |nd: BoundedVec<u8>| {
+            // Try to decode as EncryptedMessage first
+            if let Ok(message) = EncryptedMessage::decode(&mut nd.0.as_slice()) {
                 if let Some(cipher) = cipher {
                     let decrypted = cipher
                         .decrypt(&message, None)
                         .map_err(|e| anyhow::anyhow!("Failed to decrypt message: {}.", e))?;
                     String::from_utf8(decrypted)
-                        .map_err(|_| anyhow::anyhow!("Unvalid UTF-8 character"))
+                        .map_err(|_| anyhow::anyhow!("Invalid UTF-8 character"))
                 } else {
                     serde_json::to_string(&message)
                         .map_err(|e| {
@@ -73,6 +69,9 @@ fn print_node_tree<'a>(
                         })
                         .map(|json_msg| format!("Encrypted: {}", json_msg))
                 }
+            } else {
+                // Treat as plain data
+                String::from_utf8(nd.0).map_err(|_| anyhow::anyhow!("Invalid UTF-8 character"))
             }
         };
 

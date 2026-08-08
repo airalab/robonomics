@@ -198,11 +198,12 @@
 //! The library provides types that match the CPS pallet:
 //!
 //! ```
-//! use libcps::node::{NodeId, NodeData};
+//! use libcps::blockchain::BoundedVec;
+//! use libcps::node::NodeId;
 //!
 //! let node_id = NodeId(42);
-//! let plain_data = NodeData::from(b"sensor reading".to_vec());
-//! let encrypted_data = NodeData::aead_from(vec![1, 2, 3, 4]);
+//! let plain_data = BoundedVec(b"sensor reading".to_vec());
+//! let encrypted_data = BoundedVec(vec![1, 2, 3, 4]);
 //! ```
 //!
 //! ## Crates.io Metadata
