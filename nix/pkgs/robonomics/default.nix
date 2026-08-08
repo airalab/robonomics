@@ -8,7 +8,6 @@
   snappy,
   revHash,
   pkgs,
-  isStatic ? stdenv.hostPlatform.isStatic,
 }:
 
 let
@@ -54,11 +53,11 @@ in rustPlatform.buildRustPackage {
     OPENSSL_NO_VENDOR = 1;
     PROTOC = "${protobuf-compiler}";
     SUBSTRATE_CLI_GIT_COMMIT_HASH = "${builtins.substring 0 7 revHash}";
-    ROCKSDB_LIB_DIR = "${if isStatic then staticRocksdb else rocksdb}/lib";
-    ROCKSDB_STATIC = if isStatic then "1" else "0";
-    SNAPPY_LIB_DIR = "${if isStatic then staticSnappy else snappy}/lib";
-    SNAPPY_STATIC = if isStatic then "1" else "0";
-    RUSTFLAGS = if isStatic then "-C target-feature=+crt-static -Clink-arg=-lc++ -Clink-arg=-lc++abi" else "";
+    ROCKSDB_LIB_DIR = "${staticRocksdb}/lib";
+    ROCKSDB_STATIC = "1";
+    SNAPPY_LIB_DIR = "${staticSnappy}/lib";
+    SNAPPY_STATIC = "1";
+    RUSTFLAGS = "-Clink-arg=-lc++ -Clink-arg=-lc++abi";
   };
 
   meta = with lib; {
@@ -67,7 +66,7 @@ in rustPlatform.buildRustPackage {
     homepage = "https://github.com/airalab/robonomics";
     maintainers = with maintainers; [ akru ];
     platforms = intersectLists platforms.unix (
-      platforms.riscv64 ++ platforms.aarch64 ++ platforms.x86
+      platforms.aarch64 ++ platforms.x86
     );
   };
 }

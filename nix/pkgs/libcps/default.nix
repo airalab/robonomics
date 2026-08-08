@@ -3,22 +3,17 @@
   pkgs,
   stdenv,
   rustPlatform,
-  isStatic ? stdenv.hostPlatform.isStatic,
 }:
 
 rustPlatform.buildRustPackage {
   pname = "libcps";
-  version = "0.3.0";
+  version = "0.4.0";
 
   cargoLock.lockFile = ../../../Cargo.lock;
   src = lib.cleanSource ../../..;
 
   buildType = "production";
   buildAndTestSubdir = "tools/libcps";
-
-  env = {
-    RUSTFLAGS = if isStatic then "-C target-feature=+crt-static" else "";
-  };
 
   meta = with lib; {
     mainProgram = "cps";
@@ -27,7 +22,7 @@ rustPlatform.buildRustPackage {
     homepage = "https://github.com/airalab/robonomics";
     maintainers = with maintainers; [ akru ];
     platforms = intersectLists platforms.unix (
-      platforms.riscv64 ++ platforms.aarch64 ++ platforms.x86
+      platforms.aarch64 ++ platforms.x86
     );
   };
 }
