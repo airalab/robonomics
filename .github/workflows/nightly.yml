@@ -58,10 +58,10 @@ jobs:
       matrix:
         platform:
           - os-name: linux-x86_64
-            runs-on: ubuntu-24.04
+            runs-on: ubuntu-26.04
             target: x86_64-unknown-linux-musl
           - os-name: linux-aarch64
-            runs-on: ubuntu-24.04-arm
+            runs-on: ubuntu-26.04-arm
             target: aarch64-unknown-linux-musl 
           - os-name: macos-x86_64
             runs-on: macOS-latest
@@ -82,13 +82,7 @@ jobs:
         if: ${{ startsWith(matrix.platform.os-name, 'linux') }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools protobuf-compiler pkg-config
-
-      - name: Install LLVM/CLang for linux
-        if: ${{ startsWith(matrix.platform.os-name, 'linux') }}
-        uses: egor-tensin/setup-clang@v1
-        with:
-          version: '21' # Rust 1.93 uses llvm-21 
+          sudo apt-get install -y musl-tools protobuf-compiler pkg-config libclang-21-dev clang-21
 
       - name: Install LLVM/Clang for macos
         if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
