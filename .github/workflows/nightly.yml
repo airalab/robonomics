@@ -80,7 +80,25 @@ jobs:
         if: ${{ contains(matrix.platform.os-name, 'linux') }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools protobuf-compiler pkg-config
+          sudo apt-get install -y musl-tools protobuf-compiler libclang-dev pkg-config
+          # Locate the accurate libclang.so path and export it to the environment
+          LIBCLANG_PATH=$(dirname "$(find /usr/lib/ -name "libclang.so*" | head -n 1)")
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> "$GITHUB_ENV"
+
+      - name: Install LLVM/Clang for macos
+        if: ${{ contains(matrix.platform.os-name, 'macos') }}
+        run: brew install llvm
+
+      - name: Set libclang environment variables for macos
+        if: ${{ contains(matrix.platform.os-name, 'macos') }}
+        run: |
+          # Homebrew places llvm in different directories based on architecture
+          if [ "$(uname -m)" = "arm64" ]; then
+            LLVM_PREFIX="/opt/homebrew/opt/llvm"
+          else
+            LLVM_PREFIX="/usr/local/opt/llvm"
+          fi
+          echo "LIBCLANG_PATH=${LLVM_PREFIX}/lib" >> "$GITHUB_ENV"
 
       - name: Build binaries
         run: |
