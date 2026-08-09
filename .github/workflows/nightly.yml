@@ -75,6 +75,8 @@ jobs:
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.platform.target }}
 
       - name: Install linux deps
         if: ${{ startsWith(matrix.platform.os-name, 'linux') }}
@@ -100,7 +102,7 @@ jobs:
         run: |
           cargo build --profile=production --target=${{ matrix.platform.target }}
 
-      - name: Build robonomics tarball
+      - name: Create tarball
         run: |
           cd target/${{ matrix.platform.target }}/production && tar czvf package.tar.gz robonomics cps
 
