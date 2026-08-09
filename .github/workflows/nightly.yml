@@ -84,7 +84,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools protobuf-compiler pkg-config lld-21 \
             clang-21 clang-tools-21 libclang-common-21-dev libclang-21-dev libclang1-21 \
-            libjemalloc-dev librocksdb-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            libjemalloc-dev librocksdb-dev
 
       - name: Install macos deps
         if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
@@ -94,10 +94,10 @@ jobs:
 
       - name: Build binaries
         env:
-          CC: clang
-          CXX: clang++
-          RUSTFLAGS: -Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld
-          LIBCLANG_PATH: ${{ case(startsWith(matrix.platform.os-name, 'linux'), '/usr/lib/llvm-21/lib', '/opt/homebrew/opt/llvm/lib') }}
+#          CC: clang
+#          CXX: clang++
+#          RUSTFLAGS: -Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld
+          LIBCLANG_PATH: ${{ case(startsWith(matrix.platform.os-name, 'linux'), '/usr/lib/llvm-21/lib', '/opt/homebrew/opt/llvm@21/lib') }}
         run: cargo build --profile=production --target=${{ matrix.platform.target }}
 
       - name: Create tarball
