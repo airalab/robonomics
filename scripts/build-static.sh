@@ -1,6 +1,9 @@
 #!/bin/sh
+
+set -e
+
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 # Get the project root
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
