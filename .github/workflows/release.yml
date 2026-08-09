@@ -100,9 +100,9 @@ jobs:
       run: |
         ls -R
         runtime_version=$(cat robonomics-compressed-info.json | jq '.core_version' | tr -d '"' | cut -d ' ' -f 1)
-        echo $runtime_version
-        echo "runtime=$runtime_version" >> $GITHUB_ENV
-        echo "robonomics=$runtime_version" >> $GITHUB_OUTPUT
+        echo "$runtime_version"
+        echo "runtime=$runtime_version" >> "$GITHUB_ENV"
+        echo "robonomics=$runtime_version" >> "$GITHUB_OUTPUT"
 
     - name: Upload Robonomics Wasm
       uses: actions/upload-release-asset@v1
