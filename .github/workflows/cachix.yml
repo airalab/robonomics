@@ -8,7 +8,7 @@ on:
     outputs:
       status:
         description: "Status of the cachix builds"
-        value: ${{ (jobs.developer-shell-check.outputs.status == 'success' && jobs.package-build.outputs.status == 'success') && 'success' || 'failure' }}
+        value: ${{ jobs.developer-shell-check.outputs.status == 'success' && jobs.build.outputs.status == 'success' }}
 
 permissions:
   contents: read

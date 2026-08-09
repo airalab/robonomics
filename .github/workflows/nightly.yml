@@ -19,7 +19,7 @@ on:
     outputs:
       status:
         description: "Status of nightly builds"
-        value: ${{ jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
+        value: ${{ jobs.build-linux.outputs.status == 'success' && jobs.build-macos.outputs.status == 'success' && jobs.docker.outputs.status == 'success' && jobs.srtool.outputs.status == 'success' }}
 
 concurrency:
   group: nightly-${{ github.ref }}
@@ -53,6 +53,8 @@ jobs:
     needs: tests
     name: Linux ${{ matrix.platform.arch }}
     runs-on: ${{ matrix.platform.os-name }}
+    outputs:
+      status: ${{ job.status }}
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +88,8 @@ jobs:
     needs: tests
     name: MacOS ${{ matrix.platform.arch }}
     runs-on: macOS-latest
+    outputs:
+      status: ${{ job.status }}
     strategy:
       fail-fast: false
       matrix:
@@ -180,7 +184,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: tests 
+    needs: [tests, check-metadata]
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}

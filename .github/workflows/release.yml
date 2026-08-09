@@ -67,24 +67,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        bin: [robonomics,cps]
         os: [linux, macos] 
         arch: [x86_64, aarch64]
     steps:
     - name: Download pre-built artifact
       uses: actions/download-artifact@v4
       with:
-        name: package-${{ matrix.os }}-${{ matrix.arch }}
-        path: ${{ matrix.os }}-${{ matrix.arch }} 
+        name: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
+        path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }} 
 
-    - name: Upload robonomics
+    - name: Upload binaries
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.os }}-${{ matrix.arch }}/package.tar.gz
-        asset_name: package-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
-        asset_content_type: application/gzip
+        asset_path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
+        asset_name: ${{ matrix.bin }}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}
+        asset_content_type: application/octet-stream
 
   upload-runtimes:
     needs: publish-release-draft
