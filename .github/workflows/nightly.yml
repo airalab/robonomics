@@ -83,8 +83,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools protobuf-compiler pkg-config lld-21 \
-            clang-21 clang-tools-21 libclang-common-21-dev libclang-21-dev libclang1-21 \
-            libjemalloc-dev librocksdb-dev
+            clang-21 clang-tools-21 libclang-common-21-dev libclang-21-dev libclang1-21
+
+      - name: Install musl toolchain
+        if: ${{ startsWith(matrix.platform.os-name, 'linux-x86_64') }}
+        run: |
+          curl -O https://musl.cc/x86_64-linux-musl-native.tgz
+          tar -xzf x86_64-linux-musl-native.tgz
+          sudo mv x86_64-linux-musl-native /opt/x86_64-linux-musl
+          echo "/opt/x86_64-linux-musl/bin" >> $GITHUB_PATH
+
+      - name: Install musl toolchain
+        if: ${{ startsWith(matrix.platform.os-name, 'linux-aarch64') }}
+        run: |
+          curl -O https://musl.cc/aarch64-linux-musl-native.tgz
+          tar -xzf aarch64-linux-musl-native.tgz
+          sudo mv aarch64-linux-musl-native /opt/x86_64-linux-musl
+          echo "/opt/aarch64-linux-musl/bin" >> $GITHUB_PATH
+
 
       - name: Install macos deps
         if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
@@ -98,7 +114,8 @@ jobs:
 #          CXX: clang++
 #          RUSTFLAGS: -Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld
           LIBCLANG_PATH: ${{ case(startsWith(matrix.platform.os-name, 'linux'), '/usr/lib/llvm-21/lib', '/opt/homebrew/opt/llvm@21/lib') }}
-        run: cargo build --profile=production --target=${{ matrix.platform.target }}
+        run: |
+          cargo build --profile=production --target=${{ matrix.platform.target }}
 
       - name: Create tarball
         run: |
