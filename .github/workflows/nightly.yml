@@ -77,28 +77,26 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Install linux deps
-        if: ${{ contains(matrix.platform.os-name, 'linux') }}
+        if: ${{ startsWith(matrix.platform.os-name, 'linux') }}
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools protobuf-compiler pkg-config
 
-      - name: Install Clang and LLVM
-        if: ${{ contains(matrix.platform.os-name, 'linux') }}
+      - name: Install LLVM/CLang for linux
+        if: ${{ startsWith(matrix.platform.os-name, 'linux') }}
         uses: egor-tensin/setup-clang@v1
         with:
           version: '21' # Rust 1.93 uses llvm-21 
 
       - name: Install LLVM/Clang for macos
-        if: ${{ contains(matrix.platform.os-name, 'macos') }}
-        run: |
-          brew install llvm
-          LLVM_PREFIX="/opt/homebrew/opt/llvm"
-          echo "LIBCLANG_PATH=${LLVM_PREFIX}/lib" >> "$GITHUB_ENV"
+        if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
+        run: brew install llvm
 
       - name: Build binaries
         env:
           CC: clang
           CXX: clang++
+          LIBCLANG_PATH: ${{ case(startsWith(matrix.platform.os-name, 'linux'), '/usr/lib/llvm-21/lib', '/opt/homebrew/opt/llvm') }}
         run: |
           cargo build --profile=production --target=${{ matrix.platform.target }}
 
