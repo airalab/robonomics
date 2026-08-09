@@ -15,8 +15,12 @@ path = "src/main.rs"
 [dependencies]
 robonomics-runtime = { workspace = true, optional = true }
 sp-genesis-builder = { workspace = true, optional = true }
+polkadot-jemalloc-shim.workspace = true
 polkadot-omni-node-lib.workspace = true
 color-eyre.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+polkadot-jemalloc-shim = { workspace = true, features = ["jemalloc-allocator"] }
 
 [dev-dependencies]
 assert_cmd.workspace = true

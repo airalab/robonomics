@@ -18,7 +18,10 @@
 //! Robonomics Node binary
 
 #![warn(missing_docs)]
-#![warn(unused_extern_crates)]
+
+// Force the linker to keep the polkadot_jemalloc_shim crate (and its #[global_allocator]).
+#[cfg(target_os = "linux")]
+extern crate polkadot_jemalloc_shim;
 
 /// OMNI Node based CLI
 mod cli;
