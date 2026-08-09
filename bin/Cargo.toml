@@ -25,7 +25,7 @@ assert_cmd.workspace = true
 substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
-default = []
+default = ["dev-runtime"]
 runtime-benchmarks = ["polkadot-omni-node-lib/runtime-benchmarks"]
 try-runtime = ["polkadot-omni-node-lib/try-runtime"]
 dev-runtime = [

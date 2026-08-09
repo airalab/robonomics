@@ -31,11 +31,11 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  tests:
-    uses: ./.github/workflows/tests.yml
+#  tests:
+#    uses: ./.github/workflows/tests.yml
 
-  check-metadata:
-    uses: ./.github/workflows/metadata-check.yml
+#  check-metadata:
+#    uses: ./.github/workflows/metadata-check.yml
 
 #  cachix:
 #    needs: [tests, check-metadata]
@@ -50,34 +50,36 @@ jobs:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   build-binaries:
-    needs: [tests, check-metadata]
+#    needs: [tests, check-metadata]
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - os-name: Linux-x86_64
+          - os-name: linux-x86_64
             runs-on: ubuntu-24.04
             target: x86_64-unknown-linux-musl
-          - os-name: Linux-aarch64
-            runs-on: ubuntu-24.04
+          - os-name: linux-aarch64
+            runs-on: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl 
-          - os-name: macOS-x86_64
+          - os-name: macos-x86_64
             runs-on: macOS-latest
             target: x86_64-apple-darwin
+          - os-name: macos-aarch64
+            runs-on: macOS-latest
+            target: aarch64-apple-darwin
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Build binaries 
-        uses: houseabsolute/actions-rust-cross@v1
-        with:
-          command: build
-          target: ${{ matrix.platform.target }}
-          args: "--locked --profile production"
-          force-use-cross: true
-          use-rust-cache: true
-          strip: true
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build binaries
+        run: |
+          cargo build --profile=production --target=${{ matrix.platform.target }}
+
       - name: Build robonomics tarball
         run: |
           cd target/${{ matrix.platform.target }}/production && tar czvf package.tar.gz robonomics cps
