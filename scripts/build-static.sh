@@ -15,5 +15,9 @@ fi
 echo -e "${GREEN}Building profile: ${PROFILE}${NC}"
 echo ""
 
-docker run -v "${PROJECT_ROOT}":/build -it --rm $(docker build -q "${PROJECT_ROOT}/scripts/docker/builder") \
+docker run -v "${PROJECT_ROOT}":/build -it \
+    -e SUBSTRATE_CLI_GIT_COMMIT_HASH="$(git rev-parse --short HEAD)" \
+    -e RUSTFLAGS="-Clink-arg=-lzstd" \
+    -e SKIP_STORAGE_ACCESS_TEST_RUNTIME_WASM_BUILD=1 \
+    --rm $(docker build -q "${PROJECT_ROOT}/scripts/docker/builder") \
     cargo build --profile "${PROFILE}"

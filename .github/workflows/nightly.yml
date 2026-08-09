@@ -31,17 +31,17 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-#  tests:
-#    uses: ./.github/workflows/tests.yml
+  tests:
+    uses: ./.github/workflows/tests.yml
 
-#  check-metadata:
-#    uses: ./.github/workflows/metadata-check.yml
+  check-metadata:
+    uses: ./.github/workflows/metadata-check.yml
 
-#  cachix:
-#    needs: [tests, check-metadata]
-#    uses: ./.github/workflows/cachix.yml
-#    secrets:
-#      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+  cachix:
+    needs: tests
+    uses: ./.github/workflows/cachix.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 #  robonet:
 #    needs: tests
@@ -50,7 +50,7 @@ jobs:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   build-linux:
-#    needs: tests
+    needs: tests
     name: Linux ${{ matrix.platform.arch }}
     runs-on: ${{ matrix.platform.os-name }}
     strategy:
@@ -83,7 +83,7 @@ jobs:
           archive: false
 
   build-macos:
-#    needs: tests
+    needs: tests
     name: MacOS ${{ matrix.platform.arch }}
     runs-on: macOS-latest
     strategy:
@@ -180,7 +180,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-#    needs: tests 
+    needs: tests 
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
