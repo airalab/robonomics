@@ -92,6 +92,8 @@ jobs:
         env:
           CC: clang
           CXX: clang++
+          CXXFLAGS: -stdlib=libc++
+          RUSTFLAGS: -Clinker=clang -fuse-ld=lld
           LIBCLANG_PATH: ${{ case(startsWith(matrix.platform.os-name, 'linux'), '/usr/lib/llvm-21/lib', '/opt/homebrew/opt/llvm/lib') }}
         run: |
           cargo build --profile=production --target=${{ matrix.platform.target }}
