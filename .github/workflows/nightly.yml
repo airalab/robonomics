@@ -80,10 +80,13 @@ jobs:
         if: ${{ contains(matrix.platform.os-name, 'linux') }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools protobuf-compiler clang libclang-dev pkg-config
-          # Locate the accurate libclang.so path and export it to the environment
-          LIBCLANG_PATH=$(dirname "$(find /usr/lib/ -name "libclang.so*" | head -n 1)")
-          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> "$GITHUB_ENV"
+          sudo apt-get install -y musl-tools protobuf-compiler pkg-config
+
+      - name: Install Clang and LLVM
+        if: ${{ contains(matrix.platform.os-name, 'linux') }}
+        uses: egor-tensin/setup-clang@v1
+        with:
+          version: '21' # Rust 1.93 uses llvm-21 
 
       - name: Install LLVM/Clang for macos
         if: ${{ contains(matrix.platform.os-name, 'macos') }}
