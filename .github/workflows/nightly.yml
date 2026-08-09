@@ -50,7 +50,7 @@ jobs:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   build-binaries:
-#    needs: [tests, check-metadata]
+#    needs: tests
     name: Binary - ${{ matrix.platform.os-name }}
     runs-on: ${{ matrix.platform.runs-on }}
     strategy:
@@ -75,6 +75,12 @@ jobs:
 
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install linux deps
+        if: ${{ contains(matrix.platform.os-name, 'linux') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools protobuf-compiler pkg-config
 
       - name: Build binaries
         run: |
@@ -119,14 +125,14 @@ jobs:
     - name: Download pre-built amd64 binaries
       uses: actions/download-artifact@v4
       with:
-        name: package-Linux-x86_64
+        name: package-linux-x86_64
         path: scripts/docker/amd64/
     - run: cd scripts/docker/amd64 && tar xvf package.tar.gz
 
     - name: Download pre-built aarch64 binaries 
       uses: actions/download-artifact@v4
       with:
-        name: package-Linux-aarch64
+        name: package-linux-aarch64
         path: scripts/docker/arm64/
     - run: cd scripts/docker/arm64 && tar xvf package.tar.gz
 
