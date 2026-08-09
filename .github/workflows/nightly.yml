@@ -49,6 +49,39 @@ jobs:
 #    secrets:
 #      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
+  build-linux:
+#    needs: tests
+    name: Linux ${{ matrix.platform.arch }}
+    runs-on: ${{ matrix.platform.os-name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - arch: x86_64
+            os-name: ubuntu-26.04
+          - arch: aarch64
+            os-name: ubuntu-26.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build static binaries
+        run: ./scripts/build-static.sh production
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: robonomics-linux-${{ matrix.platform.arch }}
+          path: target/production/robonomics
+          retention-days: 7
+          archive: false
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cps-linux-${{ matrix.platform.arch }}
+          path: target/production/cps
+          retention-days: 7
+          archive: false
+
   build-macos:
 #    needs: tests
     name: MacOS ${{ matrix.platform.arch }}
@@ -80,18 +113,22 @@ jobs:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm@21/lib
         run: cargo build --profile=production --target=${{ matrix.platform.target }}
 
-      - name: Create tarball
-        run: |
-          cd target/${{ matrix.platform.target }}/production && tar czvf package.tar.gz robonomics cps
-
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: package-macos-${{ matrix.platform.arch }}
-          path: target/${{ matrix.platform.target }}/production/package.tar.gz
+          name: robonomics-macos-${{ matrix.platform.arch }}
+          path: target/${{ matrix.platform.target }}/production/robonomics
           retention-days: 7
+          archive: false
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cps-macos-${{ matrix.platform.arch }}
+          path: target/${{ matrix.platform.target }}/production/cps
+          retention-days: 7
+          archive: false
 
   docker:
-#    needs: build-binaries 
+    needs: build-linux
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
@@ -117,18 +154,19 @@ jobs:
         tags: type=sha # add git short SHA as Docker tag
 
     - name: Download pre-built amd64 binaries
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
-        name: package-linux-x86_64
+        name: robonomics-linux-x86_64
         path: scripts/docker/amd64/
-    - run: cd scripts/docker/amd64 && tar xvf package.tar.gz
+
+    - run: chmod +x scripts/docker/amd64/robonomics
 
     - name: Download pre-built aarch64 binaries 
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: package-linux-aarch64
         path: scripts/docker/arm64/
-    - run: cd scripts/docker/arm64 && tar xvf package.tar.gz
+    - run: chmod +x scripts/docker/arm64/robonomics
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6

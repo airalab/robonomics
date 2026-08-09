@@ -23,7 +23,7 @@ jobs:
     outputs:
       status: ${{ job.status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup runner
         uses: ./.github/actions/setup-runner
@@ -33,15 +33,15 @@ jobs:
       - run: nix develop --command bash -c "echo OK"
       - run: nix develop .#benchmarking --command bash -c "echo OK"
 
-  package-build:
+  build:
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
     strategy:
       matrix:
-        arch: [x86_64,aarch64,riscv64]
+        package: [robonomics,libcps]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup runner
         uses: ./.github/actions/setup-runner
@@ -52,10 +52,4 @@ jobs:
           CORES=$(nproc)
           CORES=$((CORES - 1))
           echo "Using $CORES cores."
-          nix build -L --cores "$CORES" -o ${{ matrix.arch }} .#package-${{ matrix.arch }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: package-linux-${{ matrix.arch }}
-          path: ${{ matrix.arch }}/package.tar.gz
-          retention-days: 7
+          nix build -L --cores "$CORES" -o ${{ matrix.package }} .#${{ matrix.package }}

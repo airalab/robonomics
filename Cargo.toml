@@ -85,6 +85,7 @@ indicatif = "0.18"
 assert_cmd = "2.0.14"
 easy-hex = "1.0"
 seahash = "4.1"
+rocksdb = { version = "0.24", default-features = false }
 
 # Substrate
 # (wasm)

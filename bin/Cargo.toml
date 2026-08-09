@@ -19,6 +19,11 @@ polkadot-jemalloc-shim.workspace = true
 polkadot-omni-node-lib.workspace = true
 color-eyre.workspace = true
 
+# Build static with Musl
+[target.'cfg(target_env = "musl")'.dependencies]
+rocksdb = { workspace = true, default-features = false, features = ["bindgen-static", "snappy"] }
+
+# Jemalloc enabled on Linux
 [target.'cfg(target_os = "linux")'.dependencies]
 polkadot-jemalloc-shim = { workspace = true, features = ["jemalloc-allocator"] }
 

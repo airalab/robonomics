@@ -1,0 +1,19 @@
+#!/bin/sh
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+if [ -z "$1" ]; then
+    PROFILE="release"
+else
+    PROFILE="$1"
+fi
+echo -e "${GREEN}Building profile: ${PROFILE}${NC}"
+echo ""
+
+docker run -v "${PROJECT_ROOT}":/build -it --rm $(docker build -q "${PROJECT_ROOT}/scripts/docker/builder") \
+    cargo build --profile "${PROFILE}"
