@@ -21,7 +21,10 @@ color-eyre.workspace = true
 
 # Build static with Musl
 [target.'cfg(target_env = "musl")'.dependencies]
-rocksdb = { workspace = true, default-features = false, features = ["bindgen-static", "snappy"] }
+rocksdb = { workspace = true, default-features = false, features = [
+  "bindgen-static",
+  "snappy",
+] }
 
 # Jemalloc enabled on Linux
 [target.'cfg(target_os = "linux")'.dependencies]
