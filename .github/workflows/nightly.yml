@@ -86,11 +86,10 @@ jobs:
             clang-21 clang-tools-21 libclang-common-21-dev libclang-21-dev libclang1-21 \
             libc++-21-dev libc++abi-21-dev libjemalloc-dev librocksdb-dev
 
-      - name: Install LLVM/Clang for macos
+      - name: Install macos deps
         if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
         run: |
-          brew install llvm
-          echo "PREFIX: $(brew --prefix llvm)/lib"
+          brew install llvm@21 rocksdb
 
       - name: Build binaries
         env:
