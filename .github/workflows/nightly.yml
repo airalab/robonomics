@@ -89,7 +89,7 @@ jobs:
       - name: Install macos deps
         if: ${{ startsWith(matrix.platform.os-name, 'macos') }}
         run: |
-          brew install llvm@21
+          brew install llvm@21 protobuf
           brew link llvm@21
 
       - name: Build binaries
