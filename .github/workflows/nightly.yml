@@ -88,7 +88,7 @@ jobs:
       - name: Install musl toolchain
         if: ${{ startsWith(matrix.platform.os-name, 'linux-x86_64') }}
         run: |
-          curl -O https://musl.cc/x86_64-linux-musl-native.tgz
+          wget -c https://musl.cc/x86_64-linux-musl-native.tgz
           tar -xzf x86_64-linux-musl-native.tgz
           sudo mv x86_64-linux-musl-native /opt/x86_64-linux-musl
           echo "/opt/x86_64-linux-musl/bin" >> $GITHUB_PATH
@@ -96,7 +96,7 @@ jobs:
       - name: Install musl toolchain
         if: ${{ startsWith(matrix.platform.os-name, 'linux-aarch64') }}
         run: |
-          curl -O https://musl.cc/aarch64-linux-musl-native.tgz
+          wget -c https://musl.cc/aarch64-linux-musl-native.tgz
           tar -xzf aarch64-linux-musl-native.tgz
           sudo mv aarch64-linux-musl-native /opt/x86_64-linux-musl
           echo "/opt/aarch64-linux-musl/bin" >> $GITHUB_PATH
