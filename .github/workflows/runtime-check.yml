@@ -23,7 +23,7 @@ on:
     outputs:
       status:
         description: "Status of runtime checkos"
-        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-behcmarks.outputs.status == 'success' }}
+        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
 
 concurrency:
   group: metadata-check-${{ github.ref }}
