@@ -34,8 +34,8 @@ jobs:
   tests:
     uses: ./.github/workflows/tests.yml
 
-  check-metadata:
-    uses: ./.github/workflows/metadata-check.yml
+  check-runtime:
+    uses: ./.github/workflows/runtime-check.yml
 
   cachix:
     needs: tests
@@ -184,7 +184,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   srtool:
-    needs: [tests, check-metadata]
+    needs: [tests, check-runtime]
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
