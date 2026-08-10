@@ -28,7 +28,7 @@ use scale_info::TypeInfo;
 use sp_core::crypto::{Pair, Public};
 use sp_runtime::{
     traits::{IdentifyAccount, Verify},
-    DispatchResult, RuntimeDebug,
+    DispatchResult,
 };
 use sp_std::marker::PhantomData;
 
@@ -37,15 +37,7 @@ use crate::traits::*;
 
 /// Agreement that could be proven by asymmetric cryptography.
 #[derive(
-    Encode,
-    Decode,
-    Clone,
-    PartialEq,
-    Eq,
-    TypeInfo,
-    RuntimeDebug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    Encode, Decode, Clone, PartialEq, Eq, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 pub struct SignedAgreement<T, E, AccountId, Signature> {
     pub technics: T,
@@ -139,15 +131,7 @@ where
 
 /// Report that could be proven by asymmetric cryptography.
 #[derive(
-    Encode,
-    Decode,
-    Clone,
-    PartialEq,
-    Eq,
-    TypeInfo,
-    RuntimeDebug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    Encode, Decode, Clone, PartialEq, Eq, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 pub struct SignedReport<Index, AccountId, Signature, Message> {
     pub index: Index,

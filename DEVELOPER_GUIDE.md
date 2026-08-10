@@ -1,8 +1,18 @@
 # Robonomics Development Guidelines
 
+> Crates API is available at https://crates.robonomics.network.
+
+Each component is designed to be modular and reusable, following Substrate's framework architecture. The workspace structure allows for efficient development and testing of individual components while maintaining consistency across the project.
+
 ## Nix Development Shells
 
-We provide two specialized development environments through Nix flakes:
+1. Install Nix with flakes support (one-time setup):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+2. We provide two specialized development environments through Nix flakes:
 
 ### Default Development Shell
 
@@ -85,7 +95,7 @@ Detailed **robonet** documentation available at crate [README](./tools/robonet/R
 The `--dev` flag starts a single-node development chain:
 
 ```bash
-robonomics --dev
+cargo run -- --dev
 ```
 
 This creates:
@@ -98,17 +108,17 @@ This creates:
 
 ```bash
 # Store chain data in a custom directory
-robonomics --dev --base-path ./my-dev-chain
+./target/debug/robonomics --dev --base-path ./my-dev-chain
 
 # Clear the chain and start fresh
-robonomics --dev --base-path ./my-dev-chain purge-chain
+./target/debug/robonomics --dev --base-path ./my-dev-chain purge-chain
 ```
 
 **Testing Changes:**
 
 ```bash
-# Run all tests
-cargo test --all
+# Run all tests (use nextest for speedup)
+cargo nextest run --all 
 
 # Run tests for a specific pallet
 cargo test -p pallet-robonomics-datalog
@@ -205,25 +215,67 @@ Before deploying runtime upgrades to production, you can dry-run them against li
 
 ### Basic Usage
 
-Test against Kusama network (default):
+Test against Live network:
 
 ```bash
 ./scripts/try-runtime.sh
-# or explicitly
-./scripts/try-runtime.sh kusama
-```
-
-Test against Polkadot network:
-
-```bash
-./scripts/try-runtime.sh polkadot
 ```
 
 ### What It Does
 
 The script:
-- Connects to public RPC endpoints (wss://kusama.rpc.robonomics.network or wss://polkadot.rpc.robonomics.network)
+- Connects to public RPC endpoints (wss://polkadot.rpc.robonomics.network)
 - Automatically builds the runtime with `try-runtime` features if not found
 - Runs `on-runtime-upgrade` checks against live chain state
 - Validates that migrations execute successfully without errors
 - Reports any issues before they reach production
+
+## GitHub Actions CI/CD
+
+The Robonomics project uses GitHub Actions for continuous integration and deployment. The CI/CD pipeline includes automated testing, building, and release workflows optimized for speed and reliability.
+
+**Key workflows:**
+- Nightly builds and artifact publishing
+- Comprehensive test suite (unit tests, runtime benchmarks)
+- Release pipeline with multi-platform binaries
+- Docker image builds and SRTOOL runtime generation
+
+For detailed documentation on workflow structure, caching strategies, and maintenance guidelines, see [.github/workflows/README.md](./.github/workflows/README.md).
+
+## Development Tooling
+
+The Robonomics workspace includes specialized tools for working with the network:
+
+### libcps - CPS Library & CLI
+
+A comprehensive library and command-line interface for managing hierarchical Cyber-Physical Systems on Robonomics. Features multi-algorithm encryption, dual keypair support, and MQTT bridge for IoT integration.
+
+Documentation: [tools/libcps/README.md](./tools/libcps/README.md)
+
+### robonet - Network Testbed
+
+Built on ZombieNet SDK, `robonet` provides an easy way to spawn local Robonomics networks for integration testing. Supports multiple network topologies and includes comprehensive tests for XCM, CPS, and other pallets.
+
+Documentation: [tools/robonet/README.md](./tools/robonet/README.md)
+
+## Nix Workflow and Binary Cache
+
+This project uses [Nix](https://nixos.org/) to provide reproducible development environments with all necessary dependencies pre-configured. The Nix flake defines multiple development shells optimized for different workflows (see [Nix Development Shells](#nix-development-shells) above).
+
+### Using the Robonomics Binary Cache
+
+To speed up builds, the project uses [Cachix](https://cachix.org/) to cache pre-built Nix artifacts. This eliminates the need to build dependencies from source:
+
+**Setup Cachix cache (one-time):**
+
+```bash
+# Install cachix
+nix-env -iA cachix -f https://cachix.org/api/v1/install
+
+# Add the Robonomics cache
+cachix use robonomics
+```
+
+After setup, Nix will automatically download pre-built binaries from `robonomics.cachix.org` instead of building from source, significantly reducing build times.
+
+**Note:** The CI/CD pipeline automatically builds and uploads artifacts to Cachix on every master branch push, ensuring the cache stays up-to-date with the latest changes.

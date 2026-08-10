@@ -144,9 +144,9 @@
 //! };
 //! ```
 
-use crate::blockchain::{Client, Config as BlockchainConfig};
+use crate::blockchain::{BoundedVec, Client, Config as BlockchainConfig};
 use crate::crypto::{Cipher, CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
-use crate::node::{EncryptedData, Node, NodeData, PayloadSet};
+use crate::node::{Node, PayloadSet};
 use anyhow::{anyhow, Result};
 use log::{debug, error, trace};
 use parity_scale_codec::Decode;
@@ -564,7 +564,7 @@ impl Config {
                                         publish.payload.len(),
                                         encrypted_bytes.len()
                                     );
-                                    NodeData::aead_from(encrypted_bytes)
+                                    BoundedVec(encrypted_bytes)
                                 }
                                 Err(e) => {
                                     // Encryption failed, log error and continue
@@ -580,7 +580,7 @@ impl Config {
                         _ => {
                             let payload_str = String::from_utf8_lossy(&publish.payload);
                             trace!("Using plaintext payload");
-                            NodeData::from(payload_str.to_string())
+                            BoundedVec(payload_str.as_bytes().to_vec())
                         }
                     };
 
@@ -716,16 +716,9 @@ impl Config {
         let node = Node::new(&client, node_id);
 
         // Create node decrypt closure
-        let node_data_to_string = |node_data| match node_data {
-            NodeData::Plain(bytes) => String::from_utf8(bytes.0).map_err(|e| {
-                error!("Invalid UTF-8 character: {}", e);
-                anyhow!("Invalid UTF-8 character: {}", e)
-            }),
-            NodeData::Encrypted(EncryptedData::Aead(bytes)) => {
-                let message: EncryptedMessage = Decode::decode(&mut &bytes.0[..]).map_err(|e| {
-                    error!("Failed to decode encrypted metadata: {}", e);
-                    anyhow!("Failed to decode encrypted metadata: {}", e)
-                })?;
+        let node_data_to_string = |node_data: BoundedVec<u8>| {
+            // Try to decode as EncryptedMessage first
+            if let Ok(message) = EncryptedMessage::decode(&mut node_data.0.as_slice()) {
                 if let Some(cipher) = cipher {
                     let decrypted = cipher.decrypt(&message, None).map_err(|e| {
                         error!("Failed to decrypt message: {}", e);
@@ -741,6 +734,12 @@ impl Config {
                         anyhow!("Failed to convert encrypted message into JSON: {}", e)
                     })
                 }
+            } else {
+                // Treat as plain data
+                String::from_utf8(node_data.0).map_err(|e| {
+                    error!("Invalid UTF-8 character: {}", e);
+                    anyhow!("Invalid UTF-8 character: {}", e)
+                })
             }
         };
 

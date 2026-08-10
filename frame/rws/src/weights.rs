@@ -28,6 +28,7 @@ pub trait WeightInfo {
     fn set_oracle() -> Weight;
     fn set_subscription() -> Weight;
     fn start_auction() -> Weight;
+    fn transfer() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -48,6 +49,9 @@ impl WeightInfo for TestWeightInfo {
         Weight::zero()
     }
     fn start_auction() -> Weight {
+        Weight::zero()
+    }
+    fn transfer() -> Weight {
         Weight::zero()
     }
 }

@@ -23,7 +23,6 @@
 use frame_support::pallet_prelude::Weight;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, HasCompact, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -33,15 +32,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[derive(
-    PartialEq,
-    Eq,
-    Clone,
-    Encode,
-    Decode,
-    TypeInfo,
-    RuntimeDebug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 pub enum Subscription {
     /// Lifetime subscription.
@@ -64,7 +55,7 @@ impl Default for Subscription {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug, MaxEncodedLen)]
 pub struct AuctionLedger<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen> {
     /// Auction winner address.
     pub winner: Option<AccountId>,
@@ -95,7 +86,7 @@ impl<AccountId: MaxEncodedLen, Balance: HasCompact + MaxEncodedLen + Default>
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Encode, Decode, TypeInfo, Debug, MaxEncodedLen)]
 pub struct SubscriptionLedger<Moment: HasCompact + MaxEncodedLen> {
     /// Free execution weights accumulator.
     #[codec(compact)]
@@ -218,6 +209,8 @@ pub mod pallet {
         TooSmallBid,
         /// Subscription is not registered.
         NoSubscription,
+        /// Target account already has subscription.
+        TargetAlreadyHasSubscription,
         /// Devices isn't assigned to this subscription.
         NotLinkedDevice,
         /// The origin account have no enough free weight to process these call: [free_weight, required_weight].
@@ -241,6 +234,8 @@ pub mod pallet {
         NewAuction(Subscription, T::AuctionIndex),
         /// Can't start a new RWS subscription auction.
         NewAuctionCreationError(T::AuctionIndex),
+        /// Subscription owner updated.
+        UpdateSubscriptionOwner(T::AccountId, T::AccountId),
     }
 
     #[pallet::storage]
@@ -340,7 +335,7 @@ pub mod pallet {
             res
         }
 
-        /// Plasce a bid for live subscription auction.
+        /// Place a bid for live subscription auction.
         ///
         /// # <weight>
         /// - reads auction & auction_queue
@@ -471,6 +466,29 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let _ = ensure_root(origin)?;
             Self::new_auction(kind);
+            Ok(().into())
+        }
+
+        /// Transfer owned subscription to another account.
+        ///
+        /// # <weight>
+        /// - reads subscription ledger
+        /// - writes subscription ledger
+        /// # </weight>
+        #[pallet::call_index(6)]
+        #[pallet::weight(T::WeightInfo::transfer())]
+        pub fn transfer(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
+            // This is a public call, so we ensure that the origin is some signed account.
+            let sender = ensure_signed(origin)?;
+            ensure!(
+                !<Ledger<T>>::contains_key(&target),
+                Error::<T>::TargetAlreadyHasSubscription
+            );
+            let subscription = <Ledger<T>>::take(&sender).ok_or(Error::<T>::NoSubscription)?;
+
+            // Insert sender subscription to target.
+            <Ledger<T>>::insert(&target, subscription);
+            Self::deposit_event(Event::UpdateSubscriptionOwner(sender, target));
             Ok(().into())
         }
     }

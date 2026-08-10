@@ -252,11 +252,11 @@ The CPS pallet provides a comprehensive callback system through the `OnPayloadSe
 ### Trait Definition
 
 ```rust
-pub trait OnPayloadSet<AccountId, EncryptedData: MaxEncodedLen> {
+pub trait OnPayloadSet<AccountId> {
     fn on_payload_set(
         node_id: NodeId,
-        meta: Option<NodeData<EncryptedData>>,
-        payload: Option<NodeData<EncryptedData>>,
+        meta: Option<NodeData>,
+        payload: Option<NodeData>,
     );
 }
 ```
@@ -270,15 +270,15 @@ use pallet_robonomics_cps::{OnPayloadSet, NodeId, NodeData};
 
 pub struct PayloadIndexer;
 
-impl<AccountId, EncryptedData> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData> OnPayloadSet<AccountId> 
     for PayloadIndexer 
 where
     EncryptedData: MaxEncodedLen,
 {
     fn on_payload_set(
         node_id: NodeId,
-        meta: Option<NodeData<EncryptedData>>,
-        payload: Option<NodeData<EncryptedData>>
+        meta: Option<NodeData>,
+        payload: Option<NodeData>
     ) {
         // Your custom logic here
         log::info!("Payload updated on node {:?}", node_id);
@@ -317,7 +317,7 @@ Combine multiple callback handlers using tuples:
 ```rust
 // Define multiple handlers
 pub struct PayloadLogger;
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for PayloadLogger 
 {
     fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
@@ -326,7 +326,7 @@ impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedD
 }
 
 pub struct MetricsCollector;
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for MetricsCollector 
 {
     fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
@@ -367,7 +367,7 @@ Push updates to off-chain systems or other chains:
 ```rust
 pub struct WebhookNotifier;
 
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for WebhookNotifier 
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
@@ -385,7 +385,7 @@ Track payload update patterns and system usage:
 ```rust
 pub struct AnalyticsCollector;
 
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for AnalyticsCollector 
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
@@ -404,7 +404,7 @@ Trigger automated responses based on payload changes:
 ```rust
 pub struct AutomationTrigger;
 
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for AutomationTrigger 
 {
     fn on_payload_set(node_id: NodeId, _meta: Option<_>, payload: Option<_>) {
@@ -424,7 +424,7 @@ Maintain comprehensive logs of all payload changes:
 ```rust
 pub struct AuditLogger;
 
-impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId, EncryptedData> 
+impl<AccountId, EncryptedData: MaxEncodedLen> OnPayloadSet<AccountId> 
     for AuditLogger 
 {
     fn on_payload_set(node_id: NodeId, meta: Option<_>, payload: Option<_>) {
@@ -814,22 +814,43 @@ Customize the pallet for your use case:
 - **Shallow hierarchies**: Reduce MaxTreeDepth to 10-15
 - **Enterprise multi-site**: Increase MaxRootNodes to 1000+
 
-## 🔐 Encryption Format
+## 🔐 Client-Side Encryption
 
-### AEAD (Authenticated Encryption with Associated Data)
+### Overview
 
-The CPS pallet supports **self-describing AEAD encryption** for secure data storage.
+**The CPS pallet stores data as plain bytes**. For sensitive data, encryption must be handled at the **client level** before submitting to the blockchain. This design keeps the pallet simple and flexible, allowing clients to choose their preferred encryption schemes.
 
-**What is AEAD?**
+### Why Client-Side?
 
-AEAD ciphers provide three guarantees:
-- ✅ **Confidentiality** - Data is encrypted, unreadable without the key
-- ✅ **Integrity** - Tampering is detected via authentication tag
-- ✅ **Authentication** - Sender identity verified via ECDH key agreement
+- **Flexibility**: Choose any encryption algorithm suitable for your use case
+- **Simplicity**: Pallet remains lean without complex encryption logic
+- **Upgradability**: Switch encryption schemes without pallet upgrades
+- **Privacy Control**: Encryption keys never touch the blockchain
 
-### Encrypted Message Format
+### Recommended Encryption: AEAD
 
-Encrypted data is stored as **self-describing JSON**:
+For robust security, we recommend **AEAD (Authenticated Encryption with Associated Data)** ciphers:
+
+✅ **Confidentiality** - Data is encrypted, unreadable without the key  
+✅ **Integrity** - Tampering is detected via authentication tag  
+✅ **Authentication** - Sender identity verified via ECDH key agreement
+
+### Recommended Algorithms
+
+| Algorithm | Nonce Size | Best For | Performance |
+|-----------|------------|----------|-------------|
+| **XChaCha20-Poly1305** (recommended) | 24 bytes | General purpose, large nonce space | ~680 MB/s (software) |
+| **AES-256-GCM** | 12 bytes | Hardware acceleration | ~2-3 GB/s (with AES-NI) |
+| **ChaCha20-Poly1305** | 12 bytes | Portable without hardware | ~600 MB/s (software) |
+
+All algorithms should use:
+- **256-bit keys** (derived via ECDH + HKDF-SHA256)
+- **Authenticated encryption** (AEAD with authentication tag)
+- **Sender verification** (optional during decryption)
+
+### Self-Describing Encryption Format
+
+We recommend storing encrypted data as **self-describing JSON** for forward compatibility:
 
 ```json
 {
@@ -841,38 +862,27 @@ Encrypted data is stored as **self-describing JSON**:
 }
 ```
 
-**Key Insight**: The algorithm tag is **embedded in the JSON payload**, not in the pallet's type system. This enables:
+**Benefits**:
 - Algorithm auto-detection during decryption
 - Forward compatibility with new ciphers
-- No pallet upgrades needed for algorithm additions
+- No version conflicts
 
-### Supported Algorithms
-
-| Algorithm | Nonce Size | Best For | Performance |
-|-----------|------------|----------|-------------|
-| **XChaCha20-Poly1305** (default) | 24 bytes | General purpose, large nonce space | ~680 MB/s (software) |
-| **AES-256-GCM** | 12 bytes | Hardware acceleration | ~2-3 GB/s (with AES-NI) |
-| **ChaCha20-Poly1305** | 12 bytes | Portable without hardware | ~600 MB/s (software) |
-
-All algorithms use:
-- **256-bit keys** (derived via ECDH + HKDF-SHA256)
-- **Authenticated encryption** (AEAD with authentication tag)
-- **Sender verification** (optional during decryption)
-
-### How Encryption Works
+### Client-Side Encryption Flow
 
 ```rust
+// ===== ENCRYPTION (Before submitting to chain) =====
+
 // 1. Key Agreement (ECDH)
 let shared_secret = ecdh(sender_private, receiver_public);
 
 // 2. Key Derivation (HKDF-SHA256)
-let encryption_key = hkdf(shared_secret, "robonomics-cps-{algorithm}");
+let encryption_key = hkdf(shared_secret, "robonomics-cps-xchacha20");
 
 // 3. AEAD Encryption
-let nonce = random_bytes(nonce_size);  // 24 or 12 bytes
+let nonce = random_bytes(24);  // XChaCha20 uses 24-byte nonce
 let ciphertext = aead_encrypt(plaintext, encryption_key, nonce);
 
-// 4. Self-Describing JSON (constructed as object, then serialized)
+// 4. Build Self-Describing Message
 let message = Message {
   version: 1,
   algorithm: "xchacha20",
@@ -881,21 +891,74 @@ let message = Message {
   ciphertext: base64(ciphertext)
 };
 
-// 5. Serialize to bytes and store on-chain
+// 5. Serialize and Store
 let encrypted_bytes = serde_json::to_vec(&message)?;
-let encrypted = DefaultEncryptedData::Aead(encrypted_bytes);
+let data = BoundedVec::try_from(encrypted_bytes)?;
+Cps::create_node(origin, parent_id, Some(data), None)?;
+
+// ===== DECRYPTION (After retrieving from chain) =====
+
+// 1. Retrieve node data
+let node = Cps::nodes(node_id)?;
+let encrypted_bytes = node.meta?;
+
+// 2. Deserialize message
+let message: Message = serde_json::from_slice(&encrypted_bytes)?;
+
+// 3. Derive decryption key (same as encryption)
+let shared_secret = ecdh(receiver_private, message.from);
+let decryption_key = hkdf(shared_secret, format!("robonomics-cps-{}", message.algorithm));
+
+// 4. Decrypt
+let plaintext = aead_decrypt(
+    base64::decode(message.ciphertext)?,
+    decryption_key,
+    base64::decode(message.nonce)?
+)?;
 ```
 
-### Storage Type
+### Example: IoT Sensor with Encrypted Telemetry
 
 ```rust
-pub enum DefaultEncryptedData {
-    /// AEAD encrypted payload with self-describing algorithm tag.
-    Aead(BoundedVec<u8, MaxDataSize>),
-}
+// Sensor encrypts reading before sending
+let reading = b"temperature: 22.5C";
+let encrypted = client.encrypt(reading, &receiver_public_key)?;
+let data = BoundedVec::try_from(encrypted)?;
+
+// Submit to chain
+api.tx.cps.set_payload(sensor_node_id, Some(data)).sign_and_send(sensor_account)?;
+
+// Server retrieves and decrypts
+let node = api.query.cps.nodes(sensor_node_id).await?;
+let decrypted = client.decrypt(&node.payload?, &server_private_key)?;
+println!("Reading: {}", String::from_utf8(decrypted)?);
 ```
 
-The `Aead` variant contains the complete self-describing JSON structure, eliminating the need for separate enum variants per algorithm.
+### Security Considerations
+
+**What's Protected (with client-side encryption)**:
+- ✅ Data confidentiality (unreadable without keys)
+- ✅ Data integrity (tampering detected)
+- ✅ Sender authentication (via ECDH)
+
+**What's NOT Protected**:
+- ⚠️ Tree structure (always public)
+- ⚠️ Encrypted data size (visible on-chain)
+- ⚠️ Update frequency (transaction timestamps public)
+
+### Key Management Best Practices
+
+1. **Never store private keys on-chain**
+2. **Use hardware wallets** for high-value keys
+3. **Rotate keys periodically** for long-term deployments
+4. **Use separate keys** for different security domains
+5. **Implement key backup** and recovery procedures
+
+### Encryption Libraries
+
+- **Rust**: [chacha20poly1305](https://docs.rs/chacha20poly1305), [aes-gcm](https://docs.rs/aes-gcm)
+- **JavaScript**: [libsodium-wrappers](https://github.com/jedisct1/libsodium.js), [tweetnacl](https://github.com/dchest/tweetnacl-js)
+- **Python**: [cryptography](https://cryptography.io/), [pynacl](https://pynacl.readthedocs.io/)
 
 ## Security & Trust
 

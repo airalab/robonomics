@@ -20,9 +20,9 @@
 use crate::display;
 use anyhow::Result;
 use colored::*;
-use libcps::blockchain::{Client, Config};
+use libcps::blockchain::{BoundedVec, Client, Config};
 use libcps::crypto::Cipher;
-use libcps::node::{Node, NodeData};
+use libcps::node::Node;
 use parity_scale_codec::Encode;
 use subxt::utils::AccountId32;
 
@@ -69,9 +69,9 @@ pub async fn execute(
 
             let encrypted_message = cipher.encrypt(m.as_bytes(), receiver_pub, algorithm)?;
             let encrypted_bytes = encrypted_message.encode();
-            Some(NodeData::aead_from(encrypted_bytes))
+            Some(BoundedVec(encrypted_bytes))
         } else {
-            meta.map(|m| NodeData::from(m))
+            meta.map(|m| BoundedVec(m.into_bytes()))
         };
 
     let payload_data =
@@ -91,9 +91,9 @@ pub async fn execute(
 
             let encrypted_message = cipher.encrypt(p.as_bytes(), receiver_pub, algorithm)?;
             let encrypted_bytes = encrypted_message.encode();
-            Some(NodeData::aead_from(encrypted_bytes))
+            Some(BoundedVec(encrypted_bytes))
         } else {
-            payload.map(|p| NodeData::from(p))
+            payload.map(|p| BoundedVec(p.into_bytes()))
         };
 
     let spinner = display::spinner("Submitting transaction...");

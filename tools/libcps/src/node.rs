@@ -39,8 +39,8 @@
 //! ## Async Usage (Recommended)
 //!
 //! ```no_run
-//! use libcps::blockchain::{Client, Config};
-//! use libcps::node::{Node, NodeData};
+//! use libcps::blockchain::{Client, Config, BoundedVec};
+//! use libcps::node::Node;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -51,8 +51,8 @@
 //!     let client = Client::new(&config).await?;
 //!     
 //!     // Create a new node with clean API
-//!     let meta: NodeData = "sensor".into();
-//!     let payload: NodeData = "22.5C".into();
+//!     let meta = BoundedVec("sensor".as_bytes().to_vec());
+//!     let payload = BoundedVec("22.5C".as_bytes().to_vec());
 //!     
 //!     let node = Node::create(&client, None, Some(meta), Some(payload)).await?;
 //!     
@@ -60,7 +60,7 @@
 //!     let info = node.query().await?;
 //!     
 //!     // Update payload - returns ExtrinsicEvents
-//!     let new_payload: NodeData = "23.1C".into();
+//!     let new_payload = BoundedVec("23.1C".as_bytes().to_vec());
 //!     let events = node.set_payload(Some(new_payload)).await?;
 //!     println!("Tx: {:?}", events);
 //!     
@@ -68,15 +68,13 @@
 //! }
 //! ```
 
-use crate::blockchain::{api, Client, ExtrinsicEvents};
+use crate::blockchain::{api, BoundedVec, Client, ExtrinsicEvents};
 use anyhow::{anyhow, Result};
 use log::{debug, trace};
 use subxt::utils::AccountId32;
 
 pub use api::cps::events::{MetaSet, NodeCreated, NodeDeleted, NodeMoved, PayloadSet};
-pub use api::runtime_types::pallet_robonomics_cps::{
-    DefaultEncryptedData as EncryptedData, NodeData, NodeId,
-};
+pub use api::runtime_types::pallet_robonomics_cps::NodeId;
 
 /// Information about a CPS node.
 #[derive(Debug)]
@@ -88,9 +86,9 @@ pub struct NodeInfo {
     /// Optional parent node ID
     pub parent: Option<u64>,
     /// Node metadata
-    pub meta: Option<NodeData>,
+    pub meta: Option<BoundedVec<u8>>,
     /// Node payload
-    pub payload: Option<NodeData>,
+    pub payload: Option<BoundedVec<u8>>,
     /// Child node IDs
     pub children: Vec<u64>,
 }
@@ -176,8 +174,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::blockchain::{Client, Config};
-    /// use libcps::node::{Node, NodeData};
+    /// use libcps::blockchain::{Client, Config, BoundedVec};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let config = Config {
@@ -186,8 +184,8 @@ impl<'a> Node<'a> {
     /// };
     /// let client = Client::new(&config).await?;
     ///
-    /// let meta: NodeData = "metadata".into();
-    /// let payload: NodeData = "payload data".into();
+    /// let meta = BoundedVec("metadata".as_bytes().to_vec());
+    /// let payload = BoundedVec("payload data".as_bytes().to_vec());
     ///
     /// let node = Node::create(&client, None, Some(meta), Some(payload)).await?;
     /// println!("Created node: {}", node.id());
@@ -197,8 +195,8 @@ impl<'a> Node<'a> {
     pub async fn create(
         client: &'a Client,
         parent: Option<u64>,
-        meta: Option<NodeData>,
-        payload: Option<NodeData>,
+        meta: Option<BoundedVec<u8>>,
+        payload: Option<BoundedVec<u8>>,
     ) -> Result<Self> {
         debug!(
             "Creating new CPS node: parent={:?}, has_meta={}, has_payload={}",
@@ -377,8 +375,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::blockchain::{Client, Config};
-    /// use libcps::node::{Node, NodeData};
+    /// use libcps::blockchain::{Client, Config, BoundedVec};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -388,13 +386,13 @@ impl<'a> Node<'a> {
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
     ///
-    /// let meta: NodeData = "new metadata".into();
+    /// let meta = BoundedVec("new metadata".as_bytes().to_vec());
     /// let events = node.set_meta(Some(meta)).await?;
     /// println!("Tx hash: {:?}", events);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn set_meta(&self, meta: Option<NodeData>) -> Result<ExtrinsicEvents> {
+    pub async fn set_meta(&self, meta: Option<BoundedVec<u8>>) -> Result<ExtrinsicEvents> {
         debug!(
             "Setting metadata for node {}: has_data={}",
             self.id,
@@ -440,8 +438,8 @@ impl<'a> Node<'a> {
     /// # Example
     ///
     /// ```no_run
-    /// use libcps::blockchain::{Client, Config};
-    /// use libcps::node::{Node, NodeData};
+    /// use libcps::blockchain::{Client, Config, BoundedVec};
+    /// use libcps::node::Node;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// # let config = Config {
@@ -451,13 +449,13 @@ impl<'a> Node<'a> {
     /// # let client = Client::new(&config).await?;
     /// let node = Node::new(&client, 5);
     ///
-    /// let payload: NodeData = "23.1C".into();
+    /// let payload = BoundedVec("23.1C".as_bytes().to_vec());
     /// let events = node.set_payload(Some(payload)).await?;
     /// println!("Tx hash: {:?}", events);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn set_payload(&self, payload: Option<NodeData>) -> Result<ExtrinsicEvents> {
+    pub async fn set_payload(&self, payload: Option<BoundedVec<u8>>) -> Result<ExtrinsicEvents> {
         debug!(
             "Setting payload for node {}: has_data={}",
             self.id,

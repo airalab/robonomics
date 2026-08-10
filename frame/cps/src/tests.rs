@@ -82,7 +82,7 @@ parameter_types! {
     Encode,
     Decode,
     parity_scale_codec::DecodeWithMemTracking,
-    sp_runtime::RuntimeDebug,
+    Debug,
     MaxEncodedLen,
     TypeInfo,
 )]
@@ -177,20 +177,8 @@ impl pallet_proxy::Config for Runtime {
     type BlockNumberProvider = System;
 }
 
-parameter_types! {
-    pub const MaxTreeDepth: u32 = 32;
-    pub const MaxChildrenPerNode: u32 = 100;
-    pub const MaxRootNodes: u32 = 100;
-    pub const MaxMovableSubtreeSize: u32 = 50;
-}
-
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxTreeDepth = MaxTreeDepth;
-    type MaxChildrenPerNode = MaxChildrenPerNode;
-    type MaxRootNodes = MaxRootNodes;
-    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
-    type EncryptedData = pallet_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::TestWeightInfo;
 }
@@ -268,12 +256,8 @@ fn create_child_node_works() {
 fn create_node_with_data_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
-        ));
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
+        let payload = Some(BoundedVec::try_from(vec![4, 5, 6]).unwrap());
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -289,14 +273,12 @@ fn create_node_with_data_works() {
 }
 
 #[test]
-fn create_node_with_encrypted_data_works() {
+fn create_node_with_client_encrypted_data_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        // Encrypted metadata with self-describing algorithm tag inside JSON
-        let meta = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
-            BoundedVec::try_from(vec![7, 8, 9]).unwrap(),
-        )));
+        // Client-side encrypted metadata (encryption happens before submitting to chain)
+        let meta = Some(BoundedVec::try_from(vec![7, 8, 9]).unwrap());
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -311,14 +293,12 @@ fn create_node_with_encrypted_data_works() {
 }
 
 #[test]
-fn create_node_with_encrypted_payload_works() {
+fn create_node_with_client_encrypted_payload_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        // Encrypted payload with self-describing algorithm tag inside JSON
-        let payload = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
-            BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).unwrap(),
-        )));
+        // Client-side encrypted payload (encryption happens before submitting to chain)
+        let payload = BoundedVec::try_from(vec![10, 11, 12, 13, 14, 15]).ok();
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -333,18 +313,14 @@ fn create_node_with_encrypted_payload_works() {
 }
 
 #[test]
-fn create_node_with_both_encrypted_works() {
+fn create_node_with_both_client_encrypted_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        // Both metadata and payload encrypted with self-describing algorithm tags
-        let meta = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        )));
+        // Both metadata and payload encrypted at client side
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
 
-        let payload = Some(NodeData::Encrypted(DefaultEncryptedData::Aead(
-            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
-        )));
+        let payload = Some(BoundedVec::try_from(vec![4, 5, 6]).unwrap());
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -412,9 +388,7 @@ fn set_meta_works() {
         ));
 
         // Set meta
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
         assert_ok!(Cps::set_meta(
             RuntimeOrigin::signed(account),
             NodeId(0),
@@ -441,9 +415,7 @@ fn set_meta_non_owner_fails() {
         ));
 
         // Try to set meta with account2
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
         assert_noop!(
             Cps::set_meta(RuntimeOrigin::signed(account2), NodeId(0), meta),
             Error::<Runtime>::NotNodeOwner
@@ -465,9 +437,7 @@ fn set_payload_works() {
         ));
 
         // Set payload
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
+        let payload = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
         assert_ok!(Cps::set_payload(
             RuntimeOrigin::signed(account),
             NodeId(0),
@@ -705,12 +675,8 @@ fn move_root_to_child_works() {
 fn clear_meta_and_payload_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
-        ));
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
+        let payload = Some(BoundedVec::try_from(vec![4, 5, 6]).unwrap());
 
         // Create node with data
         assert_ok!(Cps::create_node(
@@ -915,9 +881,8 @@ fn debug_formatting_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
 
-        // Create a node with encrypted data (self-describing format)
-        let encrypted = DefaultEncryptedData::Aead(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
-        let meta = Some(NodeData::Encrypted(encrypted));
+        // Create a node with data (could be encrypted at client side)
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
@@ -927,7 +892,7 @@ fn debug_formatting_works() {
         ));
 
         let node = Cps::nodes(NodeId(0)).unwrap();
-        // This verifies Debug is properly implemented for Node with encrypted data
+        // This verifies Debug is properly implemented for Node
         let debug_str = format!("{:?}", node);
         assert!(!debug_str.is_empty());
         assert!(debug_str.contains("Node"));
@@ -941,18 +906,14 @@ fn on_payload_set_callback_invoked() {
 
     // Thread-local storage to track callback invocations
     thread_local! {
-        static CALLBACK_INVOKED: RefCell<Option<(NodeId, Option<NodeData<DefaultEncryptedData>>, Option<NodeData<DefaultEncryptedData>>)>> = RefCell::new(None);
+        static CALLBACK_INVOKED: RefCell<Option<(NodeId, Option<NodeData>, Option<NodeData>)>> = RefCell::new(None);
     }
 
     // Custom callback handler for testing
     pub struct TestPayloadHandler;
 
-    impl OnPayloadSet<u64, DefaultEncryptedData> for TestPayloadHandler {
-        fn on_payload_set(
-            node_id: NodeId,
-            meta: Option<NodeData<DefaultEncryptedData>>,
-            payload: Option<NodeData<DefaultEncryptedData>>,
-        ) {
+    impl OnPayloadSet<u64> for TestPayloadHandler {
+        fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
             CALLBACK_INVOKED.with(|cell| {
                 *cell.borrow_mut() = Some((node_id, meta, payload));
             });
@@ -980,12 +941,7 @@ fn on_payload_set_callback_invoked() {
 
     impl pallet_cps::Config for TestRuntime {
         type RuntimeEvent = RuntimeEvent;
-        type MaxTreeDepth = MaxTreeDepth;
-        type MaxChildrenPerNode = MaxChildrenPerNode;
-        type MaxRootNodes = MaxRootNodes;
-        type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
         type OnPayloadSet = TestPayloadHandler;
-        type EncryptedData = DefaultEncryptedData;
         type WeightInfo = weights::TestWeightInfo;
     }
 
@@ -1004,9 +960,7 @@ fn on_payload_set_callback_invoked() {
         CALLBACK_INVOKED.with(|cell| *cell.borrow_mut() = None);
 
         // Create a node with initial metadata
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1, 2, 3]).unwrap(),
-        ));
+        let meta = Some(BoundedVec::try_from(vec![1, 2, 3]).unwrap());
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(account),
             None,
@@ -1018,9 +972,7 @@ fn on_payload_set_callback_invoked() {
         CALLBACK_INVOKED.with(|cell| *cell.borrow_mut() = None);
 
         // Set payload - this should trigger the callback
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![4, 5, 6]).unwrap(),
-        ));
+        let payload = Some(BoundedVec::try_from(vec![4, 5, 6]).unwrap());
         assert_ok!(Cps::set_payload(
             RuntimeOrigin::signed(account),
             NodeId(0),
@@ -1073,7 +1025,7 @@ fn proxy_can_update_cps_node_payload() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(b"sensor".to_vec().try_into().unwrap())),
+            b"sensor".to_vec().try_into().ok(),
             None,
         ));
 
@@ -1086,20 +1038,20 @@ fn proxy_can_update_cps_node_payload() {
         ));
 
         // Proxy updates node payload on behalf of owner
-        let new_payload = NodeData::Plain(b"temperature: 22.5".to_vec().try_into().unwrap());
+        let new_payload = b"temperature: 22.5".to_vec().try_into().ok();
         assert_ok!(Proxy::proxy(
             RuntimeOrigin::signed(proxy),
             owner,
             None,
             Box::new(RuntimeCall::Cps(pallet_cps::Call::set_payload {
                 node_id: NodeId(0),
-                payload: Some(new_payload.clone()),
+                payload: new_payload.clone(),
             }))
         ));
 
         // Verify payload was updated
         let node = Nodes::<Runtime>::get(NodeId(0)).unwrap();
-        assert_eq!(node.payload, Some(new_payload));
+        assert_eq!(node.payload, new_payload);
     });
 }
 
@@ -1113,7 +1065,7 @@ fn proxy_can_update_cps_node_meta() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(b"sensor".to_vec().try_into().unwrap())),
+            b"sensor".to_vec().try_into().ok(),
             None,
         ));
 
@@ -1126,20 +1078,20 @@ fn proxy_can_update_cps_node_meta() {
         ));
 
         // Proxy updates node metadata on behalf of owner
-        let new_meta = NodeData::Plain(b"updated_sensor".to_vec().try_into().unwrap());
+        let new_meta = b"updated_sensor".to_vec().try_into().ok();
         assert_ok!(Proxy::proxy(
             RuntimeOrigin::signed(proxy),
             owner,
             None,
             Box::new(RuntimeCall::Cps(pallet_cps::Call::set_meta {
                 node_id: NodeId(0),
-                meta: Some(new_meta.clone()),
+                meta: new_meta.clone(),
             }))
         ));
 
         // Verify metadata was updated
         let node = Nodes::<Runtime>::get(NodeId(0)).unwrap();
-        assert_eq!(node.meta, Some(new_meta));
+        assert_eq!(node.meta, new_meta);
     });
 }
 
@@ -1260,7 +1212,7 @@ fn proxy_can_create_child_node() {
             None,
             Box::new(RuntimeCall::Cps(pallet_cps::Call::create_node {
                 parent_id: Some(NodeId(0)),
-                meta: Some(NodeData::Plain(b"child".to_vec().try_into().unwrap())),
+                meta: b"child".to_vec().try_into().ok(),
                 payload: None,
             }))
         ));
@@ -1322,7 +1274,7 @@ fn owner_can_revoke_proxy_access() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(b"device".to_vec().try_into().unwrap())),
+            b"device".to_vec().try_into().ok(),
             None,
         ));
 
@@ -1349,7 +1301,7 @@ fn owner_can_revoke_proxy_access() {
                 None,
                 Box::new(RuntimeCall::Cps(pallet_cps::Call::set_meta {
                     node_id: NodeId(0),
-                    meta: Some(NodeData::Plain(b"updated".to_vec().try_into().unwrap())),
+                    meta: b"updated".to_vec().try_into().ok(),
                 }))
             ),
             pallet_proxy::Error::<Runtime>::NotProxy
@@ -1386,7 +1338,7 @@ fn proxy_type_any_allows_all_operations() {
             None,
             Box::new(RuntimeCall::Cps(pallet_cps::Call::set_payload {
                 node_id: NodeId(0),
-                payload: Some(NodeData::Plain(b"data".to_vec().try_into().unwrap())),
+                payload: b"data".to_vec().try_into().ok(),
             }))
         ));
 
@@ -1437,7 +1389,7 @@ fn proxy_ownership_validation_works() {
                 None,
                 Box::new(RuntimeCall::Cps(pallet_cps::Call::set_payload {
                     node_id: NodeId(0),
-                    payload: Some(NodeData::Plain(b"hacked".to_vec().try_into().unwrap())),
+                    payload: b"hacked".to_vec().try_into().ok(),
                 }))
             ),
             pallet_proxy::Error::<Runtime>::NotProxy
@@ -1490,14 +1442,14 @@ fn proxy_with_node_restriction_works() {
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(b"node_0".to_vec().try_into().unwrap())),
+            b"node_0".to_vec().try_into().ok(),
             None,
         ));
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(owner),
             None,
-            Some(NodeData::Plain(b"node_1".to_vec().try_into().unwrap())),
+            b"node_1".to_vec().try_into().ok(),
             None,
         ));
 
@@ -1516,16 +1468,13 @@ fn proxy_with_node_restriction_works() {
             None,
             Box::new(RuntimeCall::Cps(pallet_cps::Call::set_payload {
                 node_id: NodeId(0),
-                payload: Some(NodeData::Plain(b"updated_0".to_vec().try_into().unwrap())),
+                payload: b"updated_0".to_vec().try_into().ok(),
             }))
         ));
 
         // Verify node 0 was updated
         let node = Nodes::<Runtime>::get(NodeId(0)).unwrap();
-        assert_eq!(
-            node.payload,
-            Some(NodeData::Plain(b"updated_0".to_vec().try_into().unwrap()))
-        );
+        assert_eq!(node.payload, b"updated_0".to_vec().try_into().ok());
 
         // Note: Testing that proxy CANNOT update node 1 is currently not reliable
         // due to pallet-proxy v43 filter behavior. The filter logic itself is correct

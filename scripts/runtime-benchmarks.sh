@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 # Get the project root
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -55,6 +55,7 @@ PALLETS=(
     "pallet_timestamp,runtime/robonomics/src/weights/pallet_timestamp.rs"
     "pallet_utility,runtime/robonomics/src/weights/pallet_utility.rs"
     "pallet_multisig,runtime/robonomics/src/weights/pallet_multisig.rs"
+    "pallet_proxy,runtime/robonomics/src/weights/pallet_proxy.rs"
     "pallet_vesting,runtime/robonomics/src/weights/pallet_vesting.rs"
     "pallet_collator_selection,runtime/robonomics/src/weights/pallet_collator_selection.rs"
     "pallet_session,runtime/robonomics/src/weights/pallet_session.rs"
@@ -71,8 +72,6 @@ PALLETS=(
     "pallet_robonomics_liability,runtime/robonomics/src/weights/pallet_robonomics_liability.rs"
     "pallet_robonomics_rws,runtime/robonomics/src/weights/pallet_robonomics_rws.rs"
     "pallet_robonomics_cps,runtime/robonomics/src/weights/pallet_robonomics_cps.rs"
-    "pallet_robonomics_claim,runtime/robonomics/src/weights/pallet_robonomics_claim.rs"
-    "pallet_robonomics_teleport,runtime/robonomics/src/weights/pallet_robonomics_teleport.rs"
 )
 
 # List of XCM pallets to benchmark with their output paths

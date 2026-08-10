@@ -1,6 +1,6 @@
-# Robonomics Network
+[<img align="right" src="https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg">](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
 
-[![Web3 Foundation Grants — Wave Two Recipient](https://github.com/airalab/robonomics/blob/master/web3_foundation_grants_badge_black.jpg)](https://medium.com/web3foundation/web3-foundation-grants-wave-two-recipients-16d9b996501d)
+# Robonomics Network
 
 [![License](https://img.shields.io/github/license/airalab/robonomics)](https://github.com/airalab/robonomics/blob/master/LICENSE)
 [![Release](https://img.shields.io/github/release/airalab/robonomics.svg)](https://github.com/airalab/robonomics/releases)
@@ -12,64 +12,11 @@
 
 Robonomics platform includes a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0 developers.
 
-## Quick Start
+## Quick Start - Choose Your Destiny...
 
-The fastest way to get started with Robonomics is using Nix flakes to run directly from GitHub, or use pre-built binaries.
-
-### Option 1: Run Directly with Nix (Easiest & Recommended)
-
-No downloads, no builds, no setup - just run! Nix will automatically fetch and cache the binary.
-
-1. Install Nix with flakes support (one-time setup):
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
-```
-
-2. Run Robonomics directly from GitHub:
-
-```bash
-# Run the latest version
-nix run github:airalab/robonomics
-
-# Run in development mode
-nix run github:airalab/robonomics -- --dev
-
-# Run a specific version
-nix run github:airalab/robonomics/v4.1.0 -- --dev
-```
-
-3. Open [Polkadot.js Apps](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944) to interact with your local node
-
-That's it! Nix handles everything - downloads, dependencies, and caching. Works on **Linux, macOS, and Windows (WSL)**.
-
-### Option 2: Using Pre-built Binaries
-
-1. Download the latest release:
-
-```bash
-# Visit https://get.robonomics.network
-# Or download directly from releases
-wget https://github.com/airalab/robonomics/releases/download/v4.1.0/robonomics
-chmod +x robonomics
-```
-
-2. Run a local development node:
-
-```bash
-./robonomics --dev
-```
-
-3. Open [Polkadot.js Apps](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944) to interact with your local node
-
-## Try it out
-
-Once you have a node running, you can:
-
-- [Open Polkadot.js Apps](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944) - Connect to your local node
-- [Connect to Robonomics Network](https://polkadot.js.org/apps/?rpc=wss://kusama.rpc.robonomics.network/) - Connect to the live network
-- Explore the [Robonomics Wiki](https://wiki.robonomics.network) for tutorials
-- Join our [Matrix community](https://matrix.to/#/#robonomics:matrix.org) for support
+| Code Builder | Network Guard |
+| --- | --- |
+|[<img src="https://github.com/user-attachments/assets/fc522054-48de-4f6d-a913-f9204f8047bc">](./DEVELOPER_GUIDE.md)|[<img src="https://github.com/user-attachments/assets/ee3b6d88-da2c-4620-b72f-92ca7fdef7a6">](./COLLATOR_GUIDE.md)|
 
 ## Repository Structure
 
@@ -88,6 +35,9 @@ This repository is organized as a Cargo workspace with the following structure:
   - Includes configurations for Kusama and Polkadot relay chains
   - Integrates all custom pallets and standard Substrate pallets
 
+- **`runtime/robonomics/subxt-api`** - Robonomics runtime Subxt metadata & API
+  - Provides a type-safe, compile-time verified API based on [subxt](https://docs.rs/subxt/latest/subxt/) library interface.
+
 ### Custom Pallets
 
 - **`frame/`** - Custom FRAME pallets for IoT and robotics
@@ -97,8 +47,8 @@ This repository is organized as a Cargo workspace with the following structure:
   - `liability/` - Smart contract-like agreements for robotics tasks
   - `rws/` - Robonomics Web Services (RWS) subscription management
   - `cps/` - Cyber-physical Systems pallet for IoT integration
-  - `claim/` - Pallet for ERC20 token claim support
   - `parachain-info/` - Original cumulus pallet extended with relay network info
+  - `collator-rewards/` - Generic per-block collator (block author) reward helper
 
 ### Chain Specifications
 
@@ -106,19 +56,19 @@ This repository is organized as a Cargo workspace with the following structure:
 
 ### Tools
 
-- **`tools/robonet/`** - Local network spawner and integration test framework
-  - CLI tool for spawning multi-node test networks using ZombieNet SDK
-  - Built-in integration tests for XCM, CPS, Claim pallets, and network functionality
-  - Multiple network topologies (simple parachain, with AssetHub for XCM testing)
-  - Developer-friendly interface with progress indicators and detailed logging
-  - See [robonet/README.md](tools/robonet/README.md) for detailed documentation
-
 - **`tools/libcps/`** - Robonomics CPS (Cyber-Physical Systems) library and CLI
   - Comprehensive Rust library for managing hierarchical CPS nodes on-chain
   - Beautiful CLI interface with colored output and tree visualization
   - Multi-algorithm AEAD encryption support (XChaCha20-Poly1305, AES-256-GCM, ChaCha20-Poly1305)
   - MQTT bridge for IoT device integration
   - See [libcps/README.md](tools/libcps/README.md) for detailed documentation
+
+- **`tools/robonet/`** - Local network spawner and integration test framework
+  - CLI tool for spawning multi-node test networks using ZombieNet SDK
+  - Built-in integration tests for XCM, CPS, and network functionality
+  - Multiple network topologies (simple parachain, with AssetHub for XCM testing)
+  - Developer-friendly interface with progress indicators and detailed logging
+  - See [robonet/README.md](tools/robonet/README.md) for detailed documentation
 
 ### Development Infrastructure
 
@@ -130,14 +80,6 @@ This repository is organized as a Cargo workspace with the following structure:
   - `build-runtime.sh` - Deterministic runtime WASM builder
   - `docker/` - Docker configuration and healthcheck scripts
   - `weights/` - Weight template for runtime benchmarks
-
-### Documentation
-
-Development guidelines available at [DEVELOPMENT.md](./DEVELOPMENT.md).
-
-Crates API is available at https://crates.robonomics.network.
-
-Each component is designed to be modular and reusable, following Substrate's framework architecture. The workspace structure allows for efficient development and testing of individual components while maintaining consistency across the project.
 
 ## Contributing
 

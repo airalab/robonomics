@@ -13,14 +13,21 @@ name = "robonomics"
 path = "src/main.rs"
 
 [dependencies]
+robonomics-runtime = { workspace = true, optional = true }
+sp-genesis-builder = { workspace = true, optional = true }
 polkadot-jemalloc-shim.workspace = true
 polkadot-omni-node-lib.workspace = true
-robonomics-runtime.workspace = true
-robonomics-runtime.features = ["dev-runtime"]
-sp-genesis-builder.workspace = true
-rustls.workspace = true
 color-eyre.workspace = true
+rustls.workspace = true
 
+# Build static with Musl
+[target.'cfg(target_env = "musl")'.dependencies]
+rocksdb = { workspace = true, default-features = false, features = [
+  "bindgen-static",
+  "snappy",
+] }
+
+# Jemalloc enabled on Linux
 [target.'cfg(target_os = "linux")'.dependencies]
 polkadot-jemalloc-shim = { workspace = true, features = ["jemalloc-allocator"] }
 
@@ -28,10 +35,14 @@ polkadot-jemalloc-shim = { workspace = true, features = ["jemalloc-allocator"] }
 assert_cmd.workspace = true
 
 [build-dependencies]
-substrate-build-script-utils.workspace = true
+substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
-default = []
-jemalloc-allocator = ["polkadot-jemalloc-shim/jemalloc-allocator"]
+default = ["dev-runtime"]
 runtime-benchmarks = ["polkadot-omni-node-lib/runtime-benchmarks"]
 try-runtime = ["polkadot-omni-node-lib/try-runtime"]
+dev-runtime = [
+  "robonomics-runtime",
+  "robonomics-runtime?/dev-runtime",
+  "sp-genesis-builder",
+]

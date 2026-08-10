@@ -1,65 +1,45 @@
-# Migrating to Robonomics Node v4.2.0
+# Robonomics Collator Guidelines 
 
-This guide explains how to upgrade your Robonomics node to **version 4.2.0**.
+This guide explains how to upgrade your Robonomics node to **version 4.3.0**.
 
 In this manual we are assuming the following things:
 - The service is run on behalf of the `robonomics` user
 - The `robonomics` user's home directory is `/var/lib/robonomics/`
 - The `base-path` of service is `/var/lib/robonomics/base/` 
 
-## 1. Download Binary
+## Download Binary
 
-Download the official v4.2.0 binary from GitHub:
+Download the official v4.3.0 binary from GitHub:
 
-* **Release:** `v4.2.0`
-* Link: [https://github.com/airalab/robonomics/releases/tag/v4.2.0](https://github.com/airalab/robonomics/releases/tag/v4.2.0)
+* **Release:** `v4.3.0`
+* Link: [https://github.com/airalab/robonomics/releases/tag/v4.3.0](https://github.com/airalab/robonomics/releases/tag/v4.3.0)
 
 Download and install:
 
 ```bash
-wget -o robonomics.tar.gz \
-  https://github.com/airalab/robonomics/releases/download/v4.2.0/robonomics-v4.2.0-ubuntu-x86_64.tar.gz
-tar -xzf robonomics.tar.gz
+wget -o robonomics \
+  https://github.com/airalab/robonomics/releases/download/v4.3.0/robonomics-linux-x86_64
+chmod +x robonomics
 sudo mv robonomics /usr/local/bin/
-sudo chmod +x /usr/local/bin/robonomics
 ```
 
-## 2. Download Chain Specification
+## Generate Network Key
 
-The v4.2.0 binary does **not** include built-in chain specifications. You must download the chain spec file before starting the node.
-We recommend to store it in the robonomics user's home directory (`/var/lib/robonomics/` in this manual)
-
-For **Kusama** parachain:
-
-```bash
-wget -o /var/lib/robonomics/robonomics-kusama.raw.json \
-  https://raw.githubusercontent.com/airalab/robonomics/refs/heads/master/chains/kusama-parachain.raw.json
-```
-
-For **Polkadot** parachain:
-
-```bash
-wget -o /var/lib/robonomics/robonomics-polkadot.raw.json \
-  https://raw.githubusercontent.com/airalab/robonomics/refs/heads/master/chains/polkadot-parachain.raw.json
-```
-
-Use the downloaded file with the `--chain` flag, e.g. `--chain /var/lib/robonomics/robonomics-kusama.raw.json`.
-
-## 3. Generate Network Key
-
-v4.2.0 refuses to start without a valid network key. Generate one before first launch:
+v4.3.0 refuses to start without a valid network key. Generate one before first launch:
 
 ```bash
 robonomics key generate-node-key \
   --base-path /var/lib/robonomics/base/ \
-  --chain /var/lib/robonomics/robonomics-kusama.raw.json
+  --chain /var/lib/robonomics/robonomics-polkadot.raw.json
 ```
 
 Replace the `--chain` value with your chain spec path. 
 
 After this the network key file `/var/lib/robonomics/base/chains/robonomics/network/secret_ed25519` will be appear. Don't forget to save it for the future possible migrations.
 
-## 4. Download Parachain Snapshot (required for Kusama parachain only)
+## Download Parachain Snapshot (required for Kusama parachain only)
+
+> For the **Polkadot** parachain, use `--sync warp` instead.
 
 Snapshots are currently available **only for the Kusama parachain**:
 
@@ -68,9 +48,7 @@ Snapshots are currently available **only for the Kusama parachain**:
 Clear your parachain base and extract from archive to `/path/to/your/parachain/database`. In this example this path is `/var/lib/robonomics/base/chains/robonomics/db/`
 Fix permissions if necessary.
 
-For the **Polkadot** parachain, use `--sync warp` instead.
-
-## 5. Remove the Deprecated `--lighthouse-account` Flag
+## Remove the Deprecated `--lighthouse-account` Flag
 
 Starting from v4.0, the `--lighthouse-account` CLI flag is no longer supported.
 
@@ -82,18 +60,17 @@ If your systemd service or startup script contains:
 
 Remove this line entirely before restarting the node.
 
-## 6. Recommended Startup Flags
+## Recommended Startup Flags
 
 Below is a recommended systemd `ExecStart` configuration:
 
 ```
 ExecStart=/usr/local/bin/robonomics \
   --name "YOUR_NODE_NAME" \
-  --chain /var/lib/robonomics/robonomics-kusama.raw.json \
+  --chain polkadot \
   --base-path /var/lib/robonomics/base/ \
   --collator \
   --sync warp \
-  --trie-cache-size 0 \
   --telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0" \
   -- \
   --sync warp
@@ -102,11 +79,10 @@ ExecStart=/usr/local/bin/robonomics \
 Key flags:
 
 * `--sync warp` — enables warp sync for the parachain. Much faster initial sync.
-* `--trie-cache-size 0` — disables the trie cache, significantly reducing RAM usage. Recommended by the Robonomics team.
 * `--telemetry-url "wss://telemetry.parachain.robonomics.network/submit/ 0"` — the chain spec has `telemetryEndpoints: null`, so telemetry must be enabled explicitly via this flag.
 * `-- --sync warp` — enables warp sync for the **relay chain** (after the `--` separator). Without this, the embedded relay chain can take weeks to sync.
 
-## 7. Generate New Session Keys
+## Generate New Session Keys
 
 Robonomics >= v4.0 follows the updated Polkadot SDK requirements, so collators must generate fresh session keys.
 
@@ -140,7 +116,7 @@ To generate session keys:
 
 5. **Remove `--rpc-methods unsafe`** from your startup configuration and restart the node.
 
-## 8. Register Your Collator On-Chain
+## Register Your Collator On-Chain
 
 Once the node is running with the new session keys, you must register your collator.
 
@@ -167,14 +143,15 @@ Typical steps:
 
 ## Collator Rewards
 
-Collator rewards on Robonomics are **transaction fee-based only** — there is no fixed block reward.
+Collators earn from two sources:
 
-The fee distribution mechanism (see `DealWithFees` in `runtime/robonomics/src/lib.rs`):
-
-1. **100% of transaction fees and tips** are routed to the `PotStake` account managed by `pallet_collator_selection`.
-2. The block author receives a share from the pot when producing a block.
-
-At low network utilization, collator rewards are minimal. This is important to consider when planning collator operations.
+1. **Per-block author reward** — a fixed `0.0042 XRT` is minted directly to the
+   block author every block. See [Per-Block Author Reward](#per-block-author-reward)
+   below.
+2. **Transaction fees and tips** — `100 %` of fees and tips are routed to the
+   `PotStake` account managed by `pallet_collator_selection` (see
+   `DealWithFees` in `runtime/robonomics/src/lib.rs`); the block author then
+   receives a share from that pot when producing a block.
 
 ### Hardware Cost Estimate
 
@@ -184,6 +161,65 @@ At low network utilization, collator rewards are minimal. This is important to c
 | RAM | 32–64 GB | 64 GB |
 | Storage | 1 TB NVMe | 2 TB NVMe |
 | Estimated cost | ~$80–120/mo | ~$120–150/mo |
+
+## Per-Block Author Reward
+
+Starting from spec_version **43**, the Robonomics Polkadot parachain mints a
+**fixed per-block reward of `0.0042 XRT` directly to the block author** (in
+addition to any transaction fees and tips collected by `pallet_collator_selection`).
+
+The reward is implemented by an `AuthorRewards` event handler wired into
+`pallet_authorship::Config::EventHandler` *before* `CollatorSelection`. It
+mints directly into the author's account so the author receives the full
+reward, rather than half of it (which would happen if the reward were paid
+into the `PotStake` account, since
+`pallet_collator_selection::note_author` distributes only **half** of the pot
+to the current author).
+
+### Formula
+
+```
+reward_per_block =
+    (server_cost_per_year * number_of_collators * 1.3)
+    / number_of_blocks_per_year
+    / XRT_price
+```
+
+Substituting the values from issue #510:
+
+| Parameter              | Value                                 |
+| ---------------------- | ------------------------------------- |
+| Server cost / year     | `$2_040` (OVH Epyc 4345P, 64 GB, 2×960 GB NVMe) |
+| Minimum collators      | `7`                                   |
+| Profit margin          | `30 %` (factor `1.3`)                 |
+| Avg block time         | `7 s` ⇒ `4_505_143` blocks / year     |
+| XRT price              | `$1`                                  |
+
+```
+(2_040 * 7 * 1.3) / 4_505_143 / 1  ≈  0.004120624 XRT
+                                   ≈  0.0042 XRT  (rounded up)
+```
+
+Encoded constant in `runtime/robonomics/src/lib.rs`:
+
+```rust
+pub const CollatorBlockReward: Balance = 4_200_000; // 0.0042 XRT (9 decimals)
+```
+
+### When to revisit
+
+The reward should be recalculated and a new runtime upgrade shipped whenever
+**any** of the input parameters change significantly:
+
+* the cost of the reference hardware moves materially up or down,
+* the minimum desired number of active collators changes,
+* the actual average block time drifts (changing the blocks-per-year base),
+* the XRT market price moves enough that the resulting USD-equivalent reward
+  no longer covers the reference hardware cost plus a 30 % margin.
+
+When updating the reward, change `CollatorBlockReward`, bump `spec_version`,
+and update both the table above and the unit tests in
+`runtime/robonomics/src/lib.rs::author_rewards_tests`.
 
 ## Disk Requirements
 

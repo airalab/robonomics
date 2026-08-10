@@ -19,7 +19,7 @@
 
 use color_eyre::eyre::Result;
 use polkadot_omni_node_lib::{
-    chain_spec::{ChainSpec, Extensions, GenericChainSpec, LoadSpec},
+    chain_spec::{ChainSpec, GenericChainSpec, LoadSpec},
     runtime::DefaultRuntimeResolver,
     CliConfig as CliConfigT, RunConfig, NODE_VERSION,
 };
@@ -46,22 +46,24 @@ impl CliConfigT for CliConfig {
     }
 }
 
+#[cfg(feature = "dev-runtime")]
 fn robonomics_development_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("westend-local".into(), 2048),
+        polkadot_omni_node_lib::chain_spec::Extensions::new("westend-local".into(), 2048),
     )
-    .with_name("Robonomics Local Develoment")
+    .with_name("Robonomics Local Development")
     .with_id("robonomics-local-development")
     .with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
     .build();
     Ok(config)
 }
 
+#[cfg(feature = "dev-runtime")]
 fn robonomics_localnet_config() -> Result<GenericChainSpec, String> {
     let config = GenericChainSpec::builder(
         robonomics_runtime::dev::WASM_BINARY.ok_or("wasm not available")?,
-        Extensions::new("rococo-local".into(), 2000),
+        polkadot_omni_node_lib::chain_spec::Extensions::new("rococo-local".into(), 2000),
     )
     .with_name("Robonomics Localnet")
     .with_id("robonomics-localnet")
@@ -82,7 +84,9 @@ impl LoadSpec for RobonomicsChainSpecLoader {
             "kusama" => GenericChainSpec::from_json_bytes(
                 &include_bytes!("../../chains/kusama-parachain.raw.json")[..],
             )?,
+            #[cfg(feature = "dev-runtime")]
             "local" => robonomics_localnet_config()?,
+            #[cfg(feature = "dev-runtime")]
             "dev" => robonomics_development_config()?,
             path => GenericChainSpec::from_json_file(path.into())?,
         }))

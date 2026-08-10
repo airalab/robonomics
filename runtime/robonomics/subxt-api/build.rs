@@ -53,10 +53,6 @@
 //! - Magic sequence is invalid (warns but continues)
 //! - File I/O fails (can't write metadata file)
 
-use parity_scale_codec::Decode;
-use sc_executor::{WasmExecutionMethod, WasmExecutor};
-use sc_executor_common::runtime_blob::RuntimeBlob;
-use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
 use std::{env, fs, path::PathBuf};
 
 /// Metadata magic number: `[0x6d, 0x65, 0x74, 0x61]` (spells "meta" in ASCII)
@@ -66,7 +62,52 @@ use std::{env, fs, path::PathBuf};
 pub type ReservedMeta = [u8; 4];
 pub const META: ReservedMeta = [0x6d, 0x65, 0x74, 0x61]; // 1635018093 in decimal, "meta" as ASCII
 
+#[cfg(feature = "check-metadata")]
+fn check_metadata() {
+    fn hash_file(file_path: PathBuf) -> u64 {
+        use seahash::SeaHasher;
+        use std::hash::Hasher;
+        use std::io::{BufReader, Read};
+
+        let mut hasher = SeaHasher::new();
+        let file = fs::File::open(&file_path)
+            .expect(format!("Unable to open file: {}", file_path.display()).as_str());
+        let mut reader = BufReader::new(file);
+        let mut buffer = [0; 8192]; // 8KB read chunk
+        loop {
+            let bytes_read = reader.read(&mut buffer).expect("File read error");
+            if bytes_read == 0 {
+                break; // End
+            }
+            hasher.write(&buffer[..bytes_read]);
+        }
+        hasher.finish()
+    }
+
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
+    let metadata_hash = hash_file(metadata_path);
+
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
+    let saved_metadata_hash = hash_file(saved_metadata_path);
+
+    if metadata_hash != saved_metadata_hash {
+        panic!(
+            "Metadata hash mismatch: {} vs {}",
+            metadata_hash, saved_metadata_hash
+        );
+    }
+}
+
+/// Build runtime and extract metadata into file.
+#[cfg(feature = "build-metadata")]
 fn main() {
+    use parity_scale_codec::Decode;
+    use sc_executor::{WasmExecutionMethod, WasmExecutor};
+    use sc_executor_common::runtime_blob::RuntimeBlob;
+    use sp_maybe_compressed_blob::{decompress, CODE_BLOB_BOMB_LIMIT};
+
     // The way to get metadata is to call the runtime's `Metadata_metadata` host function.
     // This approach is inspired by subwasm (https://github.com/chevdor/subwasm).
 
@@ -123,8 +164,16 @@ fn main() {
     let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
     fs::write(&metadata_path, metadata).expect("Failed to write metadata");
 
-    // Step 10: Set up rebuild triggers.
-    // These tell cargo to re-run this build script when the runtime changes.
-    println!("cargo:rerun-if-changed=../src");
-    println!("cargo:rerun-if-changed=../Cargo.toml");
+    #[cfg(feature = "check-metadata")]
+    check_metadata();
+}
+
+/// Just use already extracted metadata.
+#[cfg(not(feature = "build-metadata"))]
+fn main() {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let saved_metadata_path = PathBuf::from(&manifest_dir).join("metadata.scale");
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let metadata_path = PathBuf::from(&out_dir).join("metadata.scale");
+    fs::copy(saved_metadata_path, metadata_path).expect("Unable to copy saved metadata");
 }

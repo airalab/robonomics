@@ -1,7 +1,7 @@
 [package]
 name = "robonet"
 description = "Robonomics local network spawner based on ZombieNet SDK."
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true

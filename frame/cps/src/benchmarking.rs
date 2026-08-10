@@ -32,12 +32,8 @@ mod benchmarks {
     #[benchmark]
     fn create_node() {
         let caller: T::AccountId = whitelisted_caller();
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1u8; 100]).unwrap(),
-        ));
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![2u8; 100]).unwrap(),
-        ));
+        let meta = BoundedVec::try_from(vec![1u8; 100]).ok();
+        let payload = BoundedVec::try_from(vec![2u8; 100]).ok();
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller.clone()), None, meta, payload);
@@ -53,9 +49,7 @@ mod benchmarks {
         let _ =
             Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
 
-        let meta = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1u8; 100]).unwrap(),
-        ));
+        let meta = BoundedVec::try_from(vec![1u8; 100]).ok();
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), NodeId(0), meta);
@@ -71,9 +65,7 @@ mod benchmarks {
         let _ =
             Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
 
-        let payload = Some(NodeData::Plain(
-            BoundedVec::try_from(vec![1u8; 100]).unwrap(),
-        ));
+        let payload = BoundedVec::try_from(vec![1u8; 100]).ok();
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), NodeId(0), payload);

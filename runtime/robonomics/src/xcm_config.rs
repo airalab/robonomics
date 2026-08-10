@@ -18,7 +18,7 @@
 use super::{
     AccountId, AllPalletsWithSystem, Balances, DealWithFees, MessageQueue, ParachainInfo,
     ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmPallet,
-    XcmpQueue, COASE, MAXIMUM_BLOCK_WEIGHT, TREASURY_PALLET_ID, XRT,
+    XcmpQueue, COASE, TREASURY_PALLET_ID,
 };
 use cumulus_primitives_core::{AggregateMessageOrigin, IsSystem, ParaId};
 use frame_support::{
@@ -207,7 +207,6 @@ impl Config for XcmConfig {
     type Trader = UsingComponents<WeightToFee, LocalLocation, AccountId, Balances, DealWithFees>;
     type ResponseHandler = XcmPallet;
     type AssetTrap = XcmPallet;
-    type AssetClaims = XcmPallet;
     type SubscriptionService = XcmPallet;
     type PalletInstancesInfo = AllPalletsWithSystem;
     type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
@@ -318,43 +317,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
     type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
     type WeightInfo = crate::weights::cumulus_pallet_xcmp_queue::WeightInfo<Runtime>;
-}
-
-impl cumulus_pallet_xcmp_queue::migration::v5::V5Config for Runtime {
-    type ChannelList = ParachainSystem;
-}
-
-parameter_types! {
-    // 5% of block weight is good enough
-    pub TeleportMaxWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 20;
-    pub ParachainLocation: Location = Location::new(
-        1,
-        [Parachain(ParachainInfo::parachain_id().into())],
-    );
-    pub TeleportFeeAsset: Asset = RelayAssetId::get().into_asset(
-        Fungibility::Fungible(TeleportFee::get())
-    );
-    pub const TeleportFee: u128 = 10_000_000_000u128;
-    pub const MinimalAmount: u128 = 1 * XRT;
-}
-
-impl pallet_robonomics_teleport::Config for Runtime {
-    type AssetId = NativeAssetId;
-    type MinimalAmount = MinimalAmount;
-    type FeeAsset = TeleportFeeAsset;
-    type UniversalLocation = UniversalLocation;
-    type ParachainLocation = ParachainLocation;
-    type TargetLocation = AssetHubLocation;
-    #[cfg(not(feature = "runtime-benchmarks"))]
-    type XcmPallet = XcmPallet;
-    type MaxWeight = TeleportMaxWeight;
-    type WeightInfo = crate::weights::pallet_robonomics_teleport::WeightInfo<Runtime>;
-    type RuntimeEvent = RuntimeEvent;
-
-    #[cfg(feature = "runtime-benchmarks")]
-    type XcmPallet = pallet_robonomics_teleport::benchmarking::BenchmarkingXcmController;
-    #[cfg(feature = "runtime-benchmarks")]
-    type AssetTransactor = AssetTransactors;
 }
 
 #[cfg(test)]

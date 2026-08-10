@@ -20,19 +20,10 @@
 use frame_support::traits::Currency;
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 /// Simple market as approach: liability has a price of execution.
 #[derive(
-    Encode,
-    Decode,
-    PartialEq,
-    Clone,
-    Eq,
-    TypeInfo,
-    RuntimeDebug,
-    MaxEncodedLen,
-    DecodeWithMemTracking,
+    Encode, Decode, PartialEq, Clone, Eq, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
 )]
 #[scale_info(skip_type_params(C))]
 pub struct SimpleMarket<AccountId, C: Currency<AccountId>> {

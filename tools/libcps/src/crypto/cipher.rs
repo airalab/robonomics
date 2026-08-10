@@ -22,16 +22,16 @@
 
 use super::types::{CryptoScheme, EncryptedMessage, EncryptionAlgorithm};
 use aes_gcm::{
-    aead::{Aead as AesAead, AeadCore as AesAeadCore, KeyInit as AesKeyInit},
+    aead::{Aead as AesAead, KeyInit as AesKeyInit},
     Aes256Gcm, Nonce as AesNonce,
 };
 use anyhow::{anyhow, Result};
 use chacha20poly1305::{
-    aead::OsRng, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
+    aead::Generate, ChaCha20Poly1305, Nonce as ChachaNonce, XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
 use log::{debug, trace};
-use sha2::Sha256;
+use sha2::{Digest, Sha256, Sha512};
 use sp_core::Pair;
 
 /// HKDF salt for key derivation.
@@ -158,7 +158,6 @@ impl Cipher {
                 // SR25519: Use Ristretto255 for ECDH
                 use curve25519_dalek::ristretto::CompressedRistretto;
                 use curve25519_dalek::scalar::Scalar;
-                use sha2::{Digest, Sha512};
 
                 // Create scalar from secret key
                 let scalar = Scalar::from_bytes_mod_order(self.secret);
@@ -186,7 +185,6 @@ impl Cipher {
             CryptoScheme::Ed25519 => {
                 // ED25519: Use X25519 for ECDH
                 use curve25519_dalek::edwards::CompressedEdwardsY;
-                use sha2::{Digest, Sha512};
 
                 // Hash and clamp secret for X25519
                 let mut hasher = Sha512::new();
@@ -284,7 +282,7 @@ impl Cipher {
         let (nonce_bytes, ciphertext) = match algorithm {
             EncryptionAlgorithm::XChaCha20Poly1305 => {
                 let cipher = XChaCha20Poly1305::new(&encryption_key.into());
-                let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+                let nonce = XNonce::generate();
                 trace!("Generated XChaCha20 nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
@@ -293,7 +291,7 @@ impl Cipher {
             }
             EncryptionAlgorithm::AesGcm256 => {
                 let cipher = Aes256Gcm::new(&encryption_key.into());
-                let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+                let nonce = AesNonce::generate();
                 trace!("Generated AES-GCM nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
@@ -302,7 +300,7 @@ impl Cipher {
             }
             EncryptionAlgorithm::ChaCha20Poly1305 => {
                 let cipher = ChaCha20Poly1305::new(&encryption_key.into());
-                let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+                let nonce = ChachaNonce::generate();
                 trace!("Generated ChaCha20 nonce: {} bytes", nonce.len());
                 let ct = cipher
                     .encrypt(&nonce, plaintext)
@@ -400,20 +398,22 @@ impl Cipher {
                                 "Invalid XChaCha20 nonce length: expected 24 bytes"
                             ));
                         }
-                        let nonce_array = XNonce::from_slice(nonce);
+                        let nonce_array = XNonce::try_from(nonce.as_slice())
+                            .map_err(|e| anyhow!("Invalid XChaCha20 nonce: {e}"))?;
                         let cipher = XChaCha20Poly1305::new(&encryption_key.into());
                         cipher
-                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .decrypt(&nonce_array, ciphertext.as_ref())
                             .map_err(|e| anyhow!("XChaCha20 decryption failed: {e}"))
                     }
                     EncryptionAlgorithm::AesGcm256 => {
                         if nonce.len() != 12 {
                             return Err(anyhow!("Invalid AES-GCM nonce length: expected 12 bytes"));
                         }
-                        let nonce_array = AesNonce::from_slice(nonce);
+                        let nonce_array = AesNonce::try_from(nonce.as_slice())
+                            .map_err(|e| anyhow!("Invalid AES-GCM nonce: {e}"))?;
                         let cipher = Aes256Gcm::new(&encryption_key.into());
                         cipher
-                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .decrypt(&nonce_array, ciphertext.as_ref())
                             .map_err(|e| anyhow!("AES-GCM decryption failed: {e}"))
                     }
                     EncryptionAlgorithm::ChaCha20Poly1305 => {
@@ -422,10 +422,11 @@ impl Cipher {
                                 "Invalid ChaCha20 nonce length: expected 12 bytes"
                             ));
                         }
-                        let nonce_array = ChachaNonce::from_slice(nonce);
+                        let nonce_array = ChachaNonce::try_from(nonce.as_slice())
+                            .map_err(|e| anyhow!("Invalid ChaCha20 nonce: {e}"))?;
                         let cipher = ChaCha20Poly1305::new(&encryption_key.into());
                         cipher
-                            .decrypt(nonce_array, ciphertext.as_ref())
+                            .decrypt(&nonce_array, ciphertext.as_ref())
                             .map_err(|e| anyhow!("ChaCha20 decryption failed: {e}"))
                     }
                 }?;

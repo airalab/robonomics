@@ -25,7 +25,6 @@ use cumulus_primitives_core::ParaId;
 use frame_support::build_struct_json_patch;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
-use sp_runtime::traits::AccountIdConversion;
 use xcm::latest::{prelude::NetworkId, ROCOCO_GENESIS_HASH};
 
 pub const ROBONOMICS_PARA_ID: ParaId = ParaId::new(2048);
@@ -79,8 +78,6 @@ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
     let mut endowed_accounts = Vec::<AccountId>::new();
     // Dev accounts
     endowed_accounts.extend(Sr25519Keyring::well_known().map(|k| k.to_account_id()));
-    // Claim pallet
-    endowed_accounts.push(ClaimPalletId::get().into_account_truncating());
 
     let chain_spec = match id.as_ref() {
         sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => robonomics_genesis(

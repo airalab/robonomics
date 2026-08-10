@@ -20,9 +20,9 @@
 use crate::display;
 use anyhow::Result;
 use colored::*;
-use libcps::blockchain::{Client, Config};
+use libcps::blockchain::{BoundedVec, Client, Config};
 use libcps::crypto::Cipher;
-use libcps::node::{Node, NodeData};
+use libcps::node::Node;
 use parity_scale_codec::Encode;
 use subxt::utils::AccountId32;
 
@@ -57,9 +57,9 @@ pub async fn execute(
 
         let encrypted_message = cipher.encrypt(data.as_bytes(), receiver_pub, algorithm)?;
         let encrypted_bytes = encrypted_message.encode();
-        NodeData::aead_from(encrypted_bytes)
+        BoundedVec(encrypted_bytes)
     } else {
-        NodeData::from(data)
+        BoundedVec(data.into_bytes())
     };
 
     // Update metadata using Node API with NodeData

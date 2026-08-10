@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Integration test modules and runner.
 
-pub mod claim;
 pub mod cps;
 pub mod network;
 pub mod xcm;
@@ -29,7 +28,6 @@ use std::time::{Duration, Instant};
 use zombienet_sdk::{LocalFileSystem, Network};
 
 // Re-export test functions
-use claim::test_claim_pallet;
 use cps::test_cps_pallet;
 use network::{test_block_production, test_extrinsic_submission, test_network_initialization};
 use xcm::{test_xcm_downward_message, test_xcm_token_teleport, test_xcm_upward_message};
@@ -235,16 +233,6 @@ pub async fn run_integration_tests(
             log::warn!("Stopping test execution due to failure (fail-fast mode)");
             return build_results(results, suite_start, json_output);
         }
-    }
-
-    if test_filter.is_none()
-        || test_filter
-            .as_ref()
-            .unwrap()
-            .iter()
-            .any(|f| "claim".contains(f.as_str()))
-    {
-        results.push(run_test("claim_pallet", || test_claim_pallet(network)).await);
     }
 
     build_results(results, suite_start, json_output)

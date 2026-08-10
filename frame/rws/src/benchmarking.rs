@@ -80,7 +80,25 @@ mod benchmarks {
         assert_ok!(Rws::<T>::set_oracle(RawOrigin::Root.into(), oracle_lookup));
 
         #[extrinsic_call]
-        set_subscription(RawOrigin::Signed(oracle), target, Default::default());
+        _(RawOrigin::Signed(oracle), target, Default::default());
+    }
+
+    #[benchmark]
+    fn transfer() {
+        let oracle: T::AccountId = whitelisted_caller();
+        let caller: T::AccountId = whitelisted_caller();
+        let target: T::AccountId = account("target", 4, SEED);
+
+        let oracle_lookup = T::Lookup::unlookup(oracle.clone());
+        assert_ok!(Rws::<T>::set_oracle(RawOrigin::Root.into(), oracle_lookup));
+        assert_ok!(Rws::<T>::set_subscription(
+            RawOrigin::Signed(oracle.clone()).into(),
+            caller.clone(),
+            Default::default()
+        ));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), target);
     }
 
     #[benchmark]

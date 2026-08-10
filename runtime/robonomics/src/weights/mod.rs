@@ -28,6 +28,7 @@ pub mod pallet_balances;
 pub mod pallet_collator_selection;
 pub mod pallet_message_queue;
 pub mod pallet_multisig;
+pub mod pallet_proxy;
 pub mod pallet_session;
 pub mod pallet_timestamp;
 pub mod pallet_transaction_payment;
@@ -38,16 +39,12 @@ pub mod paritydb_weights;
 pub mod rocksdb_weights;
 pub mod xcm;
 
-pub mod pallet_robonomics_claim;
+pub mod pallet_robonomics_cps;
 pub mod pallet_robonomics_datalog;
 pub mod pallet_robonomics_digital_twin;
 pub mod pallet_robonomics_launch;
 pub mod pallet_robonomics_liability;
 pub mod pallet_robonomics_rws;
-pub mod pallet_robonomics_teleport;
-
-#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-pub mod pallet_robonomics_cps;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;

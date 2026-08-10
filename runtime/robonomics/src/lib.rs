@@ -41,7 +41,7 @@ use frame_support::{
     parameter_types,
     traits::{
         fungible, tokens::imbalance::ResolveTo, ConstBool, ConstU32, ConstU64, Imbalance,
-        OnUnbalanced, WithdrawReasons,
+        InstanceFilter, OnUnbalanced, WithdrawReasons,
     },
     weights::{ConstantMultiplier, Weight},
     PalletId,
@@ -80,10 +80,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 42,
+    spec_version: 43,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
-    transaction_version: 3,
+    transaction_version: 4,
     system_version: 1,
 };
 
@@ -113,6 +113,126 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
     }
 }
 
+/// Proxy type for filtering allowed calls
+#[derive(
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    parity_scale_codec::Encode,
+    parity_scale_codec::Decode,
+    parity_scale_codec::DecodeWithMemTracking,
+    core::fmt::Debug,
+    parity_scale_codec::MaxEncodedLen,
+    scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+    /// Allow all calls
+    Any,
+    /// Allow CPS operations with optional node restriction
+    /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
+    /// - `CpsWrite(Some(nodes))`: Access only to specified nodes and their descendants
+    CpsWrite(Option<BoundedVec<pallet_robonomics_cps::NodeId, ConstU32<32>>>),
+}
+
+impl Default for ProxyType {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl InstanceFilter<RuntimeCall> for ProxyType {
+    fn filter(&self, c: &RuntimeCall) -> bool {
+        match self {
+            ProxyType::Any => true,
+            ProxyType::CpsWrite(allowed_nodes) => {
+                // Check if it's a CPS call
+                let is_cps_call = matches!(
+                    c,
+                    RuntimeCall::CPS(
+                        pallet_robonomics_cps::Call::create_node { .. }
+                            | pallet_robonomics_cps::Call::set_meta { .. }
+                            | pallet_robonomics_cps::Call::set_payload { .. }
+                            | pallet_robonomics_cps::Call::move_node { .. }
+                            | pallet_robonomics_cps::Call::delete_node { .. }
+                    )
+                );
+
+                if !is_cps_call {
+                    return false;
+                }
+
+                // If no specific node restriction, allow all CPS calls
+                if allowed_nodes.is_none() {
+                    return true;
+                }
+
+                // Check if call targets an allowed node
+                let allowed_nodes = allowed_nodes.as_ref().unwrap();
+                match c {
+                    RuntimeCall::CPS(pallet_robonomics_cps::Call::set_meta { node_id, .. })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::set_payload {
+                        node_id, ..
+                    })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::move_node {
+                        node_id, ..
+                    })
+                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::delete_node {
+                        node_id, ..
+                    }) => allowed_nodes.contains(node_id),
+                    RuntimeCall::CPS(pallet_robonomics_cps::Call::create_node {
+                        parent_id,
+                        ..
+                    }) => {
+                        if let Some(parent_id) = parent_id {
+                            allowed_nodes.contains(parent_id)
+                        } else {
+                            // Creating root nodes - deny if there's a restriction
+                            false
+                        }
+                    }
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn is_superset(&self, o: &Self) -> bool {
+        match (self, o) {
+            (ProxyType::Any, _) => true,
+            (_, ProxyType::Any) => false,
+            (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
+            (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => {
+                // Check if all nodes in b are contained in a
+                b.iter().all(|node| a.contains(node))
+            }
+            (ProxyType::CpsWrite(Some(_)), ProxyType::CpsWrite(None)) => false,
+        }
+    }
+}
+
+parameter_types! {
+    /// Per-block reward minted directly to the block author (collator).
+    ///
+    /// Derivation (see `MIGRATIONS.md` and issue #510):
+    ///   reward = (server_cost_per_year * collators * 1.3) / blocks_per_year / XRT_price
+    ///          = (2040 * 7 * 1.3) / 4_505_143 / 1
+    ///          ≈ 0.0042 XRT
+    ///
+    /// Encoded in the smallest unit (XRT has 9 decimals, so 0.0042 XRT = 4_200_000).
+    pub const CollatorBlockReward: Balance = 4_200_000;
+}
+
+/// `pallet_authorship::EventHandler` that mints `CollatorBlockReward` directly
+/// to the block author. The implementation lives in
+/// `robonomics-collator-rewards`; see that crate's README for the rationale
+/// (notably why we mint to the author rather than the collator-selection pot).
+///
+/// MUST be ordered before `CollatorSelection` in the `EventHandler` tuple.
+pub type AuthorRewards =
+    robonomics_collator_rewards::AuthorRewards<Runtime, CollatorBlockReward, Balances>;
+
 /// Fungible implementation of `OnUnbalanced` that deals with the fees.
 pub struct DealWithFees;
 impl OnUnbalanced<fungible::Credit<AccountId, Balances>> for DealWithFees {
@@ -133,8 +253,7 @@ impl OnUnbalanced<fungible::Credit<AccountId, Balances>> for DealWithFees {
 parameter_types! {
     pub const BlockHashCount: BlockNumber = 250;
     pub const Version: RuntimeVersion = VERSION;
-    pub RuntimeBlockLength: BlockLength =
-        BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+    pub RuntimeBlockLength: BlockLength = BlockLength::default();
     pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
         .base_block(BlockExecutionWeight::get())
         .for_class(DispatchClass::all(), |weights| {
@@ -211,7 +330,9 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-    type EventHandler = (CollatorSelection,);
+    // `AuthorRewards` MUST come first so the author receives the full
+    // `CollatorBlockReward` independently of the collator-selection pot.
+    type EventHandler = (AuthorRewards, CollatorSelection);
 }
 
 parameter_types! {
@@ -298,6 +419,34 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
+    // One storage item; key size 32, value size 8; .
+    pub const ProxyDepositBase: Balance = deposit(1, 40);
+    // Additional storage item size of 33 bytes.
+    pub const ProxyDepositFactor: Balance = deposit(0, 33);
+    pub const MaxProxies: u16 = 32;
+    // One storage item; key size 32, value size 16
+    pub const AnnouncementDepositBase: Balance = deposit(1, 48);
+    pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+    pub const MaxPending: u16 = 32;
+}
+
+impl pallet_proxy::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+    type Currency = Balances;
+    type ProxyType = ProxyType;
+    type ProxyDepositBase = ProxyDepositBase;
+    type ProxyDepositFactor = ProxyDepositFactor;
+    type MaxProxies = MaxProxies;
+    type WeightInfo = weights::pallet_proxy::WeightInfo<Runtime>;
+    type MaxPending = MaxPending;
+    type CallHasher = BlakeTwo256;
+    type AnnouncementDepositBase = AnnouncementDepositBase;
+    type AnnouncementDepositFactor = AnnouncementDepositFactor;
+    type BlockNumberProvider = frame_system::Pallet<Runtime>;
+}
+
+parameter_types! {
     pub ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
     pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
@@ -322,6 +471,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
     type ConsensusHook = ConsensusHook;
     type RelayParentOffset = ConstU32<0>;
+    type SchedulingSignatureVerifier = ();
     type WeightInfo = weights::cumulus_pallet_parachain_system::WeightInfo<Runtime>;
 }
 
@@ -473,35 +623,8 @@ impl pallet_robonomics_rws::Config for Runtime {
     type WeightInfo = weights::pallet_robonomics_rws::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-    pub ClaimMessagePrefix: &'static [u8] = b"Claim ERC20 XRT to account:";
-    pub ClaimPalletId: PalletId = PalletId(*b"ClaimXrt");
-}
-
-impl pallet_robonomics_claim::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type PalletId = ClaimPalletId;
-    type Prefix = ClaimMessagePrefix;
-    type WeightInfo = weights::pallet_robonomics_claim::WeightInfo<Runtime>;
-}
-
-#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-parameter_types! {
-    pub const MaxTreeDepth: u32 = 32;
-    pub const MaxChildrenPerNode: u32 = 100;
-    pub const MaxRootNodes: u32 = 100;
-    pub const MaxMovableSubtreeSize: u32 = 50;
-}
-
-#[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxTreeDepth = MaxTreeDepth;
-    type MaxChildrenPerNode = MaxChildrenPerNode;
-    type MaxRootNodes = MaxRootNodes;
-    type MaxMovableSubtreeSize = MaxMovableSubtreeSize;
-    type EncryptedData = pallet_robonomics_cps::DefaultEncryptedData;
     type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
 }
@@ -567,6 +690,9 @@ mod runtime {
     #[runtime::pallet_index(15)]
     pub type Multisig = pallet_multisig;
 
+    #[runtime::pallet_index(16)]
+    pub type Proxy = pallet_proxy;
+
     //
     // Parachain core pallets
     //
@@ -593,9 +719,6 @@ mod runtime {
     #[runtime::pallet_index(33)]
     pub type Vesting = pallet_vesting;
 
-    #[runtime::pallet_index(35)]
-    pub type ClaimXRT = pallet_robonomics_claim;
-
     //
     // Robonomics Network pallets.
     //
@@ -615,8 +738,7 @@ mod runtime {
     #[runtime::pallet_index(56)]
     pub type Liability = pallet_robonomics_liability;
 
-    #[cfg(any(feature = "dev-runtime", feature = "runtime-benchmarks"))]
-    #[runtime::pallet_index(59)]
+    #[runtime::pallet_index(57)]
     pub type CPS = pallet_robonomics_cps;
 
     //
@@ -634,9 +756,6 @@ mod runtime {
 
     #[runtime::pallet_index(75)]
     pub type MessageQueue = pallet_message_queue;
-
-    #[runtime::pallet_index(76)]
-    pub type TeleportXRT = pallet_robonomics_teleport;
 
     //
     // Elastic scaling consensus pallets.
@@ -707,6 +826,11 @@ pub type Executive = frame_executive::Executive<
 type SingleBlockMigrations = (
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
+    // Cumulus pallets migrations
+    cumulus_pallet_parachain_system::migration::Migration<Runtime>,
+    // XCMP Queue migrations: v5 → v6 → v7
+    cumulus_pallet_xcmp_queue::migration::v6::MigrateV5ToV6<Runtime>,
+    cumulus_pallet_xcmp_queue::migration::v7::MigrateV6ToV7<Runtime>,
 );
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -721,6 +845,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_timestamp, Timestamp]
     [pallet_utility, Utility]
     [pallet_multisig, Multisig]
+    [pallet_proxy, Proxy]
     [pallet_vesting, Vesting]
     [pallet_transaction_payment, TransactionPayment]
     [cumulus_pallet_weight_reclaim, WeightReclaim]
@@ -735,8 +860,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_robonomics_liability, Liability]
     [pallet_robonomics_rws, RWS]
     [pallet_robonomics_cps, CPS]
-    [pallet_robonomics_claim, ClaimXRT]
-    [pallet_robonomics_teleport, TeleportXRT]
     // XCM pallets
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     [pallet_message_queue, MessageQueue]
@@ -834,8 +957,8 @@ impl_runtime_apis! {
     }
 
     impl sp_session::SessionKeys<Block> for Runtime {
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            SessionKeys::generate(seed)
+        fn generate_session_keys(owner: Vec<u8>, seed: Option<Vec<u8>>) -> sp_session::OpaqueGeneratedSessionKeys {
+            SessionKeys::generate(&owner, seed).into()
         }
 
         fn decode_session_keys(
@@ -1014,7 +1137,15 @@ impl_runtime_apis! {
             }
 
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-            impl cumulus_pallet_session_benchmarking::Config for Runtime {}
+            impl cumulus_pallet_session_benchmarking::Config for Runtime {
+                fn generate_session_keys_and_proof(owner: Self::AccountId) -> (Self::Keys, Vec<u8>) {
+                    use parity_scale_codec::Encode;
+                    let keys = SessionKeys::generate(&owner.encode(), None);
+                    (keys.keys, keys.proof.encode())
+                }
+            }
+
+            impl pallet_transaction_payment::BenchmarkConfig for Runtime {}
 
             use xcm::latest::prelude::*;
             use xcm_config::{
@@ -1091,14 +1222,14 @@ impl_runtime_apis! {
                 fn valid_destination() -> Result<Location, BenchmarkError> {
                     Ok(AssetHubLocation::get())
                 }
-                fn worst_case_holding(_depositable_count: u32) -> Assets {
-                    let assets: Vec<Asset> = vec![
-                        Asset {
-                            id: NativeAssetId::get(),
-                            fun: Fungible(1_000_000 * XRT),
-                        }
-                    ];
-                    assets.into()
+                fn worst_case_holding(_depositable_count: u32) -> xcm_executor::AssetsInHolding {
+                    use pallet_xcm_benchmarks::MockCredit;
+                    let mut holding = xcm_executor::AssetsInHolding::new();
+                    holding.fungible.insert(
+                        NativeAssetId::get(),
+                        alloc::boxed::Box::new(MockCredit(1_000_000 * XRT)),
+                    );
+                    holding
                 }
             }
 
@@ -1196,4 +1327,26 @@ impl_runtime_apis! {
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
     BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
+}
+
+#[cfg(test)]
+mod author_rewards_tests {
+    use super::*;
+    use frame_support::traits::Get;
+
+    /// Reward constant must encode exactly 0.0042 XRT per block.
+    ///
+    /// XRT has 9 decimals, so 0.0042 XRT == 4_200_000 in the smallest unit.
+    /// Behavioural tests for the handler itself live in
+    /// `robonomics-collator-rewards`; this test only pins the chain-specific
+    /// constant. See `MIGRATIONS.md` and issue #510 for the full derivation.
+    #[test]
+    fn reward_constant_matches_specification() {
+        assert_eq!(<CollatorBlockReward as Get<Balance>>::get(), 4_200_000);
+        // 0.0042 XRT == 42 * (XRT / 10_000).
+        assert_eq!(
+            <CollatorBlockReward as Get<Balance>>::get(),
+            42 * (XRT / 10_000)
+        );
+    }
 }

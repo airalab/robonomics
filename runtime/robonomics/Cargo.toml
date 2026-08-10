@@ -48,6 +48,7 @@ frame-support.workspace = true
 pallet-multisig.workspace = true
 pallet-message-queue.workspace = true
 pallet-preimage.workspace = true
+pallet-proxy.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 frame-system.workspace = true
 frame-try-runtime = { optional = true, workspace = true }
@@ -67,8 +68,7 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
-pallet-robonomics-claim.workspace = true
-pallet-robonomics-teleport.workspace = true
+robonomics-collator-rewards.workspace = true
 
 # cumulus dependencies
 cumulus-pallet-aura-ext.workspace = true
@@ -135,6 +135,7 @@ std = [
   "pallet-message-queue/std",
   "pallet-multisig/std",
   "pallet-preimage/std",
+  "pallet-proxy/std",
   "frame-support/std",
   "frame-system/std",
   "frame-system-rpc-runtime-api/std",
@@ -148,9 +149,8 @@ std = [
   "pallet-robonomics-launch/std",
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
-  "pallet-robonomics-claim/std",
   "pallet-robonomics-cps/std",
-  "pallet-robonomics-teleport/std",
+  "robonomics-collator-rewards/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
@@ -183,6 +183,7 @@ runtime-benchmarks = [
   "pallet-timestamp/runtime-benchmarks",
   "pallet-utility/runtime-benchmarks",
   "pallet-multisig/runtime-benchmarks",
+  "pallet-proxy/runtime-benchmarks",
   "pallet-message-queue/runtime-benchmarks",
   "pallet-vesting/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
@@ -193,8 +194,6 @@ runtime-benchmarks = [
   "pallet-robonomics-liability/runtime-benchmarks",
   "pallet-robonomics-rws/runtime-benchmarks",
   "pallet-robonomics-cps/runtime-benchmarks",
-  "pallet-robonomics-claim/runtime-benchmarks",
-  "pallet-robonomics-teleport/runtime-benchmarks",
   "pallet-xcm-benchmarks/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
   "xcm-builder/runtime-benchmarks",
@@ -219,6 +218,7 @@ try-runtime = [
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
   "pallet-multisig/try-runtime",
+  "pallet-proxy/try-runtime",
   "pallet-session/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
@@ -229,8 +229,7 @@ try-runtime = [
   "pallet-robonomics-liability/try-runtime",
   "pallet-robonomics-rws/try-runtime",
   "pallet-robonomics-cps/try-runtime",
-  "pallet-robonomics-teleport/try-runtime",
-  "pallet-robonomics-claim/try-runtime",
+  "robonomics-collator-rewards/try-runtime",
   "parachain-info/try-runtime",
   "sp-runtime/try-runtime",
 ]

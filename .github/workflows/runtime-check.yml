@@ -1,0 +1,87 @@
+name: Runtime Check
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'runtime/**'
+      - 'frame/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    branches:
+      - 'master'
+    paths:
+      - 'runtime/**'
+      - 'frame/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  workflow_call:
+    outputs:
+      status:
+        description: "Status of runtime check"
+        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
+
+concurrency:
+  group: metadata-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  check-metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Check metadata
+        run: cargo build -p robonomics-runtime-subxt-api --features check-metadata --release --locked
+
+  try-runtime:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v5
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install try-runtime
+        run: |
+          curl -fsSL https://github.com/paritytech/try-runtime-cli/releases/download/v0.10.1/try-runtime-x86_64-unknown-linux-musl \
+          | sudo install -m 755 /dev/stdin /usr/local/bin/try-runtime
+
+      - name: Run try-runtime on parachain 
+        run: ./scripts/try-runtime.sh
+
+  runtime-benchmarks:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v5
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install frame-omni-bencher
+        run: |
+          curl -fsSL https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2606/frame-omni-bencher \
+          | sudo install -m 755 /dev/stdin /usr/local/bin/frame-omni-bencher
+
+      - name: Run benchmark checks using runtime-benchmarks.sh
+        run: BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 ./scripts/runtime-benchmarks.sh

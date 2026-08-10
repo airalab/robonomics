@@ -18,7 +18,6 @@
 //! Robonomics Node binary
 
 #![warn(missing_docs)]
-#![warn(unused_extern_crates)]
 
 // Force the linker to keep the polkadot_jemalloc_shim crate (and its #[global_allocator]).
 #[cfg(target_os = "linux")]
@@ -32,6 +31,7 @@ fn main() -> color_eyre::eyre::Result<()> {
 
     // Install the ring CryptoProvider for rustls before any TLS connections are made.
     // Ignore the error if a provider was already installed.
+    // TODO: remove when fixed https://github.com/paritytech/polkadot-sdk/issues/11164
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     cli::run()

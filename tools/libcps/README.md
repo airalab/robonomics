@@ -37,7 +37,7 @@ A beautiful command-line interface for quick access to CPS pallet functionality.
 │                 libcps Library                     │
 ├──────────────┬──────────────┬──────────────────────┤
 │   Cipher     │  Types       │  Generated Runtime   │
-│   - SR25519  │  - NodeData  │  - subxt codegen     │
+│   - SR25519  │  - BoundedVec│  - subxt codegen     │
 │   - ED25519  │  - NodeId    │  - CPS pallet API    │
 └──────────────┴──────────────┴──────────────────────┘
       ↓                              ↓
@@ -83,6 +83,12 @@ libcps = { version = "0.1.0", default-features = false, features = ["mqtt"] }
 
 ```bash
 cargo install libcps
+```
+
+### Run CLI using Nix caches
+
+```bash
+nix run github:airalab/robonomics#libcps
 ```
 
 ### From Source
@@ -328,8 +334,8 @@ cps --ws-url ws://localhost:9944 \
 This example shows the core node-oriented operations: creating nodes, setting metadata and payload, and visualizing the tree structure.
 
 ```rust
-use libcps::blockchain::{Client, Config};
-use libcps::node::{Node, NodeData};
+use libcps::blockchain::{Client, Config, BoundedVec};
+use libcps::node::Node;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -341,23 +347,23 @@ async fn main() -> anyhow::Result<()> {
     let client = Client::new(&config).await?;
     
     // Create a root node with metadata and payload
-    let meta: NodeData = r#"{"type":"building","name":"HQ"}"#.into();
-    let payload: NodeData = r#"{"status":"online"}"#.into();
+    let meta = BoundedVec(r#"{"type":"building","name":"HQ"}"#.as_bytes().to_vec());
+    let payload = BoundedVec(r#"{"status":"online"}"#.as_bytes().to_vec());
     let root_node = Node::create(&client, None, Some(meta), Some(payload)).await?;
     println!("Created root node: {}", root_node.id());
     
     // Create a child node
-    let child_meta: NodeData = r#"{"type":"room","name":"Server Room"}"#.into();
-    let child_payload: NodeData = r#"{"temp":"22C"}"#.into();
+    let child_meta = BoundedVec(r#"{"type":"room","name":"Server Room"}"#.as_bytes().to_vec());
+    let child_payload = BoundedVec(r#"{"temp":"22C"}"#.as_bytes().to_vec());
     let child_node = Node::create(&client, Some(root_node.id()), Some(child_meta), Some(child_payload)).await?;
     println!("Created child node: {}", child_node.id());
     
     // Update node metadata
-    let new_meta: NodeData = r#"{"type":"room","name":"Server Room","updated":true}"#.into();
+    let new_meta = BoundedVec(r#"{"type":"room","name":"Server Room","updated":true}"#.as_bytes().to_vec());
     child_node.set_meta(Some(new_meta)).await?;
     
     // Update node payload
-    let new_payload: NodeData = r#"{"temp":"23.5C"}"#.into();
+    let new_payload = BoundedVec(r#"{"temp":"23.5C"}"#.as_bytes().to_vec());
     child_node.set_payload(Some(new_payload)).await?;
     
     // Query and display node information
@@ -371,17 +377,18 @@ async fn main() -> anyhow::Result<()> {
 ### Data Types
 
 ```rust
-use libcps::node::{NodeData, NodeId};
+use libcps::blockchain::BoundedVec;
+use libcps::node::NodeId;
 use libcps::crypto::EncryptionAlgorithm;
 
 // Create plain data (unencrypted)
-let meta = NodeData::from("sensor config");
-let meta_bytes = NodeData::from(vec![1, 2, 3]);
+let meta = BoundedVec("sensor config".as_bytes().to_vec());
+let meta_bytes = BoundedVec(vec![1, 2, 3]);
 
 // Create encrypted data from cipher output
 let encrypted_msg = cipher.encrypt(plaintext, &receiver_public, EncryptionAlgorithm::XChaCha20Poly1305)?;
 let encrypted_bytes = encrypted_msg.encode();
-let payload = NodeData::aead_from(encrypted_bytes);
+let payload = BoundedVec(encrypted_bytes);
 ```
 
 ## 🔐 Encryption

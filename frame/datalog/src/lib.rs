@@ -159,8 +159,7 @@ pub mod pallet {
         }
     }
 
-    #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+    #[derive(Encode, Decode, TypeInfo, MaxEncodedLen, Debug, PartialEq)]
     pub struct RingBufferItem<T: Config>(
         #[codec(compact)] <<T as Config>::Time as Time>::Moment,
         <T as Config>::Record,
@@ -189,8 +188,7 @@ pub mod pallet {
         }
     }
 
-    #[cfg_attr(feature = "std", derive(Debug, PartialEq))]
-    #[derive(Encode, Decode, Default, TypeInfo, MaxEncodedLen)]
+    #[derive(Encode, Decode, Default, TypeInfo, MaxEncodedLen, Debug, PartialEq)]
     pub struct RingBufferIndex {
         #[codec(compact)]
         pub(crate) start: u64,
