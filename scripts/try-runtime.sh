@@ -51,7 +51,7 @@ echo -e "${GREEN}Starting try-runtime on live chain${NC}"
 echo "=================================================="
 
 if [ -z "$1" ]; then
-    ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
+    ENDPOINT=$POLKADOT_PUBLIC_ENDPOINT
 elif [ "$1" == "kusama" ]; then
     ENDPOINT=$KUSAMA_PUBLIC_ENDPOINT
 elif [ "$1" == "polkadot" ]; then

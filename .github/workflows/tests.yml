@@ -7,11 +7,6 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-    - 'feat/*'
-    - 'fix/*'
-    - 'release/*'
   pull_request:
     types:
       - opened
