@@ -11719,6 +11719,7 @@ dependencies = [
  "polkadot-omni-node-lib",
  "robonomics-runtime",
  "rocksdb",
+ "rustls",
  "sp-genesis-builder",
  "substrate-build-script-utils",
 ]
