@@ -1,6 +1,9 @@
 name: Cachix builder
 
 on:
+  push:
+    branches:
+    - 'master'
   workflow_call:
     secrets:
       CACHIX_AUTH_TOKEN:
@@ -8,7 +11,7 @@ on:
     outputs:
       status:
         description: "Status of the cachix builds"
-        value: ${{ jobs.developer-shell-check.outputs.status == 'success' && jobs.build.outputs.status == 'success' }}
+        value: ${{ jobs.developer-shell-check.outputs.status == 'success' }}
 
 permissions:
   contents: read
@@ -32,24 +35,3 @@ jobs:
 
       - run: nix develop --command bash -c "echo OK"
       - run: nix develop .#benchmarking --command bash -c "echo OK"
-
-  build:
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ job.status }}
-    strategy:
-      matrix:
-        package: [robonomics,libcps]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup runner
-        uses: ./.github/actions/setup-runner
-        with:
-          cachix_token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
-      - run: |
-          CORES=$(nproc)
-          CORES=$((CORES - 1))
-          echo "Using $CORES cores."
-          nix build -L --cores "$CORES" -o ${{ matrix.package }} .#${{ matrix.package }}

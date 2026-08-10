@@ -27,8 +27,7 @@
 //! use robonomics_runtime_subxt_api::{api, RobonomicsConfig};
 //! use subxt::OnlineClient;
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! async fn try_connect() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Connect to local node
 //!     let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
 //!     

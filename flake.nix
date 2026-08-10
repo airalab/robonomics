@@ -63,7 +63,7 @@
         system: pkgs: rec {
           default = self.lib.${system}.mkDevShell {
             packages = with pkgs; [
-              openssl taplo actionlint cargo-nextest cargo-audit
+              openssl taplo actionlint cargo-nextest cargo-audit cargo-machete
               psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher
               pkgs.polkadot polkadot-parachain
             ];
@@ -72,17 +72,7 @@
           benchmarking = self.lib.${system}.mkDevShell {
             packages = with pkgs; [ frame-omni-bencher ];
           }; 
-          robonet = with pkgs; mkShell {
-            buildInputs = [ robonomics libcps ];
-          };
         }
       );
-
-      packages = eachSystem (system: pkgs: import ./nix/pkgs { inherit pkgs self; });
-    }
-    // {
-      overlays = {
-        default = final: prev: import ./overlay.nix final prev;
-      };
     };
 }

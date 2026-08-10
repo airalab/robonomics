@@ -10,14 +10,8 @@ repository = "https://github.com/airalab/robonomics"
 panic = "unwind"
 opt-level = 3
 
-[profile.production]
-inherits = "release"
-lto = true
-codegen-units = 1
-
 [workspace]
 members = [
-  "bin",
   "frame/rws",
   "frame/launch",
   "frame/datalog",
@@ -27,74 +21,40 @@ members = [
   "frame/cps",
   "runtime/robonomics",
   "runtime/robonomics/subxt-api",
-  "tools/libcps",
 ]
-exclude = ["tools/robonet"]
 resolver = "2"
 
 [workspace.dependencies]
-# General deps
-# (wasm)
-bounded-collections = { version = "0.1.8", default-features = false }
+# Subxt Runtime API (native)
+seahash = "4.1"
+# Subxt 0.44 used by Polkadot SDK, update when it switch out
+subxt = "0.44"
+subxt-signer = "0.44"
+sc-executor = "0.50.0"
+sc-executor-common = "0.47.0"
+sp-maybe-compressed-blob = "11.1.0"
+
+# General (wasm)
 parity-scale-codec = { version = "3.6.1", default-features = false, features = [
   "derive",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = [
   "derive",
 ] }
-libsecp256k1 = { version = "0.7.0", default-features = false }
 smallvec = { version = "1.11", default-features = false }
 hex-literal = { version = "1.1", default-features = false }
-rustc-hex = { version = "2.1.0", default-features = false }
 serde = { version = "1.0.171", default-features = false, features = [
   "derive",
   "alloc",
 ] }
 serde_json = { version = "1.0.138", default-features = false }
 
-# (native)
-bs58 = "0.5.0"
-clap = { version = "4.2.5", features = ["derive"] }
-color-eyre = { version = "0.6.3", default-features = false }
-futures = { version = "0.3.21", features = ["thread-pool"] }
-jsonrpsee = { version = "0.24.7", features = ["server"] }
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
-thiserror = "1.0.43"
-async-trait = "0.1.71"
-anyhow = "1.0"
-tokio = { version = "1.40", features = ["full"] }
-env_logger = "0.11"
-log = "0.4"
-zombienet-sdk = "0.4.15"
-# Subxt 0.44 used by Polkadot SDK, update when it switch out
-subxt = "0.44"
-subxt-signer = "0.44"
-curve25519-dalek = "5.0"
-x25519-dalek = { version = "3.0", features = ["static_secrets"] }
-chacha20poly1305 = "0.11"
-aes-gcm = "0.11"
-hkdf = "0.13"
-sha2 = "0.11"
-base64 = "0.22"
-hex = "0.4.3"
-toml = "1.1"
-rumqttc = "0.25"
-colored = "3.1"
-chrono = "0.4"
-indicatif = "0.18"
-assert_cmd = "2.0.14"
-easy-hex = "1.0"
-seahash = "4.1"
-rocksdb = { version = "0.24", default-features = false }
-
-# Substrate
-# (wasm)
+# Substrate (wasm)
 sp-core = { version = "43.0.0", default-features = false }
 sp-io = { version = "48.0.0", default-features = false }
 sp-runtime = { version = "48.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-api = { version = "43.0.0", default-features = false }
-sp-arithmetic = { version = "28.0.1", default-features = false }
 sp-block-builder = { version = "43.0.0", default-features = false }
 sp-consensus-aura = { version = "0.49.0", default-features = false }
 sp-inherents = { version = "43.0.0", default-features = false }
@@ -109,43 +69,6 @@ sp-weights = { version = "36.0.0", default-features = false }
 sp-genesis-builder = { version = "0.24.0", default-features = false }
 sp-keyring = { version = "48.0.0", default-features = false }
 
-# (native)
-frame-benchmarking-cli = "58.0.0"
-pallet-transaction-payment-rpc = "52.0.0"
-substrate-build-script-utils = "11.0.3"
-substrate-frame-rpc-system = "53.0.0"
-substrate-prometheus-endpoint = "0.17.7"
-sc-basic-authorship = "0.56.0"
-sc-cli = "0.61.0"
-sc-client-api = "47.0.0"
-sc-chain-spec = "51.0.0"
-sc-consensus = "0.57.0"
-sc-consensus-aura = "0.58.0"
-sc-consensus-grandpa = "0.43.0"
-sc-executor = "0.50.0"
-sc-executor-common = "0.47.0"
-sc-offchain = "53.0.0"
-sc-finality-grandpa = "0.24.0"
-sc-keystore = "42.0.0"
-sc-network = "0.58.0"
-sc-network-sync = "0.57.0"
-sc-rpc = "54.0.0"
-sc-rpc-api = "0.58.0"
-sc-service = "0.60.0"
-sc-storage-monitor = "0.31.0"
-sc-sysinfo = "50.0.0"
-sc-telemetry = "33.0.0"
-sc-tracing = "47.0.0"
-sc-transaction-pool = "47.0.0"
-sc-transaction-pool-api = "46.0.0"
-sp-blockchain = "46.0.0"
-sp-consensus = "0.49.0"
-sp-consensus-grandpa = "30.0.0"
-sp-keystore = "0.49.0"
-sp-maybe-compressed-blob = "11.1.0"
-sp-timestamp = "43.0.0"
-try-runtime-cli = "0.42.0"
-
 # Substrate pallets
 # (wasm)
 pallet-balances = { version = "50.0.0", default-features = false }
@@ -154,21 +77,15 @@ frame-system = { version = "48.0.0", default-features = false }
 frame-executive = { version = "48.0.0", default-features = false }
 frame-metadata-hash-extension = { version = "0.16.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "43.0.0", default-features = false }
-pallet-assets = { version = "52.0.0", default-features = false }
 pallet-aura = { version = "48.0.0", default-features = false }
 pallet-authorship = { version = "48.0.0", default-features = false }
 pallet-collective = { version = "49.0.0", default-features = false }
 pallet-collator-selection = { version = "30.0.0", default-features = false }
-pallet-democracy = { version = "49.0.0", default-features = false }
-pallet-membership = { version = "49.0.0", default-features = false }
 pallet-message-queue = { version = "52.0.0", default-features = false }
 pallet-multisig = { version = "49.0.0", default-features = false }
 pallet-migrations = { version = "19.0.0", default-features = false }
-pallet-preimage = { version = "49.0.0", default-features = false }
 pallet-proxy = { version = "49.0.0", default-features = false }
-pallet-scheduler = { version = "50.0.0", default-features = false }
 pallet-session = { version = "49.0.0", default-features = false }
-pallet-treasury = { version = "48.0.0", default-features = false }
 pallet-utility = { version = "49.0.0", default-features = false }
 pallet-vesting = { version = "49.0.0", default-features = false }
 pallet-sudo = { version = "49.0.0", default-features = false }
@@ -180,22 +97,9 @@ frame-benchmarking = { version = "49.0.0", default-features = false }
 frame-system-benchmarking = { version = "49.0.0", default-features = false }
 frame-try-runtime = { version = "0.54.0", default-features = false }
 pallet-grandpa = { version = "49.0.0", default-features = false }
-sp-staking = { version = "45.0.0", default-features = false }
 pallet-xcm = { version = "29.0.0", default-features = false }
 pallet-xcm-benchmarks = { version = "29.0.0", default-features = false }
 parachains-common = { version = "32.0.0", default-features = false }
-
-# Cumulus
-# (native)
-cumulus-client-cli = "0.32.0"
-cumulus-client-consensus-common = "0.32.0"
-cumulus-client-consensus-relay-chain = "0.32.0"
-cumulus-client-network = "0.32.0"
-cumulus-client-service = "0.36.0"
-cumulus-client-parachain-inherent = "0.26.0"
-cumulus-primitives-parachain-inherent = "0.26.0"
-cumulus-relay-chain-interface = "0.32.0"
-cumulus-relay-chain-rpc-interface = "0.32.0"
 
 # Cumulus
 # (wasm)
@@ -208,19 +112,11 @@ cumulus-pallet-session-benchmarking = { version = "30.0.0", default-features = f
 cumulus-pallet-weight-reclaim = { version = "0.11.0", default-features = false }
 cumulus-primitives-aura = { version = "0.24.0", default-features = false }
 cumulus-primitives-core = { version = "0.26.0", default-features = false }
-cumulus-primitives-timestamp = { version = "0.27.0", default-features = false }
 cumulus-primitives-utility = { version = "0.30.0", default-features = false }
-
-# Polkadot
-# (native)
-polkadot-cli = "36.0.0"
-polkadot-omni-node-lib = "0.18.0"
-polkadot-jemalloc-shim = "0.6.0"
 
 # Polkadot
 # (wasm)
 polkadot-runtime-parachains = { version = "28.0.0", default-features = false }
-polkadot-primitives = { version = "25.0.0", default-features = false }
 polkadot-parachain-primitives = { version = "23.0.0", default-features = false }
 polkadot-runtime-common = { version = "29.0.0", default-features = false }
 xcm = { version = "24.0.0", package = "staging-xcm", default-features = false }
@@ -241,10 +137,6 @@ pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
 robonomics-collator-rewards = { path = "./frame/collator-rewards", default-features = false }
 parachain-info = { path = "./frame/parachain-info", default-features = false }
 
-# Robonomics runtimes
+# Robonomics runtime
 robonomics-runtime.path = "./runtime/robonomics"
 robonomics-runtime-subxt-api.path = "./runtime/robonomics/subxt-api"
-
-# Tools
-libcps = { path = "./tools/libcps", default-features = false }
-robonet.path = "./tools/robonet"
