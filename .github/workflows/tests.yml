@@ -19,7 +19,7 @@ on:
     outputs:
       status:
         description: "Status of the tests"
-        value: ${{ jobs.unit-tests.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
+        value: ${{ jobs.unit-tests.outputs.status == 'success' }}
 
 jobs:
   static-checks:

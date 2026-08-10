@@ -20,6 +20,10 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
   workflow_call:
+    outputs:
+      status:
+        description: "Status of runtime checkos"
+        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-behcmarks.outputs.status == 'success' }}
 
 concurrency:
   group: metadata-check-${{ github.ref }}
@@ -31,8 +35,9 @@ env:
 
 jobs:
   check-metadata:
-    name: Runtime Metadata Integrity
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -63,7 +68,6 @@ jobs:
         run: ./scripts/try-runtime.sh
 
   runtime-benchmarks:
-    needs: static-checks
     runs-on: ubuntu-latest
     outputs:
       status: ${{ job.status }}
