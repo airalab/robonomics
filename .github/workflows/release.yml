@@ -10,10 +10,6 @@ on:
 jobs:
   nightly:
     uses: ./.github/workflows/nightly.yml
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   publish-release-draft:
     needs: nightly
@@ -62,32 +58,7 @@ jobs:
         body_path: body.md
         draft: true
 
-  upload-binaries:
-    needs: publish-release-draft
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        bin: [robonomics,cps]
-        os: [linux, macos] 
-        arch: [x86_64, aarch64]
-    steps:
-    - name: Download pre-built artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
-        path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }} 
-
-    - name: Upload binaries
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
-        asset_name: ${{ matrix.bin }}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}
-        asset_content_type: application/octet-stream
-
-  upload-runtimes:
+  upload-runtime:
     needs: publish-release-draft
     runs-on: ubuntu-latest
     steps:

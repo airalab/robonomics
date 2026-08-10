@@ -134,10 +134,8 @@ mod tests {
     fn test_store_data() {
         new_test_ext().execute_with(|| {
             let sender = 1;
-            let decoded = bs58::decode("QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST")
-                .into_vec()
-                .expect("Couldn't decode from Base58");
-            let param = BoundedVec::try_from(decoded).expect("Bad bounds");
+            let value = b"QmY91yTMHzAd9csvKtPF1b1NS5CVhdoSRz2CBwTGTxkvST".to_vec();
+            let param = BoundedVec::try_from(value).expect("Bad bounds");
             let data = 0;
             assert_ok!(Launch::launch(RuntimeOrigin::signed(sender), data, param));
         })
