@@ -28,5 +28,11 @@ mod cli;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
+
+    // Install the ring CryptoProvider for rustls before any TLS connections are made.
+    // Ignore the error if a provider was already installed.
+    // TODO: remove when fixed https://github.com/paritytech/polkadot-sdk/issues/11164
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     cli::run()
 }

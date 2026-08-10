@@ -18,6 +18,7 @@ sp-genesis-builder = { workspace = true, optional = true }
 polkadot-jemalloc-shim.workspace = true
 polkadot-omni-node-lib.workspace = true
 color-eyre.workspace = true
+rustls.workspace = true
 
 # Build static with Musl
 [target.'cfg(target_env = "musl")'.dependencies]
