@@ -61,8 +61,8 @@ jobs:
         platform:
           - arch: x86_64
             os-name: ubuntu-26.04
-          - arch: aarch64
-            os-name: ubuntu-26.04-arm
+#          - arch: aarch64
+#            os-name: ubuntu-26.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -165,18 +165,18 @@ jobs:
 
     - run: chmod +x scripts/docker/amd64/robonomics
 
-    - name: Download pre-built aarch64 binaries 
-      uses: actions/download-artifact@v8
-      with:
-        name: package-linux-aarch64
-        path: scripts/docker/arm64/
-    - run: chmod +x scripts/docker/arm64/robonomics
+#    - name: Download pre-built aarch64 binaries 
+#      uses: actions/download-artifact@v8
+#      with:
+#        name: package-linux-aarch64
+#        path: scripts/docker/arm64/
+#    - run: chmod +x scripts/docker/arm64/robonomics
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6
       with:
         context: scripts/docker
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         labels: ${{ steps.docker_meta.outputs.labels }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         push: true

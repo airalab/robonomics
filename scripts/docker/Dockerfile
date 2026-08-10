@@ -31,8 +31,6 @@ COPY ./healthcheck.sh /usr/bin/
 HEALTHCHECK --interval=300s --timeout=75s --start-period=30s --retries=3 \
     CMD ["/usr/bin/healthcheck.sh"]
 
-LABEL description="This is the 2nd stage: an image where we copy the robonomics binary"
-
 ARG TARGETARCH
 COPY $TARGETARCH/robonomics /usr/local/bin
 
