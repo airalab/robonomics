@@ -33,11 +33,13 @@ HEALTHCHECK --interval=300s --timeout=75s --start-period=30s --retries=3 \
 
 ARG TARGETARCH
 COPY $TARGETARCH/robonomics /usr/local/bin
+COPY $TARGETARCH/cps /usr/local/bin
 
 USER robonomics
 
 # check if executable works in this container
 RUN ["robonomics", "--version"]
+RUN ["cps", "--version"]
 
 EXPOSE 30333 30334 9944 9945 9615 9616
 VOLUME ["/data"]

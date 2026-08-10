@@ -71,18 +71,13 @@ jobs:
         run: ./scripts/build-static.sh production
 
       - uses: actions/upload-artifact@v7
+        id: upload-robonomics
         with:
-          name: robonomics-linux-${{ matrix.platform.arch }}
-          path: target/production/robonomics
           retention-days: 7
-          archive: false
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: cps-linux-${{ matrix.platform.arch }}
-          path: target/production/cps
-          retention-days: 7
-          archive: false
+          name: linux-${{ matrix.platform.arch }}
+          path: |
+            target/production/robonomics
+            target/production/cps
 
   build-macos:
     needs: tests
@@ -119,17 +114,11 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: robonomics-macos-${{ matrix.platform.arch }}
-          path: target/${{ matrix.platform.target }}/production/robonomics
           retention-days: 7
-          archive: false
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: cps-macos-${{ matrix.platform.arch }}
-          path: target/${{ matrix.platform.target }}/production/cps
-          retention-days: 7
-          archive: false
+          name: macos-${{ matrix.platform.arch }}
+          path: |
+            target/${{ matrix.platform.target }}/production/robonomics
+            target/${{ matrix.platform.target }}/production/cps
 
   docker:
     needs: build-linux
@@ -157,20 +146,17 @@ jobs:
         images: robonomics/robonomics
         tags: type=sha # add git short SHA as Docker tag
 
-    - name: Download pre-built amd64 binaries
+    - name: Download pre-built binaries
       uses: actions/download-artifact@v8
       with:
-        name: robonomics-linux-x86_64
-        path: scripts/docker/amd64/
+        pattern: linux-*
+        path: scripts/docker
+        merge-multiple: false
 
-    - run: chmod +x scripts/docker/amd64/robonomics
-
-#    - name: Download pre-built aarch64 binaries 
-#      uses: actions/download-artifact@v8
-#      with:
-#        name: package-linux-aarch64
-#        path: scripts/docker/arm64/
-#    - run: chmod +x scripts/docker/arm64/robonomics
+    - name: Prepare binaries 
+      run: |
+        chmod +x scripts/docker/linux-*/*
+        mv scripts/docker/linux-x86_64 scripts/docker/amd64
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6
