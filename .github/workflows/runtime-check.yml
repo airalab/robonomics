@@ -22,7 +22,7 @@ on:
   workflow_call:
     outputs:
       status:
-        description: "Status of runtime checkos"
+        description: "Status of runtime check"
         value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
 
 concurrency:

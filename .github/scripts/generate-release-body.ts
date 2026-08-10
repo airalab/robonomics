@@ -348,10 +348,12 @@ ${moduleLinks.map((modules) => `${capitalize(modules.name)}: ${modules.link}`).j
 ## Download Links
 | Arch |  Link  |
 | ----------- | ------- |
-| \`Linux x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-linux-x86_64.tar.gz) |
-| \`Linux aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-linux-aarch64.tar.gz) |
-|  \`MacOS x86_64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-x86_64.tar.gz) |
-|  \`MacOS aarch64\` | [Download](https://github.com/airalab/robonomics/releases/download/${newTag}/package-${newTag}-macos-aarch64.tar.gz) |
+| \`Linux x86_64\` | [robonomics](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-linux-x86_64) |
+| \`MacOS x86_64\` | [robonomics](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-macos-x86_64) |
+| \`MacOS aarch64\` | [robonomics](https://github.com/airalab/robonomics/releases/download/${newTag}/robonomics-macos-aarch64) |
+| \`Linux x86_64\` | [cps](https://github.com/airalab/robonomics/releases/download/${newTag}/cps-linux-x86_64) |
+| \`MacOS x86_64\` | [cps](https://github.com/airalab/robonomics/releases/download/${newTag}/cps-macos-x86_64) |
+| \`MacOS aarch64\` | [cps](https://github.com/airalab/robonomics/releases/download/${newTag}/package-macos-aarch64) |
 
 [<img src="https://github.com/airalab/robonomics/blob/master/.github/images/docker.webp" height="200px">](https://hub.docker.com/r/robonomics/robonomics/tags)
 `

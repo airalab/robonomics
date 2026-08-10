@@ -17,21 +17,20 @@ Download the official v4.3.0 binary from GitHub:
 Download and install:
 
 ```bash
-wget -o robonomics.tar.gz \
-  https://github.com/airalab/robonomics/releases/download/v4.3.0/robonomics-v4.3.0-ubuntu-x86_64.tar.gz
-tar -xzf robonomics.tar.gz
+wget -o robonomics \
+  https://github.com/airalab/robonomics/releases/download/v4.3.0/robonomics-linux-x86_64
+chmod +x robonomics
 sudo mv robonomics /usr/local/bin/
-sudo chmod +x /usr/local/bin/robonomics
 ```
 
 ## Generate Network Key
 
-v4.2.0 refuses to start without a valid network key. Generate one before first launch:
+v4.3.0 refuses to start without a valid network key. Generate one before first launch:
 
 ```bash
 robonomics key generate-node-key \
   --base-path /var/lib/robonomics/base/ \
-  --chain /var/lib/robonomics/robonomics-kusama.raw.json
+  --chain /var/lib/robonomics/robonomics-polkadot.raw.json
 ```
 
 Replace the `--chain` value with your chain spec path. 
