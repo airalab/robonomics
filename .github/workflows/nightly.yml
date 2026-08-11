@@ -6,7 +6,6 @@ on:
   push:
     branches:
     - 'master'
-    - 'release/*'
 
   workflow_call:
     secrets:
@@ -70,17 +69,14 @@ jobs:
       - name: Build static binaries
         run: ./scripts/build-static.sh production
 
-      - run: |
-          mkdir linux-${{ matrix.platform.arch }}
-          cp target/production/robonomics linux-${{ matrix.platform.arch }}
-          cp target/production/cps linux-${{ matrix.platform.arch }}
-
       - uses: actions/upload-artifact@v7
         id: upload-robonomics
         with:
           retention-days: 7
           name: linux-${{ matrix.platform.arch }}
-          path: linux-${{ matrix.platform.arch }}
+          path: |
+            target/production/robonomics
+            target/production/cps
 
   build-macos:
     needs: tests
@@ -115,16 +111,13 @@ jobs:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm@21/lib
         run: cargo build --profile=production --target=${{ matrix.platform.target }}
 
-      - run: |
-          mkdir macos-${{ matrix.platform.arch }}
-          cp target/${{ matrix.platform.target }}/production/robonomics macos-${{ matrix.platform.arch }}
-          cp target/${{ matrix.platform.target }}/production/cps macos-${{ matrix.platform.arch }}
-
       - uses: actions/upload-artifact@v7
         with:
           retention-days: 7
           name: macos-${{ matrix.platform.arch }}
-          path: macos-${{ matrix.platform.arch }}
+          path: |
+            target/${{ matrix.platform.target }}/production/robonomics
+            target/${{ matrix.platform.target }}/production/cps
 
   docker:
     needs: build-linux
@@ -155,14 +148,8 @@ jobs:
     - name: Download pre-built binaries
       uses: actions/download-artifact@v8
       with:
-        pattern: linux-*
-        path: scripts/docker
-        merge-multiple: true
-
-    - name: Prepare binaries 
-      run: |
-        chmod +x scripts/docker/linux-*/*
-        mv scripts/docker/linux-x86_64 scripts/docker/amd64
+        name: linux-x86_64 
+        path: scripts/docker/amd64
 
     - name: Build & Push docker image
       uses: docker/build-push-action@v6
