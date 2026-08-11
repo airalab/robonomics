@@ -70,14 +70,17 @@ jobs:
       - name: Build static binaries
         run: ./scripts/build-static.sh production
 
+      - run: |
+          mkdir linux-${{ matrix.platform.arch }}
+          cp target/production/robonomics linux-${{ matrix.platform.arch }}
+          cp target/production/cps linux-${{ matrix.platform.arch }}
+
       - uses: actions/upload-artifact@v7
         id: upload-robonomics
         with:
           retention-days: 7
           name: linux-${{ matrix.platform.arch }}
-          path: |
-            target/production/robonomics
-            target/production/cps
+          path: linux-${{ matrix.platform.arch }}
 
   build-macos:
     needs: tests
@@ -112,13 +115,16 @@ jobs:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm@21/lib
         run: cargo build --profile=production --target=${{ matrix.platform.target }}
 
+      - run: |
+          mkdir macos-${{ matrix.platform.arch }}
+          cp target/${{ matrix.platform.target }}/production/robonomics macos-${{ matrix.platform.arch }}
+          cp target/${{ matrix.platform.target }}/production/cps macos-${{ matrix.platform.arch }}
+
       - uses: actions/upload-artifact@v7
         with:
           retention-days: 7
           name: macos-${{ matrix.platform.arch }}
-          path: |
-            target/${{ matrix.platform.target }}/production/robonomics
-            target/${{ matrix.platform.target }}/production/cps
+          path: macos-${{ matrix.platform.arch }}
 
   docker:
     needs: build-linux
@@ -151,7 +157,7 @@ jobs:
       with:
         pattern: linux-*
         path: scripts/docker
-        merge-multiple: false
+        merge-multiple: true
 
     - name: Prepare binaries 
       run: |
