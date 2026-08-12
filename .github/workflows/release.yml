@@ -16,6 +16,7 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   release:
+    needs: nightly
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
