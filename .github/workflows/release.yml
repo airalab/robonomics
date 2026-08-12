@@ -15,135 +15,36 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-  publish-release-draft:
-    needs: nightly
-    runs-on: ubuntu-latest
-    outputs:
-      release_url: ${{ steps.create-release.outputs.html_url }}
-      upload_url: ${{ steps.create-release.outputs.upload_url }}
-    steps:
-    - uses: actions/checkout@v5
-
-    - name: Download runtime
-      uses: actions/download-artifact@v4
-      with:
-        name: robonomics-runtime
-        path: runtime-artifacts
-
-    - name: Use Node.js 22.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.x
-
-    - name: Get the latest release
-      id: latest-release
-      uses: pozetroninc/github-action-get-latest-release@v0.5.0
-      with:
-        repository: airalab/robonomics
-        excludes: "prerelease, draft"
-
-    - name: Generate Release Body
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      id: generate-release-body
-      run: |
-        cd .github/scripts
-        yarn
-        yarn -s run ts-node generate-release-body.ts generate --owner "${{ github.repository_owner }}" --repo "$(basename ${{ github.repository }})" --from "${{ steps.latest-release.outputs.release }}" --to "${{ github.ref_name }}" --srtool-report-folder '../../runtime-artifacts/' > ../../body.md
-
-    - name: Create Release Draft
-      id: create-release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: ${{ github.ref_name }}
-        body_path: body.md
-        draft: true
-
-  upload-binaries:
-    needs: publish-release-draft
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        bin: [robonomics,cps]
-        os: [linux, macos] 
-        arch: [x86_64, aarch64]
-    steps:
-    - name: Download pre-built artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
-        path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }} 
-
-    - name: Upload binaries
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: ${{ matrix.bin }}-${{ matrix.os }}-${{ matrix.arch }}
-        asset_name: ${{ matrix.bin }}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}
-        asset_content_type: application/octet-stream
-
-  upload-runtimes:
-    needs: publish-release-draft
+  release:
     runs-on: ubuntu-latest
     steps:
-    - name: Download runtime
-      uses: actions/download-artifact@v4
-      with:
-        name: robonomics-runtime
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Get runtime version
-      id: get-runtime-version
-      run: |
-        ls -R
-        runtime_version=$(cat robonomics-compressed-info.json | jq '.core_version' | tr -d '"' | cut -d ' ' -f 1)
-        echo "$runtime_version"
-        echo "runtime=$runtime_version" >> "$GITHUB_ENV"
-        echo "robonomics=$runtime_version" >> "$GITHUB_OUTPUT"
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: linux-*
+          path: linux 
 
-    - name: Upload Robonomics Wasm
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: robonomics_runtime.compact.compressed.wasm
-        asset_name: ${{ env.runtime }}.wasm
-        asset_content_type: application/wasm
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: macos-*
+          path: macos 
 
-    - name: Upload Robonomics Metadata
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: robonomics-metadata.json
-        asset_name: robonomics-metadata.json
-        asset_content_type: application/json
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: robonomics-runtime
+          path: runtime
 
-    - name: Upload Robonomics Compressed Info
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: robonomics-compressed-info.json
-        asset_name: robonomics-compressed-info.json
-        asset_content_type: application/json
-
-    - name: Upload Robonomics Srtool Digest
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.publish-release-draft.outputs.upload_url }}
-        asset_path: robonomics-srtool-digest.json
-        asset_name: robonomics-srtool-digest.json
-        asset_content_type: application/json
-
-    outputs:
-      main_runtime_version: ${{ steps.get-runtime-version.outputs.main }}
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            runtime/*
+            linux/*
+            macos/*
