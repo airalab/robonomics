@@ -35,7 +35,8 @@ ARG TARGETARCH
 COPY $TARGETARCH/robonomics /usr/bin
 COPY $TARGETARCH/cps /usr/bin
 
-USER robonomics
+# make all copied files executable
+RUN chmod +x /usr/bin/healthcheck.sh /usr/bin/robonomics /usr/bin/cps
 
 # check if executable works in this container
 RUN ["/usr/bin/robonomics", "--version"]
@@ -43,5 +44,6 @@ RUN ["/usr/bin/cps", "--version"]
 
 EXPOSE 30333 30334 9944 9945 9615 9616
 VOLUME ["/data"]
+USER robonomics
 
 CMD ["/usr/bin/robonomics"]
