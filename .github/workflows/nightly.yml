@@ -151,8 +151,6 @@ jobs:
         name: linux-x86_64 
         path: scripts/docker/amd64
 
-    - run: find scripts/docker
-
     - name: Build & Push docker image
       uses: docker/build-push-action@v6
       with:
