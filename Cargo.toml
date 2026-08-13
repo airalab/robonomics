@@ -121,7 +121,7 @@ sc-client-api = "47.0.0"
 sc-chain-spec = "51.0.0"
 sc-consensus = "0.57.0"
 sc-consensus-aura = "0.58.0"
-sc-consensus-grandpa = "0.43.0"
+sc-consensus-grandpa = "0.43.1"
 sc-executor = "0.50.0"
 sc-executor-common = "0.47.0"
 sc-offchain = "53.0.0"
@@ -169,7 +169,7 @@ pallet-proxy = { version = "49.0.0", default-features = false }
 pallet-scheduler = { version = "50.0.0", default-features = false }
 pallet-session = { version = "49.0.0", default-features = false }
 pallet-treasury = { version = "48.0.0", default-features = false }
-pallet-utility = { version = "49.0.0", default-features = false }
+pallet-utility = { version = "49.0.1", default-features = false }
 pallet-vesting = { version = "49.0.0", default-features = false }
 pallet-sudo = { version = "49.0.0", default-features = false }
 pallet-timestamp = { version = "48.0.0", default-features = false }
@@ -214,7 +214,7 @@ cumulus-primitives-utility = { version = "0.30.0", default-features = false }
 # Polkadot
 # (native)
 polkadot-cli = "36.0.0"
-polkadot-omni-node-lib = "0.18.0"
+polkadot-omni-node-lib = "0.18.1"
 polkadot-jemalloc-shim = "0.6.0"
 
 # Polkadot

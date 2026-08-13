@@ -18,6 +18,7 @@ jobs:
   release:
     needs: nightly
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -46,6 +47,6 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            runtime/*
-            linux/*
-            macos/*
+            runtime/**
+            linux/**
+            macos/**
