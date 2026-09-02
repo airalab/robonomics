@@ -86,6 +86,9 @@ Key flags:
 
 Robonomics >= v4.0 follows the updated Polkadot SDK requirements, so collators must generate fresh session keys.
 
+> For the official reference on session key generation and management, see the Polkadot documentation:
+> [Generate Session Keys](https://docs.polkadot.com/node-infrastructure/run-a-validator/onboarding-and-offboarding/key-management/#generate-session-keys).
+
 **Important:** You must temporarily start the node with `--rpc-methods unsafe` for the `author_rotateKeys` RPC call to work. Remove this flag after generating keys.
 
 To generate session keys:
