@@ -89,20 +89,31 @@ Robonomics >= v4.0 follows the updated Polkadot SDK requirements, so collators m
 > For the official reference on session key generation and management, see the Polkadot documentation:
 > [Generate Session Keys](https://docs.polkadot.com/node-infrastructure/run-a-validator/onboarding-and-offboarding/key-management/#generate-session-keys).
 
-**Important:** You must temporarily start the node with `--rpc-methods unsafe` for the `author_rotateKeys` RPC call to work. Remove this flag after generating keys.
+**Important:** You must temporarily start the node with `--rpc-methods unsafe` for the `author_rotateKeysWithOwner` RPC call to work. Remove this flag after generating keys.
 
 To generate session keys:
 
-1. Run the RPC method on your node:
+1. Run the RPC method on your node, replacing `INSERT_STASH_ACCOUNT_ID` with your collator's stash (own) account ID:
 
    ```
    curl -H "Content-Type: application/json" \
-     -d '{"id":1,"jsonrpc":"2.0","method":"author_rotateKeys","params":[]}' \
+     -d '{"id":1,"jsonrpc":"2.0","method":"author_rotateKeysWithOwner","params":["INSERT_STASH_ACCOUNT_ID"]}' \
      http://127.0.0.1:9944
    ```
-2. The command returns a hex-encoded public key bundle.
-3. Copy this value and store it — you will need it for on-chain registration.
-4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeys`).
+2. The command returns a JSON object with two fields in the result: `keys` (the hex-encoded session keys) and `proof` (the ownership proof), for example:
+
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "result": {
+       "keys": "0xda3861a45e0197f3ca145c2c209f9126e5053fas503e459af4255cf8011d51010",
+       "proof": "0x1a2b3c4d5e6f..."
+     },
+     "id": 1
+   }
+   ```
+3. Save both the `keys` and `proof` values — you will need them for on-chain registration.
+4. Ensure the keys are inserted automatically by the node (this happens when using `author_rotateKeysWithOwner`).
    You can verify this using the following command:
 
    ```
@@ -111,11 +122,11 @@ To generate session keys:
    --data-raw '{
     "jsonrpc": "2.0",
     "method": "author_hasSessionKeys",
-    "params": ["'"ROTATE_KEYS_RESULT"'"],
+    "params": ["'"KEYS_RESULT"'"],
     "id": 1
    }' | jq
    ```
-   NOTE: Replace `ROTATE_KEYS_RESULT` with the hex-encoded public key you just received from `author_rotateKeys`.
+   NOTE: Replace `KEYS_RESULT` with the hex-encoded `keys` value you just received from `author_rotateKeysWithOwner`.
 
 5. **Remove `--rpc-methods unsafe`** from your startup configuration and restart the node.
 
@@ -131,9 +142,9 @@ Typical steps:
    session.setKeys(keys, proof)
    ```
 
-   - In the **"keys"** field paste the full hex string from `author_rotateKeys` (the one you generated earlier).
+   - In the **"keys"** field paste the `keys` value from `author_rotateKeysWithOwner` (the one you generated earlier).
 
-   - In the **"proof"** field enter `0x` (empty bytes).
+   - In the **"proof"** field paste the `proof` value from `author_rotateKeysWithOwner` (do **not** use `0x` empty bytes — the proof binds the session keys to your stash account).
 
 2. Then Submit the extrinsic using the same collator account as origin:
 
