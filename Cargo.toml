@@ -27,7 +27,7 @@ resolver = "2"
 [workspace.dependencies]
 # Subxt Runtime API (native)
 seahash = "4.1"
-# Subxt 0.44 used by Polkadot SDK, update when it switch out
+# Subxt 0.44 used by Polkadot SDK, update when it switches out
 subxt = "0.44"
 subxt-signer = "0.44"
 sc-executor = "0.50.0"
