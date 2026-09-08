@@ -832,7 +832,6 @@ type SingleBlockMigrations = (
     // Remove pallet storage
     frame_support::migrations::RemovePallet<TeleportXrtName, RocksDbWeight>,
     frame_support::migrations::RemovePallet<ClaimXrtName, RocksDbWeight>,
-
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
