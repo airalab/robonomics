@@ -46,15 +46,6 @@
       ];
       eachSystem = f: nixpkgs.lib.genAttrs (import systems) (system: f system (mkPkgs system));
     in {
-      checks = eachSystem (
-        system: pkgs: {
-          buildAll = pkgs.symlinkJoin {
-            name = "build-all-packages";
-            paths = builtins.attrValues self.packages.${system};
-          };
-        }
-      );
-
       lib = eachSystem (system: pkgs: {
         mkDevShell = args: import ./shell.nix ({ inherit pkgs; } // args);
       });
