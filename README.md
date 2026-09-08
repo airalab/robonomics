@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/airalab/robonomics/total.svg)](https://github.com/airalab/robonomics/releases)
 [![Matrix](https://img.shields.io/matrix/robonomics:matrix.org)](https://matrix.to/#/#robonomics:matrix.org)
 
-> Robonomics in based on the [Polkadot SDK](https://polkadot.com/platform/sdk/). For more specific guides, like how to be a node, see the [Robonomics Wiki](https://wiki.robonomics.network).
+> Robonomics is based on the [Polkadot SDK](https://polkadot.com/platform/sdk/). For more specific guides, like how to be a node, see the [Robonomics Wiki](https://wiki.robonomics.network).
 
 Robonomics is a set of open-source packages and infrastructure for Robotics, Smart Cities and Industry 4.0.
 
