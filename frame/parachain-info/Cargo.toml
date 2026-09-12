@@ -8,22 +8,25 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-machete]
+ignored = ["parity-scale-codec", "scale-info", "sp-runtime"]
+
 [dependencies]
 parity-scale-codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
 cumulus-primitives-core.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true
-scale-info = { features = ["derive"], workspace = true }
 sp-runtime.workspace = true
 
 [features]
 default = ["std"]
 std = [
   "parity-scale-codec/std",
+  "scale-info/std",
   "cumulus-primitives-core/std",
   "frame-support/std",
   "frame-system/std",
-  "scale-info/std",
   "sp-runtime/std",
 ]
 try-runtime = [

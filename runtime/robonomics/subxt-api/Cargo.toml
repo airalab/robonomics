@@ -32,7 +32,6 @@ seahash.workspace = true
 seahash.optional = true
 
 [dev-dependencies]
-tokio.workspace = true
 subxt-signer.workspace = true
 
 [features]

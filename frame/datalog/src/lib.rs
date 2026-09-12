@@ -396,10 +396,7 @@ mod tests {
     }
 
     pub fn hash2vec(ss58hash: &str) -> BoundedVec<u8, MaximumMessageSize> {
-        let ss58vec = bs58::decode(ss58hash)
-            .into_vec()
-            .expect("Couldn't decode from Base58");
-        BoundedVec::try_from(ss58vec).expect("Couldn't bound decoded Base58")
+        BoundedVec::try_from(ss58hash.as_bytes().to_vec()).expect("Couldn't wrap string")
     }
 
     #[test]

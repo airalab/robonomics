@@ -16,7 +16,7 @@
 
   inputs = {
     systems.url = "github:nix-systems/default";
-    nixpkgs.url = "github:NixOS/nixpkgs/05988b07fb05cbcb50be6bce197b4b5f75b5e61b";
+    nixpkgs.url = "github:NixOS/nixpkgs/0af3d1402dec3fc7e93635e511d1f7428c89cebf";
 
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
@@ -46,15 +46,6 @@
       ];
       eachSystem = f: nixpkgs.lib.genAttrs (import systems) (system: f system (mkPkgs system));
     in {
-      checks = eachSystem (
-        system: pkgs: {
-          buildAll = pkgs.symlinkJoin {
-            name = "build-all-packages";
-            paths = builtins.attrValues self.packages.${system};
-          };
-        }
-      );
-
       lib = eachSystem (system: pkgs: {
         mkDevShell = args: import ./shell.nix ({ inherit pkgs; } // args);
       });
@@ -63,26 +54,15 @@
         system: pkgs: rec {
           default = self.lib.${system}.mkDevShell {
             packages = with pkgs; [
-              openssl taplo actionlint cargo-nextest cargo-audit
-              psvm try-runtime-cli subxt-cli srtool-cli frame-omni-bencher
-              pkgs.polkadot polkadot-parachain
+              openssl taplo actionlint cargo-nextest cargo-audit cargo-machete
+              psvm try-runtime-cli srtool-cli frame-omni-bencher
             ];
             env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
           }; 
           benchmarking = self.lib.${system}.mkDevShell {
             packages = with pkgs; [ frame-omni-bencher ];
           }; 
-          robonet = with pkgs; mkShell {
-            buildInputs = [ robonomics libcps ];
-          };
         }
       );
-
-      packages = eachSystem (system: pkgs: import ./nix/pkgs { inherit pkgs self; });
-    }
-    // {
-      overlays = {
-        default = final: prev: import ./overlay.nix final prev;
-      };
     };
 }

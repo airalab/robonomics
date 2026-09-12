@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 43,
+    spec_version: 50,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -822,15 +822,18 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
+parameter_types! {
+    pub const TeleportXrtName: &'static str = "TeleportXRT";
+    pub const ClaimXrtName: &'static str = "ClaimXRT";
+}
+
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
+    // Remove pallet storage
+    frame_support::migrations::RemovePallet<TeleportXrtName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<ClaimXrtName, RocksDbWeight>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
-    // Cumulus pallets migrations
-    cumulus_pallet_parachain_system::migration::Migration<Runtime>,
-    // XCMP Queue migrations: v5 → v6 → v7
-    cumulus_pallet_xcmp_queue::migration::v6::MigrateV5ToV6<Runtime>,
-    cumulus_pallet_xcmp_queue::migration::v7::MigrateV6ToV7<Runtime>,
 );
 
 #[cfg(feature = "runtime-benchmarks")]

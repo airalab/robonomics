@@ -1,6 +1,6 @@
 # Robonomics Collator Guidelines 
 
-This guide explains how to upgrade your Robonomics node to **version 4.3.0**.
+This guide explains how to upgrade your Robonomics node to **version 5.0.0**.
 
 In this manual we are assuming the following things:
 - The service is run on behalf of the `robonomics` user
@@ -9,16 +9,16 @@ In this manual we are assuming the following things:
 
 ## Download Binary
 
-Download the official v4.3.0 binary from GitHub:
+Download the official binary from GitHub:
 
-* **Release:** `v4.3.0`
-* Link: [https://github.com/airalab/robonomics/releases/tag/v4.3.0](https://github.com/airalab/robonomics/releases/tag/v4.3.0)
+* **Release:** `v5.0.0`
+* Link: [https://github.com/airalab/robins/releases/tag/v5.0.0](https://github.com/airalab/robins/releases/tag/v5.0.0)
 
 Download and install:
 
 ```bash
 wget -o robonomics \
-  https://github.com/airalab/robonomics/releases/download/v4.3.0/robonomics-linux-x86_64
+  https://github.com/airalab/robins/releases/download/v5.0.0/robonomics-linux-x86_64
 chmod +x robonomics
 sudo mv robonomics /usr/local/bin/
 ```
