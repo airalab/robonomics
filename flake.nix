@@ -16,7 +16,7 @@
 
   inputs = {
     systems.url = "github:nix-systems/default";
-    nixpkgs.url = "github:NixOS/nixpkgs/05988b07fb05cbcb50be6bce197b4b5f75b5e61b";
+    nixpkgs.url = "github:NixOS/nixpkgs/0af3d1402dec3fc7e93635e511d1f7428c89cebf";
 
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";

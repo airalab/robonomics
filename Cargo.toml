@@ -1,5 +1,5 @@
 [workspace.package]
-version = "4.3.0"
+version = "50.0.0"
 edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
