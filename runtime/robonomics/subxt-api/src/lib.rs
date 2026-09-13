@@ -32,7 +32,7 @@
 //!     let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
 //!     
 //!     // Query storage
-//!     let block_number = client.blocks().at_latest().await?.number();
+//!     let block_number = client.at_current_block().await?.block_number();
 //!     println!("Latest block: {}", block_number);
 //!     
 //!     Ok(())
@@ -77,8 +77,8 @@
 //! let alice = dev::alice();
 //!
 //! // Create and submit a transaction
-//! let tx = api::tx().system().remark(vec![1, 2, 3, 4]);
-//! let hash = client.tx().sign_and_submit_default(&tx, &alice).await?;
+//! let tx = api::transactions().system().remark(vec![1, 2, 3, 4]);
+//! let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
 //! println!("Transaction hash: {:?}", hash);
 //! # Ok(())
 //! # }
@@ -94,11 +94,10 @@
 //! let alice: AccountId32 = subxt_signer::sr25519::dev::alice().public_key().into();
 //!
 //! // Query account information
-//! let account = client
+//! let at_block = client.at_current_block().await?;
+//! let account = at_block
 //!     .storage()
-//!     .at_latest()
-//!     .await?
-//!     .fetch(&api::storage().system().account(alice))
+//!     .fetch(api::storage().system().account(), (alice,))
 //!     .await?;
 //! println!("Account: {:?}", account);
 //! # Ok(())
@@ -110,8 +109,7 @@
 pub use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 pub use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
 
-use subxt::config::DefaultExtrinsicParams;
-use subxt::config::DefaultExtrinsicParamsBuilder;
+use subxt::config::DefaultTransactionExtensions;
 use subxt::SubstrateConfig;
 
 /// Type for extrinsic events from blockchain transactions.
@@ -126,20 +124,21 @@ use subxt::SubstrateConfig;
 /// # use subxt::OnlineClient;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
-/// let block = client.blocks().at_latest().await?;
-/// let extrinsics = block.extrinsics().await?;
+/// let at_block = client.at_current_block().await?;
+/// let extrinsics = at_block.extrinsics().fetch().await?;
 ///
 /// for ext in extrinsics.iter() {
+///     let ext = ext?;
 ///     let events = ext.events().await?;
 ///     for event in events.iter() {
 ///         let event = event?;
-///         println!("Event: {}::{}", event.pallet_name(), event.variant_name());
+///         println!("Event: {}::{}", event.pallet_name(), event.event_name());
 ///     }
 /// }
 /// # Ok(())
 /// # }
 /// ```
-pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
+pub type ExtrinsicEvents = subxt::extrinsics::ExtrinsicEvents<RobonomicsConfig>;
 
 /// Default configuration type for Robonomics blockchain nodes.
 ///
@@ -155,7 +154,7 @@ pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
 /// - **Header**: Standard Substrate header with `u32` block numbers
 /// - **AssetId**: `u32` - Asset identifier type for multi-asset support
 /// - **Address**: [`MultiAddress`] - Address format supporting both account IDs and indices
-/// - **ExtrinsicParams**: [`RobonomicsExtrinsicParams`] - Transaction parameters
+/// - **TransactionExtensions**: [`RobonomicsTransactionExtensions`] - Transaction parameters
 ///
 /// # Example
 ///
@@ -169,8 +168,8 @@ pub type ExtrinsicEvents = subxt::blocks::ExtrinsicEvents<RobonomicsConfig>;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum RobonomicsConfig {}
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct RobonomicsConfig;
 
 impl subxt::Config for RobonomicsConfig {
     type AccountId = <SubstrateConfig as subxt::Config>::AccountId;
@@ -179,7 +178,7 @@ impl subxt::Config for RobonomicsConfig {
     type Header = <SubstrateConfig as subxt::Config>::Header;
     type AssetId = <SubstrateConfig as subxt::Config>::AssetId;
     type Address = MultiAddress<Self::AccountId, ()>;
-    type ExtrinsicParams = RobonomicsExtrinsicParams<Self>;
+    type TransactionExtensions = RobonomicsTransactionExtensions<Self>;
 }
 
 /// A struct representing the signed extra and additional parameters required
@@ -198,47 +197,20 @@ impl subxt::Config for RobonomicsConfig {
 /// # Example
 ///
 /// ```no_run
-/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsExtrinsicParams};
+/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsTransactionExtensions};
 /// # use subxt::OnlineClient;
 /// # use subxt_signer::sr25519::dev;
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
 /// let alice = dev::alice();
-/// let tx = api::tx().system().remark(vec![1, 2, 3]);
+/// let tx = api::transactions().system().remark(vec![1, 2, 3]);
 ///
 /// // Use default params
-/// let hash = client.tx().sign_and_submit_default(&tx, &alice).await?;
+/// let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
 /// # Ok(())
 /// # }
 /// ```
-pub type RobonomicsExtrinsicParams<T> = DefaultExtrinsicParams<T>;
-
-/// A builder which leads to [`RobonomicsExtrinsicParams`] being constructed.
-///
-/// This builder allows you to customize transaction parameters before submitting.
-/// Use this when you need to set custom values for tips, mortality, nonce, etc.
-///
-/// # Example
-///
-/// ```no_run
-/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsExtrinsicParamsBuilder};
-/// # use subxt::OnlineClient;
-/// # use subxt_signer::sr25519::dev;
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
-/// let alice = dev::alice();
-/// let tx = api::tx().system().remark(vec![1, 2, 3]);
-///
-/// // Build custom params with a tip
-/// let params = RobonomicsExtrinsicParamsBuilder::<RobonomicsConfig>::new()
-///     .tip(1_000_000)
-///     .build();
-///
-/// let hash = client.tx().sign_and_submit(&tx, &alice, params).await?;
-/// # Ok(())
-/// # }
-/// ```
-pub type RobonomicsExtrinsicParamsBuilder<T> = DefaultExtrinsicParamsBuilder<T>;
+pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 
 /// Generated runtime metadata from subxt.
 #[allow(
