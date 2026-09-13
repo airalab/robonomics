@@ -22,7 +22,7 @@ let
         wild = "-Clink-arg=-fuse-ld=${wild}/bin/ld.wild -Clink-arg=-flto";
       };
       rustflags =
-        if stdenv.isDarwin then
+        if stdenv.hostPlatform.isDarwin then
           "-Clink-arg=-fuse-ld=${llvmPackages.lld}/bin/ld64.lld"
         else
           linkerFlags.${linker};

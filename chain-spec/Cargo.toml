@@ -1,0 +1,14 @@
+[package]
+name = "robonomics-chain-spec"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Robonomics parachain chain specs, embedded as static text."
+
+[dependencies]
+
+[dev-dependencies]
+serde_json.workspace = true

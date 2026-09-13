@@ -21,15 +21,15 @@ members = [
   "frame/cps",
   "runtime/robonomics",
   "runtime/robonomics/subxt-api",
+  "chain-spec",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 # Subxt Runtime API (native)
 seahash = "4.1"
-# Subxt 0.44 used by Polkadot SDK, update when it switches out
-subxt = "0.44"
-subxt-signer = "0.44"
+subxt = "0.50.3"
+subxt-signer = "0.50.3"
 sc-executor = "0.50.0"
 sc-executor-common = "0.47.0"
 sp-maybe-compressed-blob = "11.1.0"
@@ -128,15 +128,18 @@ xcm-runtime-apis = { version = "0.16.0", default-features = false }
 substrate-wasm-builder = "34.0.0"
 
 # Robonomics pallets
+pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
+pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
+robonomics-collator-rewards = { path = "./frame/collator-rewards", default-features = false }
+parachain-info = { path = "./frame/parachain-info", default-features = false }
+
+# Robonomics pallets (deprecated)
 pallet-robonomics-datalog = { path = "./frame/datalog", default-features = false }
 pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-features = false }
 pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
-pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
 pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
-pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
-robonomics-collator-rewards = { path = "./frame/collator-rewards", default-features = false }
-parachain-info = { path = "./frame/parachain-info", default-features = false }
 
 # Robonomics runtime
 robonomics-runtime.path = "./runtime/robonomics"
 robonomics-runtime-subxt-api.path = "./runtime/robonomics/subxt-api"
+robonomics-chain-spec.path = "./chain-spec"
