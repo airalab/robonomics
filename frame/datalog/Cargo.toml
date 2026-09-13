@@ -7,31 +7,33 @@ edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.cargo-machete]
+ignored = ["scale-info"]
+
 [dependencies]
-scale-info = { workspace = true }
-parity-scale-codec = { workspace = true }
-sp-std = { workspace = true }
-sp-runtime = { workspace = true }
-frame-system = { workspace = true }
-frame-support = { workspace = true }
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+sp-std.workspace = true
+sp-runtime.workspace = true
+frame-system.workspace = true
+frame-support.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-bs58 = { workspace = true }
-sp-io = { workspace = true }
-sp-core = { workspace = true }
+sp-io.workspace = true
+sp-core.workspace = true
 pallet-timestamp = { workspace = true, features = ["std"] }
 
 [features]
 default = ["std"]
 std = [
   "parity-scale-codec/std",
+  "scale-info/std",
   "sp-std/std",
   "sp-runtime/std",
   "frame-system/std",
   "frame-support/std",
   "frame-benchmarking?/std",
-  "scale-info/std",
 ]
 
 runtime-benchmarks = [

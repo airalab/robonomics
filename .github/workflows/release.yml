@@ -10,10 +10,6 @@ on:
 jobs:
   nightly:
     uses: ./.github/workflows/nightly.yml
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   release:
     needs: nightly
@@ -22,18 +18,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: linux-*
-          skip-decompress: true
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: macos-*
-          skip-decompress: true
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -47,6 +31,4 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            linux-*
-            macos-*/*
             srtool/*

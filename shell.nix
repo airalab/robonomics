@@ -38,22 +38,7 @@ mkShell.override { stdenv = clangStdenv; } {
     packages
     ++ [
       llvmPackages.lld
-      openssl
-      pkg-config
       rust-toolchain
-    ]
-    ++ lib.optionals stdenv.hostPlatform.isLinux [
-      rust-jemalloc-sys-unprefixed
     ];
-
-  env = {
-    LIBCLANG_PATH = lib.makeLibraryPath [ llvmPackages.libclang ];
-    RUST_SRC_PATH = "${rust-toolchain}/lib/rustlib/src/rust/library";
-
-    OPENSSL_NO_VENDOR = 1;
-    PROTOC = "${lib.makeBinPath [ protobuf ]}/protoc";
-    ROCKSDB_LIB_DIR = lib.makeLibraryPath [ rocksdb ];
-  }
-  // cargoLinker
-  // env;
+  env = cargoLinker // env;
 }

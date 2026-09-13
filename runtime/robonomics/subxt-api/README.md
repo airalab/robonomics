@@ -507,8 +507,8 @@ client.tx().sign_and_submit_default(&batch, &alice).await?;
 
 See the following projects for real-world usage:
 
-- **libcps**: CPS pallet interaction library ([tools/libcps](../../../tools/libcps))
-- **robonet**: Integration testing tool ([tools/robonet](../../../tools/robonet))
+- **libcps**: CPS pallet interaction library ([airalab/robins](https://github.com/airalab/robins))
+- **robonet**: Integration testing tool ([airalab/robins](https://github.com/airalab/robins))
 
 ## Related Documentation
 

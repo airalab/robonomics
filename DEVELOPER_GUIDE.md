@@ -2,6 +2,8 @@
 
 > Crates API is available at https://crates.robonomics.network.
 
+This repository hosts the **Robonomics Network runtime and FRAME pallets only**. The blockchain node binary and the accompanying tooling (`libcps`, `robonet`, etc.) now live in the [`airalab/robins`](https://github.com/airalab/robins) repository. Use `robins` when you need a runnable node, a local testnet, or the CLI tools; use this repository when you work on the runtime, pallets, or the type-safe `subxt-api`.
+
 Each component is designed to be modular and reusable, following Substrate's framework architecture. The workspace structure allows for efficient development and testing of individual components while maintaining consistency across the project.
 
 ## Nix Development Shells
@@ -16,7 +18,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 
 ### Default Development Shell
 
-For general node development, building, and testing:
+For runtime and pallet development, building, and testing:
 
 ```bash
 # Clone the repository
@@ -28,29 +30,27 @@ nix develop
 ```
 
 This shell provides:
-- **Rust toolchain** - Complete Rust environment with `cargo`, `rustc`, and `rustfmt`
-- **Build dependencies** - `clang`, `openssl`, `protobuf`, and other system libraries
+- **Rust toolchain** - Complete Rust environment with `cargo`, `rustc`, and `rustfmt`, pinned via `rust-toolchain.toml`
+- **Build dependencies** - `clang`/`lld` (via `clangStdenv`), `openssl`, and other system libraries
 - **Development tools**:
   - `taplo` - TOML file formatter
-  - `subxt-cli` - Substrate metadata tool
-  - `srtool-cli` - Deterministic WASM runtime builder
-  - `psvm` - Polkadot SDK version manager
-  - `frame-omni-bencher` - Benchmarking tool
-  - `try-runtime` - Dry-run runtime upgrade tool
   - `actionlint` - GitHub Actions workflow linter
-- **Environment variables** - Pre-configured `LIBCLANG_PATH`, `PROTOC`, `RUST_SRC_PATH`
+  - `cargo-nextest` - Next-generation test runner
+  - `cargo-audit` - Security vulnerability auditing for dependencies
+  - `cargo-machete` - Unused dependency detector
+  - `psvm` - Polkadot SDK version manager
+  - `try-runtime-cli` - Dry-run runtime upgrade tool
+  - `srtool-cli` - Deterministic WASM runtime builder
+  - `frame-omni-bencher` - Runtime benchmarking tool
 
 Common development tasks:
 
 ```bash
-# Build in release mode
+# Build the runtime (produces the WASM artifact under target/release/wbuild/)
 cargo build --release
 
-# Run the node in development mode
-./target/release/robonomics --dev
-
 # Run all tests
-cargo test --all
+cargo nextest run
 
 # Format code
 cargo fmt
@@ -62,69 +62,60 @@ cargo clippy --all-targets --all-features
 taplo fmt
 ```
 
-### Local Testnet Shell
+> Need a runnable node or a local testnet? Build and run the node from the
+> [`airalab/robins`](https://github.com/airalab/robins) repository, which also
+> ships the `robonet` local network orchestration tool and the CLI utilities.
 
-For multi-node testing with Zombienet:
+### Benchmarking Shell
 
-```bash
-nix develop .#robonet
-```
-
-This shell provides:
-- **`robonomics`** - Your built Robonomics node binary
-- **`polkadot`** - Polkadot relay chain binary
-- **`polkadot-parachain`** - Generic parachain binary
-- **`robonet`** - ZombienetSDK based local networks orchestration tool
-
-Use this for testing parachain functionality with multiple collators and relay chain nodes:
+For generating pallet weights with `frame-omni-bencher`:
 
 ```bash
-# Launch a test network
-robonet spawn
-
-# Run integration tests
-robonet test
+nix develop .#benchmarking
 ```
 
-Detailed **robonet** documentation available at crate [README](./tools/robonet/README.md).
+See [Runtime Benchmarking](#runtime-benchmarking) below for usage.
 
 ## Development Workflow
 
-**Running a Local Development Node:**
+**Building the Runtime:**
 
-The `--dev` flag starts a single-node development chain:
-
-```bash
-cargo run -- --dev
-```
-
-This creates:
-- A local testnet with pre-funded accounts (Alice, Bob, Charlie, Dave, Eve, Ferdie)
-- Temporary storage (cleared on restart)
-- WebSocket RPC endpoint at `ws://127.0.0.1:9944`
-- Block production every 6 seconds
-
-**Persisting Chain Data:**
+This workspace builds the Robonomics runtime WASM, not a node binary:
 
 ```bash
-# Store chain data in a custom directory
-./target/debug/robonomics --dev --base-path ./my-dev-chain
-
-# Clear the chain and start fresh
-./target/debug/robonomics --dev --base-path ./my-dev-chain purge-chain
+# Build the runtime; the WASM artifact is emitted under
+# target/release/wbuild/robonomics-runtime/
+cargo build --release -p robonomics-runtime
 ```
+
+To run the runtime inside a node — for example to start a `--dev` chain with
+pre-funded accounts (Alice, Bob, Charlie, …), WebSocket RPC on
+`ws://127.0.0.1:9944`, and block production — use the node binary from the
+[`airalab/robins`](https://github.com/airalab/robins) repository, pointing it at
+your locally built runtime WASM where needed.
+
+**Regenerating subxt-api metadata:**
+
+After changing the runtime, keep the type-safe `subxt-api` metadata in sync:
+
+```bash
+cargo build -p robonomics-runtime
+cargo build -p robonomics-runtime-subxt-api --features build-metadata
+```
+
+See [runtime/robonomics/subxt-api/README.md](./runtime/robonomics/subxt-api/README.md) for details.
 
 **Testing Changes:**
 
 ```bash
-# Run all tests (use nextest for speedup)
-cargo nextest run --all 
+# Run all tests (nextest is provided by the dev shell)
+cargo nextest run
 
 # Run tests for a specific pallet
 cargo test -p pallet-robonomics-datalog
 
-# Run integration tests
-cargo test --features runtime-benchmarks
+# Build with runtime benchmarks enabled
+cargo build --features runtime-benchmarks -p robonomics-runtime
 ```
 
 ## Runtime Benchmarking
@@ -244,19 +235,27 @@ For detailed documentation on workflow structure, caching strategies, and mainte
 
 ## Development Tooling
 
-The Robonomics workspace includes specialized tools for working with the network:
+The Robonomics node binary and its companion tools now live in the
+[`airalab/robins`](https://github.com/airalab/robins) repository. They are no
+longer part of this runtime-only workspace.
 
 ### libcps - CPS Library & CLI
 
 A comprehensive library and command-line interface for managing hierarchical Cyber-Physical Systems on Robonomics. Features multi-algorithm encryption, dual keypair support, and MQTT bridge for IoT integration.
 
-Documentation: [tools/libcps/README.md](./tools/libcps/README.md)
+Now maintained in [`airalab/robins`](https://github.com/airalab/robins).
 
 ### robonet - Network Testbed
 
 Built on ZombieNet SDK, `robonet` provides an easy way to spawn local Robonomics networks for integration testing. Supports multiple network topologies and includes comprehensive tests for XCM, CPS, and other pallets.
 
-Documentation: [tools/robonet/README.md](./tools/robonet/README.md)
+Now maintained in [`airalab/robins`](https://github.com/airalab/robins).
+
+### subxt-api - Type-safe Runtime API
+
+A type-safe, compile-time verified API for the Robonomics runtime, generated from runtime metadata using [subxt](https://docs.rs/subxt). This crate stays in this repository alongside the runtime it mirrors.
+
+Documentation: [runtime/robonomics/subxt-api/README.md](./runtime/robonomics/subxt-api/README.md)
 
 ## Nix Workflow and Binary Cache
 
