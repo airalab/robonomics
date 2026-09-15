@@ -1,34 +1,44 @@
 # Robonomics Collator Guidelines 
 
-This guide explains how to upgrade your Robonomics node to **version 5.0.0**.
-
 In this manual we are assuming the following things:
 - The service is run on behalf of the `robonomics` user
 - The `robonomics` user's home directory is `/var/lib/robonomics/`
 - The `base-path` of service is `/var/lib/robonomics/base/` 
+- The node is run with the generic [`polkadot-omni-node`](https://crates.io/crates/polkadot-omni-node) binary (the **default and recommended** way to run a Robonomics collator), together with a Robonomics chain spec from the [`chain-spec/`](./chain-spec) directory of this repository.
 
 ## Download Binary
 
-Download the official binary from GitHub:
+The `polkadot-omni-node` is a runtime-agnostic parachain collator shipped as part of the [Polkadot SDK](https://github.com/paritytech/polkadot-sdk) releases. It starts a parachain node purely from a chain spec file (no need for a Robonomics-specific binary).
 
-* **Release:** `v5.0.0`
-* Link: [https://github.com/airalab/robins/releases/tag/v5.0.0](https://github.com/airalab/robins/releases/tag/v5.0.0)
+* **Release:** use the latest `polkadot-stable*` tag from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases)
 
 Download and install:
 
 ```bash
-wget -o robonomics \
-  https://github.com/airalab/robins/releases/download/v5.0.0/robonomics-linux-x86_64
-chmod +x robonomics
-sudo mv robonomics /usr/local/bin/
+wget -O polkadot-omni-node \
+  https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2506-1/polkadot-omni-node
+chmod +x polkadot-omni-node
+sudo mv polkadot-omni-node /usr/local/bin/
+```
+
+You will also need the Robonomics chain spec for your network, available in [`chain-spec/`](./chain-spec):
+
+* Polkadot: [`chains/polkadot-parachain.raw.json`](./chain-spec/polkadot-parachain.raw.json)
+* Kusama (deprecated): [`chains/kusama-parachain.raw.json`](./chain-spec/kusama-parachain.raw.json)
+
+Download the chain spec directly from GitHub, for example for the Polkadot parachain:
+
+```bash
+wget -O /var/lib/robonomics/robonomics-polkadot.raw.json \
+  https://raw.githubusercontent.com/airalab/robonomics/master/chain-spec/polkadot-parachain.raw.json
 ```
 
 ## Generate Network Key
 
-v4.3.0 refuses to start without a valid network key. Generate one before first launch:
+Collator refuses to start without a valid network key. Generate one before first launch:
 
 ```bash
-robonomics key generate-node-key \
+polkadot-omni-node key generate-node-key \
   --base-path /var/lib/robonomics/base/ \
   --chain /var/lib/robonomics/robonomics-polkadot.raw.json
 ```
@@ -37,37 +47,14 @@ Replace the `--chain` value with your chain spec path.
 
 After this the network key file `/var/lib/robonomics/base/chains/robonomics/network/secret_ed25519` will be appear. Don't forget to save it for the future possible migrations.
 
-## Download Parachain Snapshot (required for Kusama parachain only)
-
-> For the **Polkadot** parachain, use `--sync warp` instead.
-
-Snapshots are currently available **only for the Kusama parachain**:
-
-* Link: [https://snapshots.robonomics.network/](https://snapshots.robonomics.network/)
-
-Clear your parachain base and extract from archive to `/path/to/your/parachain/database`. In this example this path is `/var/lib/robonomics/base/chains/robonomics/db/`
-Fix permissions if necessary.
-
-## Remove the Deprecated `--lighthouse-account` Flag
-
-Starting from v4.0, the `--lighthouse-account` CLI flag is no longer supported.
-
-If your systemd service or startup script contains:
-
-```
---lighthouse-account <ACCOUNT>
-```
-
-Remove this line entirely before restarting the node.
-
 ## Recommended Startup Flags
 
 Below is a recommended systemd `ExecStart` configuration:
 
 ```
-ExecStart=/usr/local/bin/robonomics \
+ExecStart=/usr/local/bin/polkadot-omni-node \
   --name "YOUR_NODE_NAME" \
-  --chain polkadot \
+  --chain /var/lib/robonomics/robonomics-polkadot.raw.json \
   --base-path /var/lib/robonomics/base/ \
   --collator \
   --sync warp \
@@ -155,6 +142,12 @@ Typical steps:
 
 3. Wait for the session change to complete. After that, your node should appear in the candidate list and begin authoring blocks.
 
+## Disk Requirements
+
+* **Polkadot:** parachain + relay chain ~1.1 TB (growing). Minimum **2 TB** recommended.
+* **Kusama:** parachain ~235 GB + relay chain ~550 GB (growing). Minimum **1 TB** recommended.
+* **Running both networks:** minimum **5 TB** recommended.
+
 ## Collator Rewards
 
 Collators earn from two sources:
@@ -176,7 +169,7 @@ Collators earn from two sources:
 | Storage | 1 TB NVMe | 2 TB NVMe |
 | Estimated cost | ~$80–120/mo | ~$120–150/mo |
 
-## Per-Block Author Reward
+### Per-Block Author Reward
 
 Starting from spec_version **43**, the Robonomics Polkadot parachain mints a
 **fixed per-block reward of `0.0042 XRT` directly to the block author** (in
@@ -190,7 +183,7 @@ into the `PotStake` account, since
 `pallet_collator_selection::note_author` distributes only **half** of the pot
 to the current author).
 
-### Formula
+#### Formula
 
 ```
 reward_per_block =
@@ -219,24 +212,3 @@ Encoded constant in `runtime/robonomics/src/lib.rs`:
 ```rust
 pub const CollatorBlockReward: Balance = 4_200_000; // 0.0042 XRT (9 decimals)
 ```
-
-### When to revisit
-
-The reward should be recalculated and a new runtime upgrade shipped whenever
-**any** of the input parameters change significantly:
-
-* the cost of the reference hardware moves materially up or down,
-* the minimum desired number of active collators changes,
-* the actual average block time drifts (changing the blocks-per-year base),
-* the XRT market price moves enough that the resulting USD-equivalent reward
-  no longer covers the reference hardware cost plus a 30 % margin.
-
-When updating the reward, change `CollatorBlockReward`, bump `spec_version`,
-and update both the table above and the unit tests in
-`runtime/robonomics/src/lib.rs::author_rewards_tests`.
-
-## Disk Requirements
-
-* **Kusama:** parachain ~235 GB + relay chain ~550 GB (growing). Minimum **1 TB** recommended.
-* **Polkadot:** parachain + relay chain ~1.1 TB (growing). Minimum **2 TB** recommended.
-* **Running both networks:** minimum **5 TB** recommended.
