@@ -11,4 +11,4 @@ description = "Robonomics parachain chain specs, embedded as static text."
 [dependencies]
 
 [dev-dependencies]
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["std"] }
