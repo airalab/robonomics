@@ -20,12 +20,12 @@ sp-runtime.workspace = true
 frame-system.workspace = true
 frame-support.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
+pallet-balances = { workspace = true, optional = true }
 hex-literal.workspace = true
-sp-keyring.workspace = true
 
 [dev-dependencies]
 hex-literal.workspace = true
-pallet-balances = { workspace = true, default-features = true }
+pallet-balances.workspace = true
 sp-io.workspace = true
 sp-keyring.workspace = true
 
@@ -39,10 +39,12 @@ std = [
   "frame-system/std",
   "frame-support/std",
   "frame-benchmarking?/std",
+  "pallet-balances?/std",
   "scale-info/std",
 ]
 
 runtime-benchmarks = [
+  "pallet-balances",
   "frame-benchmarking",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
