@@ -1,5 +1,5 @@
 [package]
-name = "parachain-info"
+name = "pallet-robonomics-parachain-info"
 description = "Pallet to store the parachain ID & relay network"
 version = "1.0.0"
 authors.workspace = true
@@ -12,8 +12,8 @@ repository.workspace = true
 ignored = ["parity-scale-codec", "scale-info", "sp-runtime"]
 
 [dependencies]
-parity-scale-codec = { features = ["derive"], workspace = true }
-scale-info = { features = ["derive"], workspace = true }
+parity-scale-codec.workspace = true
+scale-info.workspace = true
 cumulus-primitives-core.workspace = true
 frame-support.workspace = true
 frame-system.workspace = true

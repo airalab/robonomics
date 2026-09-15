@@ -9,7 +9,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [package.metadata.cargo-machete]
-ignored = ["parity-scale-codec", "scale-info"]
+ignored = ["parity-scale-codec", "scale-info", "sp-runtime"]
 
 [dependencies]
 parity-scale-codec = { workspace = true }

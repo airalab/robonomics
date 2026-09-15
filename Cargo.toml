@@ -6,22 +6,12 @@ license = "Apache-2.0"
 homepage = "https://robonomics.network"
 repository = "https://github.com/airalab/robonomics"
 
-[profile.release]
-panic = "unwind"
-opt-level = 3
-
 [workspace]
 members = [
-  "frame/rws",
-  "frame/launch",
-  "frame/datalog",
-  "frame/liability",
-  "frame/collator-rewards",
-  "frame/digital-twin",
-  "frame/cps",
+  "chain-spec",
+  "frame/*",
   "runtime/robonomics",
   "runtime/robonomics/subxt-api",
-  "chain-spec",
 ]
 resolver = "2"
 
@@ -128,18 +118,16 @@ xcm-runtime-apis = { version = "0.16.0", default-features = false }
 substrate-wasm-builder = "34.0.0"
 
 # Robonomics pallets
-pallet-robonomics-cps = { path = "./frame/cps", default-features = false }
-pallet-robonomics-liability = { path = "./frame/liability", default-features = false }
-robonomics-collator-rewards = { path = "./frame/collator-rewards", default-features = false }
-parachain-info = { path = "./frame/parachain-info", default-features = false }
+pallet-robonomics-cps = { version = "0.9.9", path = "./frame/cps", default-features = false }
+pallet-robonomics-liability = { version = "0.11.0", path = "./frame/liability", default-features = false }
+robonomics-collator-rewards = { version = "0.1.0", path = "./frame/collator-rewards", default-features = false }
+pallet-robonomics-parachain-info = { version = "1.0.0", path = "./frame/parachain-info", default-features = false }
 
 # Robonomics pallets (deprecated)
-pallet-robonomics-datalog = { path = "./frame/datalog", default-features = false }
-pallet-robonomics-digital-twin = { path = "./frame/digital-twin", default-features = false }
-pallet-robonomics-launch = { path = "./frame/launch", default-features = false }
-pallet-robonomics-rws = { path = "./frame/rws", default-features = false }
+pallet-robonomics-datalog = { version = "1.3.0", path = "./frame/datalog", default-features = false }
+pallet-robonomics-digital-twin = { version = "0.3.0", path = "./frame/digital-twin", default-features = false }
+pallet-robonomics-launch = { version = "0.6.0", path = "./frame/launch", default-features = false }
+pallet-robonomics-rws = { version = "1.7.0", path = "./frame/rws", default-features = false }
 
 # Robonomics runtime
-robonomics-runtime.path = "./runtime/robonomics"
-robonomics-runtime-subxt-api.path = "./runtime/robonomics/subxt-api"
-robonomics-chain-spec.path = "./chain-spec"
+robonomics-runtime = { version = "50.0.0", path = "./runtime/robonomics" }

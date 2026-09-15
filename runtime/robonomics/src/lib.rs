@@ -462,7 +462,7 @@ type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 impl cumulus_pallet_parachain_system::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type OnSystemEvent = ();
-    type SelfParaId = parachain_info::Pallet<Runtime>;
+    type SelfParaId = pallet_robonomics_parachain_info::Pallet<Runtime>;
     type DmpQueue = frame_support::traits::EnqueueWithOrigin<MessageQueue, RelayOrigin>;
     type OutboundXcmpMessageSource = XcmpQueue;
     type XcmpMessageHandler = XcmpQueue;
@@ -526,7 +526,7 @@ impl pallet_message_queue::Config for Runtime {
     type WeightInfo = weights::pallet_message_queue::WeightInfo<Runtime>;
 }
 
-impl parachain_info::Config for Runtime {}
+impl pallet_robonomics_parachain_info::Config for Runtime {}
 
 parameter_types! {
     pub const Period: u32 = 6 * HOURS;
@@ -701,7 +701,7 @@ mod runtime {
     pub type ParachainSystem = cumulus_pallet_parachain_system;
 
     #[runtime::pallet_index(22)]
-    pub type ParachainInfo = parachain_info;
+    pub type ParachainInfo = pallet_robonomics_parachain_info;
 
     #[runtime::pallet_index(23)]
     pub type WeightReclaim = cumulus_pallet_weight_reclaim;
