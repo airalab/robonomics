@@ -6,7 +6,7 @@ authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 repository.workspace = true
-license = "Apache-2.0"
+license.workspace = true
 
 [dependencies]
 scale-info = { workspace = true }

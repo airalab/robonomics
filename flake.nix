@@ -54,7 +54,8 @@
         system: pkgs: rec {
           default = self.lib.${system}.mkDevShell {
             packages = with pkgs; [
-              openssl taplo actionlint cargo-nextest cargo-audit cargo-machete
+              openssl taplo actionlint
+              cargo-nextest cargo-audit cargo-machete cargo-workspaces
               psvm try-runtime-cli srtool-cli frame-omni-bencher
             ];
             env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
