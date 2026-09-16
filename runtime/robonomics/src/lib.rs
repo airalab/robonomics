@@ -80,7 +80,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 50,
+    spec_version: 51,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,
@@ -822,16 +822,8 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
-parameter_types! {
-    pub const TeleportXrtName: &'static str = "TeleportXRT";
-    pub const ClaimXrtName: &'static str = "ClaimXRT";
-}
-
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
-    // Remove pallet storage
-    frame_support::migrations::RemovePallet<TeleportXrtName, RocksDbWeight>,
-    frame_support::migrations::RemovePallet<ClaimXrtName, RocksDbWeight>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );

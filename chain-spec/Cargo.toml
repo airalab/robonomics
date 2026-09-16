@@ -1,12 +1,12 @@
 [package]
 name = "robonomics-chain-spec"
-version.workspace = true
+description = "Robonomics parachain chain specs, embedded as static text."
+version = "1.0.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Robonomics parachain chain specs, embedded as static text."
 
 [dependencies]
 

@@ -62,7 +62,7 @@ sp-keyring = { version = "48.0.0", default-features = false }
 # Substrate pallets
 # (wasm)
 pallet-balances = { version = "50.0.0", default-features = false }
-frame-support = { version = "48.0.0", default-features = false }
+frame-support = { version = "48.1.0", default-features = false }
 frame-system = { version = "48.0.0", default-features = false }
 frame-executive = { version = "48.0.0", default-features = false }
 frame-metadata-hash-extension = { version = "0.16.0", default-features = false }
@@ -76,7 +76,7 @@ pallet-multisig = { version = "49.0.0", default-features = false }
 pallet-migrations = { version = "19.0.0", default-features = false }
 pallet-proxy = { version = "49.0.0", default-features = false }
 pallet-session = { version = "49.0.0", default-features = false }
-pallet-utility = { version = "49.0.0", default-features = false }
+pallet-utility = { version = "49.0.1", default-features = false }
 pallet-vesting = { version = "49.0.0", default-features = false }
 pallet-sudo = { version = "49.0.0", default-features = false }
 pallet-timestamp = { version = "48.0.0", default-features = false }
@@ -87,35 +87,35 @@ frame-benchmarking = { version = "49.0.0", default-features = false }
 frame-system-benchmarking = { version = "49.0.0", default-features = false }
 frame-try-runtime = { version = "0.54.0", default-features = false }
 pallet-grandpa = { version = "49.0.0", default-features = false }
-pallet-xcm = { version = "29.0.0", default-features = false }
+pallet-xcm = { version = "29.1.0", default-features = false }
 pallet-xcm-benchmarks = { version = "29.0.0", default-features = false }
-parachains-common = { version = "32.0.0", default-features = false }
+parachains-common = { version = "36.0.0", default-features = false }
 
 # Cumulus
 # (wasm)
-cumulus-pallet-aura-ext = { version = "0.29.0", default-features = false }
+cumulus-pallet-aura-ext = { version = "0.30.0", default-features = false }
 cumulus-pallet-dmp-queue = { version = "0.29.0", default-features = false }
-cumulus-pallet-parachain-system = { version = "0.29.0", default-features = false }
+cumulus-pallet-parachain-system = { version = "0.30.0", default-features = false }
 cumulus-pallet-xcm = { version = "0.27.0", default-features = false }
-cumulus-pallet-xcmp-queue = { version = "0.30.0", default-features = false }
+cumulus-pallet-xcmp-queue = { version = "0.32.0", default-features = false }
 cumulus-pallet-session-benchmarking = { version = "30.0.0", default-features = false }
 cumulus-pallet-weight-reclaim = { version = "0.11.0", default-features = false }
 cumulus-primitives-aura = { version = "0.24.0", default-features = false }
 cumulus-primitives-core = { version = "0.26.0", default-features = false }
-cumulus-primitives-utility = { version = "0.30.0", default-features = false }
+cumulus-primitives-utility = { version = "0.32.0", default-features = false }
 
 # Polkadot
 # (wasm)
-polkadot-runtime-parachains = { version = "28.0.0", default-features = false }
+polkadot-runtime-parachains = { version = "29.0.0", default-features = false }
 polkadot-parachain-primitives = { version = "23.0.0", default-features = false }
-polkadot-runtime-common = { version = "29.0.0", default-features = false }
-xcm = { version = "24.0.0", package = "staging-xcm", default-features = false }
-xcm-builder = { version = "29.0.0", package = "staging-xcm-builder", default-features = false }
-xcm-executor = { version = "28.0.0", package = "staging-xcm-executor", default-features = false }
+polkadot-runtime-common = { version = "31.0.0", default-features = false }
+xcm = { version = "24.1.0", package = "staging-xcm", default-features = false }
+xcm-builder = { version = "29.0.1", package = "staging-xcm-builder", default-features = false }
+xcm-executor = { version = "28.0.1", package = "staging-xcm-executor", default-features = false }
 xcm-runtime-apis = { version = "0.16.0", default-features = false }
 
 # Substrate build deps
-substrate-wasm-builder = "34.0.0"
+substrate-wasm-builder = "34.0.1"
 
 # Robonomics pallets
 pallet-robonomics-cps = { version = "0.9.9", path = "./frame/cps", default-features = false }

@@ -3,14 +3,6 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches:
-      - 'master'
-    paths:
-      - 'runtime/**'
-      - 'frame/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
   pull_request:
     branches:
       - 'master'
