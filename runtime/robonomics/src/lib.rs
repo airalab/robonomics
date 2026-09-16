@@ -66,11 +66,15 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+mod genesis_config_presets;
+
 pub mod common;
 pub mod xcm_config;
 pub use common::{consensus::*, currency::*, fee::*, *};
 
-mod genesis_config_presets;
+mod governance;
+pub use governance::*;
+
 mod weights;
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 
@@ -776,7 +780,31 @@ mod runtime {
     #[runtime::pallet_index(84)]
     pub type AuraExt = cumulus_pallet_aura_ext;
 
-    // TODO: remove when democracy enabled
+    //
+    // Governance pallets
+    //
+
+    #[runtime::pallet_index(90)]
+    pub type Preimage = pallet_preimage;
+
+    #[runtime::pallet_index(91)]
+    pub type Scheduler = pallet_scheduler;
+
+    #[runtime::pallet_index(92)]
+    pub type ConvictionVoting = pallet_conviction_voting;
+
+    #[runtime::pallet_index(93)]
+    pub type Referenda = pallet_referenda;
+
+    #[runtime::pallet_index(94)]
+    pub type Whitelist = pallet_whitelist;
+
+    #[runtime::pallet_index(95)]
+    pub type Origins = pallet_custom_origins;
+
+    // TODO: remove Sudo once the Stage B OpenGov handover (issue #629) has
+    // executed a successful referendum removing it. Kept temporarily as a
+    // recovery mechanism during Stage A bootstrap.
     #[runtime::pallet_index(99)]
     pub type Sudo = pallet_sudo;
 }
