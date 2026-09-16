@@ -27,10 +27,12 @@
 
 use super::*;
 use core::cmp::Ordering;
-use frame_support::traits::{fungible::HoldConsideration, EitherOf, LinearStoragePrice, PrivilegeCmp};
+use frame_support::traits::{
+    fungible::HoldConsideration, EitherOf, EitherOfDiverse, LinearStoragePrice, PrivilegeCmp,
+};
 
 mod origins;
-pub use origins::{pallet_custom_origins, WhitelistedCaller, WhitelistOrigin};
+pub use origins::{pallet_custom_origins, CoreTeamMultisigOnly, WhitelistedCaller};
 mod tracks;
 pub use tracks::TracksInfo;
 
@@ -55,7 +57,7 @@ impl pallet_preimage::Config for Runtime {
         PreimageHoldReason,
         LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
     >;
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_preimage::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -92,7 +94,7 @@ impl pallet_scheduler::Config for Runtime {
     type OriginPrivilegeCmp = OriginPrivilegeCmp;
     type Preimages = Preimage;
     type BlockNumberProvider = frame_system::Pallet<Runtime>;
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -109,24 +111,21 @@ impl pallet_conviction_voting::Config for Runtime {
     type Polls = Referenda;
     type BlockNumberProvider = System;
     type VotingHooks = ();
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_conviction_voting::WeightInfo<Runtime>;
 }
 
-impl pallet_custom_origins::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-}
+impl pallet_custom_origins::Config for Runtime {}
 
 impl pallet_whitelist::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
-    // Root, or the core-team multisig, can whitelist a call hash. Neither
-    // this alone grants `Root`: see `DispatchWhitelistedOrigin` below.
-    type WhitelistOrigin = WhitelistOrigin;
-    // A whitelisted call only ever dispatches as `Root` after the
-    // `WhitelistedCaller` referendum has passed, or directly via `Root`.
+    type WhitelistOrigin = EitherOfDiverse<
+        EnsureRoot<AccountId>,
+        frame_system::EnsureSignedBy<CoreTeamMultisigOnly, AccountId>,
+    >;
     type DispatchWhitelistedOrigin = EitherOf<EnsureRoot<AccountId>, WhitelistedCaller>;
     type Preimages = Preimage;
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_whitelist::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -155,5 +154,5 @@ impl pallet_referenda::Config for Runtime {
     type Tracks = TracksInfo;
     type Preimages = Preimage;
     type BlockNumberProvider = System;
-    type WeightInfo = ();
+    type WeightInfo = weights::pallet_referenda::WeightInfo<Runtime>;
 }

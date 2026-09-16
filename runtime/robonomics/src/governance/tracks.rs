@@ -28,7 +28,7 @@ use super::*;
 
 use alloc::borrow::Cow;
 use pallet_referenda::Curve;
-use sp_runtime::{FixedI64, str_array as s};
+use sp_runtime::{str_array as s, FixedI64};
 
 const fn percent(x: i32) -> FixedI64 {
     FixedI64::from_rational(x as u128, 100)

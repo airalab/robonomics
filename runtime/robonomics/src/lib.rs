@@ -876,6 +876,12 @@ frame_benchmarking::define_benchmarks!(
     // Consensus pallets
     [pallet_collator_selection, CollatorSelection]
     [pallet_session, SessionBench::<Runtime>]
+    // Governance pallets
+    [pallet_preimage, Preimage]
+    [pallet_scheduler, Scheduler]
+    [pallet_conviction_voting, ConvictionVoting]
+    [pallet_referenda, Referenda]
+    [pallet_whitelist, Whitelist]
     // Robonomics pallets
     [pallet_robonomics_datalog, Datalog]
     [pallet_robonomics_digital_twin, DigitalTwin]

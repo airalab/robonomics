@@ -21,14 +21,6 @@ pub use pallet_custom_origins::*;
 
 use super::*;
 
-/// `WhitelistOrigin = CoreTeamMultisig`.
-///
-/// The core-team multisig may whitelist (or remove) a call hash, but this
-/// alone never grants it `Root`: it only makes the hash eligible for the
-/// `WhitelistedCaller` fast-track referendum (see `DispatchWhitelistedOrigin`
-/// below and `pallet_whitelist::Config`).
-pub type WhitelistOrigin = frame_system::EnsureSignedBy<CoreTeamMultisigOnly, AccountId>;
-
 /// `SortedMembers` implementation so `EnsureSignedBy` can compare against the
 /// core-team multisig account currently held in `Origins` pallet storage.
 ///
@@ -50,11 +42,7 @@ pub mod pallet_custom_origins {
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
-        /// The overarching event type.
-        #[allow(deprecated)]
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-    }
+    pub trait Config: frame_system::Config {}
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -67,13 +55,6 @@ pub mod pallet_custom_origins {
     #[pallet::storage]
     pub type CoreTeamMultisig<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
-    #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
-    pub enum Event<T: Config> {
-        /// The core-team multisig account was updated to the given account.
-        CoreTeamMultisigUpdated(T::AccountId),
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Update the core-team multisig account.
@@ -82,36 +63,10 @@ pub mod pallet_custom_origins {
         /// account can be rotated without a runtime upgrade.
         #[pallet::call_index(0)]
         #[pallet::weight(T::DbWeight::get().writes(1))]
-        pub fn set_core_team_multisig(
-            origin: OriginFor<T>,
-            new: T::AccountId,
-        ) -> DispatchResult {
+        pub fn set_core_team_multisig(origin: OriginFor<T>, new: T::AccountId) -> DispatchResult {
             ensure_root(origin)?;
             CoreTeamMultisig::<T>::put(new.clone());
-            Self::deposit_event(Event::CoreTeamMultisigUpdated(new));
             Ok(())
-        }
-    }
-
-    #[pallet::genesis_config]
-    pub struct GenesisConfig<T: Config> {
-        pub core_team_multisig: Option<T::AccountId>,
-    }
-
-    impl<T: Config> Default for GenesisConfig<T> {
-        fn default() -> Self {
-            Self {
-                core_team_multisig: None,
-            }
-        }
-    }
-
-    #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-        fn build(&self) {
-            if let Some(account) = &self.core_team_multisig {
-                CoreTeamMultisig::<T>::put(account.clone());
-            }
         }
     }
 
@@ -124,15 +79,7 @@ pub mod pallet_custom_origins {
 
     /// The custom origins recognized by the Robonomics governance model.
     #[derive(
-        PartialEq,
-        Eq,
-        Clone,
-        MaxEncodedLen,
-        Encode,
-        Decode,
-        DecodeWithMemTracking,
-        TypeInfo,
-        Debug,
+        PartialEq, Eq, Clone, MaxEncodedLen, Encode, Decode, DecodeWithMemTracking, TypeInfo, Debug,
     )]
     #[pallet::origin]
     pub enum Origin {
