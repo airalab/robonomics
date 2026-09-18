@@ -246,6 +246,17 @@ accept_ownership(floor_3_id)   // signed by tenant_corp
 A "self-transfer" (`new_owner == caller`) carves out a new, independent
 boundary without changing the effective owner.
 
+Each proposal records its authorizing boundary and ownership generation.
+Accepting a transfer increments that boundary's generation, invalidating pending
+proposals that inherited its authority. Establishing an intervening boundary also
+invalidates affected proposals, even if the owner account stays the same.
+Transferring ownership back does not revive old proposals. Proposals inside an
+independent nested boundary remain valid.
+
+The current owner can replace a stale proposal by calling `transfer_ownership`
+again. The v1-to-v2 upgrade initializes existing boundaries at generation zero;
+v1 had no pending proposals to migrate.
+
 ### 🗑️ Delete Node
 
 Remove a leaf node (must have no children):

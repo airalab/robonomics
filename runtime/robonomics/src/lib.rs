@@ -764,6 +764,7 @@ pub type Executive = frame_executive::Executive<
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
+    pallet_robonomics_cps::migration::MigrationToV2<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );

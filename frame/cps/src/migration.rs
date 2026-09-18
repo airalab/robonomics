@@ -32,8 +32,11 @@
 //! - a root node always gets an explicit `Ownership` entry (its old owner);
 //! - a non-root node gets an explicit entry only if its old owner differs
 //!   from its parent's old owner; otherwise it inherits.
+//!
+//! Migrated boundaries start at ownership generation zero without extra writes.
+//! Version 1 had no pending ownership proposals to migrate.
 
-use crate::{Config, MaxTreeDepth, Meta, NodeData, NodeId, Ownerships, Pallet, Parent, Payload};
+use crate::{Config, MaxTreeDepth, Meta, NodeData, NodeId, Ownership, Pallet, Parent, Payload};
 use core::fmt::Debug;
 use frame_support::{
     migrations::VersionedMigration,
@@ -103,7 +106,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
             };
 
             if is_boundary {
-                Ownerships::<T>::insert(id, old.owner.clone());
+                Ownership::<T>::insert(id, old.owner.clone());
                 writes = writes.saturating_add(1);
             }
 

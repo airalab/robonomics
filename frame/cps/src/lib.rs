@@ -35,14 +35,15 @@
 //!    - An entry is present only when the corresponding field has been set;
 //!      absence means "unset", not "empty"
 //!
-//! 3. **`Ownerships`**: Mapping `NodeId` → `AccountId`
+//! 3. **`Ownership`**: Mapping `NodeId` → `AccountId`
 //!    - An entry is only present on nodes that start a new administrative and
 //!      resource-accounting scope (an "Ownership boundary")
 //!    - A node without an entry inherits ownership from the nearest ancestor
 //!      that has one (see [`Pallet::resolve_ownership`])
 //!
-//! 4. **`PendingOwnershipTransfer`**: Mapping `NodeId` → `AccountId`
-//!    - Tracks a proposed-but-not-yet-accepted ownership transfer for a node
+//! 4. **`PendingOwnershipTransfer`**: Mapping `NodeId` → `PendingTransfer`
+//!    - Stores the proposed owner together with the authorizing boundary and
+//!      `OwnershipGeneration`, preventing stale acceptance
 //!
 //! 5. **`NodesByParent`** / **`RootNodes`**: Index structures for O(1) child and
 //!    root-node lookups
@@ -91,6 +92,10 @@
 //! A node can be turned into a new, independent boundary without changing the
 //! effective owner account by "self-transferring" it (propose and accept with
 //! the same account).
+//!
+//! Accepting a transfer increments the boundary's generation. Proposals authorized
+//! by an older generation or a different boundary must be proposed again by the
+//! current owner; transferring ownership back does not revive old proposals.
 //!
 //! ### Structural Immutability
 //!
@@ -394,6 +399,22 @@ impl NodeId {
     }
 }
 
+/// Proposed owner and the ownership scope that authorized the transfer.
+///
+/// Acceptance requires the same boundary and generation, so changes in inherited
+/// ownership invalidate the proposal without traversing the boundary's subtree.
+#[derive(
+    Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
+)]
+pub struct PendingTransfer<AccountId> {
+    /// Account permitted to accept this proposal.
+    pub proposed_owner: AccountId,
+    /// Effective ownership boundary at proposal time.
+    pub boundary: NodeId,
+    /// Boundary generation at proposal time.
+    pub generation: u64,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -456,13 +477,22 @@ pub mod pallet {
     /// [`Pallet::resolve_ownership`].
     #[pallet::storage]
     #[pallet::getter(fn ownership_of)]
-    pub type Ownerships<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, T::AccountId>;
+    pub type Ownership<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, T::AccountId>;
 
     /// Proposed, not-yet-accepted ownership transfers.
     #[pallet::storage]
     #[pallet::getter(fn pending_ownership_transfer)]
     pub type PendingOwnershipTransfer<T: Config> =
-        StorageMap<_, Blake2_128Concat, NodeId, T::AccountId>;
+        StorageMap<_, Blake2_128Concat, NodeId, PendingTransfer<T::AccountId>>;
+
+    /// Generation of an explicit boundary, incremented on every accepted transfer.
+    ///
+    /// Newly created and migrated boundaries start at zero. Generations never
+    /// wrap, so transferring back to a former owner cannot revive old proposals.
+    #[pallet::storage]
+    #[pallet::getter(fn ownership_generation)]
+    pub type OwnershipGeneration<T: Config> =
+        StorageMap<_, Blake2_128Concat, NodeId, u64, ValueQuery>;
 
     /// Index of children by parent node
     #[pallet::storage]
@@ -516,6 +546,12 @@ pub mod pallet {
         NoPendingOwnershipTransfer,
         /// Caller is not the account proposed in the pending ownership transfer
         NotProposedOwner,
+        /// No fresh node ID can be allocated without overflowing the counter
+        NodeIdExhausted,
+        /// The ownership boundary authorizing this proposal has changed
+        StaleOwnershipTransfer,
+        /// The ownership generation cannot be incremented without overflow
+        OwnershipGenerationExhausted,
     }
 
     #[pallet::hooks]
@@ -539,9 +575,13 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Get new node ID
+            // Reserve the terminal counter value rather than ever reusing an ID.
             let node_id = <NextNodeId<T>>::get();
-            <NextNodeId<T>>::put(node_id.saturating_add(1));
+            let next_id = node_id
+                .0
+                .checked_add(1)
+                .ok_or(Error::<T>::NodeIdExhausted)?;
+            <NextNodeId<T>>::put(NodeId(next_id));
 
             if let Some(pid) = parent_id {
                 ensure!(<Parent<T>>::contains_key(pid), Error::<T>::ParentNotFound);
@@ -569,7 +609,7 @@ pub mod pallet {
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
 
-                <Ownerships<T>>::insert(node_id, sender.clone());
+                <Ownership<T>>::insert(node_id, sender.clone());
             }
 
             // Store the node's attributes
@@ -673,8 +713,9 @@ pub mod pallet {
             <NodesByParent<T>>::remove(node_id);
 
             // Clean up any ownership state attached to this node
-            <Ownerships<T>>::remove(node_id);
+            <Ownership<T>>::remove(node_id);
             <PendingOwnershipTransfer<T>>::remove(node_id);
+            <OwnershipGeneration<T>>::remove(node_id);
 
             // Remove the node's attributes
             <Meta<T>>::remove(node_id);
@@ -703,10 +744,17 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let (_, owner) = Self::resolve_ownership(node_id)?;
+            let (boundary, owner) = Self::resolve_ownership(node_id)?;
             ensure!(owner == sender, Error::<T>::NotNodeOwner);
 
-            <PendingOwnershipTransfer<T>>::insert(node_id, new_owner.clone());
+            <PendingOwnershipTransfer<T>>::insert(
+                node_id,
+                PendingTransfer {
+                    proposed_owner: new_owner.clone(),
+                    boundary,
+                    generation: <OwnershipGeneration<T>>::get(boundary),
+                },
+            );
 
             Self::deposit_event(Event::OwnershipTransferProposed(node_id, owner, new_owner));
             Ok(())
@@ -714,16 +762,32 @@ pub mod pallet {
 
         /// Accept a pending ownership transfer for `node_id`, establishing (or
         /// overwriting) its explicit Ownership entry.
+        ///
+        /// The authorizing boundary and generation must still match the proposal.
+        /// Stale proposals can only be replaced by the current effective owner.
         #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::accept_ownership())]
         pub fn accept_ownership(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let proposed_owner = <PendingOwnershipTransfer<T>>::take(node_id)
+            let proposal = <PendingOwnershipTransfer<T>>::take(node_id)
                 .ok_or(Error::<T>::NoPendingOwnershipTransfer)?;
-            ensure!(proposed_owner == sender, Error::<T>::NotProposedOwner);
+            ensure!(
+                proposal.proposed_owner == sender,
+                Error::<T>::NotProposedOwner
+            );
 
-            <Ownerships<T>>::insert(node_id, sender.clone());
+            let (boundary, _) = Self::resolve_ownership(node_id)?;
+            ensure!(
+                proposal.boundary == boundary
+                    && proposal.generation == <OwnershipGeneration<T>>::get(boundary),
+                Error::<T>::StaleOwnershipTransfer
+            );
+            let generation = <OwnershipGeneration<T>>::get(node_id)
+                .checked_add(1)
+                .ok_or(Error::<T>::OwnershipGenerationExhausted)?;
+            <OwnershipGeneration<T>>::insert(node_id, generation);
+            <Ownership<T>>::insert(node_id, sender.clone());
 
             Self::deposit_event(Event::OwnershipTransferred(node_id, sender));
             Ok(())
@@ -753,13 +817,13 @@ pub mod pallet {
             node_id: NodeId,
             parent: Option<NodeId>,
         ) -> Result<(NodeId, T::AccountId), Error<T>> {
-            if let Some(owner) = <Ownerships<T>>::get(node_id) {
+            if let Some(owner) = <Ownership<T>>::get(node_id) {
                 return Ok((node_id, owner));
             }
 
             let mut current = parent;
             while let Some(ancestor_id) = current {
-                if let Some(owner) = <Ownerships<T>>::get(ancestor_id) {
+                if let Some(owner) = <Ownership<T>>::get(ancestor_id) {
                     return Ok((ancestor_id, owner));
                 }
                 ensure!(
