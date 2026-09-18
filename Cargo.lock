@@ -4609,6 +4609,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-robonomics-cps-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "pallet-robonomics-cps",
+ "parity-scale-codec",
+ "sp-api",
+]
+
+[[package]]
 name = "pallet-robonomics-datalog"
 version = "1.3.0"
 dependencies = [
@@ -5923,6 +5932,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-proxy",
  "pallet-robonomics-cps",
+ "pallet-robonomics-cps-runtime-api",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",

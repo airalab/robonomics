@@ -839,6 +839,12 @@ impl_runtime_apis! {
         }
     }
 
+    impl pallet_robonomics_cps_runtime_api::NodeOwnership<Block, AccountId> for Runtime {
+        fn resolve_ownership(node: pallet_robonomics_cps::NodeId) -> Option<(pallet_robonomics_cps::NodeId, AccountId)> {
+            CPS::resolve_ownership(node).ok()
+        }
+    }
+
     impl sp_block_builder::BlockBuilder<Block> for Runtime {
         fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> sp_runtime::ApplyExtrinsicResult {
             Executive::apply_extrinsic(extrinsic)
