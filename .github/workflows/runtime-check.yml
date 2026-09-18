@@ -15,7 +15,7 @@ on:
     outputs:
       status:
         description: "Status of runtime check"
-        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' }}
+        value: ${{ jobs.check-metadata.outputs.status == 'success' && jobs.try-runtime.outputs.status == 'success' && jobs.runtime-benchmarks.outputs.status == 'success' && jobs.check-weights.outputs.status == 'success' }}
 
 concurrency:
   group: metadata-check-${{ github.ref }}
@@ -77,3 +77,14 @@ jobs:
 
       - name: Run benchmark checks using runtime-benchmarks.sh
         run: BENCHMARK_STEPS=2 BENCHMARK_REPEAT=1 ./scripts/runtime-benchmarks.sh
+
+  check-weights:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ job.status }}
+    steps:
+      - name: Checkout the source code
+        uses: actions/checkout@v5
+
+      - name: Enforce weight policy
+        run: ./scripts/check-weights.pl
