@@ -100,19 +100,33 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::Nodes` (r:2 w:1)
+	/// Storage: `CPS::Nodes` (r:2 w:0)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::NodesByParent` (r:3 w:2)
-	/// Proof: `CPS::NodesByParent` (`max_values`: None, `max_size`: Some(826), added: 3301, mode: `MaxEncodedLen`)
-	fn move_node() -> Weight {
+	/// Storage: `CPS::PendingOwnershipTransfer` (r:0 w:1)
+	/// Proof: `CPS::PendingOwnershipTransfer` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn transfer_ownership() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `258`
-		//  Estimated: `14788`
-		// Minimum execution time: 15_219_000 picoseconds.
-		Weight::from_parts(16_821_000, 0)
-			.saturating_add(Weight::from_parts(0, 14788))
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(3))
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 8_000_000 picoseconds.
+		Weight::from_parts(8_500_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `CPS::PendingOwnershipTransfer` (r:1 w:1)
+	/// Proof: `CPS::PendingOwnershipTransfer` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Ownerships` (r:0 w:1)
+	/// Proof: `CPS::Ownerships` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn accept_ownership() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `150`
+		//  Estimated: `3529`
+		// Minimum execution time: 7_500_000 picoseconds.
+		Weight::from_parts(8_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 3529))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	/// Storage: `CPS::Nodes` (r:1 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)

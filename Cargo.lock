@@ -4596,13 +4596,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-cps"
-version = "0.9.9"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-balances",
- "pallet-proxy",
  "parity-scale-codec",
  "scale-info",
  "sp-io",

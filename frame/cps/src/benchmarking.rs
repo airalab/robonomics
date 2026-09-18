@@ -54,7 +54,7 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), NodeId(0), meta);
 
-        assert!(<Nodes<T>>::get(NodeId(0)).unwrap().meta.is_some());
+        assert!(<Meta<T>>::get(NodeId(0)).is_some());
     }
 
     #[benchmark]
@@ -70,33 +70,45 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), NodeId(0), payload);
 
-        assert!(<Nodes<T>>::get(NodeId(0)).unwrap().payload.is_some());
+        assert!(<Payload<T>>::get(NodeId(0)).is_some());
     }
 
     #[benchmark]
-    fn move_node() {
+    fn transfer_ownership() {
         let caller: T::AccountId = whitelisted_caller();
+        let new_owner: T::AccountId = account("new_owner", 0, 0);
 
-        // Setup: create parent node
-        let _ =
-            Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
-
-        // Create child node
-        let _ = Pallet::<T>::create_node(
-            RawOrigin::Signed(caller.clone()).into(),
-            Some(NodeId(0)),
-            None,
-            None,
-        );
-
-        // Create new parent
+        // Setup: create a root node (caller is its explicit owner)
         let _ =
             Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), NodeId(1), NodeId(2));
+        _(RawOrigin::Signed(caller), NodeId(0), new_owner.clone());
 
-        assert_eq!(<Nodes<T>>::get(NodeId(1)).unwrap().parent, Some(NodeId(2)));
+        assert_eq!(
+            <PendingOwnershipTransfer<T>>::get(NodeId(0)),
+            Some(new_owner)
+        );
+    }
+
+    #[benchmark]
+    fn accept_ownership() {
+        let caller: T::AccountId = whitelisted_caller();
+        let new_owner: T::AccountId = account("new_owner", 0, 0);
+
+        // Setup: create a root node and propose a transfer to `new_owner`
+        let _ =
+            Pallet::<T>::create_node(RawOrigin::Signed(caller.clone()).into(), None, None, None);
+        let _ = Pallet::<T>::transfer_ownership(
+            RawOrigin::Signed(caller).into(),
+            NodeId(0),
+            new_owner.clone(),
+        );
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(new_owner.clone()), NodeId(0));
+
+        assert_eq!(<Ownerships<T>>::get(NodeId(0)), Some(new_owner));
     }
 
     #[benchmark]
@@ -118,7 +130,7 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), NodeId(1));
 
-        assert!(<Nodes<T>>::get(NodeId(1)).is_none());
+        assert!(<Parent<T>>::get(NodeId(1)).is_none());
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
