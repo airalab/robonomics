@@ -307,15 +307,29 @@ impl_on_payload_set_for_tuples!(A, B, C, D, E);
 /// and encrypted payloads while preventing DoS attacks via large data submissions.
 pub const MAX_DATA_SIZE: u32 = 2048;
 
+/// Maximum tree depth (number of ancestors) a node may have.
+///
+/// Enforced at `create_node` time by walking the parent chain; bounds the
+/// cost of `resolve_ownership` and depth validation, both O(depth).
 pub const MAX_TREE_DEPTH: u32 = 32;
 
+/// Maximum number of direct children a single node may have.
+///
+/// Bounds the size of the `NodesByParent` index entry for any given node.
 pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 
+/// Maximum number of root nodes (nodes with no parent) that may exist.
+///
+/// Bounds the size of the `RootNodes` index.
 pub const MAX_ROOT_NODES: u32 = 100;
 
+/// [`ConstU32`] wrapper around [`MAX_DATA_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
+/// [`ConstU32`] wrapper around [`MAX_TREE_DEPTH`] for use as a `BoundedVec` bound.
 pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
+/// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
+/// [`ConstU32`] wrapper around [`MAX_ROOT_NODES`] for use as a `BoundedVec` bound.
 pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
 
 /// Type alias for node data - bounded vector of bytes.
