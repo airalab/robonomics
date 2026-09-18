@@ -310,6 +310,10 @@ pub mod pallet {
         /// - Basically this sould be free by concept.
         /// # </weight>
         #[pallet::call_index(0)]
+        // weight-policy-allow: base weight is intentionally 0 because RWS subscription
+        // calls are free by design (Pays::No); the inner call is still charged its own
+        // weight via `call.get_dispatch_info()`. A dedicated `WeightInfo::call()`
+        // benchmark is tracked as follow-up work.
         #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
