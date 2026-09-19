@@ -65,6 +65,12 @@ PALLETS=(
     "cumulus_pallet_xcmp_queue,runtime/robonomics/src/weights/cumulus_pallet_xcmp_queue.rs"
     "pallet_message_queue,runtime/robonomics/src/weights/pallet_message_queue.rs"
     "pallet_xcm,runtime/robonomics/src/weights/pallet_xcm.rs"
+    # Governance pallets - saved to runtime/robonomics/src/weights/
+    "pallet_preimage,runtime/robonomics/src/weights/pallet_preimage.rs"
+    "pallet_scheduler,runtime/robonomics/src/weights/pallet_scheduler.rs"
+    "pallet_conviction_voting,runtime/robonomics/src/weights/pallet_conviction_voting.rs"
+    "pallet_referenda,runtime/robonomics/src/weights/pallet_referenda.rs"
+    "pallet_whitelist,runtime/robonomics/src/weights/pallet_whitelist.rs"
     # Robonomics pallets - saved to runtime/robonomics/src/weights/
     "pallet_robonomics_datalog,runtime/robonomics/src/weights/pallet_robonomics_datalog.rs"
     "pallet_robonomics_digital_twin,runtime/robonomics/src/weights/pallet_robonomics_digital_twin.rs"

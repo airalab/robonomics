@@ -1,5 +1,5 @@
 [workspace.package]
-version = "50.0.0"
+version = "51.0.0"
 edition = "2021"
 authors = ["Airalab <research@robonomics.network>"]
 license = "Apache-2.0"
@@ -79,6 +79,11 @@ pallet-session = { version = "49.0.0", default-features = false }
 pallet-utility = { version = "49.0.1", default-features = false }
 pallet-vesting = { version = "49.0.0", default-features = false }
 pallet-sudo = { version = "49.0.0", default-features = false }
+pallet-preimage = { version = "49.0.0", default-features = false }
+pallet-scheduler = { version = "50.0.0", default-features = false }
+pallet-referenda = { version = "49.0.0", default-features = false }
+pallet-conviction-voting = { version = "49.0.0", default-features = false }
+pallet-whitelist = { version = "48.0.0", default-features = false }
 pallet-timestamp = { version = "48.0.0", default-features = false }
 pallet-transaction-payment = { version = "49.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "49.0.0", default-features = false }
@@ -130,4 +135,4 @@ pallet-robonomics-launch = { version = "0.6.0", path = "./frame/launch", default
 pallet-robonomics-rws = { version = "1.7.0", path = "./frame/rws", default-features = false }
 
 # Robonomics runtime
-robonomics-runtime = { version = "50.0.0", path = "./runtime/robonomics" }
+robonomics-runtime = { version = "51.0.0", path = "./runtime/robonomics" }
