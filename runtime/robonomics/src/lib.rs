@@ -802,6 +802,9 @@ mod runtime {
     #[runtime::pallet_index(95)]
     pub type Origins = pallet_custom_origins;
 
+    #[runtime::pallet_index(96)]
+    pub type TechnicalCommittee = pallet_collective<Instance1>;
+
     // TODO: remove Sudo once the Stage B OpenGov handover (issue #629) has
     // executed a successful referendum removing it. Kept temporarily as a
     // recovery mechanism during Stage A bootstrap.
@@ -882,6 +885,7 @@ frame_benchmarking::define_benchmarks!(
     [pallet_conviction_voting, ConvictionVoting]
     [pallet_referenda, Referenda]
     [pallet_whitelist, Whitelist]
+    [pallet_collective, TechnicalCommittee]
     // Robonomics pallets
     [pallet_robonomics_datalog, Datalog]
     [pallet_robonomics_digital_twin, DigitalTwin]

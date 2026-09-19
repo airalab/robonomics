@@ -35,14 +35,18 @@ const fn percent(x: i32) -> FixedI64 {
 }
 
 // Root track: approval decays linearly from 80% to 50%, support from 20% to 5%,
-// over the full decision period (see issue #629 "Initial track configuration").
-const APP_ROOT: Curve = Curve::make_linear(1, 1, percent(50), percent(80));
-const SUP_ROOT: Curve = Curve::make_linear(1, 1, percent(5), percent(20));
+// over the full 7-day decision period (see issue #629 "Initial track
+// configuration"). `make_linear(length, period, floor, ceil)` decays over
+// `length / period` of the decision period, so `length == period == 7`
+// spreads the decay across the whole 7-day window.
+const APP_ROOT: Curve = Curve::make_linear(7, 7, percent(50), percent(80));
+const SUP_ROOT: Curve = Curve::make_linear(7, 7, percent(5), percent(20));
 
 // Whitelisted Caller track: approval decays from 90% to 66%, support from
-// 10% down to ~4% (midpoint of the 3-5% range given in the issue).
-const APP_WHITELISTED_CALLER: Curve = Curve::make_linear(1, 1, percent(66), percent(90));
-const SUP_WHITELISTED_CALLER: Curve = Curve::make_linear(1, 1, percent(4), percent(10));
+// 10% down to ~4% (midpoint of the 3-5% range given in the issue), over the
+// full 3-day decision period.
+const APP_WHITELISTED_CALLER: Curve = Curve::make_linear(3, 3, percent(66), percent(90));
+const SUP_WHITELISTED_CALLER: Curve = Curve::make_linear(3, 3, percent(4), percent(10));
 
 const TRACKS_DATA: [pallet_referenda::Track<u16, Balance, BlockNumber>; 2] = [
     pallet_referenda::Track {

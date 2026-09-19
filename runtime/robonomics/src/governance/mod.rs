@@ -22,19 +22,25 @@
 //!
 //! - a permissionless `Root` track for arbitrary privileged actions;
 //! - a `Whitelisted Caller` fast track for time-sensitive technical
-//!   proposals reviewed by the Robonomics core team;
-//! - no Council, Technical Committee or Fellowship.
+//!   proposals reviewed by the Core Team collective;
+//! - no full Council or Fellowship: the Core Team collective is a small,
+//!   `Root`-managed `pallet_collective` instance whose sole power is voting
+//!   to whitelist call hashes for the fast track (see `WhitelistOrigin`
+//!   below). It has no other privileges.
 
 use super::*;
 use core::cmp::Ordering;
 use frame_support::traits::{
-    fungible::HoldConsideration, EitherOf, EitherOfDiverse, LinearStoragePrice, PrivilegeCmp,
+    fungible::HoldConsideration, EitherOf, EitherOfDiverse, Get, LinearStoragePrice, PrivilegeCmp,
 };
 
 mod origins;
-pub use origins::{pallet_custom_origins, CoreTeamMultisigOnly, WhitelistedCaller};
+pub use origins::{pallet_custom_origins, WhitelistedCaller};
 mod tracks;
 pub use tracks::TracksInfo;
+
+/// The `pallet_collective` instance backing the Core Team collective.
+pub type TechnicalCollective = pallet_collective::Instance1;
 
 parameter_types! {
     // Preimage storage pricing is intentionally kept separate from the
@@ -116,12 +122,50 @@ impl pallet_conviction_voting::Config for Runtime {
 
 impl pallet_custom_origins::Config for Runtime {}
 
+parameter_types! {
+    // Time-boxed to roughly match the `whitelisted_caller` referenda track's
+    // 3-day decision period, so committee review does not become the
+    // bottleneck for the fast track it feeds.
+    pub const TechCommMotionDuration: BlockNumber = 3 * DAYS;
+    pub const TechCommMaxProposals: u32 = 20;
+    pub const TechCommMaxMembers: u32 = 7;
+    // Mirrors `MaximumSchedulerWeight` above: no single collective-dispatched
+    // call may consume more than half a block's weight.
+    pub MaxCollectiveProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
+}
+
+/// A small, `Root`-managed committee (see [`TechnicalCollective`])
+/// whose only power is voting to authorize `WhitelistOrigin` below. It is
+/// not a general-purpose Council or Technical Committee: `RuntimeCall`
+/// dispatch via this collective is only ever reachable through
+/// `pallet_whitelist`, whose `WhitelistOrigin`/`DispatchWhitelistedOrigin`
+/// split keeps "who may whitelist a call" and "who may enact it" separate.
+impl pallet_collective::Config<TechnicalCollective> for Runtime {
+    type RuntimeOrigin = RuntimeOrigin;
+    type Proposal = RuntimeCall;
+    type RuntimeEvent = RuntimeEvent;
+    type MotionDuration = TechCommMotionDuration;
+    type MaxProposals = TechCommMaxProposals;
+    type MaxMembers = TechCommMaxMembers;
+    type DefaultVote = pallet_collective::PrimeDefaultVote;
+    type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+    type SetMembersOrigin = EnsureRoot<AccountId>;
+    type MaxProposalWeight = MaxCollectiveProposalWeight;
+    type DisapproveOrigin = EnsureRoot<AccountId>;
+    type KillOrigin = EnsureRoot<AccountId>;
+    type Consideration = ();
+}
+
 impl pallet_whitelist::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type RuntimeCall = RuntimeCall;
+    // At least half of the Core Team collective's members (not merely a
+    // majority of those who bothered to vote) must approve, mirroring
+    // `MoreThanHalfCouncil`-style thresholds used for technical committees
+    // elsewhere in the ecosystem.
     type WhitelistOrigin = EitherOfDiverse<
         EnsureRoot<AccountId>,
-        frame_system::EnsureSignedBy<CoreTeamMultisigOnly, AccountId>,
+        pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>,
     >;
     type DispatchWhitelistedOrigin = EitherOf<EnsureRoot<AccountId>, WhitelistedCaller>;
     type Preimages = Preimage;
@@ -140,7 +184,6 @@ impl pallet_referenda::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Scheduler = Scheduler;
     type Currency = Balances;
-    // Any signed account can submit a Root referendum.
     type SubmitOrigin = frame_system::EnsureSigned<AccountId>;
     type CancelOrigin = EnsureRoot<AccountId>;
     type KillOrigin = EnsureRoot<AccountId>;

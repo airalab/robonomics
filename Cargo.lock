@@ -4486,6 +4486,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-collective"
+version = "49.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44791fda194e57dea0c1194032bde0187858b0c03795161f6f48e8f3868b08b5"
+dependencies = [
+ "docify",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-conviction-voting"
 version = "49.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6009,6 +6027,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-collective",
  "pallet-conviction-voting",
  "pallet-message-queue",
  "pallet-multisig",
