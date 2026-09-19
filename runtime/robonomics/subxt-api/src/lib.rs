@@ -227,6 +227,7 @@ pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 #[subxt::subxt(
     runtime_metadata_path = "$OUT_DIR/metadata.scale",
     derive_for_type(path = "pallet_robonomics_cps::NodeId", derive = "Copy"),
+    derive_for_type(path = "pallet_robonomics_cps::ScopeId", derive = "Copy"),
     derive_for_all_types = "Eq, PartialEq, Clone, parity_scale_codec::Encode, parity_scale_codec::Decode"
 )]
 pub mod api {}

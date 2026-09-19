@@ -62,6 +62,7 @@ pallet-robonomics-launch.workspace = true
 pallet-robonomics-liability.workspace = true
 pallet-robonomics-rws.workspace = true
 pallet-robonomics-cps.workspace = true
+pallet-robonomics-cps-runtime-api.workspace = true
 pallet-robonomics-parachain-info.workspace = true
 robonomics-collator-rewards.workspace = true
 
@@ -135,6 +136,7 @@ std = [
   "pallet-robonomics-liability/std",
   "pallet-robonomics-rws/std",
   "pallet-robonomics-cps/std",
+  "pallet-robonomics-cps-runtime-api/std",
   "robonomics-collator-rewards/std",
   "pallet-sudo/std",
   "cumulus-pallet-aura-ext/std",

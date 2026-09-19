@@ -4596,18 +4596,26 @@ dependencies = [
 
 [[package]]
 name = "pallet-robonomics-cps"
-version = "0.9.9"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-balances",
- "pallet-proxy",
  "parity-scale-codec",
  "scale-info",
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-robonomics-cps-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "pallet-robonomics-cps",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
 ]
 
 [[package]]
@@ -5925,6 +5933,7 @@ dependencies = [
  "pallet-multisig",
  "pallet-proxy",
  "pallet-robonomics-cps",
+ "pallet-robonomics-cps-runtime-api",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",

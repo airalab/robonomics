@@ -118,7 +118,8 @@ xcm-runtime-apis = { version = "0.16.0", default-features = false }
 substrate-wasm-builder = "34.0.1"
 
 # Robonomics pallets
-pallet-robonomics-cps = { version = "0.9.9", path = "./frame/cps", default-features = false }
+pallet-robonomics-cps = { version = "1.0.0", path = "./frame/cps", default-features = false }
+pallet-robonomics-cps-runtime-api = { version = "1.0.0", path = "./frame/cps-runtime-api", default-features = false }
 pallet-robonomics-liability = { version = "0.11.0", path = "./frame/liability", default-features = false }
 robonomics-collator-rewards = { version = "0.1.0", path = "./frame/collator-rewards", default-features = false }
 pallet-robonomics-parachain-info = { version = "1.0.0", path = "./frame/parachain-info", default-features = false }

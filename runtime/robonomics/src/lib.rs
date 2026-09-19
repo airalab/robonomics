@@ -130,10 +130,6 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
 pub enum ProxyType {
     /// Allow all calls
     Any,
-    /// Allow CPS operations with optional node restriction
-    /// - `CpsWrite(None)`: Access to all CPS nodes owned by the proxied account
-    /// - `CpsWrite(Some(nodes))`: Access only to specified nodes and their descendants
-    CpsWrite(Option<BoundedVec<pallet_robonomics_cps::NodeId, ConstU32<32>>>),
 }
 
 impl Default for ProxyType {
@@ -143,71 +139,15 @@ impl Default for ProxyType {
 }
 
 impl InstanceFilter<RuntimeCall> for ProxyType {
-    fn filter(&self, c: &RuntimeCall) -> bool {
+    fn filter(&self, _c: &RuntimeCall) -> bool {
         match self {
             ProxyType::Any => true,
-            ProxyType::CpsWrite(allowed_nodes) => {
-                // Check if it's a CPS call
-                let is_cps_call = matches!(
-                    c,
-                    RuntimeCall::CPS(
-                        pallet_robonomics_cps::Call::create_node { .. }
-                            | pallet_robonomics_cps::Call::set_meta { .. }
-                            | pallet_robonomics_cps::Call::set_payload { .. }
-                            | pallet_robonomics_cps::Call::move_node { .. }
-                            | pallet_robonomics_cps::Call::delete_node { .. }
-                    )
-                );
-
-                if !is_cps_call {
-                    return false;
-                }
-
-                // If no specific node restriction, allow all CPS calls
-                if allowed_nodes.is_none() {
-                    return true;
-                }
-
-                // Check if call targets an allowed node
-                let allowed_nodes = allowed_nodes.as_ref().unwrap();
-                match c {
-                    RuntimeCall::CPS(pallet_robonomics_cps::Call::set_meta { node_id, .. })
-                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::set_payload {
-                        node_id, ..
-                    })
-                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::move_node {
-                        node_id, ..
-                    })
-                    | RuntimeCall::CPS(pallet_robonomics_cps::Call::delete_node {
-                        node_id, ..
-                    }) => allowed_nodes.contains(node_id),
-                    RuntimeCall::CPS(pallet_robonomics_cps::Call::create_node {
-                        parent_id,
-                        ..
-                    }) => {
-                        if let Some(parent_id) = parent_id {
-                            allowed_nodes.contains(parent_id)
-                        } else {
-                            // Creating root nodes - deny if there's a restriction
-                            false
-                        }
-                    }
-                    _ => false,
-                }
-            }
         }
     }
 
     fn is_superset(&self, o: &Self) -> bool {
         match (self, o) {
             (ProxyType::Any, _) => true,
-            (_, ProxyType::Any) => false,
-            (ProxyType::CpsWrite(None), ProxyType::CpsWrite(_)) => true,
-            (ProxyType::CpsWrite(Some(a)), ProxyType::CpsWrite(Some(b))) => {
-                // Check if all nodes in b are contained in a
-                b.iter().all(|node| a.contains(node))
-            }
-            (ProxyType::CpsWrite(Some(_)), ProxyType::CpsWrite(None)) => false,
         }
     }
 }
@@ -625,7 +565,6 @@ impl pallet_robonomics_rws::Config for Runtime {
 
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
 }
 
@@ -824,6 +763,7 @@ pub type Executive = frame_executive::Executive<
 
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
+    pallet_robonomics_cps::migration::MigrationToV2<Runtime>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
@@ -896,6 +836,23 @@ impl_runtime_apis! {
     impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
         fn account_nonce(account: AccountId) -> Nonce {
             System::account_nonce(account)
+        }
+    }
+
+    impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
+        fn resolve_scope(node: pallet_robonomics_cps::NodeId) -> Option<pallet_robonomics_cps::ScopeId> {
+            CPS::resolve_scope(node).ok()
+        }
+
+        fn has_capability(
+            node_id: pallet_robonomics_cps::NodeId,
+            account_id: AccountId,
+            capability_id: pallet_robonomics_cps_runtime_api::CapabilityId,
+        ) -> bool {
+            match pallet_robonomics_cps::Capability::try_from(capability_id) {
+                Ok(capability) => CPS::has_capability(node_id, &account_id, capability),
+                Err(()) => false,
+            }
         }
     }
 

@@ -1,0 +1,27 @@
+[package]
+name = "pallet-robonomics-cps-runtime-api"
+description = "Runtime API for CPS pallet"
+version = "1.0.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["parity-scale-codec"]
+
+[dependencies]
+parity-scale-codec.workspace = true
+scale-info.workspace = true
+pallet-robonomics-cps.workspace = true
+sp-api.workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "pallet-robonomics-cps/std",
+  "sp-api/std",
+]
