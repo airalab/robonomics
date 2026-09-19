@@ -17,26 +17,32 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Storage migrations for `pallet-robonomics-cps`.
 //!
-//! ## v1 -> v2: single `Node` struct -> per-field storage maps + hierarchical
-//! `Ownership`
+//! ## v1 -> v2: single `Node` struct -> per-field storage maps + Scope/Access
 //!
 //! Version 1 stored every node as a single `Node { parent, owner, path, meta,
 //! payload }` struct in one `Nodes` map. Version 2 splits a node's attributes
 //! into separate maps (`Parent`, `Meta`, `Payload`) and removes the per-node
-//! `owner`/`path` fields entirely, replacing them with an explicit `Ownership`
-//! entry attached only to nodes that start a new administrative/accounting
-//! scope; every other node inherits ownership from the nearest such ancestor.
+//! `owner`/`path` fields entirely, replacing them with the Scope/Access
+//! architecture: a node that starts a new administrative/economic boundary
+//! gets a freshly allocated `ScopeId` (`ActiveScope`, `ScopeRoot`,
+//! `ScopeOwner`); every other node resolves its Scope from the nearest such
+//! ancestor.
 //!
 //! The migration preserves the *effective* owner of every node:
 //!
-//! - a root node always gets an explicit `Ownership` entry (its old owner);
-//! - a non-root node gets an explicit entry only if its old owner differs
-//!   from its parent's old owner; otherwise it inherits.
+//! - a root node always gets a freshly allocated Scope (its old owner
+//!   becomes the new Scope's owner);
+//! - a non-root node gets a freshly allocated Scope only if its old owner
+//!   differs from its parent's old owner; otherwise it inherits the
+//!   parent's (already migrated) Scope.
 //!
-//! Migrated boundaries start at ownership generation zero without extra writes.
-//! Version 1 had no pending ownership proposals to migrate.
+//! `ScopeId`s are allocated in the same order nodes are iterated, starting
+//! from `NextScopeId`. Version 1 had no Access grants to migrate.
 
-use crate::{Config, MaxTreeDepth, Meta, NodeData, NodeId, Ownership, Pallet, Parent, Payload};
+use crate::{
+    ActiveScope, Config, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId, Pallet, Parent,
+    Payload, ScopeId, ScopeOwner, ScopeRoot,
+};
 use core::fmt::Debug;
 use frame_support::{
     migrations::VersionedMigration,
@@ -99,6 +105,12 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         let reads: u64 = old_nodes.len() as u64;
         let mut writes: u64 = 0;
 
+        // Migrated boundary nodes need to resolve their newly allocated
+        // Scope even before their children are processed, so remember the
+        // freshly allocated ScopeId per boundary NodeId.
+        let mut scope_of: BTreeMap<u64, ScopeId> = BTreeMap::new();
+        let mut next_scope_id: ScopeId = NextScopeId::<T>::get();
+
         for (id, old) in old_nodes.iter() {
             let is_boundary = match old.parent {
                 None => true,
@@ -106,8 +118,15 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
             };
 
             if is_boundary {
-                Ownership::<T>::insert(id, old.owner.clone());
-                writes = writes.saturating_add(1);
+                let scope_id = next_scope_id;
+                next_scope_id = next_scope_id.saturating_add(1);
+
+                ScopeRoot::<T>::insert(scope_id, id);
+                ScopeOwner::<T>::insert(scope_id, old.owner.clone());
+                ActiveScope::<T>::insert(id, scope_id);
+                scope_of.insert(id.0, scope_id);
+
+                writes = writes.saturating_add(3);
             }
 
             Parent::<T>::insert(id, old.parent);
@@ -122,6 +141,9 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
                 writes = writes.saturating_add(1);
             }
         }
+
+        NextScopeId::<T>::put(next_scope_id);
+        writes = writes.saturating_add(1);
 
         // Purge the old, now-obsolete `Nodes` storage.
         let _ = Nodes::<T>::clear(u32::MAX, None);

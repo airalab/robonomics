@@ -27,8 +27,10 @@ pub trait WeightInfo {
     fn set_meta() -> Weight;
     fn set_payload() -> Weight;
     fn delete_node() -> Weight;
-    fn transfer_ownership() -> Weight;
-    fn accept_ownership() -> Weight;
+    fn create_scope() -> Weight;
+    fn delete_scope() -> Weight;
+    fn grant_access() -> Weight;
+    fn revoke_access() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -48,10 +50,16 @@ impl WeightInfo for TestWeightInfo {
     fn delete_node() -> Weight {
         Weight::zero()
     }
-    fn transfer_ownership() -> Weight {
+    fn create_scope() -> Weight {
         Weight::zero()
     }
-    fn accept_ownership() -> Weight {
+    fn delete_scope() -> Weight {
+        Weight::zero()
+    }
+    fn grant_access() -> Weight {
+        Weight::zero()
+    }
+    fn revoke_access() -> Weight {
         Weight::zero()
     }
 }

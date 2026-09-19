@@ -23,6 +23,11 @@
 //! WORST CASE MAP SIZE: `1000000`
 //! HOSTNAME: `boot-02-robonomics`, CPU: `AMD EPYC 4344P 8-Core Processor`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: 1024
+//!
+//! NOTE: `create_scope`, `delete_scope`, `grant_access` and `revoke_access`
+//! were hand-written (not re-benchmarked) after the Ownership -> Scope/Access
+//! rework (issue #654); re-run `frame-omni-bencher` against this pallet and
+//! regenerate this file before relying on these weights in production.
 
 // Executed Command:
 // frame-omni-bencher
@@ -100,33 +105,65 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::Nodes` (r:2 w:0)
-	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::PendingOwnershipTransfer` (r:0 w:1)
-	/// Proof: `CPS::PendingOwnershipTransfer` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
-	fn transfer_ownership() -> Weight {
+	/// Storage: `CPS::NextScopeId` (r:1 w:1)
+	/// Proof: `CPS::NextScopeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ScopeRoot` (r:0 w:1)
+	/// Proof: `CPS::ScopeRoot` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ScopeOwner` (r:0 w:1)
+	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ActiveScope` (r:0 w:1)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	fn create_scope() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `198`
 		//  Estimated: `7889`
-		// Minimum execution time: 8_000_000 picoseconds.
-		Weight::from_parts(8_500_000, 0)
+		// Minimum execution time: 9_500_000 picoseconds.
+		Weight::from_parts(10_200_000, 0)
 			.saturating_add(Weight::from_parts(0, 7889))
-			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(4))
+	}
+	/// Storage: `CPS::ActiveScope` (r:1 w:1)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
+	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	fn delete_scope() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 8_800_000 picoseconds.
+		Weight::from_parts(9_400_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::PendingOwnershipTransfer` (r:1 w:1)
-	/// Proof: `CPS::PendingOwnershipTransfer` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Ownerships` (r:0 w:1)
-	/// Proof: `CPS::Ownerships` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
-	fn accept_ownership() -> Weight {
+	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
+	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:0 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn grant_access() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `150`
-		//  Estimated: `3529`
-		// Minimum execution time: 7_500_000 picoseconds.
-		Weight::from_parts(8_000_000, 0)
-			.saturating_add(Weight::from_parts(0, 3529))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(2))
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 9_100_000 picoseconds.
+		Weight::from_parts(9_700_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
+	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:0 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn revoke_access() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 8_900_000 picoseconds.
+		Weight::from_parts(9_500_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	/// Storage: `CPS::Nodes` (r:1 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)

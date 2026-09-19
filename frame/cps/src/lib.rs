@@ -18,7 +18,8 @@
 //! # CPS Pallet: On-chain Hierarchical Tree for Cyber-Physical Systems
 //!
 //! This pallet provides a decentralized registry for cyber-physical systems organized
-//! as a hierarchical tree structure with ownership-based access control.
+//! as a hierarchical tree structure, with authority and resources delegated through
+//! a **Scope / Access** architecture.
 //!
 //! ## Architecture
 //!
@@ -35,67 +36,79 @@
 //!    - An entry is present only when the corresponding field has been set;
 //!      absence means "unset", not "empty"
 //!
-//! 3. **`Ownership`**: Mapping `NodeId` → `AccountId`
-//!    - An entry is only present on nodes that start a new administrative and
-//!      resource-accounting scope (an "Ownership boundary")
-//!    - A node without an entry inherits ownership from the nearest ancestor
-//!      that has one (see [`Pallet::resolve_ownership`])
+//! 3. **`ActiveScope`**: Mapping `NodeId` → `ScopeId`
+//!    - Present only on nodes that are the root of an active [`Scope`](self#scope)
+//!    - A node without an entry resolves to the Scope of the nearest ancestor
+//!      that has one (see [`Pallet::resolve_scope`])
 //!
-//! 4. **`PendingOwnershipTransfer`**: Mapping `NodeId` → `PendingTransfer`
-//!    - Stores the proposed owner together with the authorizing boundary and
-//!      `OwnershipGeneration`, preventing stale acceptance
+//! 4. **`ScopeRoot`** / **`ScopeOwner`** / **`ScopeResources`**: `ScopeId`-keyed
+//!    mappings describing a Scope's root node, owner account and local
+//!    resource limits, respectively. A `Scope` is an architectural concept
+//!    composed from these independent mappings, not a stored struct.
 //!
-//! 5. **`NodesByParent`** / **`RootNodes`**: Index structures for O(1) child and
+//! 5. **`Access`**: Mapping `(ScopeId, (NodeId, AccountId, Capability))` →
+//!    `bool` ("inherited"). Delegates a `Capability` to an `AccountId` at a
+//!    specific `NodeId` within one Scope.
+//!
+//! 6. **`NodesByParent`** / **`RootNodes`**: Index structures for O(1) child and
 //!    root-node lookups
 //!
-//! ### Ownership Model
+//! ### Scope
 //!
-//! An explicit `Ownership` association is attached only to nodes that start a
-//! new administrative and resource-accounting scope; all descendants inherit
-//! it until another `Ownership` association is encountered:
+//! A `Scope` is the administrative and economic boundary of the CPS
+//! hierarchy. `ScopeId` is a globally unique, never-reused numeric
+//! identifier. Every active CPS node resolves to exactly one Scope by
+//! walking `parent` links until the nearest ancestor with an `ActiveScope`
+//! entry is found (see [`Pallet::resolve_scope`]):
 //!
 //! ```text
-//! Building-A
-//! Ownership(PropertyManager)
+//! Global
+//! Scope #1 / owner=A
 //! |
-//! `-- Floor-3
-//!     Ownership(TenantCorp)
+//! `-- Japan
+//!     Scope #7 / owner=B
 //!     |
-//!     `-- HVAC-Unit-07
-//!         |
-//!         `-- Thermostat-142
+//!     `-- University
 //! ```
 //!
-//! `HVAC-Unit-07` and `Thermostat-142` inherit ownership from `Floor-3`'s
-//! `Ownership(TenantCorp)` boundary; `TenantCorp` has no implicit
-//! administrative rights over `Building-A`'s other independently owned
-//! floors, and `PropertyManager` has no implicit administrative rights
-//! inside `TenantCorp`'s boundary.
+//! `University` resolves to `Scope #7` (owner `B`); `Japan`'s Scope has no
+//! implicit administrative rights over `Global`'s other, independently
+//! owned children, and vice versa. A nested Scope is always a hard boundary:
+//! it stops inheritance of authority, `Access`, and resource limits, even
+//! when parent and child Scope owners are the same account.
 //!
-//! [`Pallet::resolve_ownership`] is the single canonical resolver: it returns
-//! the boundary root `NodeId` and effective owner `AccountId` for any node,
-//! and is used by every authorization check in this pallet (and is intended to
-//! be used by future resource-accounting pallets such as Subscription,
-//! Storage, and Compute).
+//! ### Creating and Replacing a Scope
 //!
-//! ### Ownership Transfer
+//! Every CPS root is allocated a fresh Scope, owned by its creator, when the
+//! root is created. [`Pallet::create_scope`] establishes a new Scope on any
+//! node within the caller's Scope (owner authority), or replaces an existing
+//! Scope on its own root node (owner authority, or a delegated
+//! [`Capability::CreateScope`] grant). Replacement allocates a brand-new
+//! `ScopeId` — the previous Scope's `Access` and resource entries become
+//! immediately inactive without requiring any descendant rewrite.
 //!
-//! Ownership of a boundary is established through a two-step propose/accept
-//! flow:
+//! Changing control of a Scope means creating another Scope; a Scope's
+//! `owner` is immutable once created. There is no transfer/accept state
+//! machine.
 //!
-//! 1. The current effective owner calls [`Pallet::transfer_ownership`] with the
-//!    target node and the proposed new owner.
-//! 2. The proposed new owner calls [`Pallet::accept_ownership`] to finalize the
-//!    transfer, which writes (or overwrites) the explicit `Ownership` entry for
-//!    that node.
+//! ### Deleting a Scope
 //!
-//! A node can be turned into a new, independent boundary without changing the
-//! effective owner account by "self-transferring" it (propose and accept with
-//! the same account).
+//! [`Pallet::delete_scope`] removes the administrative/economic boundary
+//! from a CPS node without deleting the node or its descendants. Only the
+//! Scope's owner may delete it (never through inherited `Access`). A CPS
+//! root's Scope can never be deleted, since every node must resolve to
+//! exactly one Scope. Nested Scopes below the deleted boundary are
+//! unaffected: they keep resolving to their own `ScopeId` because
+//! [`Pallet::resolve_scope`] always finds the *nearest* active Scope.
 //!
-//! Accepting a transfer increments the boundary's generation. Proposals authorized
-//! by an older generation or a different boundary must be proposed again by the
-//! current owner; transferring ownership back does not revive old proposals.
+//! ### Access
+//!
+//! [`Pallet::grant_access`] / [`Pallet::revoke_access`] let a Scope owner
+//! delegate a [`Capability`] to another account at a specific `NodeId`,
+//! either for that exact node (`inherited = false`) or for the node and all
+//! its descendants within the same Scope (`inherited = true`). Access never
+//! crosses a nested Scope boundary. The Scope owner always has implicit
+//! authority and does not need explicit `Access` entries.
 //!
 //! ### Structural Immutability
 //!
@@ -107,8 +120,8 @@
 //! ### Performance Characteristics
 //!
 //! Core operation time complexity:
-//! - **Ownership resolution**: `resolve_ownership` walks `parent` links one
-//!   hop at a time until an explicit `Ownership` entry is found → O(depth)
+//! - **Scope resolution**: `resolve_scope` walks `parent` links one hop at a
+//!   time until an `ActiveScope` entry is found → O(depth)
 //! - **Depth validation**: counting `parent` hops up to the root →
 //!   O(depth), bounded by `MAX_TREE_DEPTH`
 //! - **Child lookup**: Direct index access via `NodesByParent` → O(1)
@@ -129,8 +142,8 @@
 //! // Plain metadata
 //! let meta = Some(BoundedVec::try_from(b"sensor_config".to_vec()).unwrap());
 //!
-//! // Create root (parent = None) - the caller becomes the explicit owner of this
-//! // new boundary.
+//! // Create root (parent = None) - the caller becomes the owner of a new
+//! // Scope allocated for this root.
 //! Cps::create_node(origin, None, meta, None)?;
 //! ```
 //!
@@ -143,21 +156,17 @@
 //! let encrypted_bytes = client_side_encrypt(sensitive_data);
 //! let payload = Some(BoundedVec::try_from(encrypted_bytes).unwrap());
 //!
-//! // Create child under node 0. The child inherits ownership from node 0's
-//! // resolved boundary; the caller must be that resolved owner.
+//! // Create child under node 0. The caller must hold `Write` authority
+//! // (Scope owner, or matching Access) over node 0's resolved Scope.
 //! Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
 //! ```
 //!
-//! ### Establishing a Nested Ownership Boundary
+//! ### Establishing a Nested Scope
 //!
 //! ```ignore
-//! // Node 5 currently inherits ownership from an ancestor. Its resolved owner
-//! // proposes a new boundary owner (can be a different account, or the same
-//! // account to simply carve out a new administrative/accounting scope).
-//! Cps::transfer_ownership(origin, NodeId(5), new_owner.clone())?;
-//!
-//! // The proposed owner accepts, which writes the explicit Ownership entry.
-//! Cps::accept_ownership(RuntimeOrigin::signed(new_owner), NodeId(5))?;
+//! // Node 5 currently inherits its Scope from an ancestor. Its owner
+//! // establishes a new, independent Scope rooted at node 5.
+//! Cps::create_scope(origin, NodeId(5), Default::default())?;
 //! ```
 //!
 //! ### Querying the Tree
@@ -172,8 +181,8 @@
 //! // Get all root nodes
 //! let roots = RootNodes::<T>::get();
 //!
-//! // Resolve the effective ownership boundary and owner for a node
-//! let (root, owner) = Cps::resolve_ownership(NodeId(0))?;
+//! // Resolve the effective Scope for a node
+//! let scope = Cps::resolve_scope(NodeId(0))?;
 //! ```
 //!
 //! ## Security Invariants
@@ -182,16 +191,18 @@
 //!
 //! 1. **No Cycles**: The tree is acyclic and `parent` is immutable, so cycles
 //!    cannot be created after node creation.
-//! 2. **Ownership Resolution**: Every active node resolves to exactly one
-//!    effective owner via [`Pallet::resolve_ownership`].
-//! 3. **Ownership Boundaries**: An explicit `Ownership` entry stops
-//!    inheritance from ancestors; ancestor owners have no implicit
-//!    administrative rights inside a nested boundary.
+//! 2. **Scope Resolution**: Every active node resolves to exactly one Scope
+//!    via [`Pallet::resolve_scope`] - the nearest active Scope ancestor wins.
+//! 3. **Scope Boundaries**: Nested Scopes are a hard authority and resource
+//!    boundary; ancestor Scope owners have no implicit administrative rights
+//!    inside a nested Scope.
 //! 4. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
 //!    with `Parent`.
 //! 5. **Deletion Safety**: Cannot delete nodes with children.
 //! 6. **Depth Limits**: Tree depth never exceeds `MAX_TREE_DEPTH`.
-//! 7. **Stable Identity**: `NodeId` is never reused.
+//! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
+//! 8. **Immutable Scope Owner/Root**: A Scope's owner and root are fixed at
+//!    creation; changing control means creating another Scope.
 //!
 //! ## Testing
 //!
@@ -315,7 +326,7 @@ pub const MAX_DATA_SIZE: u32 = 2048;
 /// Maximum tree depth (number of ancestors) a node may have.
 ///
 /// Enforced at `create_node` time by walking the parent chain; bounds the
-/// cost of `resolve_ownership` and depth validation, both O(depth).
+/// cost of `resolve_scope` and depth validation, both O(depth).
 pub const MAX_TREE_DEPTH: u32 = 32;
 
 /// Maximum number of direct children a single node may have.
@@ -328,6 +339,10 @@ pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 /// Bounds the size of the `RootNodes` index.
 pub const MAX_ROOT_NODES: u32 = 100;
 
+/// Maximum number of `(Resource, Limit)` entries that may be set on a Scope
+/// in a single `create_scope` call.
+pub const MAX_SCOPE_RESOURCES: u32 = 8;
+
 /// [`ConstU32`] wrapper around [`MAX_DATA_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_TREE_DEPTH`] for use as a `BoundedVec` bound.
@@ -336,6 +351,8 @@ pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 /// [`ConstU32`] wrapper around [`MAX_ROOT_NODES`] for use as a `BoundedVec` bound.
 pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
+/// [`ConstU32`] wrapper around [`MAX_SCOPE_RESOURCES`] for use as a `BoundedVec` bound.
+pub type MaxScopeResources = ConstU32<MAX_SCOPE_RESOURCES>;
 
 /// Type alias for node data - bounded vector of bytes.
 ///
@@ -399,21 +416,117 @@ impl NodeId {
     }
 }
 
-/// Proposed owner and the ownership scope that authorized the transfer.
+/// Globally unique, never-reused identifier of a [`Scope`](self#scope).
 ///
-/// Acceptance requires the same boundary and generation, so changes in inherited
-/// ownership invalidate the proposal without traversing the boundary's subtree.
+/// A `Scope` is an architectural concept composed from independent
+/// `ScopeId`-keyed mappings ([`ScopeRoot`], [`ScopeOwner`],
+/// [`ScopeResources`]) rather than a single stored struct.
 #[derive(
-    Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Default,
+    Debug,
 )]
-pub struct PendingTransfer<AccountId> {
-    /// Account permitted to accept this proposal.
-    pub proposed_owner: AccountId,
-    /// Effective ownership boundary at proposal time.
-    pub boundary: NodeId,
-    /// Boundary generation at proposal time.
-    pub generation: u64,
+pub struct ScopeId(#[codec(compact)] pub u64);
+
+impl From<u64> for ScopeId {
+    fn from(id: u64) -> Self {
+        Self(id)
+    }
 }
+
+impl From<ScopeId> for u64 {
+    fn from(id: ScopeId) -> Self {
+        id.0
+    }
+}
+
+impl ScopeId {
+    /// Checked add for Scope ID increments. Returns `None` on overflow so
+    /// callers can reject the operation rather than ever reusing an ID.
+    pub fn checked_add(self, rhs: u64) -> Option<Self> {
+        self.0.checked_add(rhs).map(Self)
+    }
+
+    /// Saturating add for Scope ID increments, used by the storage
+    /// migration where rejecting the upgrade on overflow is not an option.
+    ///
+    /// Returns `ScopeId(u64::MAX)` if addition would overflow instead of
+    /// wrapping.
+    pub fn saturating_add(self, rhs: u64) -> Self {
+        Self(self.0.saturating_add(rhs))
+    }
+}
+
+/// A delegable capability that [`Access`] can grant within a [`Scope`](self#scope).
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+)]
+pub enum Capability {
+    /// Authority to mutate a node's `Meta` / `Payload`.
+    Write,
+    /// Authority to create a replacement Scope at the exact Scope root that
+    /// grants it. The sole mechanism for handing over control of a Scope.
+    CreateScope,
+}
+
+/// Key identifying a single [`Access`] entry: the node the grant applies to,
+/// the account it is granted to, and the delegated [`Capability`].
+pub type AccessKey<AccountId> = (NodeId, AccountId, Capability);
+
+/// A Scope-local resource family that [`ScopeResources`] may bound.
+///
+/// Absence of a [`ScopeResources`] entry for a `(ScopeId, Resource)` pair
+/// means no additional Scope-local limit applies for that resource; the
+/// Scope owner's Subscription remains the global resource entitlement.
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+)]
+pub enum Resource {
+    /// Transaction resource consumed on behalf of this Scope.
+    Transaction,
+    /// Storage resource consumed on behalf of this Scope.
+    Storage,
+    /// Compute resource consumed on behalf of this Scope.
+    Compute,
+}
+
+/// Scope-local limit for a [`Resource`].
+pub type Limit = u128;
+
+/// Bounded list of `(Resource, Limit)` pairs accepted by [`Pallet::create_scope`].
+pub type ScopeResourceList = BoundedVec<(Resource, Limit), MaxScopeResources>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -428,13 +541,9 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// Callback handler invoked when a payload is set on a node.
-        ///
-        /// Use `()` for no callback, or implement the `OnPayloadSet` trait
-        /// for custom runtime-level hooks. Multiple handlers can be combined
-        /// using tuples: `(HandlerA, HandlerB)`.
         type OnPayloadSet: OnPayloadSet<Self::AccountId>;
 
-        /// Weight information for extrinsics
+        /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
 
@@ -469,30 +578,50 @@ pub mod pallet {
     #[pallet::getter(fn payload_of)]
     pub type Payload<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, NodeData>;
 
-    /// Explicit ownership boundaries.
-    ///
-    /// An entry is present only on nodes that start a new administrative and
-    /// resource-accounting scope. Nodes without an entry inherit ownership
-    /// from the nearest ancestor that has one - see
-    /// [`Pallet::resolve_ownership`].
+    /// Next Scope ID counter. `ScopeId` is globally unique and never reused.
     #[pallet::storage]
-    #[pallet::getter(fn ownership_of)]
-    pub type Ownership<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, T::AccountId>;
+    #[pallet::getter(fn next_scope_id)]
+    pub type NextScopeId<T> = StorageValue<_, ScopeId, ValueQuery>;
 
-    /// Proposed, not-yet-accepted ownership transfers.
-    #[pallet::storage]
-    #[pallet::getter(fn pending_ownership_transfer)]
-    pub type PendingOwnershipTransfer<T: Config> =
-        StorageMap<_, Blake2_128Concat, NodeId, PendingTransfer<T::AccountId>>;
-
-    /// Generation of an explicit boundary, incremented on every accepted transfer.
+    /// The active Scope rooted at a given node, if any.
     ///
-    /// Newly created and migrated boundaries start at zero. Generations never
-    /// wrap, so transferring back to a former owner cannot revive old proposals.
+    /// An entry is present only on nodes that are the root of an active
+    /// Scope. Nodes without an entry resolve to the Scope of the nearest
+    /// ancestor that has one - see [`Pallet::resolve_scope`].
     #[pallet::storage]
-    #[pallet::getter(fn ownership_generation)]
-    pub type OwnershipGeneration<T: Config> =
-        StorageMap<_, Blake2_128Concat, NodeId, u64, ValueQuery>;
+    #[pallet::getter(fn active_scope)]
+    pub type ActiveScope<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, ScopeId>;
+
+    /// The root `NodeId` of a Scope. Immutable once a Scope is created.
+    #[pallet::storage]
+    #[pallet::getter(fn scope_root)]
+    pub type ScopeRoot<T: Config> = StorageMap<_, Blake2_128Concat, ScopeId, NodeId>;
+
+    /// The owner `AccountId` of a Scope. Immutable once a Scope is created.
+    #[pallet::storage]
+    #[pallet::getter(fn scope_owner)]
+    pub type ScopeOwner<T: Config> = StorageMap<_, Blake2_128Concat, ScopeId, T::AccountId>;
+
+    /// Scope-local resource limits. Absence of an entry means no additional
+    /// Scope-local limit for that resource.
+    #[pallet::storage]
+    #[pallet::getter(fn scope_resources)]
+    pub type ScopeResources<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, ScopeId, Blake2_128Concat, Resource, Limit>;
+
+    /// Access delegations, scoped to a `ScopeId`. The stored `bool` is
+    /// `inherited`: whether the grant propagates to descendants of the
+    /// granted `NodeId` (while they resolve to the same `ScopeId`).
+    #[pallet::storage]
+    #[pallet::getter(fn access)]
+    pub type Access<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        ScopeId,
+        Blake2_128Concat,
+        AccessKey<T::AccountId>,
+        bool,
+    >;
 
     /// Index of children by parent node
     #[pallet::storage]
@@ -510,17 +639,21 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Node created [node_id, parent_id, creator]
         NodeCreated(NodeId, Option<NodeId>, T::AccountId),
-        /// Node metadata set [node_id, owner]
+        /// Node metadata set [node_id, sender]
         MetaSet(NodeId, T::AccountId),
-        /// Node payload set [node_id, owner]
+        /// Node payload set [node_id, sender]
         PayloadSet(NodeId, T::AccountId),
-        /// Node deleted [node_id, owner]
+        /// Node deleted [node_id, sender]
         NodeDeleted(NodeId, T::AccountId),
-        /// Ownership transfer proposed [node_id, current_owner, proposed_owner]
-        OwnershipTransferProposed(NodeId, T::AccountId, T::AccountId),
-        /// Ownership transfer accepted, establishing an explicit boundary
-        /// [node_id, new_owner]
-        OwnershipTransferred(NodeId, T::AccountId),
+        /// A new Scope was created (or replaced an existing one)
+        /// [scope_id, root, owner]
+        ScopeCreated(ScopeId, NodeId, T::AccountId),
+        /// A Scope boundary was removed [scope_id, root]
+        ScopeDeleted(ScopeId, NodeId),
+        /// Access was granted [scope_id, node_id, principal, capability, inherited]
+        AccessGranted(ScopeId, NodeId, T::AccountId, Capability, bool),
+        /// Access was revoked [scope_id, node_id, principal, capability]
+        AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
     }
 
     #[pallet::error]
@@ -530,8 +663,6 @@ pub mod pallet {
         NodeNotFound,
         /// Parent node not found
         ParentNotFound,
-        /// Caller is not the resolved owner of the node
-        NotNodeOwner,
         /// Maximum tree depth exceeded
         MaxDepthExceeded,
         /// Too many children for node
@@ -540,18 +671,18 @@ pub mod pallet {
         TooManyRootNodes,
         /// Node has children and cannot be deleted
         NodeHasChildren,
-        /// No explicit or inherited Ownership could be resolved for this node
-        OwnershipNotFound,
-        /// There is no pending ownership transfer for this node
-        NoPendingOwnershipTransfer,
-        /// Caller is not the account proposed in the pending ownership transfer
-        NotProposedOwner,
         /// No fresh node ID can be allocated without overflowing the counter
         NodeIdExhausted,
-        /// The ownership boundary authorizing this proposal has changed
-        StaleOwnershipTransfer,
-        /// The ownership generation cannot be incremented without overflow
-        OwnershipGenerationExhausted,
+        /// No Scope could be resolved for this node
+        ScopeNotFound,
+        /// No fresh Scope ID can be allocated without overflowing the counter
+        ScopeIdExhausted,
+        /// Caller is not the owner of the resolved Scope
+        NotScopeOwner,
+        /// Caller does not hold the required Access for this operation
+        AccessDenied,
+        /// A CPS root's Scope can never be deleted
+        CannotDeleteRootScope,
     }
 
     #[pallet::hooks]
@@ -561,10 +692,11 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Create a new node.
         ///
-        /// Creating a root node (`parent_id: None`) makes the caller the
-        /// explicit owner of a new Ownership boundary. Creating a child node
-        /// requires the caller to be the resolved owner of `parent_id`; the
-        /// child inherits ownership and does not get its own explicit entry.
+        /// Creating a root node (`parent_id: None`) allocates a fresh Scope
+        /// owned by the caller. Creating a child node requires the caller to
+        /// hold `Write` authority (owner or matching `Access`) over
+        /// `parent_id`'s resolved Scope; the child does not get its own
+        /// Scope.
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::create_node())]
         pub fn create_node(
@@ -585,9 +717,7 @@ pub mod pallet {
 
             if let Some(pid) = parent_id {
                 ensure!(<Parent<T>>::contains_key(pid), Error::<T>::ParentNotFound);
-                let parent_parent = <Parent<T>>::get(pid).flatten();
-                let (_, owner) = Self::resolve_ownership_from(pid, parent_parent)?;
-                ensure!(owner == sender, Error::<T>::NotNodeOwner);
+                Self::authorize(&sender, pid, Capability::Write)?;
 
                 // Check tree depth by walking the parent chain up to the root.
                 ensure!(
@@ -602,14 +732,16 @@ pub mod pallet {
                         .map_err(|_| Error::<T>::TooManyChildren)
                 })?;
             } else {
-                // Root node is always an explicit Ownership boundary
+                // Root node always allocates a fresh, caller-owned Scope.
                 <RootNodes<T>>::try_mutate(|roots| {
                     roots
                         .try_push(node_id)
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
 
-                <Ownership<T>>::insert(node_id, sender.clone());
+                let scope_id =
+                    Self::allocate_scope(node_id, sender.clone(), &ScopeResourceList::default())?;
+                Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender.clone()));
             }
 
             // Store the node's attributes
@@ -635,8 +767,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let (_, owner) = Self::resolve_ownership(node_id)?;
-            ensure!(owner == sender, Error::<T>::NotNodeOwner);
+            Self::authorize(&sender, node_id, Capability::Write)?;
 
             match meta {
                 Some(meta) => <Meta<T>>::insert(node_id, meta),
@@ -657,8 +788,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let (_, owner) = Self::resolve_ownership(node_id)?;
-            ensure!(owner == sender, Error::<T>::NotNodeOwner);
+            Self::authorize(&sender, node_id, Capability::Write)?;
 
             match payload.clone() {
                 Some(payload) => <Payload<T>>::insert(node_id, payload),
@@ -677,9 +807,11 @@ pub mod pallet {
 
         /// Delete a node.
         ///
-        /// Only leaf nodes (no children) can be deleted. Any explicit
-        /// Ownership entry / pending transfer attached to the node is removed
-        /// as well.
+        /// Only leaf nodes (no children) can be deleted. If the node is the
+        /// root of an active Scope, that Scope's `ActiveScope` entry is
+        /// removed as well; the rest of the Scope's physical state
+        /// (`ScopeRoot` / `ScopeOwner` / `ScopeResources` / `Access`) is left
+        /// for background garbage collection.
         #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::delete_node())]
         pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -689,9 +821,8 @@ pub mod pallet {
             ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
             let parent = <Parent<T>>::get(node_id).flatten();
 
-            // Verify ownership
-            let (_, owner) = Self::resolve_ownership_from(node_id, parent)?;
-            ensure!(owner == sender, Error::<T>::NotNodeOwner);
+            // Verify Write authority
+            Self::authorize(&sender, node_id, Capability::Write)?;
 
             // Check if node has children
             let children = <NodesByParent<T>>::get(node_id);
@@ -712,10 +843,9 @@ pub mod pallet {
             // Remove the node's children index entry
             <NodesByParent<T>>::remove(node_id);
 
-            // Clean up any ownership state attached to this node
-            <Ownership<T>>::remove(node_id);
-            <PendingOwnershipTransfer<T>>::remove(node_id);
-            <OwnershipGeneration<T>>::remove(node_id);
+            // Remove the Scope boundary attached to this node, if any. The
+            // rest of that Scope's physical state is left for GC.
+            <ActiveScope<T>>::remove(node_id);
 
             // Remove the node's attributes
             <Meta<T>>::remove(node_id);
@@ -726,105 +856,146 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Propose transferring the Ownership boundary of `node_id` to
-        /// `new_owner`.
+        /// Create a new Scope rooted at `node_id`, or replace its existing
+        /// Scope.
         ///
-        /// The caller must be the resolved owner of `node_id`. This can be
-        /// used both to transfer an existing boundary to another account and
-        /// to establish a brand-new boundary on a node that currently
-        /// inherits ownership (including "self-transfers", where
-        /// `new_owner == caller`, to carve out a boundary without changing
-        /// the effective owner).
+        /// The caller becomes the new Scope's owner and a fresh `ScopeId` is
+        /// always allocated. Authorized either by owning the Scope currently
+        /// governing `node_id` (establishing a brand-new nested boundary, or
+        /// replacing the Scope if `node_id` is already an active Scope
+        /// root), or - only when `node_id` is already an active Scope root -
+        /// by holding a non-inherited `Capability::CreateScope` grant on
+        /// that exact root.
         #[pallet::call_index(4)]
-        #[pallet::weight(T::WeightInfo::transfer_ownership())]
-        pub fn transfer_ownership(
+        #[pallet::weight(T::WeightInfo::create_scope())]
+        pub fn create_scope(
             origin: OriginFor<T>,
             node_id: NodeId,
-            new_owner: T::AccountId,
+            resources: ScopeResourceList,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let (boundary, owner) = Self::resolve_ownership(node_id)?;
-            ensure!(owner == sender, Error::<T>::NotNodeOwner);
+            ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
+            Self::authorize_create_scope(&sender, node_id)?;
 
-            <PendingOwnershipTransfer<T>>::insert(
-                node_id,
-                PendingTransfer {
-                    proposed_owner: new_owner.clone(),
-                    boundary,
-                    generation: <OwnershipGeneration<T>>::get(boundary),
-                },
-            );
+            let scope_id = Self::allocate_scope(node_id, sender.clone(), &resources)?;
 
-            Self::deposit_event(Event::OwnershipTransferProposed(node_id, owner, new_owner));
+            Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender));
             Ok(())
         }
 
-        /// Accept a pending ownership transfer for `node_id`, establishing (or
-        /// overwriting) its explicit Ownership entry.
+        /// Delete the Scope boundary rooted at `node_id`.
         ///
-        /// The authorizing boundary and generation must still match the proposal.
-        /// Stale proposals can only be replaced by the current effective owner.
+        /// Only the Scope's owner may delete it (never through inherited
+        /// `Access`). This removes only the `ActiveScope` boundary, not the
+        /// CPS node or its descendants; `node_id` and everything below it
+        /// falls back to the nearest parent Scope. A CPS root's Scope can
+        /// never be deleted. Nested Scopes below `node_id` are unaffected.
         #[pallet::call_index(5)]
-        #[pallet::weight(T::WeightInfo::accept_ownership())]
-        pub fn accept_ownership(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::delete_scope())]
+        pub fn delete_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let proposal = <PendingOwnershipTransfer<T>>::take(node_id)
-                .ok_or(Error::<T>::NoPendingOwnershipTransfer)?;
-            ensure!(
-                proposal.proposed_owner == sender,
-                Error::<T>::NotProposedOwner
+            let scope_id = <ActiveScope<T>>::get(node_id).ok_or(Error::<T>::ScopeNotFound)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+
+            let parent = <Parent<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
+            ensure!(parent.is_some(), Error::<T>::CannotDeleteRootScope);
+
+            <ActiveScope<T>>::remove(node_id);
+
+            Self::deposit_event(Event::ScopeDeleted(scope_id, node_id));
+            Ok(())
+        }
+
+        /// Grant `capability` to `principal` at `node_id`, within the Scope
+        /// resolved for `node_id`. Only the Scope's owner may grant Access.
+        #[pallet::call_index(6)]
+        #[pallet::weight(T::WeightInfo::grant_access())]
+        pub fn grant_access(
+            origin: OriginFor<T>,
+            node_id: NodeId,
+            principal: T::AccountId,
+            capability: Capability,
+            inherited: bool,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+
+            <Access<T>>::insert(
+                scope_id,
+                (node_id, principal.clone(), capability),
+                inherited,
             );
 
-            let (boundary, _) = Self::resolve_ownership(node_id)?;
-            ensure!(
-                proposal.boundary == boundary
-                    && proposal.generation == <OwnershipGeneration<T>>::get(boundary),
-                Error::<T>::StaleOwnershipTransfer
-            );
-            let generation = <OwnershipGeneration<T>>::get(node_id)
-                .checked_add(1)
-                .ok_or(Error::<T>::OwnershipGenerationExhausted)?;
-            <OwnershipGeneration<T>>::insert(node_id, generation);
-            <Ownership<T>>::insert(node_id, sender.clone());
+            Self::deposit_event(Event::AccessGranted(
+                scope_id, node_id, principal, capability, inherited,
+            ));
+            Ok(())
+        }
 
-            Self::deposit_event(Event::OwnershipTransferred(node_id, sender));
+        /// Revoke a previously granted `capability` from `principal` at
+        /// `node_id`. Only the Scope's owner may revoke Access.
+        #[pallet::call_index(7)]
+        #[pallet::weight(T::WeightInfo::revoke_access())]
+        pub fn revoke_access(
+            origin: OriginFor<T>,
+            node_id: NodeId,
+            principal: T::AccountId,
+            capability: Capability,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+
+            <Access<T>>::remove(scope_id, (node_id, principal.clone(), capability));
+
+            Self::deposit_event(Event::AccessRevoked(
+                scope_id, node_id, principal, capability,
+            ));
             Ok(())
         }
     }
 
     impl<T: Config> Pallet<T> {
-        /// Resolve the effective Ownership boundary and owner for `node_id`.
+        /// Resolve the [`ScopeId`] effective for `node_id`.
         ///
-        /// If `node_id` itself has an explicit `Ownership` entry, it is
+        /// If `node_id` itself has an `ActiveScope` entry, that Scope is
         /// returned directly. Otherwise, `parent` links are followed one hop
-        /// at a time until an explicit entry is found.
+        /// at a time until an active Scope is found.
         ///
         /// This is the single canonical resolver: every authorization check
-        /// in this pallet uses it, and future resource-accounting pallets
-        /// (Subscription, Storage, Compute) are expected to use it as well.
-        pub fn resolve_ownership(node_id: NodeId) -> Result<(NodeId, T::AccountId), Error<T>> {
+        /// in this pallet uses it, and it is also what the `CpsApi` runtime
+        /// API exposes. Callers that also need the Scope's root `NodeId` or
+        /// owner `AccountId` can look them up from the resulting `ScopeId`
+        /// via the [`ScopeRoot`] / [`ScopeOwner`] storage maps.
+        pub fn resolve_scope(node_id: NodeId) -> Result<ScopeId, Error<T>> {
             ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
             let parent = <Parent<T>>::get(node_id).flatten();
-            Self::resolve_ownership_from(node_id, parent)
+            Self::resolve_scope_from(node_id, parent)
         }
 
-        /// Same as [`Self::resolve_ownership`], but reuses an already-fetched
+        /// Same as [`Self::resolve_scope`], but reuses an already-fetched
         /// `parent` link to avoid a redundant storage read for `node_id`
         /// itself.
-        fn resolve_ownership_from(
+        fn resolve_scope_from(
             node_id: NodeId,
             parent: Option<NodeId>,
-        ) -> Result<(NodeId, T::AccountId), Error<T>> {
-            if let Some(owner) = <Ownership<T>>::get(node_id) {
-                return Ok((node_id, owner));
+        ) -> Result<ScopeId, Error<T>> {
+            if let Some(scope_id) = <ActiveScope<T>>::get(node_id) {
+                return Ok(scope_id);
             }
 
             let mut current = parent;
             while let Some(ancestor_id) = current {
-                if let Some(owner) = <Ownership<T>>::get(ancestor_id) {
-                    return Ok((ancestor_id, owner));
+                if let Some(scope_id) = <ActiveScope<T>>::get(ancestor_id) {
+                    return Ok(scope_id);
                 }
                 ensure!(
                     <Parent<T>>::contains_key(ancestor_id),
@@ -833,7 +1004,99 @@ pub mod pallet {
                 current = <Parent<T>>::get(ancestor_id).flatten();
             }
 
-            Err(Error::<T>::OwnershipNotFound)
+            Err(Error::<T>::ScopeNotFound)
+        }
+
+        /// Authorize `sender` to exercise `capability` at `node_id`.
+        ///
+        /// The Scope owner always has implicit authority. Otherwise, `Access`
+        /// entries are checked by walking from `node_id` up to the resolved
+        /// Scope's root (inclusive): at `node_id` itself, both
+        /// `inherited = false` and `inherited = true` match; on strict
+        /// ancestors, only `inherited = true` matches. The walk never
+        /// crosses the Scope boundary.
+        fn authorize(
+            sender: &T::AccountId,
+            node_id: NodeId,
+            capability: Capability,
+        ) -> Result<ScopeId, Error<T>> {
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            if owner == *sender {
+                return Ok(scope_id);
+            }
+            let root = <ScopeRoot<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+
+            let mut current = node_id;
+            let mut at_target = true;
+            for _ in 0..=MAX_TREE_DEPTH {
+                if let Some(inherited) =
+                    <Access<T>>::get(scope_id, (current, sender.clone(), capability))
+                {
+                    if at_target || inherited {
+                        return Ok(scope_id);
+                    }
+                }
+                if current == root {
+                    break;
+                }
+                current = <Parent<T>>::get(current)
+                    .flatten()
+                    .ok_or(Error::<T>::ScopeNotFound)?;
+                at_target = false;
+            }
+
+            Err(Error::<T>::AccessDenied)
+        }
+
+        /// Authorize `sender` to call [`Pallet::create_scope`] on `node_id`.
+        ///
+        /// The Scope owner may create/replace a Scope on any node in their
+        /// Scope. A non-owner may only do so when `node_id` is already the
+        /// exact root of the resolved Scope, and only via a non-inherited
+        /// `Capability::CreateScope` grant on that exact node - `CreateScope`
+        /// never propagates through descendants.
+        fn authorize_create_scope(
+            sender: &T::AccountId,
+            node_id: NodeId,
+        ) -> Result<ScopeId, Error<T>> {
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            if owner == *sender {
+                return Ok(scope_id);
+            }
+
+            let root = <ScopeRoot<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            ensure!(node_id == root, Error::<T>::AccessDenied);
+            let inherited =
+                <Access<T>>::get(scope_id, (node_id, sender.clone(), Capability::CreateScope));
+            ensure!(inherited == Some(false), Error::<T>::AccessDenied);
+
+            Ok(scope_id)
+        }
+
+        /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
+        /// with the given `resources`, and activate it. Replaces any Scope
+        /// previously active at `root`.
+        fn allocate_scope(
+            root: NodeId,
+            owner: T::AccountId,
+            resources: &ScopeResourceList,
+        ) -> Result<ScopeId, Error<T>> {
+            let scope_id = <NextScopeId<T>>::get();
+            let next_id = scope_id
+                .checked_add(1)
+                .ok_or(Error::<T>::ScopeIdExhausted)?;
+            <NextScopeId<T>>::put(next_id);
+
+            <ScopeRoot<T>>::insert(scope_id, root);
+            <ScopeOwner<T>>::insert(scope_id, owner);
+            for (resource, limit) in resources.iter() {
+                <ScopeResources<T>>::insert(scope_id, resource, limit);
+            }
+            <ActiveScope<T>>::insert(root, scope_id);
+
+            Ok(scope_id)
         }
 
         /// Count the number of ancestors of `node_id` by walking `parent`

@@ -840,9 +840,9 @@ impl_runtime_apis! {
         }
     }
 
-    impl pallet_robonomics_cps_runtime_api::NodeOwnership<Block, AccountId> for Runtime {
-        fn resolve_ownership(node: pallet_robonomics_cps::NodeId) -> Option<(pallet_robonomics_cps::NodeId, AccountId)> {
-            CPS::resolve_ownership(node).ok()
+    impl pallet_robonomics_cps_runtime_api::CpsApi<Block> for Runtime {
+        fn resolve_scope(node: pallet_robonomics_cps::NodeId) -> Option<pallet_robonomics_cps::ScopeId> {
+            CPS::resolve_scope(node).ok()
         }
     }
 

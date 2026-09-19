@@ -25,9 +25,12 @@ use frame_support::{assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use sp_std::vec;
 
-/// Build the longest inherited-ownership path used by the measured operation.
-fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> NodeId {
+/// Build a chain of `depth + 1` nodes (a root plus `depth` descendants), all
+/// created by `caller`, who becomes the owner of the root's freshly
+/// allocated Scope. Returns `(root, deepest_node)`.
+fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> (NodeId, NodeId) {
     let mut parent = None;
+    let mut root = None;
     for _ in 0..=depth {
         let id = NextNodeId::<T>::get();
         assert_ok!(Pallet::<T>::create_node(
@@ -36,9 +39,12 @@ fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> NodeId {
             None,
             None,
         ));
+        if root.is_none() {
+            root = Some(id);
+        }
         parent = Some(id);
     }
-    parent.unwrap()
+    (root.unwrap(), parent.unwrap())
 }
 
 /// Use the full bound so reads and writes account for maximum encoded data.
@@ -58,6 +64,16 @@ fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
     }
 }
 
+/// A `ScopeResourceList` filled to its bound, cycling through every
+/// [`Resource`] variant.
+fn maximum_resources() -> ScopeResourceList {
+    let variants = [Resource::Transaction, Resource::Storage, Resource::Compute];
+    let entries: sp_std::vec::Vec<(Resource, Limit)> = (0..MAX_SCOPE_RESOURCES)
+        .map(|i| (variants[i as usize % variants.len()], i as Limit))
+        .collect();
+    BoundedVec::try_from(entries).unwrap()
+}
+
 #[benchmarks]
 mod benchmarks {
     use super::*;
@@ -65,7 +81,7 @@ mod benchmarks {
     #[benchmark]
     fn create_node() {
         let caller: T::AccountId = whitelisted_caller();
-        let parent = create_chain::<T>(&caller, MAX_TREE_DEPTH - 1);
+        let (_, parent) = create_chain::<T>(&caller, MAX_TREE_DEPTH - 1);
         fill_siblings::<T>(&caller, parent, MAX_CHILDREN_PER_NODE - 1);
         let node = NextNodeId::<T>::get();
         let meta = Some(maximum_data());
@@ -88,85 +104,62 @@ mod benchmarks {
         );
     }
 
+    /// Worst case: `sender` is not the Scope owner and is authorized through
+    /// an `inherited = true` `Write` `Access` granted at the Scope root,
+    /// requiring a full `MAX_TREE_DEPTH` walk to be validated.
     #[benchmark]
     fn set_meta() {
         let caller: T::AccountId = whitelisted_caller();
+        let accessor: T::AccountId = account("accessor", 0, 0);
 
-        let node = create_chain::<T>(&caller, MAX_TREE_DEPTH);
-        let meta = Some(maximum_data());
+        let (root, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::Write,
+            true,
+        ));
         Meta::<T>::insert(node, maximum_data());
+        let meta = Some(maximum_data());
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), node, meta.clone());
+        _(RawOrigin::Signed(accessor), node, meta.clone());
 
         assert_eq!(Meta::<T>::get(node), meta);
     }
 
+    /// Worst case: `sender` is not the Scope owner and is authorized through
+    /// an `inherited = true` `Write` `Access` granted at the Scope root,
+    /// requiring a full `MAX_TREE_DEPTH` walk to be validated.
     #[benchmark]
     fn set_payload() {
         let caller: T::AccountId = whitelisted_caller();
+        let accessor: T::AccountId = account("accessor", 0, 0);
 
-        let node = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        let (root, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::Write,
+            true,
+        ));
         Meta::<T>::insert(node, maximum_data());
         Payload::<T>::insert(node, maximum_data());
         let payload = Some(maximum_data());
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller), node, payload.clone());
+        _(RawOrigin::Signed(accessor), node, payload.clone());
 
         assert_eq!(Payload::<T>::get(node), payload);
-    }
-
-    #[benchmark]
-    fn transfer_ownership() {
-        let caller: T::AccountId = whitelisted_caller();
-        let new_owner: T::AccountId = account("new_owner", 0, 0);
-
-        let node = create_chain::<T>(&caller, MAX_TREE_DEPTH);
-        assert_ok!(Pallet::<T>::transfer_ownership(
-            RawOrigin::Signed(caller.clone()).into(),
-            node,
-            caller.clone(),
-        ));
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(caller), node, new_owner.clone());
-
-        assert_eq!(
-            <PendingOwnershipTransfer<T>>::get(node),
-            Some(PendingTransfer {
-                proposed_owner: new_owner,
-                boundary: NodeId(0),
-                generation: 0,
-            })
-        );
-    }
-
-    #[benchmark]
-    fn accept_ownership() {
-        let caller: T::AccountId = whitelisted_caller();
-        let new_owner: T::AccountId = account("new_owner", 0, 0);
-
-        let node = create_chain::<T>(&caller, MAX_TREE_DEPTH);
-        assert_ok!(Pallet::<T>::transfer_ownership(
-            RawOrigin::Signed(caller).into(),
-            node,
-            new_owner.clone(),
-        ));
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(new_owner.clone()), node);
-
-        assert_eq!(<Ownership<T>>::get(node), Some(new_owner));
-        assert_eq!(OwnershipGeneration::<T>::get(node), 1);
-        assert!(!PendingOwnershipTransfer::<T>::contains_key(node));
     }
 
     #[benchmark]
     fn delete_node() {
         let caller: T::AccountId = whitelisted_caller();
 
-        let parent = create_chain::<T>(&caller, MAX_TREE_DEPTH - 1);
+        let (_, parent) = create_chain::<T>(&caller, MAX_TREE_DEPTH - 1);
         fill_siblings::<T>(&caller, parent, MAX_CHILDREN_PER_NODE - 1);
         let node = NextNodeId::<T>::get();
         assert_ok!(Pallet::<T>::create_node(
@@ -175,11 +168,6 @@ mod benchmarks {
             Some(maximum_data()),
             Some(maximum_data()),
         ));
-        assert_ok!(Pallet::<T>::transfer_ownership(
-            RawOrigin::Signed(caller.clone()).into(),
-            node,
-            caller.clone(),
-        ));
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), node);
@@ -187,11 +175,136 @@ mod benchmarks {
         assert!(!Parent::<T>::contains_key(node));
         assert!(!Meta::<T>::contains_key(node));
         assert!(!Payload::<T>::contains_key(node));
-        assert!(!PendingOwnershipTransfer::<T>::contains_key(node));
         assert_eq!(
             NodesByParent::<T>::get(parent).len(),
             (MAX_CHILDREN_PER_NODE - 1) as usize
         );
+    }
+
+    /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
+    /// `resolve_scope` walk before the new Scope is allocated, and the
+    /// resource list is filled to its bound.
+    #[benchmark]
+    fn create_scope() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        let resources = maximum_resources();
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller.clone()), node, resources);
+
+        let scope_id = ActiveScope::<T>::get(node).expect("scope just created");
+        assert_eq!(ScopeOwner::<T>::get(scope_id), Some(caller));
+    }
+
+    #[benchmark]
+    fn delete_scope() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            ScopeResourceList::default(),
+        ));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller), node);
+
+        assert!(!ActiveScope::<T>::contains_key(node));
+    }
+
+    /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
+    /// `resolve_scope` walk before the `Access` entry is written.
+    #[benchmark]
+    fn grant_access() {
+        let caller: T::AccountId = whitelisted_caller();
+        let principal: T::AccountId = account("principal", 0, 0);
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+
+        #[extrinsic_call]
+        _(
+            RawOrigin::Signed(caller),
+            node,
+            principal.clone(),
+            Capability::Write,
+            true,
+        );
+
+        let scope_id = Pallet::<T>::resolve_scope(node).expect("scope resolves");
+        assert_eq!(
+            Access::<T>::get(scope_id, (node, principal, Capability::Write)),
+            Some(true)
+        );
+    }
+
+    /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
+    /// `resolve_scope` walk before the `Access` entry is removed.
+    #[benchmark]
+    fn revoke_access() {
+        let caller: T::AccountId = whitelisted_caller();
+        let principal: T::AccountId = account("principal", 0, 0);
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            principal.clone(),
+            Capability::Write,
+            true,
+        ));
+
+        #[extrinsic_call]
+        _(
+            RawOrigin::Signed(caller),
+            node,
+            principal.clone(),
+            Capability::Write,
+        );
+
+        let scope_id = Pallet::<T>::resolve_scope(node).expect("scope resolves");
+        assert!(!Access::<T>::contains_key(
+            scope_id,
+            (node, principal, Capability::Write)
+        ));
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
+    /// of [`Pallet::resolve_scope`] alone: a `MAX_TREE_DEPTH` walk with no
+    /// active Scope until the root.
+    #[benchmark]
+    fn resolve_scope_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+
+        #[block]
+        {
+            assert!(Pallet::<T>::resolve_scope(node).is_ok());
+        }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
+    /// of an `Access` traversal: an `inherited = true` `Write` grant at the
+    /// Scope root, checked from the deepest descendant.
+    #[benchmark]
+    fn access_traversal_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let accessor: T::AccountId = account("accessor", 0, 0);
+        let (root, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::Write,
+            true,
+        ));
+
+        #[block]
+        {
+            assert_ok!(Pallet::<T>::set_meta(
+                RawOrigin::Signed(accessor).into(),
+                node,
+                None,
+            ));
+        }
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
