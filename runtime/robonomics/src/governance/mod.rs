@@ -31,7 +31,7 @@
 use super::*;
 use core::cmp::Ordering;
 use frame_support::traits::{
-    fungible::HoldConsideration, EitherOf, EitherOfDiverse, Get, LinearStoragePrice, PrivilegeCmp,
+    fungible::HoldConsideration, EitherOf, EitherOfDiverse, LinearStoragePrice, PrivilegeCmp,
 };
 
 mod origins;
