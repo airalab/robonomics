@@ -21,7 +21,7 @@
 //!
 //! Version 1 stored every node as a single `Node { parent, owner, path, meta,
 //! payload }` struct in one `Nodes` map. Version 2 splits a node's attributes
-//! into separate maps (`Parent`, `Meta`, `Payload`) and removes the per-node
+//! into separate maps (`Parents`, `Meta`, `Payload`) and removes the per-node
 //! `owner`/`path` fields entirely, replacing them with the Scope/Access
 //! architecture: a node that starts a new administrative/economic boundary
 //! gets a freshly allocated `ScopeId` (`ActiveScope`, `ScopeRoot`,
@@ -40,7 +40,7 @@
 //! from `NextScopeId`. Version 1 had no Access grants to migrate.
 
 use crate::{
-    ActiveScope, Config, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId, Pallet, Parent,
+    ActiveScope, Config, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId, Pallet, Parents,
     Payload, ScopeId, ScopeOwner, ScopeRoot,
 };
 use core::fmt::Debug;
@@ -129,7 +129,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
                 writes = writes.saturating_add(3);
             }
 
-            Parent::<T>::insert(id, old.parent);
+            Parents::<T>::insert(id, old.parent);
             writes = writes.saturating_add(1);
 
             if let Some(meta) = old.meta.clone() {

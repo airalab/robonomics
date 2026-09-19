@@ -64,16 +64,6 @@ fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
     }
 }
 
-/// A `ScopeResourceList` filled to its bound, cycling through every
-/// [`Resource`] variant.
-fn maximum_resources() -> ScopeResourceList {
-    let variants = [Resource::Transaction, Resource::Storage, Resource::Compute];
-    let entries: sp_std::vec::Vec<(Resource, Limit)> = (0..MAX_SCOPE_RESOURCES)
-        .map(|i| (variants[i as usize % variants.len()], i as Limit))
-        .collect();
-    BoundedVec::try_from(entries).unwrap()
-}
-
 #[benchmarks]
 mod benchmarks {
     use super::*;
@@ -95,7 +85,7 @@ mod benchmarks {
             payload.clone(),
         );
 
-        assert_eq!(Parent::<T>::get(node), Some(Some(parent)));
+        assert_eq!(Parents::<T>::get(node), Some(Some(parent)));
         assert_eq!(Meta::<T>::get(node), meta);
         assert_eq!(Payload::<T>::get(node), payload);
         assert_eq!(
@@ -172,7 +162,7 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), node);
 
-        assert!(!Parent::<T>::contains_key(node));
+        assert!(!Parents::<T>::contains_key(node));
         assert!(!Meta::<T>::contains_key(node));
         assert!(!Payload::<T>::contains_key(node));
         assert_eq!(
@@ -182,16 +172,14 @@ mod benchmarks {
     }
 
     /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
-    /// `resolve_scope` walk before the new Scope is allocated, and the
-    /// resource list is filled to its bound.
+    /// `resolve_scope` walk before the new Scope is allocated.
     #[benchmark]
     fn create_scope() {
         let caller: T::AccountId = whitelisted_caller();
         let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
-        let resources = maximum_resources();
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller.clone()), node, resources);
+        _(RawOrigin::Signed(caller.clone()), node);
 
         let scope_id = ActiveScope::<T>::get(node).expect("scope just created");
         assert_eq!(ScopeOwner::<T>::get(scope_id), Some(caller));
@@ -204,7 +192,6 @@ mod benchmarks {
         assert_ok!(Pallet::<T>::create_scope(
             RawOrigin::Signed(caller.clone()).into(),
             node,
-            ScopeResourceList::default(),
         ));
 
         #[extrinsic_call]

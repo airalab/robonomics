@@ -13,9 +13,15 @@ ignored = ["parity-scale-codec"]
 
 [dependencies]
 parity-scale-codec.workspace = true
+scale-info.workspace = true
 pallet-robonomics-cps.workspace = true
 sp-api.workspace = true
 
 [features]
 default = ["std"]
-std = ["parity-scale-codec/std", "pallet-robonomics-cps/std", "sp-api/std"]
+std = [
+  "parity-scale-codec/std",
+  "scale-info/std",
+  "pallet-robonomics-cps/std",
+  "sp-api/std",
+]

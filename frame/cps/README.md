@@ -29,10 +29,11 @@ Smart Building (Root)
 ```
 
 This pallet provides a decentralized, tamper-proof registry for such systems, enabling:
-- **Verifiable ownership boundaries** for physical assets and sub-systems
+- **Verifiable authority boundaries** for physical assets and sub-systems
 - **Verifiable system topology** for audits and compliance
 - **Secure data storage** with client-side encryption support
 - **Immutable audit trails** of system changes
+- **Fine-grained delegation** of node-state mutation without transferring ownership
 
 ## Core Concepts
 
@@ -54,39 +55,74 @@ creation time and never changes - there is no operation to relocate a node:
 - **Efficient Queries**: Find all children of a node in O(1) time via `NodesByParent`
 - **Structural Immutability**: The tree shape can only grow, never be rewired
 
-### Ownership Model
+### Scope / Access Model
 
-Ownership is **not** stored on every node. Instead, an explicit `Ownership`
-entry marks only the nodes that start a new administrative and
-resource-accounting scope (an "Ownership boundary"); every other node
-inherits ownership from the nearest ancestor boundary:
+Authority is **not** stored on every node. Instead, a `Scope` marks only the
+nodes that start a new administrative and economic boundary; every other node
+resolves to the nearest ancestor `Scope`:
 
 ```
-Building-A
-Ownership(PropertyManager)
+Global
+Scope #1 / owner=A
 |
-`-- Floor-3
-    Ownership(TenantCorp)
+`-- Japan
+    Scope #7 / owner=B
     |
-    `-- HVAC-Unit-07
-        |
-        `-- Thermostat-142
+    `-- University
 ```
 
-`HVAC-Unit-07` and `Thermostat-142` inherit ownership from `Floor-3`'s
-`Ownership(TenantCorp)` boundary. `TenantCorp` has no implicit rights over
-`Building-A`'s other independently owned floors, and `PropertyManager` has
-no implicit rights inside `TenantCorp`'s boundary.
+`University` resolves to `Scope #7` (owner `B`); `Japan`'s Scope has no
+implicit rights over `Global`'s other, independently owned children, and vice
+versa. A nested Scope is always a hard boundary: it stops inheritance of
+authority, `Access`, and resource limits, even when parent and child Scope
+owners are the same account.
 
-New boundaries are established purely through `transfer_ownership` (propose)
-and `accept_ownership` (accept) - the same two-step flow used to hand
-ownership of an existing boundary to another account. A "self-transfer"
-(proposing and accepting to the same account) simply carves out a new,
-independent boundary without changing the effective owner.
+`Pallet::resolve_scope(node_id)` is the single canonical resolver: it walks
+`parent` links one hop at a time until it finds an active Scope, and is used
+by every authorization check in this pallet.
 
-`Pallet::resolve_ownership(node_id)` is the single canonical resolver: it
-returns the boundary root `NodeId` and the effective owner `AccountId` for
-any node, and is used by every authorization check in this pallet.
+### Capabilities and Access
+
+A [`Capability`] is a delegable authority. Two are defined today:
+
+- **`Write`** - mutate a node's `Meta` / `Payload` (covers both `set_meta`
+  and `set_payload`).
+- **`CreateScope`** - create/replace a Scope at the exact Scope root that
+  grants it (the sole mechanism for handing over control of a Scope).
+
+`Pallet::grant_access` / `Pallet::revoke_access` let a Scope owner delegate a
+`Capability` to another account at a specific `NodeId`, either for that exact
+node (`inherited = false`) or for the node and all its descendants within the
+same Scope (`inherited = true`). Access never crosses a nested Scope
+boundary. The Scope owner always has implicit authority over their whole
+Scope and does not need explicit `Access` entries.
+
+`CreateScope` is special-cased: it is never inherited, even if granted with
+`inherited = true` - it only ever applies to the exact node it targets.
+
+#### Example: delegating `Write`
+
+```
+Factory
+Scope #10 / owner=A
+|
++-- Robot
+|
+`-- Laboratory
+    Scope #20 / owner=B
+    |
+    `-- Sensor
+```
+
+If `A` grants `Access(#10, Factory, Gateway, Write, inherited = true)`,
+`Gateway` may `set_meta`/`set_payload` on `Factory` and `Robot` (both resolve
+to Scope #10), but **not** on `Laboratory` or `Sensor` - those resolve to the
+independent `Scope #20`, so `A`'s Scope-#10 Access never applies there, even
+though `Laboratory` is a descendant of `Factory` in the tree.
+
+Access entries become invalid the moment their Scope is replaced or deleted,
+without requiring any rewrite: authorization always starts by resolving the
+*current* Scope for the target node.
 
 ### Data Model
 
@@ -126,31 +162,38 @@ Product Batch #12345
 ### Use Case 2: Smart Building Management
 
 A property manager leases floors to independent tenant companies, each
-managing their own equipment:
+managing their own equipment, and delegates day-to-day sensor updates to a
+gateway device without handing over Scope ownership:
 
 ```
 Building-A
-Ownership(PropertyManager)
+Scope #1 / owner=PropertyManager
 ├── Floor-1 (shared building systems)
 │   ├── Fire Suppression Controller
 │   └── Elevator Bank
 └── Floor-3
-    Ownership(TenantCorp)
+    Scope #7 / owner=TenantCorp
     ├── HVAC-Unit-07
     │   └── Thermostat-142 (occupancy data, encrypted)
+    │       Access(#7, Thermostat-142, Gateway, Write, inherited=false)
     └── Access Control Panel (badge logs, encrypted)
 ```
 
-**Benefits**: `TenantCorp` manages Floor-3's equipment independently; `PropertyManager` retains full control of shared building systems and other floors without either party having implicit access to the other's boundary.
+**Benefits**: `TenantCorp` manages Floor-3's equipment independently and can
+delegate `Write` on individual nodes (like `Thermostat-142`) to a `Gateway`
+device, without granting it any administrative rights over the Scope;
+`PropertyManager` retains full control of shared building systems and other
+floors without either party having implicit access to the other's boundary.
 
 ## How It Works
 
 ### Creating a System Hierarchy
 
-1. **Start with a root node** representing your top-level system - the creator becomes its owner
-2. **Add child nodes** for subsystems and components - the resolved owner of the parent authorizes creation
+1. **Start with a root node** representing your top-level system - the creator becomes the owner of a freshly allocated Scope
+2. **Add child nodes** for subsystems and components - requires `Write` authority (Scope owner, or matching `Access`) over the parent's resolved Scope
 3. **Store data** as plain text (public) or client-side encrypted (private)
-4. **Establish nested boundaries** with `transfer_ownership`/`accept_ownership` when a sub-tree needs independent administration
+4. **Establish nested boundaries** with `create_scope` when a sub-tree needs independent administration
+5. **Delegate `Write`** with `grant_access` when another account should update node state without administering the Scope
 
 ```
 Step 1: Create Root          Step 2: Add Children        Step 3: Add Details
@@ -166,21 +209,21 @@ Step 1: Create Root          Step 2: Add Children        Step 3: Add Details
 The pallet enforces several invariants:
 
 - **Structural Immutability**: `parent` never changes after creation, so cycles cannot be created
-- **Ownership Resolution**: Every active node resolves to exactly one effective owner
-- **Ownership Boundaries**: An explicit `Ownership` entry stops inheritance from ancestors
+- **Scope Resolution**: Every active node resolves to exactly one Scope
+- **Scope Boundaries**: An active `Scope` entry stops inheritance from ancestors
 - **Depth Limits**: Trees cannot exceed `MaxTreeDepth`
 - **Deletion Safety**: Nodes with children cannot be deleted
 
-### Ownership Resolution: O(depth)
+### Scope Resolution: O(depth)
 
-There is no cached ancestor list. `resolve_ownership` walks the single
-`parent` link one hop at a time until it finds an explicit `Ownership` entry,
-bounded by `MaxTreeDepth`:
+There is no cached ancestor list. `resolve_scope` walks the single `parent`
+link one hop at a time until it finds an active Scope, bounded by
+`MaxTreeDepth`:
 
 ```
 Node C: parent = Some(B)  ─┐
 Node B: parent = Some(A)   ├─ walked one hop at a time
-Node A: parent = None      ┘  (root - always has an explicit Ownership entry)
+Node A: parent = None      ┘  (root - always has an active Scope entry)
 ```
 
 **Trade-off**: No extra storage per node for ancestor tracking, at the cost
@@ -208,14 +251,14 @@ meta: {"type": "temperature", "model": "DHT22"}
 payload: {"reading": "22.5°C", "timestamp": "2025-01-15T10:30:00Z"}
 ```
 
-Creating a root node (`parent: None`) makes the caller the explicit owner of
-a new Ownership boundary. Creating a child node requires the caller to be the
-resolved owner of the parent; the child inherits ownership and does not get
-its own explicit entry.
+Creating a root node (`parent: None`) allocates a fresh Scope, owned by the
+caller. Creating a child node requires `Write` authority over the parent's
+resolved Scope; the child does not get its own Scope.
 
 ### ✏️ Update Data
 
-Modify metadata or payload without changing the hierarchy:
+Modify metadata or payload without changing the hierarchy. Both require
+`Write` authority over the node's resolved Scope:
 
 ```
 set_meta(node_id, new_metadata)    // Update configuration
@@ -227,46 +270,88 @@ set_payload(node_id, new_payload)  // Update operational data
 set_meta(sensor_id, {"type": "temperature", "model": "DHT22", "calibrated": "2025-01-15"})
 ```
 
-### 🔑 Transfer Ownership
+### 🔒 Create / Replace a Scope
 
-Hand off an Ownership boundary to another account, or carve out a brand-new
-boundary on a node that currently inherits ownership:
+Establish a new, independent administrative and economic boundary on a node,
+or replace an existing Scope rooted at the caller's own node:
 
 ```
-transfer_ownership(node_id, new_owner)   // Propose (caller must be the resolved owner)
-accept_ownership(node_id)                // Accept (caller must be `new_owner`)
+create_scope(node_id)
 ```
 
-**Example**: A property manager delegates Floor-3 to a tenant:
+The Scope owner may do this on any node within their Scope. A non-owner may
+only replace a Scope at its own root, and only via a non-inherited
+`CreateScope` grant on that exact node.
+
+**Example**: A property manager carves out an independent boundary for a new tenant:
 ```
-transfer_ownership(floor_3_id, tenant_corp)
-accept_ownership(floor_3_id)   // signed by tenant_corp
+create_scope(floor_3_id)   // signed by the current Scope owner
 ```
 
-A "self-transfer" (`new_owner == caller`) carves out a new, independent
-boundary without changing the effective owner.
+Replacing a Scope allocates a brand-new `ScopeId` - the previous Scope's
+`Access` entries become immediately inactive without requiring any
+descendant rewrite.
 
-Each proposal records its authorizing boundary and ownership generation.
-Accepting a transfer increments that boundary's generation, invalidating pending
-proposals that inherited its authority. Establishing an intervening boundary also
-invalidates affected proposals, even if the owner account stays the same.
-Transferring ownership back does not revive old proposals. Proposals inside an
-independent nested boundary remain valid.
+### 🗝️ Delete a Scope
 
-The current owner can replace a stale proposal by calling `transfer_ownership`
-again. The v1-to-v2 upgrade initializes existing boundaries at generation zero;
-v1 had no pending proposals to migrate.
+Remove an administrative/economic boundary from a node without deleting the
+node or its descendants (they fall back to resolving the nearest remaining
+ancestor Scope):
+
+```
+delete_scope(node_id)
+```
+
+Only the Scope's owner may delete it (never through `Access`, even a full
+`Write` grant). A CPS root's Scope can never be deleted, since every node
+must resolve to exactly one Scope.
+
+### 🔑 Grant / Revoke Access
+
+Delegate (or withdraw) a `Capability` to another account at a specific node:
+
+```
+grant_access(node_id, principal, capability, inherited)
+revoke_access(node_id, principal, capability)
+```
+
+Only the Scope owner may grant or revoke Access. `inherited = true`
+propagates the grant to descendants that still resolve to the same Scope;
+`inherited = false` applies only to the exact node.
+
+**Example**: A tenant delegates `Write` on a single thermostat to a gateway device:
+```
+grant_access(thermostat_id, gateway_account, Capability::Write, inherited: false)
+```
 
 ### 🗑️ Delete Node
 
-Remove a leaf node (must have no children):
+Remove a leaf node (must have no children). Requires `Write` authority over
+the node's resolved Scope:
 
 ```
 delete_node(node_id)
 ```
 
 **Safety**: Cannot delete nodes with children to prevent orphaned subtrees.
-Deleting a node also clears any `Ownership` / pending transfer attached to it.
+Deleting a node also clears any `Meta` / `Payload` / active Scope attached to it.
+
+## Runtime API
+
+`pallet-robonomics-cps-runtime-api` exposes read-only queries to off-chain
+clients (e.g. Subxt-based tooling) without reimplementing Scope-resolution or
+Access-traversal logic client-side:
+
+- `resolve_scope(node) -> Option<ScopeId>` - the `ScopeId` currently active
+  for `node`.
+- `has_capability(node_id, account_id, capability_id) -> bool` - whether
+  `account_id` currently holds `capability_id` at `node_id`, reusing the same
+  authorization logic enforced by `set_meta`/`set_payload`/`create_scope`.
+
+`capability_id` is a stable [`CapabilityId`], decoupled from `Capability`'s
+internal SCALE representation, so the Runtime API's wire format does not
+change as new capabilities are added. Convert with
+`CapabilityId::from(capability)` / `Capability::try_from(capability_id)`.
 
 ## Storage Efficiency
 
@@ -282,7 +367,7 @@ Node IDs use SCALE compact encoding for efficient storage:
 
 ### Per-Field Storage
 
-Each node's attributes live in their own storage map (`Parent`, `Meta`,
+Each node's attributes live in their own storage map (`Parents`, `Meta`,
 `Payload`), so a node with no metadata or payload set costs no storage for
 those fields.
 
@@ -446,18 +531,19 @@ println!("Reading: {}", String::from_utf8(decrypted)?);
 
 ### What's Protected
 
-✅ **Ownership Verification**: Only the resolved owner can modify a node
-✅ **Boundary Isolation**: Nested Ownership boundaries stop implicit ancestor rights
+✅ **Authorization Verification**: Only the Scope owner or an explicit `Access` grant can mutate a node
+✅ **Boundary Isolation**: Nested Scopes stop implicit ancestor rights and Access inheritance
 ✅ **Tree Integrity**: `parent` is immutable, so cycles and rewiring are impossible
 ✅ **Data Encryption**: Client-side encryption fully supported for private data
 ✅ **Immutable History**: All changes recorded in blockchain events
 ✅ **DoS Protection**: Bounded collections prevent resource exhaustion
+✅ **Least Privilege Delegation**: `Write` delegates data mutation only - never Scope administration
 
 ### What's NOT Protected
 
 ⚠️ **Encryption Key Management**: Users must manage encryption keys externally
 ⚠️ **Node Structure Privacy**: Tree topology is publicly visible
-⚠️ **Access Control Beyond Ownership**: Only owner-based permissions supported
+⚠️ **Access Control Beyond Scope/Access**: Only Scope-owner and `Access`-based permissions supported
 
 ### Threat Model
 
@@ -465,7 +551,8 @@ println!("Reading: {}", String::from_utf8(decrypted)?);
 - Unauthorized modification of nodes
 - Tree corruption via cycles (impossible - `parent` is immutable)
 - Resource exhaustion attacks
-- Cross-boundary privilege escalation
+- Cross-boundary privilege escalation (nested Scopes are a hard boundary)
+- Privilege escalation from data mutation to Scope administration (`Write` never authorizes `create_scope`/`delete_scope`/`grant_access`/`revoke_access`)
 
 **Does Not Prevent:**
 - Analysis of tree structure
@@ -479,13 +566,13 @@ println!("Reading: {}", String::from_utf8(decrypted)?);
 1. Add to `Cargo.toml`:
    ```toml
    pallet-robonomics-cps = { default-features = false, path = "../frame/cps" }
+   pallet-robonomics-cps-runtime-api = { default-features = false, path = "../frame/cps-runtime-api" }
    ```
 
 2. Configure in runtime:
    ```rust
    impl pallet_robonomics_cps::Config for Runtime {
        type RuntimeEvent = RuntimeEvent;
-       type OnPayloadSet = ();
        type WeightInfo = ();
    }
    ```
@@ -495,13 +582,29 @@ println!("Reading: {}", String::from_utf8(decrypted)?);
    Cps: pallet_robonomics_cps,
    ```
 
+4. Implement the Runtime API:
+   ```rust
+   impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
+       fn resolve_scope(node: NodeId) -> Option<ScopeId> {
+           Cps::resolve_scope(node).ok()
+       }
+
+       fn has_capability(node_id: NodeId, account_id: AccountId, capability_id: CapabilityId) -> bool {
+           match Capability::try_from(capability_id) {
+               Ok(capability) => Cps::has_capability(node_id, &account_id, capability),
+               Err(()) => false,
+           }
+       }
+   }
+   ```
+
 ### For dApp Developers
 
 Query the chain to discover system hierarchies:
 
 ```javascript
 // Get a node's parent (also tells you whether the node exists)
-const parent = await api.query.cps.parent(nodeId);
+const parent = await api.query.cps.parents(nodeId);
 
 // Get metadata / payload
 const meta = await api.query.cps.meta(nodeId);
@@ -512,6 +615,10 @@ const children = await api.query.cps.nodesByParent(parentId);
 
 // Get all root nodes
 const roots = await api.query.cps.rootNodes();
+
+// Resolve the active Scope and check a capability via the Runtime API
+const scopeId = await api.call.cpsApi.resolveScope(nodeId);
+const canWrite = await api.call.cpsApi.hasCapability(nodeId, accountId, writeCapabilityId);
 ```
 
 Create and manage hierarchies:
@@ -523,16 +630,18 @@ await api.tx.cps.createNode(null, metadata, payload).signAndSend(account);
 // Add a child
 await api.tx.cps.createNode(parentId, metadata, payload).signAndSend(account);
 
-// Establish a new Ownership boundary on an existing node
-await api.tx.cps.transferOwnership(nodeId, newOwner).signAndSend(currentOwner);
-await api.tx.cps.acceptOwnership(nodeId).signAndSend(newOwner);
+// Establish a new Scope boundary on an existing node
+await api.tx.cps.createScope(nodeId).signAndSend(currentOwner);
+
+// Delegate Write to another account for a single node
+await api.tx.cps.grantAccess(nodeId, principal, 'Write', false).signAndSend(scopeOwner);
 ```
 
 ## Comparison with Alternatives
 
 | Approach | Pros | Cons | Best For |
 |----------|------|------|----------|
-| **CPS Pallet** | Decentralized, immutable, hierarchical ownership | Requires blockchain | Trustless multi-party systems |
+| **CPS Pallet** | Decentralized, immutable, hierarchical Scope/Access authority | Requires blockchain | Trustless multi-party systems |
 | **Traditional DB** | Fast, flexible queries | Centralized, mutable | Single organization |
 | **IPFS + DB** | Decentralized storage | No ownership enforcement | Content distribution |
 | **ERC-721 NFTs** | Standard, composable | Gas-expensive, limited structure | Digital collectibles |

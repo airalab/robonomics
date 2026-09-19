@@ -565,7 +565,6 @@ impl pallet_robonomics_rws::Config for Runtime {
 
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type OnPayloadSet = ();
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
 }
 
@@ -840,9 +839,20 @@ impl_runtime_apis! {
         }
     }
 
-    impl pallet_robonomics_cps_runtime_api::CpsApi<Block> for Runtime {
+    impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
         fn resolve_scope(node: pallet_robonomics_cps::NodeId) -> Option<pallet_robonomics_cps::ScopeId> {
             CPS::resolve_scope(node).ok()
+        }
+
+        fn has_capability(
+            node_id: pallet_robonomics_cps::NodeId,
+            account_id: AccountId,
+            capability_id: pallet_robonomics_cps_runtime_api::CapabilityId,
+        ) -> bool {
+            match pallet_robonomics_cps::Capability::try_from(capability_id) {
+                Ok(capability) => CPS::has_capability(node_id, &account_id, capability),
+                Err(()) => false,
+            }
         }
     }
 

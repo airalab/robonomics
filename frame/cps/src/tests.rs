@@ -20,7 +20,6 @@
 use crate::{self as pallet_cps, *};
 use frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
 use sp_runtime::BuildStorage;
-use std::cell::RefCell;
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
@@ -37,30 +36,8 @@ impl frame_system::Config for Runtime {
     type AccountData = ();
 }
 
-thread_local! {
-    static PAYLOAD_CALLBACK_LOG: RefCell<Vec<(NodeId, Option<NodeData>, Option<NodeData>)>> =
-        RefCell::new(Vec::new());
-}
-
-/// Test-only [`OnPayloadSet`] implementation that records every invocation so
-/// tests can assert the callback fires with the expected arguments.
-pub struct RecordingPayloadHandler;
-impl OnPayloadSet<u64> for RecordingPayloadHandler {
-    fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
-        // The hook must observe the updated storage, not the previous payload.
-        assert_eq!(Cps::meta_of(node_id), meta);
-        assert_eq!(Cps::payload_of(node_id), payload);
-        PAYLOAD_CALLBACK_LOG.with(|log| log.borrow_mut().push((node_id, meta, payload)));
-    }
-}
-
-fn payload_callback_log() -> Vec<(NodeId, Option<NodeData>, Option<NodeData>)> {
-    PAYLOAD_CALLBACK_LOG.with(|log| log.borrow().clone())
-}
-
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type OnPayloadSet = RecordingPayloadHandler;
     type WeightInfo = weights::TestWeightInfo;
 }
 
@@ -69,8 +46,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .build_storage()
         .unwrap();
 
-    PAYLOAD_CALLBACK_LOG.with(|log| log.borrow_mut().clear());
-
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
     ext
@@ -78,10 +53,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 fn data(bytes: &[u8]) -> NodeData {
     BoundedVec::try_from(bytes.to_vec()).unwrap()
-}
-
-fn resources(list: &[(Resource, Limit)]) -> ScopeResourceList {
-    BoundedVec::try_from(list.to_vec()).unwrap()
 }
 
 /// Assert that `node_id` resolves to the Scope `expected_id`, rooted at
@@ -414,31 +385,6 @@ fn clear_meta_and_payload_works() {
     });
 }
 
-#[test]
-fn set_payload_invokes_callback() {
-    new_test_ext().execute_with(|| {
-        let account = 1u64;
-        assert_ok!(Cps::create_node(
-            RuntimeOrigin::signed(account),
-            None,
-            Some(data(b"meta")),
-            None
-        ));
-
-        let payload = Some(data(b"payload"));
-        assert_ok!(Cps::set_payload(
-            RuntimeOrigin::signed(account),
-            NodeId(0),
-            payload.clone()
-        ));
-
-        assert_eq!(
-            payload_callback_log(),
-            vec![(NodeId(0), Some(data(b"meta")), payload)]
-        );
-    });
-}
-
 // ---------------------------------------------------------------------------
 // delete_node
 // ---------------------------------------------------------------------------
@@ -517,7 +463,7 @@ fn delete_node_without_access_fails() {
 
         assert_noop!(
             Cps::delete_node(RuntimeOrigin::signed(2), NodeId(0)),
-            Error::<Runtime>::AccessDenied
+            Error::<Runtime>::NotScopeOwner
         );
     });
 }
@@ -563,11 +509,7 @@ fn nested_scope_inheritance_works() {
             None
         ));
         let university = NodeId(2);
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(a),
-            university,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(a), university));
         // Ownership of the new Scope always belongs to the caller of
         // create_scope; grant B access to actually own it in this scenario.
         let uni_scope = Cps::active_scope(university).unwrap();
@@ -606,11 +548,7 @@ fn same_owner_nested_scope_is_still_a_hard_boundary() {
         let child = NodeId(1);
 
         // A carves out a new Scope on `child`, still owned by themselves.
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(a),
-            child,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(a), child));
         let child_scope = Cps::active_scope(child).unwrap();
         let root_scope = Cps::active_scope(root).unwrap();
         assert_ne!(child_scope, root_scope);
@@ -672,20 +610,12 @@ fn owner_can_create_nested_scope_on_child() {
             None
         ));
 
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            NodeId(1),
-            resources(&[(Resource::Transaction, 100)])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
 
         let new_scope = Cps::active_scope(NodeId(1)).unwrap();
         assert_ne!(new_scope, ScopeId(0));
         assert_eq!(Cps::scope_owner(new_scope), Some(1));
         assert_eq!(Cps::scope_root(new_scope), Some(NodeId(1)));
-        assert_eq!(
-            Cps::scope_resources(new_scope, Resource::Transaction),
-            Some(100)
-        );
     });
 }
 
@@ -701,11 +631,7 @@ fn scope_replacement_allocates_fresh_id_and_invalidates_old_access() {
         ));
         let japan = NodeId(1);
 
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            japan,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
         let old_scope = Cps::active_scope(japan).unwrap();
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -723,11 +649,7 @@ fn scope_replacement_allocates_fresh_id_and_invalidates_old_access() {
             Capability::CreateScope,
             false
         ));
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(2),
-            japan,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), japan));
 
         let new_scope = Cps::active_scope(japan).unwrap();
         assert_ne!(new_scope, old_scope);
@@ -760,23 +682,11 @@ fn create_scope_id_never_reused() {
         ));
         let node = NodeId(1);
 
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            node,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), node));
         let first = Cps::active_scope(node).unwrap();
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            node,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), node));
         let second = Cps::active_scope(node).unwrap();
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            node,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), node));
         let third = Cps::active_scope(node).unwrap();
 
         assert_ne!(first, second);
@@ -791,7 +701,7 @@ fn create_scope_without_access_fails() {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
 
         assert_noop!(
-            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(0), resources(&[])),
+            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(0)),
             Error::<Runtime>::AccessDenied
         );
     });
@@ -810,18 +720,42 @@ fn create_scope_capability_rejected_on_descendants() {
         let root = NodeId(0);
         let child = NodeId(1);
 
-        // Grant CreateScope at the root, even inherited=true; it must never
-        // authorize create_scope on a descendant.
+        // Grant a non-inherited CreateScope at the root; it must never
+        // authorize create_scope on a descendant - CreateScope never
+        // propagates through descendants.
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             root,
             2,
             Capability::CreateScope,
+            false
+        ));
+
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), child),
+            Error::<Runtime>::AccessDenied
+        );
+    });
+}
+
+#[test]
+fn write_access_does_not_authorize_create_scope() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+
+        // A full, inherited `Write` grant is a data capability only; it must
+        // never let the grantee create/replace a Scope.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
             true
         ));
 
         assert_noop!(
-            Cps::create_scope(RuntimeOrigin::signed(2), child, resources(&[])),
+            Cps::create_scope(RuntimeOrigin::signed(2), root),
             Error::<Runtime>::AccessDenied
         );
     });
@@ -833,19 +767,17 @@ fn create_scope_inherited_capability_rejected() {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
 
-        // CreateScope granted with inherited=true at the exact root must
-        // still be rejected: CreateScope grants must be non-inherited.
-        assert_ok!(Cps::grant_access(
-            RuntimeOrigin::signed(1),
-            root,
-            2,
-            Capability::CreateScope,
-            true
-        ));
-
+        // CreateScope grants must be non-inherited: attempting to grant one
+        // with inherited=true is rejected outright at `grant_access`.
         assert_noop!(
-            Cps::create_scope(RuntimeOrigin::signed(2), root, resources(&[])),
-            Error::<Runtime>::AccessDenied
+            Cps::grant_access(
+                RuntimeOrigin::signed(1),
+                root,
+                2,
+                Capability::CreateScope,
+                true
+            ),
+            Error::<Runtime>::BadArguments
         );
     });
 }
@@ -867,11 +799,7 @@ fn delete_scope_falls_back_to_parent_scope() {
         let root = NodeId(0);
         let japan = NodeId(1);
 
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            japan,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
         let japan_scope = Cps::active_scope(japan).unwrap();
         assert_scope(japan, japan_scope, japan, 1);
 
@@ -905,11 +833,7 @@ fn delete_scope_requires_owner_not_inherited_access() {
             None
         ));
         let japan = NodeId(1);
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            japan,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
 
         // Even full Write Access does not allow deleting the Scope.
         assert_ok!(Cps::grant_access(
@@ -939,11 +863,7 @@ fn nested_scope_preserved_after_parent_scope_deletion() {
             None
         ));
         let japan = NodeId(1);
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            japan,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(japan),
@@ -951,11 +871,7 @@ fn nested_scope_preserved_after_parent_scope_deletion() {
             None
         ));
         let university = NodeId(2);
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            university,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), university));
         let uni_scope = Cps::active_scope(university).unwrap();
 
         assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
@@ -1053,11 +969,7 @@ fn access_stopped_by_nested_scope_boundary() {
             None
         ));
         let nested_root = NodeId(1);
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            nested_root,
-            resources(&[])
-        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), nested_root));
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             Some(nested_root),
@@ -1189,35 +1101,6 @@ fn revoke_access_requires_scope_owner() {
 }
 
 // ---------------------------------------------------------------------------
-// ScopeResources
-// ---------------------------------------------------------------------------
-
-#[test]
-fn scope_resources_lookup_works() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_ok!(Cps::create_node(
-            RuntimeOrigin::signed(1),
-            Some(NodeId(0)),
-            None,
-            None
-        ));
-        let node = NodeId(1);
-
-        assert_ok!(Cps::create_scope(
-            RuntimeOrigin::signed(1),
-            node,
-            resources(&[(Resource::Storage, 42), (Resource::Compute, 7)])
-        ));
-        let scope_id = Cps::active_scope(node).unwrap();
-
-        assert_eq!(Cps::scope_resources(scope_id, Resource::Storage), Some(42));
-        assert_eq!(Cps::scope_resources(scope_id, Resource::Compute), Some(7));
-        assert_eq!(Cps::scope_resources(scope_id, Resource::Transaction), None);
-    });
-}
-
-// ---------------------------------------------------------------------------
 // Misc
 // ---------------------------------------------------------------------------
 
@@ -1265,7 +1148,7 @@ fn all_extrinsics_require_signed_origin() {
             sp_runtime::DispatchError::BadOrigin
         );
         assert_noop!(
-            Cps::create_scope(RuntimeOrigin::none(), NodeId(0), resources(&[])),
+            Cps::create_scope(RuntimeOrigin::none(), NodeId(0)),
             sp_runtime::DispatchError::BadOrigin
         );
         assert_noop!(
@@ -1280,19 +1163,6 @@ fn all_extrinsics_require_signed_origin() {
             Cps::revoke_access(RuntimeOrigin::none(), NodeId(0), 1, Capability::Write),
             sp_runtime::DispatchError::BadOrigin
         );
-    });
-}
-
-#[test]
-fn rejected_payload_updates_do_not_invoke_callback() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-
-        assert_noop!(
-            Cps::set_payload(RuntimeOrigin::signed(2), NodeId(0), Some(data(b"x"))),
-            Error::<Runtime>::AccessDenied
-        );
-        assert!(payload_callback_log().is_empty());
     });
 }
 
@@ -1385,5 +1255,70 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
         assert_eq!(Cps::next_node_id(), NodeId(2));
         assert!(!Cps::root_nodes().contains(&NodeId(0)));
         assert_eq!(Cps::root_nodes(), vec![NodeId(1)]);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// has_capability
+// ---------------------------------------------------------------------------
+
+#[test]
+fn has_capability_reflects_owner_and_access_write() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let root = NodeId(0);
+        let child = NodeId(1);
+
+        // Scope owner has implicit Write everywhere in the Scope.
+        assert!(Cps::has_capability(root, &1, Capability::Write));
+        assert!(Cps::has_capability(child, &1, Capability::Write));
+
+        // Non-owner without Access has no Write authority.
+        assert!(!Cps::has_capability(root, &2, Capability::Write));
+
+        // Exact-node grant applies only to that node.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+            false
+        ));
+        assert!(Cps::has_capability(root, &2, Capability::Write));
+        assert!(!Cps::has_capability(child, &2, Capability::Write));
+    });
+}
+
+#[test]
+fn has_capability_reflects_create_scope_semantics() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+
+        assert!(Cps::has_capability(root, &1, Capability::CreateScope));
+        assert!(!Cps::has_capability(root, &2, Capability::CreateScope));
+
+        // A full, inherited Write grant never authorizes CreateScope.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+            true
+        ));
+        assert!(!Cps::has_capability(root, &2, Capability::CreateScope));
+    });
+}
+
+#[test]
+fn has_capability_returns_false_for_missing_node() {
+    new_test_ext().execute_with(|| {
+        assert!(!Cps::has_capability(NodeId(0), &1, Capability::Write));
     });
 }

@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # CPS Pallet: On-chain Hierarchical Tree for Cyber-Physical Systems
+//! # On-chain Hierarchical Tree for Cyber-Physical Systems
 //!
 //! This pallet provides a decentralized registry for cyber-physical systems organized
 //! as a hierarchical tree structure, with authority and resources delegated through
@@ -27,7 +27,7 @@
 //!
 //! Each node's attributes live in their own storage map, keyed by `NodeId`:
 //!
-//! 1. **`Parent`**: Mapping `NodeId` → `Option<NodeId>`
+//! 1. **`Parents`**: Mapping `NodeId` → `Option<NodeId>`
 //!    - Presence of a key means the node exists; the value is `None` for a
 //!      root node and `Some(parent_id)` otherwise
 //!    - **Immutable** once a node is created - there is no way to change it
@@ -41,7 +41,7 @@
 //!    - A node without an entry resolves to the Scope of the nearest ancestor
 //!      that has one (see [`Pallet::resolve_scope`])
 //!
-//! 4. **`ScopeRoot`** / **`ScopeOwner`** / **`ScopeResources`**: `ScopeId`-keyed
+//! 4. **`ScopeRoot`** / **`ScopeOwner`**: `ScopeId`-keyed
 //!    mappings describing a Scope's root node, owner account and local
 //!    resource limits, respectively. A `Scope` is an architectural concept
 //!    composed from these independent mappings, not a stored struct.
@@ -126,11 +126,6 @@
 //!   O(depth), bounded by `MAX_TREE_DEPTH`
 //! - **Child lookup**: Direct index access via `NodesByParent` → O(1)
 //!
-//! ### Compact Encoding
-//!
-//! `NodeId` uses `#[codec(compact)]` attribute to enable SCALE compact encoding, which uses
-//! variable-length encoding to reduce storage costs for small node IDs.
-//!
 //! ## Usage Examples
 //!
 //! ### Creating a Root Node
@@ -173,7 +168,7 @@
 //!
 //! ```ignore
 //! // Get a node's parent (existence check + parent link)
-//! let parent = Parent::<T>::get(NodeId(0)).ok_or(Error::<T>::NodeNotFound)?;
+//! let parent = Parents::<T>::get(NodeId(0)).ok_or(Error::<T>::NodeNotFound)?;
 //!
 //! // Get all children
 //! let children = NodesByParent::<T>::get(NodeId(0));
@@ -197,7 +192,7 @@
 //!    boundary; ancestor Scope owners have no implicit administrative rights
 //!    inside a nested Scope.
 //! 4. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
-//!    with `Parent`.
+//!    with `Parents`.
 //! 5. **Deletion Safety**: Cannot delete nodes with children.
 //! 6. **Depth Limits**: Tree depth never exceeds `MAX_TREE_DEPTH`.
 //! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
@@ -231,92 +226,6 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
-/// Callback trait invoked when a payload is set on a node.
-///
-/// This trait allows runtime-level hooks to be executed after a payload has been successfully
-/// updated on a CPS node. It follows Substrate's standard pattern for runtime callbacks and
-/// enables various use cases such as:
-///
-/// - **Indexing**: Track payload changes for off-chain indexing or querying
-/// - **Notifications**: Trigger events or notifications to external systems
-/// - **Analytics**: Collect metrics about payload updates
-/// - **Automation**: Chain additional actions based on payload changes
-/// - **Logging**: Maintain an audit trail of payload modifications
-///
-/// The callback is invoked AFTER the payload has been successfully written to storage,
-/// ensuring that the operation has been completed before any side effects are triggered.
-///
-/// # Example Implementation
-///
-/// ```ignore
-/// use pallet_robonomics_cps::{OnPayloadSet, NodeId, NodeData};
-///
-/// pub struct MyPayloadHandler;
-///
-/// impl OnPayloadSet<AccountId> for MyPayloadHandler {
-///     fn on_payload_set(
-///         node_id: NodeId,
-///         meta: Option<NodeData>,
-///         payload: Option<NodeData>
-///     ) {
-///         // Custom logic here - e.g., emit a custom event, update an index, etc.
-///         log::info!("Payload set on node {:?}", node_id);
-///     }
-/// }
-/// ```
-///
-/// # Multiple Handlers
-///
-/// Multiple handlers can be combined using tuples:
-///
-/// ```ignore
-/// type OnPayloadSet = (HandlerA, HandlerB, HandlerC);
-/// ```
-pub trait OnPayloadSet<AccountId> {
-    /// Called when a payload is set on a node.
-    ///
-    /// # Parameters
-    ///
-    /// - `node_id`: The ID of the node whose payload was updated
-    /// - `meta`: The current metadata of the node (if any)
-    /// - `payload`: The new payload that was set (if any, None means payload was cleared)
-    fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>);
-}
-
-/// Default no-op implementation for `()` type.
-///
-/// This allows using `type OnPayloadSet = ()` in the runtime configuration
-/// to disable the callback without requiring an explicit implementation.
-impl<AccountId> OnPayloadSet<AccountId> for () {
-    fn on_payload_set(_node_id: NodeId, _meta: Option<NodeData>, _payload: Option<NodeData>) {
-        // No-op: do nothing
-    }
-}
-
-/// Implementation for tuples to support multiple handlers.
-///
-/// This allows combining multiple callback handlers:
-/// ```ignore
-/// type OnPayloadSet = (HandlerA, HandlerB);
-/// ```
-macro_rules! impl_on_payload_set_for_tuples {
-    ($($t:ident),+) => {
-        impl<AccountId, $($t: OnPayloadSet<AccountId>),+> OnPayloadSet<AccountId> for ($($t,)+) {
-            fn on_payload_set(node_id: NodeId, meta: Option<NodeData>, payload: Option<NodeData>) {
-                $(
-                    $t::on_payload_set(node_id, meta.clone(), payload.clone());
-                )+
-            }
-        }
-    };
-}
-
-impl_on_payload_set_for_tuples!(A);
-impl_on_payload_set_for_tuples!(A, B);
-impl_on_payload_set_for_tuples!(A, B, C);
-impl_on_payload_set_for_tuples!(A, B, C, D);
-impl_on_payload_set_for_tuples!(A, B, C, D, E);
-
 /// Maximum data size for node metadata and payload.
 ///
 /// Set to 2048 bytes to accommodate typical sensor readings, configuration data,
@@ -339,10 +248,6 @@ pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 /// Bounds the size of the `RootNodes` index.
 pub const MAX_ROOT_NODES: u32 = 100;
 
-/// Maximum number of `(Resource, Limit)` entries that may be set on a Scope
-/// in a single `create_scope` call.
-pub const MAX_SCOPE_RESOURCES: u32 = 8;
-
 /// [`ConstU32`] wrapper around [`MAX_DATA_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_TREE_DEPTH`] for use as a `BoundedVec` bound.
@@ -351,8 +256,6 @@ pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 /// [`ConstU32`] wrapper around [`MAX_ROOT_NODES`] for use as a `BoundedVec` bound.
 pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
-/// [`ConstU32`] wrapper around [`MAX_SCOPE_RESOURCES`] for use as a `BoundedVec` bound.
-pub type MaxScopeResources = ConstU32<MAX_SCOPE_RESOURCES>;
 
 /// Type alias for node data - bounded vector of bytes.
 ///
@@ -369,15 +272,6 @@ pub type MaxScopeResources = ConstU32<MAX_SCOPE_RESOURCES>;
 pub type NodeData = BoundedVec<u8, MaxDataSize>;
 
 /// Node identifier newtype with compact encoding for efficient storage.
-///
-/// The `#[codec(compact)]` attribute enables SCALE compact encoding, which uses
-/// variable-length encoding to reduce storage costs for small node IDs:
-///
-/// | Node ID Range | Standard | Compact | Savings |
-/// |---------------|----------|---------|---------|
-/// | 0-63          | 8 bytes  | 1 byte  | 87%     |
-/// | 64-16,383     | 8 bytes  | 2 bytes | 75%     |
-/// | 16,384+       | 8 bytes  | 3+ bytes| 62%+    |
 #[derive(
     Encode,
     Decode,
@@ -416,11 +310,7 @@ impl NodeId {
     }
 }
 
-/// Globally unique, never-reused identifier of a [`Scope`](self#scope).
-///
-/// A `Scope` is an architectural concept composed from independent
-/// `ScopeId`-keyed mappings ([`ScopeRoot`], [`ScopeOwner`],
-/// [`ScopeResources`]) rather than a single stored struct.
+/// Scope identifier newtype with compact encoding for efficient storage.
 #[derive(
     Encode,
     Decode,
@@ -483,50 +373,16 @@ impl ScopeId {
     Debug,
 )]
 pub enum Capability {
-    /// Authority to mutate a node's `Meta` / `Payload`.
-    Write,
     /// Authority to create a replacement Scope at the exact Scope root that
     /// grants it. The sole mechanism for handing over control of a Scope.
     CreateScope,
+    /// Authority to mutate a node's `Meta` / `Payload`.
+    Write,
 }
 
 /// Key identifying a single [`Access`] entry: the node the grant applies to,
 /// the account it is granted to, and the delegated [`Capability`].
 pub type AccessKey<AccountId> = (NodeId, AccountId, Capability);
-
-/// A Scope-local resource family that [`ScopeResources`] may bound.
-///
-/// Absence of a [`ScopeResources`] entry for a `(ScopeId, Resource)` pair
-/// means no additional Scope-local limit applies for that resource; the
-/// Scope owner's Subscription remains the global resource entitlement.
-#[derive(
-    Encode,
-    Decode,
-    DecodeWithMemTracking,
-    TypeInfo,
-    MaxEncodedLen,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Debug,
-)]
-pub enum Resource {
-    /// Transaction resource consumed on behalf of this Scope.
-    Transaction,
-    /// Storage resource consumed on behalf of this Scope.
-    Storage,
-    /// Compute resource consumed on behalf of this Scope.
-    Compute,
-}
-
-/// Scope-local limit for a [`Resource`].
-pub type Limit = u128;
-
-/// Bounded list of `(Resource, Limit)` pairs accepted by [`Pallet::create_scope`].
-pub type ScopeResourceList = BoundedVec<(Resource, Limit), MaxScopeResources>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -539,9 +395,6 @@ pub mod pallet {
         /// The overarching event type.
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-        /// Callback handler invoked when a payload is set on a node.
-        type OnPayloadSet: OnPayloadSet<Self::AccountId>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -566,7 +419,7 @@ pub mod pallet {
     /// node is created, there is no way to change it.
     #[pallet::storage]
     #[pallet::getter(fn parent_of)]
-    pub type Parent<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Option<NodeId>>;
+    pub type Parents<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, Option<NodeId>>;
 
     /// Node metadata. An entry is present only when metadata has been set.
     #[pallet::storage]
@@ -601,13 +454,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn scope_owner)]
     pub type ScopeOwner<T: Config> = StorageMap<_, Blake2_128Concat, ScopeId, T::AccountId>;
-
-    /// Scope-local resource limits. Absence of an entry means no additional
-    /// Scope-local limit for that resource.
-    #[pallet::storage]
-    #[pallet::getter(fn scope_resources)]
-    pub type ScopeResources<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, ScopeId, Blake2_128Concat, Resource, Limit>;
 
     /// Access delegations, scoped to a `ScopeId`. The stored `bool` is
     /// `inherited`: whether the grant propagates to descendants of the
@@ -683,6 +529,8 @@ pub mod pallet {
         AccessDenied,
         /// A CPS root's Scope can never be deleted
         CannotDeleteRootScope,
+        /// Provided bad arguments (for example, CreateScope with inherited parameter)
+        BadArguments,
     }
 
     #[pallet::hooks]
@@ -716,8 +564,8 @@ pub mod pallet {
             <NextNodeId<T>>::put(NodeId(next_id));
 
             if let Some(pid) = parent_id {
-                ensure!(<Parent<T>>::contains_key(pid), Error::<T>::ParentNotFound);
-                Self::authorize(&sender, pid, Capability::Write)?;
+                ensure!(<Parents<T>>::contains_key(pid), Error::<T>::ParentNotFound);
+                Self::authorize(pid, &sender, Capability::Write)?;
 
                 // Check tree depth by walking the parent chain up to the root.
                 ensure!(
@@ -739,13 +587,12 @@ pub mod pallet {
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
 
-                let scope_id =
-                    Self::allocate_scope(node_id, sender.clone(), &ScopeResourceList::default())?;
+                let scope_id = Self::allocate_scope(node_id, sender.clone())?;
                 Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender.clone()));
             }
 
             // Store the node's attributes
-            <Parent<T>>::insert(node_id, parent_id);
+            <Parents<T>>::insert(node_id, parent_id);
             if let Some(meta) = meta {
                 <Meta<T>>::insert(node_id, meta);
             }
@@ -767,7 +614,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            Self::authorize(&sender, node_id, Capability::Write)?;
+            Self::authorize(node_id, &sender, Capability::Write)?;
 
             match meta {
                 Some(meta) => <Meta<T>>::insert(node_id, meta),
@@ -788,19 +635,14 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            Self::authorize(&sender, node_id, Capability::Write)?;
+            Self::authorize(node_id, &sender, Capability::Write)?;
 
-            match payload.clone() {
+            match payload {
                 Some(payload) => <Payload<T>>::insert(node_id, payload),
                 None => <Payload<T>>::remove(node_id),
             }
 
-            let meta = <Meta<T>>::get(node_id);
-
             Self::deposit_event(Event::PayloadSet(node_id, sender));
-
-            // Invoke the callback after successful payload update
-            T::OnPayloadSet::on_payload_set(node_id, meta, payload);
 
             Ok(())
         }
@@ -810,7 +652,7 @@ pub mod pallet {
         /// Only leaf nodes (no children) can be deleted. If the node is the
         /// root of an active Scope, that Scope's `ActiveScope` entry is
         /// removed as well; the rest of the Scope's physical state
-        /// (`ScopeRoot` / `ScopeOwner` / `ScopeResources` / `Access`) is left
+        /// (`ScopeRoot` / `ScopeOwner` / `Access`) is left
         /// for background garbage collection.
         #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::delete_node())]
@@ -818,11 +660,16 @@ pub mod pallet {
             let sender = ensure_signed(origin)?;
 
             // Check the node exists, and get its parent
-            ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
-            let parent = <Parent<T>>::get(node_id).flatten();
+            ensure!(
+                <Parents<T>>::contains_key(node_id),
+                Error::<T>::NodeNotFound
+            );
+            let parent = <Parents<T>>::get(node_id).flatten();
 
-            // Verify Write authority
-            Self::authorize(&sender, node_id, Capability::Write)?;
+            // Only owner can remove node
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            ensure!(owner == sender, Error::<T>::NotScopeOwner);
 
             // Check if node has children
             let children = <NodesByParent<T>>::get(node_id);
@@ -850,7 +697,7 @@ pub mod pallet {
             // Remove the node's attributes
             <Meta<T>>::remove(node_id);
             <Payload<T>>::remove(node_id);
-            <Parent<T>>::remove(node_id);
+            <Parents<T>>::remove(node_id);
 
             Self::deposit_event(Event::NodeDeleted(node_id, sender));
             Ok(())
@@ -868,17 +715,16 @@ pub mod pallet {
         /// that exact root.
         #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::create_scope())]
-        pub fn create_scope(
-            origin: OriginFor<T>,
-            node_id: NodeId,
-            resources: ScopeResourceList,
-        ) -> DispatchResult {
+        pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
-            Self::authorize_create_scope(&sender, node_id)?;
+            ensure!(
+                <Parents<T>>::contains_key(node_id),
+                Error::<T>::NodeNotFound
+            );
+            Self::authorize(node_id, &sender, Capability::CreateScope)?;
 
-            let scope_id = Self::allocate_scope(node_id, sender.clone(), &resources)?;
+            let scope_id = Self::allocate_scope(node_id, sender.clone())?;
 
             Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender));
             Ok(())
@@ -900,7 +746,7 @@ pub mod pallet {
             let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
             ensure!(owner == sender, Error::<T>::NotScopeOwner);
 
-            let parent = <Parent<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
+            let parent = <Parents<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
             ensure!(parent.is_some(), Error::<T>::CannotDeleteRootScope);
 
             <ActiveScope<T>>::remove(node_id);
@@ -921,6 +767,11 @@ pub mod pallet {
             inherited: bool,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
+
+            // Throw an error in case of inherited CreateScope
+            if inherited && capability == Capability::CreateScope {
+                Err(Error::<T>::BadArguments)?
+            }
 
             let scope_id = Self::resolve_scope(node_id)?;
             let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
@@ -976,9 +827,32 @@ pub mod pallet {
         /// owner `AccountId` can look them up from the resulting `ScopeId`
         /// via the [`ScopeRoot`] / [`ScopeOwner`] storage maps.
         pub fn resolve_scope(node_id: NodeId) -> Result<ScopeId, Error<T>> {
-            ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
-            let parent = <Parent<T>>::get(node_id).flatten();
+            ensure!(
+                <Parents<T>>::contains_key(node_id),
+                Error::<T>::NodeNotFound
+            );
+            let parent = <Parents<T>>::get(node_id).flatten();
             Self::resolve_scope_from(node_id, parent)
+        }
+
+        /// Check whether `account_id` currently holds `capability` at
+        /// `node_id`.
+        ///
+        /// This is a read-only query reusing the exact same [`Self::authorize`]
+        /// logic enforced by the dispatchables, so it never drifts from the
+        /// on-chain behavior. Returns `false` rather than an error if
+        /// `node_id` does not exist or no Scope can be resolved for it.
+        ///
+        /// The `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`)
+        /// wraps this with a stable `CapabilityId` at the API boundary, so
+        /// off-chain clients don't depend on `Capability`'s internal SCALE
+        /// representation; see that crate for the conversion.
+        pub fn has_capability(
+            node_id: NodeId,
+            account_id: &T::AccountId,
+            capability: Capability,
+        ) -> bool {
+            Self::authorize(node_id, account_id, capability).unwrap_or(false)
         }
 
         /// Same as [`Self::resolve_scope`], but reuses an already-fetched
@@ -998,10 +872,10 @@ pub mod pallet {
                     return Ok(scope_id);
                 }
                 ensure!(
-                    <Parent<T>>::contains_key(ancestor_id),
+                    <Parents<T>>::contains_key(ancestor_id),
                     Error::<T>::NodeNotFound
                 );
-                current = <Parent<T>>::get(ancestor_id).flatten();
+                current = <Parents<T>>::get(ancestor_id).flatten();
             }
 
             Err(Error::<T>::ScopeNotFound)
@@ -1015,74 +889,63 @@ pub mod pallet {
         /// `inherited = false` and `inherited = true` match; on strict
         /// ancestors, only `inherited = true` matches. The walk never
         /// crosses the Scope boundary.
+        /// Authorize `sender` to exercise `capability` at `node_id`.
+        ///
+        /// The Scope owner always has implicit authority. Otherwise, `Access`
+        /// entries are checked by walking from `node_id` up to the resolved
+        /// Scope's root (inclusive): at `node_id` itself, both
+        /// `inherited = false` and `inherited = true` match; on strict
+        /// ancestors, only `inherited = true` matches. The walk never
+        /// crosses the Scope boundary.
+        ///
+        /// This also authorizes [`Capability::CreateScope`] correctly
+        /// without any special-casing: [`Pallet::grant_access`] never stores
+        /// an inherited `CreateScope` grant, so the ancestor walk below can
+        /// never match one - only a grant on the exact `node_id` can.
         fn authorize(
-            sender: &T::AccountId,
             node_id: NodeId,
+            sender: &T::AccountId,
             capability: Capability,
-        ) -> Result<ScopeId, Error<T>> {
+        ) -> Result<bool, Error<T>> {
             let scope_id = Self::resolve_scope(node_id)?;
             let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
             if owner == *sender {
-                return Ok(scope_id);
+                return Ok(true);
             }
             let root = <ScopeRoot<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
 
+            // Check the exact node: both inherited and non-inherited Access
+            // entries authorize the target node itself.
+            if <Access<T>>::get(scope_id, (node_id, sender.clone(), capability)).is_some() {
+                return Ok(true);
+            }
+
+            // Walk up towards the Scope root; only inherited Access entries
+            // authorize strict ancestors.
             let mut current = node_id;
-            let mut at_target = true;
             for _ in 0..=MAX_TREE_DEPTH {
-                if let Some(inherited) =
-                    <Access<T>>::get(scope_id, (current, sender.clone(), capability))
-                {
-                    if at_target || inherited {
-                        return Ok(scope_id);
-                    }
-                }
                 if current == root {
                     break;
                 }
-                current = <Parent<T>>::get(current)
+                current = <Parents<T>>::get(current)
                     .flatten()
                     .ok_or(Error::<T>::ScopeNotFound)?;
-                at_target = false;
+                if let Some(inherited) =
+                    <Access<T>>::get(scope_id, (current, sender.clone(), capability))
+                {
+                    if inherited {
+                        return Ok(true);
+                    }
+                }
             }
 
             Err(Error::<T>::AccessDenied)
         }
 
-        /// Authorize `sender` to call [`Pallet::create_scope`] on `node_id`.
-        ///
-        /// The Scope owner may create/replace a Scope on any node in their
-        /// Scope. A non-owner may only do so when `node_id` is already the
-        /// exact root of the resolved Scope, and only via a non-inherited
-        /// `Capability::CreateScope` grant on that exact node - `CreateScope`
-        /// never propagates through descendants.
-        fn authorize_create_scope(
-            sender: &T::AccountId,
-            node_id: NodeId,
-        ) -> Result<ScopeId, Error<T>> {
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            if owner == *sender {
-                return Ok(scope_id);
-            }
-
-            let root = <ScopeRoot<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            ensure!(node_id == root, Error::<T>::AccessDenied);
-            let inherited =
-                <Access<T>>::get(scope_id, (node_id, sender.clone(), Capability::CreateScope));
-            ensure!(inherited == Some(false), Error::<T>::AccessDenied);
-
-            Ok(scope_id)
-        }
-
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
         /// with the given `resources`, and activate it. Replaces any Scope
         /// previously active at `root`.
-        fn allocate_scope(
-            root: NodeId,
-            owner: T::AccountId,
-            resources: &ScopeResourceList,
-        ) -> Result<ScopeId, Error<T>> {
+        fn allocate_scope(root: NodeId, owner: T::AccountId) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
                 .checked_add(1)
@@ -1091,9 +954,6 @@ pub mod pallet {
 
             <ScopeRoot<T>>::insert(scope_id, root);
             <ScopeOwner<T>>::insert(scope_id, owner);
-            for (resource, limit) in resources.iter() {
-                <ScopeResources<T>>::insert(scope_id, resource, limit);
-            }
             <ActiveScope<T>>::insert(root, scope_id);
 
             Ok(scope_id)
@@ -1102,17 +962,20 @@ pub mod pallet {
         /// Count the number of ancestors of `node_id` by walking `parent`
         /// links up to the root. A root node has depth `0`.
         fn depth_of(node_id: NodeId) -> Result<u32, Error<T>> {
-            ensure!(<Parent<T>>::contains_key(node_id), Error::<T>::NodeNotFound);
-            let mut current = <Parent<T>>::get(node_id).flatten();
+            ensure!(
+                <Parents<T>>::contains_key(node_id),
+                Error::<T>::NodeNotFound
+            );
+            let mut current = <Parents<T>>::get(node_id).flatten();
             let mut depth = 0u32;
 
             while let Some(ancestor_id) = current {
                 depth = depth.saturating_add(1);
                 ensure!(
-                    <Parent<T>>::contains_key(ancestor_id),
+                    <Parents<T>>::contains_key(ancestor_id),
                     Error::<T>::NodeNotFound
                 );
-                current = <Parent<T>>::get(ancestor_id).flatten();
+                current = <Parents<T>>::get(ancestor_id).flatten();
             }
 
             Ok(depth)
