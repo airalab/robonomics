@@ -18,6 +18,20 @@ Robonomics is a set of open-source packages and infrastructure for Robotics, Sma
 
 ## Repository Structure
 
+Since release 50 this is the **runtime-only** repository: runtime, pallets, protocol logic,
+chain specs and runtime upgrades. Node binaries and operational tooling live in
+[`airalab/robins`](https://github.com/airalab/robins).
+
+```text
+airalab/robonomics        airalab/robins
+  runtime                   blockchain node
+  pallets                   utilities
+  chain specs               service tooling
+```
+
+Collators run the generic [`polkadot-omni-node`](https://crates.io/crates/polkadot-omni-node)
+driven by a chain spec — see [COLLATOR_GUIDE.md](./COLLATOR_GUIDE.md).
+
 This repository is organized as a Cargo workspace with the following structure:
 
 ### Runtime
@@ -40,13 +54,25 @@ This repository is organized as a Cargo workspace with the following structure:
 
 ### Chain Specifications
 
-- **`chains/`** - Chain specification files for different networks
+- **`chain-spec/`** - the `robonomics-chain-spec` crate
+  - Embeds the raw Kusama and Polkadot parachain chain specs as `&'static str` constants
+  - Has no dependencies of its own, so downstream tooling and collator setups can depend on
+    it instead of vendoring JSON or fetching it from GitHub
+
+### Documentation
+
+- **`docs/robonomics-5.0-roadmap.md`** - the Robonomics 5.0 architecture and implementation
+  sequence: Governance, CPS, Scope, Access, Subscription, Storage, Compute and Policy
+- **[`COLLATOR_GUIDE.md`](./COLLATOR_GUIDE.md)** - running a collator on `polkadot-omni-node`
+- **[`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md)** - building and working with the runtime
 
 ### Development Infrastructure
 
 - **`scripts/`** - Build, deployment, and testing scripts
   - `weights/` - Weight template for runtime benchmarks
+  - `build-runtime.sh` - Deterministic runtime build via `paritytech/srtool`
   - `runtime-benchmarks.sh` - Automated runtime benchmarking for all pallets
+  - `check-weights.pl` - Fails if an extrinsic is not charged through a benchmarked `WeightInfo`
   - `try-runtime.sh` - Automated runtime upgrade checks
 
 ## Contributing
