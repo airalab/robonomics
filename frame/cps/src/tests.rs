@@ -34,11 +34,13 @@ frame_support::construct_runtime!(
 impl frame_system::Config for Runtime {
     type Block = Block;
     type AccountData = ();
+    type DbWeight = frame_support::weights::constants::RocksDbWeight;
 }
 
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::TestWeightInfo;
+    type MaxCleanupItemsPerBlock = frame_support::traits::ConstU32<8>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -1277,6 +1279,7 @@ fn successful_operations_emit_exact_events() {
                     2,
                     Capability::Write
                 )),
+                RuntimeEvent::Cps(Event::CleanupEnqueued(ScopeId(0))),
                 RuntimeEvent::Cps(Event::NodeDeleted(NodeId(0), 1)),
             ]
         );
@@ -1369,5 +1372,338 @@ fn has_capability_reflects_create_scope_semantics() {
 fn has_capability_returns_false_for_missing_node() {
     new_test_ext().execute_with(|| {
         assert!(!Cps::has_capability(NodeId(0), &1, Capability::Write));
+    });
+}
+
+// ---------------------------------------------------------------------
+// Stale Scope GC (issue #655)
+// ---------------------------------------------------------------------
+
+use frame_support::{pallet_prelude::Weight, traits::Hooks};
+
+/// Run one bounded `on_idle` GC step with `weight` available, at the
+/// current mock block number.
+fn run_gc(weight: Weight) -> Weight {
+    <Cps as Hooks<u64>>::on_idle(System::block_number(), weight)
+}
+
+/// Grant `Capability::Write` (non-inherited) at `node_id` to `count`
+/// distinct principal accounts, starting at account id `first_principal`.
+/// Used to populate many `Access` entries under one Scope for bounded GC
+/// tests.
+fn grant_many(owner: u64, node_id: NodeId, first_principal: u64, count: u64) {
+    for principal in first_principal..(first_principal + count) {
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(owner),
+            node_id,
+            principal,
+            Capability::Write,
+            false
+        ));
+    }
+}
+
+#[test]
+fn replacing_a_scope_enqueues_the_stale_scope() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = Cps::active_scope(root).unwrap();
+
+        assert_eq!(Cps::cleanup_head(), 0);
+        assert_eq!(Cps::cleanup_tail(), 0);
+
+        // Replacing the root's Scope enqueues the old one.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        assert_eq!(Cps::cleanup_head(), 0);
+        assert_eq!(Cps::cleanup_tail(), 1);
+        let task = Cps::cleanup_queue(0).unwrap();
+        assert_eq!(task.scope_id, old_scope);
+        assert_eq!(task.phase, CleanupPhase::Access);
+        assert_eq!(task.cursor, None);
+    });
+}
+
+#[test]
+fn delete_scope_enqueues_the_stale_scope() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let japan = NodeId(1);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
+        let scope_id = Cps::active_scope(japan).unwrap();
+
+        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
+
+        assert_eq!(Cps::cleanup_tail(), 1);
+        let task = Cps::cleanup_queue(0).unwrap();
+        assert_eq!(task.scope_id, scope_id);
+    });
+}
+
+#[test]
+fn creating_a_fresh_root_scope_never_enqueues_anything() {
+    new_test_ext().execute_with(|| {
+        // No prior active Scope at this root, so nothing is stale yet.
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_eq!(Cps::cleanup_head(), 0);
+        assert_eq!(Cps::cleanup_tail(), 0);
+    });
+}
+
+#[test]
+fn access_survives_physically_but_is_logically_invalid_before_gc_runs() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = Cps::active_scope(root).unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+            false
+        ));
+
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        // Physically still there...
+        assert_eq!(
+            Access::<Runtime>::get(old_scope, (root, 2u64, Capability::Write)),
+            Some(false)
+        );
+        // ...but no longer authorizes anything: `resolve_scope(root)` now
+        // returns the new Scope, so the old grant is never consulted.
+        assert_noop!(
+            Cps::set_meta(RuntimeOrigin::signed(2), root, Some(data(b"x"))),
+            Error::<Runtime>::AccessDenied
+        );
+    });
+}
+
+#[test]
+fn gc_bounded_access_cleanup_resumes_via_cursor() {
+    // `clear_prefix`'s `limit` only bounds *backend* trie removals; entries
+    // still sitting in the in-memory overlay are always fully removed
+    // regardless of `limit`. Force each write to be committed to the
+    // backend (via `commit_all`) before exercising bounded removal so the
+    // per-call cap is actually observable, mirroring how a real chain
+    // commits state between blocks.
+    let mut ext = new_test_ext();
+    let (root, old_scope) = ext.execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = Cps::active_scope(root).unwrap();
+
+        // MaxCleanupItemsPerBlock is 8 in the test mock; grant more than
+        // one batch's worth of Access entries.
+        grant_many(1, root, 100, 20);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        (root, old_scope)
+    });
+    ext.commit_all().unwrap();
+    let _ = root;
+
+    let count_access = |ext: &mut sp_io::TestExternalities| {
+        ext.execute_with(|| Access::<Runtime>::iter_prefix(old_scope).count())
+    };
+    assert_eq!(count_access(&mut ext), 20);
+
+    // First bounded step: removes at most MaxCleanupItemsPerBlock (8)
+    // entries and leaves a cursor behind because more remain.
+    let consumed = ext.execute_with(|| run_gc(Weight::MAX));
+    ext.commit_all().unwrap();
+    assert!(consumed.any_gt(Weight::zero()));
+    assert_eq!(count_access(&mut ext), 12);
+    ext.execute_with(|| {
+        let task = Cps::cleanup_queue(0).unwrap();
+        assert_eq!(task.phase, CleanupPhase::Access);
+        assert!(task.cursor.is_some());
+    });
+
+    // Second bounded step resumes from the cursor.
+    ext.execute_with(|| run_gc(Weight::MAX));
+    ext.commit_all().unwrap();
+    assert_eq!(count_access(&mut ext), 4);
+
+    // Third step finishes the Access prefix and transitions phase.
+    ext.execute_with(|| run_gc(Weight::MAX));
+    ext.commit_all().unwrap();
+    assert_eq!(count_access(&mut ext), 0);
+    ext.execute_with(|| {
+        let task = Cps::cleanup_queue(0).unwrap();
+        assert_eq!(task.phase, CleanupPhase::Metadata);
+        assert_eq!(task.cursor, None);
+
+        // Task still queued; scope root/owner not yet purged.
+        assert!(Cps::scope_owner(old_scope).is_some());
+        assert!(Cps::scope_root(old_scope).is_some());
+    });
+}
+
+#[test]
+fn gc_metadata_phase_purges_owner_and_root_and_dequeues() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = Cps::active_scope(root).unwrap();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        // No Access entries: one step clears the (empty) Access phase...
+        run_gc(Weight::MAX);
+        assert_eq!(Cps::cleanup_queue(0).unwrap().phase, CleanupPhase::Metadata);
+        assert!(Cps::scope_owner(old_scope).is_some());
+
+        // ...and the next step purges metadata and dequeues the task.
+        run_gc(Weight::MAX);
+        assert!(Cps::scope_owner(old_scope).is_none());
+        assert!(Cps::scope_root(old_scope).is_none());
+        assert_eq!(Cps::cleanup_head(), 1);
+        assert_eq!(Cps::cleanup_head(), Cps::cleanup_tail());
+        assert!(Cps::cleanup_queue(0).is_none());
+    });
+}
+
+#[test]
+fn gc_processes_multiple_queued_scopes_in_fifo_order() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let scope_a = Cps::active_scope(root).unwrap();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        let scope_b = Cps::active_scope(root).unwrap();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        assert_eq!(Cps::cleanup_tail(), 2);
+        assert_eq!(Cps::cleanup_queue(0).unwrap().scope_id, scope_a);
+        assert_eq!(Cps::cleanup_queue(1).unwrap().scope_id, scope_b);
+
+        // scope_a: Access phase (empty) -> Metadata phase -> purged.
+        run_gc(Weight::MAX);
+        run_gc(Weight::MAX);
+        assert_eq!(Cps::cleanup_head(), 1);
+        assert!(Cps::scope_owner(scope_a).is_none());
+        // scope_b untouched so far.
+        assert!(Cps::scope_owner(scope_b).is_some());
+
+        // scope_b: same two steps.
+        run_gc(Weight::MAX);
+        run_gc(Weight::MAX);
+        assert_eq!(Cps::cleanup_head(), 2);
+        assert_eq!(Cps::cleanup_head(), Cps::cleanup_tail());
+        assert!(Cps::scope_owner(scope_b).is_none());
+    });
+}
+
+#[test]
+fn gc_never_touches_nested_scope_state() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let japan = NodeId(0);
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(japan),
+            None,
+            None
+        ));
+        let university = NodeId(1);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), university));
+        let nested_scope = Cps::active_scope(university).unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            university,
+            2,
+            Capability::Write,
+            false
+        ));
+
+        // Replace Japan's own (root) Scope; this must never enqueue or
+        // affect the nested University Scope.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
+        assert_eq!(Cps::cleanup_tail(), 1);
+
+        // Drain the queue entirely.
+        while Cps::cleanup_head() != Cps::cleanup_tail() {
+            run_gc(Weight::MAX);
+        }
+
+        // The nested Scope's state is completely untouched.
+        assert_eq!(Cps::active_scope(university), Some(nested_scope));
+        assert!(Cps::scope_owner(nested_scope).is_some());
+        assert!(Cps::scope_root(nested_scope).is_some());
+        assert_eq!(
+            Access::<Runtime>::get(nested_scope, (university, 2u64, Capability::Write)),
+            Some(false)
+        );
+    });
+}
+
+#[test]
+fn gc_is_a_noop_on_an_empty_queue() {
+    new_test_ext().execute_with(|| {
+        assert_eq!(Cps::cleanup_head(), Cps::cleanup_tail());
+        assert_eq!(run_gc(Weight::MAX), Weight::zero());
+    });
+}
+
+#[test]
+fn gc_is_a_noop_when_idle_weight_is_insufficient() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        assert_eq!(Cps::cleanup_tail(), 1);
+
+        assert_eq!(run_gc(Weight::zero()), Weight::zero());
+        // Nothing was mutated: task still at the head, untouched.
+        let task = Cps::cleanup_queue(0).unwrap();
+        assert_eq!(task.phase, CleanupPhase::Access);
+        assert_eq!(task.cursor, None);
+        assert_eq!(Cps::cleanup_head(), 0);
+    });
+}
+
+#[test]
+fn gc_never_consumes_more_than_the_provided_idle_weight() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        grant_many(1, root, 100, 20);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        // A tight, but nonzero, weight budget.
+        let budget = Weight::from_parts(10_000, 10_000);
+        let consumed = run_gc(budget);
+        assert!(!consumed.any_gt(budget));
+    });
+}
+
+#[test]
+fn scope_id_is_never_reused_after_gc_completes() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = Cps::active_scope(root).unwrap();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        let new_scope = Cps::active_scope(root).unwrap();
+
+        // Fully drain GC for the stale Scope.
+        run_gc(Weight::MAX);
+        run_gc(Weight::MAX);
+        assert!(Cps::scope_owner(old_scope).is_none());
+
+        // Further Scope allocations keep incrementing NextScopeId; the
+        // reclaimed old_scope identifier is never handed out again.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        let newer_scope = Cps::active_scope(root).unwrap();
+        assert_ne!(newer_scope, old_scope);
+        assert_ne!(newer_scope, new_scope);
+        assert!(u64::from(newer_scope) > u64::from(old_scope));
     });
 }

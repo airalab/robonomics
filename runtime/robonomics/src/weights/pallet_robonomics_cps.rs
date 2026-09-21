@@ -179,4 +179,39 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
+	/// Hand-written (not benchmarked): stale Scope GC (issue #655),
+	/// bounded `clear_prefix` cost per `Access` entry removed. Re-run
+	/// `frame-omni-bencher` and regenerate this file before relying on
+	/// this weight in production.
+	///
+	/// Storage: `CPS::Access` (r:1 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn gc_access(items: u32) -> Weight {
+		Weight::from_parts(3_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 2539))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_mul(items.max(1) as u64)
+	}
+	/// Hand-written (not benchmarked): stale Scope GC (issue #655) final
+	/// `Metadata` phase, removing `ScopeOwner` / `ScopeRoot` and dequeuing
+	/// the completed cleanup task. Re-run `frame-omni-bencher` and
+	/// regenerate this file before relying on this weight in production.
+	///
+	/// Storage: `CPS::ScopeRoot` (r:1 w:1)
+	/// Proof: `CPS::ScopeRoot` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ScopeOwner` (r:0 w:1)
+	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ActiveScope` (r:1 w:0)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
+	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(300), added: 2775, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupHead` (r:1 w:1)
+	/// Proof: `CPS::CleanupHead` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	fn gc_metadata() -> Weight {
+		Weight::from_parts(9_500_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(3))
+	}
 }

@@ -572,6 +572,7 @@ impl pallet_robonomics_rws::Config for Runtime {
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
+    type MaxCleanupItemsPerBlock = ConstU32<64>;
 }
 
 impl pallet_robonomics_digital_twin::Config for Runtime {

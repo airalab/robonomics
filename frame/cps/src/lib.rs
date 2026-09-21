@@ -42,9 +42,9 @@
 //!      that has one (see [`Pallet::resolve_scope`])
 //!
 //! 4. **`ScopeRoot`** / **`ScopeOwner`**: `ScopeId`-keyed
-//!    mappings describing a Scope's root node, owner account and local
-//!    resource limits, respectively. A `Scope` is an architectural concept
-//!    composed from these independent mappings, not a stored struct.
+//!    mappings describing a Scope's root node and owner account,
+//!    respectively. A `Scope` is an architectural concept composed from
+//!    these independent mappings, not a stored struct.
 //!
 //! 5. **`Access`**: Mapping `(ScopeId, (NodeId, AccountId, Capability))` →
 //!    `bool` ("inherited"). Delegates a `Capability` to an `AccountId` at a
@@ -52,6 +52,12 @@
 //!
 //! 6. **`NodesByParent`** / **`RootNodes`**: Index structures for O(1) child and
 //!    root-node lookups
+//!
+//! 7. **`CleanupHead`** / **`CleanupTail`** / **`CleanupQueue`**: A FIFO
+//!    queue of stale Scopes awaiting background physical cleanup by
+//!    [`Pallet::on_idle`]; see
+//!    [`Cleanup Queue and Background GC`](self#cleanup-queue-and-background-gc)
+//!    below.
 //!
 //! ### Scope
 //!
@@ -84,8 +90,11 @@
 //! node within the caller's Scope (owner authority), or replaces an existing
 //! Scope on its own root node (owner authority, or a delegated
 //! [`Capability::CreateScope`] grant). Replacement allocates a brand-new
-//! `ScopeId` — the previous Scope's `Access` and resource entries become
-//! immediately inactive without requiring any descendant rewrite.
+//! `ScopeId` — the previous Scope's `Access` entries become immediately
+//! inactive without requiring any descendant rewrite; the old Scope's
+//! remaining physical state is enqueued for background GC (see
+//! [`Cleanup queue and background GC`](self#cleanup-queue-and-background-gc)
+//! below).
 //!
 //! Changing control of a Scope means creating another Scope; a Scope's
 //! `owner` is immutable once created. There is no transfer/accept state
@@ -99,7 +108,39 @@
 //! root's Scope can never be deleted, since every node must resolve to
 //! exactly one Scope. Nested Scopes below the deleted boundary are
 //! unaffected: they keep resolving to their own `ScopeId` because
-//! [`Pallet::resolve_scope`] always finds the *nearest* active Scope.
+//! [`Pallet::resolve_scope`] always finds the *nearest* active Scope. As
+//! with replacement, the deleted Scope's remaining physical state is
+//! enqueued for background GC rather than removed synchronously.
+//!
+//! ### Cleanup Queue and Background GC
+//!
+//! Scope invalidation (via replacement or deletion) is immediate and O(1):
+//! it only touches `ActiveScope`. The old Scope's remaining physical state
+//! (`Access`, `ScopeOwner`, `ScopeRoot`) is reclaimed later, incrementally,
+//! by a bounded background GC driven by [`Pallet::on_idle`]. This never
+//! affects authorization or resource resolution correctness — those always
+//! consult only the *currently* resolved `ScopeId`, regardless of whether
+//! an old Scope's storage has been physically reclaimed yet.
+//!
+//! A FIFO queue (`CleanupHead` / `CleanupTail` / `CleanupQueue`) holds one
+//! [`CleanupTask`] per stale Scope, processed in two phases:
+//!
+//! ```text
+//! Access -> Metadata
+//! ```
+//!
+//! `Access` bounds-deletes `Access(scope_id, *)` via repeated
+//! `clear_prefix` calls, persisting a continuation cursor between `on_idle`
+//! calls until the prefix is empty. `Metadata` then removes `ScopeOwner`
+//! and `ScopeRoot` and dequeues the task. Each `on_idle` call performs at
+//! most one bounded step, sized from the remaining idle weight and capped
+//! by `Config::MaxCleanupItemsPerBlock`, and never exceeds the weight it is
+//! given.
+//!
+//! `ScopeId`s are never reused, including after GC: a garbage-collected
+//! `ScopeId` simply has no more physical state, but remains a valid
+//! historical identifier that will never be handed out again by
+//! [`Pallet::create_scope`].
 //!
 //! ### Access
 //!
@@ -198,6 +239,11 @@
 //! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
 //! 8. **Immutable Scope Owner/Root**: A Scope's owner and root are fixed at
 //!    creation; changing control means creating another Scope.
+//! 9. **GC Correctness Independence**: Authorization and Scope resolution
+//!    never depend on whether background GC has run; a stale Scope's
+//!    physical state may still exist without being reachable through
+//!    `ActiveScope`. GC also never reclaims a Scope that is still active
+//!    (defensive check in [`Pallet::on_idle`]).
 //!
 //! ## Testing
 //!
@@ -384,6 +430,76 @@ pub enum Capability {
 /// the account it is granted to, and the delegated [`Capability`].
 pub type AccessKey<AccountId> = (NodeId, AccountId, Capability);
 
+/// Maximum encoded length of a [`CleanupTask::cursor`], the raw
+/// continuation token returned by [`clear_prefix`](frame_support::storage::StorageDoubleMap::clear_prefix)
+/// between bounded GC steps.
+///
+/// Trie-derived removal cursors are small (bounded by an encoded storage
+/// key length); 256 bytes is a generous upper bound.
+pub const MAX_CLEANUP_CURSOR_LEN: u32 = 256;
+
+/// [`ConstU32`] wrapper around [`MAX_CLEANUP_CURSOR_LEN`] for use as a
+/// `BoundedVec` bound.
+pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
+
+/// Which part of a stale Scope's physical state a [`CleanupTask`] is
+/// currently reclaiming.
+///
+/// # Extending with a `Resources` phase
+///
+/// The GC design also anticipates a `ScopeResources` mapping
+/// (`ScopeId x Resource -> Limit`, see issue #654) with its own cleanup
+/// phase between `Access` and `Metadata`. That storage does not exist yet
+/// in this pallet, so only `Access` and `Metadata` are implemented here;
+/// add a `Resources` variant (and its bounded `clear_prefix` step) once
+/// `ScopeResources` is introduced.
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+)]
+pub enum CleanupPhase {
+    /// Reclaiming `Access(scope_id, *)` entries.
+    Access,
+    /// Reclaiming `ScopeOwner[scope_id]` / `ScopeRoot[scope_id]`, the final
+    /// phase before the task is dequeued.
+    Metadata,
+}
+
+/// A single queued unit of background cleanup work for one stale
+/// [`ScopeId`], processed incrementally by [`Pallet::on_idle`].
+#[derive(
+    Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
+)]
+pub struct CleanupTask {
+    /// The stale Scope whose physical state is being reclaimed.
+    pub scope_id: ScopeId,
+    /// The phase currently being processed.
+    pub phase: CleanupPhase,
+    /// Continuation cursor for the current phase's bounded `clear_prefix`
+    /// call, if a previous step left work unfinished. `None` when a phase
+    /// has not yet started removing anything.
+    pub cursor: Option<BoundedVec<u8, MaxCleanupCursorLen>>,
+}
+
+impl CleanupTask {
+    /// A fresh task for `scope_id`, starting at the first cleanup phase.
+    fn new(scope_id: ScopeId) -> Self {
+        Self {
+            scope_id,
+            phase: CleanupPhase::Access,
+            cursor: None,
+        }
+    }
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -398,6 +514,12 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        /// Upper bound on the number of storage items the stale Scope GC
+        /// (see [`Pallet::on_idle`]) may remove in a single block, on top
+        /// of whatever the remaining idle weight allows.
+        #[pallet::constant]
+        type MaxCleanupItemsPerBlock: Get<u32>;
     }
 
     #[pallet::pallet]
@@ -480,6 +602,28 @@ pub mod pallet {
     #[pallet::getter(fn root_nodes)]
     pub type RootNodes<T: Config> = StorageValue<_, BoundedVec<NodeId, MaxRootNodes>, ValueQuery>;
 
+    /// Index of the oldest not-yet-processed entry in [`CleanupQueue`].
+    ///
+    /// The queue is empty when `CleanupHead == CleanupTail`.
+    #[pallet::storage]
+    #[pallet::getter(fn cleanup_head)]
+    pub type CleanupHead<T> = StorageValue<_, u64, ValueQuery>;
+
+    /// Index one past the newest entry in [`CleanupQueue`]; the slot the
+    /// next [`Pallet::enqueue_cleanup`] call will use.
+    #[pallet::storage]
+    #[pallet::getter(fn cleanup_tail)]
+    pub type CleanupTail<T> = StorageValue<_, u64, ValueQuery>;
+
+    /// FIFO queue of stale Scopes awaiting background physical cleanup.
+    ///
+    /// Entries between [`CleanupHead`] (inclusive) and [`CleanupTail`]
+    /// (exclusive) are pending; [`Pallet::on_idle`] always processes the
+    /// entry at `CleanupHead` first.
+    #[pallet::storage]
+    #[pallet::getter(fn cleanup_queue)]
+    pub type CleanupQueue<T> = StorageMap<_, Blake2_128Concat, u64, CleanupTask>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -500,6 +644,10 @@ pub mod pallet {
         AccessGranted(ScopeId, NodeId, T::AccountId, Capability, bool),
         /// Access was revoked [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
+        /// A stale Scope was enqueued for background cleanup [scope_id]
+        CleanupEnqueued(ScopeId),
+        /// A stale Scope's physical state was fully reclaimed [scope_id]
+        CleanupCompleted(ScopeId),
     }
 
     #[pallet::error]
@@ -534,7 +682,15 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        /// Bounded, resumable background GC of stale Scope physical state.
+        ///
+        /// Consumes only the idle weight the executive hands it and never
+        /// more; see [`Pallet::do_gc_step`] for the full algorithm.
+        fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
+            Self::do_gc_step(remaining_weight)
+        }
+    }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -723,7 +879,9 @@ pub mod pallet {
 
             // Remove the Scope boundary attached to this node, if any. The
             // rest of that Scope's physical state is left for GC.
-            <ActiveScope<T>>::remove(node_id);
+            if let Some(stale_scope) = <ActiveScope<T>>::take(node_id) {
+                Self::enqueue_cleanup(stale_scope);
+            }
 
             // Remove the node's attributes
             <Meta<T>>::remove(node_id);
@@ -785,6 +943,9 @@ pub mod pallet {
         /// CPS node or its descendants; `node_id` and everything below it
         /// falls back to the nearest parent Scope. A CPS root's Scope can
         /// never be deleted. Nested Scopes below `node_id` are unaffected.
+        /// The deleted Scope's remaining physical state (`Access`,
+        /// `ScopeOwner`, `ScopeRoot`) is enqueued for background GC (see
+        /// [`Pallet::on_idle`]), not removed synchronously.
         #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::delete_scope())]
         pub fn delete_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -798,6 +959,7 @@ pub mod pallet {
             ensure!(parent.is_some(), Error::<T>::CannotDeleteRootScope);
 
             <ActiveScope<T>>::remove(node_id);
+            Self::enqueue_cleanup(scope_id);
 
             Self::deposit_event(Event::ScopeDeleted(scope_id, node_id));
             Ok(())
@@ -992,7 +1154,9 @@ pub mod pallet {
 
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
         /// with the given `resources`, and activate it. Replaces any Scope
-        /// previously active at `root`.
+        /// previously active at `root`; if one existed, it is enqueued for
+        /// background GC (see [`Pallet::on_idle`]) in the same transaction
+        /// that invalidates it.
         fn allocate_scope(root: NodeId, owner: T::AccountId) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
@@ -1002,9 +1166,129 @@ pub mod pallet {
 
             <ScopeRoot<T>>::insert(scope_id, root);
             <ScopeOwner<T>>::insert(scope_id, owner);
+
+            if let Some(stale_scope) = <ActiveScope<T>>::get(root) {
+                Self::enqueue_cleanup(stale_scope);
+            }
             <ActiveScope<T>>::insert(root, scope_id);
 
             Ok(scope_id)
+        }
+
+        /// Enqueue `scope_id` (already logically invalidated - no longer
+        /// reachable through any `ActiveScope` entry) for background
+        /// physical cleanup, appending a fresh [`CleanupTask`] to the tail
+        /// of [`CleanupQueue`].
+        pub(crate) fn enqueue_cleanup(scope_id: ScopeId) {
+            let tail = <CleanupTail<T>>::get();
+            <CleanupQueue<T>>::insert(tail, CleanupTask::new(scope_id));
+            <CleanupTail<T>>::put(tail.saturating_add(1));
+
+            Self::deposit_event(Event::CleanupEnqueued(scope_id));
+        }
+
+        /// Perform at most one bounded step of stale Scope garbage
+        /// collection, consuming no more than `remaining_weight`.
+        ///
+        /// Processes only the task at [`CleanupHead`] (FIFO order). Each
+        /// call advances exactly one phase's worth of work: either a single
+        /// bounded `clear_prefix` batch over `Access(scope_id, *)`, or (once
+        /// that prefix is fully empty) the final `Metadata` removal that
+        /// dequeues the task. If there is not enough weight to safely
+        /// perform even one bounded batch, this returns [`Weight::zero`]
+        /// without mutating any storage.
+        ///
+        /// # Safety check
+        ///
+        /// Before reclaiming the `Metadata` phase, defensively verifies the
+        /// Scope is not (no longer) active; a queued *active* Scope would
+        /// indicate an invariant violation elsewhere in the pallet, so GC
+        /// refuses to touch it rather than risk deleting live state.
+        pub(crate) fn do_gc_step(remaining_weight: Weight) -> Weight {
+            let head = <CleanupHead<T>>::get();
+            let tail = <CleanupTail<T>>::get();
+            if head >= tail {
+                // Queue is empty; nothing to do.
+                return Weight::zero();
+            }
+
+            let Some(mut task) = <CleanupQueue<T>>::get(head) else {
+                // Defensive: a missing task at a valid queue index should
+                // never happen, but skip past it rather than getting stuck.
+                <CleanupHead<T>>::put(head.saturating_add(1));
+                return T::DbWeight::get().reads_writes(2, 1);
+            };
+
+            match task.phase {
+                CleanupPhase::Access => {
+                    // Fixed overhead: reads of the two queue cursors plus
+                    // the task itself, and the write that persists the
+                    // task's updated cursor/phase.
+                    let fixed = T::DbWeight::get().reads_writes(3, 1);
+                    let per_item = T::WeightInfo::gc_access(1);
+
+                    let available = match remaining_weight.checked_sub(&fixed) {
+                        Some(available) => available,
+                        None => return Weight::zero(),
+                    };
+
+                    // Maximum batch size the remaining weight can afford,
+                    // capped by the configured per-block bound. When
+                    // `per_item` is zero (e.g. `TestWeightInfo`), fall back
+                    // to the configured cap so GC still makes progress.
+                    let max_items = u64::from(T::MaxCleanupItemsPerBlock::get());
+                    let limit = available
+                        .checked_div_per_component(&per_item)
+                        .map(|n| n.min(max_items))
+                        .unwrap_or(max_items);
+                    if limit == 0 {
+                        return Weight::zero();
+                    }
+                    let limit = limit.min(u64::from(u32::MAX)) as u32;
+
+                    let cursor = task.cursor.as_ref().map(|c| c.as_slice());
+                    let result = <Access<T>>::clear_prefix(task.scope_id, limit, cursor);
+
+                    let consumed =
+                        fixed.saturating_add(per_item.saturating_mul(u64::from(result.loops)));
+
+                    task.cursor = result
+                        .maybe_cursor
+                        .and_then(|c| BoundedVec::try_from(c).ok());
+                    if task.cursor.is_none() {
+                        task.phase = CleanupPhase::Metadata;
+                    }
+                    <CleanupQueue<T>>::insert(head, task);
+
+                    consumed.min(remaining_weight)
+                }
+                CleanupPhase::Metadata => {
+                    let fixed = T::WeightInfo::gc_metadata();
+                    if remaining_weight.any_lt(fixed) {
+                        return Weight::zero();
+                    }
+
+                    // Defensive safety check: never reclaim an active Scope.
+                    // A queued *active* Scope indicates an invariant
+                    // violation elsewhere in the pallet; GC still dequeues
+                    // the task (retrying it forever would stall the whole
+                    // queue) but skips deleting anything for it.
+                    let root = <ScopeRoot<T>>::get(task.scope_id);
+                    let is_active = root
+                        .map(|r| <ActiveScope<T>>::get(r) == Some(task.scope_id))
+                        .unwrap_or(false);
+                    if !is_active {
+                        <ScopeOwner<T>>::remove(task.scope_id);
+                        <ScopeRoot<T>>::remove(task.scope_id);
+                        Self::deposit_event(Event::CleanupCompleted(task.scope_id));
+                    }
+
+                    <CleanupQueue<T>>::remove(head);
+                    <CleanupHead<T>>::put(head.saturating_add(1));
+
+                    fixed.min(remaining_weight)
+                }
+            }
         }
 
         /// Count the number of ancestors of `node_id` by walking `parent`

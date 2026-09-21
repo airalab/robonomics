@@ -21,7 +21,7 @@
 
 use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_ok, weights::Weight, BoundedVec};
 use frame_system::RawOrigin;
 use sp_std::vec;
 
@@ -292,6 +292,92 @@ mod benchmarks {
                 None,
             ));
         }
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark measuring the cost of
+    /// enqueuing a stale Scope for background GC, as done internally by
+    /// `create_scope` (replacement) and `delete_scope`.
+    #[benchmark]
+    fn gc_enqueue() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, _) = create_chain::<T>(&caller, 0);
+        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
+
+        #[block]
+        {
+            Pallet::<T>::enqueue_cleanup(scope_id);
+        }
+
+        assert_eq!(CleanupTail::<T>::get(), 1);
+    }
+
+    /// One bounded `on_idle` GC step through the `Access` phase, removing
+    /// `x` entries from a stale Scope's `Access(scope_id, *)` prefix in a
+    /// single `clear_prefix` call. `x` is bounded by the same
+    /// `MaxCleanupItemsPerBlock` the runtime configures for GC itself, so
+    /// this covers both a single-item removal and the maximum batch.
+    #[benchmark]
+    fn gc_access(x: Linear<1, 8>) {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, _) = create_chain::<T>(&caller, 0);
+        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
+
+        for i in 0..x {
+            let principal = account::<T::AccountId>("accessor", i, 0);
+            assert_ok!(Pallet::<T>::grant_access(
+                RawOrigin::Signed(caller.clone()).into(),
+                root,
+                principal,
+                Capability::Write,
+                false,
+            ));
+        }
+
+        // Replace the Scope so `scope_id` becomes stale and gets enqueued
+        // with a fresh Access-phase cleanup task.
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(caller).into(),
+            root,
+        ));
+        assert_eq!(CleanupTail::<T>::get(), 1);
+
+        #[block]
+        {
+            Pallet::<T>::do_gc_step(Weight::MAX);
+        }
+
+        assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
+    }
+
+    /// The final `Metadata` GC phase: removing `ScopeOwner` / `ScopeRoot`
+    /// for a stale Scope whose `Access` prefix is already empty, and
+    /// dequeuing the completed cleanup task.
+    #[benchmark]
+    fn gc_metadata() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (root, _) = create_chain::<T>(&caller, 0);
+        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
+
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(caller).into(),
+            root,
+        ));
+        // Drive the freshly enqueued task through the (empty) Access phase
+        // so the next step starts in `Metadata`.
+        Pallet::<T>::do_gc_step(Weight::MAX);
+        assert_eq!(
+            CleanupQueue::<T>::get(0).expect("task queued").phase,
+            CleanupPhase::Metadata
+        );
+
+        #[block]
+        {
+            Pallet::<T>::do_gc_step(Weight::MAX);
+        }
+
+        assert!(ScopeOwner::<T>::get(scope_id).is_none());
+        assert!(ScopeRoot::<T>::get(scope_id).is_none());
+        assert_eq!(CleanupHead::<T>::get(), CleanupTail::<T>::get());
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);
