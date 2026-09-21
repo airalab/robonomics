@@ -67,8 +67,6 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T> {
 	/// Storage: `CPS::NextNodeId` (r:1 w:1)
 	/// Proof: `CPS::NextNodeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::RootNodes` (r:1 w:1)
-	/// Proof: `CPS::RootNodes` (`max_values`: Some(1), `max_size`: Some(802), added: 1297, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Nodes` (r:0 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
 	fn create_node() -> Weight {
@@ -78,8 +76,8 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 		// Minimum execution time: 5_440_000 picoseconds.
 		Weight::from_parts(6_071_000, 0)
 			.saturating_add(Weight::from_parts(0, 2287))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(3))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	/// Storage: `CPS::Nodes` (r:1 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)

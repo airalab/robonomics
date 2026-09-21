@@ -50,8 +50,7 @@
 //!    `bool` ("inherited"). Delegates a `Capability` to an `AccountId` at a
 //!    specific `NodeId` within one Scope.
 //!
-//! 6. **`NodesByParent`** / **`RootNodes`**: Index structures for O(1) child and
-//!    root-node lookups
+//! 6. **`NodesByParent`**: Index structure for O(1) child lookups
 //!
 //! 7. **`CleanupHead`** / **`CleanupTail`** / **`CleanupQueue`**: A FIFO
 //!    queue of stale Scopes awaiting background physical cleanup by
@@ -214,9 +213,6 @@
 //! // Get all children
 //! let children = NodesByParent::<T>::get(NodeId(0));
 //!
-//! // Get all root nodes
-//! let roots = RootNodes::<T>::get();
-//!
 //! // Resolve the effective Scope for a node
 //! let scope = Cps::resolve_scope(NodeId(0))?;
 //! ```
@@ -232,7 +228,7 @@
 //! 3. **Scope Boundaries**: Nested Scopes are a hard authority and resource
 //!    boundary; ancestor Scope owners have no implicit administrative rights
 //!    inside a nested Scope.
-//! 4. **Index Consistency**: `NodesByParent` and `RootNodes` stay synchronized
+//! 4. **Index Consistency**: `NodesByParent` stays synchronized
 //!    with `Parents`.
 //! 5. **Deletion Safety**: Cannot delete nodes with children.
 //! 6. **Depth Limits**: Tree depth never exceeds `MAX_TREE_DEPTH`.
@@ -289,19 +285,12 @@ pub const MAX_TREE_DEPTH: u32 = 32;
 /// Bounds the size of the `NodesByParent` index entry for any given node.
 pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 
-/// Maximum number of root nodes (nodes with no parent) that may exist.
-///
-/// Bounds the size of the `RootNodes` index.
-pub const MAX_ROOT_NODES: u32 = 100;
-
 /// [`ConstU32`] wrapper around [`MAX_DATA_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_TREE_DEPTH`] for use as a `BoundedVec` bound.
 pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
 /// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
-/// [`ConstU32`] wrapper around [`MAX_ROOT_NODES`] for use as a `BoundedVec` bound.
-pub type MaxRootNodes = ConstU32<MAX_ROOT_NODES>;
 
 /// Type alias for node data - bounded vector of bytes.
 ///
@@ -597,11 +586,6 @@ pub mod pallet {
     pub type NodesByParent<T: Config> =
         StorageMap<_, Blake2_128Concat, NodeId, BoundedVec<NodeId, MaxChildrenPerNode>, ValueQuery>;
 
-    /// Root nodes (nodes without parents)
-    #[pallet::storage]
-    #[pallet::getter(fn root_nodes)]
-    pub type RootNodes<T: Config> = StorageValue<_, BoundedVec<NodeId, MaxRootNodes>, ValueQuery>;
-
     /// Index of the oldest not-yet-processed entry in [`CleanupQueue`].
     ///
     /// The queue is empty when `CleanupHead == CleanupTail`.
@@ -661,8 +645,6 @@ pub mod pallet {
         MaxDepthExceeded,
         /// Too many children for node
         TooManyChildren,
-        /// Too many root nodes
-        TooManyRootNodes,
         /// Node has children and cannot be deleted
         NodeHasChildren,
         /// No fresh node ID can be allocated without overflowing the counter
@@ -757,14 +739,9 @@ pub mod pallet {
                         .try_push(node_id)
                         .map_err(|_| Error::<T>::TooManyChildren)
                 })?;
-            } else {
-                // Root node always allocates a fresh, caller-owned Scope.
-                <RootNodes<T>>::try_mutate(|roots| {
-                    roots
-                        .try_push(node_id)
-                        .map_err(|_| Error::<T>::TooManyRootNodes)
-                })?;
             }
+            // Root nodes (parent_id.is_none()) always allocate a fresh,
+            // caller-owned Scope, handled below.
 
             // All fallible checks passed: commit the reserved node/Scope
             // IDs and the node's attributes.
@@ -866,11 +843,6 @@ pub mod pallet {
             if let Some(parent_id) = parent {
                 <NodesByParent<T>>::mutate(parent_id, |children| {
                     children.retain(|&id| id != node_id);
-                });
-            } else {
-                // Remove from root nodes
-                <RootNodes<T>>::mutate(|roots| {
-                    roots.retain(|&id| id != node_id);
                 });
             }
 

@@ -380,7 +380,6 @@ Customize the pallet for your use case:
 | `MAX_DATA_SIZE` | 2048 bytes | Size limit for meta/payload | Sensor readings, configs |
 | `MAX_TREE_DEPTH` | 32 levels | Maximum hierarchy depth | Nested organizations |
 | `MAX_CHILDREN_PER_NODE` | 100 | Maximum child nodes | Factory with 50 machines |
-| `MAX_ROOT_NODES` | 100 | Maximum top-level systems | Multi-site deployments |
 
 ## 🔐 Client-Side Encryption
 
@@ -612,9 +611,6 @@ const payload = await api.query.cps.payload(nodeId);
 
 // Get all children of a node
 const children = await api.query.cps.nodesByParent(parentId);
-
-// Get all root nodes
-const roots = await api.query.cps.rootNodes();
 
 // Resolve the active Scope and check a capability via the Runtime API
 const scopeId = await api.call.cpsApi.resolveScope(nodeId);

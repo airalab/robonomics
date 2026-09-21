@@ -93,10 +93,6 @@ fn create_root_node_works() {
         assert_eq!(Cps::scope_owner(ScopeId(0)), Some(account));
         assert_eq!(Cps::next_scope_id(), ScopeId(1));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), account);
-
-        // Root is indexed
-        assert_eq!(Cps::root_nodes().len(), 1);
-        assert_eq!(Cps::root_nodes()[0], NodeId(0));
     });
 }
 
@@ -264,37 +260,6 @@ fn max_children_per_node_enforced() {
 }
 
 #[test]
-fn max_root_nodes_enforced() {
-    new_test_ext().execute_with(|| {
-        let account = 1u64;
-        for _ in 0..MAX_ROOT_NODES {
-            assert_ok!(Cps::create_node(
-                RuntimeOrigin::signed(account),
-                None,
-                None,
-                None
-            ));
-        }
-
-        assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(account), None, None, None),
-            Error::<Runtime>::TooManyRootNodes
-        );
-        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), NodeId(0)));
-        let next = Cps::next_node_id();
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(2), None, None, None));
-        let roots = Cps::root_nodes();
-        assert_eq!(roots.len(), MAX_ROOT_NODES as usize);
-        assert!(!roots.contains(&NodeId(0)));
-        assert_eq!(roots.last(), Some(&next));
-    });
-}
-
-// ---------------------------------------------------------------------------
-// set_meta / set_payload
-// ---------------------------------------------------------------------------
-
-#[test]
 fn set_meta_works() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
@@ -429,7 +394,6 @@ fn delete_root_node_removes_active_scope() {
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), NodeId(0)));
 
         assert_eq!(Cps::parent_of(NodeId(0)), None);
-        assert!(Cps::root_nodes().is_empty());
         assert_eq!(Cps::active_scope(NodeId(0)), None);
     });
 }
@@ -1305,8 +1269,6 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
         // Node IDs are never reused, even though the ID's node was deleted.
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_eq!(Cps::next_node_id(), NodeId(2));
-        assert!(!Cps::root_nodes().contains(&NodeId(0)));
-        assert_eq!(Cps::root_nodes(), vec![NodeId(1)]);
     });
 }
 

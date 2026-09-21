@@ -38,6 +38,13 @@
 //!
 //! `ScopeId`s are allocated in the same order nodes are iterated, starting
 //! from `NextScopeId`. Version 1 had no Access grants to migrate.
+//!
+//! This migration also opportunistically clears the now-removed `RootNodes`
+//! index (a `StorageValue` that used to hold the list of parentless nodes,
+//! bounded to 100 entries). It was never populated by this migration in the
+//! first place, but chains that had already run newer code with `RootNodes`
+//! present could have leftover bytes; clearing it here ensures no orphaned
+//! storage remains regardless of upgrade path.
 
 use crate::{
     ActiveScope, Config, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId, Pallet, Parents,
@@ -46,7 +53,7 @@ use crate::{
 use core::fmt::Debug;
 use frame_support::{
     migrations::VersionedMigration,
-    pallet_prelude::PhantomData,
+    pallet_prelude::{ConstU32, PhantomData},
     storage_alias,
     traits::{Get, UncheckedOnRuntimeUpgrade},
     weights::Weight,
@@ -78,6 +85,12 @@ type Nodes<T: Config> = StorageMap<
     NodeId,
     OldNode<<T as frame_system::Config>::AccountId>,
 >;
+
+/// Shadow of the now-removed `RootNodes` index (a bare `StorageValue`
+/// holding up to 100 root `NodeId`s). Declared only so this migration can
+/// unconditionally kill it, regardless of whether it was ever populated.
+#[storage_alias]
+type RootNodes<T: Config> = StorageValue<Pallet<T>, BoundedVec<NodeId, ConstU32<100>>>;
 
 /// Versioned migration from storage version 1 to 2.
 pub type MigrationToV2<T> = VersionedMigration<
@@ -148,6 +161,10 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         // Purge the old, now-obsolete `Nodes` storage.
         let _ = Nodes::<T>::clear(u32::MAX, None);
         writes = writes.saturating_add(old_nodes.len() as u64);
+
+        // Purge any leftover `RootNodes` index bytes (see module docs).
+        RootNodes::<T>::kill();
+        writes = writes.saturating_add(1);
 
         T::DbWeight::get().reads_writes(reads, writes)
     }
