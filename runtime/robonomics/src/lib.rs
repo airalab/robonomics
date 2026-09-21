@@ -854,7 +854,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 parameter_types! {
-    pub const TrasuryName: &'static str = "Treasury";
+    pub const TreasuryName: &'static str = "Treasury";
     pub const SchedulerName: &'static str = "Scheduler";
     pub const TechCommName: &'static str = "TechnicalCommittee";
     pub const TechMemName: &'static str = "TechnicalMembership";
