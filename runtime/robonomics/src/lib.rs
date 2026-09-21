@@ -113,7 +113,13 @@ impl frame_support::traits::Contains<RuntimeCall> for BaseFilter {
     }
 }
 
-/// Proxy type for filtering allowed calls
+/// Proxy type for filtering allowed calls.
+///
+/// The `CpsWrite` variant that used to exist here (discriminant `1`) has been
+/// removed along with the CPS ownership model it targeted (superseded by the
+/// Scope/Access architecture). No live network (mainnet, testnet or dev)
+/// currently has a `pallet_proxy::Proxies` entry encoding that discriminant,
+/// so no storage migration is required for this removal.
 #[derive(
     Clone,
     Eq,

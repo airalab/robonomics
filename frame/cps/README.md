@@ -190,7 +190,7 @@ floors without either party having implicit access to the other's boundary.
 ### Creating a System Hierarchy
 
 1. **Start with a root node** representing your top-level system - the creator becomes the owner of a freshly allocated Scope
-2. **Add child nodes** for subsystems and components - requires `Write` authority (Scope owner, or matching `Access`) over the parent's resolved Scope
+2. **Add child nodes** for subsystems and components - requires owner authority over the parent's resolved Scope
 3. **Store data** as plain text (public) or client-side encrypted (private)
 4. **Establish nested boundaries** with `create_scope` when a sub-tree needs independent administration
 5. **Delegate `Write`** with `grant_access` when another account should update node state without administering the Scope
@@ -252,7 +252,7 @@ payload: {"reading": "22.5°C", "timestamp": "2025-01-15T10:30:00Z"}
 ```
 
 Creating a root node (`parent: None`) allocates a fresh Scope, owned by the
-caller. Creating a child node requires `Write` authority over the parent's
+caller. Creating a child node requires owner authority over the parent's
 resolved Scope; the child does not get its own Scope.
 
 ### ✏️ Update Data
@@ -326,7 +326,7 @@ grant_access(thermostat_id, gateway_account, Capability::Write, inherited: false
 
 ### 🗑️ Delete Node
 
-Remove a leaf node (must have no children). Requires `Write` authority over
+Remove a leaf node (must have no children). Requires owner authority over
 the node's resolved Scope:
 
 ```

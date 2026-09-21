@@ -541,10 +541,11 @@ pub mod pallet {
         /// Create a new node.
         ///
         /// Creating a root node (`parent_id: None`) allocates a fresh Scope
-        /// owned by the caller. Creating a child node requires the caller to
-        /// hold `Write` authority (owner or matching `Access`) over
-        /// `parent_id`'s resolved Scope; the child does not get its own
-        /// Scope.
+        /// owned by the caller. Creating a child node is a structural
+        /// change, not a data mutation, so it requires the caller to be the
+        /// owner of `parent_id`'s resolved Scope - `Write` (owner or
+        /// delegated `Access`) only authorizes `Meta`/`Payload` mutation,
+        /// never hierarchy changes. The child does not get its own Scope.
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::create_node())]
         pub fn create_node(
@@ -555,17 +556,38 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Reserve the terminal counter value rather than ever reusing an ID.
+            // Peek the next node ID (and, for a root node, the next Scope
+            // ID) without committing either counter until every fallible
+            // check below succeeds. Storage writes are not automatically
+            // rolled back when a dispatchable returns an error, so
+            // committing early would let a failed call consume an ID or
+            // leave a dangling index entry behind.
             let node_id = <NextNodeId<T>>::get();
-            let next_id = node_id
+            let next_node_id = node_id
                 .0
                 .checked_add(1)
                 .ok_or(Error::<T>::NodeIdExhausted)?;
-            <NextNodeId<T>>::put(NodeId(next_id));
+
+            let new_scope = if parent_id.is_none() {
+                let scope_id = <NextScopeId<T>>::get();
+                let next_scope_id = scope_id
+                    .checked_add(1)
+                    .ok_or(Error::<T>::ScopeIdExhausted)?;
+                Some((scope_id, next_scope_id))
+            } else {
+                None
+            };
 
             if let Some(pid) = parent_id {
                 ensure!(<Parents<T>>::contains_key(pid), Error::<T>::ParentNotFound);
-                Self::authorize(pid, &sender, Capability::Write)?;
+
+                // Creating a child node is a structural change to the CPS
+                // hierarchy, not a data mutation - `Write` only authorizes
+                // `Meta`/`Payload` changes (see issue #656), so this always
+                // requires the resolved Scope's owner authority.
+                let scope_id = Self::resolve_scope(pid)?;
+                let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+                ensure!(owner == sender, Error::<T>::NotScopeOwner);
 
                 // Check tree depth by walking the parent chain up to the root.
                 ensure!(
@@ -586,8 +608,17 @@ pub mod pallet {
                         .try_push(node_id)
                         .map_err(|_| Error::<T>::TooManyRootNodes)
                 })?;
+            }
 
-                let scope_id = Self::allocate_scope(node_id, sender.clone())?;
+            // All fallible checks passed: commit the reserved node/Scope
+            // IDs and the node's attributes.
+            <NextNodeId<T>>::put(NodeId(next_node_id));
+
+            if let Some((scope_id, next_scope_id)) = new_scope {
+                <NextScopeId<T>>::put(next_scope_id);
+                <ScopeRoot<T>>::insert(scope_id, node_id);
+                <ScopeOwner<T>>::insert(scope_id, sender.clone());
+                <ActiveScope<T>>::insert(node_id, scope_id);
                 Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender.clone()));
             }
 
@@ -722,7 +753,24 @@ pub mod pallet {
                 <Parents<T>>::contains_key(node_id),
                 Error::<T>::NodeNotFound
             );
-            Self::authorize(node_id, &sender, Capability::CreateScope)?;
+
+            let scope_id = Self::resolve_scope(node_id)?;
+            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            if owner != sender {
+                // Delegated `CreateScope` is a handover mechanism for the
+                // exact Scope root only - it must never be usable to carve
+                // out a brand-new nested Scope on an arbitrary descendant,
+                // which is owner-only authority.
+                ensure!(
+                    <ActiveScope<T>>::get(node_id) == Some(scope_id),
+                    Error::<T>::AccessDenied
+                );
+                ensure!(
+                    <Access<T>>::get(scope_id, (node_id, sender.clone(), Capability::CreateScope))
+                        .is_some(),
+                    Error::<T>::AccessDenied
+                );
+            }
 
             let scope_id = Self::allocate_scope(node_id, sender.clone())?;
 

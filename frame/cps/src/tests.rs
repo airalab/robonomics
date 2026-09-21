@@ -179,7 +179,7 @@ fn create_child_without_access_fails() {
 
         assert_noop!(
             Cps::create_node(RuntimeOrigin::signed(2), Some(NodeId(0)), None, None),
-            Error::<Runtime>::AccessDenied
+            Error::<Runtime>::NotScopeOwner
         );
     });
 }
@@ -562,14 +562,13 @@ fn same_owner_nested_scope_is_still_a_hard_boundary() {
             Capability::Write,
             true
         ));
-        assert_ok!(Cps::create_node(
+        assert_ok!(Cps::set_meta(
             RuntimeOrigin::signed(2),
-            Some(root),
-            None,
-            None
+            root,
+            Some(data(b"root"))
         ));
         assert_noop!(
-            Cps::create_node(RuntimeOrigin::signed(2), Some(child), None, None),
+            Cps::set_meta(RuntimeOrigin::signed(2), child, Some(data(b"child"))),
             Error::<Runtime>::AccessDenied
         );
     });
@@ -758,6 +757,56 @@ fn write_access_does_not_authorize_create_scope() {
             Cps::create_scope(RuntimeOrigin::signed(2), root),
             Error::<Runtime>::AccessDenied
         );
+    });
+}
+
+#[test]
+fn create_scope_capability_rejected_when_node_is_not_the_active_scope_root() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let root = NodeId(0);
+        let child = NodeId(1);
+
+        // A CreateScope grant recorded exactly at `child` (a plain
+        // descendant, not itself an active Scope root) must not let the
+        // grantee carve out a brand-new nested Scope there - that would
+        // bypass the owner-only authority required to establish new
+        // administrative boundaries. Delegated `CreateScope` only ever
+        // authorizes replacing a Scope at its own, already-active root.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            child,
+            2,
+            Capability::CreateScope,
+            false
+        ));
+
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), child),
+            Error::<Runtime>::AccessDenied
+        );
+
+        // The owner can still establish a new Scope on that same child.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), child));
+
+        // Now that `child` is an active Scope root, the owner may grant
+        // CreateScope there and the delegate can use it to replace it.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            child,
+            2,
+            Capability::CreateScope,
+            false
+        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), child));
+
+        let _ = root;
     });
 }
 
