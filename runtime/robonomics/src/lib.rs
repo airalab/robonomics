@@ -853,8 +853,24 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
 >;
 
+parameter_types! {
+    pub const TrasuryName: &'static str = "Treasury";
+    pub const SchedulerName: &'static str = "Scheduler";
+    pub const TechCommName: &'static str = "TechnicalCommittee";
+    pub const TechMemName: &'static str = "TechnicalMembership";
+    pub const DemocracyName: &'static str = "Democracy";
+    pub const PreimageName: &'static str = "Preimage";
+}
+
 /// Migrations to apply on runtime upgrade.
 type SingleBlockMigrations = (
+    // Remove old governance pallets before introduce new one
+    frame_support::migrations::RemovePallet<TreasuryName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<SchedulerName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<TechCommName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<TechMemName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<DemocracyName, RocksDbWeight>,
+    frame_support::migrations::RemovePallet<PreimageName, RocksDbWeight>,
     // Permanent
     pallet_xcm::migration::MigrateToLatestXcmVersion<Runtime>,
 );
