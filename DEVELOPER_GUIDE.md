@@ -62,9 +62,8 @@ cargo clippy --all-targets --all-features
 taplo fmt
 ```
 
-> Need a runnable node or a local testnet? Build and run the node from the
-> [`airalab/robins`](https://github.com/airalab/robins) repository, which also
-> ships the `robonet` local network orchestration tool and the CLI utilities.
+> Need a local testnet?
+> - see [Running a Development Chain](#running-a-development-chain) below.
 
 ### Benchmarking Shell
 
@@ -90,9 +89,11 @@ cargo build --release -p robonomics-runtime
 
 To run the runtime inside a node — for example to start a `--dev` chain with
 pre-funded accounts (Alice, Bob, Charlie, …), WebSocket RPC on
-`ws://127.0.0.1:9944`, and block production — use the node binary from the
-[`airalab/robins`](https://github.com/airalab/robins) repository, pointing it at
-your locally built runtime WASM where needed.
+`ws://127.0.0.1:9944`, and block production — you can either use the generic
+`polkadot-omni-node` binary as described in
+[Running a Development Chain](#running-a-development-chain) below, or the
+node binary from the [`airalab/robins`](https://github.com/airalab/robins)
+repository, pointing it at your locally built runtime WASM where needed.
 
 **Regenerating subxt-api metadata:**
 
@@ -117,6 +118,55 @@ cargo test -p pallet-robonomics-datalog
 # Build with runtime benchmarks enabled
 cargo build --features runtime-benchmarks -p robonomics-runtime
 ```
+
+## Running a Development Chain
+
+The `nix develop` shell ships with [`chain-spec-builder`](https://crates.io/crates/staging-chain-spec-builder) and
+[`polkadot-omni-node`](https://crates.io/crates/polkadot-omni-node), which together are enough to build a chain spec
+from your locally compiled runtime and run it as a single-node development chain with block production,
+pre-funded dev accounts, and RPC — all without a relay chain or other collators.
+
+### 1. Build the Runtime and Generate a Chain Spec
+
+Use the [`scripts/build-development-spec.sh`](./scripts/build-development-spec.sh) helper script. 
+It builds the runtime WASM if it isn't already present, then calls `chain-spec-builder` to produce
+a `development` chain spec (`chain_spec.json` in the current directory) using the runtime's `development`
+genesis preset:
+
+```bash
+nix develop
+
+# Builds runtime if needed, then writes ./chain_spec.json
+./scripts/build-development-spec.sh
+```
+
+If you already have a runtime WASM built elsewhere (e.g. from a different profile or a `srtool` build),
+point the script at it instead of rebuilding:
+
+```bash
+RUNTIME_WASM=/path/to/robonomics_runtime.compact.compressed.wasm \
+  ./scripts/build-development-spec.sh
+```
+
+### 2. Start the Node with `polkadot-omni-node --dev`
+
+`polkadot-omni-node` is runtime-agnostic — it starts a node purely from a chain spec,
+so no Robonomics-specific binary is required. Point it at the generated spec and pass `--dev`
+to run it as an ephemeral, single-node dev chain (in-memory keystore, block authoring on every
+transaction/timer tick, and a fresh database on each run):
+
+```bash
+polkadot-omni-node --chain ./chain_spec.json --dev
+```
+
+This starts:
+- Block production out of the box (no need to insert session keys manually)
+- JSON-RPC / WebSocket endpoints on `127.0.0.1:9944`
+- A temporary database that is wiped when the process exits (pass `--base-path`
+  instead of relying on `--dev`'s implicit temp dir if you want state to persist
+  across restarts)
+
+Use this as your fast local feedback loop while iterating on pallets and runtime logic.
 
 ## Runtime Benchmarking
 

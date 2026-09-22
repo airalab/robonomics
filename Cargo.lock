@@ -585,6 +585,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
+name = "assert_matches"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
+
+[[package]]
 name = "async-channel"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4480,6 +4486,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-collective"
+version = "49.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44791fda194e57dea0c1194032bde0187858b0c03795161f6f48e8f3868b08b5"
+dependencies = [
+ "docify",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-conviction-voting"
+version = "49.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11d167cf40904f06eeafb5e41574899cbb45fe8eba90a360e28a5916e09dbe94"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "50.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4584,6 +4625,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-preimage"
+version = "49.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2fc949c575ff9ce3999cbb9ea06002f1a2490dab9eb484af310d3f05e1a4d13"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-proxy"
 version = "49.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4592,6 +4650,25 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
+]
+
+[[package]]
+name = "pallet-referenda"
+version = "49.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5d226cfd4e303f145aa08acc2f5cbba79673c30922e291d8420effe9ce01268"
+dependencies = [
+ "assert_matches",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -4705,6 +4782,24 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-scheduler"
+version = "50.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0622fd31f50490e4029e2d5d602cac119378f983d3f2b5c0adcb7e803a4b7479"
+dependencies = [
+ "docify",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-weights",
 ]
 
 [[package]]
@@ -4894,6 +4989,17 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-whitelist"
+version = "48.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75798f8a727dc57122db62d478bb75ba3b3bfb9f80084c5ed6256409e354473d"
+dependencies = [
+ "parity-scale-codec",
+ "polkadot-sdk-frame",
+ "scale-info",
 ]
 
 [[package]]
@@ -5905,7 +6011,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime"
-version = "50.0.0"
+version = "51.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -5929,9 +6035,13 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-collective",
+ "pallet-conviction-voting",
  "pallet-message-queue",
  "pallet-multisig",
+ "pallet-preimage",
  "pallet-proxy",
+ "pallet-referenda",
  "pallet-robonomics-cps",
  "pallet-robonomics-cps-runtime-api",
  "pallet-robonomics-datalog",
@@ -5940,6 +6050,7 @@ dependencies = [
  "pallet-robonomics-liability",
  "pallet-robonomics-parachain-info",
  "pallet-robonomics-rws",
+ "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -5947,6 +6058,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-utility",
  "pallet-vesting",
+ "pallet-whitelist",
  "pallet-xcm",
  "pallet-xcm-benchmarks",
  "parity-scale-codec",
@@ -5978,7 +6090,7 @@ dependencies = [
 
 [[package]]
 name = "robonomics-runtime-subxt-api"
-version = "50.0.0"
+version = "51.0.0"
 dependencies = [
  "parity-scale-codec",
  "robonomics-runtime",
