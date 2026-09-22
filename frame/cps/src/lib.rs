@@ -65,17 +65,17 @@
 //! entry is found (see [`Pallet::resolve_scope`]):
 //!
 //! ```text
-//! Global
+//! City
 //! Scope #1 / owner=A
 //! |
-//! `-- Japan
+//! `-- Smart Building
 //!     Scope #7 / owner=B
 //!     |
-//!     `-- University
+//!     `-- Floor 3
 //! ```
 //!
-//! `University` resolves to `Scope #7` (owner `B`); `Japan`'s Scope has no
-//! implicit administrative rights over `Global`'s other, independently
+//! `Floor 3` resolves to `Scope #7` (owner `B`); `Smart Building`'s Scope has
+//! no implicit administrative rights over `City`'s other, independently
 //! owned children, and vice versa. A nested Scope is always a hard boundary:
 //! it stops inheritance of authority, `Access`, and resource limits, even
 //! when parent and child Scope owners are the same account.

@@ -62,17 +62,17 @@ nodes that start a new administrative and economic boundary; every other node
 resolves to the nearest ancestor `Scope`:
 
 ```
-Global
+City
 Scope #1 / owner=A
 |
-`-- Japan
+`-- Smart Building
     Scope #7 / owner=B
     |
-    `-- University
+    `-- Floor 3
 ```
 
-`University` resolves to `Scope #7` (owner `B`); `Japan`'s Scope has no
-implicit rights over `Global`'s other, independently owned children, and vice
+`Floor 3` resolves to `Scope #7` (owner `B`); `Smart Building`'s Scope has no
+implicit rights over `City`'s other, independently owned children, and vice
 versa. A nested Scope is always a hard boundary: it stops inheritance of
 authority, `Access`, and resource limits, even when parent and child Scope
 owners are the same account.
