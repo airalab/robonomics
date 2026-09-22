@@ -84,12 +84,13 @@
 //!
 //! Every CPS root is allocated a fresh Scope, owned by its creator, when the
 //! root is created. [`Pallet::create_scope`] establishes a new Scope on any
-//! node within the caller's Scope (owner authority), or replaces an existing
-//! Scope on its own root node (owner authority, or a delegated
-//! [`Capability::CreateScope`] grant). Replacement allocates a brand-new
-//! `ScopeId` — the previous Scope's `Access` entries become immediately
-//! inactive without requiring any descendant rewrite; the old Scope's
-//! remaining physical state is enqueued for background GC (see
+//! node within the caller's Scope (owner authority, or a delegated
+//! [`Capability::CreateScope`] grant reaching that node), or replaces an
+//! existing Scope on its own root node (owner authority, or a delegated
+//! `CreateScope` grant on that exact root). Replacement allocates a
+//! brand-new `ScopeId` — the previous Scope's `Access` entries become
+//! immediately inactive without requiring any descendant rewrite; the old
+//! Scope's remaining physical state is enqueued for background GC (see
 //! [`Cleanup queue and background GC`](self#cleanup-queue-and-background-gc)
 //! below).
 //!
@@ -468,15 +469,6 @@ impl Capability {
             Capability::Write => 1,
         }
     }
-
-    /// Whether this capability may be granted with [`GrantMode::Subtree`].
-    ///
-    /// `CreateScope` is a Scope handover mechanism that must apply only to
-    /// the exact Scope root that grants it (see [`Pallet::create_scope`]),
-    /// so it supports [`GrantMode::Node`] only. `Write` supports both.
-    fn supports_subtree(self) -> bool {
-        matches!(self, Capability::Write)
-    }
 }
 
 /// How a granted [`Capability`] propagates through the node hierarchy.
@@ -828,8 +820,6 @@ pub mod pallet {
         AccessDenied,
         /// A CPS root's Scope can never be deleted
         CannotDeleteRootScope,
-        /// Provided bad arguments (for example, CreateScope with GrantMode::Subtree)
-        BadArguments,
     }
 
     #[pallet::hooks]
@@ -1038,9 +1028,10 @@ pub mod pallet {
         /// always allocated. Authorized either by owning the Scope currently
         /// governing `node_id` (establishing a brand-new nested boundary, or
         /// replacing the Scope if `node_id` is already an active Scope
-        /// root), or - only when `node_id` is already an active Scope root -
-        /// by holding a `GrantMode::Node` `Capability::CreateScope` grant on
-        /// that exact root.
+        /// root), or by holding a `Capability::CreateScope` grant reaching
+        /// `node_id` - a `GrantMode::Node` grant at the exact `node_id`, or a
+        /// `GrantMode::Subtree` grant at `node_id` or a strict ancestor
+        /// within the same Scope.
         #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::create_scope())]
         pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -1051,19 +1042,7 @@ pub mod pallet {
                 Error::<T>::NodeNotFound
             );
 
-            let resolved = Self::resolve_scope(node_id)?;
-            if resolved.owner != sender {
-                // Delegated `CreateScope` is a handover mechanism for the
-                // exact Scope root only - it must never be usable to carve
-                // out a brand-new nested Scope on an arbitrary descendant,
-                // which is owner-only authority.
-                ensure!(resolved.root == node_id, Error::<T>::AccessDenied);
-                ensure!(
-                    <Access<T>>::get(resolved.id, (node_id, sender.clone()))
-                        .contains(Capability::CreateScope),
-                    Error::<T>::AccessDenied
-                );
-            }
+            Self::authorize(node_id, &sender, Capability::CreateScope)?;
 
             let scope_id = Self::allocate_scope(node_id, sender.clone())?;
 
@@ -1112,12 +1091,6 @@ pub mod pallet {
             mode: GrantMode,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
-
-            // `CreateScope` is a Scope handover mechanism restricted to the
-            // exact Scope root; it must never propagate to descendants.
-            if mode == GrantMode::Subtree && !capability.supports_subtree() {
-                Err(Error::<T>::BadArguments)?
-            }
 
             let resolved = Self::resolve_scope(node_id)?;
             ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
@@ -1254,11 +1227,6 @@ pub mod pallet {
         /// `GrantMode::Node` and `GrantMode::Subtree` grants authorize;
         /// on strict ancestors, only `GrantMode::Subtree` grants do. The
         /// walk never crosses the Scope boundary.
-        ///
-        /// This also authorizes [`Capability::CreateScope`] correctly
-        /// without any special-casing: [`Pallet::grant_access`] never stores
-        /// a `Subtree` `CreateScope` grant, so the ancestor walk below can
-        /// never match one - only a grant on the exact `node_id` can.
         fn authorize(
             node_id: NodeId,
             sender: &T::AccountId,

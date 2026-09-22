@@ -686,7 +686,7 @@ fn write_access_does_not_authorize_create_scope() {
 }
 
 #[test]
-fn create_scope_capability_rejected_when_node_is_not_active_scope_root() {
+fn create_scope_node_capability_authorizes_exact_node_even_if_not_active_scope_root() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_ok!(Cps::create_node(
@@ -704,37 +704,39 @@ fn create_scope_capability_rejected_when_node_is_not_active_scope_root() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
-        assert_noop!(
-            Cps::create_scope(RuntimeOrigin::signed(2), child),
-            Error::<Runtime>::AccessDenied
-        );
-
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), child));
-        assert_ok!(Cps::grant_access(
-            RuntimeOrigin::signed(1),
-            child,
-            2,
-            Capability::CreateScope,
-            GrantMode::Node,
-        ));
+        // A `Node` grant authorizes `create_scope` at the exact granted
+        // node, carving out a brand-new nested Scope there even though
+        // `child` was not previously an active Scope root.
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), child));
     });
 }
 
 #[test]
-fn create_scope_subtree_capability_rejected() {
+fn create_scope_subtree_capability_authorizes_descendants() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_noop!(
-            Cps::grant_access(
-                RuntimeOrigin::signed(1),
-                NodeId(0),
-                2,
-                Capability::CreateScope,
-                GrantMode::Subtree,
-            ),
-            Error::<Runtime>::BadArguments
-        );
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let root = NodeId(0);
+        let child = NodeId(1);
+
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
+
+        // A `Subtree` grant on an ancestor authorizes carving out a
+        // brand-new nested Scope on any descendant within the same Scope.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), child));
+        let new_scope = Cps::active_scope(child).unwrap();
+        assert_eq!(new_scope.1, 2);
     });
 }
 

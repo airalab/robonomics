@@ -88,7 +88,9 @@ A [`Capability`] is a delegable authority. Two are defined today:
 - **`Write`** - mutate a node's `Meta` / `Payload` (covers both `set_meta`
   and `set_payload`).
 - **`CreateScope`** - create/replace a Scope at the exact Scope root that
-  grants it (the sole mechanism for handing over control of a Scope).
+  grants it (the sole mechanism for handing over control of a Scope); a
+  `Subtree` grant also authorizes carving out brand-new nested Scopes
+  anywhere in the granted subtree.
 
 `Pallet::grant_access` / `Pallet::revoke_access` let a Scope owner delegate a
 `Capability` to another account at a specific `NodeId`, either for that exact
@@ -96,9 +98,6 @@ node (`inherited = false`) or for the node and all its descendants within the
 same Scope (`inherited = true`). Access never crosses a nested Scope
 boundary. The Scope owner always has implicit authority over their whole
 Scope and does not need explicit `Access` entries.
-
-`CreateScope` is special-cased: it is never inherited, even if granted with
-`inherited = true` - it only ever applies to the exact node it targets.
 
 #### Example: delegating `Write`
 
@@ -279,9 +278,11 @@ or replace an existing Scope rooted at the caller's own node:
 create_scope(node_id)
 ```
 
-The Scope owner may do this on any node within their Scope. A non-owner may
-only replace a Scope at its own root, and only via a non-inherited
-`CreateScope` grant on that exact node.
+The Scope owner may do this on any node within their Scope. A non-owner
+requires a `CreateScope` grant reaching `node_id`: a non-inherited grant at
+the exact node (replacing its Scope if it is already a root, or establishing
+a brand-new nested one otherwise), or an inherited (`Subtree`) grant at
+`node_id` or a strict ancestor within the same Scope.
 
 **Example**: A property manager carves out an independent boundary for a new tenant:
 ```
