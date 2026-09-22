@@ -317,6 +317,8 @@ pub mod pallet {
         // from being weighed. A dedicated `WeightInfo::call()` benchmark for
         // this wrapper's own (small, fixed) overhead is tracked as
         // follow-up work.
+        //
+        // weight-policy-allow: call rely on meta-transaction weight
         #[pallet::weight((call.get_dispatch_info().call_weight, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
