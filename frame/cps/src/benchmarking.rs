@@ -108,7 +108,7 @@ mod benchmarks {
             root,
             accessor.clone(),
             Capability::Write,
-            true,
+            GrantMode::Subtree,
         ));
         Meta::<T>::insert(node, maximum_data());
         let meta = Some(maximum_data());
@@ -133,7 +133,7 @@ mod benchmarks {
             root,
             accessor.clone(),
             Capability::Write,
-            true,
+            GrantMode::Subtree,
         ));
         Meta::<T>::insert(node, maximum_data());
         Payload::<T>::insert(node, maximum_data());
@@ -181,8 +181,10 @@ mod benchmarks {
         #[extrinsic_call]
         _(RawOrigin::Signed(caller.clone()), node);
 
-        let scope_id = ActiveScope::<T>::get(node).expect("scope just created");
-        assert_eq!(ScopeOwner::<T>::get(scope_id), Some(caller));
+        assert_eq!(
+            ActiveScope::<T>::get(node).map(|(_, owner)| owner),
+            Some(caller)
+        );
     }
 
     #[benchmark]
@@ -214,14 +216,11 @@ mod benchmarks {
             node,
             principal.clone(),
             Capability::Write,
-            true,
+            GrantMode::Subtree,
         );
 
-        let scope_id = Pallet::<T>::resolve_scope(node).expect("scope resolves");
-        assert_eq!(
-            Access::<T>::get(scope_id, (node, principal, Capability::Write)),
-            Some(true)
-        );
+        let resolved = Pallet::<T>::resolve_scope(node).expect("scope resolves");
+        assert!(Access::<T>::get(resolved.id, (node, principal)).contains(Capability::Write));
     }
 
     /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
@@ -236,7 +235,7 @@ mod benchmarks {
             node,
             principal.clone(),
             Capability::Write,
-            true,
+            GrantMode::Subtree,
         ));
 
         #[extrinsic_call]
@@ -247,11 +246,8 @@ mod benchmarks {
             Capability::Write,
         );
 
-        let scope_id = Pallet::<T>::resolve_scope(node).expect("scope resolves");
-        assert!(!Access::<T>::contains_key(
-            scope_id,
-            (node, principal, Capability::Write)
-        ));
+        let resolved = Pallet::<T>::resolve_scope(node).expect("scope resolves");
+        assert!(!Access::<T>::contains_key(resolved.id, (node, principal)));
     }
 
     /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
@@ -269,7 +265,7 @@ mod benchmarks {
     }
 
     /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
-    /// of an `Access` traversal: an `inherited = true` `Write` grant at the
+    /// of an `Access` traversal: a `GrantMode::Subtree` `Write` grant at the
     /// Scope root, checked from the deepest descendant.
     #[benchmark]
     fn access_traversal_worst_case() {
@@ -281,7 +277,7 @@ mod benchmarks {
             root,
             accessor.clone(),
             Capability::Write,
-            true,
+            GrantMode::Subtree,
         ));
 
         #[block]
@@ -301,26 +297,25 @@ mod benchmarks {
     fn gc_enqueue() {
         let caller: T::AccountId = whitelisted_caller();
         let (root, _) = create_chain::<T>(&caller, 0);
-        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
+        let (scope_id, _) = ActiveScope::<T>::get(root).expect("root has a Scope");
 
         #[block]
         {
             Pallet::<T>::enqueue_cleanup(scope_id);
         }
 
-        assert_eq!(CleanupTail::<T>::get(), 1);
+        assert_eq!(CleanupState::<T>::get().tail, 1);
     }
 
-    /// One bounded `on_idle` GC step through the `Access` phase, removing
-    /// `x` entries from a stale Scope's `Access(scope_id, *)` prefix in a
-    /// single `clear_prefix` call. `x` is bounded by the same
-    /// `MaxCleanupItemsPerBlock` the runtime configures for GC itself, so
-    /// this covers both a single-item removal and the maximum batch.
+    /// One bounded `on_idle` GC step, removing `x` entries from a stale
+    /// Scope's `Access(scope_id, *)` prefix in a single `clear_prefix` call.
+    /// `x` is bounded by `MAX_GC_BATCH`, so this covers both a single-item
+    /// removal and the maximum batch.
     #[benchmark]
-    fn gc_access(x: Linear<1, 8>) {
+    fn gc_access(x: Linear<1, MAX_GC_BATCH>) {
         let caller: T::AccountId = whitelisted_caller();
         let (root, _) = create_chain::<T>(&caller, 0);
-        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
+        let (scope_id, _) = ActiveScope::<T>::get(root).expect("root has a Scope");
 
         for i in 0..x {
             let principal = account::<T::AccountId>("accessor", i, 0);
@@ -329,17 +324,17 @@ mod benchmarks {
                 root,
                 principal,
                 Capability::Write,
-                false,
+                GrantMode::Node,
             ));
         }
 
         // Replace the Scope so `scope_id` becomes stale and gets enqueued
-        // with a fresh Access-phase cleanup task.
+        // for cleanup.
         assert_ok!(Pallet::<T>::create_scope(
             RawOrigin::Signed(caller).into(),
             root,
         ));
-        assert_eq!(CleanupTail::<T>::get(), 1);
+        assert_eq!(CleanupState::<T>::get().tail, 1);
 
         #[block]
         {
@@ -347,37 +342,6 @@ mod benchmarks {
         }
 
         assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
-    }
-
-    /// The final `Metadata` GC phase: removing `ScopeOwner` / `ScopeRoot`
-    /// for a stale Scope whose `Access` prefix is already empty, and
-    /// dequeuing the completed cleanup task.
-    #[benchmark]
-    fn gc_metadata() {
-        let caller: T::AccountId = whitelisted_caller();
-        let (root, _) = create_chain::<T>(&caller, 0);
-        let scope_id = ActiveScope::<T>::get(root).expect("root has a Scope");
-
-        assert_ok!(Pallet::<T>::create_scope(
-            RawOrigin::Signed(caller).into(),
-            root,
-        ));
-        // Drive the freshly enqueued task through the (empty) Access phase
-        // so the next step starts in `Metadata`.
-        Pallet::<T>::do_gc_step(Weight::MAX);
-        assert_eq!(
-            CleanupQueue::<T>::get(0).expect("task queued").phase,
-            CleanupPhase::Metadata
-        );
-
-        #[block]
-        {
-            Pallet::<T>::do_gc_step(Weight::MAX);
-        }
-
-        assert!(ScopeOwner::<T>::get(scope_id).is_none());
-        assert!(ScopeRoot::<T>::get(scope_id).is_none());
-        assert_eq!(CleanupHead::<T>::get(), CleanupTail::<T>::get());
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);

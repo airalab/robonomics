@@ -32,13 +32,19 @@
 //! so no custom Robonomics JSON-RPC endpoint or node-side customization is
 //! required.
 //!
-//! Because it is a normal Runtime API, it is automatically included in
-//! runtime metadata and can be queried at any historical block height
-//! through the standard Subxt block API, which is important since Ownership
-//! may change over time.
+//! Only the `ScopeId`, root `NodeId`, and owner `AccountId` are all returned
+//! together by `resolve_scope` (as a [`pallet_robonomics_cps::ResolvedScope`]),
+//! since the pallet's `ActiveScope` storage already merges them into a single
+//! entry and resolving all three only requires one walk of the node's
+//! ancestry.
+//!
+//! Because these are normal Runtime API methods, they are automatically
+//! included in runtime metadata and can be queried at any historical block
+//! height through the standard Subxt block API, which is important since a
+//! node's resolved Scope and granted capabilities may change over time.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use pallet_robonomics_cps::NodeId;
+use pallet_robonomics_cps::{Capability, NodeId, ResolvedScope};
 use parity_scale_codec::Codec;
 
 sp_api::decl_runtime_apis! {
@@ -46,23 +52,28 @@ sp_api::decl_runtime_apis! {
     pub trait NodeOwnership<AccountId> where
         AccountId: Codec,
     {
-        /// Resolve the effective Ownership boundary and owner for `node`.
+        /// Resolve the Scope currently active for `node`.
         ///
-        /// Returns `(root, owner)` where `root` is the `NodeId` of the
-        /// resolved Ownership boundary (the node that carries the explicit
-        /// `Ownership` entry, either the queried node itself or the nearest
-        /// ancestor with one) and `owner` is the effective owner account of
-        /// that boundary.
+        /// This is the Scope of `node` itself if it carries an
+        /// `ActiveScope` entry, or of the nearest ancestor that does. The
+        /// returned [`ResolvedScope`] carries the `ScopeId`, the `NodeId` of
+        /// the Scope's root, and the owner `AccountId` together, since the
+        /// pallet resolves all three in a single ancestry walk.
         ///
-        /// The root is included (not just the owner) because it represents
-        /// the actual administrative and accounting boundary; future
-        /// resource-resolution logic may use it directly.
+        /// Returns `None` if `node` does not exist or if no active Scope
+        /// could be found while walking its ancestry (this should not
+        /// normally happen, since every valid tree has a root Scope, but a
+        /// malformed/incomplete tree state is represented as `None` rather
+        /// than trapping the call).
+        fn resolve_scope(node: NodeId) -> Option<ResolvedScope<AccountId>>;
+
+        /// Check whether `account_id` currently holds `capability` at `node_id`.
         ///
-        /// Returns `None` if `node` does not exist or if no Ownership
-        /// boundary could be found while walking its ancestry (this should
-        /// not normally happen, since every valid tree has a root boundary,
-        /// but a malformed/incomplete tree state is represented as `None`
-        /// rather than trapping the call).
-        fn resolve_ownership(node: NodeId) -> Option<(NodeId, AccountId)>;
+        /// Reuses the same canonical authorization logic enforced by the
+        /// pallet's dispatchables (Scope owner implicit authority, exact /
+        /// inherited `Access` never crossing a nested Scope boundary).
+        /// Returns `false` (rather than trapping the call) if `node_id`
+        /// does not exist or no Scope can be resolved for it.
+        fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool;
     }
 }

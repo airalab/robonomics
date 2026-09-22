@@ -34,9 +34,6 @@ pub trait WeightInfo {
     /// Cost of removing `items` `Access` entries via a single bounded
     /// `clear_prefix` call during background GC.
     fn gc_access(items: u32) -> Weight;
-    /// Cost of the final GC phase: removing `ScopeOwner` / `ScopeRoot` and
-    /// dequeuing the completed cleanup task.
-    fn gc_metadata() -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -72,9 +69,6 @@ impl WeightInfo for TestWeightInfo {
         // Nonzero so `on_idle` weight-budget tests (insufficient weight,
         // exact bounded batch math) are meaningful; other extrinsics'
         // weights are irrelevant to dispatch success/failure in tests.
-        Weight::from_parts(1_000, 0)
-    }
-    fn gc_metadata() -> Weight {
         Weight::from_parts(1_000, 0)
     }
 }

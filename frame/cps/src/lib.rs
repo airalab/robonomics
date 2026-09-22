@@ -36,24 +36,22 @@
 //!    - An entry is present only when the corresponding field has been set;
 //!      absence means "unset", not "empty"
 //!
-//! 3. **`ActiveScope`**: Mapping `NodeId` → `ScopeId`
+//! 3. **`ActiveScope`**: Mapping `NodeId` → `(ScopeId, AccountId)`
 //!    - Present only on nodes that are the root of an active [`Scope`](self#scope)
+//!    - The tuple holds the Scope's ID and owner directly - a node is its
+//!      own root, so no separate `ScopeRoot` mapping is needed
 //!    - A node without an entry resolves to the Scope of the nearest ancestor
 //!      that has one (see [`Pallet::resolve_scope`])
 //!
-//! 4. **`ScopeRoot`** / **`ScopeOwner`**: `ScopeId`-keyed
-//!    mappings describing a Scope's root node and owner account,
-//!    respectively. A `Scope` is an architectural concept composed from
-//!    these independent mappings, not a stored struct.
+//! 4. **`Access`**: Mapping `(ScopeId, (NodeId, AccountId))` → `AccessFlags`.
+//!    A single compact entry per `(Scope, node, principal)` triple, bit-packing
+//!    every delegated [`Capability`] and its [`GrantMode`] (see
+//!    [`AccessFlags`]).
 //!
-//! 5. **`Access`**: Mapping `(ScopeId, (NodeId, AccountId, Capability))` →
-//!    `bool` ("inherited"). Delegates a `Capability` to an `AccountId` at a
-//!    specific `NodeId` within one Scope.
+//! 5. **`NodesByParent`**: Index structure for O(1) child lookups
 //!
-//! 6. **`NodesByParent`**: Index structure for O(1) child lookups
-//!
-//! 7. **`CleanupHead`** / **`CleanupTail`** / **`CleanupQueue`**: A FIFO
-//!    queue of stale Scopes awaiting background physical cleanup by
+//! 6. **`CleanupQueue`** / **`CleanupState`** / **`CurrentCleanup`**: A FIFO
+//!    queue of stale `ScopeId`s awaiting background physical cleanup by
 //!    [`Pallet::on_idle`]; see
 //!    [`Cleanup Queue and Background GC`](self#cleanup-queue-and-background-gc)
 //!    below.
@@ -115,40 +113,78 @@
 //!
 //! Scope invalidation (via replacement or deletion) is immediate and O(1):
 //! it only touches `ActiveScope`. The old Scope's remaining physical state
-//! (`Access`, `ScopeOwner`, `ScopeRoot`) is reclaimed later, incrementally,
-//! by a bounded background GC driven by [`Pallet::on_idle`]. This never
-//! affects authorization or resource resolution correctness — those always
-//! consult only the *currently* resolved `ScopeId`, regardless of whether
-//! an old Scope's storage has been physically reclaimed yet.
+//! (`Access` entries) is reclaimed later, incrementally, by a bounded
+//! background GC driven by [`Pallet::on_idle`]. This never affects
+//! authorization or resource resolution correctness - those always consult
+//! only the *currently* resolved `ScopeId`, regardless of whether an old
+//! Scope's `Access` entries have been physically reclaimed yet.
 //!
-//! A FIFO queue (`CleanupHead` / `CleanupTail` / `CleanupQueue`) holds one
-//! [`CleanupTask`] per stale Scope, processed in two phases:
+//! Only unbounded state needs background GC. Bounded per-Scope metadata
+//! (the owner) lives directly in `ActiveScope` and is removed synchronously
+//! the moment a Scope is replaced or deleted - there is no separate
+//! metadata cleanup phase.
+//!
+//! A FIFO queue (`CleanupQueue` indexed by `CleanupState`'s `head`/`tail`)
+//! holds one stale `ScopeId` per pending cleanup. [`Pallet::on_idle`] works
+//! through it as follows:
 //!
 //! ```text
-//! Access -> Metadata
+//! if CurrentCleanup exists:
+//!     continue (scope_id, cursor)
+//! else:
+//!     dequeue ScopeId from CleanupQueue
+//!     initialize CurrentCleanup as (scope_id, None)
+//!
+//! run one bounded clear_prefix over Access(scope_id, *)
+//!
+//! if finished:
+//!     remove CurrentCleanup
+//!     continue looping while weight permits
+//! else:
+//!     persist CurrentCleanup as (scope_id, Some(cursor))
 //! ```
 //!
-//! `Access` bounds-deletes `Access(scope_id, *)` via repeated
-//! `clear_prefix` calls, persisting a continuation cursor between `on_idle`
-//! calls until the prefix is empty. `Metadata` then removes `ScopeOwner`
-//! and `ScopeRoot` and dequeues the task. Each `on_idle` call performs at
-//! most one bounded step, sized from the remaining idle weight and capped
-//! by `Config::MaxCleanupItemsPerBlock`, and never exceeds the weight it is
+//! `CurrentCleanup` is kept outside the FIFO because only one scope can
+//! actively own a `clear_prefix` continuation cursor at a time; the queue
+//! itself never stores cursor state, keeping its entries a single
+//! `ScopeId` each. Each `on_idle` call may perform multiple such steps
+//! (across one or several scopes) as long as `WeightInfo::gc_access(n)` fits
+//! within the remaining idle weight, and never exceeds the weight it is
 //! given.
+//!
+//! A `ScopeId` may be enqueued only in the same state transition that
+//! removes or replaces the corresponding `ActiveScope` entry, and
+//! `ScopeId`s are never reused - so a queued Scope can never become active
+//! again, and GC never races with a resurrected Scope.
 //!
 //! `ScopeId`s are never reused, including after GC: a garbage-collected
 //! `ScopeId` simply has no more physical state, but remains a valid
 //! historical identifier that will never be handed out again by
 //! [`Pallet::create_scope`].
 //!
+//! #### Guaranteed progress under sustained load
+//!
+//! GC here is deliberately idle-only (see [`Pallet::on_idle`]): it makes no
+//! guaranteed per-block progress, only opportunistic progress from leftover
+//! idle weight. Under a chain that is *permanently* full (no idle weight in
+//! any block), the cleanup backlog would not shrink. This is accepted as a
+//! reasonable tradeoff for now: a chain saturated block after block already
+//! has far more pressing throughput problems than a growing stale-`Access`
+//! backlog, and that backlog does not affect correctness (authorization
+//! never depends on GC having run - see the invariants below). Should
+//! sustained full-block load become a practical concern, a small
+//! deterministic guaranteed budget (e.g. reserved in `on_initialize`) can be
+//! layered on top of this idle-only path without changing the underlying
+//! queue/cursor state machine.
+//!
 //! ### Access
 //!
 //! [`Pallet::grant_access`] / [`Pallet::revoke_access`] let a Scope owner
 //! delegate a [`Capability`] to another account at a specific `NodeId`,
-//! either for that exact node (`inherited = false`) or for the node and all
-//! its descendants within the same Scope (`inherited = true`). Access never
-//! crosses a nested Scope boundary. The Scope owner always has implicit
-//! authority and does not need explicit `Access` entries.
+//! either for that exact node ([`GrantMode::Node`]) or for the node and all
+//! its descendants within the same Scope ([`GrantMode::Subtree`]). Access
+//! never crosses a nested Scope boundary. The Scope owner always has
+//! implicit authority and does not need explicit `Access` entries.
 //!
 //! ### Structural Immutability
 //!
@@ -393,6 +429,11 @@ impl ScopeId {
 }
 
 /// A delegable capability that [`Access`] can grant within a [`Scope`](self#scope).
+///
+/// Capability indices used by [`AccessFlags`]'s bit layout are assigned
+/// explicitly by [`Capability::index`] and are independent of this enum's
+/// SCALE discriminant - reordering variants here never changes on-chain
+/// encoding.
 #[derive(
     Encode,
     Decode,
@@ -410,38 +451,38 @@ impl ScopeId {
 pub enum Capability {
     /// Authority to create a replacement Scope at the exact Scope root that
     /// grants it. The sole mechanism for handing over control of a Scope.
+    #[codec(index = 0)]
     CreateScope,
     /// Authority to mutate a node's `Meta` / `Payload`.
+    #[codec(index = 1)]
     Write,
 }
 
-/// Key identifying a single [`Access`] entry: the node the grant applies to,
-/// the account it is granted to, and the delegated [`Capability`].
-pub type AccessKey<AccountId> = (NodeId, AccountId, Capability);
+impl Capability {
+    /// Stable, explicit bit-pair index used by [`AccessFlags`]. Must never
+    /// be derived from SCALE discriminants (which can shift when variants
+    /// are reordered) and, once assigned, must never change or be reused.
+    fn index(self) -> u32 {
+        match self {
+            Capability::CreateScope => 0,
+            Capability::Write => 1,
+        }
+    }
 
-/// Maximum encoded length of a [`CleanupTask::cursor`], the raw
-/// continuation token returned by [`clear_prefix`](frame_support::storage::StorageDoubleMap::clear_prefix)
-/// between bounded GC steps.
-///
-/// Trie-derived removal cursors are small (bounded by an encoded storage
-/// key length); 256 bytes is a generous upper bound.
-pub const MAX_CLEANUP_CURSOR_LEN: u32 = 256;
+    /// Whether this capability may be granted with [`GrantMode::Subtree`].
+    ///
+    /// `CreateScope` is a Scope handover mechanism that must apply only to
+    /// the exact Scope root that grants it (see [`Pallet::create_scope`]),
+    /// so it supports [`GrantMode::Node`] only. `Write` supports both.
+    fn supports_subtree(self) -> bool {
+        matches!(self, Capability::Write)
+    }
+}
 
-/// [`ConstU32`] wrapper around [`MAX_CLEANUP_CURSOR_LEN`] for use as a
-/// `BoundedVec` bound.
-pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
-
-/// Which part of a stale Scope's physical state a [`CleanupTask`] is
-/// currently reclaiming.
+/// How a granted [`Capability`] propagates through the node hierarchy.
 ///
-/// # Extending with a `Resources` phase
-///
-/// The GC design also anticipates a `ScopeResources` mapping
-/// (`ScopeId x Resource -> Limit`, see issue #654) with its own cleanup
-/// phase between `Access` and `Metadata`. That storage does not exist yet
-/// in this pallet, so only `Access` and `Metadata` are implemented here;
-/// add a `Resources` variant (and its bounded `clear_prefix` step) once
-/// `ScopeResources` is introduced.
+/// `GrantMode` describes propagation of a particular grant, not the CPS
+/// [`Scope`](self#scope) architectural concept, hence the distinct name.
 #[derive(
     Encode,
     Decode,
@@ -454,39 +495,166 @@ pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
     Eq,
     Debug,
 )]
-pub enum CleanupPhase {
-    /// Reclaiming `Access(scope_id, *)` entries.
-    Access,
-    /// Reclaiming `ScopeOwner[scope_id]` / `ScopeRoot[scope_id]`, the final
-    /// phase before the task is dequeued.
-    Metadata,
+pub enum GrantMode {
+    /// The grant applies only to the exact `NodeId` it was made at.
+    Node,
+    /// The grant applies to the node and all its descendants, as long as
+    /// they resolve to the same Scope (a `Subtree` grant never crosses a
+    /// CPS Scope boundary).
+    Subtree,
 }
 
-/// A single queued unit of background cleanup work for one stale
-/// [`ScopeId`], processed incrementally by [`Pallet::on_idle`].
+/// Compact, internal bitset storage representation for every [`Capability`]
+/// delegated to one `(ScopeId, NodeId, AccountId)` triple.
+///
+/// Each capability occupies two adjacent bits, indexed by
+/// [`Capability::index`]:
+///
+/// ```text
+/// bit 2*n       capability is granted
+/// bit 2*n + 1   grant propagates to descendants (GrantMode::Subtree)
+/// ```
+///
+/// Valid states per capability: `00` (absent), `01` (`GrantMode::Node`),
+/// `11` (`GrantMode::Subtree`). `10` is invalid and is never produced. A
+/// `u128` provides `128 / 2 = 64` capability slots, more than sufficient for
+/// the expected CPS permission model.
+///
+/// `AccessFlags` is an internal storage representation only: public APIs
+/// operate exclusively in terms of [`Capability`] / [`GrantMode`], and
+/// permission enumeration uses `(Capability, GrantMode)` tuples rather than
+/// exposing this type, its underlying `u128`, or raw bit positions.
 #[derive(
-    Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Debug,
 )]
-pub struct CleanupTask {
-    /// The stale Scope whose physical state is being reclaimed.
-    pub scope_id: ScopeId,
-    /// The phase currently being processed.
-    pub phase: CleanupPhase,
-    /// Continuation cursor for the current phase's bounded `clear_prefix`
-    /// call, if a previous step left work unfinished. `None` when a phase
-    /// has not yet started removing anything.
-    pub cursor: Option<BoundedVec<u8, MaxCleanupCursorLen>>,
-}
+pub struct AccessFlags(#[codec(compact)] u128);
 
-impl CleanupTask {
-    /// A fresh task for `scope_id`, starting at the first cleanup phase.
-    fn new(scope_id: ScopeId) -> Self {
-        Self {
-            scope_id,
-            phase: CleanupPhase::Access,
-            cursor: None,
+impl AccessFlags {
+    fn granted_bit(capability: Capability) -> u128 {
+        1u128 << (capability.index() * 2)
+    }
+
+    fn subtree_bit(capability: Capability) -> u128 {
+        1u128 << (capability.index() * 2 + 1)
+    }
+
+    /// Grant `capability` with the given `mode`, replacing only that
+    /// capability's previous mode (`absent -> Node`, `absent -> Subtree`,
+    /// `Node -> Subtree`, `Subtree -> Node`); other capabilities are
+    /// unaffected.
+    fn grant(&mut self, capability: Capability, mode: GrantMode) {
+        let granted = Self::granted_bit(capability);
+        let subtree = Self::subtree_bit(capability);
+
+        self.0 |= granted;
+
+        match mode {
+            GrantMode::Node => self.0 &= !subtree,
+            GrantMode::Subtree => self.0 |= subtree,
         }
     }
+
+    /// Revoke `capability`, clearing both of its bits while leaving every
+    /// other capability's state untouched.
+    fn revoke(&mut self, capability: Capability) {
+        self.0 &= !(Self::granted_bit(capability) | Self::subtree_bit(capability));
+    }
+
+    /// Whether `capability` is granted at all (`Node` or `Subtree`).
+    fn contains(&self, capability: Capability) -> bool {
+        self.0 & Self::granted_bit(capability) != 0
+    }
+
+    /// Whether `capability` is granted with [`GrantMode::Subtree`], i.e.
+    /// whether it applies to descendants of the node it was granted at.
+    fn applies_to_descendants(&self, capability: Capability) -> bool {
+        self.contains(capability) && self.0 & Self::subtree_bit(capability) != 0
+    }
+
+    /// Whether no capability at all is currently granted. An empty
+    /// `AccessFlags` entry is never stored - see [`Pallet::revoke_access`].
+    fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+/// The Scope resolved for a CPS node: its `ScopeId`, root `NodeId`, and
+/// owner `AccountId`, produced by [`Pallet::resolve_scope`] in a single walk
+/// so callers never need a separate lookup for the root or owner.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
+pub struct ResolvedScope<AccountId> {
+    /// The resolved Scope's identifier.
+    pub id: ScopeId,
+    /// The `NodeId` at which this Scope's `ActiveScope` entry is stored.
+    pub root: NodeId,
+    /// The Scope's owner account.
+    pub owner: AccountId,
+}
+
+/// Maximum encoded length of the raw continuation cursor returned by
+/// [`clear_prefix`](frame_support::storage::StorageDoubleMap::clear_prefix)
+/// between bounded GC steps, stored in [`CurrentCleanup`].
+///
+/// Trie-derived removal cursors are small (bounded by an encoded storage
+/// key length); 256 bytes is a generous upper bound.
+pub const MAX_CLEANUP_CURSOR_LEN: u32 = 256;
+
+/// [`ConstU32`] wrapper around [`MAX_CLEANUP_CURSOR_LEN`] for use as a
+/// `BoundedVec` bound.
+pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
+
+/// Bounded continuation cursor for an in-progress `Access(scope_id, *)`
+/// `clear_prefix` removal, persisted in [`CurrentCleanup`] between
+/// [`Pallet::on_idle`] calls.
+pub type CleanupCursor = BoundedVec<u8, MaxCleanupCursorLen>;
+
+/// Hard upper bound on the number of `Access` entries a single
+/// [`Pallet::do_gc_step`] batch may remove via one `clear_prefix` call,
+/// independent of the runtime-configured weight budget.
+///
+/// This bounds both the benchmark domain for [`WeightInfo::gc_access`] and
+/// the worst-case `clear_prefix` batch, so raising it requires
+/// regenerating weights rather than silently invalidating them.
+pub const MAX_GC_BATCH: u32 = 64;
+
+/// Deterministic, defensive upper bound on the number of [`Pallet::do_gc_step`]
+/// iterations [`Pallet::run_gc`] performs per [`Pallet::on_idle`] call,
+/// independent of the weight budget (which already bounds real work; this
+/// only guards against an unexpected zero-progress loop).
+pub const MAX_GC_ITERATIONS_PER_IDLE: u32 = 32;
+
+/// Combined head/tail cursors of [`pallet::CleanupQueue`], replacing what
+/// used to be two independent `StorageValue`s so common queue operations
+/// only need a single storage read/write for both cursors.
+#[derive(
+    Encode,
+    Decode,
+    DecodeWithMemTracking,
+    TypeInfo,
+    MaxEncodedLen,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Debug,
+)]
+pub struct CleanupQueueState {
+    /// Index of the oldest not-yet-processed entry. The queue is empty
+    /// when `head == tail`.
+    pub head: u64,
+    /// Index one past the newest entry; the slot the next enqueue will use.
+    pub tail: u64,
 }
 
 #[frame_support::pallet]
@@ -503,12 +671,6 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
-
-        /// Upper bound on the number of storage items the stale Scope GC
-        /// (see [`Pallet::on_idle`]) may remove in a single block, on top
-        /// of whatever the remaining idle weight allows.
-        #[pallet::constant]
-        type MaxCleanupItemsPerBlock: Get<u32>;
     }
 
     #[pallet::pallet]
@@ -547,37 +709,38 @@ pub mod pallet {
     #[pallet::getter(fn next_scope_id)]
     pub type NextScopeId<T> = StorageValue<_, ScopeId, ValueQuery>;
 
-    /// The active Scope rooted at a given node, if any.
+    /// The active Scope rooted at a given node, if any: its `ScopeId` and
+    /// owner `AccountId`, held together since a node is its own Scope root
+    /// (no separate `ScopeRoot` map is needed).
     ///
     /// An entry is present only on nodes that are the root of an active
     /// Scope. Nodes without an entry resolve to the Scope of the nearest
     /// ancestor that has one - see [`Pallet::resolve_scope`].
     #[pallet::storage]
     #[pallet::getter(fn active_scope)]
-    pub type ActiveScope<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, ScopeId>;
+    pub type ActiveScope<T: Config> =
+        StorageMap<_, Blake2_128Concat, NodeId, (ScopeId, T::AccountId)>;
 
-    /// The root `NodeId` of a Scope. Immutable once a Scope is created.
-    #[pallet::storage]
-    #[pallet::getter(fn scope_root)]
-    pub type ScopeRoot<T: Config> = StorageMap<_, Blake2_128Concat, ScopeId, NodeId>;
-
-    /// The owner `AccountId` of a Scope. Immutable once a Scope is created.
-    #[pallet::storage]
-    #[pallet::getter(fn scope_owner)]
-    pub type ScopeOwner<T: Config> = StorageMap<_, Blake2_128Concat, ScopeId, T::AccountId>;
-
-    /// Access delegations, scoped to a `ScopeId`. The stored `bool` is
-    /// `inherited`: whether the grant propagates to descendants of the
-    /// granted `NodeId` (while they resolve to the same `ScopeId`).
+    /// Access delegations, scoped to a `ScopeId`. One compact [`AccessFlags`]
+    /// entry per `(ScopeId, NodeId, AccountId)` bit-packs every delegated
+    /// [`Capability`] and its [`GrantMode`]; an entry is never stored once
+    /// empty (see [`Pallet::revoke_access`]).
+    ///
+    /// The outer key (`ScopeId`) is an internally generated, never-reused
+    /// counter, so it uses the cheaper reversible `Twox64Concat` hasher;
+    /// prefix removal by `ScopeId` (background GC) remains supported. The
+    /// inner key mixes in the attacker-influenced `AccountId`, so it keeps
+    /// the cryptographic `Blake2_128Concat` hasher.
     #[pallet::storage]
     #[pallet::getter(fn access)]
     pub type Access<T: Config> = StorageDoubleMap<
         _,
-        Blake2_128Concat,
+        Twox64Concat,
         ScopeId,
         Blake2_128Concat,
-        AccessKey<T::AccountId>,
-        bool,
+        (NodeId, T::AccountId),
+        AccessFlags,
+        ValueQuery,
     >;
 
     /// Index of children by parent node
@@ -586,27 +749,33 @@ pub mod pallet {
     pub type NodesByParent<T: Config> =
         StorageMap<_, Blake2_128Concat, NodeId, BoundedVec<NodeId, MaxChildrenPerNode>, ValueQuery>;
 
-    /// Index of the oldest not-yet-processed entry in [`CleanupQueue`].
+    /// FIFO queue of stale `ScopeId`s awaiting background physical cleanup.
     ///
-    /// The queue is empty when `CleanupHead == CleanupTail`.
-    #[pallet::storage]
-    #[pallet::getter(fn cleanup_head)]
-    pub type CleanupHead<T> = StorageValue<_, u64, ValueQuery>;
-
-    /// Index one past the newest entry in [`CleanupQueue`]; the slot the
-    /// next [`Pallet::enqueue_cleanup`] call will use.
-    #[pallet::storage]
-    #[pallet::getter(fn cleanup_tail)]
-    pub type CleanupTail<T> = StorageValue<_, u64, ValueQuery>;
-
-    /// FIFO queue of stale Scopes awaiting background physical cleanup.
-    ///
-    /// Entries between [`CleanupHead`] (inclusive) and [`CleanupTail`]
-    /// (exclusive) are pending; [`Pallet::on_idle`] always processes the
-    /// entry at `CleanupHead` first.
+    /// Entries between `CleanupState::head` (inclusive) and
+    /// `CleanupState::tail` (exclusive) are pending; [`Pallet::on_idle`]
+    /// always dequeues from `head` first. Keyed by an internally generated,
+    /// never-reused sequence number, so it uses the cheaper reversible
+    /// `Twox64Concat` hasher.
     #[pallet::storage]
     #[pallet::getter(fn cleanup_queue)]
-    pub type CleanupQueue<T> = StorageMap<_, Blake2_128Concat, u64, CleanupTask>;
+    pub type CleanupQueue<T> = StorageMap<_, Twox64Concat, u64, ScopeId>;
+
+    /// Combined head/tail cursors of [`CleanupQueue`]. The queue is empty
+    /// when `head == tail`.
+    #[pallet::storage]
+    #[pallet::getter(fn cleanup_state)]
+    pub type CleanupState<T> = StorageValue<_, CleanupQueueState, ValueQuery>;
+
+    /// The stale Scope currently owning an in-progress `Access(scope_id, *)`
+    /// `clear_prefix` continuation, if any, kept outside [`CleanupQueue`]
+    /// since only one Scope can be mid-removal at a time.
+    ///
+    /// `None` cursor means a fresh Scope was just dequeued and no batch has
+    /// run yet; `Some(cursor)` means a previous [`Pallet::on_idle`] step left
+    /// work unfinished.
+    #[pallet::storage]
+    #[pallet::getter(fn current_cleanup)]
+    pub type CurrentCleanup<T> = StorageValue<_, (ScopeId, Option<CleanupCursor>), OptionQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -624,8 +793,8 @@ pub mod pallet {
         ScopeCreated(ScopeId, NodeId, T::AccountId),
         /// A Scope boundary was removed [scope_id, root]
         ScopeDeleted(ScopeId, NodeId),
-        /// Access was granted [scope_id, node_id, principal, capability, inherited]
-        AccessGranted(ScopeId, NodeId, T::AccountId, Capability, bool),
+        /// Access was granted [scope_id, node_id, principal, capability, mode]
+        AccessGranted(ScopeId, NodeId, T::AccountId, Capability, GrantMode),
         /// Access was revoked [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
         /// A stale Scope was enqueued for background cleanup [scope_id]
@@ -659,7 +828,7 @@ pub mod pallet {
         AccessDenied,
         /// A CPS root's Scope can never be deleted
         CannotDeleteRootScope,
-        /// Provided bad arguments (for example, CreateScope with inherited parameter)
+        /// Provided bad arguments (for example, CreateScope with GrantMode::Subtree)
         BadArguments,
     }
 
@@ -668,9 +837,12 @@ pub mod pallet {
         /// Bounded, resumable background GC of stale Scope physical state.
         ///
         /// Consumes only the idle weight the executive hands it and never
-        /// more; see [`Pallet::do_gc_step`] for the full algorithm.
+        /// more; see [`Pallet::run_gc`] and [`Pallet::do_gc_step`] for the
+        /// full algorithm. This is deliberately idle-only - see the
+        /// "Guaranteed progress under sustained load" discussion in the
+        /// module docs for the accepted tradeoff.
         fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-            Self::do_gc_step(remaining_weight)
+            Self::run_gc(remaining_weight)
         }
     }
 
@@ -723,9 +895,8 @@ pub mod pallet {
                 // hierarchy, not a data mutation - `Write` only authorizes
                 // `Meta`/`Payload` changes (see issue #656), so this always
                 // requires the resolved Scope's owner authority.
-                let scope_id = Self::resolve_scope(pid)?;
-                let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-                ensure!(owner == sender, Error::<T>::NotScopeOwner);
+                let resolved = Self::resolve_scope(pid)?;
+                ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
                 // Check tree depth by walking the parent chain up to the root.
                 ensure!(
@@ -749,9 +920,7 @@ pub mod pallet {
 
             if let Some((scope_id, next_scope_id)) = new_scope {
                 <NextScopeId<T>>::put(next_scope_id);
-                <ScopeRoot<T>>::insert(scope_id, node_id);
-                <ScopeOwner<T>>::insert(scope_id, sender.clone());
-                <ActiveScope<T>>::insert(node_id, scope_id);
+                <ActiveScope<T>>::insert(node_id, (scope_id, sender.clone()));
                 Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender.clone()));
             }
 
@@ -816,8 +985,7 @@ pub mod pallet {
         /// Only leaf nodes (no children) can be deleted. If the node is the
         /// root of an active Scope, that Scope's `ActiveScope` entry is
         /// removed as well; the rest of the Scope's physical state
-        /// (`ScopeRoot` / `ScopeOwner` / `Access`) is left
-        /// for background garbage collection.
+        /// (`Access`) is left for background garbage collection.
         #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::delete_node())]
         pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -831,9 +999,8 @@ pub mod pallet {
             let parent = <Parents<T>>::get(node_id).flatten();
 
             // Only owner can remove node
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+            let resolved = Self::resolve_scope(node_id)?;
+            ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
             // Check if node has children
             let children = <NodesByParent<T>>::get(node_id);
@@ -851,7 +1018,7 @@ pub mod pallet {
 
             // Remove the Scope boundary attached to this node, if any. The
             // rest of that Scope's physical state is left for GC.
-            if let Some(stale_scope) = <ActiveScope<T>>::take(node_id) {
+            if let Some((stale_scope, _owner)) = <ActiveScope<T>>::take(node_id) {
                 Self::enqueue_cleanup(stale_scope);
             }
 
@@ -872,7 +1039,7 @@ pub mod pallet {
         /// governing `node_id` (establishing a brand-new nested boundary, or
         /// replacing the Scope if `node_id` is already an active Scope
         /// root), or - only when `node_id` is already an active Scope root -
-        /// by holding a non-inherited `Capability::CreateScope` grant on
+        /// by holding a `GrantMode::Node` `Capability::CreateScope` grant on
         /// that exact root.
         #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::create_scope())]
@@ -884,20 +1051,16 @@ pub mod pallet {
                 Error::<T>::NodeNotFound
             );
 
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            if owner != sender {
+            let resolved = Self::resolve_scope(node_id)?;
+            if resolved.owner != sender {
                 // Delegated `CreateScope` is a handover mechanism for the
                 // exact Scope root only - it must never be usable to carve
                 // out a brand-new nested Scope on an arbitrary descendant,
                 // which is owner-only authority.
+                ensure!(resolved.root == node_id, Error::<T>::AccessDenied);
                 ensure!(
-                    <ActiveScope<T>>::get(node_id) == Some(scope_id),
-                    Error::<T>::AccessDenied
-                );
-                ensure!(
-                    <Access<T>>::get(scope_id, (node_id, sender.clone(), Capability::CreateScope))
-                        .is_some(),
+                    <Access<T>>::get(resolved.id, (node_id, sender.clone()))
+                        .contains(Capability::CreateScope),
                     Error::<T>::AccessDenied
                 );
             }
@@ -915,16 +1078,16 @@ pub mod pallet {
         /// CPS node or its descendants; `node_id` and everything below it
         /// falls back to the nearest parent Scope. A CPS root's Scope can
         /// never be deleted. Nested Scopes below `node_id` are unaffected.
-        /// The deleted Scope's remaining physical state (`Access`,
-        /// `ScopeOwner`, `ScopeRoot`) is enqueued for background GC (see
-        /// [`Pallet::on_idle`]), not removed synchronously.
+        /// The deleted Scope's remaining physical state (`Access`) is
+        /// enqueued for background GC (see [`Pallet::on_idle`]), not
+        /// removed synchronously.
         #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::delete_scope())]
         pub fn delete_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let scope_id = <ActiveScope<T>>::get(node_id).ok_or(Error::<T>::ScopeNotFound)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+            let (scope_id, owner) =
+                <ActiveScope<T>>::get(node_id).ok_or(Error::<T>::ScopeNotFound)?;
             ensure!(owner == sender, Error::<T>::NotScopeOwner);
 
             let parent = <Parents<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
@@ -946,27 +1109,29 @@ pub mod pallet {
             node_id: NodeId,
             principal: T::AccountId,
             capability: Capability,
-            inherited: bool,
+            mode: GrantMode,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Throw an error in case of inherited CreateScope
-            if inherited && capability == Capability::CreateScope {
+            // `CreateScope` is a Scope handover mechanism restricted to the
+            // exact Scope root; it must never propagate to descendants.
+            if mode == GrantMode::Subtree && !capability.supports_subtree() {
                 Err(Error::<T>::BadArguments)?
             }
 
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+            let resolved = Self::resolve_scope(node_id)?;
+            ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
-            <Access<T>>::insert(
-                scope_id,
-                (node_id, principal.clone(), capability),
-                inherited,
-            );
+            <Access<T>>::mutate(resolved.id, (node_id, principal.clone()), |flags| {
+                flags.grant(capability, mode);
+            });
 
             Self::deposit_event(Event::AccessGranted(
-                scope_id, node_id, principal, capability, inherited,
+                resolved.id,
+                node_id,
+                principal,
+                capability,
+                mode,
             ));
             Ok(())
         }
@@ -983,32 +1148,41 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            ensure!(owner == sender, Error::<T>::NotScopeOwner);
+            let resolved = Self::resolve_scope(node_id)?;
+            ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
-            <Access<T>>::remove(scope_id, (node_id, principal.clone(), capability));
+            let key = (node_id, principal.clone());
+            let mut flags = <Access<T>>::get(resolved.id, &key);
+            flags.revoke(capability);
+            if flags.is_empty() {
+                <Access<T>>::remove(resolved.id, &key);
+            } else {
+                <Access<T>>::insert(resolved.id, &key, flags);
+            }
 
             Self::deposit_event(Event::AccessRevoked(
-                scope_id, node_id, principal, capability,
+                resolved.id,
+                node_id,
+                principal,
+                capability,
             ));
             Ok(())
         }
     }
 
     impl<T: Config> Pallet<T> {
-        /// Resolve the [`ScopeId`] effective for `node_id`.
+        /// Resolve the [`ResolvedScope`] effective for `node_id`.
         ///
         /// If `node_id` itself has an `ActiveScope` entry, that Scope is
-        /// returned directly. Otherwise, `parent` links are followed one hop
-        /// at a time until an active Scope is found.
+        /// returned directly (with `root == node_id`). Otherwise, `parent`
+        /// links are followed one hop at a time until an active Scope is
+        /// found.
         ///
         /// This is the single canonical resolver: every authorization check
         /// in this pallet uses it, and it is also what the `CpsApi` runtime
-        /// API exposes. Callers that also need the Scope's root `NodeId` or
-        /// owner `AccountId` can look them up from the resulting `ScopeId`
-        /// via the [`ScopeRoot`] / [`ScopeOwner`] storage maps.
-        pub fn resolve_scope(node_id: NodeId) -> Result<ScopeId, Error<T>> {
+        /// API exposes. It returns the Scope's ID, root `NodeId`, and owner
+        /// `AccountId` together, so callers never need a second lookup.
+        pub fn resolve_scope(node_id: NodeId) -> Result<ResolvedScope<T::AccountId>, Error<T>> {
             ensure!(
                 <Parents<T>>::contains_key(node_id),
                 Error::<T>::NodeNotFound
@@ -1026,9 +1200,10 @@ pub mod pallet {
         /// `node_id` does not exist or no Scope can be resolved for it.
         ///
         /// The `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`)
-        /// wraps this with a stable `CapabilityId` at the API boundary, so
-        /// off-chain clients don't depend on `Capability`'s internal SCALE
-        /// representation; see that crate for the conversion.
+        /// passes `Capability` directly across the API boundary. Its SCALE
+        /// encoding is derived from declaration order, so new capabilities
+        /// must always be appended at the end (never inserted or
+        /// reordered) to keep the encoding stable for existing callers.
         pub fn has_capability(
             node_id: NodeId,
             account_id: &T::AccountId,
@@ -1043,15 +1218,23 @@ pub mod pallet {
         fn resolve_scope_from(
             node_id: NodeId,
             parent: Option<NodeId>,
-        ) -> Result<ScopeId, Error<T>> {
-            if let Some(scope_id) = <ActiveScope<T>>::get(node_id) {
-                return Ok(scope_id);
+        ) -> Result<ResolvedScope<T::AccountId>, Error<T>> {
+            if let Some((id, owner)) = <ActiveScope<T>>::get(node_id) {
+                return Ok(ResolvedScope {
+                    id,
+                    root: node_id,
+                    owner,
+                });
             }
 
             let mut current = parent;
             while let Some(ancestor_id) = current {
-                if let Some(scope_id) = <ActiveScope<T>>::get(ancestor_id) {
-                    return Ok(scope_id);
+                if let Some((id, owner)) = <ActiveScope<T>>::get(ancestor_id) {
+                    return Ok(ResolvedScope {
+                        id,
+                        root: ancestor_id,
+                        owner,
+                    });
                 }
                 ensure!(
                     <Parents<T>>::contains_key(ancestor_id),
@@ -1068,56 +1251,44 @@ pub mod pallet {
         /// The Scope owner always has implicit authority. Otherwise, `Access`
         /// entries are checked by walking from `node_id` up to the resolved
         /// Scope's root (inclusive): at `node_id` itself, both
-        /// `inherited = false` and `inherited = true` match; on strict
-        /// ancestors, only `inherited = true` matches. The walk never
-        /// crosses the Scope boundary.
-        /// Authorize `sender` to exercise `capability` at `node_id`.
-        ///
-        /// The Scope owner always has implicit authority. Otherwise, `Access`
-        /// entries are checked by walking from `node_id` up to the resolved
-        /// Scope's root (inclusive): at `node_id` itself, both
-        /// `inherited = false` and `inherited = true` match; on strict
-        /// ancestors, only `inherited = true` matches. The walk never
-        /// crosses the Scope boundary.
+        /// `GrantMode::Node` and `GrantMode::Subtree` grants authorize;
+        /// on strict ancestors, only `GrantMode::Subtree` grants do. The
+        /// walk never crosses the Scope boundary.
         ///
         /// This also authorizes [`Capability::CreateScope`] correctly
         /// without any special-casing: [`Pallet::grant_access`] never stores
-        /// an inherited `CreateScope` grant, so the ancestor walk below can
+        /// a `Subtree` `CreateScope` grant, so the ancestor walk below can
         /// never match one - only a grant on the exact `node_id` can.
         fn authorize(
             node_id: NodeId,
             sender: &T::AccountId,
             capability: Capability,
         ) -> Result<bool, Error<T>> {
-            let scope_id = Self::resolve_scope(node_id)?;
-            let owner = <ScopeOwner<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-            if owner == *sender {
-                return Ok(true);
-            }
-            let root = <ScopeRoot<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-
-            // Check the exact node: both inherited and non-inherited Access
-            // entries authorize the target node itself.
-            if <Access<T>>::get(scope_id, (node_id, sender.clone(), capability)).is_some() {
+            let resolved = Self::resolve_scope(node_id)?;
+            if resolved.owner == *sender {
                 return Ok(true);
             }
 
-            // Walk up towards the Scope root; only inherited Access entries
+            // Check the exact node: both `Node` and `Subtree` grants
+            // authorize the target node itself.
+            if <Access<T>>::get(resolved.id, (node_id, sender.clone())).contains(capability) {
+                return Ok(true);
+            }
+
+            // Walk up towards the Scope root; only `Subtree` grants
             // authorize strict ancestors.
             let mut current = node_id;
             for _ in 0..=MAX_TREE_DEPTH {
-                if current == root {
+                if current == resolved.root {
                     break;
                 }
                 current = <Parents<T>>::get(current)
                     .flatten()
                     .ok_or(Error::<T>::ScopeNotFound)?;
-                if let Some(inherited) =
-                    <Access<T>>::get(scope_id, (current, sender.clone(), capability))
+                if <Access<T>>::get(resolved.id, (current, sender.clone()))
+                    .applies_to_descendants(capability)
                 {
-                    if inherited {
-                        return Ok(true);
-                    }
+                    return Ok(true);
                 }
             }
 
@@ -1125,10 +1296,9 @@ pub mod pallet {
         }
 
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
-        /// with the given `resources`, and activate it. Replaces any Scope
-        /// previously active at `root`; if one existed, it is enqueued for
-        /// background GC (see [`Pallet::on_idle`]) in the same transaction
-        /// that invalidates it.
+        /// and activate it. Replaces any Scope previously active at `root`;
+        /// if one existed, it is enqueued for background GC (see
+        /// [`Pallet::on_idle`]) in the same transaction that invalidates it.
         fn allocate_scope(root: NodeId, owner: T::AccountId) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
@@ -1136,131 +1306,207 @@ pub mod pallet {
                 .ok_or(Error::<T>::ScopeIdExhausted)?;
             <NextScopeId<T>>::put(next_id);
 
-            <ScopeRoot<T>>::insert(scope_id, root);
-            <ScopeOwner<T>>::insert(scope_id, owner);
-
-            if let Some(stale_scope) = <ActiveScope<T>>::get(root) {
+            if let Some((stale_scope, _owner)) = <ActiveScope<T>>::get(root) {
                 Self::enqueue_cleanup(stale_scope);
             }
-            <ActiveScope<T>>::insert(root, scope_id);
+            <ActiveScope<T>>::insert(root, (scope_id, owner));
 
             Ok(scope_id)
         }
 
         /// Enqueue `scope_id` (already logically invalidated - no longer
         /// reachable through any `ActiveScope` entry) for background
-        /// physical cleanup, appending a fresh [`CleanupTask`] to the tail
-        /// of [`CleanupQueue`].
+        /// physical cleanup, appending it to the tail of [`CleanupQueue`].
+        ///
+        /// Must be called atomically with the `ActiveScope` removal/
+        /// replacement that invalidates `scope_id`: since `ScopeId`s are
+        /// never reused, an enqueued Scope can never become active again.
         pub(crate) fn enqueue_cleanup(scope_id: ScopeId) {
-            let tail = <CleanupTail<T>>::get();
-            <CleanupQueue<T>>::insert(tail, CleanupTask::new(scope_id));
-            <CleanupTail<T>>::put(tail.saturating_add(1));
+            <CleanupState<T>>::mutate(|state| {
+                <CleanupQueue<T>>::insert(state.tail, scope_id);
+                state.tail = state.tail.saturating_add(1);
+            });
 
             Self::deposit_event(Event::CleanupEnqueued(scope_id));
+        }
+
+        /// Run background GC for up to `remaining_weight`, performing as
+        /// many bounded [`Self::do_gc_step`] batches as fit - across one or
+        /// several stale Scopes - rather than a single step per call.
+        ///
+        /// Bounded by [`MAX_GC_ITERATIONS_PER_IDLE`] as a deterministic,
+        /// defensive cap independent of the weight budget (which already
+        /// bounds real work; the iteration cap only guards against
+        /// unexpected zero-cost loops).
+        pub(crate) fn run_gc(remaining_weight: Weight) -> Weight {
+            let mut consumed = Weight::zero();
+            let mut remaining = remaining_weight;
+
+            for _ in 0..MAX_GC_ITERATIONS_PER_IDLE {
+                let used = Self::do_gc_step(remaining);
+                if used.is_zero() {
+                    break;
+                }
+                consumed = consumed.saturating_add(used);
+                remaining = remaining.saturating_sub(used);
+            }
+
+            consumed
         }
 
         /// Perform at most one bounded step of stale Scope garbage
         /// collection, consuming no more than `remaining_weight`.
         ///
-        /// Processes only the task at [`CleanupHead`] (FIFO order). Each
-        /// call advances exactly one phase's worth of work: either a single
-        /// bounded `clear_prefix` batch over `Access(scope_id, *)`, or (once
-        /// that prefix is fully empty) the final `Metadata` removal that
-        /// dequeues the task. If there is not enough weight to safely
-        /// perform even one bounded batch, this returns [`Weight::zero`]
-        /// without mutating any storage.
+        /// If [`CurrentCleanup`] already holds an in-progress Scope, its
+        /// `clear_prefix` continuation is resumed; otherwise the next
+        /// `ScopeId` is dequeued from [`CleanupQueue`] and a fresh
+        /// continuation (`cursor = None`) is started for it. Batch size is
+        /// the largest `n` (up to [`MAX_GC_BATCH`]) such that
+        /// `T::WeightInfo::gc_access(n)` fits the weight left after fixed
+        /// bookkeeping, found directly from the generated weight function
+        /// via binary search rather than multiplying `gc_access(1)`.
         ///
-        /// # Safety check
+        /// Every branch that mutates storage (dequeuing, parking, running
+        /// `clear_prefix`) reports at least the real cost of that mutation,
+        /// and never mutates anything it cannot fully account for within
+        /// `remaining_weight`. Branches that only perform a couple of cheap
+        /// `StorageValue` reads before concluding there is nothing to do
+        /// (insufficient weight, or an empty queue) return
+        /// [`Weight::zero`] rather than mutate anything - this mirrors
+        /// [`Self::run_gc`]'s "stop looping" signal and is an accepted
+        /// simplification, since no `Access`/queue state is ever changed on
+        /// those paths.
         ///
-        /// Before reclaiming the `Metadata` phase, defensively verifies the
-        /// Scope is not (no longer) active; a queued *active* Scope would
-        /// indicate an invariant violation elsewhere in the pallet, so GC
-        /// refuses to touch it rather than risk deleting live state.
+        /// A `cursor` that fails to fit [`CleanupCursor`]'s bound is
+        /// treated as an invariant violation - `clear_prefix` returning
+        /// `Some` must never be silently treated as "finished".
         pub(crate) fn do_gc_step(remaining_weight: Weight) -> Weight {
-            let head = <CleanupHead<T>>::get();
-            let tail = <CleanupTail<T>>::get();
-            if head >= tail {
+            let read_current = T::DbWeight::get().reads(1);
+            if remaining_weight.any_lt(read_current) {
+                return Weight::zero();
+            }
+
+            if let Some((scope_id, cursor)) = <CurrentCleanup<T>>::get() {
+                // Resuming an in-progress Scope: fixed cost is the read
+                // above plus the write-back that always follows (either a
+                // persisted new cursor, or clearing on completion).
+                let write_current = T::DbWeight::get().writes(1);
+                let fixed = read_current.saturating_add(write_current);
+                if remaining_weight.any_lt(fixed) {
+                    // Not enough weight for the mandatory write-back; only
+                    // the read above happened, and `CurrentCleanup` is
+                    // unchanged (no write needed to "persist" a value that
+                    // was never modified).
+                    return Weight::zero();
+                }
+                return Self::run_access_batch(scope_id, cursor, remaining_weight, fixed);
+            }
+
+            // No Scope is currently mid-cleanup: try to dequeue the next
+            // one. Fixed cost so far: the `CurrentCleanup` read above plus
+            // a `CleanupState` read.
+            let peek_cost = read_current.saturating_add(T::DbWeight::get().reads(1));
+            if remaining_weight.any_lt(peek_cost) {
+                return Weight::zero();
+            }
+            let mut state = <CleanupState<T>>::get();
+            if state.head >= state.tail {
                 // Queue is empty; nothing to do.
                 return Weight::zero();
             }
 
-            let Some(mut task) = <CleanupQueue<T>>::get(head) else {
-                // Defensive: a missing task at a valid queue index should
+            // Dequeuing removes the `CleanupQueue` entry, advances
+            // `CleanupState`, and must park the dequeued Scope into
+            // `CurrentCleanup` in the same step (it is no longer in the
+            // queue, so losing track of it would leak its `Access` state
+            // forever) - check room for all three together before
+            // mutating anything.
+            let dequeue_fixed = peek_cost
+                .saturating_add(T::DbWeight::get().reads(1)) // CleanupQueue read
+                .saturating_add(T::DbWeight::get().writes(3)); // CleanupQueue remove + CleanupState put + CurrentCleanup park
+            if remaining_weight.any_lt(dequeue_fixed) {
+                return Weight::zero();
+            }
+
+            let Some(scope_id) = <CleanupQueue<T>>::get(state.head) else {
+                // Defensive: a missing entry at a valid queue index should
                 // never happen, but skip past it rather than getting stuck.
-                <CleanupHead<T>>::put(head.saturating_add(1));
-                return T::DbWeight::get().reads_writes(2, 1);
+                // No Scope is parked, so only the queue-advance is charged.
+                state.head = state.head.saturating_add(1);
+                <CleanupState<T>>::put(state);
+                return peek_cost.saturating_add(T::DbWeight::get().reads_writes(1, 1));
             };
 
-            match task.phase {
-                CleanupPhase::Access => {
-                    // Fixed overhead: reads of the two queue cursors plus
-                    // the task itself, and the write that persists the
-                    // task's updated cursor/phase.
-                    let fixed = T::DbWeight::get().reads_writes(3, 1);
-                    let per_item = T::WeightInfo::gc_access(1);
+            <CleanupQueue<T>>::remove(state.head);
+            state.head = state.head.saturating_add(1);
+            <CleanupState<T>>::put(state);
 
-                    let available = match remaining_weight.checked_sub(&fixed) {
-                        Some(available) => available,
-                        None => return Weight::zero(),
-                    };
+            Self::run_access_batch(scope_id, None, remaining_weight, dequeue_fixed)
+        }
 
-                    // Maximum batch size the remaining weight can afford,
-                    // capped by the configured per-block bound. When
-                    // `per_item` is zero (e.g. `TestWeightInfo`), fall back
-                    // to the configured cap so GC still makes progress.
-                    let max_items = u64::from(T::MaxCleanupItemsPerBlock::get());
-                    let limit = available
-                        .checked_div_per_component(&per_item)
-                        .map(|n| n.min(max_items))
-                        .unwrap_or(max_items);
-                    if limit == 0 {
-                        return Weight::zero();
-                    }
-                    let limit = limit.min(u64::from(u32::MAX)) as u32;
+        /// Shared tail of [`Self::do_gc_step`]'s two entry paths (resuming
+        /// vs. freshly dequeued): given `fixed` (already verified by the
+        /// caller to be `<= remaining_weight`, covering every mandatory
+        /// bookkeeping read/write up to this point), spend whatever weight
+        /// remains on a single bounded `Access(scope_id, *)` `clear_prefix`
+        /// batch, then persist the resulting `CurrentCleanup` state.
+        fn run_access_batch(
+            scope_id: ScopeId,
+            cursor: Option<CleanupCursor>,
+            remaining_weight: Weight,
+            fixed: Weight,
+        ) -> Weight {
+            let available = remaining_weight.saturating_sub(fixed);
 
-                    let cursor = task.cursor.as_ref().map(|c| c.as_slice());
-                    let result = <Access<T>>::clear_prefix(task.scope_id, limit, cursor);
-
-                    let consumed =
-                        fixed.saturating_add(per_item.saturating_mul(u64::from(result.loops)));
-
-                    task.cursor = result
-                        .maybe_cursor
-                        .and_then(|c| BoundedVec::try_from(c).ok());
-                    if task.cursor.is_none() {
-                        task.phase = CleanupPhase::Metadata;
-                    }
-                    <CleanupQueue<T>>::insert(head, task);
-
-                    consumed.min(remaining_weight)
-                }
-                CleanupPhase::Metadata => {
-                    let fixed = T::WeightInfo::gc_metadata();
-                    if remaining_weight.any_lt(fixed) {
-                        return Weight::zero();
-                    }
-
-                    // Defensive safety check: never reclaim an active Scope.
-                    // A queued *active* Scope indicates an invariant
-                    // violation elsewhere in the pallet; GC still dequeues
-                    // the task (retrying it forever would stall the whole
-                    // queue) but skips deleting anything for it.
-                    let root = <ScopeRoot<T>>::get(task.scope_id);
-                    let is_active = root
-                        .map(|r| <ActiveScope<T>>::get(r) == Some(task.scope_id))
-                        .unwrap_or(false);
-                    if !is_active {
-                        <ScopeOwner<T>>::remove(task.scope_id);
-                        <ScopeRoot<T>>::remove(task.scope_id);
-                        Self::deposit_event(Event::CleanupCompleted(task.scope_id));
-                    }
-
-                    <CleanupQueue<T>>::remove(head);
-                    <CleanupHead<T>>::put(head.saturating_add(1));
-
-                    fixed.min(remaining_weight)
+            // Largest batch (up to `MAX_GC_BATCH`) that
+            // `T::WeightInfo::gc_access(n)` reports as fitting within
+            // `available`, found by binary search over the generated
+            // weight function directly - this is exact even if the
+            // function is not a pure linear `base + n * per_item` formula,
+            // and never multiplies `gc_access(1)` to estimate a batch.
+            let mut lo: u32 = 0;
+            let mut hi: u32 = MAX_GC_BATCH;
+            while lo < hi {
+                let mid = lo + (hi - lo + 1) / 2;
+                if T::WeightInfo::gc_access(mid).all_lte(available) {
+                    lo = mid;
+                } else {
+                    hi = mid - 1;
                 }
             }
+            let limit = lo;
+            if limit == 0 {
+                // Not enough weight for even one `Access` removal this
+                // call; park the Scope as `CurrentCleanup` for a future
+                // call to resume, charging exactly the mandatory
+                // bookkeeping already committed above.
+                <CurrentCleanup<T>>::put((scope_id, cursor));
+                return fixed;
+            }
+
+            let cursor_slice = cursor.as_ref().map(|c: &CleanupCursor| c.as_slice());
+            let result = <Access<T>>::clear_prefix(scope_id, limit, cursor_slice);
+            let per_item = T::WeightInfo::gc_access(1);
+            let consumed = fixed.saturating_add(per_item.saturating_mul(u64::from(result.loops)));
+
+            match result.maybe_cursor {
+                None => {
+                    // `clear_prefix` reports the prefix is now fully empty.
+                    <CurrentCleanup<T>>::kill();
+                    Self::deposit_event(Event::CleanupCompleted(scope_id));
+                }
+                Some(raw_cursor) => {
+                    // A returned cursor means work remains. Failing to fit
+                    // it into `CleanupCursor`'s bound is an invariant
+                    // violation (the bound is sized from the real storage
+                    // key layout) - it must never be mistaken for "done".
+                    let cursor = CleanupCursor::try_from(raw_cursor)
+                        .expect("clear_prefix cursor must fit MAX_CLEANUP_CURSOR_LEN; qed");
+                    <CurrentCleanup<T>>::put((scope_id, Some(cursor)));
+                }
+            }
+
+            consumed.min(remaining_weight)
         }
 
         /// Count the number of ancestors of `node_id` by walking `parent`

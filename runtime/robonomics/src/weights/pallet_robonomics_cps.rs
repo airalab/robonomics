@@ -24,9 +24,12 @@
 //! HOSTNAME: `boot-02-robonomics`, CPU: `AMD EPYC 4344P 8-Core Processor`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: 1024
 //!
-//! NOTE: `create_scope`, `delete_scope`, `grant_access` and `revoke_access`
-//! were hand-written (not re-benchmarked) after the Ownership -> Scope/Access
-//! rework (issue #654); re-run `frame-omni-bencher` against this pallet and
+//! NOTE: `create_scope`, `delete_scope`, `grant_access`, `revoke_access`, and
+//! `gc_access` were hand-adjusted (not re-benchmarked) after the CPS storage
+//! layout and GC rework (issue #661), which merged `ScopeRoot`/`ScopeOwner`
+//! into `ActiveScope`, replaced the bool-per-capability `Access` map with a
+//! compact `AccessFlags` bitset, and removed the `Metadata` GC phase.
+//! TODO(#661): re-run `frame-omni-bencher` (see `Executed Command` below) and
 //! regenerate this file before relying on these weights in production.
 
 // Executed Command:
@@ -105,12 +108,10 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	}
 	/// Storage: `CPS::NextScopeId` (r:1 w:1)
 	/// Proof: `CPS::NextScopeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ScopeRoot` (r:0 w:1)
-	/// Proof: `CPS::ScopeRoot` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ScopeOwner` (r:0 w:1)
-	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ActiveScope` (r:0 w:1)
-	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ActiveScope` (r:1 w:1)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
+	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
 	fn create_scope() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `198`
@@ -122,9 +123,9 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
 	/// Storage: `CPS::ActiveScope` (r:1 w:1)
-	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
-	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
+	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
 	fn delete_scope() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `198`
@@ -135,9 +136,9 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
-	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Access` (r:0 w:1)
+	/// Storage: `CPS::ActiveScope` (r:1 w:0)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:1 w:1)
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
 	fn grant_access() -> Weight {
 		// Proof Size summary in bytes:
@@ -149,9 +150,9 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::ScopeOwner` (r:1 w:0)
-	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Access` (r:0 w:1)
+	/// Storage: `CPS::ActiveScope` (r:1 w:0)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:1 w:1)
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
 	fn revoke_access() -> Weight {
 		// Proof Size summary in bytes:
@@ -177,10 +178,10 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
-	/// Hand-written (not benchmarked): stale Scope GC (issue #655),
-	/// bounded `clear_prefix` cost per `Access` entry removed. Re-run
-	/// `frame-omni-bencher` and regenerate this file before relying on
-	/// this weight in production.
+	/// Hand-written (not benchmarked): stale Scope GC (issue #661), bounded
+	/// `clear_prefix` cost per `Access` entry removed. TODO(#661): re-run
+	/// `frame-omni-bencher` (see header) and regenerate this file before
+	/// relying on this weight in production.
 	///
 	/// Storage: `CPS::Access` (r:1 w:1)
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
@@ -190,26 +191,5 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 			.saturating_mul(items.max(1) as u64)
-	}
-	/// Hand-written (not benchmarked): stale Scope GC (issue #655) final
-	/// `Metadata` phase, removing `ScopeOwner` / `ScopeRoot` and dequeuing
-	/// the completed cleanup task. Re-run `frame-omni-bencher` and
-	/// regenerate this file before relying on this weight in production.
-	///
-	/// Storage: `CPS::ScopeRoot` (r:1 w:1)
-	/// Proof: `CPS::ScopeRoot` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ScopeOwner` (r:0 w:1)
-	/// Proof: `CPS::ScopeOwner` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ActiveScope` (r:1 w:0)
-	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
-	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(300), added: 2775, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupHead` (r:1 w:1)
-	/// Proof: `CPS::CleanupHead` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	fn gc_metadata() -> Weight {
-		Weight::from_parts(9_500_000, 0)
-			.saturating_add(Weight::from_parts(0, 7889))
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().writes(3))
 	}
 }

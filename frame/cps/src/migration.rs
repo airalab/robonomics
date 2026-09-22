@@ -24,9 +24,9 @@
 //! into separate maps (`Parents`, `Meta`, `Payload`) and removes the per-node
 //! `owner`/`path` fields entirely, replacing them with the Scope/Access
 //! architecture: a node that starts a new administrative/economic boundary
-//! gets a freshly allocated `ScopeId` (`ActiveScope`, `ScopeRoot`,
-//! `ScopeOwner`); every other node resolves its Scope from the nearest such
-//! ancestor.
+//! gets a freshly allocated `ScopeId`, stored together with its owner in a
+//! single `ActiveScope` entry (`(ScopeId, AccountId)`); every other node
+//! resolves its Scope from the nearest such ancestor.
 //!
 //! The migration preserves the *effective* owner of every node:
 //!
@@ -48,7 +48,7 @@
 
 use crate::{
     ActiveScope, Config, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId, Pallet, Parents,
-    Payload, ScopeId, ScopeOwner, ScopeRoot,
+    Payload, ScopeId,
 };
 use core::fmt::Debug;
 use frame_support::{
@@ -134,12 +134,10 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
                 let scope_id = next_scope_id;
                 next_scope_id = next_scope_id.saturating_add(1);
 
-                ScopeRoot::<T>::insert(scope_id, id);
-                ScopeOwner::<T>::insert(scope_id, old.owner.clone());
-                ActiveScope::<T>::insert(id, scope_id);
+                ActiveScope::<T>::insert(id, (scope_id, old.owner.clone()));
                 scope_of.insert(id.0, scope_id);
 
-                writes = writes.saturating_add(3);
+                writes = writes.saturating_add(1);
             }
 
             Parents::<T>::insert(id, old.parent);
