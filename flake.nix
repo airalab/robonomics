@@ -57,6 +57,7 @@
               openssl taplo actionlint
               cargo-nextest cargo-audit cargo-machete cargo-workspaces
               psvm try-runtime-cli srtool-cli frame-omni-bencher
+              chain-spec-builder polkadot-omni-node
             ];
             env.RUSTC_WRAPPER = pkgs.lib.getExe pkgs.sccache;
           }; 

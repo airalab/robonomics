@@ -54,6 +54,13 @@ pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
 pallet-transaction-payment-rpc-runtime-api.workspace = true
 pallet-sudo.workspace = true
+pallet-preimage.workspace = true
+pallet-scheduler.workspace = true
+pallet-referenda.workspace = true
+pallet-conviction-voting.workspace = true
+pallet-whitelist.workspace = true
+pallet-collective.workspace = true
+hex-literal.workspace = true
 
 # robonomics dependencies
 pallet-robonomics-datalog.workspace = true
@@ -90,7 +97,6 @@ polkadot-runtime-common.workspace = true
 substrate-wasm-builder = { workspace = true, optional = true }
 
 [dev-dependencies]
-hex-literal.workspace = true
 
 [features]
 default = ["std"]
@@ -137,6 +143,12 @@ std = [
   "pallet-robonomics-cps/std",
   "robonomics-collator-rewards/std",
   "pallet-sudo/std",
+  "pallet-preimage/std",
+  "pallet-scheduler/std",
+  "pallet-referenda/std",
+  "pallet-conviction-voting/std",
+  "pallet-whitelist/std",
+  "pallet-collective/std",
   "cumulus-pallet-aura-ext/std",
   "cumulus-pallet-parachain-system/std",
   "cumulus-primitives-aura/std",
@@ -170,6 +182,12 @@ runtime-benchmarks = [
   "pallet-vesting/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-session/runtime-benchmarks",
+  "pallet-preimage/runtime-benchmarks",
+  "pallet-scheduler/runtime-benchmarks",
+  "pallet-referenda/runtime-benchmarks",
+  "pallet-conviction-voting/runtime-benchmarks",
+  "pallet-whitelist/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
   "pallet-robonomics-datalog/runtime-benchmarks",
   "pallet-robonomics-digital-twin/runtime-benchmarks",
   "pallet-robonomics-launch/runtime-benchmarks",
@@ -204,6 +222,13 @@ try-runtime = [
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",
   "pallet-utility/try-runtime",
+  "pallet-sudo/try-runtime",
+  "pallet-preimage/try-runtime",
+  "pallet-scheduler/try-runtime",
+  "pallet-referenda/try-runtime",
+  "pallet-conviction-voting/try-runtime",
+  "pallet-whitelist/try-runtime",
+  "pallet-collective/try-runtime",
   "pallet-robonomics-datalog/try-runtime",
   "pallet-robonomics-digital-twin/try-runtime",
   "pallet-robonomics-launch/try-runtime",
