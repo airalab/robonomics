@@ -48,7 +48,7 @@ pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
 
 /// Bounded continuation cursor for an in-progress `Access(scope_id, *)`
 /// `clear_prefix` removal, persisted in [`CurrentCleanup`] between
-/// [`Pallet::on_idle`] calls.
+/// `Pallet::on_idle` calls.
 pub type CleanupCursor = BoundedVec<u8, MaxCleanupCursorLen>;
 
 /// Hard upper bound on the number of `Access` entries a single
@@ -61,7 +61,7 @@ pub type CleanupCursor = BoundedVec<u8, MaxCleanupCursorLen>;
 pub const MAX_GC_BATCH: u32 = 64;
 
 /// Deterministic, defensive upper bound on the number of [`Pallet::do_gc_step`]
-/// iterations [`Pallet::run_gc`] performs per [`Pallet::on_idle`] call,
+/// iterations [`Pallet::run_gc`] performs per `Pallet::on_idle` call,
 /// independent of the weight budget (which already bounds real work; this
 /// only guards against an unexpected zero-progress loop).
 pub const MAX_GC_ITERATIONS_PER_IDLE: u32 = 32;

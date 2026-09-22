@@ -4691,10 +4691,7 @@ version = "1.0.0"
 dependencies = [
  "pallet-robonomics-cps",
  "parity-scale-codec",
-<<<<<<< HEAD
  "scale-info",
-=======
->>>>>>> 559a074 (feat: added cps runtime api (fix #651))
  "sp-api",
 ]
 

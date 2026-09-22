@@ -17,26 +17,29 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! # CPS Runtime API
 //!
-//! Runtime API definition exposing canonical CPS Ownership resolution to
+//! Runtime API definition exposing canonical CPS Scope resolution to
 //! off-chain clients (e.g. Subxt-based tooling such as `libcps`).
 //!
 //! This crate must be imported and implemented by the runtime of a node that
-//! wants clients to resolve the effective Ownership of a CPS node without
-//! reimplementing ownership-inheritance traversal client-side.
+//! wants clients to resolve the Scope effective for a CPS node without
+//! reimplementing Scope-resolution traversal client-side.
 //!
 //! The API is a thin, read-only wrapper over
-//! [`pallet_robonomics_cps::Pallet::resolve_ownership`], the single canonical
-//! resolver used by every authorization check inside the CPS pallet. It is
-//! callable through the standard generic runtime-call mechanism (e.g.
-//! Substrate's `state_call` RPC, as used by Subxt and `polkadot-omni-node`),
-//! so no custom Robonomics JSON-RPC endpoint or node-side customization is
-//! required.
+//! [`pallet_robonomics_cps::Pallet::resolve_scope`] and
+//! [`pallet_robonomics_cps::Pallet::has_capability`], the same canonical
+//! Scope resolver and authorization check used by every dispatchable inside
+//! the CPS pallet. It is callable through the standard generic runtime-call
+//! mechanism (e.g. Substrate's `state_call` RPC, as used by Subxt and
+//! `polkadot-omni-node`), so no custom Robonomics JSON-RPC endpoint or
+//! node-side customization is required.
 //!
-//! Only the `ScopeId`, root `NodeId`, and owner `AccountId` are all returned
-//! together by `resolve_scope` (as a [`pallet_robonomics_cps::ResolvedScope`]),
-//! since the pallet's `ActiveScope` storage already merges them into a single
-//! entry and resolving all three only requires one walk of the node's
-//! ancestry.
+//! `resolve_scope` returns the `ScopeId`, root `NodeId`, and owner
+//! `AccountId` together (as a [`pallet_robonomics_cps::ResolvedScope`]),
+//! since the pallet's `ActiveScope` storage already merges them into a
+//! single entry and resolving all three only requires one walk of the
+//! node's ancestry. The pallet's own `resolve_scope` returns a `Result`;
+//! the runtime implementation collapses any error into `None` before
+//! crossing the API boundary.
 //!
 //! Because these are normal Runtime API methods, they are automatically
 //! included in runtime metadata and can be queried at any historical block
@@ -48,9 +51,14 @@ use pallet_robonomics_cps::{Capability, NodeId, ResolvedScope};
 use parity_scale_codec::Codec;
 
 sp_api::decl_runtime_apis! {
-    /// The API to resolve canonical CPS Ownership.
-    pub trait NodeOwnership<AccountId> where
-        AccountId: Codec,
+    /// Runtime API for resolving CPS Scope and capability checks.
+    ///
+    /// Exposes read-only access to the CPS pallet's canonical authorization
+    /// logic (Scope resolution and capability checks) so off-chain clients
+    /// can query them directly via `state_call`, without duplicating the
+    /// Scope-resolution traversal logic client-side.
+    pub trait CpsApi<AccountId> where
+        AccountId: Codec
     {
         /// Resolve the Scope currently active for `node`.
         ///
@@ -70,8 +78,9 @@ sp_api::decl_runtime_apis! {
         /// Check whether `account_id` currently holds `capability` at `node_id`.
         ///
         /// Reuses the same canonical authorization logic enforced by the
-        /// pallet's dispatchables (Scope owner implicit authority, exact /
-        /// inherited `Access` never crossing a nested Scope boundary).
+        /// pallet's dispatchables (Scope owner implicit authority, exact
+        /// `GrantMode::Node` / propagating `GrantMode::Subtree` `Access`
+        /// never crossing a nested Scope boundary).
         /// Returns `false` (rather than trapping the call) if `node_id`
         /// does not exist or no Scope can be resolved for it.
         fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool;

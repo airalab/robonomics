@@ -94,8 +94,8 @@ A [`Capability`] is a delegable authority. Two are defined today:
 
 `Pallet::grant_access` / `Pallet::revoke_access` let a Scope owner delegate a
 `Capability` to another account at a specific `NodeId`, either for that exact
-node (`inherited = false`) or for the node and all its descendants within the
-same Scope (`inherited = true`). Access never crosses a nested Scope
+node (`GrantMode::Node`) or for the node and all its descendants within the
+same Scope (`GrantMode::Subtree`). Access never crosses a nested Scope
 boundary. The Scope owner always has implicit authority over their whole
 Scope and does not need explicit `Access` entries.
 
@@ -113,7 +113,7 @@ Scope #10 / owner=A
     `-- Sensor
 ```
 
-If `A` grants `Access(#10, Factory, Gateway, Write, inherited = true)`,
+If `A` grants `Access(#10, Factory, Gateway, Write, GrantMode::Subtree)`,
 `Gateway` may `set_meta`/`set_payload` on `Factory` and `Robot` (both resolve
 to Scope #10), but **not** on `Laboratory` or `Sensor` - those resolve to the
 independent `Scope #20`, so `A`'s Scope-#10 Access never applies there, even
@@ -174,7 +174,7 @@ Scope #1 / owner=PropertyManager
     Scope #7 / owner=TenantCorp
     ├── HVAC-Unit-07
     │   └── Thermostat-142 (occupancy data, encrypted)
-    │       Access(#7, Thermostat-142, Gateway, Write, inherited=false)
+    │       Access(#7, Thermostat-142, Gateway, Write, GrantMode::Node)
     └── Access Control Panel (badge logs, encrypted)
 ```
 
@@ -279,9 +279,9 @@ create_scope(node_id)
 ```
 
 The Scope owner may do this on any node within their Scope. A non-owner
-requires a `CreateScope` grant reaching `node_id`: a non-inherited grant at
+requires a `CreateScope` grant reaching `node_id`: a `GrantMode::Node` grant at
 the exact node (replacing its Scope if it is already a root, or establishing
-a brand-new nested one otherwise), or an inherited (`Subtree`) grant at
+a brand-new nested one otherwise), or a `GrantMode::Subtree` grant at
 `node_id` or a strict ancestor within the same Scope.
 
 **Example**: A property manager carves out an independent boundary for a new tenant:
@@ -312,17 +312,17 @@ must resolve to exactly one Scope.
 Delegate (or withdraw) a `Capability` to another account at a specific node:
 
 ```
-grant_access(node_id, principal, capability, inherited)
+grant_access(node_id, principal, capability, mode)
 revoke_access(node_id, principal, capability)
 ```
 
-Only the Scope owner may grant or revoke Access. `inherited = true`
+Only the Scope owner may grant or revoke Access. `GrantMode::Subtree`
 propagates the grant to descendants that still resolve to the same Scope;
-`inherited = false` applies only to the exact node.
+`GrantMode::Node` applies only to the exact node.
 
 **Example**: A tenant delegates `Write` on a single thermostat to a gateway device:
 ```
-grant_access(thermostat_id, gateway_account, Capability::Write, inherited: false)
+grant_access(thermostat_id, gateway_account, Capability::Write, GrantMode::Node)
 ```
 
 ### 🗑️ Delete Node
@@ -343,16 +343,17 @@ Deleting a node also clears any `Meta` / `Payload` / active Scope attached to it
 clients (e.g. Subxt-based tooling) without reimplementing Scope-resolution or
 Access-traversal logic client-side:
 
-- `resolve_scope(node) -> Option<ScopeId>` - the `ScopeId` currently active
-  for `node`.
-- `has_capability(node_id, account_id, capability_id) -> bool` - whether
-  `account_id` currently holds `capability_id` at `node_id`, reusing the same
+- `resolve_scope(node) -> Option<ResolvedScope<AccountId>>` - the `ScopeId`,
+  root `NodeId`, and owner `AccountId` currently active for `node`, or `None`
+  if `node` does not exist or no Scope could be resolved.
+- `has_capability(node_id, account_id, capability) -> bool` - whether
+  `account_id` currently holds `capability` at `node_id`, reusing the same
   authorization logic enforced by `set_meta`/`set_payload`/`create_scope`.
 
-`capability_id` is a stable [`CapabilityId`], decoupled from `Capability`'s
-internal SCALE representation, so the Runtime API's wire format does not
-change as new capabilities are added. Convert with
-`CapabilityId::from(capability)` / `Capability::try_from(capability_id)`.
+`Capability` is passed directly across the API boundary; its SCALE encoding
+is derived from declaration order, so new capabilities must always be
+appended at the end (never inserted or reordered) to keep the encoding
+stable for existing callers.
 
 ## Storage Efficiency
 
@@ -585,15 +586,12 @@ println!("Reading: {}", String::from_utf8(decrypted)?);
 4. Implement the Runtime API:
    ```rust
    impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
-       fn resolve_scope(node: NodeId) -> Option<ScopeId> {
+       fn resolve_scope(node: NodeId) -> Option<ResolvedScope<AccountId>> {
            Cps::resolve_scope(node).ok()
        }
 
-       fn has_capability(node_id: NodeId, account_id: AccountId, capability_id: CapabilityId) -> bool {
-           match Capability::try_from(capability_id) {
-               Ok(capability) => Cps::has_capability(node_id, &account_id, capability),
-               Err(()) => false,
-           }
+       fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool {
+           Cps::has_capability(node_id, &account_id, capability)
        }
    }
    ```
@@ -614,8 +612,8 @@ const payload = await api.query.cps.payload(nodeId);
 const children = await api.query.cps.nodesByParent(parentId);
 
 // Resolve the active Scope and check a capability via the Runtime API
-const scopeId = await api.call.cpsApi.resolveScope(nodeId);
-const canWrite = await api.call.cpsApi.hasCapability(nodeId, accountId, writeCapabilityId);
+const scope = await api.call.cpsApi.resolveScope(nodeId);
+const canWrite = await api.call.cpsApi.hasCapability(nodeId, accountId, 'Write');
 ```
 
 Create and manage hierarchies:
@@ -631,7 +629,7 @@ await api.tx.cps.createNode(parentId, metadata, payload).signAndSend(account);
 await api.tx.cps.createScope(nodeId).signAndSend(currentOwner);
 
 // Delegate Write to another account for a single node
-await api.tx.cps.grantAccess(nodeId, principal, 'Write', false).signAndSend(scopeOwner);
+await api.tx.cps.grantAccess(nodeId, principal, 'Write', 'Node').signAndSend(scopeOwner);
 ```
 
 ## Comparison with Alternatives

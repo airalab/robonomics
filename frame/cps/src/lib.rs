@@ -52,7 +52,7 @@
 //!
 //! 6. **`CleanupQueue`** / **`CleanupState`** / **`CurrentCleanup`**: A FIFO
 //!    queue of stale `ScopeId`s awaiting background physical cleanup by
-//!    [`Pallet::on_idle`]; see
+//!    `Pallet::on_idle`; see
 //!    [`Cleanup Queue and Background GC`](self#cleanup-queue-and-background-gc)
 //!    below.
 //!
@@ -115,7 +115,7 @@
 //! Scope invalidation (via replacement or deletion) is immediate and O(1):
 //! it only touches `ActiveScope`. The old Scope's remaining physical state
 //! (`Access` entries) is reclaimed later, incrementally, by a bounded
-//! background GC driven by [`Pallet::on_idle`]. This never affects
+//! background GC driven by `Pallet::on_idle`. This never affects
 //! authorization or resource resolution correctness - those always consult
 //! only the *currently* resolved `ScopeId`, regardless of whether an old
 //! Scope's `Access` entries have been physically reclaimed yet.
@@ -126,7 +126,7 @@
 //! metadata cleanup phase.
 //!
 //! A FIFO queue (`CleanupQueue` indexed by `CleanupState`'s `head`/`tail`)
-//! holds one stale `ScopeId` per pending cleanup. [`Pallet::on_idle`] works
+//! holds one stale `ScopeId` per pending cleanup. `Pallet::on_idle` works
 //! through it as follows:
 //!
 //! ```text
@@ -165,7 +165,7 @@
 //!
 //! #### Guaranteed progress under sustained load
 //!
-//! GC here is deliberately idle-only (see [`Pallet::on_idle`]): it makes no
+//! GC here is deliberately idle-only (see `Pallet::on_idle`): it makes no
 //! guaranteed per-block progress, only opportunistic progress from leftover
 //! idle weight. Under a chain that is *permanently* full (no idle weight in
 //! any block), the cleanup backlog would not shrink. This is accepted as a
@@ -238,7 +238,7 @@
 //! ```ignore
 //! // Node 5 currently inherits its Scope from an ancestor. Its owner
 //! // establishes a new, independent Scope rooted at node 5.
-//! Cps::create_scope(origin, NodeId(5), Default::default())?;
+//! Cps::create_scope(origin, NodeId(5))?;
 //! ```
 //!
 //! ### Querying the Tree
@@ -276,7 +276,7 @@
 //!    never depend on whether background GC has run; a stale Scope's
 //!    physical state may still exist without being reachable through
 //!    `ActiveScope`. GC also never reclaims a Scope that is still active
-//!    (defensive check in [`Pallet::on_idle`]).
+//!    (defensive check in `Pallet::on_idle`).
 //!
 //! ## Testing
 //!
@@ -690,7 +690,7 @@ pub mod pallet {
     /// FIFO queue of stale `ScopeId`s awaiting background physical cleanup.
     ///
     /// Entries between `CleanupState::head` (inclusive) and
-    /// `CleanupState::tail` (exclusive) are pending; [`Pallet::on_idle`]
+    /// `CleanupState::tail` (exclusive) are pending; `Pallet::on_idle`
     /// always dequeues from `head` first. Keyed by an internally generated,
     /// never-reused sequence number, so it uses the cheaper reversible
     /// `Twox64Concat` hasher.
@@ -709,7 +709,7 @@ pub mod pallet {
     /// since only one Scope can be mid-removal at a time.
     ///
     /// `None` cursor means a fresh Scope was just dequeued and no batch has
-    /// run yet; `Some(cursor)` means a previous [`Pallet::on_idle`] step left
+    /// run yet; `Some(cursor)` means a previous `Pallet::on_idle` step left
     /// work unfinished.
     #[pallet::storage]
     #[pallet::getter(fn current_cleanup)]
@@ -735,9 +735,9 @@ pub mod pallet {
         AccessGranted(ScopeId, NodeId, T::AccountId, Capability, GrantMode),
         /// Access was revoked [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
-        /// A stale Scope was enqueued for background cleanup [scope_id]
+        /// A stale Scope was enqueued for background cleanup \[scope_id\]
         CleanupEnqueued(ScopeId),
-        /// A stale Scope's physical state was fully reclaimed [scope_id]
+        /// A stale Scope's physical state was fully reclaimed \[scope_id\]
         CleanupCompleted(ScopeId),
     }
 
@@ -1004,7 +1004,7 @@ pub mod pallet {
         /// falls back to the nearest parent Scope. A CPS root's Scope can
         /// never be deleted. Nested Scopes below `node_id` are unaffected.
         /// The deleted Scope's remaining physical state (`Access`) is
-        /// enqueued for background GC (see [`Pallet::on_idle`]), not
+        /// enqueued for background GC (see `Pallet::on_idle`), not
         /// removed synchronously.
         #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::delete_scope())]
@@ -1212,7 +1212,7 @@ pub mod pallet {
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
         /// and activate it. Replaces any Scope previously active at `root`;
         /// if one existed, it is enqueued for background GC (see
-        /// [`Pallet::on_idle`]) in the same transaction that invalidates it.
+        /// `Pallet::on_idle`) in the same transaction that invalidates it.
         fn allocate_scope(root: NodeId, owner: T::AccountId) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
