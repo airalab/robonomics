@@ -43,4 +43,4 @@ fi
 echo -e "${GREEN}Using runtime: $RUNTIME${NC}"
 echo ""
 
-chain-spec-builder create -t development -r $RUNTIME --relay-chain westend-local --para-id 2048 named-preset development
+chain-spec-builder create -t development -r "$RUNTIME" --relay-chain rococo-local --para-id 2048 named-preset development
