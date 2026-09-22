@@ -18,8 +18,8 @@ resolver = "2"
 [workspace.dependencies]
 # Subxt Runtime API (native)
 seahash = "4.1"
-subxt = "0.50.3"
-subxt-signer = "0.50.3"
+subxt = "0.51"
+subxt-signer = "0.51"
 sc-executor = "0.50.0"
 sc-executor-common = "0.47.0"
 sp-maybe-compressed-blob = "11.1.0"
