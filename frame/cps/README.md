@@ -492,12 +492,18 @@ let plaintext = aead_decrypt(
 let reading = b"temperature: 22.5C";
 let encrypted = client.encrypt(reading, &receiver_public_key)?;
 let data = BoundedVec::try_from(encrypted)?;
+```
 
+```javascript
 // Submit to chain
-api.tx.cps.setPayload(sensorNodeId, data).signAndSend(sensorAccount);
+await api.tx.cps.setPayload(sensorNodeId, data).signAndSend(sensorAccount);
 
-// Server retrieves and decrypts
+// Server retrieves the encrypted payload
 const payload = await api.query.cps.payload(sensorNodeId);
+```
+
+```rust
+// Server decrypts
 let decrypted = client.decrypt(&payload, &server_private_key)?;
 println!("Reading: {}", String::from_utf8(decrypted)?);
 ```

@@ -452,8 +452,14 @@ impl ScopeId {
     Debug,
 )]
 pub enum Capability {
-    /// Authority to create a replacement Scope at the exact Scope root that
-    /// grants it. The sole mechanism for handing over control of a Scope.
+    /// Authority to call [`Pallet::create_scope`] on a node: either
+    /// establishing a brand-new nested Scope boundary on a descendant, or
+    /// replacing the existing Scope at the exact root that holds the
+    /// grant. This is the sole mechanism for handing over control of a
+    /// Scope. A [`GrantMode::Node`] grant only authorizes the exact
+    /// granted node; a [`GrantMode::Subtree`] grant also authorizes every
+    /// descendant within the same Scope, not just the node it was made
+    /// at.
     #[codec(index = 0)]
     CreateScope,
     /// Authority to mutate a node's `Meta` / `Payload`.

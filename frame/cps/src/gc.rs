@@ -28,9 +28,7 @@ use crate::{
     pallet::{Access, CleanupQueue, CleanupState, CurrentCleanup, Event},
     Config, Pallet, ScopeId, WeightInfo,
 };
-use frame_support::{
-    pallet_prelude::Zero, traits::ConstU32, traits::Get, weights::Weight, BoundedVec,
-};
+use frame_support::{traits::ConstU32, traits::Get, weights::Weight, BoundedVec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -120,12 +118,18 @@ impl<T: Config> Pallet<T> {
         let mut remaining = remaining_weight;
 
         for _ in 0..MAX_GC_ITERATIONS_PER_IDLE {
-            let used = Self::do_gc_step(remaining);
-            if used.is_zero() {
-                break;
-            }
+            // `progressed` - not `used.is_zero()` - is the loop's
+            // "keep going" signal: a step that only performed a couple
+            // of cheap reads before concluding it cannot (yet) do more
+            // still reports that (non-zero) weight so it is charged to
+            // the block, but must not be mistaken for "made progress,
+            // try again immediately".
+            let (used, progressed) = Self::do_gc_step(remaining);
             consumed = consumed.saturating_add(used);
             remaining = remaining.saturating_sub(used);
+            if !progressed {
+                break;
+            }
         }
 
         consumed
@@ -148,19 +152,29 @@ impl<T: Config> Pallet<T> {
     /// and never mutates anything it cannot fully account for within
     /// `remaining_weight`. Branches that only perform a couple of cheap
     /// `StorageValue` reads before concluding there is nothing to do
-    /// (insufficient weight, or an empty queue) return
-    /// [`Weight::zero`] rather than mutate anything - this mirrors
-    /// [`Self::run_gc`]'s "stop looping" signal and is an accepted
-    /// simplification, since no `Access`/queue state is ever changed on
-    /// those paths.
+    /// (insufficient weight, or an empty queue) still report the exact
+    /// weight of the reads that actually happened - reading storage is
+    /// never "free" just because no further progress was possible this
+    /// call - and signal [`Self::run_gc`] to stop iterating via the
+    /// returned `bool` (`false` = no progress, do not retry this block)
+    /// rather than by returning [`Weight::zero`].
+    ///
+    /// Returns `(consumed_weight, progressed)`, where `progressed` is
+    /// `true` only when real cleanup work advanced (a Scope was
+    /// dequeued/parked, or an `Access` batch was removed), so
+    /// [`Self::run_gc`] knows whether retrying with the leftover weight
+    /// budget is worthwhile.
     ///
     /// A `cursor` that fails to fit [`CleanupCursor`]'s bound is
     /// treated as an invariant violation - `clear_prefix` returning
     /// `Some` must never be silently treated as "finished".
-    pub(crate) fn do_gc_step(remaining_weight: Weight) -> Weight {
+    pub(crate) fn do_gc_step(remaining_weight: Weight) -> (Weight, bool) {
         let read_current = T::DbWeight::get().reads(1);
         if remaining_weight.any_lt(read_current) {
-            return Weight::zero();
+            // Not enough weight budget left to even read
+            // `CurrentCleanup`; nothing was read, so there is nothing
+            // to charge, and retrying at the same budget cannot help.
+            return (Weight::zero(), false);
         }
 
         if let Some((scope_id, cursor)) = <CurrentCleanup<T>>::get() {
@@ -170,11 +184,11 @@ impl<T: Config> Pallet<T> {
             let write_current = T::DbWeight::get().writes(1);
             let fixed = read_current.saturating_add(write_current);
             if remaining_weight.any_lt(fixed) {
-                // Not enough weight for the mandatory write-back; only
-                // the read above happened, and `CurrentCleanup` is
-                // unchanged (no write needed to "persist" a value that
-                // was never modified).
-                return Weight::zero();
+                // Not enough weight for the mandatory write-back;
+                // `CurrentCleanup` is unchanged (no write needed to
+                // "persist" a value that was never modified), but the
+                // read above did happen and must still be charged.
+                return (read_current, false);
             }
             return Self::run_access_batch(scope_id, cursor, remaining_weight, fixed);
         }
@@ -184,12 +198,14 @@ impl<T: Config> Pallet<T> {
         // a `CleanupState` read.
         let peek_cost = read_current.saturating_add(T::DbWeight::get().reads(1));
         if remaining_weight.any_lt(peek_cost) {
-            return Weight::zero();
+            // Only the `CurrentCleanup` read happened before giving up.
+            return (read_current, false);
         }
         let mut state = <CleanupState<T>>::get();
         if state.head >= state.tail {
-            // Queue is empty; nothing to do.
-            return Weight::zero();
+            // Queue is empty; both reads above happened and are
+            // charged, but there is genuinely nothing left to do.
+            return (peek_cost, false);
         }
 
         // Dequeuing removes the `CleanupQueue` entry, advances
@@ -202,16 +218,21 @@ impl<T: Config> Pallet<T> {
             .saturating_add(T::DbWeight::get().reads(1)) // CleanupQueue read
             .saturating_add(T::DbWeight::get().writes(3)); // CleanupQueue remove + CleanupState put + CurrentCleanup park
         if remaining_weight.any_lt(dequeue_fixed) {
-            return Weight::zero();
+            // Only the two reads in `peek_cost` happened so far.
+            return (peek_cost, false);
         }
 
         let Some(scope_id) = <CleanupQueue<T>>::get(state.head) else {
             // Defensive: a missing entry at a valid queue index should
             // never happen, but skip past it rather than getting stuck.
             // No Scope is parked, so only the queue-advance is charged.
+            // The queue still advanced, so it is worth retrying.
             state.head = state.head.saturating_add(1);
             <CleanupState<T>>::put(state);
-            return peek_cost.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+            return (
+                peek_cost.saturating_add(T::DbWeight::get().reads_writes(1, 1)),
+                true,
+            );
         };
 
         <CleanupQueue<T>>::remove(state.head);
@@ -232,7 +253,7 @@ impl<T: Config> Pallet<T> {
         cursor: Option<CleanupCursor>,
         remaining_weight: Weight,
         fixed: Weight,
-    ) -> Weight {
+    ) -> (Weight, bool) {
         let available = remaining_weight.saturating_sub(fixed);
 
         // Largest batch (up to `MAX_GC_BATCH`) that
@@ -256,16 +277,24 @@ impl<T: Config> Pallet<T> {
             // Not enough weight for even one `Access` removal this
             // call; park the Scope as `CurrentCleanup` for a future
             // call to resume, charging exactly the mandatory
-            // bookkeeping already committed above.
+            // bookkeeping already committed above. No removal
+            // happened, and retrying immediately at the same leftover
+            // budget cannot help, so signal "no progress".
             <CurrentCleanup<T>>::put((scope_id, cursor));
-            return fixed;
+            return (fixed, false);
         }
 
         let cursor_slice = cursor.as_ref().map(|c: &CleanupCursor| c.as_slice());
         let result = <Access<T>>::clear_prefix(scope_id, limit, cursor_slice);
-        let per_item = T::WeightInfo::gc_access(1);
-        let consumed = fixed.saturating_add(per_item.saturating_mul(u64::from(result.loops)));
+        // Charge the weight of the batch that was *actually* completed
+        // directly via the generated `gc_access(result.loops)` rather
+        // than multiplying a single-item estimate (`gc_access(1) *
+        // result.loops`): the two are only equivalent if the weight
+        // function is exactly linear in the item count, which is not
+        // guaranteed by the benchmark-derived formula.
+        let consumed = fixed.saturating_add(T::WeightInfo::gc_access(result.loops));
 
+        let scope_completed = result.maybe_cursor.is_none();
         match result.maybe_cursor {
             None => {
                 // `clear_prefix` reports the prefix is now fully empty.
@@ -283,6 +312,10 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        consumed.min(remaining_weight)
+        // Progress happened either if entries were actually removed, or
+        // the Scope's cleanup was fully completed (even if it turned
+        // out to have zero remaining `Access` entries left to remove).
+        let progressed = result.loops > 0 || scope_completed;
+        (consumed.min(remaining_weight), progressed)
     }
 }

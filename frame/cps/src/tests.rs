@@ -86,7 +86,7 @@ fn run_gc(weight: Weight) -> Weight {
 }
 
 fn run_gc_step(weight: Weight) -> Weight {
-    Cps::do_gc_step(weight)
+    Cps::do_gc_step(weight).0
 }
 
 fn grant_many(owner: u64, node_id: NodeId, first_principal: u64, count: u64) {
@@ -1464,6 +1464,45 @@ fn gc_weight_accounting_empty_queue_and_insufficient_weight() {
         assert!(!used.any_gt(insufficient_budget));
         assert_cleanup_state(0, 1);
         assert_eq!(Cps::cleanup_queue(0), Some(ScopeId(0)));
+        assert_eq!(Cps::current_cleanup(), None);
+    });
+}
+
+#[test]
+fn gc_step_charges_reads_that_actually_happened_even_without_progress() {
+    // Regression test: a `do_gc_step` call that only performs a couple of
+    // cheap `StorageValue` reads before concluding it cannot (yet) do
+    // more must still report the weight of those reads - it must not
+    // report `Weight::zero()` just because no cleanup progress was made,
+    // otherwise those reads would go unaccounted for in the block's
+    // weight usage.
+    new_test_ext().execute_with(|| {
+        let read = <Runtime as frame_system::Config>::DbWeight::get().reads(1);
+        let two_reads = <Runtime as frame_system::Config>::DbWeight::get().reads(2);
+
+        // Empty `CleanupQueue`, no `CurrentCleanup` in progress.
+        assert_cleanup_state(0, 0);
+        assert_eq!(Cps::current_cleanup(), None);
+
+        // Too little budget for even the first (`CurrentCleanup`) read:
+        // nothing was read, so nothing should be charged.
+        let used_none = run_gc_step(read.saturating_sub(Weight::from_parts(1, 0)));
+        assert_eq!(used_none, Weight::zero());
+
+        // Enough for the first read only: exactly that read must be
+        // charged, not zero.
+        let used_one_read = run_gc_step(two_reads.saturating_sub(Weight::from_parts(1, 0)));
+        assert_eq!(used_one_read, read);
+        assert!(used_one_read.any_gt(Weight::zero()));
+
+        // Enough for both mandatory reads (`CurrentCleanup` +
+        // `CleanupState`), queue still empty: both reads must be
+        // charged.
+        let used_two_reads = run_gc_step(two_reads);
+        assert_eq!(used_two_reads, two_reads);
+
+        // No storage was mutated by any of the above.
+        assert_cleanup_state(0, 0);
         assert_eq!(Cps::current_cleanup(), None);
     });
 }
