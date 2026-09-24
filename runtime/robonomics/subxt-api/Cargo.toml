@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Robonomics runtime Subxt metadata & API."
+description = "Robonomics runtime type-safe API for Rust."
 build = "build.rs"
 
 [dependencies]
@@ -14,34 +14,10 @@ parity-scale-codec.workspace = true
 subxt.workspace = true
 
 [build-dependencies]
-robonomics-runtime.workspace = true
-robonomics-runtime.optional = true
-sp-io.workspace = true
-sp-io.optional = true
-sp-state-machine.workspace = true
-sp-state-machine.optional = true
-sp-maybe-compressed-blob.workspace = true
-sp-maybe-compressed-blob.optional = true
-sc-executor.workspace = true
-sc-executor.optional = true
-sc-executor-common.workspace = true
-sc-executor-common.optional = true
-parity-scale-codec.workspace = true
-parity-scale-codec.optional = true
-seahash.workspace = true
-seahash.optional = true
+robonomics-runtime-metadata.workspace = true
 
 [dev-dependencies]
 subxt-signer.workspace = true
 
 [features]
-build-metadata = [
-  "robonomics-runtime",
-  "sp-io",
-  "sp-state-machine",
-  "sp-maybe-compressed-blob",
-  "sc-executor",
-  "sc-executor-common",
-  "parity-scale-codec",
-]
-check-metadata = ["build-metadata", "seahash"]
+build-metadata = ["robonomics-runtime-metadata/build-metadata"]

@@ -38,6 +38,7 @@ This repository is organized as a Cargo workspace with the following structure:
 
 - **`runtime/`**
   - `robonomics/` - WASM runtime for the Robonomics Network
+  - `robonomics/metadata` - single source of truth for SCALE-encoded runtime metadata, reused by all API generators
   - `robonomics/subxt-api` - a type-safe, compile-time verified API based on [subxt](https://docs.rs/subxt/latest/subxt/) library interface.
 
 ### Pallets
