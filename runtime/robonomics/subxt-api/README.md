@@ -1,87 +1,38 @@
 # Robonomics Runtime Subxt API
 
-A type-safe API generator for the Robonomics runtime that extracts metadata at build time and generates compile-time verified blockchain interactions using [subxt](https://github.com/paritytech/subxt).
+A type-safe API generator for the Robonomics runtime that generates compile-time verified blockchain interactions using [subxt](https://github.com/paritytech/subxt).
 
 ## Overview
 
 This crate provides:
-- **Automatic metadata extraction** from the Robonomics runtime during compilation
 - **Type-safe API generation** using subxt's macro system
 - **Minimal dependencies** compared to embedding runtime WASM directly
 - **Always synchronized** metadata that matches your runtime version
 - **Custom configuration** (`RobonomicsConfig`) tailored for Robonomics nodes
 
+Runtime metadata is no longer owned by this crate. Obtaining, validating, and
+exposing the SCALE-encoded Robonomics runtime metadata is the responsibility
+of the [`robonomics-runtime-metadata`](../metadata) crate, which acts as the
+single source of truth for the metadata. This crate depends on it and simply
+copies the exported `robonomics_runtime_metadata::METADATA` bytes into its own
+`$OUT_DIR` for the `subxt::subxt` macro to consume. See that crate's
+[README](../metadata/README.md) for full details on how metadata is obtained,
+validated, and updated.
+
 ## How It Works
-
-The crate supports two build modes:
-
-### 1. Using Prebuilt Metadata (Default - Faster)
-
-By default, the build uses a prebuilt `metadata.scale` file committed to the repository. This is the **fastest** option and doesn't require building the runtime:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Fast Build (Default Mode)                      │
+│                     subxt-api build                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. build.rs copies metadata.scale from repository          │
+│  1. robonomics-runtime-metadata resolves METADATA           │
 │     ↓                                                       │
-│  2. Copies to $OUT_DIR/metadata.scale                       │
+│  2. build.rs writes METADATA to $OUT_DIR/metadata.scale     │
 │     ↓                                                       │
 │  3. subxt macro reads metadata and generates types          │
 │     ↓                                                       │
 │  ✓  Type-safe API ready to use                              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 2. Building Metadata from Runtime (Feature: `build-metadata`)
-
-When the `build-metadata` feature is enabled, metadata is extracted directly from the runtime WASM:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│           Build from Runtime (build-metadata)               │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. build.rs loads runtime WASM from robonomics-runtime     │
-│     ↓                                                       │
-│  2. Creates RuntimeBlob and WasmExecutor                    │
-│     ↓                                                       │
-│  3. Executes Metadata_metadata host function                │
-│     ↓                                                       │
-│  4. Decodes and validates SCALE-encoded metadata            │
-│     ↓                                                       │
-│  5. Saves metadata.scale to $OUT_DIR/                       │
-│     ↓                                                       │
-│  6. subxt macro reads metadata and generates types          │
-│     ↓                                                       │
-│  ✓  Type-safe API ready to use                              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 3. Checking Metadata Integrity (Feature: `check-metadata`)
-
-The `check-metadata` feature verifies that the prebuilt metadata matches the runtime:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              Metadata Check (check-metadata)                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. Requires build-metadata feature to be enabled           │
-│     ↓                                                       │
-│  2. Extracts metadata from runtime WASM                     │
-│     ↓                                                       │
-│  3. Computes SeaHash (u64) of extracted metadata            │
-│     ↓                                                       │
-│  4. Computes SeaHash (u64) of prebuilt metadata.scale       │
-│     ↓                                                       │
-│  5. Compares digests                                        │
-│     ↓                                                       │
-│  ✗  Panics if mismatch detected                             │
-│  ✓  Continues if metadata is in sync                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -94,17 +45,26 @@ The `check-metadata` feature verifies that the prebuilt metadata matches the run
 - Slow compilation, large binary size
 
 **Our Method:**
+- Delegate metadata extraction/validation to `robonomics-runtime-metadata`
 - Use prebuilt metadata by default: **instant builds**, no runtime dependencies
-- Extract metadata with `build-metadata` feature when needed
-- Save to a file: `$OUT_DIR/metadata.scale`
 - Reference in subxt macro: `runtime_metadata_path = "$OUT_DIR/metadata.scale"`
-- **Result**: Fewer dependencies, faster builds, smaller binaries
+- **Result**: Fewer dependencies, faster builds, smaller binaries, and a
+  single source of truth shared with other API generators (e.g. a future
+  C++/embedded generator)
 
 ## Build Features
 
+This crate preserves its previous public feature interface by forwarding the
+features to `robonomics-runtime-metadata`:
+
+```toml
+[features]
+build-metadata = ["robonomics-runtime-metadata/build-metadata"]
+```
+
 ### Default Build (No Features)
 
-The fastest option - uses the prebuilt `metadata.scale` file:
+The fastest option - uses the metadata committed to `robonomics-runtime-metadata`:
 
 ```bash
 # Fast build using prebuilt metadata
@@ -118,7 +78,7 @@ cargo build -p robonomics-runtime-subxt-api
 
 ### `build-metadata` Feature
 
-Extracts fresh metadata from the runtime WASM:
+Extracts fresh metadata from the runtime WASM (delegated to `robonomics-runtime-metadata`):
 
 ```bash
 # Build with metadata extraction
@@ -130,54 +90,12 @@ cargo build -p robonomics-runtime-subxt-api --features build-metadata
 - When you need to update the prebuilt metadata.scale
 - To ensure metadata is in sync with runtime
 
-**Note:** This requires the runtime to build first:
-```bash
-cargo build -p robonomics-runtime
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
-```
-
-### `check-metadata` Feature
-
-Validates that prebuilt metadata matches the current runtime:
-
-```bash
-# Check metadata integrity (implies build-metadata)
-cargo build -p robonomics-runtime-subxt-api --features check-metadata
-```
-
-**When to use:**
-- In CI/CD to ensure metadata is up to date
-- Before releases to validate integrity
-- After runtime changes to verify updates
-
-**Behavior:**
-- Extracts metadata from runtime WASM
-- Computes SeaHash (u64) of extracted metadata and of the prebuilt `metadata.scale`
-- **Panics with mismatch error** if hashes don't match
-- Succeeds silently if hashes match
-
 ## Updating Prebuilt Metadata
 
-When you modify the runtime, update the prebuilt metadata:
-
-```bash
-# 1. Build runtime first
-cargo build -p robonomics-runtime
-
-# 2. Extract metadata
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
-
-# 3. Copy metadata to repository
-cp target/debug/build/robonomics-runtime-subxt-api-*/out/metadata.scale \
-   runtime/robonomics/subxt-api/metadata.scale
-
-# 4. Verify it works
-cargo build -p robonomics-runtime-subxt-api --features check-metadata
-
-# 5. Commit the updated metadata
-git add runtime/robonomics/subxt-api/metadata.scale
-git commit -m "chore: update subxt-api metadata"
-```
+The prebuilt `metadata.scale` file, and the procedure to regenerate it, now
+live in the [`robonomics-runtime-metadata`](../metadata) crate. See its
+[README](../metadata/README.md#updating-prebuilt-metadata) for the up to date
+procedure.
 
 ## Usage
 
@@ -398,42 +316,12 @@ NodeData::aead_from(encrypted_bytes);
 
 ### Build Errors
 
-**Error**: `Metadata hash mismatch`
-
-**Solution**: The prebuilt metadata is out of sync with the runtime. Update it:
-```bash
-cargo build -p robonomics-runtime
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
-cp target/debug/build/robonomics-runtime-subxt-api-*/out/metadata.scale \
-   runtime/robonomics/subxt-api/metadata.scale
-```
-
----
-
-**Error**: `WASM_BINARY is not available`
-
-**Solution**: Ensure `robonomics-runtime` builds successfully first:
-```bash
-cargo build -p robonomics-runtime
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
-```
-
----
-
-**Error**: `Unable to create RuntimeBlob from WASM`
-
-**Solution**: The runtime WASM may be corrupted. Clean and rebuild:
-```bash
-cargo clean -p robonomics-runtime
-cargo build -p robonomics-runtime
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
-```
-
----
-
-**Error**: `Invalid metadata magic sequence`
-
-**Solution**: The metadata format may have changed. This is usually a bug - report it.
+Errors like `Metadata hash mismatch`, `WASM_BINARY is not available`,
+`Unable to create RuntimeBlob from WASM`, and `Invalid metadata magic
+sequence` all originate from the metadata extraction/validation logic that
+now lives in `robonomics-runtime-metadata`. See that crate's
+[README troubleshooting section](../metadata/README.md#troubleshooting) for
+solutions.
 
 ### Connection Errors
 
@@ -526,7 +414,6 @@ client.tx().await?.sign_and_submit_default(&batch, &alice).await?;
 See the following projects for real-world usage:
 
 - **libcps**: CPS pallet interaction library ([airalab/robins](https://github.com/airalab/robins))
-- **robonet**: Integration testing tool ([airalab/robins](https://github.com/airalab/robins))
 
 ## Related Documentation
 

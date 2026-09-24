@@ -95,16 +95,17 @@ pre-funded accounts (Alice, Bob, Charlie, …), WebSocket RPC on
 node binary from the [`airalab/robins`](https://github.com/airalab/robins)
 repository, pointing it at your locally built runtime WASM where needed.
 
-**Regenerating subxt-api metadata:**
+**Regenerating runtime metadata:**
 
-After changing the runtime, keep the type-safe `subxt-api` metadata in sync:
+After changing the runtime, keep the committed runtime metadata (used by
+`subxt-api` and future API generators) in sync:
 
 ```bash
 cargo build -p robonomics-runtime
-cargo build -p robonomics-runtime-subxt-api --features build-metadata
+cargo build -p robonomics-runtime-metadata --features build-metadata
 ```
 
-See [runtime/robonomics/subxt-api/README.md](./runtime/robonomics/subxt-api/README.md) for details.
+See [runtime/robonomics/metadata/README.md](./runtime/robonomics/metadata/README.md) for details.
 
 **Testing Changes:**
 

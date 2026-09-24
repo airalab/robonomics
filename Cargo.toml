@@ -11,6 +11,7 @@ members = [
   "chain-spec",
   "frame/*",
   "runtime/robonomics",
+  "runtime/robonomics/metadata",
   "runtime/robonomics/subxt-api",
 ]
 resolver = "2"
@@ -136,3 +137,4 @@ pallet-robonomics-rws = { version = "1.7.0", path = "./frame/rws", default-featu
 
 # Robonomics runtime
 robonomics-runtime = { version = "51.0.0", path = "./runtime/robonomics" }
+robonomics-runtime-metadata = { version = "51.0.0", path = "./runtime/robonomics/metadata" }
