@@ -171,19 +171,32 @@ mod benchmarks {
         );
     }
 
-    /// Worst case: `node` is at `MAX_TREE_DEPTH`, exercising the full
-    /// `resolve_scope` walk before the new Scope is allocated.
+    /// Worst case: `sender` is not the Scope owner and is authorized
+    /// through an `inherited = true` `CreateScope` `Access` granted at the
+    /// Scope root, requiring both a full `resolve_scope` walk from `node`
+    /// up to the root Scope (to find the grant's Scope in the first
+    /// place), and a full `authorize` walk back from `node` towards that
+    /// same root (to find the `Subtree` grant, which only lives at the
+    /// root and is never found before the last hop).
     #[benchmark]
     fn create_scope() {
         let caller: T::AccountId = whitelisted_caller();
-        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        let accessor: T::AccountId = account("accessor", 0, 0);
+        let (root, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller).into(),
+            root,
+            accessor.clone(),
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller.clone()), node);
+        _(RawOrigin::Signed(accessor.clone()), node);
 
         assert_eq!(
             ActiveScope::<T>::get(node).map(|(_, owner)| owner),
-            Some(caller)
+            Some(accessor)
         );
     }
 
@@ -309,10 +322,15 @@ mod benchmarks {
 
     /// One bounded `on_idle` GC step, removing `x` entries from a stale
     /// Scope's `Access(scope_id, *)` prefix in a single `clear_prefix` call.
-    /// `x` is bounded by `MAX_GC_BATCH`, so this covers both a single-item
-    /// removal and the maximum batch.
+    /// `x` is bounded by `MAX_GC_BATCH`, so this covers a single-item
+    /// removal and the maximum batch. `x == 0` is included so the
+    /// zero-item `clear_prefix` completion path (an already-empty prefix
+    /// that still performs the `clear_prefix` storage read/proof work
+    /// before reporting `maybe_cursor: None`) is part of the benchmarked
+    /// domain rather than an extrapolation of the model fitted to `x >= 1`
+    /// samples.
     #[benchmark]
-    fn gc_access(x: Linear<1, MAX_GC_BATCH>) {
+    fn gc_access(x: Linear<0, MAX_GC_BATCH>) {
         let caller: T::AccountId = whitelisted_caller();
         let (root, _) = create_chain::<T>(&caller, 0);
         let (scope_id, _) = ActiveScope::<T>::get(root).expect("root has a Scope");

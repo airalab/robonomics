@@ -21,6 +21,7 @@ use crate::{self as pallet_cps, *};
 use frame_support::{
     assert_noop, assert_ok, derive_impl, pallet_prelude::Weight, traits::Hooks, BoundedVec,
 };
+use parity_scale_codec::Encode;
 use sp_runtime::BuildStorage;
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
@@ -1685,4 +1686,15 @@ fn scope_id_is_never_reused_after_gc_completes() {
         assert_ne!(newer_scope, new_scope);
         assert!(u64::from(newer_scope) > u64::from(old_scope));
     });
+}
+
+/// `GrantMode`'s SCALE encoding is pinned by explicit `#[codec(index = ..)]`
+/// attributes rather than derived from declaration order, so reordering the
+/// variants in source can never silently change already-shipped on-chain
+/// encoding (mirroring the same guarantee already relied upon for
+/// `Capability`, see its `index` doc comment).
+#[test]
+fn grant_mode_scale_indices_are_explicit_and_stable() {
+    assert_eq!(GrantMode::Node.encode(), sp_std::vec![0u8]);
+    assert_eq!(GrantMode::Subtree.encode(), sp_std::vec![1u8]);
 }

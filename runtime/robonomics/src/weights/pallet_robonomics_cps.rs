@@ -29,6 +29,15 @@
 //! layout and GC rework (issue #661), which merged `ScopeRoot`/`ScopeOwner`
 //! into `ActiveScope`, replaced the bool-per-capability `Access` map with a
 //! compact `AccessFlags` bitset, and removed the `Metadata` GC phase.
+//!
+//! Since then, the underlying benchmarks were also corrected to model their
+//! true worst case rather than an already-authorized/no-op shortcut:
+//! `create_scope` now measures a delegated `CreateScope + GrantMode::Subtree`
+//! grant exercised by a non-owner from the Scope root down to a target at
+//! `MAX_TREE_DEPTH` (forcing both the full `resolve_scope` walk to the root
+//! and the full `Access` traversal back down), and `gc_access` now also
+//! samples `items == 0` (an already-empty `clear_prefix` completion), rather
+//! than only `items >= 1`.
 //! TODO(#661): re-run `frame-omni-bencher` (see `Executed Command` below) and
 //! regenerate this file before relying on these weights in production.
 

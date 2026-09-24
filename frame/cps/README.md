@@ -351,9 +351,10 @@ Access-traversal logic client-side:
   authorization logic enforced by `set_meta`/`set_payload`/`create_scope`.
 
 `Capability` is passed directly across the API boundary; its SCALE encoding
-is derived from declaration order, so new capabilities must always be
-appended at the end (never inserted or reordered) to keep the encoding
-stable for existing callers.
+is pinned by explicit `#[codec(index = ..)]` attributes on each variant, so
+new capabilities may be added anywhere without disturbing the encoding of
+existing callers - only never reusing or reassigning an already-shipped
+index matters.
 
 ## Storage Efficiency
 

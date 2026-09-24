@@ -497,10 +497,12 @@ impl Capability {
 )]
 pub enum GrantMode {
     /// The grant applies only to the exact `NodeId` it was made at.
+    #[codec(index = 0)]
     Node,
     /// The grant applies to the node and all its descendants, as long as
     /// they resolve to the same Scope (a `Subtree` grant never crosses a
     /// CPS Scope boundary).
+    #[codec(index = 1)]
     Subtree,
 }
 
@@ -1126,9 +1128,11 @@ pub mod pallet {
         ///
         /// The `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`)
         /// passes `Capability` directly across the API boundary. Its SCALE
-        /// encoding is derived from declaration order, so new capabilities
-        /// must always be appended at the end (never inserted or
-        /// reordered) to keep the encoding stable for existing callers.
+        /// encoding is pinned by explicit `#[codec(index = ..)]` attributes
+        /// on each variant (see [`Capability`]), so new capabilities may be
+        /// added anywhere without disturbing the encoding of existing
+        /// callers - only never reusing or reassigning an already-shipped
+        /// index matters.
         pub fn has_capability(
             node_id: NodeId,
             account_id: &T::AccountId,
