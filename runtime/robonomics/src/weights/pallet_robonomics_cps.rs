@@ -23,6 +23,23 @@
 //! WORST CASE MAP SIZE: `1000000`
 //! HOSTNAME: `boot-02-robonomics`, CPU: `AMD EPYC 4344P 8-Core Processor`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: 1024
+//!
+//! NOTE: `create_scope`, `delete_scope`, `grant_access`, `revoke_access`, and
+//! `gc_access` were hand-adjusted (not re-benchmarked) after the CPS storage
+//! layout and GC rework (issue #661), which merged `ScopeRoot`/`ScopeOwner`
+//! into `ActiveScope`, replaced the bool-per-capability `Access` map with a
+//! compact `AccessFlags` bitset, and removed the `Metadata` GC phase.
+//!
+//! Since then, the underlying benchmarks were also corrected to model their
+//! true worst case rather than an already-authorized/no-op shortcut:
+//! `create_scope` now measures a delegated `CreateScope + GrantMode::Subtree`
+//! grant exercised by a non-owner from the Scope root down to a target at
+//! `MAX_TREE_DEPTH` (forcing both the full `resolve_scope` walk to the root
+//! and the full `Access` traversal back down), and `gc_access` now also
+//! samples `items == 0` (an already-empty `clear_prefix` completion), rather
+//! than only `items >= 1`.
+//! TODO(#661): re-run `frame-omni-bencher` (see `Executed Command` below) and
+//! regenerate this file before relying on these weights in production.
 
 // Executed Command:
 // frame-omni-bencher
@@ -62,8 +79,6 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T> {
 	/// Storage: `CPS::NextNodeId` (r:1 w:1)
 	/// Proof: `CPS::NextNodeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::RootNodes` (r:1 w:1)
-	/// Proof: `CPS::RootNodes` (`max_values`: Some(1), `max_size`: Some(802), added: 1297, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Nodes` (r:0 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
 	fn create_node() -> Weight {
@@ -73,8 +88,8 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 		// Minimum execution time: 5_440_000 picoseconds.
 		Weight::from_parts(6_071_000, 0)
 			.saturating_add(Weight::from_parts(0, 2287))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(3))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
 	/// Storage: `CPS::Nodes` (r:1 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
@@ -100,19 +115,63 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::Nodes` (r:2 w:1)
-	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::NodesByParent` (r:3 w:2)
-	/// Proof: `CPS::NodesByParent` (`max_values`: None, `max_size`: Some(826), added: 3301, mode: `MaxEncodedLen`)
-	fn move_node() -> Weight {
+	/// Storage: `CPS::NextScopeId` (r:1 w:1)
+	/// Proof: `CPS::NextScopeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::ActiveScope` (r:1 w:1)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
+	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	fn create_scope() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `258`
-		//  Estimated: `14788`
-		// Minimum execution time: 15_219_000 picoseconds.
-		Weight::from_parts(16_821_000, 0)
-			.saturating_add(Weight::from_parts(0, 14788))
-			.saturating_add(T::DbWeight::get().reads(5))
-			.saturating_add(T::DbWeight::get().writes(3))
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 9_500_000 picoseconds.
+		Weight::from_parts(10_200_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(4))
+	}
+	/// Storage: `CPS::ActiveScope` (r:1 w:1)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
+	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(16), added: 2491, mode: `MaxEncodedLen`)
+	fn delete_scope() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 8_800_000 picoseconds.
+		Weight::from_parts(9_400_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `CPS::ActiveScope` (r:1 w:0)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:1 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn grant_access() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 9_100_000 picoseconds.
+		Weight::from_parts(9_700_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `CPS::ActiveScope` (r:1 w:0)
+	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:1 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn revoke_access() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `198`
+		//  Estimated: `7889`
+		// Minimum execution time: 8_900_000 picoseconds.
+		Weight::from_parts(9_500_000, 0)
+			.saturating_add(Weight::from_parts(0, 7889))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(1))
 	}
 	/// Storage: `CPS::Nodes` (r:1 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(4424), added: 6899, mode: `MaxEncodedLen`)
@@ -127,5 +186,19 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(Weight::from_parts(0, 7889))
 			.saturating_add(T::DbWeight::get().reads(3))
 			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// Hand-written (not benchmarked): stale Scope GC (issue #661), bounded
+	/// `clear_prefix` cost per `Access` entry removed. TODO(#661): re-run
+	/// `frame-omni-bencher` (see header) and regenerate this file before
+	/// relying on this weight in production.
+	///
+	/// Storage: `CPS::Access` (r:1 w:1)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	fn gc_access(items: u32) -> Weight {
+		Weight::from_parts(3_000_000, 0)
+			.saturating_add(Weight::from_parts(0, 2539))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+			.saturating_mul(items.max(1) as u64)
 	}
 }

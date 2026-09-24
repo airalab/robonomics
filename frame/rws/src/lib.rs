@@ -310,11 +310,16 @@ pub mod pallet {
         /// - Basically this sould be free by concept.
         /// # </weight>
         #[pallet::call_index(0)]
-        // weight-policy-allow: base weight is intentionally 0 because RWS subscription
-        // calls are free by design (Pays::No); the inner call is still charged its own
-        // weight via `call.get_dispatch_info()`. A dedicated `WeightInfo::call()`
-        // benchmark is tracked as follow-up work.
-        #[pallet::weight((0, call.get_dispatch_info().class, Pays::No))]
+        // RWS subscription calls are free by design (`Pays::No`), but the
+        // declared weight must still reserve the inner call's own weight so
+        // it counts against the block weight limit - `Pays::No` only
+        // exempts the caller from fees, it does not exempt the inner call
+        // from being weighed. A dedicated `WeightInfo::call()` benchmark for
+        // this wrapper's own (small, fixed) overhead is tracked as
+        // follow-up work.
+        //
+        // weight-policy-allow: call rely on meta-transaction weight
+        #[pallet::weight((call.get_dispatch_info().call_weight, call.get_dispatch_info().class, Pays::No))]
         pub fn call(
             origin: OriginFor<T>,
             subscription_id: T::AccountId,
