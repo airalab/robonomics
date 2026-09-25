@@ -50,18 +50,17 @@ pub type MaxCleanupCursorLen = ConstU32<MAX_CLEANUP_CURSOR_LEN>;
 pub type CleanupCursor = BoundedVec<u8, MaxCleanupCursorLen>;
 
 /// Hard upper bound on the number of `Access` entries a single
-/// [`Pallet::do_gc_step`] batch may remove via one `clear_prefix` call,
-/// independent of the runtime-configured weight budget.
+/// batch may remove via one `clear_prefix` call, independent of
+/// the runtime-configured weight budget.
 ///
 /// This bounds both the benchmark domain for [`WeightInfo::gc_access`] and
 /// the worst-case `clear_prefix` batch, so raising it requires
 /// regenerating weights rather than silently invalidating them.
 pub const MAX_GC_BATCH: u32 = 64;
 
-/// Deterministic, defensive upper bound on the number of [`Pallet::do_gc_step`]
-/// iterations [`Pallet::run_gc`] performs per `Pallet::on_idle` call,
-/// independent of the weight budget (which already bounds real work; this
-/// only guards against an unexpected zero-progress loop).
+/// Deterministic, defensive upper bound on the number of iterations GC performs per
+/// `Pallet::on_idle` call, independent of the weight budget (which already bounds real work;
+/// this only guards against an unexpected zero-progress loop).
 pub const MAX_GC_ITERATIONS_PER_IDLE: u32 = 32;
 
 /// Combined head/tail cursors of [`CleanupQueue`], replacing what used to be

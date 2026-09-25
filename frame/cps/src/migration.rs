@@ -67,13 +67,6 @@
 //! try-runtime runs rather than shipped). Runtimes should still prove ahead
 //! of time (e.g. by inspecting live/representative state) that this cannot
 //! happen before applying this migration to a chain where it might.
-//!
-//! With `try-runtime` checks enabled, [`UncheckedMigrationToV2::pre_upgrade`]
-//! and [`UncheckedMigrationToV2::post_upgrade`] additionally verify, from a
-//! snapshot of every legacy parent/child edge, that after migration every
-//! edge is reflected on both sides of the reverse index exactly once (no
-//! missing entries, no duplicates), i.e. the invariant above holds for the
-//! whole tree, not just spot checks.
 
 use crate::{
     ActiveScope, Config, MaxChildrenPerNode, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId,

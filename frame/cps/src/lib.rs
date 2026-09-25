@@ -471,7 +471,7 @@ impl Capability {
     /// Stable, explicit bit-pair index used by [`AccessFlags`]. Must never
     /// be derived from SCALE discriminants (which can shift when variants
     /// are reordered) and, once assigned, must never change or be reused.
-    fn index(self) -> u32 {
+    pub fn index(self) -> u32 {
         match self {
             Capability::CreateScope => 0,
             Capability::Write => 1,
@@ -779,12 +779,6 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         /// Bounded, resumable background GC of stale Scope physical state.
-        ///
-        /// Consumes only the idle weight the executive hands it and never
-        /// more; see [`Pallet::run_gc`] and [`Pallet::do_gc_step`] for the
-        /// full algorithm. This is deliberately idle-only - see the
-        /// "Guaranteed progress under sustained load" discussion in the
-        /// module docs for the accepted tradeoff.
         fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
             Self::run_gc(remaining_weight)
         }
@@ -1183,7 +1177,7 @@ pub mod pallet {
         /// `GrantMode::Node` and `GrantMode::Subtree` grants authorize;
         /// on strict ancestors, only `GrantMode::Subtree` grants do. The
         /// walk never crosses the Scope boundary.
-        fn authorize(
+        pub fn authorize(
             node_id: NodeId,
             sender: &T::AccountId,
             capability: Capability,
