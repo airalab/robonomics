@@ -40,6 +40,12 @@ Policy decides when facts may change CPS state.
 Runtime commits the transition.
 ```
 
+The product principle behind the resource layers is:
+
+> **Robonomics is an IoT cloud, not a fee market. A Subscription buys predictable transaction latency, and subscribers within network capacity never compete with each other for block space.**
+
+An alarm or a door lock must act within a known time window even when the network is busy. In a fee market, whoever pays more under congestion wins. Robonomics instead admits only as many Subscriptions as the network can serve and protects their share of every block.
+
 ---
 
 # 1. Runtime-first Architecture
@@ -125,6 +131,15 @@ NodeId
 
 Relocation is represented by creating a new node rather than moving an existing `NodeId`.
 
+The hierarchy is bounded so that every walk up the tree has a known worst-case cost:
+
+```text
+MaxDepth      30 levels
+MaxChildren   100 children per node
+```
+
+Exact values are runtime constants and may be tuned after benchmarking.
+
 ## Meta
 
 `meta` contains durable description and configuration:
@@ -157,7 +172,32 @@ Large and historical data belongs in Storage, not CPS state.
 
 # 4. Scope
 
-A Scope is the administrative and economic boundary of the CPS hierarchy.
+A Scope is the administrative and economic boundary of the CPS hierarchy: an owner, a Subscription payer and local resource limits.
+
+The closest cloud analogy:
+
+```text
+Scope             ~ project
+ScopeResources    ~ project quotas
+Access            ~ API keys
+Subscription      ~ billing account
+```
+
+Unlike most clouds, limits live only on a Scope, not on individual Access grants.
+
+Different subtrees may have different owners. Example:
+
+```text
+building                 Scope A, owner: building operator
+  +-- floor 1
+  |     +-- apartment 3  Scope B, owner: resident
+  |     |     +-- sensor
+  |     |     `-- sensor
+  |     `-- corridor sensor
+  `-- roof station
+```
+
+The operator has no authority inside Scope B. An installer can work in Scope A through Access without owning it.
 
 ```text
 NodeId
@@ -198,6 +238,10 @@ resolve_scope(node)
 nearest ancestor with ActiveScope
 ```
 
+`resolve_scope` is exposed as a runtime API returning `ScopeId`, from which clients read the root, owner and limits.
+
+Scope resolution runs during transaction validation, before any fee is charged. In the worst case it reads one storage item per level, up to `MaxDepth`. Checking authority must never cost a comparable amount to the useful action itself, so the worst case must be benchmarked on both `ref_time` and `proof_size`, and caching of the resolved Scope considered if it is too expensive.
+
 Nested Scopes are hard boundaries for:
 
 ```text
@@ -213,6 +257,8 @@ Creating a new Scope on an existing Scope root replaces the active generation.
 Deleting a non-root Scope removes that boundary and makes its subtree inherit the nearest parent Scope.
 
 `ScopeId` is globally unique and never reused.
+
+Open: who may delete a nested Scope, and whether an issued `CreateScope` grant can be revoked before it is used.
 
 ---
 
@@ -289,6 +335,34 @@ do not require combined capability variants.
 
 Changing Scope control is implemented by granting `CreateScope` to the future owner, who creates a fresh Scope generation.
 
+There is no `Read` capability. CPS state on chain is public. Confidentiality of device data is a matter of encryption or an off-chain layer, not of Access.
+
+## Example: owner-funded sensors
+
+This flow replaces today's RWS `set_devices`, at the level of individual nodes rather than a flat device list:
+
+```text
+owner wins a Subscription at auction
+        |
+        v
+owner creates the CPS tree
+        |
+        v
+owner grants Write + Transaction on sensor nodes
+        |
+        v
+sensor signs a transaction for its NodeId
+with payment mode Subscription(Scope)
+        |
+        v
+runtime checks Scope, owner, Access and remaining resource
+at transaction-pool entry and again before block inclusion
+```
+
+The sensor holds no XRT and needs no Subscription of its own.
+
+Open: whether the transaction is signed by the sensor itself or by an edge gateway on its behalf. This decides which account receives Access.
+
 ---
 
 # 6. Subscription
@@ -340,6 +414,28 @@ Subscription answers:
 > How much resource does this account have and how much may still be consumed?
 
 It does not define authorization.
+
+## Budget
+
+An account has at most one active Subscription. `Subscription(Account)` and `Subscription(Scope)` are two ways of spending it, not two products.
+
+For an Auction source the budget is virtual and XRT-denominated:
+
+```text
+budget per period
+=
+burned winning bid x SubscriptionBudgetMultiplier
+```
+
+- the multiplier is a governance parameter, on the order of 10-100x;
+- the budget expires at the end of the period and does not accumulate;
+- it is shared by Transaction, Storage and Compute accounting, but the transaction rate is capped independently of its size (see section 7).
+
+The budget is expressed in XRT, not in weight, because the real cost of a parachain transaction depends on weight, proof size and block fullness.
+
+The target retail price of a Subscription is about $1. Auction prices float in XRT, so this target has to be met through the multiplier and auction parameters, not assumed.
+
+Open: what happens to the surplus of a winner who bid more than others. Options are equal allocation per Subscription with the surplus usable only for Storage and Compute, or a budget proportional to the bid.
 
 ---
 
@@ -433,6 +529,36 @@ post_dispatch
 ```
 
 Subscription transaction credit is virtual XRT-denominated capacity. It is not transferable or withdrawable XRT.
+
+The Token mode stays as the default Substrate path and the fallback for accounts without a Subscription. Because the Subscription budget is a multiple of the burned bid, paying with real XRT is several times more expensive for the same transaction. Reference point: without a Subscription, 1 XRT should buy on the order of 10-20 datalog transactions.
+
+## Latency guarantees
+
+Predictable latency is what a Subscription sells. The following rules are required for it to hold:
+
+```text
+TransactionBudgetRate
+    a hard per-Subscription rate cap,
+    independent of remaining budget
+
+Sum of all active rates
+    bounded by a governance-set share of block capacity;
+    no new Subscriptions beyond it
+
+Block space reservation
+    Subscription traffic has a reserved share or priority
+    over Token-mode traffic
+
+Fee multiplier
+    frozen for Subscription-paid transactions,
+    otherwise budgets lose value exactly under congestion
+
+Two-dimensional weight
+    capacity is reserved in both ref_time and proof_size,
+    while users see a single unit
+```
+
+The guarantee is expressed as a latency corridor, for example inclusion within 2 / 4 / 6 / 10 seconds, to be measured and published per release.
 
 ---
 
@@ -709,8 +835,42 @@ unified transaction payment extension
 
 Scope-funded Transaction capability
 
+latency guarantees: rate caps, capacity bound, block space reservation
+
+migration of RWS subscriptions and set_devices
+
 Subscription generation GC
 ```
+
+The first release of the new model covers the Transaction resource only. Storage follows, Compute is deferred.
+
+Every runtime release must pass an end-to-end regression test on a fresh Subscription:
+
+```text
+new Subscription -> grant device access -> first device transaction
+```
+
+Devices activated on older Subscriptions can hide a broken activation path, so this test must never reuse existing Subscriptions.
+
+## Embedded clients
+
+Devices should sign and submit full transactions themselves, including the payment-mode extension. Firmware cannot parse runtime metadata, so the runtime repository publishes a normalized static description of the runtime and code generation happens at build time:
+
+```text
+robonomics-runtime-metadata     canonical metadata (#663)
+    `-- robonomics-runtime-embed-api
+            static runtime model (#662)
+                |
+                v
+        embed-codegen in robins
+            C bindings for selected calls (#666)
+                |
+                v
+        API surface fingerprints
+            firmware compatibility across upgrades (#667)
+```
+
+Firmware only needs an update when the part of the runtime it actually uses changes, not on every `spec_version` bump.
 
 ## Phase 3 - Storage
 
@@ -772,7 +932,39 @@ additional protocol capabilities
 
 ---
 
-# 14. Architectural Principles
+# 14. Open Questions
+
+```text
+auction surplus
+    equal allocation, or budget proportional to the bid
+
+SubscriptionBudgetMultiplier
+    value and who sets it (proposed: governance parameter)
+
+per-delegate limits
+    "this key: 2 transactions per day, that one: 5",
+    with accounting per key; today limits exist only per Scope
+
+latency under load
+    fee multiplier, two-dimensional weight and uncapped Token traffic
+
+nested Scope lifecycle
+    who may delete it; can CreateScope be revoked
+
+independent payers in a shared tree
+    require nested Scopes, which removes the network
+    administrator's authority inside them
+
+device vs gateway signing
+    decides which account receives Access
+
+RWS migration
+    moving existing subscriptions and set_devices to the new model
+```
+
+---
+
+# 15. Architectural Principles
 
 ```text
 Governance
