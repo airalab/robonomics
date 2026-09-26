@@ -206,51 +206,6 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(66))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	/// Storage: `CPS::Parents` (r:32 w:0)
-	/// Proof: `CPS::Parents` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ActiveScope` (r:33 w:0)
-	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
-	fn resolve_scope_worst_case() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `929`
-		//  Estimated: `84777`
-		// Minimum execution time: 124_784_000 picoseconds.
-		Weight::from_parts(128_581_000, 0)
-			.saturating_add(Weight::from_parts(0, 84777))
-			.saturating_add(T::DbWeight::get().reads(65))
-	}
-	/// Storage: `CPS::Parents` (r:32 w:0)
-	/// Proof: `CPS::Parents` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::ActiveScope` (r:33 w:0)
-	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Access` (r:33 w:0)
-	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Meta` (r:0 w:1)
-	/// Proof: `CPS::Meta` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
-	fn access_traversal_worst_case() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `1010`
-		//  Estimated: `85569`
-		// Minimum execution time: 213_571_000 picoseconds.
-		Weight::from_parts(221_466_000, 0)
-			.saturating_add(Weight::from_parts(0, 85569))
-			.saturating_add(T::DbWeight::get().reads(98))
-			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	/// Storage: `CPS::CleanupState` (r:1 w:1)
-	/// Proof: `CPS::CleanupState` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
-	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
-	fn gc_enqueue() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `107`
-		//  Estimated: `1501`
-		// Minimum execution time: 3_426_000 picoseconds.
-		Weight::from_parts(3_808_000, 0)
-			.saturating_add(Weight::from_parts(0, 1501))
-			.saturating_add(T::DbWeight::get().reads(1))
-			.saturating_add(T::DbWeight::get().writes(2))
-	}
 	/// Storage: `CPS::CurrentCleanup` (r:1 w:1)
 	/// Proof: `CPS::CurrentCleanup` (`max_values`: Some(1), `max_size`: Some(267), added: 762, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::CleanupState` (r:1 w:1)

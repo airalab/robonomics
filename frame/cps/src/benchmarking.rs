@@ -266,7 +266,7 @@ mod benchmarks {
     /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
     /// of [`Pallet::resolve_scope`] alone: a `MAX_TREE_DEPTH` walk with no
     /// active Scope until the root.
-    #[benchmark]
+    #[benchmark(extra)]
     fn resolve_scope_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
         let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
@@ -280,7 +280,7 @@ mod benchmarks {
     /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
     /// of an `Access` traversal: a `GrantMode::Subtree` `Write` grant at the
     /// Scope root, checked from the deepest descendant.
-    #[benchmark]
+    #[benchmark(extra)]
     fn access_traversal_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
@@ -306,7 +306,7 @@ mod benchmarks {
     /// Diagnostic (non-dispatchable) benchmark measuring the cost of
     /// enqueuing a stale Scope for background GC, as done internally by
     /// `create_scope` (replacement) and `delete_scope`.
-    #[benchmark]
+    #[benchmark(extra)]
     fn gc_enqueue() {
         let caller: T::AccountId = whitelisted_caller();
         let (root, _) = create_chain::<T>(&caller, 0);
