@@ -17,7 +17,11 @@ subxt.workspace = true
 robonomics-runtime-metadata.workspace = true
 
 [dev-dependencies]
+robonomics-chain-spec.workspace = true
 subxt-signer.workspace = true
+subxt = { workspace = true, features = ["light-client"] }
+tokio.workspace = true
+env_logger.workspace = true
 
 [features]
 build-metadata = ["robonomics-runtime-metadata/build-metadata"]
