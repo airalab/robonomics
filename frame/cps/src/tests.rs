@@ -1652,6 +1652,26 @@ fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
 }
 
 #[test]
+fn clear_scope_access_continuation_clears_all_entries_before_scope_removal() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let scope_id = active_scope_id(root).unwrap();
+        grant_many(1, root, 100, 3);
+        assert_eq!(access_count(scope_id), 3);
+
+        Cps::clear_scope_access(scope_id, 1);
+
+        assert_eq!(access_count(scope_id), 0);
+        assert!(Cps::scope_info(scope_id).is_some());
+
+        Scopes::<Runtime>::remove(scope_id);
+        assert_eq!(Cps::scope_info(scope_id), None);
+        assert_eq!(access_count(scope_id), 0);
+    });
+}
+
+#[test]
 fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
