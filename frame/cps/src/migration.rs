@@ -76,10 +76,22 @@
 //! try-runtime runs rather than shipped). Runtimes should still prove ahead
 //! of time (e.g. by inspecting live/representative state) that this cannot
 //! happen before applying this migration to a chain where it might.
+//!
+//! ## `Meta` bound shrink (issue #671)
+//!
+//! Version 1's `meta`/`payload` fields shared a single 2048-byte bound. As
+//! of issue #671, `Meta` and `Payload` use separate bounds: `Payload` grew
+//! to 8 KiB (so every legacy `payload` value still decodes and migrates
+//! unchanged), but `Meta` shrank to 1 KiB. A legacy `meta` value between 1
+//! KiB and 2 KiB would no longer fit the new [`crate::NodeMeta`] bound, so
+//! this migration truncates any such value down to exactly
+//! [`crate::MAX_META_SIZE`] bytes before writing it into the new `Meta` map
+//! (dropping the trailing bytes; no attempt is made to preserve structured
+//! meaning past the new bound).
 
 use crate::{
     Access, AccessCount, ActiveScope, Config, MaxChildrenPerNode, MaxTreeDepth, Meta, NextScopeId,
-    NodeData, NodeId, NodesByParent, Pallet, Parents, Payload, ScopeId,
+    NodeId, NodeMeta, NodesByParent, Pallet, Parents, Payload, ScopeId, MAX_META_SIZE,
 };
 use core::fmt::Debug;
 use frame_support::{
@@ -95,6 +107,14 @@ use sp_std::collections::btree_map::BTreeMap;
 #[cfg(feature = "try-runtime")]
 use sp_std::vec::Vec;
 
+/// Shared bound for v1's `meta`/`payload` fields (2048 bytes), used only to
+/// decode pre-migration storage. Kept separate from [`crate::MaxMetaSize`]
+/// / [`crate::MaxPayloadSize`] since it reflects the legacy on-chain layout,
+/// not the current, now-independent, bounds.
+type OldDataSize = ConstU32<2048>;
+/// Shadow of the shared v1 `meta`/`payload` bounded-vector type.
+type OldNodeData = BoundedVec<u8, OldDataSize>;
+
 /// Shadow of the v1 `Node` layout (with the now-removed `owner`/`path`
 /// fields), used only for decoding pre-migration storage. Declared under the
 /// old `Nodes` storage prefix via [`storage_alias`].
@@ -107,8 +127,8 @@ where
     owner: AccountId,
     #[allow(dead_code)]
     path: BoundedVec<NodeId, MaxTreeDepth>,
-    meta: Option<NodeData>,
-    payload: Option<NodeData>,
+    meta: Option<OldNodeData>,
+    payload: Option<OldNodeData>,
 }
 
 #[storage_alias]
@@ -118,6 +138,16 @@ type Nodes<T: Config> = StorageMap<
     NodeId,
     OldNode<<T as frame_system::Config>::AccountId>,
 >;
+
+/// Truncate a legacy `meta` value down to [`MAX_META_SIZE`] bytes if it
+/// exceeds the new, shrunk `Meta` bound (see module docs). Values already
+/// within the bound are passed through unchanged.
+fn truncate_meta(meta: OldNodeData) -> NodeMeta {
+    let mut bytes = meta.into_inner();
+    bytes.truncate(MAX_META_SIZE as usize);
+    BoundedVec::try_from(bytes)
+        .expect("just truncated to MAX_META_SIZE, so this always fits the bound; qed")
+}
 
 /// Shadow of the now-removed `RootNodes` index (a bare `StorageValue`
 /// holding up to 100 root `NodeId`s). Declared only so this migration can
@@ -189,10 +219,16 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
             }
 
             if let Some(meta) = old.meta.clone() {
-                Meta::<T>::insert(id, meta);
+                // Truncate down to the new, shrunk `MAX_META_SIZE` bound if
+                // needed (see module docs).
+                Meta::<T>::insert(id, truncate_meta(meta));
                 writes = writes.saturating_add(1);
             }
             if let Some(payload) = old.payload.clone() {
+                // The `Payload` bound only grew (2048 -> 8192), so every
+                // legacy value fits unchanged.
+                let payload = BoundedVec::try_from(payload.into_inner())
+                    .expect("old payload bound (2048) fits the new, larger bound (8192); qed");
                 Payload::<T>::insert(id, payload);
                 writes = writes.saturating_add(1);
             }
@@ -364,6 +400,26 @@ mod tests {
         );
     }
 
+    /// Like [`insert_old_node`], but with an explicit legacy `meta` value
+    /// (up to the old, shared 2048-byte bound).
+    fn insert_old_node_with_meta(
+        id: u64,
+        parent: Option<u64>,
+        owner: u64,
+        meta: sp_std::vec::Vec<u8>,
+    ) {
+        Nodes::<Runtime>::insert(
+            NodeId(id),
+            OldNode::<u64> {
+                parent: parent.map(NodeId),
+                owner,
+                path: BoundedVec::try_from(sp_std::vec![]).unwrap(),
+                meta: Some(BoundedVec::try_from(meta).unwrap()),
+                payload: None,
+            },
+        );
+    }
+
     /// After migrating a tree with several parents each holding multiple
     /// children, every `Parents[child] == Some(parent)` link must be
     /// mirrored by `NodesByParent[parent]` containing exactly that child.
@@ -427,6 +483,38 @@ mod tests {
                 result.is_err(),
                 "expected the defensive overflow check to panic under debug_assertions"
             );
+        });
+    }
+
+    /// A legacy `meta` value longer than the new, shrunk `MAX_META_SIZE`
+    /// bound (see module docs, issue #671) must be truncated down to
+    /// exactly `MAX_META_SIZE` bytes rather than rejected or dropped.
+    #[test]
+    fn oversized_legacy_meta_is_truncated_to_new_bound() {
+        new_test_ext().execute_with(|| {
+            let oversized = sp_std::vec![7u8; 2048];
+            insert_old_node_with_meta(0, None, 1, oversized.clone());
+
+            UncheckedMigrationToV2::<Runtime>::on_runtime_upgrade();
+
+            let migrated = Meta::<Runtime>::get(NodeId(0)).expect("meta migrated");
+            assert_eq!(migrated.len(), MAX_META_SIZE as usize);
+            assert_eq!(migrated.into_inner(), oversized[..MAX_META_SIZE as usize]);
+        });
+    }
+
+    /// A legacy `meta` value already within the new `MAX_META_SIZE` bound
+    /// must migrate byte-for-byte, unchanged.
+    #[test]
+    fn undersized_legacy_meta_is_preserved_exactly() {
+        new_test_ext().execute_with(|| {
+            let small = sp_std::vec![9u8; 100];
+            insert_old_node_with_meta(0, None, 1, small.clone());
+
+            UncheckedMigrationToV2::<Runtime>::on_runtime_upgrade();
+
+            let migrated = Meta::<Runtime>::get(NodeId(0)).expect("meta migrated");
+            assert_eq!(migrated.into_inner(), small);
         });
     }
 }

@@ -72,7 +72,15 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::Payload` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Meta` (r:0 w:1)
 	/// Proof: `CPS::Meta` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
-	fn create_node() -> Weight {
+	// NOTE(#671): these three weight functions were regenerated to accept
+	// per-byte components (`meta_bytes`/`payload_bytes`/`bytes`) as part of
+	// making CPS data operations charge by actual payload size, but the
+	// constants below are carried over unchanged from the old
+	// worst-case-only benchmarks and do not yet reflect a real per-byte
+	// linear model. They must be regenerated via
+	// `scripts/runtime-benchmarks.sh` on real benchmark hardware before
+	// production use.
+	fn create_node(_meta_bytes: u32, _payload_bytes: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3266`
 		//  Estimated: `82238`
@@ -90,7 +98,7 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Meta` (r:0 w:1)
 	/// Proof: `CPS::Meta` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
-	fn set_meta() -> Weight {
+	fn set_meta(_bytes: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1010`
 		//  Estimated: `85569`
@@ -108,7 +116,7 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Payload` (r:0 w:1)
 	/// Proof: `CPS::Payload` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
-	fn set_payload() -> Weight {
+	fn set_payload(_bytes: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1047`
 		//  Estimated: `85569`

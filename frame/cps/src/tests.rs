@@ -58,7 +58,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     ext
 }
 
-fn data(bytes: &[u8]) -> NodeData {
+/// Build a bounded byte vector of any bound `S` - used for both `NodeMeta`
+/// (bound = [`MaxMetaSize`]) and `NodePayload` (bound = [`MaxPayloadSize`])
+/// values in these tests; the bound to use is inferred from the calling
+/// context.
+fn data<S: frame_support::traits::Get<u32>>(bytes: &[u8]) -> BoundedVec<u8, S> {
     BoundedVec::try_from(bytes.to_vec()).unwrap()
 }
 
@@ -170,6 +174,40 @@ fn create_node_with_data_works() {
         ));
 
         assert_eq!(Cps::meta_of(NodeId(0)), meta);
+        assert_eq!(Cps::payload_of(NodeId(0)), payload);
+    });
+}
+
+#[test]
+fn create_node_with_meta_only_works() {
+    new_test_ext().execute_with(|| {
+        let meta = Some(data(b"meta"));
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            meta.clone(),
+            None
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), meta);
+        assert_eq!(Cps::payload_of(NodeId(0)), None);
+    });
+}
+
+#[test]
+fn create_node_with_payload_only_works() {
+    new_test_ext().execute_with(|| {
+        let payload = Some(data(b"payload"));
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            payload.clone()
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), None);
         assert_eq!(Cps::payload_of(NodeId(0)), payload);
     });
 }
@@ -325,6 +363,72 @@ fn set_payload_works() {
             payload.clone()
         ));
         assert_eq!(Cps::payload_of(NodeId(0)), payload);
+    });
+}
+
+#[test]
+fn replace_meta_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(data(b"original")),
+            None
+        ));
+        let replacement = Some(data(b"replacement"));
+        assert_ok!(Cps::set_meta(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            replacement.clone()
+        ));
+        assert_eq!(Cps::meta_of(NodeId(0)), replacement);
+    });
+}
+
+#[test]
+fn replace_payload_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(data(b"original"))
+        ));
+        let replacement = Some(data(b"replacement"));
+        assert_ok!(Cps::set_payload(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            replacement.clone()
+        ));
+        assert_eq!(Cps::payload_of(NodeId(0)), replacement);
+    });
+}
+
+#[test]
+fn remove_meta_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(data(b"meta")),
+            None
+        ));
+        assert_ok!(Cps::set_meta(RuntimeOrigin::signed(1), NodeId(0), None));
+        assert_eq!(Cps::meta_of(NodeId(0)), None);
+    });
+}
+
+#[test]
+fn remove_payload_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(data(b"payload"))
+        ));
+        assert_ok!(Cps::set_payload(RuntimeOrigin::signed(1), NodeId(0), None));
+        assert_eq!(Cps::payload_of(NodeId(0)), None);
     });
 }
 
@@ -1197,20 +1301,74 @@ fn all_extrinsics_require_signed_origin() {
 }
 
 #[test]
-fn data_limits_and_empty_values_are_preserved() {
+fn meta_exactly_at_max_size_succeeds() {
     new_test_ext().execute_with(|| {
-        let max = data(&vec![7u8; MAX_DATA_SIZE as usize]);
-        let empty = data(b"");
+        let meta: NodeMeta = BoundedVec::try_from(vec![7u8; MAX_META_SIZE as usize]).unwrap();
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             None,
-            Some(max.clone()),
-            Some(empty.clone())
+            Some(meta.clone()),
+            None
         ));
 
-        assert_eq!(Cps::meta_of(NodeId(0)), Some(max));
-        assert_eq!(Cps::payload_of(NodeId(0)), Some(empty));
+        assert_eq!(Cps::meta_of(NodeId(0)), Some(meta));
+    });
+}
+
+/// The hard size limit is enforced by `NodeMeta`'s `BoundedVec` bound
+/// itself: a value over `MAX_META_SIZE` cannot even be constructed, which
+/// is what makes it impossible to submit a call with an over-limit `meta`
+/// byte vector in the first place (the SCALE decoder rejects such an
+/// extrinsic before the dispatchable ever runs).
+#[test]
+fn meta_above_max_size_is_rejected() {
+    assert!(
+        BoundedVec::<u8, MaxMetaSize>::try_from(vec![7u8; (MAX_META_SIZE + 1) as usize]).is_err()
+    );
+}
+
+#[test]
+fn payload_exactly_at_max_size_succeeds() {
+    new_test_ext().execute_with(|| {
+        let payload: NodePayload =
+            BoundedVec::try_from(vec![7u8; MAX_PAYLOAD_SIZE as usize]).unwrap();
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(payload.clone())
+        ));
+
+        assert_eq!(Cps::payload_of(NodeId(0)), Some(payload));
+    });
+}
+
+/// See [`meta_above_max_size_is_rejected`] - same reasoning, for `Payload`.
+#[test]
+fn payload_above_max_size_is_rejected() {
+    assert!(
+        BoundedVec::<u8, MaxPayloadSize>::try_from(vec![7u8; (MAX_PAYLOAD_SIZE + 1) as usize])
+            .is_err()
+    );
+}
+
+#[test]
+fn empty_data_values_are_preserved() {
+    new_test_ext().execute_with(|| {
+        let empty_meta: NodeMeta = data(b"");
+        let empty_payload: NodePayload = data(b"");
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(empty_meta.clone()),
+            Some(empty_payload.clone())
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), Some(empty_meta));
+        assert_eq!(Cps::payload_of(NodeId(0)), Some(empty_payload));
     });
 }
 
@@ -1680,4 +1838,164 @@ fn scope_id_is_never_reused_after_synchronous_cleanup() {
 fn grant_mode_scale_indices_are_explicit_and_stable() {
     assert_eq!(GrantMode::Node.encode(), sp_std::vec![0u8]);
     assert_eq!(GrantMode::Subtree.encode(), sp_std::vec![1u8]);
+}
+
+/// Verifies that the `#[pallet::weight(...)]` attributes on `create_node`,
+/// `set_meta`, and `set_payload` actually pass the caller-supplied data's
+/// *logical* byte length (not a fixed worst-case constant) into
+/// `WeightInfo`, for `None`, empty, small, and maximum-size values (issue
+/// #671, "Weight inputs" test category).
+///
+/// This needs its own mock runtime: the main `Runtime` above uses
+/// `weights::TestWeightInfo`, which returns a constant zero `Weight`
+/// regardless of its arguments, so it cannot distinguish "byte length
+/// wasn't propagated" from "byte length was propagated, but is irrelevant
+/// to a constant-zero weight". `RecordingWeightInfo` instead records
+/// whatever byte length(s) it was last called with, so a dispatch info
+/// query for a given call can be checked against the length actually
+/// supplied by the test.
+mod weight_component_tests {
+    use super::*;
+    use frame_support::dispatch::GetDispatchInfo;
+    use frame_support::weights::Weight;
+    use std::cell::Cell;
+
+    thread_local! {
+        static LAST_CREATE_NODE: Cell<(u32, u32)> = const { Cell::new((0, 0)) };
+        static LAST_SET_META: Cell<u32> = const { Cell::new(0) };
+        static LAST_SET_PAYLOAD: Cell<u32> = const { Cell::new(0) };
+    }
+
+    pub struct RecordingWeightInfo;
+    impl WeightInfo for RecordingWeightInfo {
+        fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight {
+            LAST_CREATE_NODE.with(|c| c.set((meta_bytes, payload_bytes)));
+            Weight::zero()
+        }
+        fn set_meta(bytes: u32) -> Weight {
+            LAST_SET_META.with(|c| c.set(bytes));
+            Weight::zero()
+        }
+        fn set_payload(bytes: u32) -> Weight {
+            LAST_SET_PAYLOAD.with(|c| c.set(bytes));
+            Weight::zero()
+        }
+        fn delete_node() -> Weight {
+            Weight::zero()
+        }
+        fn create_scope() -> Weight {
+            Weight::zero()
+        }
+        fn delete_scope() -> Weight {
+            Weight::zero()
+        }
+        fn grant_access() -> Weight {
+            Weight::zero()
+        }
+        fn revoke_access() -> Weight {
+            Weight::zero()
+        }
+    }
+
+    type WeightTestBlock = frame_system::mocking::MockBlock<WeightTestRuntime>;
+
+    frame_support::construct_runtime!(
+        pub enum WeightTestRuntime {
+            System: frame_system,
+            Cps: pallet_cps,
+        }
+    );
+
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
+    impl frame_system::Config for WeightTestRuntime {
+        type Block = WeightTestBlock;
+        type AccountData = ();
+        type DbWeight = frame_support::weights::constants::RocksDbWeight;
+    }
+
+    impl pallet_cps::Config for WeightTestRuntime {
+        type RuntimeEvent = RuntimeEvent;
+        type MaxAccessEntriesPerScope = ConstU32<MAX_ACCESS_ENTRIES_PER_SCOPE>;
+        type WeightInfo = RecordingWeightInfo;
+    }
+
+    fn meta_of_len(len: usize) -> Option<NodeMeta> {
+        if len == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(sp_std::vec![7u8; len]).unwrap())
+        }
+    }
+
+    fn payload_of_len(len: usize) -> Option<NodePayload> {
+        if len == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(sp_std::vec![7u8; len]).unwrap())
+        }
+    }
+
+    #[test]
+    fn set_meta_weight_uses_actual_byte_length() {
+        // (input, expected logical length passed to `WeightInfo::set_meta`)
+        let cases: [(Option<NodeMeta>, u32); 4] = [
+            (None, 0),
+            (Some(BoundedVec::try_from(sp_std::vec![]).unwrap()), 0),
+            (meta_of_len(10), 10),
+            (meta_of_len(MAX_META_SIZE as usize), MAX_META_SIZE),
+        ];
+
+        for (meta, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::set_meta {
+                node_id: NodeId(0),
+                meta,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_SET_META.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
+
+    #[test]
+    fn set_payload_weight_uses_actual_byte_length() {
+        let cases: [(Option<NodePayload>, u32); 4] = [
+            (None, 0),
+            (Some(BoundedVec::try_from(sp_std::vec![]).unwrap()), 0),
+            (payload_of_len(10), 10),
+            (payload_of_len(MAX_PAYLOAD_SIZE as usize), MAX_PAYLOAD_SIZE),
+        ];
+
+        for (payload, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::set_payload {
+                node_id: NodeId(0),
+                payload,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_SET_PAYLOAD.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
+
+    #[test]
+    fn create_node_weight_uses_actual_byte_lengths() {
+        type Case = (Option<NodeMeta>, Option<NodePayload>, (u32, u32));
+        let cases: [Case; 4] = [
+            (None, None, (0, 0)),
+            (meta_of_len(10), None, (10, 0)),
+            (None, payload_of_len(10), (0, 10)),
+            (
+                meta_of_len(MAX_META_SIZE as usize),
+                payload_of_len(MAX_PAYLOAD_SIZE as usize),
+                (MAX_META_SIZE, MAX_PAYLOAD_SIZE),
+            ),
+        ];
+
+        for (meta, payload, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::create_node {
+                parent_id: None,
+                meta,
+                payload,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_CREATE_NODE.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
 }

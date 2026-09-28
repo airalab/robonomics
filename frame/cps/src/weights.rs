@@ -23,9 +23,9 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-    fn create_node() -> Weight;
-    fn set_meta() -> Weight;
-    fn set_payload() -> Weight;
+    fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight;
+    fn set_meta(bytes: u32) -> Weight;
+    fn set_payload(bytes: u32) -> Weight;
     fn delete_node() -> Weight;
     fn create_scope() -> Weight;
     fn delete_scope() -> Weight;
@@ -38,13 +38,13 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-    fn create_node() -> Weight {
+    fn create_node(_meta_bytes: u32, _payload_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn set_meta() -> Weight {
+    fn set_meta(_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn set_payload() -> Weight {
+    fn set_payload(_bytes: u32) -> Weight {
         Weight::zero()
     }
     fn delete_node() -> Weight {

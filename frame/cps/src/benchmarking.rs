@@ -47,9 +47,18 @@ fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> (NodeId, NodeId
     (root.unwrap(), parent.unwrap())
 }
 
-/// Use the full bound so reads and writes account for maximum encoded data.
-fn maximum_data() -> NodeData {
-    BoundedVec::try_from(vec![1u8; MAX_DATA_SIZE as usize]).unwrap()
+/// Build a maximum-size `NodeMeta` value. Used as the pre-existing value in
+/// `set_meta`/`set_payload`'s `b = 0` (removal) benchmark point, so the
+/// zero-byte point still measures a real storage-delete path (see issue
+/// #671, point 7), and as the worst-case data component wherever a fixed
+/// maximum-size value (rather than a size sweep) is appropriate.
+fn max_meta() -> NodeMeta {
+    BoundedVec::try_from(vec![1u8; MAX_META_SIZE as usize]).unwrap()
+}
+
+/// Build a maximum-size `NodePayload` value. See [`max_meta`].
+fn max_payload() -> NodePayload {
+    BoundedVec::try_from(vec![1u8; MAX_PAYLOAD_SIZE as usize]).unwrap()
 }
 
 /// Fill the parent's index to its limit, leaving the target as its last child.
@@ -87,13 +96,21 @@ mod benchmarks {
     use super::*;
 
     #[benchmark]
-    fn create_node() {
+    fn create_node(m: Linear<0, MAX_META_SIZE>, p: Linear<0, MAX_PAYLOAD_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
         let (_, parent) = create_chain::<T>(&caller, MAX_TREE_DEPTH - 1);
         fill_siblings::<T>(&caller, parent, MAX_CHILDREN_PER_NODE - 1);
         let node = NextNodeId::<T>::get();
-        let meta = Some(maximum_data());
-        let payload = Some(maximum_data());
+        let meta: Option<NodeMeta> = if m == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(vec![1u8; m as usize]).unwrap())
+        };
+        let payload: Option<NodePayload> = if p == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(vec![1u8; p as usize]).unwrap())
+        };
 
         #[extrinsic_call]
         _(
@@ -115,8 +132,14 @@ mod benchmarks {
     /// Worst case: `sender` is not the Scope owner and is authorized through
     /// an `inherited = true` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_TREE_DEPTH` walk to be validated.
+    ///
+    /// `node` always starts with a maximum-size existing `Meta` value, so
+    /// the `b = 0` point (which sets `meta` to `None`, removing it) still
+    /// measures a real deletion rather than an unrealistically cheap no-op
+    /// (see issue #671, point 7); every other point (`b > 0`) measures a
+    /// same-size-domain replacement.
     #[benchmark]
-    fn set_meta() {
+    fn set_meta(b: Linear<0, MAX_META_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
 
@@ -128,8 +151,12 @@ mod benchmarks {
             Capability::Write,
             GrantMode::Subtree,
         ));
-        Meta::<T>::insert(node, maximum_data());
-        let meta = Some(maximum_data());
+        Meta::<T>::insert(node, max_meta());
+        let meta: Option<NodeMeta> = if b == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(vec![1u8; b as usize]).unwrap())
+        };
 
         #[extrinsic_call]
         _(RawOrigin::Signed(accessor), node, meta.clone());
@@ -140,8 +167,14 @@ mod benchmarks {
     /// Worst case: `sender` is not the Scope owner and is authorized through
     /// an `inherited = true` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_TREE_DEPTH` walk to be validated.
+    ///
+    /// `node` always starts with a maximum-size existing `Payload` value, so
+    /// the `b = 0` point (which sets `payload` to `None`, removing it) still
+    /// measures a real deletion rather than an unrealistically cheap no-op
+    /// (see issue #671, point 7); every other point (`b > 0`) measures a
+    /// same-size-domain replacement.
     #[benchmark]
-    fn set_payload() {
+    fn set_payload(b: Linear<0, MAX_PAYLOAD_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
 
@@ -153,9 +186,13 @@ mod benchmarks {
             Capability::Write,
             GrantMode::Subtree,
         ));
-        Meta::<T>::insert(node, maximum_data());
-        Payload::<T>::insert(node, maximum_data());
-        let payload = Some(maximum_data());
+        Meta::<T>::insert(node, max_meta());
+        Payload::<T>::insert(node, max_payload());
+        let payload: Option<NodePayload> = if b == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(vec![1u8; b as usize]).unwrap())
+        };
 
         #[extrinsic_call]
         _(RawOrigin::Signed(accessor), node, payload.clone());
@@ -173,8 +210,8 @@ mod benchmarks {
         assert_ok!(Pallet::<T>::create_node(
             RawOrigin::Signed(caller.clone()).into(),
             Some(parent),
-            Some(maximum_data()),
-            Some(maximum_data()),
+            Some(max_meta()),
+            Some(max_payload()),
         ));
 
         #[extrinsic_call]

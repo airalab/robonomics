@@ -32,7 +32,8 @@
 //!      root node and `Some(parent_id)` otherwise
 //!    - **Immutable** once a node is created - there is no way to change it
 //!
-//! 2. **`Meta`** / **`Payload`**: Mapping `NodeId` → `NodeData`
+//! 2. **`Meta`**: Mapping `NodeId` → `NodeMeta` (≤1 KiB)
+//!    / **`Payload`**: Mapping `NodeId` → `NodePayload` (≤8 KiB)
 //!    - An entry is present only when the corresponding field has been set;
 //!      absence means "unset", not "empty"
 //!
@@ -179,11 +180,11 @@
 //! ### Creating a Root Node
 //!
 //! ```ignore
-//! use pallet_robonomics_cps::NodeData;
+//! use pallet_robonomics_cps::NodeMeta;
 //! use frame_support::BoundedVec;
 //!
 //! // Plain metadata
-//! let meta = Some(BoundedVec::try_from(b"sensor_config".to_vec()).unwrap());
+//! let meta: Option<NodeMeta> = Some(BoundedVec::try_from(b"sensor_config".to_vec()).unwrap());
 //!
 //! // Create root (parent = None) - the caller becomes the owner of a new
 //! // Scope allocated for this root.
@@ -193,11 +194,11 @@
 //! ### Creating a Child Node
 //!
 //! ```ignore
-//! use pallet_robonomics_cps::NodeId;
+//! use pallet_robonomics_cps::{NodeId, NodePayload};
 //!
 //! // Data can be encrypted by client before submission
 //! let encrypted_bytes = client_side_encrypt(sensitive_data);
-//! let payload = Some(BoundedVec::try_from(encrypted_bytes).unwrap());
+//! let payload: Option<NodePayload> = Some(BoundedVec::try_from(encrypted_bytes).unwrap());
 //!
 //! // Create child under node 0. The caller must hold `Write` authority
 //! // (Scope owner, or matching Access) over node 0's resolved Scope.
@@ -278,11 +279,19 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
-/// Maximum data size for node metadata and payload.
+/// Maximum size for node metadata.
 ///
-/// Set to 2048 bytes to accommodate typical sensor readings, configuration data,
-/// and encrypted payloads while preventing DoS attacks via large data submissions.
-pub const MAX_DATA_SIZE: u32 = 2048;
+/// Set to 1 KiB: metadata is meant to hold small structured information
+/// (e.g. a sensor's configuration), not application payloads. Large objects
+/// should remain external to CPS and be referenced by hash/CID/etc.
+pub const MAX_META_SIZE: u32 = 1024;
+
+/// Maximum size for node payload.
+///
+/// Set to 8 KiB to accommodate typical sensor readings, application data,
+/// and encrypted payloads while preventing DoS attacks via large data
+/// submissions.
+pub const MAX_PAYLOAD_SIZE: u32 = 8192;
 
 /// Maximum tree depth (number of ancestors) a node may have.
 ///
@@ -295,16 +304,32 @@ pub const MAX_TREE_DEPTH: u32 = 32;
 /// Bounds the size of the `NodesByParent` index entry for any given node.
 pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 
-/// [`ConstU32`] wrapper around [`MAX_DATA_SIZE`] for use as a `BoundedVec` bound.
-pub type MaxDataSize = ConstU32<MAX_DATA_SIZE>;
+/// [`ConstU32`] wrapper around [`MAX_META_SIZE`] for use as a `BoundedVec` bound.
+pub type MaxMetaSize = ConstU32<MAX_META_SIZE>;
+/// [`ConstU32`] wrapper around [`MAX_PAYLOAD_SIZE`] for use as a `BoundedVec` bound.
+pub type MaxPayloadSize = ConstU32<MAX_PAYLOAD_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_TREE_DEPTH`] for use as a `BoundedVec` bound.
 pub type MaxTreeDepth = ConstU32<MAX_TREE_DEPTH>;
 /// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 
-/// Type alias for node data - bounded vector of bytes.
+/// Type alias for node metadata - bounded vector of bytes.
 ///
-/// Stores data as plain bytes up to MAX_DATA_SIZE (2048 bytes).
+/// Stores small structured information as plain bytes up to
+/// `MAX_META_SIZE` (1 KiB). For sensitive data, encryption should be
+/// handled at the client level before storing in the pallet.
+///
+/// # Client-Side Encryption Recommendation
+///
+/// For encryption use cases, applications should:
+/// 1. Encrypt sensitive data on the client side
+/// 2. Store encrypted bytes in this BoundedVec
+/// 3. Decrypt data after retrieving from chain
+pub type NodeMeta = BoundedVec<u8, MaxMetaSize>;
+
+/// Type alias for node payload - bounded vector of bytes.
+///
+/// Stores application data as plain bytes up to `MAX_PAYLOAD_SIZE` (8 KiB).
 /// For sensitive data, encryption should be handled at the client level
 /// before storing in the pallet.
 ///
@@ -314,7 +339,7 @@ pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 /// 1. Encrypt sensitive data on the client side
 /// 2. Store encrypted bytes in this BoundedVec
 /// 3. Decrypt data after retrieving from chain
-pub type NodeData = BoundedVec<u8, MaxDataSize>;
+pub type NodePayload = BoundedVec<u8, MaxPayloadSize>;
 
 /// Node identifier newtype with compact encoding for efficient storage.
 #[derive(
@@ -629,12 +654,12 @@ pub mod pallet {
     /// Node metadata. An entry is present only when metadata has been set.
     #[pallet::storage]
     #[pallet::getter(fn meta_of)]
-    pub type Meta<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, NodeData>;
+    pub type Meta<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, NodeMeta>;
 
     /// Node payload. An entry is present only when a payload has been set.
     #[pallet::storage]
     #[pallet::getter(fn payload_of)]
-    pub type Payload<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, NodeData>;
+    pub type Payload<T: Config> = StorageMap<_, Blake2_128Concat, NodeId, NodePayload>;
 
     /// Next Scope ID counter. `ScopeId` is globally unique and never reused.
     #[pallet::storage]
@@ -761,12 +786,15 @@ pub mod pallet {
         /// delegated `Access`) only authorizes `Meta`/`Payload` mutation,
         /// never hierarchy changes. The child does not get its own Scope.
         #[pallet::call_index(0)]
-        #[pallet::weight(T::WeightInfo::create_node())]
+        #[pallet::weight(T::WeightInfo::create_node(
+            meta.as_ref().map_or(0, |v| v.len() as u32),
+            payload.as_ref().map_or(0, |v| v.len() as u32),
+        ))]
         pub fn create_node(
             origin: OriginFor<T>,
             parent_id: Option<NodeId>,
-            meta: Option<NodeData>,
-            payload: Option<NodeData>,
+            meta: Option<NodeMeta>,
+            payload: Option<NodePayload>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -843,11 +871,11 @@ pub mod pallet {
 
         /// Set node metadata
         #[pallet::call_index(1)]
-        #[pallet::weight(T::WeightInfo::set_meta())]
+        #[pallet::weight(T::WeightInfo::set_meta(meta.as_ref().map_or(0, |v| v.len() as u32)))]
         pub fn set_meta(
             origin: OriginFor<T>,
             node_id: NodeId,
-            meta: Option<NodeData>,
+            meta: Option<NodeMeta>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
@@ -864,11 +892,11 @@ pub mod pallet {
 
         /// Set node payload
         #[pallet::call_index(2)]
-        #[pallet::weight(T::WeightInfo::set_payload())]
+        #[pallet::weight(T::WeightInfo::set_payload(payload.as_ref().map_or(0, |v| v.len() as u32)))]
         pub fn set_payload(
             origin: OriginFor<T>,
             node_id: NodeId,
-            payload: Option<NodeData>,
+            payload: Option<NodePayload>,
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
