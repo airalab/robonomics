@@ -400,10 +400,13 @@ mod benchmarks {
             Pallet::<T>::scope_info(scope_id).map(|info| info.access_count),
             Some(MAX_ACCESS_ENTRIES_PER_SCOPE)
         );
+        let access_items = Pallet::<T>::scope_info(scope_id)
+            .map(|info| info.access_count)
+            .expect("scope exists");
 
         #[block]
         {
-            Pallet::<T>::clear_scope_access(scope_id);
+            Pallet::<T>::clear_scope_access(scope_id, access_items);
         }
 
         assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
