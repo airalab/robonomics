@@ -18,7 +18,7 @@
 //! Tests for pallet-robonomics-cps
 
 use crate::{self as pallet_cps, *};
-use frame_support::{assert_noop, assert_ok, derive_impl, traits::ConstU32, BoundedVec};
+use frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
 use parity_scale_codec::Encode;
 use sp_runtime::BuildStorage;
 
@@ -38,13 +38,8 @@ impl frame_system::Config for Runtime {
     type DbWeight = frame_support::weights::constants::RocksDbWeight;
 }
 
-/// Kept small (well below `MAX_TREE_DEPTH`/`MAX_CHILDREN_PER_NODE`) so tests
-/// that fill a Scope to its bound don't need to create huge trees.
-pub const MAX_ACCESS_ENTRIES_PER_SCOPE: u32 = 8;
-
 impl pallet_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type MaxAccessEntriesPerScope = ConstU32<MAX_ACCESS_ENTRIES_PER_SCOPE>;
     type WeightInfo = weights::TestWeightInfo;
 }
 
@@ -67,7 +62,27 @@ fn data<S: frame_support::traits::Get<u32>>(bytes: &[u8]) -> BoundedVec<u8, S> {
 }
 
 fn active_scope_id(node_id: NodeId) -> Option<ScopeId> {
-    Cps::active_scope(node_id).map(|(scope_id, _)| scope_id)
+    Cps::node_info(node_id).and_then(|info| info.scope)
+}
+
+/// `Some(Some(parent))` / `Some(None)` mirror the pre-refactor `Parents`
+/// accessor shape: outer `Option` is node existence, inner is "has a
+/// parent". `None` means the node does not exist.
+fn parent_of(node_id: NodeId) -> Option<Option<NodeId>> {
+    Cps::node_info(node_id).map(|info| info.parent)
+}
+
+/// Mirrors the pre-refactor `ActiveScope` accessor: `Some((scope_id,
+/// owner))` only if `node_id` is itself the root of an active Scope.
+fn active_scope(node_id: NodeId) -> Option<(ScopeId, u64)> {
+    let scope_id = Cps::node_info(node_id).and_then(|info| info.scope)?;
+    let owner = Cps::scope_info(scope_id)?.owner;
+    Some((scope_id, owner))
+}
+
+/// Mirrors the pre-refactor `NodesByParent` accessor.
+fn children_of(node_id: NodeId) -> BoundedVec<NodeId, MaxChildrenPerNode> {
+    Cps::children_of(node_id)
 }
 
 fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, expected_owner: u64) {
@@ -80,8 +95,8 @@ fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, ex
         })
     );
     assert_eq!(
-        Cps::active_scope(expected_root),
-        Some((expected_id, expected_owner))
+        Cps::scope_info(expected_id).map(|info| info.owner),
+        Some(expected_owner)
     );
 }
 
@@ -102,14 +117,14 @@ fn access_count(scope_id: ScopeId) -> usize {
     Access::<Runtime>::iter_prefix(scope_id).count()
 }
 
-/// Asserts that [`AccessCount`] exactly matches the number of physical
-/// `Access` entries actually stored under `scope_id` - the invariant that
-/// makes single-call synchronous Scope cleanup sound.
+/// Asserts that [`ScopeInfo::access_count`] exactly matches the number of
+/// physical `Access` entries actually stored under `scope_id` - the
+/// invariant that makes single-call synchronous Scope cleanup sound.
 fn assert_access_count_consistent(scope_id: ScopeId) {
     assert_eq!(
-        Cps::access_count(scope_id) as usize,
-        access_count(scope_id),
-        "AccessCount out of sync with actual Access entries for {scope_id:?}"
+        Cps::scope_info(scope_id).map(|info| info.access_count as usize),
+        Some(access_count(scope_id)),
+        "ScopeInfo.access_count out of sync with actual Access entries for {scope_id:?}"
     );
 }
 
@@ -126,8 +141,8 @@ fn create_root_node_works() {
         ));
 
         assert_eq!(Cps::next_node_id(), NodeId(1));
-        assert_eq!(Cps::parent_of(NodeId(0)), Some(None));
-        assert_eq!(Cps::active_scope(NodeId(0)), Some((ScopeId(0), account)));
+        assert_eq!(parent_of(NodeId(0)), Some(None));
+        assert_eq!(active_scope(NodeId(0)), Some((ScopeId(0), account)));
         assert_eq!(Cps::next_scope_id(), ScopeId(1));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), account);
     });
@@ -151,11 +166,11 @@ fn create_child_node_works() {
             None
         ));
 
-        assert_eq!(Cps::parent_of(NodeId(1)), Some(Some(NodeId(0))));
-        assert_eq!(Cps::active_scope(NodeId(1)), None);
+        assert_eq!(parent_of(NodeId(1)), Some(Some(NodeId(0))));
+        assert_eq!(active_scope(NodeId(1)), None);
         assert_scope(NodeId(1), ScopeId(0), NodeId(0), account);
-        assert_eq!(Cps::nodes_by_parent(NodeId(0)).len(), 1);
-        assert_eq!(Cps::nodes_by_parent(NodeId(0))[0], NodeId(1));
+        assert_eq!(children_of(NodeId(0)).len(), 1);
+        assert_eq!(children_of(NodeId(0))[0], NodeId(1));
     });
 }
 
@@ -243,7 +258,7 @@ fn create_child_without_owner_fails() {
 }
 
 #[test]
-fn max_tree_depth_enforced() {
+fn max_scope_depth_enforced() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
         assert_ok!(Cps::create_node(
@@ -253,7 +268,7 @@ fn max_tree_depth_enforced() {
             None
         ));
 
-        for i in 0..MAX_TREE_DEPTH {
+        for i in 0..MAX_SCOPE_DEPTH {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
@@ -262,10 +277,10 @@ fn max_tree_depth_enforced() {
             ));
         }
 
-        let deepest = NodeId(MAX_TREE_DEPTH as u64);
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64);
         assert_noop!(
             Cps::create_node(RuntimeOrigin::signed(account), Some(deepest), None, None),
-            Error::<Runtime>::MaxDepthExceeded
+            Error::<Runtime>::MaxScopeDepthExceeded
         );
         assert_scope(deepest, ScopeId(0), NodeId(0), account);
         assert_ok!(Cps::set_meta(
@@ -274,6 +289,41 @@ fn max_tree_depth_enforced() {
             Some(data(b"at limit"))
         ));
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), deepest));
+    });
+}
+
+#[test]
+fn create_scope_resets_local_depth_to_zero() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        // Walk all the way to the scope-depth limit under the root Scope.
+        for i in 0..MAX_SCOPE_DEPTH {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(i as u64)),
+                None,
+                None
+            ));
+        }
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64);
+
+        // Carving out a fresh Scope at `deepest` resets its local depth to
+        // zero, so a child can immediately be created under it even though
+        // the *global* tree depth already exceeds `MAX_SCOPE_DEPTH`.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(account), deepest));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(deepest),
+            None,
+            None
+        ));
     });
 }
 
@@ -310,7 +360,7 @@ fn max_children_per_node_enforced() {
             None
         ));
 
-        let children = Cps::nodes_by_parent(NodeId(0));
+        let children = children_of(NodeId(0));
         assert_eq!(children.len(), MAX_CHILDREN_PER_NODE as usize);
         assert!(!children.contains(&NodeId(1)));
         assert_eq!(children.last(), Some(&next));
@@ -460,8 +510,8 @@ fn delete_leaf_node_works() {
         ));
 
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(1)));
-        assert_eq!(Cps::parent_of(NodeId(1)), None);
-        assert!(Cps::nodes_by_parent(NodeId(0)).is_empty());
+        assert_eq!(parent_of(NodeId(1)), None);
+        assert!(children_of(NodeId(0)).is_empty());
     });
 }
 
@@ -474,10 +524,10 @@ fn delete_root_node_synchronously_clears_scope_access() {
 
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(0)));
 
-        assert_eq!(Cps::parent_of(NodeId(0)), None);
-        assert_eq!(Cps::active_scope(NodeId(0)), None);
+        assert_eq!(Cps::node_info(NodeId(0)).and_then(|i| i.parent), None);
+        assert_eq!(active_scope(NodeId(0)), None);
         assert_eq!(access_count(ScopeId(0)), 0);
-        assert_eq!(Cps::access_count(ScopeId(0)), 0);
+        assert_eq!(access_count(ScopeId(0)), 0);
     });
 }
 
@@ -618,7 +668,7 @@ fn resolve_scope_missing_node_fails() {
 fn root_scope_created_on_root_creation() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_eq!(Cps::active_scope(NodeId(0)), Some((ScopeId(0), 1)));
+        assert_eq!(active_scope(NodeId(0)), Some((ScopeId(0), 1)));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), 1);
     });
 }
@@ -635,7 +685,7 @@ fn owner_can_create_nested_scope_on_child() {
         ));
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
-        let new_scope = Cps::active_scope(NodeId(1)).unwrap();
+        let new_scope = active_scope(NodeId(1)).unwrap();
         assert_ne!(new_scope.0, ScopeId(0));
         assert_eq!(new_scope, (ScopeId(1), 1));
         assert_scope(NodeId(1), ScopeId(1), NodeId(1), 1);
@@ -658,13 +708,13 @@ fn delegated_create_scope_can_replace_existing_scope_root() {
         ));
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), root));
 
-        let new_scope = Cps::active_scope(root).unwrap();
+        let new_scope = active_scope(root).unwrap();
         assert_ne!(new_scope.0, old_scope);
         assert_eq!(new_scope.1, 2);
         // The old Scope's Access entries (including the delegation just
         // exercised) are synchronously cleared as part of replacement.
         assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
     });
 }
 
@@ -700,14 +750,14 @@ fn scope_replacement_allocates_fresh_id_and_clears_old_access_synchronously() {
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), japan));
 
-        let new_scope = Cps::active_scope(japan).unwrap();
+        let new_scope = active_scope(japan).unwrap();
         assert_ne!(new_scope.0, old_scope);
         assert_eq!(new_scope.1, 2);
         // The old Scope's `Access` entry is synchronously cleared as part
         // of replacement - it no longer physically exists at all.
         assert!(!Access::<Runtime>::contains_key(old_scope, (japan, 2)));
         assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
         assert_noop!(
             Cps::set_meta(RuntimeOrigin::signed(1), japan, Some(data(b"x"))),
             Error::<Runtime>::AccessDenied
@@ -853,13 +903,18 @@ fn create_scope_subtree_capability_authorizes_descendants() {
         // A `Subtree` grant on an ancestor authorizes carving out a
         // brand-new nested Scope on any descendant within the same Scope.
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), child));
-        let new_scope = Cps::active_scope(child).unwrap();
+        let new_scope = active_scope(child).unwrap();
         assert_eq!(new_scope.1, 2);
     });
 }
 
+// A Scope boundary can no longer be removed independently of its node
+// (there is no `delete_scope` extrinsic anymore): it only disappears when
+// its root node is deleted, and `delete_node` stays leaf-only. The tests
+// below replace the old `delete_scope`-based coverage.
+
 #[test]
-fn delete_scope_falls_back_to_parent_scope() {
+fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_ok!(Cps::create_node(
@@ -868,44 +923,11 @@ fn delete_scope_falls_back_to_parent_scope() {
             None,
             None
         ));
-        let root = NodeId(0);
         let japan = NodeId(1);
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
         let japan_scope = active_scope_id(japan).unwrap();
         assert_scope(japan, japan_scope, japan, 1);
-
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
-        assert_eq!(Cps::active_scope(japan), None);
-        assert_scope(japan, ScopeId(0), root, 1);
-        assert_eq!(Cps::access_count(japan_scope), 0);
-    });
-}
-
-#[test]
-fn root_scope_deletion_is_rejected() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::signed(1), NodeId(0)),
-            Error::<Runtime>::CannotDeleteRootScope
-        );
-    });
-}
-
-#[test]
-fn delete_scope_requires_owner_not_inherited_access() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_ok!(Cps::create_node(
-            RuntimeOrigin::signed(1),
-            Some(NodeId(0)),
-            None,
-            None
-        ));
-        let japan = NodeId(1);
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
-
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             japan,
@@ -913,15 +935,51 @@ fn delete_scope_requires_owner_not_inherited_access() {
             Capability::Write,
             GrantMode::Subtree,
         ));
+        assert_eq!(access_count(japan_scope), 1);
+
+        // `japan` is a leaf (no children), so it can be deleted directly;
+        // deleting a Scope-root leaf synchronously clears both its
+        // `ScopeInfo` and its `Access` entries.
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), japan));
+
+        assert_eq!(parent_of(japan), None);
+        assert_eq!(Cps::scope_info(japan_scope), None);
+        assert_eq!(access_count(japan_scope), 0);
+        assert!(children_of(NodeId(0)).is_empty());
+    });
+}
+
+#[test]
+fn delete_node_on_scope_root_with_children_is_rejected() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let japan = NodeId(1);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(japan),
+            None,
+            None
+        ));
+
+        // `delete_node` stays leaf-only, so a Scope root with children
+        // cannot be deleted (and its Scope therefore cannot disappear)
+        // until every descendant is removed first.
         assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::signed(2), japan),
-            Error::<Runtime>::NotScopeOwner
+            Cps::delete_node(RuntimeOrigin::signed(1), japan),
+            Error::<Runtime>::NodeHasChildren
         );
     });
 }
 
 #[test]
-fn nested_scope_preserved_after_parent_scope_deletion() {
+fn nested_scope_unaffected_by_sibling_operations() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let global = NodeId(0);
@@ -943,10 +1001,22 @@ fn nested_scope_preserved_after_parent_scope_deletion() {
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), university));
         let uni_scope = active_scope_id(university).unwrap();
 
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
-        assert_eq!(Cps::active_scope(university), Some((uni_scope, 1)));
+        // A sibling Scope root of `japan` is created and deleted; `japan`'s
+        // nested Scope (and its descendant `university`'s Scope) are
+        // unaffected since Scope boundaries are now purely per-node.
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(global),
+            None,
+            None
+        ));
+        let korea = NodeId(3);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), korea));
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), korea));
+
+        assert_eq!(active_scope(university), Some((uni_scope, 1)));
         assert_scope(university, uni_scope, university, 1);
-        assert_scope(japan, ScopeId(0), global, 1);
+        assert_scope(japan, active_scope_id(japan).unwrap(), japan, 1);
     });
 }
 
@@ -1116,7 +1186,7 @@ fn access_flags_bit_packing_and_storage_cleanup() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(scope_id), 1);
+        assert_eq!(access_count(scope_id), 1);
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             root,
@@ -1126,7 +1196,7 @@ fn access_flags_bit_packing_and_storage_cleanup() {
         ));
         // Adding a second capability to the same (node, principal) entry
         // does not consume another slot.
-        assert_eq!(Cps::access_count(scope_id), 1);
+        assert_eq!(access_count(scope_id), 1);
 
         let stored = Cps::access(scope_id, key);
         assert!(stored.contains(Capability::CreateScope));
@@ -1144,7 +1214,7 @@ fn access_flags_bit_packing_and_storage_cleanup() {
         assert!(Access::<Runtime>::contains_key(scope_id, key));
         // A capability remains, so the entry - and the count - are
         // untouched by this revoke.
-        assert_eq!(Cps::access_count(scope_id), 1);
+        assert_eq!(access_count(scope_id), 1);
         let stored = Cps::access(scope_id, key);
         assert!(stored.contains(Capability::CreateScope));
         assert!(!stored.contains(Capability::Write));
@@ -1159,7 +1229,7 @@ fn access_flags_bit_packing_and_storage_cleanup() {
         assert!(Cps::access(scope_id, key).is_empty());
         // The last capability was revoked, so the entry is fully removed
         // and the slot is freed.
-        assert_eq!(Cps::access_count(scope_id), 0);
+        assert_eq!(access_count(scope_id), 0);
     });
 }
 
@@ -1277,10 +1347,6 @@ fn all_extrinsics_require_signed_origin() {
         );
         assert_noop!(
             Cps::create_scope(RuntimeOrigin::none(), NodeId(0)),
-            sp_runtime::DispatchError::BadOrigin
-        );
-        assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::none(), NodeId(0)),
             sp_runtime::DispatchError::BadOrigin
         );
         assert_noop!(
@@ -1416,6 +1482,7 @@ fn successful_operations_emit_exact_events() {
                     2,
                     Capability::Write,
                 )),
+                RuntimeEvent::Cps(Event::ScopeDeleted(ScopeId(0), NodeId(0))),
                 RuntimeEvent::Cps(Event::NodeDeleted(NodeId(0), 1)),
             ]
         );
@@ -1433,10 +1500,10 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
         ));
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(0)));
 
-        assert_eq!(Cps::parent_of(NodeId(0)), None);
+        assert_eq!(Cps::node_info(NodeId(0)).and_then(|i| i.parent), None);
         assert_eq!(Cps::meta_of(NodeId(0)), None);
         assert_eq!(Cps::payload_of(NodeId(0)), None);
-        assert_eq!(Cps::active_scope(NodeId(0)), None);
+        assert_eq!(active_scope(NodeId(0)), None);
 
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_eq!(Cps::next_node_id(), NodeId(2));
@@ -1509,8 +1576,10 @@ fn create_scope_replacement_has_nothing_to_clear_when_old_scope_had_no_access() 
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
-        assert_eq!(Cps::access_count(old_scope), 0);
-        assert_access_count_consistent(old_scope);
+        // The old `ScopeInfo` entry is removed entirely on replacement (it
+        // never held any Access entries to clear).
+        assert_eq!(Cps::scope_info(old_scope), None);
+        assert_eq!(access_count(old_scope), 0);
     });
 }
 
@@ -1532,7 +1601,7 @@ fn create_scope_replacement_synchronously_clears_a_single_access_entry() {
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
         assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
         assert!(!Access::<Runtime>::contains_key(old_scope, (root, 2u64)));
     });
 }
@@ -1552,12 +1621,12 @@ fn create_scope_replacement_synchronously_clears_access_at_the_bound() {
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
         assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
     });
 }
 
 #[test]
-fn delete_scope_synchronously_clears_access_at_the_bound() {
+fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_ok!(Cps::create_node(
@@ -1575,10 +1644,10 @@ fn delete_scope_synchronously_clears_access_at_the_bound() {
             MAX_ACCESS_ENTRIES_PER_SCOPE as usize
         );
 
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), japan));
 
+        assert_eq!(Cps::scope_info(scope_id), None);
         assert_eq!(access_count(scope_id), 0);
-        assert_eq!(Cps::access_count(scope_id), 0);
     });
 }
 
@@ -1589,7 +1658,10 @@ fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
         let root = NodeId(0);
 
         grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
-        assert_eq!(Cps::access_count(ScopeId(0)), MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
 
         // One more distinct (node, principal) pair past the bound is
         // rejected outright.
@@ -1603,7 +1675,10 @@ fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
             ),
             Error::<Runtime>::TooManyAccessEntries
         );
-        assert_eq!(Cps::access_count(ScopeId(0)), MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
     });
 }
 
@@ -1624,7 +1699,10 @@ fn grant_access_mode_change_on_existing_entry_never_consumes_a_slot() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
 
         // Changing that same principal's `GrantMode`, or adding another
         // `Capability` bit, never needs a fresh slot even though the Scope
@@ -1643,7 +1721,10 @@ fn grant_access_mode_change_on_existing_entry_never_consumes_a_slot() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
         assert_access_count_consistent(ScopeId(0));
     });
 }
@@ -1667,7 +1748,7 @@ fn revoke_access_leaving_capabilities_does_not_free_a_slot() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), 1);
+        assert_eq!(access_count(ScopeId(0)), 1);
 
         assert_ok!(Cps::revoke_access(
             RuntimeOrigin::signed(1),
@@ -1675,7 +1756,7 @@ fn revoke_access_leaving_capabilities_does_not_free_a_slot() {
             2,
             Capability::Write,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), 1);
+        assert_eq!(access_count(ScopeId(0)), 1);
         assert_access_count_consistent(ScopeId(0));
     });
 }
@@ -1692,7 +1773,7 @@ fn revoke_access_last_capability_frees_a_slot() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), 1);
+        assert_eq!(access_count(ScopeId(0)), 1);
 
         assert_ok!(Cps::revoke_access(
             RuntimeOrigin::signed(1),
@@ -1700,7 +1781,7 @@ fn revoke_access_last_capability_frees_a_slot() {
             2,
             Capability::Write,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), 0);
+        assert_eq!(access_count(ScopeId(0)), 0);
         assert_access_count_consistent(ScopeId(0));
 
         // The freed slot can immediately be used again.
@@ -1711,7 +1792,7 @@ fn revoke_access_last_capability_frees_a_slot() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_eq!(Cps::access_count(ScopeId(0)), 1);
+        assert_eq!(access_count(ScopeId(0)), 1);
     });
 }
 
@@ -1750,7 +1831,7 @@ fn clearing_scope_access_never_touches_nested_scope_state() {
         // altogether).
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
-        assert_eq!(Cps::active_scope(nested_root), Some((nested_scope, 1)));
+        assert_eq!(active_scope(nested_root), Some((nested_scope, 1)));
         assert!(
             Access::<Runtime>::get(nested_scope, (nested_root, 2u64)).contains(Capability::Write)
         );
@@ -1780,12 +1861,10 @@ fn stale_scope_id_never_becomes_active_again() {
 
         // Both stale Scopes were cleared synchronously the moment they
         // were replaced, and never became reachable again.
-        assert_eq!(Cps::access_count(stale_a), 0);
-        assert_eq!(Cps::access_count(stale_b), 0);
+        assert_eq!(access_count(stale_a), 0);
+        assert_eq!(access_count(stale_b), 0);
 
-        let active_ids: Vec<_> = ActiveScope::<Runtime>::iter()
-            .map(|(_, (id, _))| id)
-            .collect();
+        let active_ids: Vec<_> = Scopes::<Runtime>::iter().map(|(id, _)| id).collect();
         assert!(active_ids.contains(&current_a));
         assert!(active_ids.contains(&current_b));
         assert!(!active_ids.contains(&stale_a));
@@ -1886,9 +1965,6 @@ mod weight_component_tests {
         fn create_scope() -> Weight {
             Weight::zero()
         }
-        fn delete_scope() -> Weight {
-            Weight::zero()
-        }
         fn grant_access() -> Weight {
             Weight::zero()
         }
@@ -1915,7 +1991,6 @@ mod weight_component_tests {
 
     impl pallet_cps::Config for WeightTestRuntime {
         type RuntimeEvent = RuntimeEvent;
-        type MaxAccessEntriesPerScope = ConstU32<MAX_ACCESS_ENTRIES_PER_SCOPE>;
         type WeightInfo = RecordingWeightInfo;
     }
 

@@ -575,15 +575,6 @@ impl pallet_robonomics_rws::Config for Runtime {
 
 impl pallet_robonomics_cps::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    // TODO(#670): placeholder pending real benchmark results. The issue
-    // requires benchmarking candidate bounds (16/32/64/128), comparing
-    // worst-case `delete_scope`/`create_scope` replacement weight against
-    // the block weight limit, and regenerating
-    // `weights::pallet_robonomics_cps` from the chosen value before this
-    // ships to production. `32` is a conservative order-of-magnitude
-    // placeholder, consistent with other CPS bounds
-    // (`MAX_CHILDREN_PER_NODE = 100`, `MAX_TREE_DEPTH = 32`).
-    type MaxAccessEntriesPerScope = ConstU32<32>;
     type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
 }
 

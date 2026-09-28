@@ -35,7 +35,7 @@
 //!
 //! `resolve_scope` returns the `ScopeId`, root `NodeId`, and owner
 //! `AccountId` together (as a [`pallet_robonomics_cps::ResolvedScope`]),
-//! since the pallet's `ActiveScope` storage already merges them into a
+//! since the pallet's `Nodes`/`Scopes` storage already merges them into a
 //! single entry and resolving all three only requires one walk of the
 //! node's ancestry. The pallet's own `resolve_scope` returns a `Result`;
 //! the runtime implementation collapses any error into `None` before
@@ -62,8 +62,8 @@ sp_api::decl_runtime_apis! {
     {
         /// Resolve the Scope currently active for `node`.
         ///
-        /// This is the Scope of `node` itself if it carries an
-        /// `ActiveScope` entry, or of the nearest ancestor that does. The
+        /// This is the Scope of `node` itself if its `Nodes` entry carries a
+        /// `scope` field, or of the nearest ancestor that does. The
         /// returned [`ResolvedScope`] carries the `ScopeId`, the `NodeId` of
         /// the Scope's root, and the owner `AccountId` together, since the
         /// pallet resolves all three in a single ancestry walk.

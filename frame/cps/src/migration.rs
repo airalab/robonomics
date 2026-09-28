@@ -17,16 +17,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! Storage migrations for `pallet-robonomics-cps`.
 //!
-//! ## v1 -> v2: single `Node` struct -> per-field storage maps + Scope/Access
+//! ## v1 -> v2: single `Node` struct -> `Nodes`/`Scopes`/`Children` + Access
 //!
 //! Version 1 stored every node as a single `Node { parent, owner, path, meta,
-//! payload }` struct in one `Nodes` map. Version 2 splits a node's attributes
-//! into separate maps (`Parents`, `Meta`, `Payload`) and removes the per-node
-//! `owner`/`path` fields entirely, replacing them with the Scope/Access
-//! architecture: a node that starts a new administrative/economic boundary
-//! gets a freshly allocated `ScopeId`, stored together with its owner in a
-//! single `ActiveScope` entry (`(ScopeId, AccountId)`); every other node
-//! resolves its Scope from the nearest such ancestor.
+//! payload }` struct in one `Nodes` map. Version 2 replaces this with the
+//! Nodes/Scopes/Children/Access model: node existence, `parent`, and the
+//! current `scope` pointer live together in `Nodes[id] -> NodeInfo { parent,
+//! scope }`; `Meta`/`Payload` are separate maps; a node that starts a new
+//! administrative/economic boundary gets a freshly allocated `ScopeId`
+//! recorded in both `Nodes[id].scope` and a canonical `Scopes[scope_id] ->
+//! ScopeInfo { owner, access_count }` entry; every other node resolves its
+//! Scope from the nearest such ancestor.
 //!
 //! The migration preserves the *effective* owner of every node:
 //!
@@ -37,16 +38,16 @@
 //!   parent's (already migrated) Scope.
 //!
 //! `ScopeId`s are allocated in the same order nodes are iterated, starting
-//! from `NextScopeId`. Version 1 had no Access grants to migrate, so
-//! [`AccessCount`] is never populated by the loop above. For defensive
+//! from `NextScopeId`. Version 1 had no Access grants to migrate, so every
+//! freshly created `ScopeInfo.access_count` starts at `0`. For defensive
 //! completeness (e.g. a chain that already ran intermediate/development
 //! code with `Access` entries present before this migration lands), this
-//! migration also derives [`AccessCount`] from whatever `Access` entries
-//! already exist in storage at upgrade time, grouped by `ScopeId`. It
-//! asserts (via [`frame_support::defensive`], matching the
-//! `NodesByParent` overflow-handling style below) that no Scope already
-//! exceeds `Config::MaxAccessEntriesPerScope` - this migration must never
-//! silently complete while violating that bound.
+//! migration also derives each Scope's `access_count` from whatever `Access`
+//! entries already exist in storage at upgrade time, grouped by `ScopeId`.
+//! It asserts (via [`frame_support::defensive`], matching the `Children`
+//! overflow-handling style below) that no Scope already exceeds
+//! `MAX_ACCESS_ENTRIES_PER_SCOPE` - this migration must never silently
+//! complete while violating that bound.
 //!
 //! This migration also opportunistically clears the now-removed `RootNodes`
 //! index (a `StorageValue` that used to hold the list of parentless nodes,
@@ -55,27 +56,28 @@
 //! present could have leftover bytes; clearing it here ensures no orphaned
 //! storage remains regardless of upgrade path.
 //!
-//! ## `NodesByParent` reverse index
+//! ## `Children` reverse index
 //!
-//! Version 2 also introduces `NodesByParent`, the reverse-lookup index used
+//! Version 2 also introduces `Children`, the reverse-lookup index used
 //! for O(1) child enumeration. The migration rebuilds it from the legacy
 //! `parent` links so the invariant
-//! `Parents[child] == Some(parent) iff NodesByParent[parent] contains child`
+//! `Nodes[child].parent == Some(parent) iff Children[parent] contains child`
 //! holds immediately after migration, exactly as it does for every node
 //! created afterwards via [`Pallet::create_node`](crate::Pallet::create_node).
 //!
 //! If any legacy node has more than [`MAX_CHILDREN_PER_NODE`](crate::MAX_CHILDREN_PER_NODE)
-//! children, that parent's `NodesByParent` entry is deliberately left unset
+//! children, that parent's `Children` entry is deliberately left unset
 //! rather than silently populated with a truncated, corrupted subset of its
 //! real children - a `BoundedVec` that dropped entries past its bound would
 //! violate the invariant above for the truncated children (they would
-//! still resolve via `Parents`, but would no longer be reachable via
-//! `NodesByParent`). This is reported via [`frame_support::defensive`]: an
-//! error log in production (so the condition is never missed), and a panic
-//! under `debug_assertions` (so it is caught immediately by tests and
-//! try-runtime runs rather than shipped). Runtimes should still prove ahead
-//! of time (e.g. by inspecting live/representative state) that this cannot
-//! happen before applying this migration to a chain where it might.
+//! still resolve via `Nodes[child].parent`, but would no longer be
+//! reachable via `Children`). This is reported via
+//! [`frame_support::defensive`]: an error log in production (so the
+//! condition is never missed), and a panic under `debug_assertions` (so it
+//! is caught immediately by tests and try-runtime runs rather than
+//! shipped). Runtimes should still prove ahead of time (e.g. by inspecting
+//! live/representative state) that this cannot happen before applying this
+//! migration to a chain where it might.
 //!
 //! ## `Meta` bound shrink (issue #671)
 //!
@@ -90,8 +92,9 @@
 //! meaning past the new bound).
 
 use crate::{
-    Access, AccessCount, ActiveScope, Config, MaxChildrenPerNode, MaxTreeDepth, Meta, NextScopeId,
-    NodeId, NodeMeta, NodesByParent, Pallet, Parents, Payload, ScopeId, MAX_META_SIZE,
+    Access, Children, Config, MaxChildrenPerNode, MaxScopeDepth, Meta, NextScopeId, NodeId,
+    NodeInfo, NodeMeta, Pallet, Payload, ScopeId, ScopeInfo, Scopes, MAX_ACCESS_ENTRIES_PER_SCOPE,
+    MAX_META_SIZE,
 };
 use core::fmt::Debug;
 use frame_support::{
@@ -118,6 +121,14 @@ type OldNodeData = BoundedVec<u8, OldDataSize>;
 /// Shadow of the v1 `Node` layout (with the now-removed `owner`/`path`
 /// fields), used only for decoding pre-migration storage. Declared under the
 /// old `Nodes` storage prefix via [`storage_alias`].
+///
+/// This intentionally shares the Rust identifier `Nodes` with the current
+/// pallet's own `Nodes` storage item (`crate::Nodes`): both target the exact
+/// same on-chain prefix name, since [`storage_alias`] derives the prefix
+/// from the type's identifier. Referring to the *current* `Nodes` storage
+/// from within this module therefore always uses the fully-qualified
+/// `crate::Nodes::<T>` path, never a bare `Nodes`, to avoid ambiguity with
+/// this legacy shadow.
 #[derive(Encode, Decode, MaxEncodedLen)]
 struct OldNode<AccountId>
 where
@@ -126,7 +137,7 @@ where
     parent: Option<NodeId>,
     owner: AccountId,
     #[allow(dead_code)]
-    path: BoundedVec<NodeId, MaxTreeDepth>,
+    path: BoundedVec<NodeId, MaxScopeDepth>,
     meta: Option<OldNodeData>,
     payload: Option<OldNodeData>,
 }
@@ -192,7 +203,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         // (deterministic, since `old_nodes` is a materialized `Vec`) order
         // it is encountered. Grouped by parent up front so the
         // `MAX_CHILDREN_PER_NODE` bound is checked once per parent below,
-        // rather than re-reading/re-writing `NodesByParent` once per child.
+        // rather than re-reading/re-writing `Children` once per child.
         let mut children_of: BTreeMap<u64, sp_std::vec::Vec<NodeId>> = BTreeMap::new();
 
         for (id, old) in old_nodes.iter() {
@@ -201,17 +212,32 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
                 Some(parent_id) => old_owner_of.get(&parent_id.0) != Some(&old.owner),
             };
 
-            if is_boundary {
+            let scope = if is_boundary {
                 let scope_id = next_scope_id;
                 next_scope_id = next_scope_id.saturating_add(1);
 
-                ActiveScope::<T>::insert(id, (scope_id, old.owner.clone()));
+                Scopes::<T>::insert(
+                    scope_id,
+                    ScopeInfo {
+                        owner: old.owner.clone(),
+                        access_count: 0,
+                    },
+                );
                 scope_of.insert(id.0, scope_id);
-
                 writes = writes.saturating_add(1);
-            }
 
-            Parents::<T>::insert(id, old.parent);
+                Some(scope_id)
+            } else {
+                None
+            };
+
+            crate::Nodes::<T>::insert(
+                id,
+                NodeInfo {
+                    parent: old.parent,
+                    scope,
+                },
+            );
             writes = writes.saturating_add(1);
 
             if let Some(parent_id) = old.parent {
@@ -237,8 +263,8 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         NextScopeId::<T>::put(next_scope_id);
         writes = writes.saturating_add(1);
 
-        // Rebuild `NodesByParent` from the grouped legacy `parent` links so
-        // `Parents[child] == Some(parent) iff NodesByParent[parent]
+        // Rebuild `Children` from the grouped legacy `parent` links so
+        // `Nodes[child].parent == Some(parent) iff Children[parent]
         // contains child` holds immediately after migration (see module
         // docs). A parent with more children than `MAX_CHILDREN_PER_NODE`
         // must never be *silently* truncated: `BoundedVec::try_from`
@@ -247,13 +273,13 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         // reported loudly via [`frame_support::defensive`] (an error log
         // in production, in addition to panicking under `debug_assertions`
         // so tests/try-runtime runs catch it immediately) and that
-        // parent's `NodesByParent` entry is left unset rather than holding
+        // parent's `Children` entry is left unset rather than holding
         // a truncated, corrupted subset of its real children - callers
         // must not be given a partial answer that looks complete.
         for (parent_id, children) in children_of {
             match BoundedVec::<NodeId, MaxChildrenPerNode>::try_from(children) {
                 Ok(bounded) => {
-                    NodesByParent::<T>::insert(NodeId(parent_id), bounded);
+                    Children::<T>::insert(NodeId(parent_id), bounded);
                     writes = writes.saturating_add(1);
                 }
                 Err(children) => {
@@ -269,19 +295,28 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
             }
         }
 
-        // Purge the old, now-obsolete `Nodes` storage.
-        let _ = Nodes::<T>::clear(u32::MAX, None);
+        // Purge the old, now-obsolete `Nodes` storage. Removed one key at a
+        // time (rather than via `clear`/`clear_prefix`) because the legacy
+        // `Nodes` alias and the new `crate::Nodes` storage share the exact
+        // same on-chain prefix (see this module's doc comment on the
+        // `Nodes` alias) - a prefix-level clear would also wipe out the
+        // `NodeInfo` entries just written above, since `clear_prefix`
+        // removes every child key under a prefix regardless of which
+        // hasher produced it.
+        for (id, _) in old_nodes.iter() {
+            Nodes::<T>::remove(id);
+        }
         writes = writes.saturating_add(old_nodes.len() as u64);
 
         // Purge any leftover `RootNodes` index bytes (see module docs).
         RootNodes::<T>::kill();
         writes = writes.saturating_add(1);
 
-        // Derive `AccessCount` from whatever `Access` entries already exist
-        // at upgrade time (see module docs). Version 1 never had any, so
-        // this is a defensive no-op on a chain migrating straight from v1;
-        // it only matters for a chain that already ran intermediate code
-        // with `Access` entries present.
+        // Derive each Scope's `access_count` from whatever `Access` entries
+        // already exist at upgrade time (see module docs). Version 1 never
+        // had any, so this is a defensive no-op on a chain migrating
+        // straight from v1; it only matters for a chain that already ran
+        // intermediate code with `Access` entries present.
         let mut counts: BTreeMap<u64, u32> = BTreeMap::new();
         let mut access_reads: u64 = 0;
         for (scope_id, _key, _flags) in Access::<T>::iter() {
@@ -290,16 +325,24 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         }
         reads = reads.saturating_add(access_reads);
 
-        let max_access_entries = <T as Config>::MaxAccessEntriesPerScope::get();
         for (scope_id, count) in counts {
-            if count > max_access_entries {
+            if count > MAX_ACCESS_ENTRIES_PER_SCOPE {
                 frame_support::defensive!(
-                    "CPS v1->v2 migration: Scope already exceeds MaxAccessEntriesPerScope",
-                    (scope_id, count, max_access_entries)
+                    "CPS v1->v2 migration: Scope already exceeds MAX_ACCESS_ENTRIES_PER_SCOPE",
+                    (scope_id, count, MAX_ACCESS_ENTRIES_PER_SCOPE)
                 );
                 continue;
             }
-            AccessCount::<T>::insert(ScopeId(scope_id), count);
+            Scopes::<T>::mutate(ScopeId(scope_id), |maybe_info| {
+                if let Some(info) = maybe_info {
+                    info.access_count = count;
+                } else {
+                    frame_support::defensive!(
+                        "CPS v1->v2 migration: Access entries reference a Scope with no ScopeInfo",
+                        scope_id
+                    );
+                }
+            });
             writes = writes.saturating_add(1);
         }
 
@@ -309,7 +352,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
     #[cfg(feature = "try-runtime")]
     fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, sp_runtime::TryRuntimeError> {
         // Snapshot every legacy parent/child edge so `post_upgrade` can
-        // verify the rebuilt `NodesByParent` reverse index reflects every
+        // verify the rebuilt `Children` reverse index reflects every
         // one of them exactly once, with no duplicates and none missing.
         let mut edges: Vec<(NodeId, NodeId)> = Nodes::<T>::iter()
             .filter_map(|(child, old)| old.parent.map(|parent| (parent, child)))
@@ -324,54 +367,53 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         let edges: Vec<(NodeId, NodeId)> = Decode::decode(&mut state.as_slice())
             .map_err(|_| "CPS v1->v2 migration: failed to decode pre_upgrade state")?;
 
-        // Every edge must be resolvable both ways: `Parents[child] ==
+        // Every edge must be resolvable both ways: `Nodes[child].parent ==
         // Some(parent)` (the migration always sets this) and
-        // `NodesByParent[parent]` contains `child` exactly once.
+        // `Children[parent]` contains `child` exactly once.
         let mut seen_per_parent: BTreeMap<u64, u32> = BTreeMap::new();
         for (parent, child) in edges.iter() {
             frame_support::ensure!(
-                Parents::<T>::get(child) == Some(Some(*parent)),
-                "CPS v1->v2 migration: Parents[child] does not match legacy parent link"
+                crate::Nodes::<T>::get(child).and_then(|info| info.parent) == Some(*parent),
+                "CPS v1->v2 migration: Nodes[child].parent does not match legacy parent link"
             );
-            let children = NodesByParent::<T>::get(parent);
+            let children = Children::<T>::get(parent);
             let occurrences = children.iter().filter(|c| *c == child).count();
             frame_support::ensure!(
                 occurrences == 1,
-                "CPS v1->v2 migration: NodesByParent[parent] does not contain child exactly once"
+                "CPS v1->v2 migration: Children[parent] does not contain child exactly once"
             );
             *seen_per_parent.entry(parent.0).or_default() += 1;
         }
 
-        // No extra/orphaned entries: every parent's `NodesByParent` length
+        // No extra/orphaned entries: every parent's `Children` length
         // must equal exactly the number of legacy edges pointing at it -
         // anything more would mean a stray or duplicated entry that the
         // per-edge check above could not catch (e.g. a child appearing
         // under the wrong parent in addition to the right one).
         for (parent, count) in seen_per_parent {
-            let stored_len = NodesByParent::<T>::get(NodeId(parent)).len() as u32;
+            let stored_len = Children::<T>::get(NodeId(parent)).len() as u32;
             frame_support::ensure!(
                 stored_len == count,
-                "CPS v1->v2 migration: NodesByParent[parent] length does not match the number \
+                "CPS v1->v2 migration: Children[parent] length does not match the number \
                  of legacy edges for that parent"
             );
         }
 
-        // `AccessCount` must exactly match the number of physical `Access`
-        // entries actually stored under each `ScopeId`, and must never
-        // exceed the configured bound (see module docs).
+        // Every Scope's `access_count` must exactly match the number of
+        // physical `Access` entries actually stored under its `ScopeId`,
+        // and must never exceed the configured bound (see module docs).
         let mut actual_counts: BTreeMap<u64, u32> = BTreeMap::new();
         for (scope_id, _key, _flags) in Access::<T>::iter() {
             *actual_counts.entry(scope_id.0).or_default() += 1;
         }
-        let max_access_entries = <T as Config>::MaxAccessEntriesPerScope::get();
         for (scope_id, count) in actual_counts {
             frame_support::ensure!(
-                count <= max_access_entries,
-                "CPS v1->v2 migration: a Scope exceeds MaxAccessEntriesPerScope after migration"
+                count <= MAX_ACCESS_ENTRIES_PER_SCOPE,
+                "CPS v1->v2 migration: a Scope exceeds MAX_ACCESS_ENTRIES_PER_SCOPE after migration"
             );
             frame_support::ensure!(
-                AccessCount::<T>::get(ScopeId(scope_id)) == count,
-                "CPS v1->v2 migration: AccessCount does not match actual Access entry count"
+                Scopes::<T>::get(ScopeId(scope_id)).map(|info| info.access_count) == Some(count),
+                "CPS v1->v2 migration: ScopeInfo.access_count does not match actual Access entry count"
             );
         }
 
@@ -421,10 +463,10 @@ mod tests {
     }
 
     /// After migrating a tree with several parents each holding multiple
-    /// children, every `Parents[child] == Some(parent)` link must be
-    /// mirrored by `NodesByParent[parent]` containing exactly that child.
+    /// children, every `Nodes[child].parent == Some(parent)` link must be
+    /// mirrored by `Children[parent]` containing exactly that child.
     #[test]
-    fn nodes_by_parent_rebuilt_and_consistent_with_parents() {
+    fn children_rebuilt_and_consistent_with_nodes() {
         new_test_ext().execute_with(|| {
             // 0 (root, owner 1)
             // ├── 1 (owner 1, same Scope)
@@ -442,19 +484,22 @@ mod tests {
             // Every edge is reflected on both sides of the index.
             for (child, parent) in [(1u64, 0u64), (2, 0), (3, 1), (4, 1)] {
                 assert_eq!(
-                    Parents::<Runtime>::get(NodeId(child)),
-                    Some(Some(NodeId(parent)))
+                    crate::Nodes::<Runtime>::get(NodeId(child)).and_then(|info| info.parent),
+                    Some(NodeId(parent))
                 );
-                assert!(NodesByParent::<Runtime>::get(NodeId(parent)).contains(&NodeId(child)));
+                assert!(Children::<Runtime>::get(NodeId(parent)).contains(&NodeId(child)));
             }
-            assert_eq!(Parents::<Runtime>::get(NodeId(0)), Some(None));
-            assert!(NodesByParent::<Runtime>::get(NodeId(0)).is_empty() == false);
-            assert_eq!(NodesByParent::<Runtime>::get(NodeId(0)).len(), 2);
-            assert_eq!(NodesByParent::<Runtime>::get(NodeId(1)).len(), 2);
+            assert_eq!(
+                crate::Nodes::<Runtime>::get(NodeId(0)).and_then(|info| info.parent),
+                None
+            );
+            assert!(!Children::<Runtime>::get(NodeId(0)).is_empty());
+            assert_eq!(Children::<Runtime>::get(NodeId(0)).len(), 2);
+            assert_eq!(Children::<Runtime>::get(NodeId(1)).len(), 2);
             // Leaves have no children of their own.
-            assert!(NodesByParent::<Runtime>::get(NodeId(2)).is_empty());
-            assert!(NodesByParent::<Runtime>::get(NodeId(3)).is_empty());
-            assert!(NodesByParent::<Runtime>::get(NodeId(4)).is_empty());
+            assert!(Children::<Runtime>::get(NodeId(2)).is_empty());
+            assert!(Children::<Runtime>::get(NodeId(3)).is_empty());
+            assert!(Children::<Runtime>::get(NodeId(4)).is_empty());
 
             // The old `Nodes` storage is fully purged.
             assert_eq!(Nodes::<Runtime>::iter().count(), 0);
@@ -462,13 +507,13 @@ mod tests {
     }
 
     /// A parent with more children than `MAX_CHILDREN_PER_NODE` must never
-    /// end up with a truncated `NodesByParent` entry: the `defensive!` in
+    /// end up with a truncated `Children` entry: the `defensive!` in
     /// `on_runtime_upgrade` panics under `debug_assertions` (enabled in
     /// tests) rather than silently truncating, so this is asserted via
     /// `catch_unwind`; in a release build the same condition would instead
     /// only emit an error log and leave the entry unset.
     #[test]
-    fn nodes_by_parent_never_silently_truncated_on_overflow() {
+    fn children_never_silently_truncated_on_overflow() {
         new_test_ext().execute_with(|| {
             insert_old_node(0, None, 1);
             let max_children: u32 = <MaxChildrenPerNode as Get<u32>>::get();
