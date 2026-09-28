@@ -35,8 +35,8 @@
 //!
 //! `resolve_scope` returns the `ScopeId`, root `NodeId`, and owner
 //! `AccountId` together (as a [`pallet_robonomics_cps::ResolvedScope`]),
-//! since the pallet's `Nodes`/`Scopes` storage already merges them into a
-//! single entry and resolving all three only requires one walk of the
+//! since the pallet stores topology and ownership across `Nodes` and
+//! `Scopes`, and resolving all three only requires one walk of the
 //! node's ancestry. The pallet's own `resolve_scope` returns a `Result`;
 //! the runtime implementation collapses any error into `None` before
 //! crossing the API boundary.
