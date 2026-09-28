@@ -382,7 +382,7 @@ Customize the pallet for your use case:
 |-----------|---------|-------------|------------------|
 | `MAX_META_SIZE` | 1024 bytes (1 KiB) | Size limit for metadata | Sensor configuration |
 | `MAX_PAYLOAD_SIZE` | 8192 bytes (8 KiB) | Size limit for payload | Sensor readings, encrypted blobs |
-| `MAX_TREE_DEPTH` | 32 levels | Maximum hierarchy depth | Nested organizations |
+| `MAX_SCOPE_DEPTH` | 32 levels | Maximum depth within one Scope | Nested organizations |
 | `MAX_CHILDREN_PER_NODE` | 100 | Maximum child nodes | Factory with 50 machines |
 
 ## 🔐 Client-Side Encryption
