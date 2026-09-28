@@ -1367,30 +1367,31 @@ pub mod pallet {
         /// physical entries actually removed rather than a fixed maximum.
         ///
         /// If `clear_prefix` still reports a continuation cursor, this means
-        /// accounting drifted from storage contents. That is treated as a bug:
-        /// report defensively and attempt a bounded continuation pass up to
-        /// the remaining configured capacity.
+        /// storage cleanup needed more than the expected single pass. That is
+        /// treated as a bug: report defensively and keep following the cursor
+        /// until all `Access` rows are removed before callers delete the
+        /// `Scopes[scope_id]` entry.
         pub(crate) fn clear_scope_access(scope_id: ScopeId, access_items: u32) {
-            let result = <Access<T>>::clear_prefix(scope_id, access_items, None);
+            let mut result = <Access<T>>::clear_prefix(scope_id, access_items, None);
             if result.maybe_cursor.is_some() {
                 frame_support::defensive!(
                     "CPS: clear_prefix left Access entries behind despite \
                      ScopeInfo.access_count bound",
                     scope_id
                 );
-                let remaining = MAX_ACCESS_ENTRIES_PER_SCOPE.saturating_sub(access_items);
-                if remaining > 0 {
-                    let retry = <Access<T>>::clear_prefix(
-                        scope_id,
-                        remaining,
-                        result.maybe_cursor.as_deref(),
+            }
+
+            while let Some(cursor) = result.maybe_cursor {
+                result = <Access<T>>::clear_prefix(
+                    scope_id,
+                    MAX_ACCESS_ENTRIES_PER_SCOPE,
+                    Some(&cursor),
+                );
+                if result.maybe_cursor.is_some() {
+                    frame_support::defensive!(
+                        "CPS: clear_prefix continuation still left Access entries behind",
+                        scope_id
                     );
-                    if retry.maybe_cursor.is_some() {
-                        frame_support::defensive!(
-                            "CPS: clear_prefix continuation still left Access entries behind",
-                            scope_id
-                        );
-                    }
                 }
             }
         }
