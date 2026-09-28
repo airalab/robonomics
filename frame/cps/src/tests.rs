@@ -1797,6 +1797,46 @@ fn revoke_access_last_capability_frees_a_slot() {
 }
 
 #[test]
+fn revoking_nonexistent_access_entry_does_not_free_slots() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+
+        // Revoking an entry that does not exist is a no-op for accounting.
+        for _ in 0..3 {
+            assert_ok!(Cps::revoke_access(
+                RuntimeOrigin::signed(1),
+                root,
+                999,
+                Capability::Write,
+            ));
+        }
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+        assert_access_count_consistent(ScopeId(0));
+
+        assert_noop!(
+            Cps::grant_access(
+                RuntimeOrigin::signed(1),
+                root,
+                100 + MAX_ACCESS_ENTRIES_PER_SCOPE as u64,
+                Capability::Write,
+                GrantMode::Node,
+            ),
+            Error::<Runtime>::TooManyAccessEntries
+        );
+    });
+}
+
+#[test]
 fn clearing_scope_access_never_touches_nested_scope_state() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));

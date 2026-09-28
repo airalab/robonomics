@@ -1158,15 +1158,25 @@ pub mod pallet {
             ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
             let key = (node_id, principal.clone());
+            let existed = <Access<T>>::contains_key(resolved.id, &key);
             let mut flags = <Access<T>>::get(resolved.id, &key);
             flags.revoke(capability);
             if flags.is_empty() {
-                <Access<T>>::remove(resolved.id, &key);
-                <Scopes<T>>::mutate(resolved.id, |maybe_info| {
-                    if let Some(scope_info) = maybe_info {
-                        scope_info.access_count = scope_info.access_count.saturating_sub(1);
-                    }
-                });
+                if existed {
+                    <Access<T>>::remove(resolved.id, &key);
+                    <Scopes<T>>::mutate(resolved.id, |maybe_info| {
+                        if let Some(scope_info) = maybe_info {
+                            if let Some(next_count) = scope_info.access_count.checked_sub(1) {
+                                scope_info.access_count = next_count;
+                            } else {
+                                frame_support::defensive!(
+                                    "CPS: access_count underflow while revoking Access entry"
+                                );
+                                scope_info.access_count = 0;
+                            }
+                        }
+                    });
+                }
             } else {
                 <Access<T>>::insert(resolved.id, &key, flags);
             }
