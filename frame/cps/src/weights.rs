@@ -26,8 +26,8 @@ pub trait WeightInfo {
     fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight;
     fn set_meta(bytes: u32) -> Weight;
     fn set_payload(bytes: u32) -> Weight;
-    fn delete_node() -> Weight;
-    fn create_scope() -> Weight;
+    fn delete_node(access_items: u32) -> Weight;
+    fn create_scope(access_items: u32) -> Weight;
     fn grant_access() -> Weight;
     fn revoke_access() -> Weight;
 }
@@ -46,10 +46,10 @@ impl WeightInfo for TestWeightInfo {
     fn set_payload(_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn delete_node() -> Weight {
+    fn delete_node(_access_items: u32) -> Weight {
         Weight::zero()
     }
-    fn create_scope() -> Weight {
+    fn create_scope(_access_items: u32) -> Weight {
         Weight::zero()
     }
     fn grant_access() -> Weight {

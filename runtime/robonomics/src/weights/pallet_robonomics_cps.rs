@@ -124,13 +124,9 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(T::DbWeight::get().reads(98))
 			.saturating_add(T::DbWeight::get().writes(1))
 	}
-	// NOTE(#672): `delete_node`'s worst case now also includes deleting a
-	// Scope-root leaf filled to `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access`
-	// entries (measured separately via the `delete_node_scope_root_worst_case`
-	// diagnostic benchmark in `benchmarking.rs`, since it is not a distinct
-	// dispatchable). The constant below has not yet been regenerated to
-	// account for that worst case and must be reviewed on real benchmark
-	// hardware before production use.
+	// NOTE(#672): this weight now accepts `access_items` and is selected
+	// post-dispatch by the pallet using the stale Scope's tracked
+	// `ScopeInfo.access_count`.
 	/// Storage: `CPS::Nodes` (r:32 w:1)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Children` (r:2 w:2)
@@ -139,7 +135,7 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::Payload` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Meta` (r:0 w:1)
 	/// Proof: `CPS::Meta` (`max_values`: None, `max_size`: Some(2074), added: 4549, mode: `MaxEncodedLen`)
-	fn delete_node() -> Weight {
+	fn delete_node(access_items: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3363`
 		//  Estimated: `84777`
@@ -148,16 +144,12 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(Weight::from_parts(0, 84777))
 			.saturating_add(T::DbWeight::get().reads(67))
 			.saturating_add(T::DbWeight::get().writes(5))
+			.saturating_add(T::DbWeight::get().reads((access_items as u64).saturating_mul(2)))
+			.saturating_add(T::DbWeight::get().writes(access_items as u64))
 	}
-	// NOTE(#672): `create_scope`'s worst case now also includes the
-	// *replacement* path (`node` already roots an active Scope filled to
-	// `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access` entries, all synchronously
-	// cleared as part of the same call), measured separately via the
-	// `create_scope_replace_worst_case` diagnostic benchmark in
-	// `benchmarking.rs`, since it is not a distinct dispatchable. The
-	// constant below has not yet been regenerated to account for that
-	// worst case and must be reviewed on real benchmark hardware before
-	// production use.
+	// NOTE(#672): this weight now accepts `access_items` and is selected
+	// post-dispatch by the pallet using the replaced Scope's tracked
+	// `ScopeInfo.access_count`.
 	/// Storage: `CPS::Nodes` (r:32 w:0)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Scopes` (r:33 w:1)
@@ -166,7 +158,7 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::NextScopeId` (r:1 w:1)
 	/// Proof: `CPS::NextScopeId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	fn create_scope() -> Weight {
+	fn create_scope(access_items: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1010`
 		//  Estimated: `85569`
@@ -175,6 +167,8 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(Weight::from_parts(0, 85569))
 			.saturating_add(T::DbWeight::get().reads(99))
 			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(T::DbWeight::get().reads((access_items as u64).saturating_mul(2)))
+			.saturating_add(T::DbWeight::get().writes(access_items as u64))
 	}
 	/// Storage: `CPS::Nodes` (r:32 w:0)
 	/// Proof: `CPS::Nodes` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)

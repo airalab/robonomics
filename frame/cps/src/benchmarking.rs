@@ -203,11 +203,12 @@ mod benchmarks {
         assert_eq!(Payload::<T>::get(node), payload);
     }
 
-    /// Worst case: `node` is an ordinary (non-Scope-root) leaf at
-    /// `MAX_SCOPE_DEPTH`, with its parent's `Children` filled to
-    /// `MAX_CHILDREN_PER_NODE`.
+    /// Worst case: `node` is a Scope-root leaf at `MAX_SCOPE_DEPTH`, with
+    /// maximum metadata and payload, a full parent `Children` vector, and up
+    /// to `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access` entries that must be
+    /// synchronously deleted together with the scope boundary.
     #[benchmark]
-    fn delete_node() {
+    fn delete_node(a: Linear<0, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
         let caller: T::AccountId = whitelisted_caller();
 
         let (_, parent) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH - 1);
@@ -219,6 +220,20 @@ mod benchmarks {
             Some(max_meta()),
             Some(max_payload()),
         ));
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+        ));
+        for i in 0..a {
+            let principal: T::AccountId = account("principal", i, 0);
+            assert_ok!(Pallet::<T>::grant_access(
+                RawOrigin::Signed(caller.clone()).into(),
+                node,
+                principal,
+                Capability::Write,
+                GrantMode::Node,
+            ));
+        }
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), node);
@@ -232,83 +247,13 @@ mod benchmarks {
         );
     }
 
-    /// Diagnostic (non-dispatchable) benchmark measuring the worst case for
-    /// deleting a Scope-root leaf via `delete_node`: `node` is itself the
-    /// root of an active Scope filled to `MAX_ACCESS_ENTRIES_PER_SCOPE`
-    /// `Access` entries, all of which must be synchronously cleared
-    /// (together with the Scope's `ScopeInfo`) in this same call. Reported
-    /// separately from the dispatchable `delete_node()` benchmark above
-    /// (an ordinary leaf) since the two worst cases are mutually exclusive
-    /// within a single call.
-    #[benchmark(extra)]
-    fn delete_node_scope_root_worst_case() {
-        let caller: T::AccountId = whitelisted_caller();
-        let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
-        assert_ok!(Pallet::<T>::create_scope(
-            RawOrigin::Signed(caller.clone()).into(),
-            node,
-        ));
-        let scope_id = Pallet::<T>::node_info(node)
-            .and_then(|info| info.scope)
-            .expect("node roots a Scope");
-        fill_access_to_limit::<T>(&caller, node);
-
-        #[block]
-        {
-            assert_ok!(Pallet::<T>::delete_node(
-                RawOrigin::Signed(caller).into(),
-                node,
-            ));
-        }
-
-        assert!(!Nodes::<T>::contains_key(node));
-        assert!(!Scopes::<T>::contains_key(scope_id));
-        assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
-    }
-
-    /// Worst case: `sender` is not the Scope owner and is authorized
-    /// through an `inherited = true` `CreateScope` `Access` granted at the
-    /// Scope root, requiring both a full `resolve_scope` walk from `node`
-    /// up to the root Scope (to find the grant's Scope in the first
-    /// place), and a full `authorize` walk back from `node` towards that
-    /// same root (to find the `Subtree` grant, which only lives at the
-    /// root and is never found before the last hop).
+    /// Worst case replacement path: `node` already roots an active Scope and
+    /// replacing it synchronously clears up to
+    /// `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access` entries from the stale Scope.
     #[benchmark]
-    fn create_scope() {
+    fn create_scope(a: Linear<0, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
-        let (root, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
-        assert_ok!(Pallet::<T>::grant_access(
-            RawOrigin::Signed(caller).into(),
-            root,
-            accessor.clone(),
-            Capability::CreateScope,
-            GrantMode::Subtree,
-        ));
-
-        #[extrinsic_call]
-        _(RawOrigin::Signed(accessor.clone()), node);
-
-        assert_eq!(
-            Pallet::<T>::node_info(node)
-                .and_then(|info| info.scope)
-                .and_then(|scope_id| Pallet::<T>::scope_info(scope_id))
-                .map(|info| info.owner),
-            Some(accessor)
-        );
-    }
-
-    /// Diagnostic (non-dispatchable) benchmark measuring the worst case for
-    /// the `create_scope` *replacement* path: `node` already roots an
-    /// active Scope, filled to `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access`
-    /// entries, all of which must be synchronously cleared as part of this
-    /// same call. Reported separately from the dispatchable `create_scope()`
-    /// benchmark above (brand-new nested Scope, requiring a full
-    /// authorization walk) since the two worst cases are mutually exclusive
-    /// within a single call.
-    #[benchmark(extra)]
-    fn create_scope_replace_worst_case() {
-        let caller: T::AccountId = whitelisted_caller();
         let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
         assert_ok!(Pallet::<T>::create_scope(
             RawOrigin::Signed(caller.clone()).into(),
@@ -317,15 +262,26 @@ mod benchmarks {
         let old_scope = Pallet::<T>::node_info(node)
             .and_then(|info| info.scope)
             .expect("node roots a Scope");
-        fill_access_to_limit::<T>(&caller, node);
-
-        #[block]
-        {
-            assert_ok!(Pallet::<T>::create_scope(
+        for i in 0..a {
+            let principal: T::AccountId = account("principal", i, 0);
+            assert_ok!(Pallet::<T>::grant_access(
                 RawOrigin::Signed(caller.clone()).into(),
                 node,
+                principal,
+                Capability::Write,
+                GrantMode::Node,
             ));
         }
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            accessor.clone(),
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+
+        #[extrinsic_call]
+        _(RawOrigin::Signed(accessor.clone()), node);
 
         assert!(!Scopes::<T>::contains_key(old_scope));
         assert_eq!(Access::<T>::iter_prefix(old_scope).count(), 0);
@@ -334,7 +290,7 @@ mod benchmarks {
                 .and_then(|info| info.scope)
                 .and_then(|scope_id| Pallet::<T>::scope_info(scope_id))
                 .map(|info| info.owner),
-            Some(caller)
+            Some(accessor)
         );
     }
 

@@ -139,17 +139,16 @@
 //!
 //! ```text
 //! invalidate ScopeId
-//!     -> clear_prefix(Access(scope_id, *), MAX_ACCESS_ENTRIES_PER_SCOPE)
+//!     -> read Scopes[scope_id].access_count
+//!     -> clear_prefix(Access(scope_id, *), access_count)
 //!     -> remove Scopes[scope_id]
 //!     -> done
 //! ```
 //!
-//! There is no deferred cleanup queue, continuation cursor, or `on_idle`
-//! background pass: the bound guarantees the single `clear_prefix` call
-//! always finishes the prefix. A `clear_prefix` call that (contrary to the
-//! bound) reports leftover work is treated as an invariant violation (see
-//! `Pallet::clear_scope_access`), never as something to silently retry or
-//! defer.
+//! There is no deferred cleanup queue or `on_idle` background pass. The
+//! `access_count`-bounded `clear_prefix` call is expected to finish in one
+//! step; a continuation cursor is treated as an invariant violation (see
+//! `Pallet::clear_scope_access`) and triggers a defensive bounded retry.
 //!
 //! `ScopeId`s are never reused, including after cleanup: a cleaned-up
 //! `ScopeId` simply has no more physical state, but remains a valid
@@ -324,10 +323,10 @@ pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 /// once.
 ///
 /// This bound is what makes synchronous Scope invalidation possible:
-/// `Access::<T>::clear_prefix(scope_id, MAX_ACCESS_ENTRIES_PER_SCOPE, None)`
-/// is guaranteed to remove every entry for `scope_id` in a single call, so
-/// there is no need for a deferred/background cleanup queue. Unlike the
-/// other bounds above, this one used to be runtime-configurable via
+/// `Scopes[scope_id].access_count` is always bounded by this constant, so
+/// cleanup can pass the real per-Scope count as `clear_prefix`'s removal
+/// limit while staying within a fixed maximum cost envelope. Unlike the other
+/// bounds above, this one used to be runtime-configurable via
 /// `Config::MaxAccessEntriesPerScope`; it is now a crate constant like every
 /// other structural bound in this pallet - changing it requires a code
 /// change (and a runtime upgrade, with a migration proving no existing
@@ -1001,8 +1000,8 @@ pub mod pallet {
         /// (`Access`, `Scopes`) is synchronously cleared in this same call
         /// (see `Pallet::clear_scope_access`).
         #[pallet::call_index(3)]
-        #[pallet::weight(T::WeightInfo::delete_node())]
-        pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::delete_node(MAX_ACCESS_ENTRIES_PER_SCOPE))]
+        pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             // Check the node exists, and get its topology info.
@@ -1029,8 +1028,12 @@ pub mod pallet {
             // Remove the Scope boundary attached to this node, if any. The
             // rest of that Scope's physical state is synchronously cleared
             // now, in the same call.
+            let mut cleared_access_items = 0;
             if let Some(stale_scope) = info.scope {
-                Self::clear_scope_access(stale_scope);
+                cleared_access_items = <Scopes<T>>::get(stale_scope)
+                    .map(|scope_info| scope_info.access_count)
+                    .unwrap_or(0);
+                Self::clear_scope_access(stale_scope, cleared_access_items);
                 <Scopes<T>>::remove(stale_scope);
                 Self::deposit_event(Event::ScopeDeleted(stale_scope, node_id));
             }
@@ -1041,7 +1044,7 @@ pub mod pallet {
             <Nodes<T>>::remove(node_id);
 
             Self::deposit_event(Event::NodeDeleted(node_id, sender));
-            Ok(())
+            Ok(Some(T::WeightInfo::delete_node(cleared_access_items)).into())
         }
 
         /// Create a new Scope rooted at `node_id`, or replace its existing
@@ -1068,18 +1071,25 @@ pub mod pallet {
         ///   generation's `Access` entries are synchronously invalidated
         ///   (see `Pallet::clear_scope_access`).
         #[pallet::call_index(4)]
-        #[pallet::weight(T::WeightInfo::create_scope())]
-        pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
+        #[pallet::weight(T::WeightInfo::create_scope(MAX_ACCESS_ENTRIES_PER_SCOPE))]
+        pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             let info = <Nodes<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
+            let old_scope_access_items = info
+                .scope
+                .and_then(|scope_id| {
+                    <Scopes<T>>::get(scope_id).map(|scope_info| scope_info.access_count)
+                })
+                .unwrap_or(0);
 
             Self::authorize(node_id, &sender, Capability::CreateScope)?;
 
-            let scope_id = Self::allocate_scope(node_id, info.scope, sender.clone())?;
+            let scope_id =
+                Self::allocate_scope(node_id, info.scope, sender.clone(), old_scope_access_items)?;
 
             Self::deposit_event(Event::ScopeCreated(scope_id, node_id, sender));
-            Ok(())
+            Ok(Some(T::WeightInfo::create_scope(old_scope_access_items)).into())
         }
 
         /// Grant `capability` to `principal` at `node_id`, within the Scope
@@ -1313,6 +1323,7 @@ pub mod pallet {
             root: NodeId,
             old_scope: Option<ScopeId>,
             owner: T::AccountId,
+            old_scope_access_items: u32,
         ) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
@@ -1321,7 +1332,7 @@ pub mod pallet {
             <NextScopeId<T>>::put(next_id);
 
             if let Some(stale_scope) = old_scope {
-                Self::clear_scope_access(stale_scope);
+                Self::clear_scope_access(stale_scope, old_scope_access_items);
                 <Scopes<T>>::remove(stale_scope);
             }
 
@@ -1350,24 +1361,37 @@ pub mod pallet {
         /// again). Callers are responsible for removing the `Scopes[scope_id]`
         /// entry itself once this returns.
         ///
-        /// Because [`MAX_ACCESS_ENTRIES_PER_SCOPE`] bounds the number of
-        /// physical `Access` entries any Scope can ever hold, a single
-        /// `clear_prefix` call with that same bound as its removal limit is
-        /// always sufficient to remove the entire prefix in one step - there is
-        /// no deferred/background continuation. `clear_prefix` reporting a
-        /// non-empty continuation cursor despite the enforced bound would mean
-        /// the `access_count <= MAX_ACCESS_ENTRIES_PER_SCOPE` invariant was
-        /// violated elsewhere; this is treated as a bug via `defensive!` rather
-        /// than silently leaving stale entries behind or enqueuing further
-        /// work.
-        pub(crate) fn clear_scope_access(scope_id: ScopeId) {
-            let result = <Access<T>>::clear_prefix(scope_id, MAX_ACCESS_ENTRIES_PER_SCOPE, None);
+        /// The removal limit is taken from the Scope's tracked
+        /// `ScopeInfo.access_count` at invalidation time (`access_items`), so
+        /// both dispatch and benchmarked weight scale with the number of
+        /// physical entries actually removed rather than a fixed maximum.
+        ///
+        /// If `clear_prefix` still reports a continuation cursor, this means
+        /// accounting drifted from storage contents. That is treated as a bug:
+        /// report defensively and attempt a bounded continuation pass up to
+        /// the remaining configured capacity.
+        pub(crate) fn clear_scope_access(scope_id: ScopeId, access_items: u32) {
+            let result = <Access<T>>::clear_prefix(scope_id, access_items, None);
             if result.maybe_cursor.is_some() {
                 frame_support::defensive!(
                     "CPS: clear_prefix left Access entries behind despite \
-                     MAX_ACCESS_ENTRIES_PER_SCOPE bound",
+                     ScopeInfo.access_count bound",
                     scope_id
                 );
+                let remaining = MAX_ACCESS_ENTRIES_PER_SCOPE.saturating_sub(access_items);
+                if remaining > 0 {
+                    let retry = <Access<T>>::clear_prefix(
+                        scope_id,
+                        remaining,
+                        result.maybe_cursor.as_deref(),
+                    );
+                    if retry.maybe_cursor.is_some() {
+                        frame_support::defensive!(
+                            "CPS: clear_prefix continuation still left Access entries behind",
+                            scope_id
+                        );
+                    }
+                }
             }
         }
     }

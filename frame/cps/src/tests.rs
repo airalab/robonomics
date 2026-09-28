@@ -1999,10 +1999,10 @@ mod weight_component_tests {
             LAST_SET_PAYLOAD.with(|c| c.set(bytes));
             Weight::zero()
         }
-        fn delete_node() -> Weight {
+        fn delete_node(_access_items: u32) -> Weight {
             Weight::zero()
         }
-        fn create_scope() -> Weight {
+        fn create_scope(_access_items: u32) -> Weight {
             Weight::zero()
         }
         fn grant_access() -> Weight {
