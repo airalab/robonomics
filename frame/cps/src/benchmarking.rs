@@ -21,7 +21,7 @@
 
 use super::*;
 use frame_benchmarking::v2::*;
-use frame_support::{assert_ok, weights::Weight, BoundedVec};
+use frame_support::{assert_ok, traits::Get, BoundedVec};
 use frame_system::RawOrigin;
 use sp_std::vec;
 
@@ -60,6 +60,24 @@ fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
             Some(parent),
             None,
             None,
+        ));
+    }
+}
+
+/// Grant `Capability::Write` to `T::MaxAccessEntriesPerScope::get()` distinct
+/// principals at `node`, filling that Scope's `Access` entries to its bound -
+/// the worst case for any operation that must synchronously clear a Scope's
+/// entire `Access` prefix (`delete_scope`, `create_scope` replacement).
+fn fill_access_to_limit<T: Config>(caller: &T::AccountId, node: NodeId) {
+    let limit = T::MaxAccessEntriesPerScope::get();
+    for i in 0..limit {
+        let principal = account::<T::AccountId>("access-limit", i, 0);
+        assert_ok!(Pallet::<T>::grant_access(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+            principal,
+            Capability::Write,
+            GrantMode::Node,
         ));
     }
 }
@@ -200,6 +218,9 @@ mod benchmarks {
         );
     }
 
+    /// Worst case: `node`'s Scope holds `MaxAccessEntriesPerScope` physical
+    /// `Access` entries, all of which must be synchronously cleared (in a
+    /// single bounded `clear_prefix` call) as part of this extrinsic.
     #[benchmark]
     fn delete_scope() {
         let caller: T::AccountId = whitelisted_caller();
@@ -208,6 +229,7 @@ mod benchmarks {
             RawOrigin::Signed(caller.clone()).into(),
             node,
         ));
+        fill_access_to_limit::<T>(&caller, node);
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), node);
@@ -303,63 +325,59 @@ mod benchmarks {
         }
     }
 
-    /// Diagnostic (non-dispatchable) benchmark measuring the cost of
-    /// enqueuing a stale Scope for background GC, as done internally by
-    /// `create_scope` (replacement) and `delete_scope`.
+    /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
+    /// of synchronously clearing a Scope's `Access` prefix on invalidation
+    /// (the cost `create_scope` replacement and `delete_scope` add on top
+    /// of their other bookkeeping): a Scope filled to
+    /// `MaxAccessEntriesPerScope` entries, cleared via
+    /// `Pallet::clear_scope_access` in a single `clear_prefix` call.
     #[benchmark(extra)]
-    fn gc_enqueue() {
+    fn clear_scope_access_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
         let (root, _) = create_chain::<T>(&caller, 0);
         let (scope_id, _) = ActiveScope::<T>::get(root).expect("root has a Scope");
+        fill_access_to_limit::<T>(&caller, root);
+        assert_eq!(
+            AccessCount::<T>::get(scope_id),
+            T::MaxAccessEntriesPerScope::get()
+        );
 
         #[block]
         {
-            Pallet::<T>::enqueue_cleanup(scope_id);
-        }
-
-        assert_eq!(CleanupState::<T>::get().tail, 1);
-    }
-
-    /// One bounded `on_idle` GC step, removing `x` entries from a stale
-    /// Scope's `Access(scope_id, *)` prefix in a single `clear_prefix` call.
-    /// `x` is bounded by `MAX_GC_BATCH`, so this covers a single-item
-    /// removal and the maximum batch. `x == 0` is included so the
-    /// zero-item `clear_prefix` completion path (an already-empty prefix
-    /// that still performs the `clear_prefix` storage read/proof work
-    /// before reporting `maybe_cursor: None`) is part of the benchmarked
-    /// domain rather than an extrapolation of the model fitted to `x >= 1`
-    /// samples.
-    #[benchmark]
-    fn gc_access(x: Linear<0, MAX_GC_BATCH>) {
-        let caller: T::AccountId = whitelisted_caller();
-        let (root, _) = create_chain::<T>(&caller, 0);
-        let (scope_id, _) = ActiveScope::<T>::get(root).expect("root has a Scope");
-
-        for i in 0..x {
-            let principal = account::<T::AccountId>("accessor", i, 0);
-            assert_ok!(Pallet::<T>::grant_access(
-                RawOrigin::Signed(caller.clone()).into(),
-                root,
-                principal,
-                Capability::Write,
-                GrantMode::Node,
-            ));
-        }
-
-        // Replace the Scope so `scope_id` becomes stale and gets enqueued
-        // for cleanup.
-        assert_ok!(Pallet::<T>::create_scope(
-            RawOrigin::Signed(caller).into(),
-            root,
-        ));
-        assert_eq!(CleanupState::<T>::get().tail, 1);
-
-        #[block]
-        {
-            Pallet::<T>::do_gc_step(Weight::MAX);
+            Pallet::<T>::clear_scope_access(scope_id);
         }
 
         assert_eq!(Access::<T>::iter_prefix(scope_id).count(), 0);
+        assert_eq!(AccessCount::<T>::get(scope_id), 0);
+    }
+
+    /// Diagnostic (non-dispatchable) benchmark measuring the worst-case cost
+    /// of `create_scope` on the *replacement* path (`node` already roots an
+    /// active Scope, filled to `MaxAccessEntriesPerScope` entries), as
+    /// opposed to the dispatchable `create_scope()` benchmark above, which
+    /// covers the (also worst-case, but structurally different) brand-new
+    /// nested Scope path requiring a full authorization walk. The two
+    /// worst cases are mutually exclusive within a single call - replacing
+    /// an existing Scope resolves and authorizes in O(1) at the exact root,
+    /// while establishing a brand-new Scope on a deep descendant has no old
+    /// Scope to clear - so both are benchmarked independently.
+    #[benchmark(extra)]
+    fn create_scope_replace_worst_case() {
+        let caller: T::AccountId = whitelisted_caller();
+        let (_, node) = create_chain::<T>(&caller, MAX_TREE_DEPTH);
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(caller.clone()).into(),
+            node,
+        ));
+        fill_access_to_limit::<T>(&caller, node);
+
+        #[block]
+        {
+            assert_ok!(Pallet::<T>::create_scope(
+                RawOrigin::Signed(caller).into(),
+                node,
+            ));
+        }
     }
 
     impl_benchmark_test_suite!(Pallet, crate::tests::new_test_ext(), crate::tests::Runtime);

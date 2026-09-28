@@ -50,10 +50,10 @@
 //!
 //! 5. **`NodesByParent`**: Index structure for O(1) child lookups
 //!
-//! 6. **`CleanupQueue`** / **`CleanupState`** / **`CurrentCleanup`**: A FIFO
-//!    queue of stale `ScopeId`s awaiting background physical cleanup by
-//!    `Pallet::on_idle`; see
-//!    [`Cleanup Queue and Background GC`](self#cleanup-queue-and-background-gc)
+//! 6. **`AccessCount`**: Mapping `ScopeId` → `u32`, the number of physical
+//!    `Access` entries currently stored under that Scope. Bounded by
+//!    `Config::MaxAccessEntriesPerScope`; see
+//!    [`Bounded Access and synchronous Scope cleanup`](self#bounded-access-and-synchronous-scope-cleanup)
 //!    below.
 //!
 //! ### Scope
@@ -90,8 +90,9 @@
 //! `CreateScope` grant on that exact root). Replacement allocates a
 //! brand-new `ScopeId` — the previous Scope's `Access` entries become
 //! immediately inactive without requiring any descendant rewrite; the old
-//! Scope's remaining physical state is enqueued for background GC (see
-//! [`Cleanup queue and background GC`](self#cleanup-queue-and-background-gc)
+//! Scope's remaining physical state is synchronously cleared in the same
+//! call (see
+//! [`Bounded Access and synchronous Scope cleanup`](self#bounded-access-and-synchronous-scope-cleanup)
 //! below).
 //!
 //! Changing control of a Scope means creating another Scope; a Scope's
@@ -108,75 +109,45 @@
 //! unaffected: they keep resolving to their own `ScopeId` because
 //! [`Pallet::resolve_scope`] always finds the *nearest* active Scope. As
 //! with replacement, the deleted Scope's remaining physical state is
-//! enqueued for background GC rather than removed synchronously.
+//! cleared synchronously, in the same call, rather than deferred.
 //!
-//! ### Cleanup Queue and Background GC
+//! ### Bounded Access and synchronous Scope cleanup
 //!
-//! Scope invalidation (via replacement or deletion) is immediate and O(1):
-//! it only touches `ActiveScope`. The old Scope's remaining physical state
-//! (`Access` entries) is reclaimed later, incrementally, by a bounded
-//! background GC driven by `Pallet::on_idle`. This never affects
-//! authorization or resource resolution correctness - those always consult
-//! only the *currently* resolved `ScopeId`, regardless of whether an old
-//! Scope's `Access` entries have been physically reclaimed yet.
+//! `Config::MaxAccessEntriesPerScope` places a hard upper bound on the
+//! number of physical `Access` entries (distinct `(NodeId, AccountId)`
+//! pairs) any single Scope may hold at once, tracked in [`AccessCount`].
+//! [`Pallet::grant_access`] enforces the bound - rejecting a brand-new
+//! entry past the limit with [`Error::TooManyAccessEntries`] - while
+//! changing an existing entry's `GrantMode` or adding another `Capability`
+//! bit never consumes an additional slot. [`Pallet::revoke_access`] mirrors
+//! this: only fully revoking an entry's last capability (removing it) frees
+//! a slot.
 //!
-//! Only unbounded state needs background GC. Bounded per-Scope metadata
-//! (the owner) lives directly in `ActiveScope` and is removed synchronously
-//! the moment a Scope is replaced or deleted - there is no separate
-//! metadata cleanup phase.
-//!
-//! A FIFO queue (`CleanupQueue` indexed by `CleanupState`'s `head`/`tail`)
-//! holds one stale `ScopeId` per pending cleanup. `Pallet::on_idle` works
-//! through it as follows:
+//! Because `AccessCount[scope_id] <= MaxAccessEntriesPerScope` always
+//! holds, invalidating a Scope generation (via [`Pallet::delete_scope`], or
+//! a [`Pallet::create_scope`] replacement) can synchronously delete every
+//! remaining `Access` entry for it in one step, in the same extrinsic:
 //!
 //! ```text
-//! if CurrentCleanup exists:
-//!     continue (scope_id, cursor)
-//! else:
-//!     dequeue ScopeId from CleanupQueue
-//!     initialize CurrentCleanup as (scope_id, None)
-//!
-//! run one bounded clear_prefix over Access(scope_id, *)
-//!
-//! if finished:
-//!     remove CurrentCleanup
-//!     continue looping while weight permits
-//! else:
-//!     persist CurrentCleanup as (scope_id, Some(cursor))
+//! invalidate ScopeId
+//!     -> clear_prefix(Access(scope_id, *), MaxAccessEntriesPerScope)
+//!     -> remove AccessCount[scope_id]
+//!     -> done
 //! ```
 //!
-//! `CurrentCleanup` is kept outside the FIFO because only one scope can
-//! actively own a `clear_prefix` continuation cursor at a time; the queue
-//! itself never stores cursor state, keeping its entries a single
-//! `ScopeId` each. Each `on_idle` call may perform multiple such steps
-//! (across one or several scopes) as long as `WeightInfo::gc_access(n)` fits
-//! within the remaining idle weight, and never exceeds the weight it is
-//! given.
+//! There is no deferred cleanup queue, continuation cursor, or `on_idle`
+//! background pass: the bound guarantees the single `clear_prefix` call
+//! always finishes the prefix. A `clear_prefix` call that (contrary to the
+//! bound) reports leftover work is treated as an invariant violation (see
+//! `Pallet::clear_scope_access`), never as something to silently retry or
+//! defer.
 //!
-//! A `ScopeId` may be enqueued only in the same state transition that
-//! removes or replaces the corresponding `ActiveScope` entry, and
-//! `ScopeId`s are never reused - so a queued Scope can never become active
-//! again, and GC never races with a resurrected Scope.
-//!
-//! `ScopeId`s are never reused, including after GC: a garbage-collected
+//! `ScopeId`s are never reused, including after cleanup: a cleaned-up
 //! `ScopeId` simply has no more physical state, but remains a valid
 //! historical identifier that will never be handed out again by
-//! [`Pallet::create_scope`].
-//!
-//! #### Guaranteed progress under sustained load
-//!
-//! GC here is deliberately idle-only (see `Pallet::on_idle`): it makes no
-//! guaranteed per-block progress, only opportunistic progress from leftover
-//! idle weight. Under a chain that is *permanently* full (no idle weight in
-//! any block), the cleanup backlog would not shrink. This is accepted as a
-//! reasonable tradeoff for now: a chain saturated block after block already
-//! has far more pressing throughput problems than a growing stale-`Access`
-//! backlog, and that backlog does not affect correctness (authorization
-//! never depends on GC having run - see the invariants below). Should
-//! sustained full-block load become a practical concern, a small
-//! deterministic guaranteed budget (e.g. reserved in `on_initialize`) can be
-//! layered on top of this idle-only path without changing the underlying
-//! queue/cursor state machine.
+//! [`Pallet::create_scope`]. A `ScopeId` is only ever cleared in the same
+//! state transition that removes or replaces its `ActiveScope` entry, so a
+//! cleared Scope can never become active again.
 //!
 //! ### Access
 //!
@@ -272,11 +243,13 @@
 //! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
 //! 8. **Immutable Scope Owner/Root**: A Scope's owner and root are fixed at
 //!    creation; changing control means creating another Scope.
-//! 9. **GC Correctness Independence**: Authorization and Scope resolution
-//!    never depend on whether background GC has run; a stale Scope's
-//!    physical state may still exist without being reachable through
-//!    `ActiveScope`. GC also never reclaims a Scope that is still active
-//!    (defensive check in `Pallet::on_idle`).
+//! 9. **Bounded Access / Synchronous Cleanup**: Every Scope holds at most
+//!    `Config::MaxAccessEntriesPerScope` physical `Access` entries
+//!    ([`AccessCount`] tracks the exact count); invalidating a Scope
+//!    generation always synchronously removes its entire `Access` prefix
+//!    and its `AccessCount` entry in the same call - there is no deferred
+//!    cleanup, and no stale Scope's physical state ever survives past the
+//!    call that invalidated it.
 //!
 //! ## Testing
 //!
@@ -290,14 +263,12 @@
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
-pub mod gc;
 pub mod migration;
 pub mod weights;
 
 #[cfg(test)]
 mod tests;
 
-pub use gc::*;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -617,6 +588,21 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        /// Hard upper bound on the number of physical `Access` entries
+        /// (distinct `(NodeId, AccountId)` pairs) that may exist under a
+        /// single `ScopeId` at once.
+        ///
+        /// This bound is what makes synchronous Scope invalidation
+        /// possible: `Access::<T>::clear_prefix(scope_id,
+        /// MaxAccessEntriesPerScope::get(), None)` is guaranteed to remove
+        /// every entry for `scope_id` in a single call, so there is no need
+        /// for a deferred/background cleanup queue. Not runtime-mutable -
+        /// changing it requires a runtime upgrade (and, if lowered, a
+        /// migration proving no existing Scope already exceeds the new
+        /// bound).
+        #[pallet::constant]
+        type MaxAccessEntriesPerScope: Get<u32>;
     }
 
     #[pallet::pallet]
@@ -674,9 +660,10 @@ pub mod pallet {
     ///
     /// The outer key (`ScopeId`) is an internally generated, never-reused
     /// counter, so it uses the cheaper reversible `Twox64Concat` hasher;
-    /// prefix removal by `ScopeId` (background GC) remains supported. The
-    /// inner key mixes in the attacker-influenced `AccountId`, so it keeps
-    /// the cryptographic `Blake2_128Concat` hasher.
+    /// this also allows single-call prefix removal by `ScopeId` when a
+    /// Scope generation is invalidated (see [`AccessCount`]). The inner key
+    /// mixes in the attacker-influenced `AccountId`, so it keeps the
+    /// cryptographic `Blake2_128Concat` hasher.
     #[pallet::storage]
     #[pallet::getter(fn access)]
     pub type Access<T: Config> = StorageDoubleMap<
@@ -689,39 +676,26 @@ pub mod pallet {
         ValueQuery,
     >;
 
+    /// Number of physical `Access` entries (distinct `(NodeId, AccountId)`
+    /// pairs) currently stored under a `ScopeId`.
+    ///
+    /// Invariant: `AccessCount[scope_id] == Access::iter_prefix(scope_id).count()`
+    /// and `AccessCount[scope_id] <= T::MaxAccessEntriesPerScope::get()` at
+    /// all times. Maintained by [`Pallet::grant_access`] /
+    /// [`Pallet::revoke_access`] (incremented/decremented only when an
+    /// entry is created/fully removed, never on a mere flag update), and
+    /// removed entirely once its Scope is invalidated (see
+    /// `Pallet::clear_scope_access`). `ScopeId` is internally generated and
+    /// never reused, so `Twox64Concat` is appropriate here too.
+    #[pallet::storage]
+    #[pallet::getter(fn access_count)]
+    pub type AccessCount<T: Config> = StorageMap<_, Twox64Concat, ScopeId, u32, ValueQuery>;
+
     /// Index of children by parent node
     #[pallet::storage]
     #[pallet::getter(fn nodes_by_parent)]
     pub type NodesByParent<T: Config> =
         StorageMap<_, Blake2_128Concat, NodeId, BoundedVec<NodeId, MaxChildrenPerNode>, ValueQuery>;
-
-    /// FIFO queue of stale `ScopeId`s awaiting background physical cleanup.
-    ///
-    /// Entries between `CleanupState::head` (inclusive) and
-    /// `CleanupState::tail` (exclusive) are pending; `Pallet::on_idle`
-    /// always dequeues from `head` first. Keyed by an internally generated,
-    /// never-reused sequence number, so it uses the cheaper reversible
-    /// `Twox64Concat` hasher.
-    #[pallet::storage]
-    #[pallet::getter(fn cleanup_queue)]
-    pub type CleanupQueue<T> = StorageMap<_, Twox64Concat, u64, ScopeId>;
-
-    /// Combined head/tail cursors of [`CleanupQueue`]. The queue is empty
-    /// when `head == tail`.
-    #[pallet::storage]
-    #[pallet::getter(fn cleanup_state)]
-    pub type CleanupState<T> = StorageValue<_, CleanupQueueState, ValueQuery>;
-
-    /// The stale Scope currently owning an in-progress `Access(scope_id, *)`
-    /// `clear_prefix` continuation, if any, kept outside [`CleanupQueue`]
-    /// since only one Scope can be mid-removal at a time.
-    ///
-    /// `None` cursor means a fresh Scope was just dequeued and no batch has
-    /// run yet; `Some(cursor)` means a previous `Pallet::on_idle` step left
-    /// work unfinished.
-    #[pallet::storage]
-    #[pallet::getter(fn current_cleanup)]
-    pub type CurrentCleanup<T> = StorageValue<_, (ScopeId, Option<CleanupCursor>), OptionQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -743,10 +717,6 @@ pub mod pallet {
         AccessGranted(ScopeId, NodeId, T::AccountId, Capability, GrantMode),
         /// Access was revoked [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
-        /// A stale Scope was enqueued for background cleanup \[scope_id\]
-        CleanupEnqueued(ScopeId),
-        /// A stale Scope's physical state was fully reclaimed \[scope_id\]
-        CleanupCompleted(ScopeId),
     }
 
     #[pallet::error]
@@ -774,14 +744,10 @@ pub mod pallet {
         AccessDenied,
         /// A CPS root's Scope can never be deleted
         CannotDeleteRootScope,
-    }
-
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        /// Bounded, resumable background GC of stale Scope physical state.
-        fn on_idle(_n: BlockNumberFor<T>, remaining_weight: Weight) -> Weight {
-            Self::run_gc(remaining_weight)
-        }
+        /// The Scope already holds `MaxAccessEntriesPerScope` physical
+        /// `Access` entries; no further `(NodeId, AccountId)` pair can be
+        /// granted access until an existing entry is fully revoked.
+        TooManyAccessEntries,
     }
 
     #[pallet::call]
@@ -922,8 +888,9 @@ pub mod pallet {
         ///
         /// Only leaf nodes (no children) can be deleted. If the node is the
         /// root of an active Scope, that Scope's `ActiveScope` entry is
-        /// removed as well; the rest of the Scope's physical state
-        /// (`Access`) is left for background garbage collection.
+        /// removed as well, and the rest of the Scope's physical state
+        /// (`Access`) is synchronously cleared in this same call (see
+        /// `Pallet::clear_scope_access`).
         #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::delete_node())]
         pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -955,9 +922,10 @@ pub mod pallet {
             <NodesByParent<T>>::remove(node_id);
 
             // Remove the Scope boundary attached to this node, if any. The
-            // rest of that Scope's physical state is left for GC.
+            // rest of that Scope's physical state is synchronously cleared
+            // now, in the same call.
             if let Some((stale_scope, _owner)) = <ActiveScope<T>>::take(node_id) {
-                Self::enqueue_cleanup(stale_scope);
+                Self::clear_scope_access(stale_scope);
             }
 
             // Remove the node's attributes
@@ -1006,8 +974,8 @@ pub mod pallet {
         /// falls back to the nearest parent Scope. A CPS root's Scope can
         /// never be deleted. Nested Scopes below `node_id` are unaffected.
         /// The deleted Scope's remaining physical state (`Access`) is
-        /// enqueued for background GC (see `Pallet::on_idle`), not
-        /// removed synchronously.
+        /// synchronously cleared in this same call (see
+        /// `Pallet::clear_scope_access`).
         #[pallet::call_index(5)]
         #[pallet::weight(T::WeightInfo::delete_scope())]
         pub fn delete_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResult {
@@ -1021,7 +989,7 @@ pub mod pallet {
             ensure!(parent.is_some(), Error::<T>::CannotDeleteRootScope);
 
             <ActiveScope<T>>::remove(node_id);
-            Self::enqueue_cleanup(scope_id);
+            Self::clear_scope_access(scope_id);
 
             Self::deposit_event(Event::ScopeDeleted(scope_id, node_id));
             Ok(())
@@ -1029,6 +997,12 @@ pub mod pallet {
 
         /// Grant `capability` to `principal` at `node_id`, within the Scope
         /// resolved for `node_id`. Only the Scope's owner may grant Access.
+        ///
+        /// A brand-new `(node_id, principal)` `Access` entry consumes one of
+        /// the Scope's bounded `MaxAccessEntriesPerScope` slots (rejected
+        /// with [`Error::TooManyAccessEntries`] once the bound is reached);
+        /// changing the `GrantMode` or adding another `Capability` bit to an
+        /// already-existing entry never does.
         #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::grant_access())]
         pub fn grant_access(
@@ -1043,9 +1017,24 @@ pub mod pallet {
             let resolved = Self::resolve_scope(node_id)?;
             ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
-            <Access<T>>::mutate(resolved.id, (node_id, principal.clone()), |flags| {
+            let key = (node_id, principal.clone());
+            let is_new_entry = !<Access<T>>::contains_key(resolved.id, &key);
+            if is_new_entry {
+                ensure!(
+                    <AccessCount<T>>::get(resolved.id) < T::MaxAccessEntriesPerScope::get(),
+                    Error::<T>::TooManyAccessEntries
+                );
+            }
+
+            <Access<T>>::mutate(resolved.id, &key, |flags| {
                 flags.grant(capability, mode);
             });
+
+            if is_new_entry {
+                <AccessCount<T>>::mutate(resolved.id, |count| {
+                    *count = count.saturating_add(1);
+                });
+            }
 
             Self::deposit_event(Event::AccessGranted(
                 resolved.id,
@@ -1059,6 +1048,12 @@ pub mod pallet {
 
         /// Revoke a previously granted `capability` from `principal` at
         /// `node_id`. Only the Scope's owner may revoke Access.
+        ///
+        /// Only fully revoking the last remaining `Capability` on a
+        /// `(node_id, principal)` entry (removing it entirely) frees up
+        /// that Scope's `MaxAccessEntriesPerScope` slot; revoking one
+        /// capability while others remain leaves the entry - and the count
+        /// - untouched.
         #[pallet::call_index(7)]
         #[pallet::weight(T::WeightInfo::revoke_access())]
         pub fn revoke_access(
@@ -1077,6 +1072,9 @@ pub mod pallet {
             flags.revoke(capability);
             if flags.is_empty() {
                 <Access<T>>::remove(resolved.id, &key);
+                <AccessCount<T>>::mutate(resolved.id, |count| {
+                    *count = count.saturating_sub(1);
+                });
             } else {
                 <Access<T>>::insert(resolved.id, &key, flags);
             }
@@ -1215,8 +1213,9 @@ pub mod pallet {
 
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
         /// and activate it. Replaces any Scope previously active at `root`;
-        /// if one existed, it is enqueued for background GC (see
-        /// `Pallet::on_idle`) in the same transaction that invalidates it.
+        /// if one existed, its remaining physical state (`Access`) is
+        /// synchronously cleared (see [`Self::clear_scope_access`]) in the
+        /// same call that invalidates it.
         fn allocate_scope(root: NodeId, owner: T::AccountId) -> Result<ScopeId, Error<T>> {
             let scope_id = <NextScopeId<T>>::get();
             let next_id = scope_id
@@ -1225,11 +1224,41 @@ pub mod pallet {
             <NextScopeId<T>>::put(next_id);
 
             if let Some((stale_scope, _owner)) = <ActiveScope<T>>::get(root) {
-                Self::enqueue_cleanup(stale_scope);
+                Self::clear_scope_access(stale_scope);
             }
             <ActiveScope<T>>::insert(root, (scope_id, owner));
 
             Ok(scope_id)
+        }
+
+        /// Synchronously delete every `Access` entry belonging to an
+        /// invalidated `scope_id`, then remove its [`AccessCount`] entry.
+        ///
+        /// Must be called in the same state transition that removes or
+        /// replaces the corresponding `ActiveScope` entry (`ScopeId`s are never
+        /// reused, so an invalidated Scope can never become active again).
+        ///
+        /// Because [`Config::MaxAccessEntriesPerScope`] bounds the number of
+        /// physical `Access` entries any Scope can ever hold, a single
+        /// `clear_prefix` call with that same bound as its removal limit is
+        /// always sufficient to remove the entire prefix in one step - there is
+        /// no deferred/background continuation. `clear_prefix` reporting a
+        /// non-empty continuation cursor despite the enforced bound would mean
+        /// the `AccessCount <= MaxAccessEntriesPerScope` invariant was
+        /// violated elsewhere; this is treated as a bug via `defensive!` rather
+        /// than silently leaving stale entries behind or enqueuing further
+        /// work.
+        pub(crate) fn clear_scope_access(scope_id: ScopeId) {
+            let result =
+                <Access<T>>::clear_prefix(scope_id, T::MaxAccessEntriesPerScope::get(), None);
+            if result.maybe_cursor.is_some() {
+                frame_support::defensive!(
+                    "CPS: clear_prefix left Access entries behind despite \
+                     MaxAccessEntriesPerScope bound",
+                    scope_id
+                );
+            }
+            <AccessCount<T>>::remove(scope_id);
         }
 
         /// Count the number of ancestors of `node_id` by walking `parent`

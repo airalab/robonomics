@@ -37,7 +37,16 @@
 //!   parent's (already migrated) Scope.
 //!
 //! `ScopeId`s are allocated in the same order nodes are iterated, starting
-//! from `NextScopeId`. Version 1 had no Access grants to migrate.
+//! from `NextScopeId`. Version 1 had no Access grants to migrate, so
+//! [`AccessCount`] is never populated by the loop above. For defensive
+//! completeness (e.g. a chain that already ran intermediate/development
+//! code with `Access` entries present before this migration lands), this
+//! migration also derives [`AccessCount`] from whatever `Access` entries
+//! already exist in storage at upgrade time, grouped by `ScopeId`. It
+//! asserts (via [`frame_support::defensive`], matching the
+//! `NodesByParent` overflow-handling style below) that no Scope already
+//! exceeds `Config::MaxAccessEntriesPerScope` - this migration must never
+//! silently complete while violating that bound.
 //!
 //! This migration also opportunistically clears the now-removed `RootNodes`
 //! index (a `StorageValue` that used to hold the list of parentless nodes,
@@ -69,8 +78,8 @@
 //! happen before applying this migration to a chain where it might.
 
 use crate::{
-    ActiveScope, Config, MaxChildrenPerNode, MaxTreeDepth, Meta, NextScopeId, NodeData, NodeId,
-    NodesByParent, Pallet, Parents, Payload, ScopeId,
+    Access, AccessCount, ActiveScope, Config, MaxChildrenPerNode, MaxTreeDepth, Meta, NextScopeId,
+    NodeData, NodeId, NodesByParent, Pallet, Parents, Payload, ScopeId,
 };
 use core::fmt::Debug;
 use frame_support::{
@@ -139,7 +148,7 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
             .map(|(id, old)| (id.0, old.owner.clone()))
             .collect();
 
-        let reads: u64 = old_nodes.len() as u64;
+        let mut reads: u64 = old_nodes.len() as u64;
         let mut writes: u64 = 0;
 
         // Migrated boundary nodes need to resolve their newly allocated
@@ -232,6 +241,32 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         RootNodes::<T>::kill();
         writes = writes.saturating_add(1);
 
+        // Derive `AccessCount` from whatever `Access` entries already exist
+        // at upgrade time (see module docs). Version 1 never had any, so
+        // this is a defensive no-op on a chain migrating straight from v1;
+        // it only matters for a chain that already ran intermediate code
+        // with `Access` entries present.
+        let mut counts: BTreeMap<u64, u32> = BTreeMap::new();
+        let mut access_reads: u64 = 0;
+        for (scope_id, _key, _flags) in Access::<T>::iter() {
+            access_reads = access_reads.saturating_add(1);
+            *counts.entry(scope_id.0).or_default() += 1;
+        }
+        reads = reads.saturating_add(access_reads);
+
+        let max_access_entries = <T as Config>::MaxAccessEntriesPerScope::get();
+        for (scope_id, count) in counts {
+            if count > max_access_entries {
+                frame_support::defensive!(
+                    "CPS v1->v2 migration: Scope already exceeds MaxAccessEntriesPerScope",
+                    (scope_id, count, max_access_entries)
+                );
+                continue;
+            }
+            AccessCount::<T>::insert(ScopeId(scope_id), count);
+            writes = writes.saturating_add(1);
+        }
+
         T::DbWeight::get().reads_writes(reads, writes)
     }
 
@@ -282,6 +317,25 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
                 stored_len == count,
                 "CPS v1->v2 migration: NodesByParent[parent] length does not match the number \
                  of legacy edges for that parent"
+            );
+        }
+
+        // `AccessCount` must exactly match the number of physical `Access`
+        // entries actually stored under each `ScopeId`, and must never
+        // exceed the configured bound (see module docs).
+        let mut actual_counts: BTreeMap<u64, u32> = BTreeMap::new();
+        for (scope_id, _key, _flags) in Access::<T>::iter() {
+            *actual_counts.entry(scope_id.0).or_default() += 1;
+        }
+        let max_access_entries = <T as Config>::MaxAccessEntriesPerScope::get();
+        for (scope_id, count) in actual_counts {
+            frame_support::ensure!(
+                count <= max_access_entries,
+                "CPS v1->v2 migration: a Scope exceeds MaxAccessEntriesPerScope after migration"
+            );
+            frame_support::ensure!(
+                AccessCount::<T>::get(ScopeId(scope_id)) == count,
+                "CPS v1->v2 migration: AccessCount does not match actual Access entry count"
             );
         }
 

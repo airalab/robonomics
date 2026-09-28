@@ -160,10 +160,14 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 	/// Proof: `CPS::ActiveScope` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
 	/// Storage: `CPS::Parents` (r:1 w:0)
 	/// Proof: `CPS::Parents` (`max_values`: None, `max_size`: Some(33), added: 2508, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupState` (r:1 w:1)
-	/// Proof: `CPS::CleanupState` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupQueue` (r:0 w:1)
-	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::Access` (r:0 w:32)
+	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
+	/// Storage: `CPS::AccessCount` (r:0 w:1)
+	/// Proof: `CPS::AccessCount` (`max_values`: None, `max_size`: Some(28), added: 2503, mode: `MaxEncodedLen`)
+	// NOTE(#670): weights below are stale (pre-dating the synchronous Access
+	// cleanup rework) and must be regenerated from real benchmarks before
+	// production use; only the doc-comment storage annotations were updated
+	// here to reflect the new access pattern.
 	fn delete_scope() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `671`
@@ -205,29 +209,5 @@ impl<T: frame_system::Config> pallet_robonomics_cps::WeightInfo for WeightInfo<T
 			.saturating_add(Weight::from_parts(0, 84777))
 			.saturating_add(T::DbWeight::get().reads(66))
 			.saturating_add(T::DbWeight::get().writes(1))
-	}
-	/// Storage: `CPS::CurrentCleanup` (r:1 w:1)
-	/// Proof: `CPS::CurrentCleanup` (`max_values`: Some(1), `max_size`: Some(267), added: 762, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupState` (r:1 w:1)
-	/// Proof: `CPS::CleanupState` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::CleanupQueue` (r:1 w:1)
-	/// Proof: `CPS::CleanupQueue` (`max_values`: None, `max_size`: Some(24), added: 2499, mode: `MaxEncodedLen`)
-	/// Storage: `CPS::Access` (r:64 w:64)
-	/// Proof: `CPS::Access` (`max_values`: None, `max_size`: Some(88), added: 2563, mode: `MaxEncodedLen`)
-	/// The range of component `x` is `[0, 64]`.
-	fn gc_access(x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `209 + x * (55 ±0)`
-		//  Estimated: `3489 + x * (2563 ±0)`
-		// Minimum execution time: 8_746_000 picoseconds.
-		Weight::from_parts(9_162_382, 0)
-			.saturating_add(Weight::from_parts(0, 3489))
-			// Standard Error: 214
-			.saturating_add(Weight::from_parts(573_463, 0).saturating_mul(x.into()))
-			.saturating_add(T::DbWeight::get().reads(3))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(x.into())))
-			.saturating_add(T::DbWeight::get().writes(3))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(x.into())))
-			.saturating_add(Weight::from_parts(0, 2563).saturating_mul(x.into()))
 	}
 }
