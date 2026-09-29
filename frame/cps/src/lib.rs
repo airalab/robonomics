@@ -176,10 +176,10 @@
 //! ### Performance Characteristics
 //!
 //! Core operation time complexity:
-//! - **Scope resolution**: [`Pallet::resolve_scope`] (built on the internal
-//!   `resolve_scope_path`) walks `parent` links one hop at a time until a
-//!   `NodeInfo.scope` entry is found → O(scope-local depth), bounded by
-//!   `MAX_SCOPE_DEPTH` - never by the (unbounded) global tree depth
+//! - **Scope resolution**: [`Pallet::resolve_scope`] walks `parent` links
+//!   one hop at a time until a `NodeInfo.scope` entry is found →
+//!   O(scope-local depth), bounded by `MAX_SCOPE_DEPTH` - never by the
+//!   (unbounded) global tree depth
 //! - **Depth validation**: reuses the same resolved path's length, no
 //!   separate traversal
 //! - **Child lookup**: Direct index access via `Children` → O(1)
@@ -340,7 +340,7 @@ pub type MaxMetaSize = ConstU32<MAX_META_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_PAYLOAD_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxPayloadSize = ConstU32<MAX_PAYLOAD_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_SCOPE_DEPTH`] for use as a `BoundedVec`
-/// bound (e.g. [`ResolvedScopePath::path`]).
+/// bound (e.g. [`ResolvedScope::path`]).
 pub type MaxScopeDepth = ConstU32<MAX_SCOPE_DEPTH>;
 /// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
@@ -653,22 +653,10 @@ pub struct ScopeInfo<AccountId: MaxEncodedLen> {
     pub access_count: u32,
 }
 
-/// The Scope resolved for a CPS node: its `ScopeId`, root `NodeId`, and
-/// owner `AccountId`, produced by [`Pallet::resolve_scope`] in a single walk
-/// so callers never need a separate lookup for the root or owner.
-#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
-pub struct ResolvedScope<AccountId> {
-    /// The resolved Scope's identifier.
-    pub id: ScopeId,
-    /// The `NodeId` at which this Scope's `NodeInfo.scope` entry is stored.
-    pub root: NodeId,
-    /// The Scope's owner account.
-    pub owner: AccountId,
-}
-
-/// The result of a single canonical topology walk from a target node up to
-/// its resolved Scope: the [`ResolvedScope`] itself, together with the full
-/// path walked to reach it.
+/// The Scope resolved for a CPS node - its `ScopeId`, root `NodeId`, and
+/// owner `AccountId` - together with the full topology path walked to reach
+/// it, all produced by [`Pallet::resolve_scope`] in a single walk so
+/// callers never need a separate lookup for the root, owner, or path.
 ///
 /// `path` holds the target node first and the Scope root last (so
 /// `path.len() == 1` when the target node is itself the Scope root). The
@@ -677,9 +665,13 @@ pub struct ResolvedScope<AccountId> {
 /// it would go stale whenever [`Pallet::create_scope`] moves a descendant's
 /// effective depth by inserting a new Scope boundary above it.
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
-pub struct ResolvedScopePath<AccountId> {
-    /// The Scope resolved for the target node.
-    pub scope: ResolvedScope<AccountId>,
+pub struct ResolvedScope<AccountId> {
+    /// The resolved Scope's identifier.
+    pub id: ScopeId,
+    /// The `NodeId` at which this Scope's `NodeInfo.scope` entry is stored.
+    pub root: NodeId,
+    /// The Scope's owner account.
+    pub owner: AccountId,
     /// The path from the target node (first) to the Scope root (last),
     /// inclusive of both ends.
     pub path: BoundedVec<NodeId, MaxScopeDepth>,
@@ -884,8 +876,8 @@ pub mod pallet {
                 // hierarchy, not a data mutation - `Write` only authorizes
                 // `Meta`/`Payload` changes (see issue #656), so this always
                 // requires the resolved Scope's owner authority.
-                let resolved = Self::resolve_scope_path(pid)?;
-                ensure!(resolved.scope.owner == sender, Error::<T>::NotScopeOwner);
+                let resolved = Self::resolve_scope(pid)?;
+                ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
                 // Check the scope-local depth by reusing the parent's
                 // already-resolved path: the new child's path would be one
@@ -1199,13 +1191,46 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// Resolve the [`ResolvedScope`] effective for `node_id`.
+        /// The single canonical topology resolver: walk from `node_id`
+        /// towards the root, one hop at a time, until a `NodeInfo.scope`
+        /// entry is found, collecting every node visited along the way.
         ///
-        /// Thin wrapper over [`Self::resolve_scope_path`] returning just the
-        /// Scope, for callers that don't need the full walked path (e.g. the
-        /// `CpsApi` runtime API).
+        /// Returns the resolved [`ResolvedScope`], which carries the walked
+        /// `path` (target node first, Scope root last) alongside the Scope's
+        /// `id`, `root`, and `owner`. Every authorization check and depth
+        /// admission in this pallet is built on top of this single walk -
+        /// there is no separate traversal for depth vs. Access lookups.
+        ///
+        /// The walk never visits more than `MAX_SCOPE_DEPTH` nodes: this
+        /// bounds resolution cost to the *scope-local* depth, never the
+        /// (unbounded) global tree depth. Exceeding the bound without
+        /// finding a Scope indicates a broken invariant (every node must
+        /// resolve to a Scope within `MAX_SCOPE_DEPTH` nodes) and is
+        /// reported as [`Error::ScopeNotFound`].
         pub fn resolve_scope(node_id: NodeId) -> Result<ResolvedScope<T::AccountId>, Error<T>> {
-            Self::resolve_scope_path(node_id).map(|resolved| resolved.scope)
+            let mut path: BoundedVec<NodeId, MaxScopeDepth> = BoundedVec::default();
+            let mut current = node_id;
+
+            for _ in 0..MAX_SCOPE_DEPTH {
+                path.try_push(current)
+                    .map_err(|_| Error::<T>::ScopeNotFound)?;
+
+                let info = <Nodes<T>>::get(current).ok_or(Error::<T>::NodeNotFound)?;
+
+                if let Some(scope_id) = info.scope {
+                    let scope_info = <Scopes<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
+                    return Ok(ResolvedScope {
+                        id: scope_id,
+                        root: current,
+                        owner: scope_info.owner,
+                        path,
+                    });
+                }
+
+                current = info.parent.ok_or(Error::<T>::ScopeNotFound)?;
+            }
+
+            Err(Error::<T>::ScopeNotFound)
         }
 
         /// Check whether `account_id` currently holds `capability` at
@@ -1231,57 +1256,11 @@ pub mod pallet {
             Self::authorize(node_id, account_id, capability).unwrap_or(false)
         }
 
-        /// The single canonical topology resolver: walk from `node_id`
-        /// towards the root, one hop at a time, until a `NodeInfo.scope`
-        /// entry is found, collecting every node visited along the way.
-        ///
-        /// Returns the resolved [`ResolvedScope`] together with the walked
-        /// `path` (target node first, Scope root last) as a
-        /// [`ResolvedScopePath`]. Every authorization check and depth
-        /// admission in this pallet is built on top of this single walk -
-        /// there is no separate traversal for depth vs. Access lookups.
-        ///
-        /// The walk never visits more than `MAX_SCOPE_DEPTH` nodes: this
-        /// bounds resolution cost to the *scope-local* depth, never the
-        /// (unbounded) global tree depth. Exceeding the bound without
-        /// finding a Scope indicates a broken invariant (every node must
-        /// resolve to a Scope within `MAX_SCOPE_DEPTH` nodes) and is
-        /// reported as [`Error::ScopeNotFound`].
-        pub fn resolve_scope_path(
-            node_id: NodeId,
-        ) -> Result<ResolvedScopePath<T::AccountId>, Error<T>> {
-            let mut path: BoundedVec<NodeId, MaxScopeDepth> = BoundedVec::default();
-            let mut current = node_id;
-
-            for _ in 0..MAX_SCOPE_DEPTH {
-                path.try_push(current)
-                    .map_err(|_| Error::<T>::ScopeNotFound)?;
-
-                let info = <Nodes<T>>::get(current).ok_or(Error::<T>::NodeNotFound)?;
-
-                if let Some(scope_id) = info.scope {
-                    let scope_info = <Scopes<T>>::get(scope_id).ok_or(Error::<T>::ScopeNotFound)?;
-                    return Ok(ResolvedScopePath {
-                        scope: ResolvedScope {
-                            id: scope_id,
-                            root: current,
-                            owner: scope_info.owner,
-                        },
-                        path,
-                    });
-                }
-
-                current = info.parent.ok_or(Error::<T>::ScopeNotFound)?;
-            }
-
-            Err(Error::<T>::ScopeNotFound)
-        }
-
         /// Authorize `sender` to exercise `capability` at `node_id`.
         ///
         /// The Scope owner always has implicit authority. Otherwise, this
         /// resolves `node_id`'s Scope path exactly once (via
-        /// [`Self::resolve_scope_path`]) and reuses it to check `Access`
+        /// [`Self::resolve_scope`]) and reuses it to check `Access`
         /// entries without a second topology traversal: at `node_id` itself
         /// (`path[0]`), both `GrantMode::Node` and `GrantMode::Subtree`
         /// grants authorize; on every strict ancestor in the path, only
@@ -1293,13 +1272,13 @@ pub mod pallet {
             sender: &T::AccountId,
             capability: Capability,
         ) -> Result<bool, Error<T>> {
-            let resolved = Self::resolve_scope_path(node_id)?;
-            if resolved.scope.owner == *sender {
+            let resolved = Self::resolve_scope(node_id)?;
+            if resolved.owner == *sender {
                 return Ok(true);
             }
 
             for (index, current) in resolved.path.iter().enumerate() {
-                let flags = <Access<T>>::get(resolved.scope.id, (*current, sender.clone()));
+                let flags = <Access<T>>::get(resolved.id, (*current, sender.clone()));
                 if index == 0 {
                     if flags.contains(capability) {
                         return Ok(true);

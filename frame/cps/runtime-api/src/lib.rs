@@ -33,13 +33,13 @@
 //! `polkadot-omni-node`), so no custom Robonomics JSON-RPC endpoint or
 //! node-side customization is required.
 //!
-//! `resolve_scope` returns the `ScopeId`, root `NodeId`, and owner
-//! `AccountId` together (as a [`pallet_robonomics_cps::ResolvedScope`]),
-//! since the pallet stores topology and ownership across `Nodes` and
-//! `Scopes`, and resolving all three only requires one walk of the
-//! node's ancestry. The pallet's own `resolve_scope` returns a `Result`;
-//! the runtime implementation collapses any error into `None` before
-//! crossing the API boundary.
+//! `resolve_scope` returns the `ScopeId`, root `NodeId`, owner `AccountId`,
+//! and the walked ancestry `path` together (as a
+//! [`pallet_robonomics_cps::ResolvedScope`]), since the pallet stores
+//! topology and ownership across `Nodes` and `Scopes`, and resolving all of
+//! them only requires one walk of the node's ancestry. The pallet's own
+//! `resolve_scope` returns a `Result`; the runtime implementation collapses
+//! any error into `None` before crossing the API boundary.
 //!
 //! Because these are normal Runtime API methods, they are automatically
 //! included in runtime metadata and can be queried at any historical block
@@ -65,8 +65,9 @@ sp_api::decl_runtime_apis! {
         /// This is the Scope of `node` itself if its `Nodes` entry carries a
         /// `scope` field, or of the nearest ancestor that does. The
         /// returned [`ResolvedScope`] carries the `ScopeId`, the `NodeId` of
-        /// the Scope's root, and the owner `AccountId` together, since the
-        /// pallet resolves all three in a single ancestry walk.
+        /// the Scope's root, the owner `AccountId`, and the walked ancestry
+        /// `path`, since the pallet resolves all of them in a single
+        /// ancestry walk.
         ///
         /// Returns `None` if `node` does not exist or if no active Scope
         /// could be found while walking its ancestry (this should not

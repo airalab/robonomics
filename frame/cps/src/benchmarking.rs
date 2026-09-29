@@ -52,7 +52,7 @@ fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) 
     }
     let (root, deepest) = (root.unwrap(), parent.unwrap());
     assert_eq!(
-        Pallet::<T>::resolve_scope_path(deepest)
+        Pallet::<T>::resolve_scope(deepest)
             .expect("chain resolves to its root Scope")
             .path
             .len(),
@@ -162,7 +162,7 @@ mod benchmarks {
             MAX_CHILDREN_PER_NODE as usize
         );
         assert_eq!(
-            Pallet::<T>::resolve_scope_path(node)
+            Pallet::<T>::resolve_scope(node)
                 .expect("new node resolves")
                 .path
                 .len(),

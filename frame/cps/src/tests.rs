@@ -86,14 +86,10 @@ fn children_of(node_id: NodeId) -> BoundedVec<NodeId, MaxChildrenPerNode> {
 }
 
 fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, expected_owner: u64) {
-    assert_eq!(
-        Cps::resolve_scope(node_id),
-        Ok(ResolvedScope {
-            id: expected_id,
-            root: expected_root,
-            owner: expected_owner,
-        })
-    );
+    let resolved = Cps::resolve_scope(node_id).expect("scope resolves");
+    assert_eq!(resolved.id, expected_id);
+    assert_eq!(resolved.root, expected_root);
+    assert_eq!(resolved.owner, expected_owner);
     assert_eq!(
         Cps::scope_info(expected_id).map(|info| info.owner),
         Some(expected_owner)
@@ -279,7 +275,7 @@ fn max_scope_depth_enforced() {
 
         let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
         assert_eq!(
-            Cps::resolve_scope_path(deepest).unwrap().path.len(),
+            Cps::resolve_scope(deepest).unwrap().path.len(),
             MAX_SCOPE_DEPTH as usize
         );
         assert_noop!(
