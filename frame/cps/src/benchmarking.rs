@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Benchmarking for pallet-robonomics-cps
+//! Benchmarks of `pallet-robonomics-cps` calls.
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -61,11 +61,10 @@ fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) 
     (root, deepest)
 }
 
-/// Build a maximum-size `NodeMeta` value. Used as the pre-existing value in
-/// `set_meta`/`set_payload`'s `b = 0` (removal) benchmark point, so the
-/// zero-byte point still measures a real storage-delete path (see issue
-/// #671, point 7), and as the worst-case data component wherever a fixed
-/// maximum-size value (rather than a size sweep) is appropriate.
+/// Build a maximum-size `NodeMeta` value. Used as the existing value in the
+/// `set_meta`/`set_payload` benchmarks, so that the `b = 0` (removal) point
+/// measures deleting a stored value, and wherever a maximum-size value is
+/// needed.
 fn max_meta() -> NodeMeta {
     BoundedVec::try_from(vec![1u8; MAX_META_SIZE as usize]).unwrap()
 }
@@ -174,11 +173,9 @@ mod benchmarks {
     /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
-    /// `node` always starts with a maximum-size existing `Meta` value, so
-    /// the `b = 0` point (which sets `meta` to `None`, removing it) still
-    /// measures a real deletion rather than an unrealistically cheap no-op
-    /// (see issue #671, point 7); every other point (`b > 0`) measures a
-    /// same-size-domain replacement.
+    /// `node` always starts with a maximum-size `Meta` value, so the `b = 0`
+    /// point (`meta: None`) measures deleting it; every other point
+    /// measures replacing it.
     #[benchmark]
     fn set_meta(b: Linear<0, MAX_META_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
@@ -209,11 +206,9 @@ mod benchmarks {
     /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
-    /// `node` always starts with a maximum-size existing `Payload` value, so
-    /// the `b = 0` point (which sets `payload` to `None`, removing it) still
-    /// measures a real deletion rather than an unrealistically cheap no-op
-    /// (see issue #671, point 7); every other point (`b > 0`) measures a
-    /// same-size-domain replacement.
+    /// `node` always starts with a maximum-size `Payload` value, so the
+    /// `b = 0` point (`payload: None`) measures deleting it; every other
+    /// point measures replacing it.
     #[benchmark]
     fn set_payload(b: Linear<0, MAX_PAYLOAD_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();

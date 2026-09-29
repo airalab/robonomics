@@ -15,81 +15,55 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Storage migrations for `pallet-robonomics-cps`.
+//! Storage migrations of `pallet-robonomics-cps`.
 //!
-//! ## v1 -> v2: single `Node` struct -> `Nodes`/`Scopes`/`Children` + Access
+//! ## Version 1 to 2
 //!
-//! Version 1 stored every node as a single `Node { parent, owner, path, meta,
-//! payload }` struct in one `Nodes` map. Version 2 replaces this with the
-//! Nodes/Scopes/Children/Access model: node existence, `parent`, and the
-//! current `scope` pointer live together in `Nodes[id] -> NodeInfo { parent,
-//! scope }`; `Meta`/`Payload` are separate maps; a node that starts a new
-//! administrative/economic boundary gets a freshly allocated `ScopeId`
-//! recorded in both `Nodes[id].scope` and a canonical `Scopes[scope_id] ->
-//! ScopeInfo { owner, access_count }` entry; every other node resolves its
-//! Scope from the nearest such ancestor.
+//! [`MigrationToV2`] converts the version 1 layout, where every node was a
+//! single `Node { parent, owner, path, meta, payload }` value in `Nodes`,
+//! into the version 2 layout: `Nodes` holding [`NodeInfo`], separate `Meta`
+//! and `Payload` maps, `Scopes`, and `Children`.
 //!
-//! The migration preserves the *effective* owner of every node:
+//! ### Scopes
 //!
-//! - a root node always gets a freshly allocated Scope (its old owner
-//!   becomes the new Scope's owner);
-//! - a non-root node gets a freshly allocated Scope only if its old owner
-//!   differs from its parent's old owner; otherwise it inherits the
-//!   parent's (already migrated) Scope.
+//! The migration keeps the owner of every node, as the owner of the Scope
+//! the node resolves to:
 //!
-//! `ScopeId`s are allocated in the same order nodes are iterated, starting
-//! from `NextScopeId`. Version 1 had no Access grants to migrate, so every
-//! freshly created `ScopeInfo.access_count` starts at `0`. For defensive
-//! completeness (e.g. a chain that already ran intermediate/development
-//! code with `Access` entries present before this migration lands), this
-//! migration also derives each Scope's `access_count` from whatever `Access`
-//! entries already exist in storage at upgrade time, grouped by `ScopeId`.
-//! It asserts (via [`frame_support::defensive`], matching the `Children`
-//! overflow-handling style below) that no Scope already exceeds
-//! `MAX_ACCESS_ENTRIES_PER_SCOPE` - this migration must never silently
-//! complete while violating that bound.
+//! - a root node gets a new Scope owned by its old owner;
+//! - a non-root node gets a new Scope only if its old owner differs from its
+//!   parent's old owner; otherwise it resolves to its parent's Scope.
 //!
-//! This migration also opportunistically clears the now-removed `RootNodes`
-//! index (a `StorageValue` that used to hold the list of parentless nodes,
-//! bounded to 100 entries). It was never populated by this migration in the
-//! first place, but chains that had already run newer code with `RootNodes`
-//! present could have leftover bytes; clearing it here ensures no orphaned
-//! storage remains regardless of upgrade path.
+//! `ScopeId`s are allocated from `NextScopeId` in node iteration order, and
+//! every new Scope starts with `access_count = 0`. Version 1 has no `Access`
+//! storage; if `Access` entries are nevertheless present, each Scope's
+//! `access_count` is set to the number of entries stored under it. A Scope
+//! with more than [`MAX_ACCESS_ENTRIES_PER_SCOPE`] entries is reported with
+//! [`frame_support::defensive!`] and its count is left at `0`.
 //!
-//! ## `Children` reverse index
+//! The migration also removes the `RootNodes` storage value (a list of up to
+//! 100 root `NodeId`s), in case it exists.
 //!
-//! Version 2 also introduces `Children`, the reverse-lookup index used
-//! for O(1) child enumeration. The migration rebuilds it from the legacy
-//! `parent` links so the invariant
-//! `Nodes[child].parent == Some(parent) iff Children[parent] contains child`
-//! holds immediately after migration, exactly as it does for every node
-//! created afterwards via [`Pallet::create_node`](crate::Pallet::create_node).
+//! ### `Children`
 //!
-//! If any legacy node has more than [`MAX_CHILDREN_PER_NODE`](crate::MAX_CHILDREN_PER_NODE)
-//! children, that parent's `Children` entry is deliberately left unset
-//! rather than silently populated with a truncated, corrupted subset of its
-//! real children - a `BoundedVec` that dropped entries past its bound would
-//! violate the invariant above for the truncated children (they would
-//! still resolve via `Nodes[child].parent`, but would no longer be
-//! reachable via `Children`). This is reported via
-//! [`frame_support::defensive`]: an error log in production (so the
-//! condition is never missed), and a panic under `debug_assertions` (so it
-//! is caught immediately by tests and try-runtime runs rather than
-//! shipped). Runtimes should still prove ahead of time (e.g. by inspecting
-//! live/representative state) that this cannot happen before applying this
-//! migration to a chain where it might.
+//! `Children` is rebuilt from the legacy `parent` links, so that
+//! `Children[parent]` contains `child` exactly when
+//! `Nodes[child].parent == Some(parent)`.
 //!
-//! ## `Meta` bound shrink (issue #671)
+//! If a legacy node has more than
+//! [`MAX_CHILDREN_PER_NODE`](crate::MAX_CHILDREN_PER_NODE) children, its
+//! `Children` entry is left unset instead of being truncated, and the
+//! condition is reported with [`frame_support::defensive!`]: an error log in
+//! release builds and a panic when `debug_assertions` are enabled (tests,
+//! try-runtime). Such a tree should be ruled out on the target chain before
+//! the migration is applied.
 //!
-//! Version 1's `meta`/`payload` fields shared a single 2048-byte bound. As
-//! of issue #671, `Meta` and `Payload` use separate bounds: `Payload` grew
-//! to 8 KiB (so every legacy `payload` value still decodes and migrates
-//! unchanged), but `Meta` shrank to 1 KiB. A legacy `meta` value between 1
-//! KiB and 2 KiB would no longer fit the new [`crate::NodeMeta`] bound, so
-//! this migration truncates any such value down to exactly
-//! [`crate::MAX_META_SIZE`] bytes before writing it into the new `Meta` map
-//! (dropping the trailing bytes; no attempt is made to preserve structured
-//! meaning past the new bound).
+//! ### `Meta` bound
+//!
+//! Version 1's `meta`/`payload` fields shared a 2048-byte bound. In version
+//! 2, `Payload` allows 8 KiB, so every legacy `payload` value migrates
+//! unchanged, while `Meta` allows 1 KiB. A legacy `meta` value longer than
+//! [`crate::MAX_META_SIZE`] is truncated to exactly that many bytes before
+//! it is written into the new `Meta` map; the trailing bytes are dropped.
 
 use crate::{
     Access, Children, Config, MaxChildrenPerNode, MaxScopeDepth, Meta, NextScopeId, NodeId,
@@ -166,7 +140,8 @@ fn truncate_meta(meta: OldNodeData) -> NodeMeta {
 #[storage_alias]
 type RootNodes<T: Config> = StorageValue<Pallet<T>, BoundedVec<NodeId, ConstU32<100>>>;
 
-/// Versioned migration from storage version 1 to 2.
+/// Migration from storage version 1 to 2, applied only when the on-chain
+/// storage version is 1. See the [module docs](self).
 pub type MigrationToV2<T> = VersionedMigration<
     1,
     2,
@@ -175,6 +150,8 @@ pub type MigrationToV2<T> = VersionedMigration<
     <T as frame_system::Config>::DbWeight,
 >;
 
+/// Migration from storage version 1 to 2 without the storage version check.
+/// Use [`MigrationToV2`] in runtimes.
 pub struct UncheckedMigrationToV2<T>(PhantomData<T>);
 
 impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
@@ -198,8 +175,8 @@ impl<T: Config> UncheckedOnRuntimeUpgrade for UncheckedMigrationToV2<T> {
         let mut scope_of: BTreeMap<u64, ScopeId> = BTreeMap::new();
         let mut next_scope_id: ScopeId = NextScopeId::<T>::get();
 
-        // Reverse index rebuilt alongside `Parents`: every node with a
-        // parent is appended to that parent's child list, in the same
+        // Reverse index rebuilt from the legacy `parent` links: every node
+        // with a parent is appended to that parent's child list, in the same
         // (deterministic, since `old_nodes` is a materialized `Vec`) order
         // it is encountered. Grouped by parent up front so the
         // `MAX_CHILDREN_PER_NODE` bound is checked once per parent below,
@@ -531,9 +508,9 @@ mod tests {
         });
     }
 
-    /// A legacy `meta` value longer than the new, shrunk `MAX_META_SIZE`
-    /// bound (see module docs, issue #671) must be truncated down to
-    /// exactly `MAX_META_SIZE` bytes rather than rejected or dropped.
+    /// A legacy `meta` value longer than `MAX_META_SIZE` (see module docs)
+    /// must be truncated to exactly `MAX_META_SIZE` bytes rather than
+    /// rejected or dropped.
     #[test]
     fn oversized_legacy_meta_is_truncated_to_new_bound() {
         new_test_ext().execute_with(|| {

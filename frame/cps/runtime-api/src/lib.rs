@@ -17,73 +17,58 @@
 ///////////////////////////////////////////////////////////////////////////////
 //! # CPS Runtime API
 //!
-//! Runtime API definition exposing canonical CPS Scope resolution to
-//! off-chain clients (e.g. Subxt-based tooling such as `libcps`).
+//! Runtime API of `pallet-robonomics-cps` for off-chain clients.
 //!
-//! This crate must be imported and implemented by the runtime of a node that
-//! wants clients to resolve the Scope effective for a CPS node without
-//! reimplementing Scope-resolution traversal client-side.
+//! [`CpsApi`] provides two read-only queries that run the pallet's own
+//! functions, so clients do not need to reimplement Scope resolution or
+//! authorization:
 //!
-//! The API is a thin, read-only wrapper over
-//! [`pallet_robonomics_cps::Pallet::resolve_scope`] and
-//! [`pallet_robonomics_cps::Pallet::has_capability`], the same canonical
-//! Scope resolver and authorization check used by every dispatchable inside
-//! the CPS pallet. It is callable through the standard generic runtime-call
-//! mechanism (e.g. Substrate's `state_call` RPC, as used by Subxt and
-//! `polkadot-omni-node`), so no custom Robonomics JSON-RPC endpoint or
-//! node-side customization is required.
+//! - `resolve_scope` returns the result of
+//!   [`Pallet::resolve_scope`](pallet_robonomics_cps::Pallet::resolve_scope);
+//! - `has_capability` returns the result of
+//!   [`Pallet::has_capability`](pallet_robonomics_cps::Pallet::has_capability).
 //!
-//! `resolve_scope` returns the `ScopeId`, root `NodeId`, owner `AccountId`,
-//! and the walked ancestry `path` together (as a
-//! [`pallet_robonomics_cps::ResolvedScope`]), since the pallet stores
-//! topology and ownership across `Nodes` and `Scopes`, and resolving all of
-//! them only requires one walk of the node's ancestry. The pallet's own
-//! `resolve_scope` returns a `Result`; the runtime implementation collapses
-//! any error into `None` before crossing the API boundary.
+//! Clients call the API through the `state_call` RPC (e.g. Subxt runtime
+//! API calls or polkadot.js `api.call.cpsApi`), at any block.
 //!
-//! Because these are normal Runtime API methods, they are automatically
-//! included in runtime metadata and can be queried at any historical block
-//! height through the standard Subxt block API, which is important since a
-//! node's resolved Scope and granted capabilities may change over time.
+//! ## Runtime implementation
+//!
+//! ```ignore
+//! impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
+//!     fn resolve_scope(node: NodeId) -> Option<ResolvedScope<AccountId>> {
+//!         Cps::resolve_scope(node).ok()
+//!     }
+//!
+//!     fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool {
+//!         Cps::has_capability(node_id, &account_id, capability)
+//!     }
+//! }
+//! ```
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use pallet_robonomics_cps::{Capability, NodeId, ResolvedScope};
 use parity_scale_codec::Codec;
 
 sp_api::decl_runtime_apis! {
-    /// Runtime API for resolving CPS Scope and capability checks.
-    ///
-    /// Exposes read-only access to the CPS pallet's canonical authorization
-    /// logic (Scope resolution and capability checks) so off-chain clients
-    /// can query them directly via `state_call`, without duplicating the
-    /// Scope-resolution traversal logic client-side.
+    /// Read-only CPS queries: Scope resolution and capability checks.
     pub trait CpsApi<AccountId> where
         AccountId: Codec
     {
-        /// Resolve the Scope currently active for `node`.
+        /// Resolve the Scope that `node` belongs to.
         ///
-        /// This is the Scope of `node` itself if its `Nodes` entry carries a
-        /// `scope` field, or of the nearest ancestor that does. The
-        /// returned [`ResolvedScope`] carries the `ScopeId`, the `NodeId` of
-        /// the Scope's root, the owner `AccountId`, and the walked ancestry
-        /// `path`, since the pallet resolves all of them in a single
-        /// ancestry walk.
-        ///
-        /// Returns `None` if `node` does not exist or if no active Scope
-        /// could be found while walking its ancestry (this should not
-        /// normally happen, since every valid tree has a root Scope, but a
-        /// malformed/incomplete tree state is represented as `None` rather
-        /// than trapping the call).
+        /// Returns the Scope's id, root node, and owner, and the path from
+        /// `node` to the Scope root (see [`ResolvedScope`]), or `None` if
+        /// `node` does not exist or no Scope can be resolved for it.
         fn resolve_scope(node: NodeId) -> Option<ResolvedScope<AccountId>>;
 
-        /// Check whether `account_id` currently holds `capability` at `node_id`.
+        /// Whether `account_id` may use `capability` at `node_id`, with the
+        /// same checks as the pallet calls that require it: ownership of the
+        /// node's Scope or Access entries, and for
+        /// [`Capability::CreateScope`] also ownership of the immediately
+        /// enclosing Scope when `node_id` is a nested Scope root.
         ///
-        /// Reuses the same canonical authorization logic enforced by the
-        /// pallet's dispatchables (Scope owner implicit authority, exact
-        /// `GrantMode::Node` / propagating `GrantMode::Subtree` `Access`
-        /// never crossing a nested Scope boundary).
-        /// Returns `false` (rather than trapping the call) if `node_id`
-        /// does not exist or no Scope can be resolved for it.
+        /// Returns `false` if `node_id` does not exist or no Scope can be
+        /// resolved for it.
         fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool;
     }
 }

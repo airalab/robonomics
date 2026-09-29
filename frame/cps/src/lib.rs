@@ -15,268 +15,221 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! # On-chain Hierarchical Tree for Cyber-Physical Systems
+//! # CPS Pallet
 //!
-//! This pallet provides a decentralized registry for cyber-physical systems organized
-//! as a hierarchical tree structure, with authority and resources delegated through
-//! a **Scope / Access** architecture.
+//! On-chain registry of cyber-physical systems, stored as a tree of nodes.
 //!
-//! ## Architecture
+//! Each node has a fixed parent link and may carry opaque `Meta` and
+//! `Payload` bytes. Authority over nodes is organized in *Scopes*: a Scope
+//! is rooted at a node, has one owner account, and covers its root and all
+//! descendants down to the next nested Scope root. A Scope owner may
+//! delegate a [`Capability`] on a node or subtree to other accounts through
+//! *Access* entries.
 //!
-//! ### Storage Layout
+//! ## Nodes
 //!
-//! 1. **`Nodes`**: Mapping `NodeId` → `NodeInfo { parent, scope }`
-//!    - Presence of a key means the node exists
-//!    - `parent` is `None` for a root node and `Some(parent_id)` otherwise -
-//!      **immutable** once a node is created, there is no way to change it
-//!    - `scope` is `Some(scope_id)` only on nodes that are the root of an
-//!      active [`Scope`](self#scope); a node with `scope: None` resolves to
-//!      the Scope of the nearest ancestor that has one (see
-//!      [`Pallet::resolve_scope`])
+//! - [`NodeId`]s are allocated sequentially from [`NextNodeId`] and never
+//!   reused.
+//! - A node's parent is set by [`Pallet::create_node`] and never changes;
+//!   there is no call to move a node. To relocate an object, create a new
+//!   node under the new parent and delete the old one.
+//! - A node has at most [`MAX_CHILDREN_PER_NODE`] direct children, indexed
+//!   in [`Children`].
+//! - Only a node without children can be deleted.
+//! - [`Meta`] (up to [`MAX_META_SIZE`] bytes) and [`Payload`] (up to
+//!   [`MAX_PAYLOAD_SIZE`] bytes) are stored as given; the pallet does not
+//!   interpret or encrypt them. A missing entry means the field is unset.
 //!
-//! 2. **`Meta`**: Mapping `NodeId` → `NodeMeta` (≤1 KiB)
-//!    / **`Payload`**: Mapping `NodeId` → `NodePayload` (≤8 KiB)
-//!    - An entry is present only when the corresponding field has been set;
-//!      absence means "unset", not "empty"
+//! ## Scopes
 //!
-//! 3. **`Scopes`**: Mapping `ScopeId` → `ScopeInfo<AccountId> { owner,
-//!    access_count }`
-//!    - The canonical location for a Scope's owner and its scope-local
-//!      accounting (currently just `access_count`, the number of physical
-//!      `Access` entries; see
-//!      [`Bounded Access and synchronous Scope cleanup`](self#bounded-access-and-synchronous-scope-cleanup)
-//!      below)
-//!    - `NodeInfo.scope` stores only the current `ScopeId`; everything else
-//!      about a Scope lives here
-//!
-//! 4. **`Access`**: Mapping `(ScopeId, (NodeId, AccountId))` → `AccessFlags`.
-//!    A single compact entry per `(Scope, node, principal)` triple, bit-packing
-//!    every delegated [`Capability`] and its [`GrantMode`] (see
-//!    [`AccessFlags`]).
-//!
-//! 5. **`Children`**: Index structure for O(1) child lookups, kept separate
-//!    from `NodeInfo` so child vectors never inflate authorization proofs.
-//!
-//! ### Scope
-//!
-//! A `Scope` is the administrative and economic boundary of the CPS
-//! hierarchy. `ScopeId` is a globally unique, never-reused numeric
-//! identifier. Every active CPS node resolves to exactly one Scope by
-//! walking `parent` links until the nearest ancestor with a `NodeInfo.scope`
-//! entry is found (see [`Pallet::resolve_scope`]):
+//! Every node resolves to exactly one Scope: the Scope rooted at the node
+//! itself, otherwise the Scope rooted at its nearest ancestor that roots
+//! one. [`Pallet::resolve_scope`] performs this walk; every authorization
+//! check starts with it.
 //!
 //! ```text
-//! City
-//! Scope #1 / owner=A
-//! |
-//! `-- Smart Building
-//!     Scope #7 / owner=B
-//!     |
-//!     `-- Floor 3
+//! City                 root of Scope #1, owner A
+//! `-- Smart Building   root of Scope #7, owner B
+//!     `-- Floor 3      resolves to Scope #7
 //! ```
 //!
-//! `Floor 3` resolves to `Scope #7` (owner `B`); `Smart Building`'s Scope has
-//! no implicit administrative rights over `City`'s other, independently
-//! owned children, and vice versa. A nested Scope is always a hard boundary:
-//! it stops inheritance of authority, `Access`, and resource limits, even
-//! when parent and child Scope owners are the same account.
+//! - A root node (created with `parent_id: None`) always roots a new Scope
+//!   owned by its creator.
+//! - [`Pallet::create_scope`] on any other node makes it the root of a new
+//!   nested Scope owned by the caller.
+//! - A nested Scope is a boundary: the owner and the Access entries of an
+//!   enclosing Scope have no effect on nodes inside it, even when both
+//!   Scopes have the same owner. The one exception is that the owner of the
+//!   immediately enclosing Scope may replace the nested Scope (see
+//!   [Replacing a Scope](crate#replacing-a-scope)).
+//! - [`ScopeId`]s are allocated sequentially from [`NextScopeId`] and never
+//!   reused. A Scope's owner is stored in [`Scopes`] and never changes.
 //!
-//! ### Creating and Replacing a Scope
+//! ### Scope-local depth
 //!
-//! Every CPS root is allocated a fresh Scope, owned by its creator, when the
-//! root is created. [`Pallet::create_scope`] is the single operation for
-//! establishing *and* replacing a Scope boundary:
+//! The path from a node up to its Scope root, both ends included, holds at
+//! most [`MAX_SCOPE_DEPTH`] nodes; a Scope root has depth 1.
+//! [`Pallet::create_node`] rejects a child that would exceed this bound with
+//! [`Error::MaxScopeDepthExceeded`]. A nested Scope root starts a new count,
+//! so the depth of the whole tree is not bounded, while
+//! [`Pallet::resolve_scope`] never visits more than [`MAX_SCOPE_DEPTH`]
+//! nodes.
 //!
-//! - if `node_id` is an ordinary node (`Nodes[node_id].scope == None`), it
-//!   establishes a brand-new nested Scope there (owner authority reaching
-//!   `node_id`, or a delegated [`Capability::CreateScope`] grant reaching
-//!   it);
-//! - if `node_id` is already an active Scope root
-//!   (`Nodes[node_id].scope == Some(old_scope_id)`), it replaces that
-//!   Scope's generation in place: a fresh `ScopeId` is allocated, the caller
-//!   becomes the new owner, and the boundary stays on the same node. This is
-//!   the sole ownership-transfer mechanism. Besides the old Scope's owner
-//!   and its `CreateScope` delegates, the owner of the *immediately
-//!   enclosing* Scope (the Scope resolved for the root's parent) may also
-//!   replace it, so an upper Scope owner can always take back control of a
-//!   Scope nested directly below it.
+//! ### Replacing a Scope
 //!
-//! Either way, a brand-new `ScopeId` is always allocated. On replacement,
-//! the previous Scope's `Access` entries become immediately inactive
-//! without requiring any descendant rewrite; the old Scope's remaining
-//! physical state is synchronously cleared in the same call (see
-//! [`Bounded Access and synchronous Scope cleanup`](self#bounded-access-and-synchronous-scope-cleanup)
-//! below).
+//! [`Pallet::create_scope`] on a node that already roots a Scope allocates
+//! a new `ScopeId` for the same root node, owned by the caller. Nodes that
+//! resolved to the old Scope now resolve to the new one. The old Scope's
+//! [`Scopes`] record and all of its [`Access`] entries are deleted in the
+//! same call. This is the only way to change the owner of a Scope.
 //!
-//! Changing control of a Scope means replacing it with another Scope; a
-//! Scope's `owner` is immutable once created. There is no transfer/accept
-//! state machine.
+//! The replacement may be made by:
 //!
-//! ### Deleting a Scope
+//! - the owner of the old Scope;
+//! - an account holding [`Capability::CreateScope`] at the root node in the
+//!   old Scope;
+//! - the owner of the Scope that the root's parent resolves to (the
+//!   immediately enclosing Scope). Owners of Scopes further up the tree and
+//!   Access holders of the enclosing Scope are not authorized.
 //!
-//! There is no standalone "delete a Scope, keep the node" operation - a
-//! Scope boundary must never disappear while its node remains, since that
-//! could merge two independently-bounded Scope segments into one segment
-//! exceeding `MAX_SCOPE_DEPTH`. A Scope only ever disappears together with
-//! its root node: [`Pallet::delete_node`] on a Scope-root *leaf* removes the
-//! node and its Scope's remaining physical state (`Access`) in the same
-//! call. A Scope root with children can never be deleted (see
-//! [`Pallet::delete_node`]).
+//! ### Removing a Scope
 //!
-//! ### Bounded Access and synchronous Scope cleanup
+//! A Scope is removed only together with its root node:
+//! [`Pallet::delete_node`] on a Scope root without children deletes the
+//! node, its Scope's [`Scopes`] record, and all of the Scope's [`Access`]
+//! entries. A node with children cannot be deleted, so a Scope root is
+//! never removed while nodes below it exist.
 //!
-//! `MAX_ACCESS_ENTRIES_PER_SCOPE` places a hard upper bound on the
-//! number of physical `Access` entries (distinct `(NodeId, AccountId)`
-//! pairs) any single Scope may hold at once, tracked in
-//! [`ScopeInfo::access_count`]. [`Pallet::grant_access`] enforces the bound -
-//! rejecting a brand-new entry past the limit with
-//! [`Error::TooManyAccessEntries`] - while changing an existing entry's
-//! `GrantMode` or adding another `Capability` bit never consumes an
-//! additional slot. [`Pallet::revoke_access`] mirrors this: only fully
-//! revoking an entry's last capability (removing it) frees a slot.
+//! ## Access
 //!
-//! Because `Scopes[scope_id].access_count <= MAX_ACCESS_ENTRIES_PER_SCOPE`
-//! always holds, invalidating a Scope generation (via a
-//! [`Pallet::create_scope`] replacement, or deleting a Scope-root leaf via
-//! [`Pallet::delete_node`]) can synchronously delete every remaining
-//! `Access` entry for it in one step, in the same extrinsic:
+//! The Scope owner is authorized for every capability on every node of the
+//! Scope without any Access entry. Other accounts need an [`Access`] entry,
+//! which only the Scope owner can create ([`Pallet::grant_access`]) or
+//! change ([`Pallet::revoke_access`]). An entry is keyed by
+//! `(ScopeId, (NodeId, AccountId))` and holds a [`GrantMode`] for each
+//! granted [`Capability`]:
 //!
-//! ```text
-//! invalidate ScopeId
-//!     -> read Scopes[scope_id].access_count
-//!     -> clear_prefix(Access(scope_id, *), access_count)
-//!     -> remove Scopes[scope_id]
-//!     -> done
-//! ```
+//! - [`GrantMode::Node`] applies to the granted node only;
+//! - [`GrantMode::Subtree`] applies to the granted node and to its
+//!   descendants that resolve to the same Scope.
 //!
-//! There is no deferred cleanup queue or `on_idle` background pass. The
-//! `access_count`-bounded `clear_prefix` call always finishes in one step; a
-//! continuation cursor is treated as an invariant violation (see
-//! `Pallet::clear_scope_access`) and only reported defensively.
+//! [`Pallet::authorize`] allows `account` to use `capability` at `node` if:
 //!
-//! `ScopeId`s are never reused, including after cleanup: a cleaned-up
-//! `ScopeId` simply has no more physical state, but remains a valid
-//! historical identifier that will never be handed out again by
-//! [`Pallet::create_scope`]. A `ScopeId` is only ever cleared in the same
-//! state transition that removes or replaces the `NodeInfo.scope` entry
-//! pointing at it, so a cleared Scope can never become active again.
+//! 1. `account` owns the Scope that `node` resolves to; or
+//! 2. `account` holds `capability` at `node` in that Scope, in either mode;
+//!    or
+//! 3. `account` holds `capability` with [`GrantMode::Subtree`] at an
+//!    ancestor of `node` on the path to the Scope root.
 //!
-//! ### Access
+//! [`Capability::Write`] allows [`Pallet::set_meta`] and
+//! [`Pallet::set_payload`]; [`Capability::CreateScope`] allows
+//! [`Pallet::create_scope`]. Adding a child node, deleting a node, and
+//! granting or revoking Access require the owner of the resolved Scope and
+//! cannot be delegated.
 //!
-//! [`Pallet::grant_access`] / [`Pallet::revoke_access`] let a Scope owner
-//! delegate a [`Capability`] to another account at a specific `NodeId`,
-//! either for that exact node ([`GrantMode::Node`]) or for the node and all
-//! its descendants within the same Scope ([`GrantMode::Subtree`]). Access
-//! never crosses a nested Scope boundary. The Scope owner always has
-//! implicit authority and does not need explicit `Access` entries.
+//! ### Access entry limit
 //!
-//! ### Structural Immutability
+//! A Scope holds at most [`MAX_ACCESS_ENTRIES_PER_SCOPE`] Access entries
+//! (distinct `(NodeId, AccountId)` pairs), counted in
+//! [`ScopeInfo::access_count`]. A grant to a new pair takes a slot and fails
+//! with [`Error::TooManyAccessEntries`] when none is left; adding a
+//! capability to an existing entry or changing its mode does not. Revoking
+//! the last capability of an entry deletes the entry and frees its slot.
 //!
-//! A node's parent is fixed at creation time and never changes. Relocating
-//! an object is represented as creating a new node under the desired parent
-//! and deleting the old one; the new node receives a fresh `NodeId`,
-//! which is never reused.
+//! Since the count is bounded, replacing or removing a Scope deletes all of
+//! its entries with a single `clear_prefix` call limited to `access_count`.
+//! [`Pallet::create_scope`] and [`Pallet::delete_node`] are charged for
+//! [`MAX_ACCESS_ENTRIES_PER_SCOPE`] entries and refund the difference to
+//! the number actually deleted.
 //!
-//! ### Performance Characteristics
+//! An entry is stored under the `ScopeId` its node resolved to when it was
+//! granted, while [`Pallet::revoke_access`] looks in the Scope the node
+//! resolves to at call time. An entry at a node that was later deleted, or
+//! that has since become part of a nested Scope, therefore no longer
+//! authorizes anything and can no longer be revoked; it keeps counting
+//! toward `access_count` until its Scope is replaced or removed. The Scope
+//! owner can free these slots by replacing the Scope with
+//! [`Pallet::create_scope`], which deletes all of the Scope's entries.
 //!
-//! Core operation time complexity:
-//! - **Scope resolution**: [`Pallet::resolve_scope`] walks `parent` links
-//!   one hop at a time until a `NodeInfo.scope` entry is found →
-//!   O(scope-local depth), bounded by `MAX_SCOPE_DEPTH` - never by the
-//!   (unbounded) global tree depth
-//! - **Depth validation**: reuses the same resolved path's length, no
-//!   separate traversal
-//! - **Child lookup**: Direct index access via `Children` → O(1)
+//! ## Storage
 //!
-//! ## Usage Examples
+//! | Item            | Key                                | Value                                              |
+//! |-----------------|------------------------------------|----------------------------------------------------|
+//! | [`NextNodeId`]  | -                                  | next [`NodeId`] to allocate                        |
+//! | [`Nodes`]       | [`NodeId`]                         | [`NodeInfo`]: parent, and Scope if the node roots one |
+//! | [`Meta`]        | [`NodeId`]                         | [`NodeMeta`]                                       |
+//! | [`Payload`]     | [`NodeId`]                         | [`NodePayload`]                                    |
+//! | [`Children`]    | [`NodeId`]                         | direct children, in creation order                 |
+//! | [`NextScopeId`] | -                                  | next [`ScopeId`] to allocate                       |
+//! | [`Scopes`]      | [`ScopeId`]                        | [`ScopeInfo`]: owner and Access entry count        |
+//! | [`Access`]      | [`ScopeId`], `(NodeId, AccountId)` | [`AccessFlags`]                                    |
 //!
-//! ### Creating a Root Node
+//! ## Dispatchable functions
+//!
+//! | Call                                                                  | Allowed caller                                                           |
+//! |-----------------------------------------------------------------------|--------------------------------------------------------------------------|
+//! | [`create_node`](Pallet::create_node) with `parent_id: None`           | any signed account                                                       |
+//! | [`create_node`](Pallet::create_node) with `parent_id: Some(_)`        | owner of the parent's Scope                                              |
+//! | [`set_meta`](Pallet::set_meta), [`set_payload`](Pallet::set_payload)  | authorized for [`Capability::Write`]                                     |
+//! | [`delete_node`](Pallet::delete_node)                                  | owner of the node's Scope                                                |
+//! | [`create_scope`](Pallet::create_scope)                                | authorized for [`Capability::CreateScope`]; for a nested Scope root, also the owner of the enclosing Scope |
+//! | [`grant_access`](Pallet::grant_access), [`revoke_access`](Pallet::revoke_access) | owner of the node's Scope                                     |
+//!
+//! ## Public functions
+//!
+//! - [`Pallet::resolve_scope`]: Scope id, root, owner, and path of a node.
+//! - [`Pallet::authorize`]: the capability check of [`Pallet::set_meta`],
+//!   [`Pallet::set_payload`], and [`Pallet::create_scope`].
+//! - [`Pallet::has_capability`]: whether an account may use a capability at
+//!   a node, with the same checks as the calls that require it, including
+//!   the enclosing Scope owner's right to use [`Pallet::create_scope`].
+//!
+//! `resolve_scope` and `has_capability` are exposed to off-chain clients by
+//! the `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`).
+//!
+//! ## Invariants
+//!
+//! 1. A node's parent never changes and was created before it, so the tree
+//!    has no cycles.
+//! 2. `Children[p]` contains `c` exactly when `Nodes[c].parent == Some(p)`.
+//! 3. Every node resolves to exactly one Scope within [`MAX_SCOPE_DEPTH`]
+//!    nodes.
+//! 4. `Scopes[s]` exists exactly when one node has `Nodes[_].scope ==
+//!    Some(s)`.
+//! 5. `Scopes[s].access_count` equals the number of `Access` entries under
+//!    `s` and never exceeds [`MAX_ACCESS_ENTRIES_PER_SCOPE`].
+//! 6. [`NodeId`]s and [`ScopeId`]s are never reused.
+//!
+//! ## Example
 //!
 //! ```ignore
-//! use pallet_robonomics_cps::NodeMeta;
-//! use frame_support::BoundedVec;
+//! use pallet_robonomics_cps::{Capability, Children, GrantMode, NodeId};
 //!
-//! // Plain metadata
-//! let meta: Option<NodeMeta> = Some(BoundedVec::try_from(b"sensor_config".to_vec()).unwrap());
+//! // Account A creates a root node and becomes the owner of Scope #0.
+//! Cps::create_node(RuntimeOrigin::signed(a), None, Some(meta), None)?;
+//! let building = NodeId(0);
 //!
-//! // Create root (parent = None) - the caller becomes the owner of a new
-//! // Scope allocated for this root.
-//! Cps::create_node(origin, None, meta, None)?;
+//! // Only the Scope owner can add children.
+//! Cps::create_node(RuntimeOrigin::signed(a), Some(building), None, None)?;
+//! let floor = NodeId(1);
+//!
+//! // A makes `floor` the root of nested Scope #1 and hands it over to B:
+//! // B, holding `CreateScope` at the Scope root, replaces Scope #1 with
+//! // Scope #2 owned by B. Scope #1 and its Access entries are deleted.
+//! Cps::create_scope(RuntimeOrigin::signed(a), floor)?;
+//! Cps::grant_access(RuntimeOrigin::signed(a), floor, b, Capability::CreateScope, GrantMode::Node)?;
+//! Cps::create_scope(RuntimeOrigin::signed(b), floor)?;
+//!
+//! // B adds a sensor and lets account C update its payload.
+//! Cps::create_node(RuntimeOrigin::signed(b), Some(floor), None, None)?;
+//! let sensor = NodeId(2);
+//! Cps::grant_access(RuntimeOrigin::signed(b), sensor, c, Capability::Write, GrantMode::Node)?;
+//! Cps::set_payload(RuntimeOrigin::signed(c), sensor, Some(payload))?;
+//!
+//! // Queries.
+//! let scope = Cps::resolve_scope(sensor)?; // Scope #2, root `floor`, owner B
+//! let children = Children::<Runtime>::get(building); // [floor]
 //! ```
-//!
-//! ### Creating a Child Node
-//!
-//! ```ignore
-//! use pallet_robonomics_cps::{NodeId, NodePayload};
-//!
-//! // Data can be encrypted by client before submission
-//! let encrypted_bytes = client_side_encrypt(sensitive_data);
-//! let payload: Option<NodePayload> = Some(BoundedVec::try_from(encrypted_bytes).unwrap());
-//!
-//! // Create child under node 0. The caller must hold `Write` authority
-//! // (Scope owner, or matching Access) over node 0's resolved Scope.
-//! Cps::create_node(origin, Some(NodeId(0)), None, payload)?;
-//! ```
-//!
-//! ### Establishing a Nested Scope
-//!
-//! ```ignore
-//! // Node 5 currently inherits its Scope from an ancestor. Its owner
-//! // establishes a new, independent Scope rooted at node 5.
-//! Cps::create_scope(origin, NodeId(5))?;
-//! ```
-//!
-//! ### Querying the Tree
-//!
-//! ```ignore
-//! // Get a node's parent (existence check + parent link)
-//! let parent = Nodes::<T>::get(NodeId(0)).ok_or(Error::<T>::NodeNotFound)?.parent;
-//!
-//! // Get all children
-//! let children = Children::<T>::get(NodeId(0));
-//!
-//! // Resolve the effective Scope for a node
-//! let scope = Cps::resolve_scope(NodeId(0))?;
-//! ```
-//!
-//! ## Security Invariants
-//!
-//! The pallet maintains the following invariants:
-//!
-//! 1. **No Cycles**: The tree is acyclic and `parent` is immutable, so cycles
-//!    cannot be created after node creation.
-//! 2. **Scope Resolution**: Every active node resolves to exactly one Scope
-//!    via [`Pallet::resolve_scope`] - the nearest active Scope ancestor wins.
-//! 3. **Scope Boundaries**: Nested Scopes are a hard authority and resource
-//!    boundary; ancestor Scope owners have no implicit administrative rights
-//!    inside a nested Scope. The sole exception is that the owner of the
-//!    immediately enclosing Scope may replace a Scope root nested directly
-//!    below it via [`Pallet::create_scope`].
-//! 4. **Index Consistency**: `Children` stays synchronized with `Nodes`'
-//!    `parent` links.
-//! 5. **Deletion Safety**: Cannot delete nodes with children.
-//! 6. **Scope-Local Depth Limits**: The path from any node up to (and
-//!    including) its nearest Scope root never holds more than
-//!    `MAX_SCOPE_DEPTH` nodes; the global tree depth is unbounded.
-//! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
-//! 8. **Immutable Scope Owner/Root**: A Scope's owner and root are fixed at
-//!    creation; changing control means replacing it with another Scope.
-//! 9. **Bounded Access / Synchronous Cleanup**: Every Scope holds at most
-//!    `MAX_ACCESS_ENTRIES_PER_SCOPE` physical `Access` entries
-//!    ([`ScopeInfo::access_count`] tracks the exact count); invalidating a
-//!    Scope generation always synchronously removes its entire `Access`
-//!    prefix and its `Scopes` entry in the same call - there is no deferred
-//!    cleanup, and no stale Scope's physical state ever survives past the
-//!    call that invalidated it.
-//!
-//! ## Testing
-//!
-//! Run the comprehensive test suite:
-//!
-//! ```bash
-//! cargo test -p pallet-robonomics-cps
-//! ```
-//!
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -296,49 +249,36 @@ use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::prelude::*;
 
-/// Maximum size for node metadata.
+/// Maximum size of [`NodeMeta`] in bytes (1 KiB).
 ///
-/// Set to 1 KiB: metadata is meant to hold small structured information
-/// (e.g. a sensor's configuration), not application payloads. Large objects
-/// should remain external to CPS and be referenced by hash/CID/etc.
+/// Metadata is intended for small descriptive data such as a device
+/// configuration; larger objects can be stored off-chain and referenced by
+/// hash or CID.
 pub const MAX_META_SIZE: u32 = 1024;
 
-/// Maximum size for node payload.
-///
-/// Set to 8 KiB to accommodate typical sensor readings, application data,
-/// and encrypted payloads while preventing DoS attacks via large data
-/// submissions.
+/// Maximum size of [`NodePayload`] in bytes (8 KiB).
 pub const MAX_PAYLOAD_SIZE: u32 = 8192;
 
-/// Maximum scope-local depth: the number of nodes on the path from any node
-/// up to (and including) its nearest Scope root, counting the node itself.
+/// Maximum scope-local depth: the number of nodes on the path from a node up
+/// to its Scope root, both ends included.
 ///
-/// A Scope root has depth 1, so a single Scope chain holds at most
-/// `MAX_SCOPE_DEPTH` nodes (the root plus `MAX_SCOPE_DEPTH - 1`
-/// descendants). Enforced at `create_node` time using the length of the
-/// resolved parent path; bounds the cost of `resolve_scope` and
-/// authorization, both of which visit at most `MAX_SCOPE_DEPTH` nodes. The
-/// global tree depth (across nested Scopes) is not bounded by this constant.
+/// A Scope root has depth 1, so one Scope holds chains of at most
+/// `MAX_SCOPE_DEPTH` nodes. [`Pallet::create_node`] enforces it using the
+/// length of the parent's resolved path, and [`Pallet::resolve_scope`] never
+/// visits more nodes than this. The depth of the whole tree, across nested
+/// Scopes, is not limited.
 pub const MAX_SCOPE_DEPTH: u32 = 32;
 
-/// Maximum number of direct children a single node may have.
-///
-/// Bounds the size of the `Children` index entry for any given node.
+/// Maximum number of direct children of a node, i.e. the bound of a
+/// [`Children`] entry.
 pub const MAX_CHILDREN_PER_NODE: u32 = 100;
 
-/// Hard upper bound on the number of physical `Access` entries (distinct
-/// `(NodeId, AccountId)` pairs) that may exist under a single `ScopeId` at
-/// once.
+/// Maximum number of [`Access`] entries (distinct `(NodeId, AccountId)`
+/// pairs) stored under one `ScopeId`.
 ///
-/// This bound is what makes synchronous Scope invalidation possible:
-/// `Scopes[scope_id].access_count` is always bounded by this constant, so
-/// cleanup can pass the real per-Scope count as `clear_prefix`'s removal
-/// limit while staying within a fixed maximum cost envelope. Unlike the other
-/// bounds above, this one used to be runtime-configurable via
-/// `Config::MaxAccessEntriesPerScope`; it is now a crate constant like every
-/// other structural bound in this pallet - changing it requires a code
-/// change (and a runtime upgrade, with a migration proving no existing
-/// Scope already exceeds the new bound if lowered).
+/// [`ScopeInfo::access_count`] never exceeds this value, which bounds the
+/// cost of deleting all Access entries of a Scope when it is replaced or
+/// removed.
 pub const MAX_ACCESS_ENTRIES_PER_SCOPE: u32 = 32;
 
 /// [`ConstU32`] wrapper around [`MAX_META_SIZE`] for use as a `BoundedVec` bound.
@@ -351,35 +291,19 @@ pub type MaxScopeDepth = ConstU32<MAX_SCOPE_DEPTH>;
 /// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 
-/// Type alias for node metadata - bounded vector of bytes.
+/// Node metadata: up to [`MAX_META_SIZE`] opaque bytes.
 ///
-/// Stores small structured information as plain bytes up to
-/// `MAX_META_SIZE` (1 KiB). For sensitive data, encryption should be
-/// handled at the client level before storing in the pallet.
-///
-/// # Client-Side Encryption Recommendation
-///
-/// For encryption use cases, applications should:
-/// 1. Encrypt sensitive data on the client side
-/// 2. Store encrypted bytes in this BoundedVec
-/// 3. Decrypt data after retrieving from chain
+/// Stored as given and publicly readable; data that must stay confidential
+/// has to be encrypted by the client before submission.
 pub type NodeMeta = BoundedVec<u8, MaxMetaSize>;
 
-/// Type alias for node payload - bounded vector of bytes.
+/// Node payload: up to [`MAX_PAYLOAD_SIZE`] opaque bytes.
 ///
-/// Stores application data as plain bytes up to `MAX_PAYLOAD_SIZE` (8 KiB).
-/// For sensitive data, encryption should be handled at the client level
-/// before storing in the pallet.
-///
-/// # Client-Side Encryption Recommendation
-///
-/// For encryption use cases, applications should:
-/// 1. Encrypt sensitive data on the client side
-/// 2. Store encrypted bytes in this BoundedVec
-/// 3. Decrypt data after retrieving from chain
+/// Stored as given and publicly readable; data that must stay confidential
+/// has to be encrypted by the client before submission.
 pub type NodePayload = BoundedVec<u8, MaxPayloadSize>;
 
-/// Node identifier newtype with compact encoding for efficient storage.
+/// Node identifier. SCALE-encoded in compact form.
 #[derive(
     Encode,
     Decode,
@@ -418,7 +342,7 @@ impl NodeId {
     }
 }
 
-/// Scope identifier newtype with compact encoding for efficient storage.
+/// Scope identifier. SCALE-encoded in compact form.
 #[derive(
     Encode,
     Decode,
@@ -449,28 +373,25 @@ impl From<ScopeId> for u64 {
 }
 
 impl ScopeId {
-    /// Checked add for Scope ID increments. Returns `None` on overflow so
-    /// callers can reject the operation rather than ever reusing an ID.
+    /// `self + rhs`, or `None` on overflow. Used to allocate Scope IDs, so
+    /// that an exhausted counter fails the call instead of reusing an ID.
     pub fn checked_add(self, rhs: u64) -> Option<Self> {
         self.0.checked_add(rhs).map(Self)
     }
 
-    /// Saturating add for Scope ID increments, used by the storage
-    /// migration where rejecting the upgrade on overflow is not an option.
-    ///
-    /// Returns `ScopeId(u64::MAX)` if addition would overflow instead of
-    /// wrapping.
+    /// `self + rhs`, saturating at `ScopeId(u64::MAX)`. Used by the storage
+    /// migration, which cannot fail.
     pub fn saturating_add(self, rhs: u64) -> Self {
         Self(self.0.saturating_add(rhs))
     }
 }
 
-/// A delegable capability that [`Access`] can grant within a [`Scope`](self#scope).
+/// A permission that a Scope owner can delegate with [`Pallet::grant_access`].
 ///
-/// Capability indices used by [`AccessFlags`]'s bit layout are assigned
-/// explicitly by [`Capability::index`] and are independent of this enum's
-/// SCALE discriminant - reordering variants here never changes on-chain
-/// encoding.
+/// Each variant has a fixed SCALE index (`#[codec(index = ..)]`) and a fixed
+/// [`AccessFlags`] bit index ([`Capability::index`]), so reordering or
+/// adding variants does not change the encoding used in calls, events,
+/// storage, and the runtime API.
 #[derive(
     Encode,
     Decode,
@@ -486,25 +407,26 @@ impl ScopeId {
     Debug,
 )]
 pub enum Capability {
-    /// Authority to call [`Pallet::create_scope`] on a node: either
-    /// establishing a brand-new nested Scope boundary on a descendant, or
-    /// replacing the existing Scope at the exact root that holds the
-    /// grant. This is the sole mechanism for handing over control of a
-    /// Scope. A [`GrantMode::Node`] grant only authorizes the exact
-    /// granted node; a [`GrantMode::Subtree`] grant also authorizes every
-    /// descendant within the same Scope, not just the node it was made
-    /// at.
+    /// Allows [`Pallet::create_scope`] on a node.
+    ///
+    /// On an ordinary node the call makes it the root of a new nested
+    /// Scope; on a Scope root it replaces the Scope with a new one owned by
+    /// the caller. A [`GrantMode::Node`] grant covers only the granted node;
+    /// a [`GrantMode::Subtree`] grant also covers its descendants in the
+    /// same Scope.
     #[codec(index = 0)]
     CreateScope,
-    /// Authority to mutate a node's `Meta` / `Payload`.
+    /// Allows [`Pallet::set_meta`] and [`Pallet::set_payload`] on a node.
     #[codec(index = 1)]
     Write,
 }
 
 impl Capability {
-    /// Stable, explicit bit-pair index used by [`AccessFlags`]. Must never
-    /// be derived from SCALE discriminants (which can shift when variants
-    /// are reordered) and, once assigned, must never change or be reused.
+    /// Bit-pair index of this capability in [`AccessFlags`].
+    ///
+    /// Assigned explicitly, independent of the SCALE variant index. An
+    /// assigned index must never change or be reused, since it is part of
+    /// the stored [`Access`] values.
     pub fn index(self) -> u32 {
         match self {
             Capability::CreateScope => 0,
@@ -513,10 +435,7 @@ impl Capability {
     }
 }
 
-/// How a granted [`Capability`] propagates through the node hierarchy.
-///
-/// `GrantMode` describes propagation of a particular grant, not the CPS
-/// [`Scope`](self#scope) architectural concept, hence the distinct name.
+/// Reach of a granted [`Capability`] from the node it was granted at.
 #[derive(
     Encode,
     Decode,
@@ -530,36 +449,31 @@ impl Capability {
     Debug,
 )]
 pub enum GrantMode {
-    /// The grant applies only to the exact `NodeId` it was made at.
+    /// Applies to the granted node only.
     #[codec(index = 0)]
     Node,
-    /// The grant applies to the node and all its descendants, as long as
-    /// they resolve to the same Scope (a `Subtree` grant never crosses a
-    /// CPS Scope boundary).
+    /// Applies to the granted node and its descendants that resolve to the
+    /// same Scope; it does not reach into nested Scopes.
     #[codec(index = 1)]
     Subtree,
 }
 
-/// Compact, internal bitset storage representation for every [`Capability`]
-/// delegated to one `(ScopeId, NodeId, AccountId)` triple.
+/// Capabilities granted to one account at one node within one Scope: the
+/// value of an [`Access`] entry.
 ///
-/// Each capability occupies two adjacent bits, indexed by
-/// [`Capability::index`]:
+/// Each capability occupies two adjacent bits, starting at
+/// `2 * Capability::index()`:
 ///
 /// ```text
 /// bit 2*n       capability is granted
-/// bit 2*n + 1   grant propagates to descendants (GrantMode::Subtree)
+/// bit 2*n + 1   grant applies to descendants (GrantMode::Subtree)
 /// ```
 ///
-/// Valid states per capability: `00` (absent), `01` (`GrantMode::Node`),
-/// `11` (`GrantMode::Subtree`). `10` is invalid and is never produced. A
-/// `u128` provides `128 / 2 = 64` capability slots, more than sufficient for
-/// the expected CPS permission model.
-///
-/// `AccessFlags` is an internal storage representation only: public APIs
-/// operate exclusively in terms of [`Capability`] / [`GrantMode`], and
-/// permission enumeration uses `(Capability, GrantMode)` tuples rather than
-/// exposing this type, its underlying `u128`, or raw bit positions.
+/// Per capability, `00` means not granted, `01` [`GrantMode::Node`], and `11`
+/// [`GrantMode::Subtree`]; `10` is never written. The `u128` holds up to 64
+/// capabilities. The inner value and bit operations are private to the
+/// pallet; calls, events, and the runtime API use [`Capability`] and
+/// [`GrantMode`].
 #[derive(
     Encode,
     Decode,
@@ -584,10 +498,8 @@ impl AccessFlags {
         1u128 << (capability.index() * 2 + 1)
     }
 
-    /// Grant `capability` with the given `mode`, replacing only that
-    /// capability's previous mode (`absent -> Node`, `absent -> Subtree`,
-    /// `Node -> Subtree`, `Subtree -> Node`); other capabilities are
-    /// unaffected.
+    /// Set `capability` with `mode`, replacing its previous mode if it was
+    /// already granted. Other capabilities are unchanged.
     fn grant(&mut self, capability: Capability, mode: GrantMode) {
         let granted = Self::granted_bit(capability);
         let subtree = Self::subtree_bit(capability);
@@ -600,86 +512,73 @@ impl AccessFlags {
         }
     }
 
-    /// Revoke `capability`, clearing both of its bits while leaving every
-    /// other capability's state untouched.
+    /// Clear both bits of `capability`. Other capabilities are unchanged.
     fn revoke(&mut self, capability: Capability) {
         self.0 &= !(Self::granted_bit(capability) | Self::subtree_bit(capability));
     }
 
-    /// Whether `capability` is granted at all (`Node` or `Subtree`).
+    /// Whether `capability` is granted in either mode.
     fn contains(&self, capability: Capability) -> bool {
         self.0 & Self::granted_bit(capability) != 0
     }
 
-    /// Whether `capability` is granted with [`GrantMode::Subtree`], i.e.
-    /// whether it applies to descendants of the node it was granted at.
+    /// Whether `capability` is granted with [`GrantMode::Subtree`].
     fn applies_to_descendants(&self, capability: Capability) -> bool {
         self.contains(capability) && self.0 & Self::subtree_bit(capability) != 0
     }
 
-    /// Whether no capability at all is currently granted. An empty
-    /// `AccessFlags` entry is never stored - see [`Pallet::revoke_access`].
+    /// Whether no capability is granted. [`Pallet::revoke_access`] deletes
+    /// an entry instead of storing an empty value.
     fn is_empty(&self) -> bool {
         self.0 == 0
     }
 }
 
-/// Hot-path topology data for a single CPS node.
+/// Topology record of a node, stored in [`Nodes`].
 ///
-/// Presence of a `Nodes` entry means the node exists. `parent` is
-/// **immutable** once a node is created - there is no way to change it.
-/// `scope` is `Some(scope_id)` only on nodes that are the root of an active
-/// [`Scope`](self#scope); a node with `scope: None` resolves to the Scope of
-/// the nearest ancestor that has one (see [`Pallet::resolve_scope`]).
+/// A node exists exactly when it has a [`Nodes`] entry. `parent` never
+/// changes after creation. `scope` is set only on Scope roots; any other
+/// node resolves to the Scope of its nearest ancestor that has one (see
+/// [`Pallet::resolve_scope`]).
 #[derive(
     Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
 )]
 pub struct NodeInfo {
     /// `None` for a root node, `Some(parent_id)` otherwise.
     pub parent: Option<NodeId>,
-    /// `Some(scope_id)` only if this node is the root of an active Scope.
+    /// `Some(scope_id)` if this node is the root of Scope `scope_id`.
     pub scope: Option<ScopeId>,
 }
 
-/// Canonical, first-class record for a [`Scope`](self#scope): its owner and
-/// scope-local accounting.
+/// Scope record, stored in [`Scopes`].
 #[derive(
     Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen, Clone, PartialEq, Eq, Debug,
 )]
 pub struct ScopeInfo<AccountId: MaxEncodedLen> {
-    /// The Scope's owner account. Immutable once the Scope is created;
-    /// changing control means replacing the Scope (see
-    /// [`Pallet::create_scope`]).
+    /// Owner of the Scope. Never changes; [`Pallet::create_scope`] replaces
+    /// the Scope with a new one to change the owner.
     pub owner: AccountId,
-    /// Number of physical `Access` entries (distinct `(NodeId, AccountId)`
-    /// pairs) currently stored under this Scope. Bounded by
-    /// `MAX_ACCESS_ENTRIES_PER_SCOPE`; see
-    /// [`Bounded Access and synchronous Scope cleanup`](self#bounded-access-and-synchronous-scope-cleanup).
+    /// Number of [`Access`] entries (distinct `(NodeId, AccountId)` pairs)
+    /// stored under this Scope, at most [`MAX_ACCESS_ENTRIES_PER_SCOPE`]. See
+    /// [Access entry limit](crate#access-entry-limit).
     #[codec(compact)]
     pub access_count: u32,
 }
 
-/// The Scope resolved for a CPS node - its `ScopeId`, root `NodeId`, and
-/// owner `AccountId` - together with the full topology path walked to reach
-/// it, all produced by [`Pallet::resolve_scope`] in a single walk so
-/// callers never need a separate lookup for the root, owner, or path.
+/// Result of [`Pallet::resolve_scope`] for a node.
 ///
-/// `path` holds the target node first and the Scope root last (so
-/// `path.len() == 1` when the target node is itself the Scope root). The
-/// scope-local depth is deliberately *not* cached anywhere - it is always
-/// derived as `path.len()` (bounded by [`MAX_SCOPE_DEPTH`]), since caching
-/// it would go stale whenever [`Pallet::create_scope`] moves a descendant's
-/// effective depth by inserting a new Scope boundary above it.
+/// `path` starts with the queried node and ends with the Scope root, so
+/// `path.len()` is the node's scope-local depth (1 for a Scope root).
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
 pub struct ResolvedScope<AccountId> {
-    /// The resolved Scope's identifier.
+    /// Identifier of the Scope.
     pub id: ScopeId,
-    /// The `NodeId` at which this Scope's `NodeInfo.scope` entry is stored.
+    /// Root node of the Scope, the node whose `NodeInfo.scope` is `id`.
     pub root: NodeId,
-    /// The Scope's owner account.
+    /// Owner of the Scope.
     pub owner: AccountId,
-    /// The path from the target node (first) to the Scope root (last),
-    /// inclusive of both ends.
+    /// Nodes from the queried node (first) to the Scope root (last),
+    /// both included.
     pub path: BoundedVec<NodeId, MaxScopeDepth>,
 }
 
@@ -695,7 +594,7 @@ pub mod pallet {
         #[allow(deprecated)]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Weight information for extrinsics in this pallet.
+        /// Weights of this pallet's calls.
         type WeightInfo: WeightInfo;
     }
 
@@ -703,61 +602,61 @@ pub mod pallet {
     #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
-    /// Storage version for migrations
+    /// Current storage version. See [`crate::migration`] for the upgrade
+    /// from version 1.
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
-    /// Next node ID counter
+    /// [`NodeId`] of the next created node.
     #[pallet::storage]
     #[pallet::getter(fn next_node_id)]
     pub type NextNodeId<T> = StorageValue<_, NodeId, ValueQuery>;
 
-    /// Node existence, parent link, and current Scope pointer.
+    /// Parent link and Scope pointer of every node (see [`NodeInfo`]).
     ///
-    /// Presence of a key means the node exists. `parent` is `None` for a
-    /// root node and `Some(parent_id)` for a child - **immutable** once a
-    /// node is created, there is no way to change it. `scope` is
-    /// `Some(scope_id)` only on nodes that are the root of an active Scope.
+    /// A node exists exactly when it has an entry here.
     #[pallet::storage]
     #[pallet::getter(fn node_info)]
     pub type Nodes<T: Config> = StorageMap<_, Twox64Concat, NodeId, NodeInfo, OptionQuery>;
 
-    /// Node metadata. An entry is present only when metadata has been set.
+    /// Node metadata. No entry means the metadata is unset.
     #[pallet::storage]
     #[pallet::getter(fn meta_of)]
     pub type Meta<T: Config> = StorageMap<_, Twox64Concat, NodeId, NodeMeta>;
 
-    /// Node payload. An entry is present only when a payload has been set.
+    /// Node payload. No entry means the payload is unset.
     #[pallet::storage]
     #[pallet::getter(fn payload_of)]
     pub type Payload<T: Config> = StorageMap<_, Twox64Concat, NodeId, NodePayload>;
 
-    /// Next Scope ID counter. `ScopeId` is globally unique and never reused.
+    /// [`ScopeId`] of the next created Scope.
     #[pallet::storage]
     #[pallet::getter(fn next_scope_id)]
     pub type NextScopeId<T> = StorageValue<_, ScopeId, ValueQuery>;
 
-    /// Canonical Scope record: owner and scope-local accounting
-    /// (`access_count`). An entry is present only for an active Scope,
-    /// keyed by the `ScopeId` referenced by the matching `Nodes[root].scope`.
+    /// Owner and Access entry count of every Scope (see [`ScopeInfo`]).
     ///
-    /// `ScopeId` is an internally generated, never-reused counter, so it
-    /// uses the cheaper reversible `Twox64Concat` hasher.
+    /// Holds an entry exactly for the `ScopeId`s referenced by a
+    /// `Nodes[root].scope`. The entry is removed when the Scope is replaced
+    /// or its root node deleted.
+    ///
+    /// `ScopeId` is allocated by the pallet, so the non-cryptographic
+    /// `Twox64Concat` hasher is used.
     #[pallet::storage]
     #[pallet::getter(fn scope_info)]
     pub type Scopes<T: Config> =
         StorageMap<_, Twox64Concat, ScopeId, ScopeInfo<T::AccountId>, OptionQuery>;
 
-    /// Access delegations, scoped to a `ScopeId`. One compact [`AccessFlags`]
-    /// entry per `(ScopeId, NodeId, AccountId)` bit-packs every delegated
-    /// [`Capability`] and its [`GrantMode`]; an entry is never stored once
-    /// empty (see [`Pallet::revoke_access`]).
+    /// Capabilities delegated to an account at a node, keyed by
+    /// `(ScopeId, (NodeId, AccountId))`. See [`AccessFlags`].
     ///
-    /// The outer key (`ScopeId`) is an internally generated, never-reused
-    /// counter, so it uses the cheaper reversible `Twox64Concat` hasher;
-    /// this also allows single-call prefix removal by `ScopeId` when a
-    /// Scope generation is invalidated (see [`Pallet::clear_scope_access`]).
-    /// The inner key mixes in the attacker-influenced `AccountId`, so it
-    /// keeps the cryptographic `Blake2_128Concat` hasher.
+    /// An entry with no capability left is deleted rather than stored. All
+    /// entries of a Scope are deleted when the Scope is replaced or its root
+    /// node deleted.
+    ///
+    /// The first key (`ScopeId`) is allocated by the pallet and uses
+    /// `Twox64Concat`, which also groups a Scope's entries under one prefix
+    /// for removal. The second key contains a caller-chosen `AccountId` and
+    /// uses `Blake2_128Concat`.
     #[pallet::storage]
     #[pallet::getter(fn access)]
     pub type Access<T: Config> = StorageDoubleMap<
@@ -770,7 +669,8 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    /// Index of children by parent node.
+    /// Direct children of each node, in creation order, up to
+    /// [`MAX_CHILDREN_PER_NODE`].
     #[pallet::storage]
     #[pallet::getter(fn children_of)]
     pub type Children<T: Config> =
@@ -779,67 +679,86 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Node created [node_id, parent_id, creator]
+        /// A node was created. [node_id, parent_id, creator]
         NodeCreated(NodeId, Option<NodeId>, T::AccountId),
-        /// Node metadata set [node_id, sender]
+        /// Node metadata was set or removed. [node_id, sender]
         MetaSet(NodeId, T::AccountId),
-        /// Node payload set [node_id, sender]
+        /// Node payload was set or removed. [node_id, sender]
         PayloadSet(NodeId, T::AccountId),
-        /// Node deleted [node_id, sender]
+        /// A node was deleted. [node_id, sender]
         NodeDeleted(NodeId, T::AccountId),
-        /// A new Scope was created (or replaced an existing generation)
-        /// [scope_id, root, owner]
+        /// A Scope was created, either for a new root node by `create_node`
+        /// or by `create_scope`. When `create_scope` replaces a Scope, no
+        /// separate event is emitted for the old one. [scope_id, root, owner]
         ScopeCreated(ScopeId, NodeId, T::AccountId),
-        /// A Scope boundary was removed, together with its (leaf) node
+        /// A Scope was deleted together with its root node by `delete_node`.
         /// [scope_id, root]
         ScopeDeleted(ScopeId, NodeId),
-        /// Access was granted [scope_id, node_id, principal, capability, mode]
+        /// A capability was granted.
+        /// [scope_id, node_id, principal, capability, mode]
         AccessGranted(ScopeId, NodeId, T::AccountId, Capability, GrantMode),
-        /// Access was revoked [scope_id, node_id, principal, capability]
+        /// A capability was revoked. Also emitted when the capability was
+        /// not granted. [scope_id, node_id, principal, capability]
         AccessRevoked(ScopeId, NodeId, T::AccountId, Capability),
     }
 
     #[pallet::error]
     #[derive(PartialEq)]
     pub enum Error<T> {
-        /// Node not found
+        /// The node does not exist.
         NodeNotFound,
-        /// Parent node not found
+        /// The parent node does not exist.
         ParentNotFound,
-        /// Maximum scope-local depth exceeded
+        /// The new node would have more than [`MAX_SCOPE_DEPTH`] nodes on
+        /// its path to the Scope root.
         MaxScopeDepthExceeded,
-        /// Too many children for node
+        /// The parent already has [`MAX_CHILDREN_PER_NODE`] children.
         TooManyChildren,
-        /// Node has children and cannot be deleted
+        /// The node has children and cannot be deleted.
         NodeHasChildren,
-        /// No fresh node ID can be allocated without overflowing the counter
+        /// [`NextNodeId`] cannot be incremented without overflow.
         NodeIdExhausted,
-        /// No Scope could be resolved for this node
+        /// No Scope could be resolved for the node. Not expected while the
+        /// storage invariants hold.
         ScopeNotFound,
-        /// No fresh Scope ID can be allocated without overflowing the counter
+        /// [`NextScopeId`] cannot be incremented without overflow.
         ScopeIdExhausted,
-        /// Caller is not the owner of the resolved Scope
+        /// The caller does not own the Scope the node resolves to.
         NotScopeOwner,
-        /// Caller does not hold the required Access for this operation
+        /// The caller neither owns the Scope nor holds the required
+        /// capability.
         AccessDenied,
-        /// The Scope already holds `MAX_ACCESS_ENTRIES_PER_SCOPE` physical
-        /// `Access` entries; no further `(NodeId, AccountId)` pair can be
-        /// granted access until an existing entry is fully revoked.
+        /// The Scope already holds [`MAX_ACCESS_ENTRIES_PER_SCOPE`] Access
+        /// entries, so no entry for a new `(NodeId, AccountId)` pair can be
+        /// added.
         TooManyAccessEntries,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Create a new node.
+        /// Create a node under `parent_id`, or a root node if `parent_id` is
+        /// `None`, with optional `meta` and `payload`.
         ///
-        /// Creating a root node (`parent_id: None`) allocates a fresh Scope
-        /// owned by the caller. Creating a child node is a structural
-        /// change, not a data mutation, so it requires the caller to be the
-        /// owner of `parent_id`'s resolved Scope - `Write` (owner or
-        /// delegated `Access`) only authorizes `Meta`/`Payload` mutation,
-        /// never hierarchy changes. The child does not get its own Scope -
-        /// it inherits `parent_id`'s resolved Scope implicitly (`scope:
-        /// None`).
+        /// A root node may be created by any signed account and becomes the
+        /// root of a new Scope owned by the caller. A child node requires
+        /// the caller to own the Scope that `parent_id` resolves to
+        /// ([`Capability::Write`] is not enough); it does not root a Scope
+        /// and resolves to its parent's Scope.
+        ///
+        /// Emits [`Event::ScopeCreated`] for a root node, then
+        /// [`Event::NodeCreated`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::ParentNotFound`]: `parent_id` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the parent's
+        ///   Scope.
+        /// - [`Error::MaxScopeDepthExceeded`]: the parent's path to its Scope
+        ///   root already holds [`MAX_SCOPE_DEPTH`] nodes.
+        /// - [`Error::TooManyChildren`]: the parent already has
+        ///   [`MAX_CHILDREN_PER_NODE`] children.
+        /// - [`Error::NodeIdExhausted`], [`Error::ScopeIdExhausted`]: an ID
+        ///   counter cannot be incremented.
         #[pallet::call_index(0)]
         #[pallet::weight(T::WeightInfo::create_node(
             meta.as_ref().map_or(0, |v| v.len() as u32),
@@ -853,12 +772,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let sender = ensure_signed(origin)?;
 
-            // Peek the next node ID (and, for a root node, the next Scope
-            // ID) without committing either counter until every fallible
-            // check below succeeds. Storage writes are not automatically
-            // rolled back when a dispatchable returns an error, so
-            // committing early would let a failed call consume an ID or
-            // leave a dangling index entry behind.
+            // Read the next node ID (and, for a root node, the next Scope
+            // ID) and check that the counters can be incremented. The
+            // counters are written only after every check below has passed.
             let node_id = <NextNodeId<T>>::get();
             let next_node_id = node_id
                 .0
@@ -878,18 +794,13 @@ pub mod pallet {
             if let Some(pid) = parent_id {
                 ensure!(<Nodes<T>>::contains_key(pid), Error::<T>::ParentNotFound);
 
-                // Creating a child node is a structural change to the CPS
-                // hierarchy, not a data mutation - `Write` only authorizes
-                // `Meta`/`Payload` changes (see issue #656), so this always
-                // requires the resolved Scope's owner authority.
+                // Adding a child requires the Scope owner; `Write` only
+                // covers `Meta`/`Payload`.
                 let resolved = Self::resolve_scope(pid)?;
                 ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
-                // Check the scope-local depth by reusing the parent's
-                // already-resolved path: the new child's path would be one
-                // node longer than the parent's, so a child is only admitted
-                // while the parent's path is strictly shorter than
-                // `MAX_SCOPE_DEPTH`.
+                // The child's path is the parent's path plus one node, so
+                // the parent's path must be shorter than `MAX_SCOPE_DEPTH`.
                 ensure!(
                     (resolved.path.len() as u32) < MAX_SCOPE_DEPTH,
                     Error::<T>::MaxScopeDepthExceeded
@@ -902,11 +813,9 @@ pub mod pallet {
                         .map_err(|_| Error::<T>::TooManyChildren)
                 })?;
             }
-            // Root nodes (parent_id.is_none()) always allocate a fresh,
-            // caller-owned Scope, handled below.
 
-            // All fallible checks passed: commit the reserved node/Scope
-            // IDs and the node's attributes.
+            // All checks passed: write the counters, the root node's Scope,
+            // and the node itself.
             <NextNodeId<T>>::put(NodeId(next_node_id));
 
             let scope = if let Some((scope_id, next_scope_id)) = new_scope {
@@ -943,7 +852,16 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Set node metadata
+        /// Set the metadata of `node_id` to `meta`, or remove it if `meta` is
+        /// `None`.
+        ///
+        /// The caller must be authorized for [`Capability::Write`] at
+        /// `node_id` (see [`Pallet::authorize`]). Emits [`Event::MetaSet`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::AccessDenied`]: the caller is not authorized.
         #[pallet::call_index(1)]
         #[pallet::weight(T::WeightInfo::set_meta(meta.as_ref().map_or(0, |v| v.len() as u32)))]
         pub fn set_meta(
@@ -964,7 +882,17 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Set node payload
+        /// Set the payload of `node_id` to `payload`, or remove it if
+        /// `payload` is `None`.
+        ///
+        /// The caller must be authorized for [`Capability::Write`] at
+        /// `node_id` (see [`Pallet::authorize`]). Emits
+        /// [`Event::PayloadSet`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::AccessDenied`]: the caller is not authorized.
         #[pallet::call_index(2)]
         #[pallet::weight(T::WeightInfo::set_payload(payload.as_ref().map_or(0, |v| v.len() as u32)))]
         pub fn set_payload(
@@ -986,15 +914,28 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Delete a node.
+        /// Delete `node_id` together with its `Meta` and `Payload`.
         ///
-        /// Only leaf nodes (no children) can be deleted. If the node is the
-        /// root of an active Scope, that Scope's `NodeInfo.scope` boundary
-        /// disappears together with the node - this is the *only* way a
-        /// Scope boundary is ever removed (there is no standalone
-        /// `delete_scope`); the rest of the Scope's physical state
-        /// (`Access`, `Scopes`) is synchronously cleared in this same call
-        /// (see `Pallet::clear_scope_access`).
+        /// The caller must own the Scope that `node_id` resolves to; for a
+        /// Scope root that is the node's own Scope. Only a node without
+        /// children can be deleted.
+        ///
+        /// If `node_id` roots a Scope, the Scope's [`Scopes`] record and all
+        /// of its [`Access`] entries are deleted as well and
+        /// [`Event::ScopeDeleted`] is emitted; this is the only way a Scope
+        /// is removed. Access entries granted at `node_id` in the Scope it
+        /// resolves to are not deleted (see
+        /// [Access entry limit](crate#access-entry-limit)). Emits
+        /// [`Event::NodeDeleted`].
+        ///
+        /// Weight is charged for [`MAX_ACCESS_ENTRIES_PER_SCOPE`] deleted
+        /// Access entries and refunded to the number actually deleted.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the Scope.
+        /// - [`Error::NodeHasChildren`]: `node_id` has children.
         #[pallet::call_index(3)]
         #[pallet::weight(T::WeightInfo::delete_node(MAX_ACCESS_ENTRIES_PER_SCOPE))]
         pub fn delete_node(origin: OriginFor<T>, node_id: NodeId) -> DispatchResultWithPostInfo {
@@ -1003,7 +944,7 @@ pub mod pallet {
             // Check the node exists, and get its topology info.
             let info = <Nodes<T>>::get(node_id).ok_or(Error::<T>::NodeNotFound)?;
 
-            // Only owner can remove node
+            // Only the Scope owner can delete a node.
             let resolved = Self::resolve_scope(node_id)?;
             ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
@@ -1021,9 +962,8 @@ pub mod pallet {
             // Remove the node's own children index entry
             <Children<T>>::remove(node_id);
 
-            // Remove the Scope boundary attached to this node, if any. The
-            // rest of that Scope's physical state is synchronously cleared
-            // now, in the same call.
+            // If the node roots a Scope, delete the Scope's Access entries
+            // and record.
             let mut cleared_access_items = 0;
             if let Some(stale_scope) = info.scope {
                 cleared_access_items = <Scopes<T>>::get(stale_scope)
@@ -1043,34 +983,37 @@ pub mod pallet {
             Ok(Some(T::WeightInfo::delete_node(cleared_access_items)).into())
         }
 
-        /// Create a new Scope rooted at `node_id`, or replace its existing
-        /// generation.
+        /// Make `node_id` the root of a new Scope owned by the caller.
         ///
-        /// The caller becomes the new Scope's owner and a fresh `ScopeId` is
-        /// always allocated. This is a single operation with two cases,
-        /// distinguished by whether `node_id` already roots an active
-        /// Scope:
+        /// A new `ScopeId` is always allocated. The effect depends on
+        /// whether `node_id` already roots a Scope:
         ///
-        /// - **Ordinary node** (`Nodes[node_id].scope == None`): establishes
-        ///   a brand-new nested Scope boundary there. Authorized either by
-        ///   owning the Scope currently governing `node_id`, or by holding a
-        ///   delegated `Capability::CreateScope` grant reaching `node_id` -
-        ///   a `GrantMode::Node` grant at the exact `node_id`, or a
-        ///   `GrantMode::Subtree` grant at `node_id` or a strict ancestor
-        ///   within the same Scope.
-        /// - **Existing Scope root** (`Nodes[node_id].scope ==
-        ///   Some(old_scope_id)`): replaces that Scope's generation in
-        ///   place - the sole ownership-transfer mechanism. Authorized by
-        ///   the old Scope's owner, by a `CreateScope` grant reaching
-        ///   `node_id` *within that old Scope*, or by the owner of the
-        ///   immediately enclosing Scope (the one resolved for the root's
-        ///   parent) - an upper Scope owner may always take over a Scope
-        ///   nested directly below it. Owners of Scopes further up, and
-        ///   delegates holding `CreateScope` only in the enclosing Scope,
-        ///   do not qualify. The boundary stays on the same node; only the
-        ///   Scope generation changes. The previous generation's `Access`
-        ///   entries are synchronously invalidated (see
-        ///   `Pallet::clear_scope_access`).
+        /// - **Ordinary node**: `node_id` becomes the root of a new nested
+        ///   Scope, and `node_id` and its descendants in the current Scope
+        ///   now resolve to it. Allowed for the owner of the Scope `node_id`
+        ///   resolves to, or for an account holding
+        ///   [`Capability::CreateScope`] at `node_id` (either mode) or with
+        ///   [`GrantMode::Subtree`] at an ancestor within that Scope.
+        /// - **Scope root**: the Scope is replaced. Nodes that resolved to
+        ///   the old Scope resolve to the new one, and the old Scope's
+        ///   [`Scopes`] record and all of its [`Access`] entries are
+        ///   deleted. Allowed for the owner of the old Scope, for an account
+        ///   holding [`Capability::CreateScope`] at `node_id` in the old
+        ///   Scope, and for the owner of the Scope that `node_id`'s parent
+        ///   resolves to (the immediately enclosing Scope). Owners of Scopes
+        ///   further up the tree and Access holders of the enclosing Scope
+        ///   are not allowed.
+        ///
+        /// Emits [`Event::ScopeCreated`]. Weight is charged for
+        /// [`MAX_ACCESS_ENTRIES_PER_SCOPE`] deleted Access entries and
+        /// refunded to the number actually deleted.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::AccessDenied`]: the caller is not allowed.
+        /// - [`Error::ScopeIdExhausted`]: [`NextScopeId`] cannot be
+        ///   incremented.
         #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::create_scope(MAX_ACCESS_ENTRIES_PER_SCOPE))]
         pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResultWithPostInfo {
@@ -1084,12 +1027,7 @@ pub mod pallet {
                 })
                 .unwrap_or(0);
 
-            // The owner of the immediately enclosing Scope may replace a
-            // Scope root nested directly below it, even without any Access
-            // inside the nested Scope.
-            if let Err(err) = Self::authorize(node_id, &sender, Capability::CreateScope) {
-                ensure!(Self::is_enclosing_scope_owner(&info, &sender), err);
-            }
+            Self::authorize_create_scope(node_id, &info, &sender)?;
 
             let scope_id =
                 Self::allocate_scope(node_id, info.scope, sender.clone(), old_scope_access_items)?;
@@ -1098,14 +1036,23 @@ pub mod pallet {
             Ok(Some(T::WeightInfo::create_scope(old_scope_access_items)).into())
         }
 
-        /// Grant `capability` to `principal` at `node_id`, within the Scope
-        /// resolved for `node_id`. Only the Scope's owner may grant Access.
+        /// Grant `capability` with `mode` to `principal` at `node_id`, in the
+        /// Scope that `node_id` resolves to.
         ///
-        /// A brand-new `(node_id, principal)` `Access` entry consumes one of
-        /// the Scope's bounded `MAX_ACCESS_ENTRIES_PER_SCOPE` slots (rejected
-        /// with [`Error::TooManyAccessEntries`] once the bound is reached);
-        /// changing the `GrantMode` or adding another `Capability` bit to an
-        /// already-existing entry never does.
+        /// Only the owner of that Scope may call this. If `principal`
+        /// already holds `capability` at `node_id`, its mode is replaced by
+        /// `mode`. The first grant for a `(node_id, principal)` pair creates
+        /// an Access entry and increments [`ScopeInfo::access_count`]; further
+        /// grants for the same pair update the entry and do not. Emits
+        /// [`Event::AccessGranted`].
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the Scope.
+        /// - [`Error::TooManyAccessEntries`]: the pair has no entry yet and
+        ///   the Scope already holds [`MAX_ACCESS_ENTRIES_PER_SCOPE`]
+        ///   entries.
         #[pallet::call_index(6)]
         #[pallet::weight(T::WeightInfo::grant_access())]
         pub fn grant_access(
@@ -1152,14 +1099,21 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Revoke a previously granted `capability` from `principal` at
-        /// `node_id`. Only the Scope's owner may revoke Access.
+        /// Revoke `capability` from `principal` at `node_id`, in the Scope
+        /// that `node_id` resolves to.
         ///
-        /// Only fully revoking the last remaining `Capability` on a
-        /// `(node_id, principal)` entry (removing it entirely) frees up
-        /// that Scope's `MAX_ACCESS_ENTRIES_PER_SCOPE` slot; revoking one
-        /// capability while others remain leaves the entry - and the count
-        /// - untouched.
+        /// Only the owner of that Scope may call this. When the revoked
+        /// capability was the last one in the `(node_id, principal)` entry,
+        /// the entry is deleted and [`ScopeInfo::access_count`] decremented;
+        /// otherwise the entry keeps its other capabilities and the count is
+        /// unchanged. Revoking a capability that is not granted succeeds
+        /// without changing storage. Emits [`Event::AccessRevoked`] in every
+        /// successful case.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::NotScopeOwner`]: the caller does not own the Scope.
         #[pallet::call_index(7)]
         #[pallet::weight(T::WeightInfo::revoke_access())]
         pub fn revoke_access(
@@ -1207,22 +1161,22 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        /// The single canonical topology resolver: walk from `node_id`
-        /// towards the root, one hop at a time, until a `NodeInfo.scope`
-        /// entry is found, collecting every node visited along the way.
+        /// Resolve the Scope that `node_id` belongs to.
         ///
-        /// Returns the resolved [`ResolvedScope`], which carries the walked
-        /// `path` (target node first, Scope root last) alongside the Scope's
-        /// `id`, `root`, and `owner`. Every authorization check and depth
-        /// admission in this pallet is built on top of this single walk -
-        /// there is no separate traversal for depth vs. Access lookups.
+        /// Starting at `node_id`, walks towards the tree root until it
+        /// reaches a node whose `NodeInfo.scope` is set, and returns that
+        /// Scope's id, root, and owner together with the visited path (see
+        /// [`ResolvedScope`]).
+        /// The walk visits at most [`MAX_SCOPE_DEPTH`] nodes. Authorization
+        /// checks and the depth check of [`Pallet::create_node`] use the
+        /// returned path.
         ///
-        /// The walk never visits more than `MAX_SCOPE_DEPTH` nodes: this
-        /// bounds resolution cost to the *scope-local* depth, never the
-        /// (unbounded) global tree depth. Exceeding the bound without
-        /// finding a Scope indicates a broken invariant (every node must
-        /// resolve to a Scope within `MAX_SCOPE_DEPTH` nodes) and is
-        /// reported as [`Error::ScopeNotFound`].
+        /// # Errors
+        ///
+        /// - [`Error::NodeNotFound`]: `node_id` does not exist.
+        /// - [`Error::ScopeNotFound`]: no Scope root is found within
+        ///   [`MAX_SCOPE_DEPTH`] nodes, or the Scope has no [`Scopes`]
+        ///   record. Not expected while the storage invariants hold.
         pub fn resolve_scope(node_id: NodeId) -> Result<ResolvedScope<T::AccountId>, Error<T>> {
             let mut path: BoundedVec<NodeId, MaxScopeDepth> = BoundedVec::default();
             let mut current = node_id;
@@ -1249,40 +1203,52 @@ pub mod pallet {
             Err(Error::<T>::ScopeNotFound)
         }
 
-        /// Check whether `account_id` currently holds `capability` at
-        /// `node_id`.
+        /// Whether `account_id` may use `capability` at `node_id`, with the
+        /// same check as the calls that require it:
         ///
-        /// This is a read-only query reusing the exact same [`Self::authorize`]
-        /// logic enforced by the dispatchables, so it never drifts from the
-        /// on-chain behavior. Returns `false` rather than an error if
-        /// `node_id` does not exist or no Scope can be resolved for it.
+        /// - [`Capability::Write`]: [`Self::authorize`], as in
+        ///   [`Pallet::set_meta`] and [`Pallet::set_payload`];
+        /// - [`Capability::CreateScope`]: the check of
+        ///   [`Pallet::create_scope`], i.e. [`Self::authorize`] or, at a
+        ///   nested Scope root, ownership of the immediately enclosing Scope.
         ///
-        /// The `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`)
-        /// passes `Capability` directly across the API boundary. Its SCALE
-        /// encoding is pinned by explicit `#[codec(index = ..)]` attributes
-        /// on each variant (see [`Capability`]), so new capabilities may be
-        /// added anywhere without disturbing the encoding of existing
-        /// callers - only never reusing or reassigning an already-shipped
-        /// index matters.
+        /// Returns `false` if `node_id` does not exist or no Scope can be
+        /// resolved for it.
+        ///
+        /// Exposed to off-chain clients by the `CpsApi` runtime API.
         pub fn has_capability(
             node_id: NodeId,
             account_id: &T::AccountId,
             capability: Capability,
         ) -> bool {
-            Self::authorize(node_id, account_id, capability).unwrap_or(false)
+            match capability {
+                Capability::CreateScope => <Nodes<T>>::get(node_id).is_some_and(|info| {
+                    Self::authorize_create_scope(node_id, &info, account_id).is_ok()
+                }),
+                Capability::Write => Self::authorize(node_id, account_id, capability).is_ok(),
+            }
         }
 
-        /// Authorize `sender` to exercise `capability` at `node_id`.
+        /// Check that `sender` may use `capability` at `node_id`.
         ///
-        /// The Scope owner always has implicit authority. Otherwise, this
-        /// resolves `node_id`'s Scope path exactly once (via
-        /// [`Self::resolve_scope`]) and reuses it to check `Access`
-        /// entries without a second topology traversal: at `node_id` itself
-        /// (`path[0]`), both `GrantMode::Node` and `GrantMode::Subtree`
-        /// grants authorize; on every strict ancestor in the path, only
-        /// `GrantMode::Subtree` grants do. The walk never crosses the Scope
-        /// boundary, since `path` never extends past the resolved Scope's
-        /// root.
+        /// Resolves the Scope of `node_id` once and returns `Ok(true)` if
+        /// `sender`:
+        ///
+        /// - owns that Scope; or
+        /// - holds `capability` at `node_id` in that Scope, in either
+        ///   [`GrantMode`]; or
+        /// - holds `capability` with [`GrantMode::Subtree`] at an ancestor of
+        ///   `node_id` on the resolved path.
+        ///
+        /// The path ends at the Scope root, so Access entries of enclosing
+        /// Scopes are never consulted. Never returns `Ok(false)`.
+        /// [`Pallet::create_scope`] additionally allows the owner of the
+        /// immediately enclosing Scope at a nested Scope root.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::AccessDenied`]: none of the conditions hold.
+        /// - Errors of [`Self::resolve_scope`].
         pub fn authorize(
             node_id: NodeId,
             sender: &T::AccountId,
@@ -1307,14 +1273,39 @@ pub mod pallet {
             Err(Error::<T>::AccessDenied)
         }
 
-        /// Whether `sender` owns the Scope immediately enclosing the Scope
-        /// rooted at the node described by `info`.
+        /// Check that `sender` may call [`Pallet::create_scope`] on `node_id`,
+        /// whose [`NodeInfo`] is `info`.
         ///
-        /// Returns `false` unless `info` is an active Scope root with a
-        /// parent. The enclosing Scope is the one resolved for the parent
-        /// node, so the cost is a single [`Self::resolve_scope`] walk,
-        /// bounded by `MAX_SCOPE_DEPTH` regardless of how many Scopes are
-        /// nested above it.
+        /// Allowed if [`Self::authorize`] allows [`Capability::CreateScope`]
+        /// at `node_id`, or if `node_id` roots a Scope and `sender` owns the
+        /// Scope that its parent resolves to (the immediately enclosing
+        /// Scope). Shared by [`Pallet::create_scope`] and
+        /// [`Self::has_capability`].
+        ///
+        /// # Errors
+        ///
+        /// The error of [`Self::authorize`] if neither condition holds.
+        fn authorize_create_scope(
+            node_id: NodeId,
+            info: &NodeInfo,
+            sender: &T::AccountId,
+        ) -> Result<(), Error<T>> {
+            Self::authorize(node_id, sender, Capability::CreateScope)
+                .map(|_| ())
+                .or_else(|err| {
+                    if Self::is_enclosing_scope_owner(info, sender) {
+                        Ok(())
+                    } else {
+                        Err(err)
+                    }
+                })
+        }
+
+        /// Whether `sender` owns the Scope immediately enclosing the Scope
+        /// rooted at the node described by `info`, i.e. the Scope that the
+        /// node's parent resolves to.
+        ///
+        /// Returns `false` if the node is not a Scope root or has no parent.
         fn is_enclosing_scope_owner(info: &NodeInfo, sender: &T::AccountId) -> bool {
             match (info.scope, info.parent) {
                 (Some(_), Some(parent)) => {
@@ -1324,12 +1315,16 @@ pub mod pallet {
             }
         }
 
-        /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,
-        /// and activate it. `old_scope` is `root`'s current
-        /// `NodeInfo.scope` value: if `Some`, that generation is replaced -
-        /// its remaining physical state (`Access`, `ScopeInfo`) is
-        /// synchronously cleared (see [`Self::clear_scope_access`]) as part
-        /// of the same call that installs the new one.
+        /// Allocate a new `ScopeId` owned by `owner` and make `root` its root.
+        ///
+        /// `old_scope` is the current `NodeInfo.scope` of `root`. If it is
+        /// `Some`, that Scope's Access entries (`old_scope_access_items` of
+        /// them, its `access_count`) and its [`Scopes`] record are deleted.
+        ///
+        /// # Errors
+        ///
+        /// - [`Error::ScopeIdExhausted`]: [`NextScopeId`] cannot be
+        ///   incremented.
         fn allocate_scope(
             root: NodeId,
             old_scope: Option<ScopeId>,
@@ -1363,27 +1358,18 @@ pub mod pallet {
             Ok(scope_id)
         }
 
-        /// Synchronously delete every `Access` entry belonging to an
-        /// invalidated `scope_id`.
+        /// Delete all [`Access`] entries stored under `scope_id`.
         ///
-        /// Must be called in the same state transition that removes or
-        /// replaces the corresponding `NodeInfo.scope` entry (`ScopeId`s are
-        /// never reused, so an invalidated Scope can never become active
-        /// again). Callers are responsible for removing the `Scopes[scope_id]`
-        /// entry itself once this returns.
+        /// `access_items` must be the Scope's [`ScopeInfo::access_count`]; it
+        /// is used as the `clear_prefix` limit, so the cost of the call is
+        /// bounded by it. The caller also removes the [`Scopes`] record, and
+        /// removes or replaces the root's `NodeInfo.scope`, in the same call.
         ///
-        /// The removal limit is taken from the Scope's tracked
-        /// `ScopeInfo.access_count` at invalidation time (`access_items`), so
-        /// both dispatch and benchmarked weight scale with the number of
-        /// physical entries actually removed rather than a fixed maximum.
-        ///
-        /// Because `grant_access` strictly keeps `access_count <=
-        /// MAX_ACCESS_ENTRIES_PER_SCOPE` and in sync with the physical
-        /// entries, a single `clear_prefix` pass limited to `access_items`
-        /// always removes every entry. A remaining continuation cursor
-        /// therefore means the `access_count` invariant is broken; it is
-        /// reported defensively and never followed, so the cost of this call
-        /// stays bounded by `access_items`.
+        /// Since `access_count` equals the number of stored entries, a single
+        /// `clear_prefix` call removes all of them. If entries remain, the
+        /// invariant is broken: this is reported with
+        /// [`frame_support::defensive!`] and the remaining entries are left
+        /// in storage.
         pub(crate) fn clear_scope_access(scope_id: ScopeId, access_items: u32) {
             let result = <Access<T>>::clear_prefix(scope_id, access_items, None);
             if result.maybe_cursor.is_some() {

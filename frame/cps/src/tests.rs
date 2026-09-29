@@ -65,22 +65,20 @@ fn active_scope_id(node_id: NodeId) -> Option<ScopeId> {
     Cps::node_info(node_id).and_then(|info| info.scope)
 }
 
-/// `Some(Some(parent))` / `Some(None)` mirror the pre-refactor `Parents`
-/// accessor shape: outer `Option` is node existence, inner is "has a
-/// parent". `None` means the node does not exist.
+/// Parent link of `node_id`: `None` if the node does not exist,
+/// `Some(None)` for a root node, `Some(Some(parent))` otherwise.
 fn parent_of(node_id: NodeId) -> Option<Option<NodeId>> {
     Cps::node_info(node_id).map(|info| info.parent)
 }
 
-/// Mirrors the pre-refactor `ActiveScope` accessor: `Some((scope_id,
-/// owner))` only if `node_id` is itself the root of an active Scope.
+/// `Some((scope_id, owner))` if `node_id` is itself the root of a Scope.
 fn active_scope(node_id: NodeId) -> Option<(ScopeId, u64)> {
     let scope_id = Cps::node_info(node_id).and_then(|info| info.scope)?;
     let owner = Cps::scope_info(scope_id)?.owner;
     Some((scope_id, owner))
 }
 
-/// Mirrors the pre-refactor `NodesByParent` accessor.
+/// Direct children of `node_id`.
 fn children_of(node_id: NodeId) -> BoundedVec<NodeId, MaxChildrenPerNode> {
     Cps::children_of(node_id)
 }
@@ -1079,10 +1077,8 @@ fn create_scope_subtree_capability_authorizes_descendants() {
     });
 }
 
-// A Scope boundary can no longer be removed independently of its node
-// (there is no `delete_scope` extrinsic anymore): it only disappears when
-// its root node is deleted, and `delete_node` stays leaf-only. The tests
-// below replace the old `delete_scope`-based coverage.
+// A Scope is removed only together with its root node, and `delete_node`
+// only deletes nodes without children.
 
 #[test]
 fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
@@ -1734,6 +1730,64 @@ fn has_capability_reflects_create_scope_semantics() {
 fn has_capability_returns_false_for_missing_node() {
     new_test_ext().execute_with(|| {
         assert!(!Cps::has_capability(NodeId(0), &1, Capability::Write));
+        assert!(!Cps::has_capability(NodeId(0), &1, Capability::CreateScope));
+    });
+}
+
+/// Whether `create_scope` by `who` on `node` would succeed, without keeping
+/// its storage changes.
+fn create_scope_succeeds(who: u64, node: NodeId) -> bool {
+    frame_support::storage::with_transaction(|| {
+        let ok = Cps::create_scope(RuntimeOrigin::signed(who), node).is_ok();
+        frame_support::storage::TransactionOutcome::Rollback(Ok::<_, sp_runtime::DispatchError>(ok))
+    })
+    .unwrap()
+}
+
+#[test]
+fn has_capability_create_scope_includes_enclosing_scope_owner() {
+    new_test_ext().execute_with(|| {
+        // Scope A (owner 1) at node 0, Scope B (owner 2) at node 1,
+        // Scope C (owner 3) at node 2.
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(2),
+            3,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(3), NodeId(2)));
+        // Account 4 holds `CreateScope` over the whole of Scope A only.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            4,
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
+
+        // Owner of the immediately enclosing Scope.
+        assert!(Cps::has_capability(NodeId(1), &1, Capability::CreateScope));
+        assert!(Cps::has_capability(NodeId(2), &2, Capability::CreateScope));
+        // Owner of a Scope two levels up, a delegate of the enclosing Scope,
+        // and an account at a root without an enclosing Scope.
+        assert!(!Cps::has_capability(NodeId(2), &1, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(1), &4, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(0), &2, Capability::CreateScope));
+        // The enclosing owner rule applies to `CreateScope` only.
+        assert!(!Cps::has_capability(NodeId(1), &1, Capability::Write));
+
+        // `has_capability` agrees with `create_scope` for every pair.
+        for who in 1..=5u64 {
+            for node in 0..=2u64 {
+                assert_eq!(
+                    Cps::has_capability(NodeId(node), &who, Capability::CreateScope),
+                    create_scope_succeeds(who, NodeId(node)),
+                    "account {who}, node {node}"
+                );
+            }
+        }
     });
 }
 
@@ -2136,11 +2190,8 @@ fn scope_id_is_never_reused_after_synchronous_cleanup() {
     });
 }
 
-/// `GrantMode`'s SCALE encoding is pinned by explicit `#[codec(index = ..)]`
-/// attributes rather than derived from declaration order, so reordering the
-/// variants in source can never silently change already-shipped on-chain
-/// encoding (mirroring the same guarantee already relied upon for
-/// `Capability`, see its `index` doc comment).
+/// `GrantMode`'s SCALE encoding is fixed by explicit `#[codec(index = ..)]`
+/// attributes, so reordering the variants does not change the encoding.
 #[test]
 fn grant_mode_scale_indices_are_explicit_and_stable() {
     assert_eq!(GrantMode::Node.encode(), sp_std::vec![0u8]);
@@ -2148,10 +2199,9 @@ fn grant_mode_scale_indices_are_explicit_and_stable() {
 }
 
 /// Verifies that the `#[pallet::weight(...)]` attributes on `create_node`,
-/// `set_meta`, and `set_payload` actually pass the caller-supplied data's
-/// *logical* byte length (not a fixed worst-case constant) into
-/// `WeightInfo`, for `None`, empty, small, and maximum-size values (issue
-/// #671, "Weight inputs" test category).
+/// `set_meta`, and `set_payload` pass the byte length of the supplied data
+/// (not a fixed worst-case constant) to `WeightInfo`, for `None`, empty,
+/// small, and maximum-size values.
 ///
 /// This needs its own mock runtime: the main `Runtime` above uses
 /// `weights::TestWeightInfo`, which returns a constant zero `Weight`
