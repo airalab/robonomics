@@ -131,11 +131,13 @@ NodeId
 
 Relocation is represented by creating a new node rather than moving an existing `NodeId`.
 
-The hierarchy is bounded so that every walk up the tree has a known worst-case cost:
+Depth is bounded per Scope, not globally, so a walk from any node up to its
+nearest Scope root has a known worst-case cost; the global tree depth across
+nested Scopes is unbounded:
 
 ```text
-MaxDepth      30 levels
-MaxChildren   100 children per node
+MaxScopeDepth   32 nodes on the path to the nearest Scope root
+MaxChildren     100 children per node
 ```
 
 Exact values are runtime constants and may be tuned after benchmarking.
@@ -240,7 +242,7 @@ nearest ancestor with ActiveScope
 
 `resolve_scope` is exposed as a runtime API returning `ScopeId`, from which clients read the root, owner and limits.
 
-Scope resolution runs during transaction validation, before any fee is charged. In the worst case it reads one storage item per level, up to `MaxDepth`. Checking authority must never cost a comparable amount to the useful action itself, so the worst case must be benchmarked on both `ref_time` and `proof_size`, and caching of the resolved Scope considered if it is too expensive.
+Scope resolution runs during transaction validation, before any fee is charged. In the worst case it reads one storage item per level, up to `MaxScopeDepth` nodes on the path to the nearest Scope root - never the unbounded global tree depth. Checking authority must never cost a comparable amount to the useful action itself, so the worst case must be benchmarked on both `ref_time` and `proof_size`, and caching of the resolved Scope considered if it is too expensive.
 
 Nested Scopes are hard boundaries for:
 
@@ -254,11 +256,11 @@ Subscription payer
 
 Creating a new Scope on an existing Scope root replaces the active generation.
 
-Deleting a non-root Scope removes that boundary and makes its subtree inherit the nearest parent Scope.
+There is no standalone "delete a Scope, keep the node" operation, since that could merge two independently-bounded Scope segments into one. A Scope boundary only ever disappears together with its root node: deleting a Scope-root node that has become a leaf removes the node and clears the Scope's remaining state in the same call. A Scope root with children can never be deleted.
 
 `ScopeId` is globally unique and never reused.
 
-Open: who may delete a nested Scope, and whether an issued `CreateScope` grant can be revoked before it is used.
+Resolved: `CreateScope` is just an ordinary `Access` capability, so an issued grant can be revoked at any time before it is used through the standard `revoke_access` path, the same as any other capability.
 
 ---
 
@@ -779,7 +781,7 @@ globally unique generation ID
 
 ```text
 NodeId
-    -> ActiveScope
+    -> NodeInfo.scope
     -> ScopeId
 
 AccountId
@@ -789,18 +791,19 @@ AccountId
 
 Replacement is logically immediate and does not require subtree/state rewrites.
 
-Old generations become stale and are cleaned asynchronously.
-
-Background GC should:
+For Scope, cleanup of the stale generation is synchronous and bounded, not deferred: a hard cap on the number of `Access` entries a Scope may hold (`MAX_ACCESS_ENTRIES_PER_SCOPE`) means invalidating a generation - by replacing it or by deleting its Scope-root leaf - can always clear every remaining `Access` entry for it in the same call, with no background queue or `on_idle` pass.
 
 ```text
-enqueue stale generation
+invalidate ScopeId
         |
         v
-bounded on_idle cleanup
+clear_prefix(Access(scope_id, *), access_count)
+        |
+        v
+remove Scopes[scope_id]
 ```
 
-Authorization and accounting correctness must never depend on GC completion.
+Subscription generations are expected to be more numerous and longer-lived, so whether the same bounded-and-synchronous approach applies or an asynchronous background pass is still needed is open; either way, authorization and accounting correctness must never depend on cleanup completion.
 
 ---
 
@@ -947,9 +950,6 @@ per-delegate limits
 
 latency under load
     fee multiplier, two-dimensional weight and uncapped Token traffic
-
-nested Scope lifecycle
-    who may delete it; can CreateScope be revoked
 
 independent payers in a shared tree
     require nested Scopes, which removes the network
