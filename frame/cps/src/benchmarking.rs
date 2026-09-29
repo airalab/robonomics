@@ -15,7 +15,7 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Benchmarking for pallet-robonomics-cps
+//! Benchmarks of `pallet-robonomics-cps` calls.
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -52,7 +52,7 @@ fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) 
     }
     let (root, deepest) = (root.unwrap(), parent.unwrap());
     assert_eq!(
-        Pallet::<T>::resolve_scope_path(deepest)
+        Pallet::<T>::resolve_scope(deepest)
             .expect("chain resolves to its root Scope")
             .path
             .len(),
@@ -61,11 +61,10 @@ fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) 
     (root, deepest)
 }
 
-/// Build a maximum-size `NodeMeta` value. Used as the pre-existing value in
-/// `set_meta`/`set_payload`'s `b = 0` (removal) benchmark point, so the
-/// zero-byte point still measures a real storage-delete path (see issue
-/// #671, point 7), and as the worst-case data component wherever a fixed
-/// maximum-size value (rather than a size sweep) is appropriate.
+/// Build a maximum-size `NodeMeta` value. Used as the existing value in the
+/// `set_meta`/`set_payload` benchmarks, so that the `b = 0` (removal) point
+/// measures deleting a stored value, and wherever a maximum-size value is
+/// needed.
 fn max_meta() -> NodeMeta {
     BoundedVec::try_from(vec![1u8; MAX_META_SIZE as usize]).unwrap()
 }
@@ -162,7 +161,7 @@ mod benchmarks {
             MAX_CHILDREN_PER_NODE as usize
         );
         assert_eq!(
-            Pallet::<T>::resolve_scope_path(node)
+            Pallet::<T>::resolve_scope(node)
                 .expect("new node resolves")
                 .path
                 .len(),
@@ -174,11 +173,9 @@ mod benchmarks {
     /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
-    /// `node` always starts with a maximum-size existing `Meta` value, so
-    /// the `b = 0` point (which sets `meta` to `None`, removing it) still
-    /// measures a real deletion rather than an unrealistically cheap no-op
-    /// (see issue #671, point 7); every other point (`b > 0`) measures a
-    /// same-size-domain replacement.
+    /// `node` always starts with a maximum-size `Meta` value, so the `b = 0`
+    /// point (`meta: None`) measures deleting it; every other point
+    /// measures replacing it.
     #[benchmark]
     fn set_meta(b: Linear<0, MAX_META_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
@@ -209,11 +206,9 @@ mod benchmarks {
     /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
     /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
-    /// `node` always starts with a maximum-size existing `Payload` value, so
-    /// the `b = 0` point (which sets `payload` to `None`, removing it) still
-    /// measures a real deletion rather than an unrealistically cheap no-op
-    /// (see issue #671, point 7); every other point (`b > 0`) measures a
-    /// same-size-domain replacement.
+    /// `node` always starts with a maximum-size `Payload` value, so the
+    /// `b = 0` point (`payload: None`) measures deleting it; every other
+    /// point measures replacing it.
     #[benchmark]
     fn set_payload(b: Linear<0, MAX_PAYLOAD_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
@@ -282,38 +277,41 @@ mod benchmarks {
         );
     }
 
-    /// Worst case replacement path: `node` already roots an active Scope
-    /// holding `a` `Access` entries, one of which is the non-owner caller's
-    /// `CreateScope` grant; replacing the Scope synchronously clears all of
-    /// them. `a` starts at 1 because the caller's own grant always occupies
-    /// one of the `MAX_ACCESS_ENTRIES_PER_SCOPE` slots.
+    /// Worst case replacement path: `node` sits at the bottom of a
+    /// `MAX_SCOPE_DEPTH`-node chain and already roots an active Scope,
+    /// owned by another account and holding `a` `Access` entries. The
+    /// caller owns the enclosing Scope, so the direct `authorize` check
+    /// fails after a `resolve_scope` of the nested Scope and the fallback
+    /// walks the full `MAX_SCOPE_DEPTH - 1` parent path to prove enclosing
+    /// ownership; replacing the Scope then synchronously clears all `a`
+    /// entries.
     #[benchmark]
-    fn create_scope(a: Linear<1, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
+    fn create_scope(a: Linear<0, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
         let caller: T::AccountId = whitelisted_caller();
-        let accessor: T::AccountId = account("accessor", 0, 0);
+        let nested_owner: T::AccountId = account("nested_owner", 0, 0);
         let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
-        assert_ok!(Pallet::<T>::create_scope(
+        assert_ok!(Pallet::<T>::grant_access(
             RawOrigin::Signed(caller.clone()).into(),
+            node,
+            nested_owner.clone(),
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_ok!(Pallet::<T>::create_scope(
+            RawOrigin::Signed(nested_owner.clone()).into(),
             node,
         ));
         let old_scope = Pallet::<T>::node_info(node)
             .and_then(|info| info.scope)
             .expect("node roots a Scope");
-        fill_access::<T>(&caller, node, a - 1);
-        assert_ok!(Pallet::<T>::grant_access(
-            RawOrigin::Signed(caller.clone()).into(),
-            node,
-            accessor.clone(),
-            Capability::CreateScope,
-            GrantMode::Node,
-        ));
+        fill_access::<T>(&nested_owner, node, a);
         assert_eq!(
             Pallet::<T>::scope_info(old_scope).map(|info| info.access_count),
             Some(a)
         );
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(accessor.clone()), node);
+        _(RawOrigin::Signed(caller.clone()), node);
 
         assert!(!Scopes::<T>::contains_key(old_scope));
         assert_eq!(Access::<T>::iter_prefix(old_scope).count(), 0);
@@ -322,7 +320,7 @@ mod benchmarks {
                 .and_then(|info| info.scope)
                 .and_then(|scope_id| Pallet::<T>::scope_info(scope_id))
                 .map(|info| info.owner),
-            Some(accessor)
+            Some(caller)
         );
     }
 

@@ -15,26 +15,35 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Pallet weights trait & utils.
+//! Weight functions of `pallet-robonomics-cps`.
 
 use frame_support::weights::Weight;
 
-/// Weight information for pallet extrinsics.
-///
-/// Provides benchmark-derived weights for each extrinsic in the pallet.
+/// Weights of the pallet's calls. Runtimes implement it with weights
+/// generated from the pallet's benchmarks.
 pub trait WeightInfo {
+    /// `create_node` with `meta_bytes` bytes of metadata and `payload_bytes`
+    /// bytes of payload (`0` for `None`).
     fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight;
+    /// `set_meta` with `bytes` bytes of metadata (`0` for `None`, i.e.
+    /// removal).
     fn set_meta(bytes: u32) -> Weight;
+    /// `set_payload` with `bytes` bytes of payload (`0` for `None`, i.e.
+    /// removal).
     fn set_payload(bytes: u32) -> Weight;
+    /// `delete_node` deleting `access_items` Access entries of the node's
+    /// Scope (`0` if the node does not root a Scope).
     fn delete_node(access_items: u32) -> Weight;
+    /// `create_scope` deleting `access_items` Access entries of the replaced
+    /// Scope (`0` if the node did not root a Scope).
     fn create_scope(access_items: u32) -> Weight;
+    /// `grant_access`.
     fn grant_access() -> Weight;
+    /// `revoke_access`.
     fn revoke_access() -> Weight;
 }
 
-/// Test weight implementation that returns zero weight for all operations.
-///
-/// Used in testing environments where actual weight calculations are not needed.
+/// Zero weight for every call. For tests only.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
     fn create_node(_meta_bytes: u32, _payload_bytes: u32) -> Weight {

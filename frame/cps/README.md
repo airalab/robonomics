@@ -1,665 +1,311 @@
-# Pallet CPS
+# CPS Pallet
 
-**On-chain hierarchical organization for Cyber-Physical Systems**
+`pallet-robonomics-cps` keeps a registry of cyber-physical systems (buildings,
+machines, sensors, and so on) on-chain as a tree of nodes. Each node can carry
+metadata and payload bytes. Ownership is organized in **Scopes**, and a Scope
+owner can delegate permissions on individual nodes or subtrees to other
+accounts through **Access** entries.
 
-## What is a Cyber-Physical System?
+## Concepts
 
-A Cyber-Physical System (CPS) bridges the digital and physical worlds by integrating computation, networking, and physical processes. Examples include:
-
-- **Smart Manufacturing**: Robotic assembly lines coordinating production
-- **Autonomous Vehicles**: Self-driving cars communicating with infrastructure
-- **Smart Buildings**: HVAC, lighting, and security systems working together
-- **Industrial IoT**: Sensor networks monitoring and optimizing processes
-- **Medical Devices**: Connected healthcare equipment in hospitals
-
-## Why Hierarchical Organization?
-
-Real-world CPS naturally form hierarchies:
-
-```
-Smart Building (Root)
-├── Floor 1
-│   ├── HVAC Unit
-│   │   ├── Compressor
-│   │   └── Thermostat
-│   └── Lighting Controller
-└── Floor 2
-    ├── HVAC Unit
-    └── Security Camera
-```
-
-This pallet provides a decentralized, tamper-proof registry for such systems, enabling:
-- **Verifiable authority boundaries** for physical assets and sub-systems
-- **Verifiable system topology** for audits and compliance
-- **Secure data storage** with client-side encryption support
-- **Immutable audit trails** of system changes
-- **Fine-grained delegation** of node-state mutation without transferring ownership
-
-## Core Concepts
-
-### Hierarchical Tree Structure
-
-Nodes are organized in a parent-child tree. A node's `parent` is fixed at
-creation time and never changes - there is no operation to relocate a node:
-
-```
-         [Building-A]
-         /          \
-    [Floor-1]    [Floor-2]
-      /    \          |
-[HVAC-01] [Lights] [HVAC-02]
-```
-
-**Benefits:**
-- **Logical Grouping**: Related systems stay together
-- **Efficient Queries**: Find all children of a node in O(1) time via `NodesByParent`
-- **Structural Immutability**: The tree shape can only grow, never be rewired
-
-### Scope / Access Model
-
-Authority is **not** stored on every node. Instead, a `Scope` marks only the
-nodes that start a new administrative and economic boundary; every other node
-resolves to the nearest ancestor `Scope`:
-
-```
-City
-Scope #1 / owner=A
-|
-`-- Smart Building
-    Scope #7 / owner=B
-    |
-    `-- Floor 3
-```
-
-`Floor 3` resolves to `Scope #7` (owner `B`); `Smart Building`'s Scope has no
-implicit rights over `City`'s other, independently owned children, and vice
-versa. A nested Scope is always a hard boundary: it stops inheritance of
-authority, `Access`, and resource limits, even when parent and child Scope
-owners are the same account.
-
-`Pallet::resolve_scope(node_id)` is the single canonical resolver: it walks
-`parent` links one hop at a time until it finds an active Scope, and is used
-by every authorization check in this pallet.
-
-### Capabilities and Access
-
-A [`Capability`] is a delegable authority. Two are defined today:
-
-- **`Write`** - mutate a node's `Meta` / `Payload` (covers both `set_meta`
-  and `set_payload`).
-- **`CreateScope`** - create/replace a Scope at the exact Scope root that
-  grants it (the sole mechanism for handing over control of a Scope); a
-  `Subtree` grant also authorizes carving out brand-new nested Scopes
-  anywhere in the granted subtree.
-
-`Pallet::grant_access` / `Pallet::revoke_access` let a Scope owner delegate a
-`Capability` to another account at a specific `NodeId`, either for that exact
-node (`GrantMode::Node`) or for the node and all its descendants within the
-same Scope (`GrantMode::Subtree`). Access never crosses a nested Scope
-boundary. The Scope owner always has implicit authority over their whole
-Scope and does not need explicit `Access` entries.
-
-#### Example: delegating `Write`
-
-```
-Factory
-Scope #10 / owner=A
-|
-+-- Robot
-|
-`-- Laboratory
-    Scope #20 / owner=B
-    |
-    `-- Sensor
-```
-
-If `A` grants `Access(#10, Factory, Gateway, Write, GrantMode::Subtree)`,
-`Gateway` may `set_meta`/`set_payload` on `Factory` and `Robot` (both resolve
-to Scope #10), but **not** on `Laboratory` or `Sensor` - those resolve to the
-independent `Scope #20`, so `A`'s Scope-#10 Access never applies there, even
-though `Laboratory` is a descendant of `Factory` in the tree.
-
-Access entries become invalid the moment their Scope is replaced or deleted,
-without requiring any rewrite: authorization always starts by resolving the
-*current* Scope for the target node.
-
-### Data Model
-
-Each node can independently carry two pieces of data, each stored in its own
-map so unset fields cost no storage:
-
-1. **Metadata** (`Meta`): System configuration, capabilities, specifications
-2. **Payload** (`Payload`): Operational data, sensor readings, telemetry
-
-Both are stored as plain bytes; for private data, encryption should happen
-client-side before submission (see [Client-Side Encryption](#-client-side-encryption)).
-
-```
-Node: "Temperature Sensor"
-├── Meta (plain): {"type": "thermocouple", "range": "-50 to 400°C"}
-└── Payload (encrypted): Current reading + calibration data
-```
-
-## Real-World Use Cases
-
-### Use Case 1: Supply Chain Tracking
-
-A manufacturer tracks components through production:
-
-```
-Product Batch #12345
-├── Component A (Supplier: ACME Corp)
-│   └── Raw Material Certificate (encrypted)
-├── Component B (Supplier: Beta LLC)
-│   └── Quality Test Results (plain)
-└── Assembly Record
-    └── Worker ID + Timestamp (encrypted)
-```
-
-**Benefits**: Immutable provenance, encrypted sensitive data, transparent for auditors
-
-### Use Case 2: Smart Building Management
-
-A property manager leases floors to independent tenant companies, each
-managing their own equipment, and delegates day-to-day sensor updates to a
-gateway device without handing over Scope ownership:
+### Node tree
 
 ```
 Building-A
-Scope #1 / owner=PropertyManager
-├── Floor-1 (shared building systems)
-│   ├── Fire Suppression Controller
-│   └── Elevator Bank
-└── Floor-3
-    Scope #7 / owner=TenantCorp
-    ├── HVAC-Unit-07
-    │   └── Thermostat-142 (occupancy data, encrypted)
-    │       Access(#7, Thermostat-142, Gateway, Write, GrantMode::Node)
-    └── Access Control Panel (badge logs, encrypted)
+├── Floor-1
+│   ├── HVAC-01
+│   └── Lights
+└── Floor-2
+    └── HVAC-02
 ```
 
-**Benefits**: `TenantCorp` manages Floor-3's equipment independently and can
-delegate `Write` on individual nodes (like `Thermostat-142`) to a `Gateway`
-device, without granting it any administrative rights over the Scope;
-`PropertyManager` retains full control of shared building systems and other
-floors without either party having implicit access to the other's boundary.
+- Node IDs (`NodeId`) are allocated sequentially and never reused.
+- A node's parent is set at creation and never changes; there is no call to
+  move a node. To relocate an object, create a new node under the new parent
+  and delete the old one.
+- A node has at most `MAX_CHILDREN_PER_NODE` direct children.
+- Only a node without children can be deleted.
+- Each node may have **metadata** (`Meta`, up to 1 KiB) and a **payload**
+  (`Payload`, up to 8 KiB). Both are opaque bytes stored as given, in
+  separate storage maps; a missing entry means the field is unset.
 
-## How It Works
+### Scopes
 
-### Creating a System Hierarchy
-
-1. **Start with a root node** representing your top-level system - the creator becomes the owner of a freshly allocated Scope
-2. **Add child nodes** for subsystems and components - requires owner authority over the parent's resolved Scope
-3. **Store data** as plain text (public) or client-side encrypted (private)
-4. **Establish nested boundaries** with `create_scope` when a sub-tree needs independent administration
-5. **Delegate `Write`** with `grant_access` when another account should update node state without administering the Scope
-
-```
-Step 1: Create Root          Step 2: Add Children        Step 3: Add Details
-[Building-A]          →         [Building-A]        →       [Building-A]
-                                /            \                /            \
-                          [Floor-1]     [Floor-2]       [Floor-1]     [Floor-2]
-                                                          /    \
-                                                    [HVAC] [Lights]
-```
-
-### Tree Integrity Guarantees
-
-The pallet enforces several invariants:
-
-- **Structural Immutability**: `parent` never changes after creation, so cycles cannot be created
-- **Scope Resolution**: Every active node resolves to exactly one Scope
-- **Scope Boundaries**: An active `Scope` entry stops inheritance from ancestors
-- **Depth Limits**: A single Scope chain (Scope root included) holds at most `MAX_SCOPE_DEPTH` nodes; nested Scopes reset the scope-local depth
-- **Access Limits**: A single Scope holds at most `MAX_ACCESS_ENTRIES_PER_SCOPE` distinct `(node, account)` Access entries
-- **Deletion Safety**: Nodes with children cannot be deleted
-
-### Scope Resolution: O(depth)
-
-There is no cached ancestor list. `resolve_scope` walks the single `parent`
-link one hop at a time until it finds an active Scope, visiting at most
-`MAX_SCOPE_DEPTH` nodes:
+A Scope is rooted at a node and has one owner. Every node resolves to exactly
+one Scope: the Scope rooted at the node itself, otherwise the Scope rooted at
+its nearest ancestor that roots one.
 
 ```
-Node C: parent = Some(B)  ─┐
-Node B: parent = Some(A)   ├─ walked one hop at a time
-Node A: parent = None      ┘  (root - always has an active Scope entry)
+City                 root of Scope #1, owner A
+`-- Smart Building   root of Scope #7, owner B
+    `-- Floor 3      resolves to Scope #7
 ```
 
-**Trade-off**: No extra storage per node for ancestor tracking, at the cost
-of O(depth) storage reads per authorization check (bounded and predictable,
-since the scope-local path never exceeds `MAX_SCOPE_DEPTH` nodes).
+- Creating a root node creates a new Scope owned by the creator.
+- `create_scope` on any other node makes it the root of a new nested Scope
+  owned by the caller.
+- A nested Scope is a boundary: the owner and Access entries of an enclosing
+  Scope have no effect inside it, even when both Scopes have the same owner.
+  In the example, `A` has no rights on `Smart Building` or `Floor 3`. The one
+  exception is that `A`, as owner of the immediately enclosing Scope, may
+  replace Scope #7 (see [Replacing a Scope](#replacing-a-scope)).
+- Scope IDs (`ScopeId`) are allocated sequentially and never reused. A
+  Scope's owner never changes; replacing the Scope is the only way to change
+  who controls it.
 
-## Operations
+**Scope-local depth.** The path from a node up to its Scope root, both ends
+included, holds at most `MAX_SCOPE_DEPTH` nodes. A nested Scope root starts a
+new count, so the depth of the whole tree is not limited, while Scope
+resolution never visits more than `MAX_SCOPE_DEPTH` nodes.
 
-### 🏗️ Create Node
+### Capabilities and Access
 
-Add a new node to your system hierarchy:
+The Scope owner may do everything on every node of the Scope. Other accounts
+need an Access entry, which only the Scope owner can grant or revoke. An
+Access entry gives an account a `Capability` at a node, in one of two modes:
 
-```
-create_node(
-  parent: Some(node_id),      // Link to parent (None for root)
-  meta: Some(...),            // System configuration
-  payload: Some(...)          // Operational data
-)
-```
+- `GrantMode::Node` - the granted node only;
+- `GrantMode::Subtree` - the granted node and its descendants in the same
+  Scope. It does not reach into nested Scopes.
 
-**Example**: Adding a temperature sensor to a room:
-```
-parent: Room 101
-meta: {"type": "temperature", "model": "DHT22"}
-payload: {"reading": "22.5°C", "timestamp": "2025-01-15T10:30:00Z"}
-```
+| Capability    | Allows                                                                                          |
+|---------------|-------------------------------------------------------------------------------------------------|
+| `Write`       | `set_meta`, `set_payload`                                                                       |
+| `CreateScope` | `create_scope`: a new nested Scope at an ordinary node, or replacement of the Scope at its root |
 
-Creating a root node (`parent: None`) allocates a fresh Scope, owned by the
-caller. Creating a child node requires owner authority over the parent's
-resolved Scope; the child does not get its own Scope.
+Adding child nodes, deleting nodes, and granting or revoking Access require
+the Scope owner and cannot be delegated.
 
-### ✏️ Update Data
-
-Modify metadata or payload without changing the hierarchy. Both require
-`Write` authority over the node's resolved Scope:
-
-```
-set_meta(node_id, new_metadata)    // Update configuration
-set_payload(node_id, new_payload)  // Update operational data
-```
-
-**Example**: Sensor recalibration:
-```
-set_meta(sensor_id, {"type": "temperature", "model": "DHT22", "calibrated": "2025-01-15"})
-```
-
-### 🔒 Create / Replace a Scope
-
-Establish a new, independent administrative and economic boundary on a node,
-or replace an existing Scope rooted at the caller's own node:
+Example:
 
 ```
-create_scope(node_id)
+Factory              root of Scope #10, owner A
+├── Robot
+└── Laboratory       root of Scope #20, owner B
+    └── Sensor
 ```
 
-The Scope owner may do this on any node within their Scope. A non-owner
-requires a `CreateScope` grant reaching `node_id`: a `GrantMode::Node` grant at
-the exact node (replacing its Scope if it is already a root, or establishing
-a brand-new nested one otherwise), or a `GrantMode::Subtree` grant at
-`node_id` or a strict ancestor within the same Scope.
+If `A` grants `Gateway` the `Write` capability at `Factory` with
+`GrantMode::Subtree`, `Gateway` can update `Factory` and `Robot`, but not
+`Laboratory` or `Sensor`, which belong to Scope #20.
 
-**Example**: A property manager carves out an independent boundary for a new tenant:
-```
-create_scope(floor_3_id)   // signed by the current Scope owner
-```
+### Access entry limit
 
-Replacing a Scope allocates a brand-new `ScopeId` - the previous Scope's
-`Access` entries become immediately inactive without requiring any
-descendant rewrite.
+A Scope holds at most `MAX_ACCESS_ENTRIES_PER_SCOPE` Access entries, one per
+distinct `(node, account)` pair. The first grant for a pair takes a slot;
+adding another capability to the pair or changing its mode does not. Revoking
+the last capability of a pair deletes the entry and frees its slot. When a
+Scope is replaced or its root node deleted, all of its Access entries are
+deleted in the same call.
 
-### 🗝️ Delete a Scope
+An Access entry is stored under the Scope its node belonged to when it was
+granted, while `revoke_access` works on the Scope the node belongs to at call
+time. An entry at a node that was later deleted, or that has since become
+part of a nested Scope, therefore no longer grants anything and can no longer
+be revoked; it keeps occupying a slot until its Scope is replaced or removed.
+The Scope owner can free these slots by replacing the Scope with
+`create_scope` on its root, which deletes all of the Scope's entries.
 
-Remove an administrative/economic boundary from a node without deleting the
-node or its descendants (they fall back to resolving the nearest remaining
-ancestor Scope):
+### Replacing a Scope
 
-```
-delete_scope(node_id)
-```
+`create_scope` on a node that already roots a Scope replaces that Scope with a
+new one, with a new `ScopeId` and the caller as owner. Nodes of the old Scope
+now belong to the new one, and the old Scope's Access entries are deleted.
+The replacement may be made by:
 
-Only the Scope's owner may delete it (never through `Access`, even a full
-`Write` grant). A CPS root's Scope can never be deleted, since every node
-must resolve to exactly one Scope.
+- the owner of the Scope;
+- an account holding `CreateScope` at the Scope root;
+- the owner of the immediately enclosing Scope, i.e. the Scope that the
+  root's parent belongs to. Owners of Scopes further up the tree and Access
+  holders of the enclosing Scope may not.
 
-### 🔑 Grant / Revoke Access
+### Removing a Scope
 
-Delegate (or withdraw) a `Capability` to another account at a specific node:
+A Scope is removed only together with its root node: `delete_node` on a
+Scope root without children deletes the node, the Scope, and its Access
+entries.
 
-```
-grant_access(node_id, principal, capability, mode)
-revoke_access(node_id, principal, capability)
-```
+## Calls
 
-Only the Scope owner may grant or revoke Access. `GrantMode::Subtree`
-propagates the grant to descendants that still resolve to the same Scope;
-`GrantMode::Node` applies only to the exact node.
+| Call                                                   | Allowed caller                                                               |
+|--------------------------------------------------------|------------------------------------------------------------------------------|
+| `create_node(parent_id: None, meta, payload)`          | any signed account; the caller becomes owner of the new root's Scope         |
+| `create_node(parent_id: Some(parent), meta, payload)`  | owner of the parent's Scope                                                  |
+| `set_meta(node_id, meta)`                              | holder of `Write` at the node                                                |
+| `set_payload(node_id, payload)`                        | holder of `Write` at the node                                                |
+| `delete_node(node_id)`                                 | owner of the node's Scope                                                    |
+| `create_scope(node_id)`                                | holder of `CreateScope` at the node; for a nested Scope root, also the owner of the enclosing Scope |
+| `grant_access(node_id, principal, capability, mode)`   | owner of the node's Scope                                                    |
+| `revoke_access(node_id, principal, capability)`        | owner of the node's Scope                                                    |
 
-**Example**: A tenant delegates `Write` on a single thermostat to a gateway device:
-```
-grant_access(thermostat_id, gateway_account, Capability::Write, GrantMode::Node)
-```
+A "holder of a capability at the node" is the Scope owner, an account granted
+the capability at the node, or an account granted it with `GrantMode::Subtree`
+at an ancestor in the same Scope. Notes:
 
-### 🗑️ Delete Node
+- `set_meta` / `set_payload` with `None` remove the field.
+- `create_node` fails with `MaxScopeDepthExceeded` if the new node would
+  exceed `MAX_SCOPE_DEPTH`, and with `TooManyChildren` if the parent already
+  has `MAX_CHILDREN_PER_NODE` children.
+- `delete_node` also removes the node's metadata and payload, and, if the
+  node roots a Scope, the Scope and its Access entries.
+- `revoke_access` succeeds, without changing storage, if the capability was
+  not granted.
+- `delete_node` and `create_scope` are charged for deleting
+  `MAX_ACCESS_ENTRIES_PER_SCOPE` Access entries and refund the difference to
+  the number actually deleted.
 
-Remove a leaf node (must have no children). Requires owner authority over
-the node's resolved Scope:
+## Events
 
-```
-delete_node(node_id)
-```
+| Event                                                         | Emitted by                                                    |
+|---------------------------------------------------------------|---------------------------------------------------------------|
+| `NodeCreated(node_id, parent_id, creator)`                    | `create_node`                                                 |
+| `MetaSet(node_id, sender)`                                    | `set_meta`                                                    |
+| `PayloadSet(node_id, sender)`                                 | `set_payload`                                                 |
+| `NodeDeleted(node_id, sender)`                                | `delete_node`                                                 |
+| `ScopeCreated(scope_id, root, owner)`                         | `create_node` for a root node, `create_scope`                 |
+| `ScopeDeleted(scope_id, root)`                                | `delete_node` on a Scope root                                 |
+| `AccessGranted(scope_id, node_id, principal, capability, mode)` | `grant_access`                                              |
+| `AccessRevoked(scope_id, node_id, principal, capability)`     | `revoke_access`                                               |
 
-**Safety**: Cannot delete nodes with children to prevent orphaned subtrees.
-Deleting a node also clears any `Meta` / `Payload` / active Scope attached to it.
+When `create_scope` replaces a Scope, only `ScopeCreated` for the new Scope is
+emitted.
+
+## Storage
+
+| Item          | Key                                | Value                                                        |
+|---------------|------------------------------------|--------------------------------------------------------------|
+| `NextNodeId`  | -                                  | next `NodeId`                                                |
+| `Nodes`       | `NodeId`                           | `NodeInfo { parent, scope }`; `scope` is set on Scope roots only |
+| `Meta`        | `NodeId`                           | metadata bytes                                               |
+| `Payload`     | `NodeId`                           | payload bytes                                                |
+| `Children`    | `NodeId`                           | direct children, in creation order                           |
+| `NextScopeId` | -                                  | next `ScopeId`                                               |
+| `Scopes`      | `ScopeId`                          | `ScopeInfo { owner, access_count }`                          |
+| `Access`      | `ScopeId`, `(NodeId, AccountId)`   | capabilities and their modes                                 |
+
+`NodeId`, `ScopeId`, and `access_count` use SCALE compact encoding: values
+below 64 take 1 byte, below 16 384 take 2 bytes, below 2^30 take 4 bytes.
+
+## Constants
+
+The limits are crate constants; changing them requires a runtime upgrade.
+
+| Constant                       | Value | Meaning                                                            |
+|--------------------------------|-------|--------------------------------------------------------------------|
+| `MAX_META_SIZE`                | 1024  | maximum metadata size, in bytes                                    |
+| `MAX_PAYLOAD_SIZE`             | 8192  | maximum payload size, in bytes                                     |
+| `MAX_SCOPE_DEPTH`              | 32    | maximum nodes on the path from a node to its Scope root, inclusive |
+| `MAX_CHILDREN_PER_NODE`        | 100   | maximum direct children of a node                                  |
+| `MAX_ACCESS_ENTRIES_PER_SCOPE` | 32    | maximum Access entries (distinct `(node, account)` pairs) per Scope |
 
 ## Runtime API
 
-`pallet-robonomics-cps-runtime-api` exposes read-only queries to off-chain
-clients (e.g. Subxt-based tooling) without reimplementing Scope-resolution or
-Access-traversal logic client-side:
+`pallet-robonomics-cps-runtime-api` defines `CpsApi` with two read-only
+queries, implemented with the pallet's own functions:
 
-- `resolve_scope(node) -> Option<ResolvedScope<AccountId>>` - the `ScopeId`,
-  root `NodeId`, and owner `AccountId` currently active for `node`, or `None`
-  if `node` does not exist or no Scope could be resolved.
-- `has_capability(node_id, account_id, capability) -> bool` - whether
-  `account_id` currently holds `capability` at `node_id`, reusing the same
-  authorization logic enforced by `set_meta`/`set_payload`/`create_scope`.
+- `resolve_scope(node) -> Option<ResolvedScope<AccountId>>` - the Scope's
+  `id`, `root` node, `owner`, and the `path` from `node` to the Scope root;
+  `None` if the node does not exist or no Scope can be resolved.
+- `has_capability(node_id, account_id, capability) -> bool` - whether the
+  account may use `capability` at the node, with the same checks as the calls
+  that require it: Scope ownership or Access entries, and for `CreateScope`
+  also ownership of the immediately enclosing Scope at a nested Scope root;
+  `false` if the node does not exist.
 
-`Capability` is passed directly across the API boundary; its SCALE encoding
-is pinned by explicit `#[codec(index = ..)]` attributes on each variant, so
-new capabilities may be added anywhere without disturbing the encoding of
-existing callers - only never reusing or reassigning an already-shipped
-index matters.
+Clients call them through the `state_call` RPC at any block.
 
-## Storage Efficiency
+## Data privacy
 
-### Compact Encoding
+All data stored by the pallet is public, including the tree structure, the
+metadata and payload bytes, their sizes, and the times of updates. The pallet
+does not encrypt anything. To keep metadata or payload confidential, encrypt
+it before submitting it.
 
-Node IDs use SCALE compact encoding for efficient storage:
+[libcps](https://github.com/airalab/robins/tree/master/crates/libcps)
+implements such an encryption scheme: ECDH key agreement with SR25519 or
+ED25519 keys, HKDF-SHA256 key derivation, and AEAD encryption with
+XChaCha20-Poly1305, AES-256-GCM, or ChaCha20-Poly1305.
 
-| Node ID Value | Standard Size | Compact Size | Savings |
-|---------------|---------------|--------------|---------|
-| 0-63          | 8 bytes       | 1 byte       | 87%     |
-| 64-16,383     | 8 bytes       | 2 bytes      | 75%     |
-| 16,384+       | 8 bytes       | 3+ bytes     | 62%+    |
+## Integration
 
-### Per-Field Storage
-
-Each node's attributes live in their own storage map (`Parents`, `Meta`,
-`Payload`), so a node with no metadata or payload set costs no storage for
-those fields.
-
-## Configuration
-
-Customize the pallet for your use case:
-
-| Constant | Default | Description | Example Use Case |
-|-----------|---------|-------------|------------------|
-| `MAX_META_SIZE` | 1024 bytes (1 KiB) | Size limit for metadata | Sensor configuration |
-| `MAX_PAYLOAD_SIZE` | 8192 bytes (8 KiB) | Size limit for payload | Sensor readings, encrypted blobs |
-| `MAX_SCOPE_DEPTH` | 32 nodes | Maximum nodes on a path within one Scope, Scope root included | Nested organizations |
-| `MAX_ACCESS_ENTRIES_PER_SCOPE` | 32 | Maximum distinct `(node, account)` Access entries per Scope | Delegated operators |
-| `MAX_CHILDREN_PER_NODE` | 100 | Maximum child nodes | Factory with 50 machines |
-
-## 🔐 Client-Side Encryption
-
-### Overview
-
-**The CPS pallet stores data as plain bytes**. For sensitive data, encryption must be handled at the **client level** before submitting to the blockchain. This design keeps the pallet simple and flexible, allowing clients to choose their preferred encryption schemes.
-
-### Why Client-Side?
-
-- **Flexibility**: Choose any encryption algorithm suitable for your use case
-- **Simplicity**: Pallet remains lean without complex encryption logic
-- **Upgradability**: Switch encryption schemes without pallet upgrades
-- **Privacy Control**: Encryption keys never touch the blockchain
-
-### Recommended Encryption: AEAD
-
-For robust security, we recommend **AEAD (Authenticated Encryption with Associated Data)** ciphers:
-
-✅ **Confidentiality** - Data is encrypted, unreadable without the key
-✅ **Integrity** - Tampering is detected via authentication tag
-✅ **Authentication** - Sender identity verified via ECDH key agreement
-
-### Recommended Algorithms
-
-| Algorithm | Nonce Size | Best For | Performance |
-|-----------|------------|----------|-------------|
-| **XChaCha20-Poly1305** (recommended) | 24 bytes | General purpose, large nonce space | ~680 MB/s (software) |
-| **AES-256-GCM** | 12 bytes | Hardware acceleration | ~2-3 GB/s (with AES-NI) |
-| **ChaCha20-Poly1305** | 12 bytes | Portable without hardware | ~600 MB/s (software) |
-
-All algorithms should use:
-- **256-bit keys** (derived via ECDH + HKDF-SHA256)
-- **Authenticated encryption** (AEAD with authentication tag)
-- **Sender verification** (optional during decryption)
-
-### Self-Describing Encryption Format
-
-We recommend storing encrypted data as **self-describing JSON** for forward compatibility:
-
-```json
-{
-  "version": 1,
-  "algorithm": "xchacha20",           // Auto-detected during decryption
-  "from": "5GrwvaEF5zXb26Fz...",      // Sender's public key (bs58)
-  "nonce": "Zm9vYmFy...",              // Random nonce (base64)
-  "ciphertext": "ZW5jcnlwdGVk..."    // Encrypted data + auth tag (base64)
-}
-```
-
-**Benefits**:
-- Algorithm auto-detection during decryption
-- Forward compatibility with new ciphers
-- No version conflicts
-
-### Client-Side Encryption Flow
-
-```rust
-// ===== ENCRYPTION (Before submitting to chain) =====
-
-// 1. Key Agreement (ECDH)
-let shared_secret = ecdh(sender_private, receiver_public);
-
-// 2. Key Derivation (HKDF-SHA256)
-let encryption_key = hkdf(shared_secret, "robonomics-cps-xchacha20");
-
-// 3. AEAD Encryption
-let nonce = random_bytes(24);  // XChaCha20 uses 24-byte nonce
-let ciphertext = aead_encrypt(plaintext, encryption_key, nonce);
-
-// 4. Build Self-Describing Message
-let message = Message {
-  version: 1,
-  algorithm: "xchacha20",
-  from: sender_public_key_bs58,
-  nonce: base64(nonce),
-  ciphertext: base64(ciphertext)
-};
-
-// 5. Serialize and Store
-let encrypted_bytes = serde_json::to_vec(&message)?;
-let data = BoundedVec::try_from(encrypted_bytes)?;
-Cps::create_node(origin, parent_id, Some(data), None)?;
-
-// ===== DECRYPTION (After retrieving from chain) =====
-
-// 1. Retrieve node data
-let meta = Cps::meta_of(node_id).ok_or(Error::NotFound)?;
-
-// 2. Deserialize message
-let message: Message = serde_json::from_slice(&meta)?;
-
-// 3. Derive decryption key (same as encryption)
-let shared_secret = ecdh(receiver_private, message.from);
-let decryption_key = hkdf(shared_secret, format!("robonomics-cps-{}", message.algorithm));
-
-// 4. Decrypt
-let plaintext = aead_decrypt(
-    base64::decode(message.ciphertext)?,
-    decryption_key,
-    base64::decode(message.nonce)?
-)?;
-```
-
-### Example: IoT Sensor with Encrypted Telemetry
-
-```rust
-// Sensor encrypts reading before sending
-let reading = b"temperature: 22.5C";
-let encrypted = client.encrypt(reading, &receiver_public_key)?;
-let data = BoundedVec::try_from(encrypted)?;
-```
-
-```javascript
-// Submit to chain
-await api.tx.cps.setPayload(sensorNodeId, data).signAndSend(sensorAccount);
-
-// Server retrieves the encrypted payload
-const payload = await api.query.cps.payload(sensorNodeId);
-```
-
-```rust
-// Server decrypts
-let decrypted = client.decrypt(&payload, &server_private_key)?;
-println!("Reading: {}", String::from_utf8(decrypted)?);
-```
-
-### Security Considerations
-
-**What's Protected (with client-side encryption)**:
-- ✅ Data confidentiality (unreadable without keys)
-- ✅ Data integrity (tampering detected)
-- ✅ Sender authentication (via ECDH)
-
-**What's NOT Protected**:
-- ⚠️ Tree structure (always public)
-- ⚠️ Encrypted data size (visible on-chain)
-- ⚠️ Update frequency (transaction timestamps public)
-
-### Key Management Best Practices
-
-1. **Never store private keys on-chain**
-2. **Use hardware wallets** for high-value keys
-3. **Rotate keys periodically** for long-term deployments
-4. **Use separate keys** for different security domains
-5. **Implement key backup** and recovery procedures
-
-### Encryption Libraries
-
-- **Rust**: [chacha20poly1305](https://docs.rs/chacha20poly1305), [aes-gcm](https://docs.rs/aes-gcm)
-- **JavaScript**: [libsodium-wrappers](https://github.com/jedisct1/libsodium.js), [tweetnacl](https://github.com/dchest/tweetnacl-js)
-- **Python**: [cryptography](https://cryptography.io/), [pynacl](https://pynacl.readthedocs.io/)
-
-## Security & Trust
-
-### What's Protected
-
-✅ **Authorization Verification**: Only the Scope owner or an explicit `Access` grant can mutate a node
-✅ **Boundary Isolation**: Nested Scopes stop implicit ancestor rights and Access inheritance
-✅ **Tree Integrity**: `parent` is immutable, so cycles and rewiring are impossible
-✅ **Data Encryption**: Client-side encryption fully supported for private data
-✅ **Immutable History**: All changes recorded in blockchain events
-✅ **DoS Protection**: Bounded collections prevent resource exhaustion
-✅ **Least Privilege Delegation**: `Write` delegates data mutation only - never Scope administration
-
-### What's NOT Protected
-
-⚠️ **Encryption Key Management**: Users must manage encryption keys externally
-⚠️ **Node Structure Privacy**: Tree topology is publicly visible
-⚠️ **Access Control Beyond Scope/Access**: Only Scope-owner and `Access`-based permissions supported
-
-### Threat Model
-
-**Prevents:**
-- Unauthorized modification of nodes
-- Tree corruption via cycles (impossible - `parent` is immutable)
-- Resource exhaustion attacks
-- Cross-boundary privilege escalation (nested Scopes are a hard boundary)
-- Privilege escalation from data mutation to Scope administration (`Write` never authorizes `create_scope`/`delete_scope`/`grant_access`/`revoke_access`)
-
-**Does Not Prevent:**
-- Analysis of tree structure
-- Brute-force attacks on weak encryption keys
-- Side-channel attacks on encrypted data size
-
-## Integration Guide
-
-### For Runtime Developers
-
-1. Add to `Cargo.toml`:
+1. Add the dependencies to the runtime (workspace dependencies in this
+   repository):
    ```toml
-   pallet-robonomics-cps = { default-features = false, path = "../frame/cps" }
-   pallet-robonomics-cps-runtime-api = { default-features = false, path = "../frame/cps-runtime-api" }
+   pallet-robonomics-cps = { workspace = true }
+   pallet-robonomics-cps-runtime-api = { workspace = true }
    ```
+   and enable their `std` features in the runtime's `std` feature.
 
-2. Configure in runtime:
+2. Configure the pallet:
    ```rust
    impl pallet_robonomics_cps::Config for Runtime {
        type RuntimeEvent = RuntimeEvent;
-       type WeightInfo = ();
+       type WeightInfo = weights::pallet_robonomics_cps::WeightInfo<Runtime>;
    }
    ```
 
-3. Add to `construct_runtime!`:
+3. Add it to the runtime:
    ```rust
-   Cps: pallet_robonomics_cps,
+   #[runtime::pallet_index(..)]
+   pub type CPS = pallet_robonomics_cps;
    ```
 
-4. Implement the Runtime API:
+4. Implement the runtime API:
    ```rust
    impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
-       fn resolve_scope(node: NodeId) -> Option<ResolvedScope<AccountId>> {
-           Cps::resolve_scope(node).ok()
+       fn resolve_scope(
+           node: pallet_robonomics_cps::NodeId,
+       ) -> Option<pallet_robonomics_cps::ResolvedScope<AccountId>> {
+           CPS::resolve_scope(node).ok()
        }
 
-       fn has_capability(node_id: NodeId, account_id: AccountId, capability: Capability) -> bool {
-           Cps::has_capability(node_id, &account_id, capability)
+       fn has_capability(
+           node_id: pallet_robonomics_cps::NodeId,
+           account_id: AccountId,
+           capability: pallet_robonomics_cps::Capability,
+       ) -> bool {
+           CPS::has_capability(node_id, &account_id, capability)
        }
    }
    ```
 
-### For dApp Developers
+5. On a chain with storage version 1 of the pallet, add
+   `pallet_robonomics_cps::migration::MigrationToV2<Runtime>` to the runtime
+   migrations.
 
-Query the chain to discover system hierarchies:
+## Client usage
+
+With polkadot.js, for a runtime where the pallet is named `CPS`:
 
 ```javascript
-// Get a node's parent (also tells you whether the node exists)
-const parent = await api.query.cps.parents(nodeId);
-
-// Get metadata / payload
+// Read node data.
+const info = await api.query.cps.nodes(nodeId);        // parent and Scope pointer
 const meta = await api.query.cps.meta(nodeId);
 const payload = await api.query.cps.payload(nodeId);
+const children = await api.query.cps.children(nodeId);
 
-// Get all children of a node
-const children = await api.query.cps.nodesByParent(parentId);
-
-// Resolve the active Scope and check a capability via the Runtime API
+// Resolve the Scope and check a capability through the runtime API.
 const scope = await api.call.cpsApi.resolveScope(nodeId);
 const canWrite = await api.call.cpsApi.hasCapability(nodeId, accountId, 'Write');
+
+// Create a root node and a child.
+await api.tx.cps.createNode(null, meta, payload).signAndSend(owner);
+await api.tx.cps.createNode(parentId, meta, payload).signAndSend(owner);
+
+// Make a node the root of a new Scope.
+await api.tx.cps.createScope(nodeId).signAndSend(owner);
+
+// Let another account write to a single node.
+await api.tx.cps.grantAccess(nodeId, principal, 'Write', 'Node').signAndSend(owner);
 ```
 
-Create and manage hierarchies:
+## Testing
 
-```javascript
-// Create a root node
-await api.tx.cps.createNode(null, metadata, payload).signAndSend(account);
-
-// Add a child
-await api.tx.cps.createNode(parentId, metadata, payload).signAndSend(account);
-
-// Establish a new Scope boundary on an existing node
-await api.tx.cps.createScope(nodeId).signAndSend(currentOwner);
-
-// Delegate Write to another account for a single node
-await api.tx.cps.grantAccess(nodeId, principal, 'Write', 'Node').signAndSend(scopeOwner);
+```bash
+cargo test -p pallet-robonomics-cps
+cargo test -p pallet-robonomics-cps --features runtime-benchmarks  # also runs the benchmark tests
 ```
-
-## Comparison with Alternatives
-
-| Approach | Pros | Cons | Best For |
-|----------|------|------|----------|
-| **CPS Pallet** | Decentralized, immutable, hierarchical Scope/Access authority | Requires blockchain | Trustless multi-party systems |
-| **Traditional DB** | Fast, flexible queries | Centralized, mutable | Single organization |
-| **IPFS + DB** | Decentralized storage | No ownership enforcement | Content distribution |
-| **ERC-721 NFTs** | Standard, composable | Gas-expensive, limited structure | Digital collectibles |
-
-## Technical Documentation
-
-For detailed implementation information, see the [inline code documentation](src/lib.rs) which includes:
-- Type definitions and trait implementations
-- Storage layout and indexes
-- Extrinsic signatures and validation logic
-- Comprehensive test suite
-- Benchmarking results
 
 ## License
 
-Apache License 2.0 - See [LICENSE](../../LICENSE) for details.
+Apache License 2.0 - see [LICENSE](../../LICENSE).

@@ -65,35 +65,29 @@ fn active_scope_id(node_id: NodeId) -> Option<ScopeId> {
     Cps::node_info(node_id).and_then(|info| info.scope)
 }
 
-/// `Some(Some(parent))` / `Some(None)` mirror the pre-refactor `Parents`
-/// accessor shape: outer `Option` is node existence, inner is "has a
-/// parent". `None` means the node does not exist.
+/// Parent link of `node_id`: `None` if the node does not exist,
+/// `Some(None)` for a root node, `Some(Some(parent))` otherwise.
 fn parent_of(node_id: NodeId) -> Option<Option<NodeId>> {
     Cps::node_info(node_id).map(|info| info.parent)
 }
 
-/// Mirrors the pre-refactor `ActiveScope` accessor: `Some((scope_id,
-/// owner))` only if `node_id` is itself the root of an active Scope.
+/// `Some((scope_id, owner))` if `node_id` is itself the root of a Scope.
 fn active_scope(node_id: NodeId) -> Option<(ScopeId, u64)> {
     let scope_id = Cps::node_info(node_id).and_then(|info| info.scope)?;
     let owner = Cps::scope_info(scope_id)?.owner;
     Some((scope_id, owner))
 }
 
-/// Mirrors the pre-refactor `NodesByParent` accessor.
+/// Direct children of `node_id`.
 fn children_of(node_id: NodeId) -> BoundedVec<NodeId, MaxChildrenPerNode> {
     Cps::children_of(node_id)
 }
 
 fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, expected_owner: u64) {
-    assert_eq!(
-        Cps::resolve_scope(node_id),
-        Ok(ResolvedScope {
-            id: expected_id,
-            root: expected_root,
-            owner: expected_owner,
-        })
-    );
+    let resolved = Cps::resolve_scope(node_id).expect("scope resolves");
+    assert_eq!(resolved.id, expected_id);
+    assert_eq!(resolved.root, expected_root);
+    assert_eq!(resolved.owner, expected_owner);
     assert_eq!(
         Cps::scope_info(expected_id).map(|info| info.owner),
         Some(expected_owner)
@@ -279,7 +273,7 @@ fn max_scope_depth_enforced() {
 
         let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
         assert_eq!(
-            Cps::resolve_scope_path(deepest).unwrap().path.len(),
+            Cps::resolve_scope(deepest).unwrap().path.len(),
             MAX_SCOPE_DEPTH as usize
         );
         assert_noop!(
@@ -810,6 +804,177 @@ fn create_scope_without_access_fails() {
     });
 }
 
+/// Build `Scope#0(owner 1) / node 0 -> node 1 -> node 2`, with a nested
+/// Scope rooted at node 1 owned by account 2 (established through a
+/// delegated `CreateScope` grant from the root Scope owner), and node 2
+/// inheriting it.
+fn setup_nested_scope_owned_by_2() -> (ScopeId, ScopeId) {
+    assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+    assert_ok!(Cps::create_node(
+        RuntimeOrigin::signed(1),
+        Some(NodeId(0)),
+        None,
+        None
+    ));
+    assert_ok!(Cps::grant_access(
+        RuntimeOrigin::signed(1),
+        NodeId(1),
+        2,
+        Capability::CreateScope,
+        GrantMode::Node,
+    ));
+    assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), NodeId(1)));
+    assert_ok!(Cps::create_node(
+        RuntimeOrigin::signed(2),
+        Some(NodeId(1)),
+        None,
+        None
+    ));
+    (
+        active_scope_id(NodeId(0)).unwrap(),
+        active_scope_id(NodeId(1)).unwrap(),
+    )
+}
+
+#[test]
+fn upper_scope_owner_can_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        let (upper_scope, old_nested) = setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(1),
+            3,
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+        assert_eq!(access_count(old_nested), 1);
+
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+
+        let new_nested = active_scope_id(NodeId(1)).unwrap();
+        assert_ne!(new_nested, old_nested);
+        assert_ne!(new_nested, upper_scope);
+        assert_scope(NodeId(1), new_nested, NodeId(1), 1);
+        // Descendants resolve to the replacement, the upper Scope is intact.
+        assert_scope(NodeId(2), new_nested, NodeId(1), 1);
+        assert_eq!(active_scope_id(NodeId(0)), Some(upper_scope));
+        // The previous generation is synchronously cleaned up.
+        assert_eq!(access_count(old_nested), 0);
+        assert!(Cps::scope_info(old_nested).is_none());
+        assert!(!Cps::has_capability(NodeId(2), &3, Capability::Write));
+
+        // The previous nested owner has lost control.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_noop!(
+            Cps::grant_access(
+                RuntimeOrigin::signed(2),
+                NodeId(1),
+                3,
+                Capability::Write,
+                GrantMode::Node
+            ),
+            Error::<Runtime>::NotScopeOwner
+        );
+
+        let events: Vec<_> = System::events().into_iter().map(|r| r.event).collect();
+        assert!(events.contains(&RuntimeEvent::Cps(Event::ScopeCreated(
+            new_nested,
+            NodeId(1),
+            1
+        ))));
+    });
+}
+
+#[test]
+fn upper_scope_owner_can_replace_root_scope_nested_below_it_repeatedly() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+        let first = active_scope_id(NodeId(1)).unwrap();
+        // Now owning both, replacing again is still authorized.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+        assert_ne!(active_scope_id(NodeId(1)).unwrap(), first);
+    });
+}
+
+#[test]
+fn non_owner_of_upper_scope_cannot_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        let nested = active_scope_id(NodeId(1)).unwrap();
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(3), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(1)), Some(nested));
+    });
+}
+
+#[test]
+fn upper_scope_delegate_cannot_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        let nested = active_scope_id(NodeId(1)).unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            3,
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(3), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(1)), Some(nested));
+    });
+}
+
+#[test]
+fn only_immediately_enclosing_scope_owner_can_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        // Scope A (owner 1) at node 0, Scope B (owner 2) at node 1,
+        // Scope C (owner 3) at node 2.
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(2),
+            3,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(3), NodeId(2)));
+        let scope_c = active_scope_id(NodeId(2)).unwrap();
+
+        // Owner of Scope A is two Scopes above C: denied.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(1), NodeId(2)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(2)), Some(scope_c));
+
+        // Owner of Scope B encloses C directly: allowed.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), NodeId(2)));
+        assert_scope(NodeId(2), active_scope_id(NodeId(2)).unwrap(), NodeId(2), 2);
+    });
+}
+
+#[test]
+fn root_scope_can_only_be_replaced_by_its_own_authority() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        // Node 0 has no parent, hence no enclosing Scope: the nested owner
+        // gets no rights over the Scope above it.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(0)),
+            Error::<Runtime>::AccessDenied
+        );
+    });
+}
+
 #[test]
 fn create_scope_capability_rejected_on_descendants() {
     new_test_ext().execute_with(|| {
@@ -912,10 +1077,8 @@ fn create_scope_subtree_capability_authorizes_descendants() {
     });
 }
 
-// A Scope boundary can no longer be removed independently of its node
-// (there is no `delete_scope` extrinsic anymore): it only disappears when
-// its root node is deleted, and `delete_node` stays leaf-only. The tests
-// below replace the old `delete_scope`-based coverage.
+// A Scope is removed only together with its root node, and `delete_node`
+// only deletes nodes without children.
 
 #[test]
 fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
@@ -1567,6 +1730,64 @@ fn has_capability_reflects_create_scope_semantics() {
 fn has_capability_returns_false_for_missing_node() {
     new_test_ext().execute_with(|| {
         assert!(!Cps::has_capability(NodeId(0), &1, Capability::Write));
+        assert!(!Cps::has_capability(NodeId(0), &1, Capability::CreateScope));
+    });
+}
+
+/// Whether `create_scope` by `who` on `node` would succeed, without keeping
+/// its storage changes.
+fn create_scope_succeeds(who: u64, node: NodeId) -> bool {
+    frame_support::storage::with_transaction(|| {
+        let ok = Cps::create_scope(RuntimeOrigin::signed(who), node).is_ok();
+        frame_support::storage::TransactionOutcome::Rollback(Ok::<_, sp_runtime::DispatchError>(ok))
+    })
+    .unwrap()
+}
+
+#[test]
+fn has_capability_create_scope_includes_enclosing_scope_owner() {
+    new_test_ext().execute_with(|| {
+        // Scope A (owner 1) at node 0, Scope B (owner 2) at node 1,
+        // Scope C (owner 3) at node 2.
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(2),
+            3,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(3), NodeId(2)));
+        // Account 4 holds `CreateScope` over the whole of Scope A only.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            4,
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
+
+        // Owner of the immediately enclosing Scope.
+        assert!(Cps::has_capability(NodeId(1), &1, Capability::CreateScope));
+        assert!(Cps::has_capability(NodeId(2), &2, Capability::CreateScope));
+        // Owner of a Scope two levels up, a delegate of the enclosing Scope,
+        // and an account at a root without an enclosing Scope.
+        assert!(!Cps::has_capability(NodeId(2), &1, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(1), &4, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(0), &2, Capability::CreateScope));
+        // The enclosing owner rule applies to `CreateScope` only.
+        assert!(!Cps::has_capability(NodeId(1), &1, Capability::Write));
+
+        // `has_capability` agrees with `create_scope` for every pair.
+        for who in 1..=5u64 {
+            for node in 0..=2u64 {
+                assert_eq!(
+                    Cps::has_capability(NodeId(node), &who, Capability::CreateScope),
+                    create_scope_succeeds(who, NodeId(node)),
+                    "account {who}, node {node}"
+                );
+            }
+        }
     });
 }
 
@@ -1969,11 +2190,8 @@ fn scope_id_is_never_reused_after_synchronous_cleanup() {
     });
 }
 
-/// `GrantMode`'s SCALE encoding is pinned by explicit `#[codec(index = ..)]`
-/// attributes rather than derived from declaration order, so reordering the
-/// variants in source can never silently change already-shipped on-chain
-/// encoding (mirroring the same guarantee already relied upon for
-/// `Capability`, see its `index` doc comment).
+/// `GrantMode`'s SCALE encoding is fixed by explicit `#[codec(index = ..)]`
+/// attributes, so reordering the variants does not change the encoding.
 #[test]
 fn grant_mode_scale_indices_are_explicit_and_stable() {
     assert_eq!(GrantMode::Node.encode(), sp_std::vec![0u8]);
@@ -1981,10 +2199,9 @@ fn grant_mode_scale_indices_are_explicit_and_stable() {
 }
 
 /// Verifies that the `#[pallet::weight(...)]` attributes on `create_node`,
-/// `set_meta`, and `set_payload` actually pass the caller-supplied data's
-/// *logical* byte length (not a fixed worst-case constant) into
-/// `WeightInfo`, for `None`, empty, small, and maximum-size values (issue
-/// #671, "Weight inputs" test category).
+/// `set_meta`, and `set_payload` pass the byte length of the supplied data
+/// (not a fixed worst-case constant) to `WeightInfo`, for `None`, empty,
+/// small, and maximum-size values.
 ///
 /// This needs its own mock runtime: the main `Runtime` above uses
 /// `weights::TestWeightInfo`, which returns a constant zero `Weight`
