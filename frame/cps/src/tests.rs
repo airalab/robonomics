@@ -268,7 +268,7 @@ fn max_scope_depth_enforced() {
             None
         ));
 
-        for i in 0..MAX_SCOPE_DEPTH {
+        for i in 0..MAX_SCOPE_DEPTH - 1 {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
@@ -277,7 +277,11 @@ fn max_scope_depth_enforced() {
             ));
         }
 
-        let deepest = NodeId(MAX_SCOPE_DEPTH as u64);
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
+        assert_eq!(
+            Cps::resolve_scope_path(deepest).unwrap().path.len(),
+            MAX_SCOPE_DEPTH as usize
+        );
         assert_noop!(
             Cps::create_node(RuntimeOrigin::signed(account), Some(deepest), None, None),
             Error::<Runtime>::MaxScopeDepthExceeded
@@ -304,7 +308,7 @@ fn create_scope_resets_local_depth_to_zero() {
         ));
 
         // Walk all the way to the scope-depth limit under the root Scope.
-        for i in 0..MAX_SCOPE_DEPTH {
+        for i in 0..MAX_SCOPE_DEPTH - 1 {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
@@ -312,7 +316,7 @@ fn create_scope_resets_local_depth_to_zero() {
                 None
             ));
         }
-        let deepest = NodeId(MAX_SCOPE_DEPTH as u64);
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
 
         // Carving out a fresh Scope at `deepest` resets its local depth to
         // zero, so a child can immediately be created under it even though
@@ -1652,21 +1656,18 @@ fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
 }
 
 #[test]
-fn clear_scope_access_continuation_clears_all_entries_before_scope_removal() {
+fn clear_scope_access_removes_all_entries_in_a_single_bounded_pass() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
         let scope_id = active_scope_id(root).unwrap();
-        grant_many(1, root, 100, 3);
-        assert_eq!(access_count(scope_id), 3);
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        let tracked = Cps::scope_info(scope_id).unwrap().access_count;
+        assert_eq!(tracked, MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(access_count(scope_id), tracked as usize);
 
-        Cps::clear_scope_access(scope_id, 1);
+        Cps::clear_scope_access(scope_id, tracked);
 
-        assert_eq!(access_count(scope_id), 0);
-        assert!(Cps::scope_info(scope_id).is_some());
-
-        Scopes::<Runtime>::remove(scope_id);
-        assert_eq!(Cps::scope_info(scope_id), None);
         assert_eq!(access_count(scope_id), 0);
     });
 }

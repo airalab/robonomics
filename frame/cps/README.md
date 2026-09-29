@@ -210,14 +210,15 @@ The pallet enforces several invariants:
 - **Structural Immutability**: `parent` never changes after creation, so cycles cannot be created
 - **Scope Resolution**: Every active node resolves to exactly one Scope
 - **Scope Boundaries**: An active `Scope` entry stops inheritance from ancestors
-- **Depth Limits**: Trees cannot exceed `MaxTreeDepth`
+- **Depth Limits**: A single Scope chain (Scope root included) holds at most `MAX_SCOPE_DEPTH` nodes; nested Scopes reset the scope-local depth
+- **Access Limits**: A single Scope holds at most `MAX_ACCESS_ENTRIES_PER_SCOPE` distinct `(node, account)` Access entries
 - **Deletion Safety**: Nodes with children cannot be deleted
 
 ### Scope Resolution: O(depth)
 
 There is no cached ancestor list. `resolve_scope` walks the single `parent`
-link one hop at a time until it finds an active Scope, bounded by
-`MaxTreeDepth`:
+link one hop at a time until it finds an active Scope, visiting at most
+`MAX_SCOPE_DEPTH` nodes:
 
 ```
 Node C: parent = Some(B)  ─┐
@@ -227,7 +228,7 @@ Node A: parent = None      ┘  (root - always has an active Scope entry)
 
 **Trade-off**: No extra storage per node for ancestor tracking, at the cost
 of O(depth) storage reads per authorization check (bounded and predictable,
-since `depth < MaxTreeDepth`).
+since the scope-local path never exceeds `MAX_SCOPE_DEPTH` nodes).
 
 ## Operations
 
@@ -382,7 +383,8 @@ Customize the pallet for your use case:
 |-----------|---------|-------------|------------------|
 | `MAX_META_SIZE` | 1024 bytes (1 KiB) | Size limit for metadata | Sensor configuration |
 | `MAX_PAYLOAD_SIZE` | 8192 bytes (8 KiB) | Size limit for payload | Sensor readings, encrypted blobs |
-| `MAX_SCOPE_DEPTH` | 32 levels | Maximum depth within one Scope | Nested organizations |
+| `MAX_SCOPE_DEPTH` | 32 nodes | Maximum nodes on a path within one Scope, Scope root included | Nested organizations |
+| `MAX_ACCESS_ENTRIES_PER_SCOPE` | 32 | Maximum distinct `(node, account)` Access entries per Scope | Delegated operators |
 | `MAX_CHILDREN_PER_NODE` | 100 | Maximum child nodes | Factory with 50 machines |
 
 ## 🔐 Client-Side Encryption

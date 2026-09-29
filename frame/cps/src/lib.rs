@@ -146,9 +146,9 @@
 //! ```
 //!
 //! There is no deferred cleanup queue or `on_idle` background pass. The
-//! `access_count`-bounded `clear_prefix` call is expected to finish in one
-//! step; a continuation cursor is treated as an invariant violation (see
-//! `Pallet::clear_scope_access`) and triggers a defensive bounded retry.
+//! `access_count`-bounded `clear_prefix` call always finishes in one step; a
+//! continuation cursor is treated as an invariant violation (see
+//! `Pallet::clear_scope_access`) and only reported defensively.
 //!
 //! `ScopeId`s are never reused, including after cleanup: a cleaned-up
 //! `ScopeId` simply has no more physical state, but remains a valid
@@ -249,9 +249,9 @@
 //! 4. **Index Consistency**: `Children` stays synchronized with `Nodes`'
 //!    `parent` links.
 //! 5. **Deletion Safety**: Cannot delete nodes with children.
-//! 6. **Scope-Local Depth Limits**: The distance from any node to its
-//!    nearest Scope root never exceeds `MAX_SCOPE_DEPTH`; the global tree
-//!    depth is unbounded.
+//! 6. **Scope-Local Depth Limits**: The path from any node up to (and
+//!    including) its nearest Scope root never holds more than
+//!    `MAX_SCOPE_DEPTH` nodes; the global tree depth is unbounded.
 //! 7. **Stable Identity**: `NodeId` is never reused, and neither is `ScopeId`.
 //! 8. **Immutable Scope Owner/Root**: A Scope's owner and root are fixed at
 //!    creation; changing control means replacing it with another Scope.
@@ -304,13 +304,15 @@ pub const MAX_META_SIZE: u32 = 1024;
 /// submissions.
 pub const MAX_PAYLOAD_SIZE: u32 = 8192;
 
-/// Maximum depth (number of ancestors up to the nearest Scope root) a node
-/// may have *within a single Scope*.
+/// Maximum scope-local depth: the number of nodes on the path from any node
+/// up to (and including) its nearest Scope root, counting the node itself.
 ///
-/// Enforced at `create_node` time using the length of the resolved parent
-/// path; bounds the cost of `resolve_scope` and authorization, both
-/// O(scope-local depth). The global tree depth (across nested Scopes) is
-/// not bounded by this constant.
+/// A Scope root has depth 1, so a single Scope chain holds at most
+/// `MAX_SCOPE_DEPTH` nodes (the root plus `MAX_SCOPE_DEPTH - 1`
+/// descendants). Enforced at `create_node` time using the length of the
+/// resolved parent path; bounds the cost of `resolve_scope` and
+/// authorization, both of which visit at most `MAX_SCOPE_DEPTH` nodes. The
+/// global tree depth (across nested Scopes) is not bounded by this constant.
 pub const MAX_SCOPE_DEPTH: u32 = 32;
 
 /// Maximum number of direct children a single node may have.
@@ -337,13 +339,9 @@ pub const MAX_ACCESS_ENTRIES_PER_SCOPE: u32 = 32;
 pub type MaxMetaSize = ConstU32<MAX_META_SIZE>;
 /// [`ConstU32`] wrapper around [`MAX_PAYLOAD_SIZE`] for use as a `BoundedVec` bound.
 pub type MaxPayloadSize = ConstU32<MAX_PAYLOAD_SIZE>;
-/// [`ConstU32`] wrapper around [`MAX_SCOPE_DEPTH`] for use as a `BoundedVec` bound.
+/// [`ConstU32`] wrapper around [`MAX_SCOPE_DEPTH`] for use as a `BoundedVec`
+/// bound (e.g. [`ResolvedScopePath::path`]).
 pub type MaxScopeDepth = ConstU32<MAX_SCOPE_DEPTH>;
-/// Maximum length of a [`ResolvedScopePath::path`]: the target node plus up
-/// to `MAX_SCOPE_DEPTH` ancestors up to (and including) the Scope root.
-pub const MAX_SCOPE_PATH_LEN: u32 = MAX_SCOPE_DEPTH + 1;
-/// [`ConstU32`] wrapper around [`MAX_SCOPE_PATH_LEN`] for use as a `BoundedVec` bound.
-pub type MaxScopePathLen = ConstU32<MAX_SCOPE_PATH_LEN>;
 /// [`ConstU32`] wrapper around [`MAX_CHILDREN_PER_NODE`] for use as a `BoundedVec` bound.
 pub type MaxChildrenPerNode = ConstU32<MAX_CHILDREN_PER_NODE>;
 
@@ -673,18 +671,18 @@ pub struct ResolvedScope<AccountId> {
 /// path walked to reach it.
 ///
 /// `path` holds the target node first and the Scope root last (so
-/// `path.len() == 1` when the target node is itself the Scope root). Depth
-/// is deliberately *not* cached anywhere - it is always derived as
-/// `path.len() - 1`, since caching it would go stale whenever
-/// [`Pallet::create_scope`] moves a descendant's effective depth by
-/// inserting a new Scope boundary above it.
+/// `path.len() == 1` when the target node is itself the Scope root). The
+/// scope-local depth is deliberately *not* cached anywhere - it is always
+/// derived as `path.len()` (bounded by [`MAX_SCOPE_DEPTH`]), since caching
+/// it would go stale whenever [`Pallet::create_scope`] moves a descendant's
+/// effective depth by inserting a new Scope boundary above it.
 #[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, PartialEq, Eq, Debug)]
 pub struct ResolvedScopePath<AccountId> {
     /// The Scope resolved for the target node.
     pub scope: ResolvedScope<AccountId>,
     /// The path from the target node (first) to the Scope root (last),
     /// inclusive of both ends.
-    pub path: BoundedVec<NodeId, MaxScopePathLen>,
+    pub path: BoundedVec<NodeId, MaxScopeDepth>,
 }
 
 #[frame_support::pallet]
@@ -890,12 +888,12 @@ pub mod pallet {
                 ensure!(resolved.scope.owner == sender, Error::<T>::NotScopeOwner);
 
                 // Check the scope-local depth by reusing the parent's
-                // already-resolved path: the new child's scope-local depth
-                // equals the parent's path length (`path.len() ==
-                // parent_depth + 1`), so admitting one more child is only
-                // safe while that length is still within `MAX_SCOPE_DEPTH`.
+                // already-resolved path: the new child's path would be one
+                // node longer than the parent's, so a child is only admitted
+                // while the parent's path is strictly shorter than
+                // `MAX_SCOPE_DEPTH`.
                 ensure!(
-                    resolved.path.len() as u32 <= MAX_SCOPE_DEPTH,
+                    (resolved.path.len() as u32) < MAX_SCOPE_DEPTH,
                     Error::<T>::MaxScopeDepthExceeded
                 );
 
@@ -1168,11 +1166,10 @@ pub mod pallet {
             ensure!(resolved.owner == sender, Error::<T>::NotScopeOwner);
 
             let key = (node_id, principal.clone());
-            let existed = <Access<T>>::contains_key(resolved.id, &key);
             let mut flags = <Access<T>>::get(resolved.id, &key);
             flags.revoke(capability);
             if flags.is_empty() {
-                if existed {
+                if <Access<T>>::contains_key(resolved.id, &key) {
                     <Access<T>>::remove(resolved.id, &key);
                     <Scopes<T>>::mutate(resolved.id, |maybe_info| {
                         if let Some(scope_info) = maybe_info {
@@ -1244,19 +1241,19 @@ pub mod pallet {
         /// admission in this pallet is built on top of this single walk -
         /// there is no separate traversal for depth vs. Access lookups.
         ///
-        /// The walk never visits more than `MAX_SCOPE_PATH_LEN` nodes: this
+        /// The walk never visits more than `MAX_SCOPE_DEPTH` nodes: this
         /// bounds resolution cost to the *scope-local* depth, never the
         /// (unbounded) global tree depth. Exceeding the bound without
         /// finding a Scope indicates a broken invariant (every node must
-        /// resolve to a Scope within `MAX_SCOPE_DEPTH`) and is reported as
-        /// [`Error::ScopeNotFound`].
+        /// resolve to a Scope within `MAX_SCOPE_DEPTH` nodes) and is
+        /// reported as [`Error::ScopeNotFound`].
         pub fn resolve_scope_path(
             node_id: NodeId,
         ) -> Result<ResolvedScopePath<T::AccountId>, Error<T>> {
-            let mut path: BoundedVec<NodeId, MaxScopePathLen> = BoundedVec::default();
+            let mut path: BoundedVec<NodeId, MaxScopeDepth> = BoundedVec::default();
             let mut current = node_id;
 
-            loop {
+            for _ in 0..MAX_SCOPE_DEPTH {
                 path.try_push(current)
                     .map_err(|_| Error::<T>::ScopeNotFound)?;
 
@@ -1276,6 +1273,8 @@ pub mod pallet {
 
                 current = info.parent.ok_or(Error::<T>::ScopeNotFound)?;
             }
+
+            Err(Error::<T>::ScopeNotFound)
         }
 
         /// Authorize `sender` to exercise `capability` at `node_id`.
@@ -1366,33 +1365,21 @@ pub mod pallet {
         /// both dispatch and benchmarked weight scale with the number of
         /// physical entries actually removed rather than a fixed maximum.
         ///
-        /// If `clear_prefix` still reports a continuation cursor, this means
-        /// storage cleanup needed more than the expected single pass. That is
-        /// treated as a bug: report defensively and keep following the cursor
-        /// until all `Access` rows are removed before callers delete the
-        /// `Scopes[scope_id]` entry.
+        /// Because `grant_access` strictly keeps `access_count <=
+        /// MAX_ACCESS_ENTRIES_PER_SCOPE` and in sync with the physical
+        /// entries, a single `clear_prefix` pass limited to `access_items`
+        /// always removes every entry. A remaining continuation cursor
+        /// therefore means the `access_count` invariant is broken; it is
+        /// reported defensively and never followed, so the cost of this call
+        /// stays bounded by `access_items`.
         pub(crate) fn clear_scope_access(scope_id: ScopeId, access_items: u32) {
-            let mut result = <Access<T>>::clear_prefix(scope_id, access_items, None);
+            let result = <Access<T>>::clear_prefix(scope_id, access_items, None);
             if result.maybe_cursor.is_some() {
                 frame_support::defensive!(
                     "CPS: clear_prefix left Access entries behind despite \
                      ScopeInfo.access_count bound",
                     scope_id
                 );
-            }
-
-            while let Some(cursor) = result.maybe_cursor {
-                result = <Access<T>>::clear_prefix(
-                    scope_id,
-                    MAX_ACCESS_ENTRIES_PER_SCOPE,
-                    Some(&cursor),
-                );
-                if result.maybe_cursor.is_some() {
-                    frame_support::defensive!(
-                        "CPS: clear_prefix continuation still left Access entries behind",
-                        scope_id
-                    );
-                }
             }
         }
     }

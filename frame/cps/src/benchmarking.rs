@@ -25,13 +25,19 @@ use frame_support::{assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use sp_std::vec;
 
-/// Build a chain of `depth + 1` nodes (a root plus `depth` descendants), all
+/// Build a chain of `len` nodes (a root plus `len - 1` descendants), all
 /// created by `caller`, who becomes the owner of the root's freshly
-/// allocated Scope. Returns `(root, deepest_node)`.
-fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> (NodeId, NodeId) {
+/// allocated Scope. The deepest node's resolved scope path holds exactly
+/// `len` nodes, so `len == MAX_SCOPE_DEPTH` yields the deepest node the
+/// pallet admits. Returns `(root, deepest_node)`.
+fn create_chain<T: Config>(caller: &T::AccountId, len: u32) -> (NodeId, NodeId) {
+    assert!(
+        (1..=MAX_SCOPE_DEPTH).contains(&len),
+        "chain length must be within 1..=MAX_SCOPE_DEPTH"
+    );
     let mut parent = None;
     let mut root = None;
-    for _ in 0..=depth {
+    for _ in 0..len {
         let id = NextNodeId::<T>::get();
         assert_ok!(Pallet::<T>::create_node(
             RawOrigin::Signed(caller.clone()).into(),
@@ -44,7 +50,15 @@ fn create_chain<T: Config>(caller: &T::AccountId, depth: u32) -> (NodeId, NodeId
         }
         parent = Some(id);
     }
-    (root.unwrap(), parent.unwrap())
+    let (root, deepest) = (root.unwrap(), parent.unwrap());
+    assert_eq!(
+        Pallet::<T>::resolve_scope_path(deepest)
+            .expect("chain resolves to its root Scope")
+            .path
+            .len(),
+        len as usize
+    );
+    (root, deepest)
 }
 
 /// Build a maximum-size `NodeMeta` value. Used as the pre-existing value in
@@ -61,7 +75,7 @@ fn max_payload() -> NodePayload {
     BoundedVec::try_from(vec![1u8; MAX_PAYLOAD_SIZE as usize]).unwrap()
 }
 
-/// Fill the parent's index to its limit, leaving the target as its last child.
+/// Append `count` children to `parent`'s `Children` index.
 fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
     for _ in 0..count {
         assert_ok!(Pallet::<T>::create_node(
@@ -73,28 +87,45 @@ fn fill_siblings<T: Config>(caller: &T::AccountId, parent: NodeId, count: u32) {
     }
 }
 
-/// Grant `Capability::Write` to `MAX_ACCESS_ENTRIES_PER_SCOPE` distinct
-/// principals at `node`, filling that Scope's `Access` entries to its bound -
-/// the worst case for any operation that must synchronously clear a Scope's
-/// entire `Access` prefix (`create_scope` replacement, deleting a Scope-root
-/// leaf via `delete_node`).
-fn fill_access_to_limit<T: Config>(caller: &T::AccountId, node: NodeId) {
-    for i in 0..MAX_ACCESS_ENTRIES_PER_SCOPE {
-        let principal = account::<T::AccountId>("access-limit", i, 0);
+/// Grant `Capability::Write` at `node` to `count` *distinct* principals, so
+/// that `count` new physical `Access` entries (and `access_count` slots) are
+/// consumed in `node`'s Scope. Re-granting to the same principal would only
+/// update an existing entry and never grow the Scope towards
+/// `MAX_ACCESS_ENTRIES_PER_SCOPE`.
+///
+/// Filling to the bound is the worst case for any operation that must
+/// synchronously clear a Scope's entire `Access` prefix (`create_scope`
+/// replacement, deleting a Scope-root leaf via `delete_node`).
+fn fill_access<T: Config>(caller: &T::AccountId, node: NodeId, count: u32) {
+    let scope_id = Pallet::<T>::resolve_scope(node)
+        .expect("node resolves to a Scope")
+        .id;
+    let before = Pallet::<T>::scope_info(scope_id)
+        .map(|info| info.access_count)
+        .expect("scope exists");
+    for i in 0..count {
         assert_ok!(Pallet::<T>::grant_access(
             RawOrigin::Signed(caller.clone()).into(),
             node,
-            principal,
+            account("principal", i, 0),
             Capability::Write,
             GrantMode::Node,
         ));
     }
+    assert_eq!(
+        Pallet::<T>::scope_info(scope_id).map(|info| info.access_count),
+        Some(before + count)
+    );
 }
 
 #[benchmarks]
 mod benchmarks {
     use super::*;
 
+    /// Worst case: `parent` sits at scope-local depth `MAX_SCOPE_DEPTH - 1`
+    /// (the full parent path is walked for the owner/depth checks) and
+    /// already holds `MAX_CHILDREN_PER_NODE - 1` children, so the new node
+    /// lands exactly at `MAX_SCOPE_DEPTH` and fills `Children` to its bound.
     #[benchmark]
     fn create_node(m: Linear<0, MAX_META_SIZE>, p: Linear<0, MAX_PAYLOAD_SIZE>) {
         let caller: T::AccountId = whitelisted_caller();
@@ -130,11 +161,18 @@ mod benchmarks {
             Children::<T>::get(parent).len(),
             MAX_CHILDREN_PER_NODE as usize
         );
+        assert_eq!(
+            Pallet::<T>::resolve_scope_path(node)
+                .expect("new node resolves")
+                .path
+                .len(),
+            MAX_SCOPE_DEPTH as usize
+        );
     }
 
     /// Worst case: `sender` is not the Scope owner and is authorized through
-    /// an `inherited = true` `Write` `Access` granted at the Scope root,
-    /// requiring a full `MAX_SCOPE_DEPTH` walk to be validated.
+    /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
+    /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
     /// `node` always starts with a maximum-size existing `Meta` value, so
     /// the `b = 0` point (which sets `meta` to `None`, removing it) still
@@ -168,8 +206,8 @@ mod benchmarks {
     }
 
     /// Worst case: `sender` is not the Scope owner and is authorized through
-    /// an `inherited = true` `Write` `Access` granted at the Scope root,
-    /// requiring a full `MAX_SCOPE_DEPTH` walk to be validated.
+    /// a `GrantMode::Subtree` `Write` `Access` granted at the Scope root,
+    /// requiring a full `MAX_SCOPE_DEPTH`-node walk to be validated.
     ///
     /// `node` always starts with a maximum-size existing `Payload` value, so
     /// the `b = 0` point (which sets `payload` to `None`, removing it) still
@@ -203,10 +241,12 @@ mod benchmarks {
         assert_eq!(Payload::<T>::get(node), payload);
     }
 
-    /// Worst case: `node` is a Scope-root leaf at `MAX_SCOPE_DEPTH`, with
-    /// maximum metadata and payload, a full parent `Children` vector, and up
-    /// to `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access` entries that must be
-    /// synchronously deleted together with the scope boundary.
+    /// Worst case: `node` is a Scope-root leaf at scope-local depth
+    /// `MAX_SCOPE_DEPTH` of its parent Scope, with maximum metadata and
+    /// payload, a full parent `Children` vector (`MAX_CHILDREN_PER_NODE`
+    /// entries, the target being the last one), and `a` (up to
+    /// `MAX_ACCESS_ENTRIES_PER_SCOPE`) distinct `Access` entries that must be
+    /// synchronously deleted together with the Scope boundary.
     #[benchmark]
     fn delete_node(a: Linear<0, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
         let caller: T::AccountId = whitelisted_caller();
@@ -220,20 +260,15 @@ mod benchmarks {
             Some(max_meta()),
             Some(max_payload()),
         ));
+        assert_eq!(
+            Children::<T>::get(parent).len(),
+            MAX_CHILDREN_PER_NODE as usize
+        );
         assert_ok!(Pallet::<T>::create_scope(
             RawOrigin::Signed(caller.clone()).into(),
             node,
         ));
-        for i in 0..a {
-            let principal: T::AccountId = account("principal", i, 0);
-            assert_ok!(Pallet::<T>::grant_access(
-                RawOrigin::Signed(caller.clone()).into(),
-                node,
-                principal,
-                Capability::Write,
-                GrantMode::Node,
-            ));
-        }
+        fill_access::<T>(&caller, node, a);
 
         #[extrinsic_call]
         _(RawOrigin::Signed(caller), node);
@@ -247,11 +282,13 @@ mod benchmarks {
         );
     }
 
-    /// Worst case replacement path: `node` already roots an active Scope and
-    /// replacing it synchronously clears up to
-    /// `MAX_ACCESS_ENTRIES_PER_SCOPE` `Access` entries from the stale Scope.
+    /// Worst case replacement path: `node` already roots an active Scope
+    /// holding `a` `Access` entries, one of which is the non-owner caller's
+    /// `CreateScope` grant; replacing the Scope synchronously clears all of
+    /// them. `a` starts at 1 because the caller's own grant always occupies
+    /// one of the `MAX_ACCESS_ENTRIES_PER_SCOPE` slots.
     #[benchmark]
-    fn create_scope(a: Linear<0, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
+    fn create_scope(a: Linear<1, MAX_ACCESS_ENTRIES_PER_SCOPE>) {
         let caller: T::AccountId = whitelisted_caller();
         let accessor: T::AccountId = account("accessor", 0, 0);
         let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
@@ -262,16 +299,7 @@ mod benchmarks {
         let old_scope = Pallet::<T>::node_info(node)
             .and_then(|info| info.scope)
             .expect("node roots a Scope");
-        for i in 0..a {
-            let principal: T::AccountId = account("principal", i, 0);
-            assert_ok!(Pallet::<T>::grant_access(
-                RawOrigin::Signed(caller.clone()).into(),
-                node,
-                principal,
-                Capability::Write,
-                GrantMode::Node,
-            ));
-        }
+        fill_access::<T>(&caller, node, a - 1);
         assert_ok!(Pallet::<T>::grant_access(
             RawOrigin::Signed(caller.clone()).into(),
             node,
@@ -279,6 +307,10 @@ mod benchmarks {
             Capability::CreateScope,
             GrantMode::Node,
         ));
+        assert_eq!(
+            Pallet::<T>::scope_info(old_scope).map(|info| info.access_count),
+            Some(a)
+        );
 
         #[extrinsic_call]
         _(RawOrigin::Signed(accessor.clone()), node);
@@ -295,12 +327,15 @@ mod benchmarks {
     }
 
     /// Worst case: `node` is at `MAX_SCOPE_DEPTH`, exercising the full
-    /// `resolve_scope` walk before the `Access` entry is written.
+    /// `resolve_scope` walk, and the grant creates a brand-new entry that
+    /// takes the Scope's last free slot, bringing `access_count` to exactly
+    /// `MAX_ACCESS_ENTRIES_PER_SCOPE`.
     #[benchmark]
     fn grant_access() {
         let caller: T::AccountId = whitelisted_caller();
-        let principal: T::AccountId = account("principal", 0, 0);
+        let principal: T::AccountId = account("grantee", 0, 0);
         let (_, node) = create_chain::<T>(&caller, MAX_SCOPE_DEPTH);
+        fill_access::<T>(&caller, node, MAX_ACCESS_ENTRIES_PER_SCOPE - 1);
 
         #[extrinsic_call]
         _(
@@ -313,6 +348,10 @@ mod benchmarks {
 
         let resolved = Pallet::<T>::resolve_scope(node).expect("scope resolves");
         assert!(Access::<T>::get(resolved.id, (node, principal)).contains(Capability::Write));
+        assert_eq!(
+            Pallet::<T>::scope_info(resolved.id).map(|info| info.access_count),
+            Some(MAX_ACCESS_ENTRIES_PER_SCOPE)
+        );
     }
 
     /// Worst case: `node` is at `MAX_SCOPE_DEPTH`, exercising the full
@@ -391,18 +430,15 @@ mod benchmarks {
     #[benchmark(extra)]
     fn clear_scope_access_worst_case() {
         let caller: T::AccountId = whitelisted_caller();
-        let (root, _) = create_chain::<T>(&caller, 0);
+        let (root, _) = create_chain::<T>(&caller, 1);
         let scope_id = Pallet::<T>::node_info(root)
             .and_then(|info| info.scope)
             .expect("root has a Scope");
-        fill_access_to_limit::<T>(&caller, root);
-        assert_eq!(
-            Pallet::<T>::scope_info(scope_id).map(|info| info.access_count),
-            Some(MAX_ACCESS_ENTRIES_PER_SCOPE)
-        );
+        fill_access::<T>(&caller, root, MAX_ACCESS_ENTRIES_PER_SCOPE);
         let access_items = Pallet::<T>::scope_info(scope_id)
             .map(|info| info.access_count)
             .expect("scope exists");
+        assert_eq!(access_items, MAX_ACCESS_ENTRIES_PER_SCOPE);
 
         #[block]
         {
