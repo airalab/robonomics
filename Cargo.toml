@@ -24,6 +24,8 @@ subxt-signer = "0.51"
 sc-executor = "0.50.0"
 sc-executor-common = "0.47.0"
 sp-maybe-compressed-blob = "11.1.0"
+env_logger = "0.11"
+tokio = { version = "1", features = ["macros", "time", "rt-multi-thread"] }
 
 # General (wasm)
 parity-scale-codec = { version = "3.6.1", default-features = false, features = [
@@ -139,3 +141,4 @@ pallet-robonomics-rws = { version = "1.7.0", path = "./frame/rws", default-featu
 # Robonomics runtime
 robonomics-runtime = { version = "51.0.0", path = "./runtime/robonomics" }
 robonomics-runtime-metadata = { version = "51.0.0", path = "./runtime/robonomics/metadata" }
+robonomics-chain-spec = { version = "2.0.0", path = "./chain-spec" }

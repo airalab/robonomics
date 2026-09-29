@@ -18,8 +18,8 @@
 //! # Robonomics Runtime Subxt API
 //!
 //! This crate provides a type-safe, compile-time verified API for interacting with the
-//! Robonomics blockchain runtime. It extracts runtime metadata at build time and uses
-//! [subxt](https://docs.rs/subxt) to generate type-safe transaction and storage APIs.
+//! Robonomics blockchain runtime. It uses [subxt](https://docs.rs/subxt) to generate type-safe
+//! transaction and storage APIs.
 //!
 //! ## Quick Start
 //!
@@ -38,25 +38,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
-//! ## How It Works
-//!
-//! The `build.rs` script extracts metadata from the runtime and saves it to the build directory:
-//!
-//! 1. **Load runtime WASM**: Gets `WASM_BINARY` from robonomics-runtime build dependency
-//! 2. **Create RuntimeBlob**: Prepares the WASM for execution
-//! 3. **Execute metadata call**: Uses `WasmExecutor` to call the `Metadata_metadata` host function
-//! 4. **Decode and validate**: Decodes SCALE-encoded metadata and validates magic bytes
-//! 5. **Save to file**: Writes metadata to `$OUT_DIR/metadata.scale`
-//! 6. **Subxt macro**: Reads the metadata file at compile time to generate type-safe APIs
-//!
-//! ## Benefits
-//!
-//! - **Fewer dependencies**: No need to embed runtime WASM or pull in heavy runtime dependencies
-//! - **Faster builds**: Metadata extraction happens once during build
-//! - **Always in sync**: Metadata comes directly from runtime dependency version
-//! - **Type safe**: Compile-time verification of all runtime calls
-//! - **Self-contained**: Everything happens in the build process
 //!
 //! ## API Usage
 //!
@@ -140,6 +121,37 @@ use subxt::SubstrateConfig;
 /// ```
 pub type ExtrinsicEvents = subxt::extrinsics::ExtrinsicEvents<RobonomicsConfig>;
 
+/// A struct representing the signed extra and additional parameters required
+/// to construct a transaction for a Robonomics node.
+///
+/// This type alias uses the default Substrate extrinsic parameters, which include:
+/// - **CheckNonZeroSender**: Ensures the sender is not the zero address
+/// - **CheckSpecVersion**: Validates the runtime spec version
+/// - **CheckTxVersion**: Validates the transaction version
+/// - **CheckGenesis**: Validates the genesis hash
+/// - **CheckMortality**: Handles transaction mortality (era)
+/// - **CheckNonce**: Manages account nonce
+/// - **CheckWeight**: Validates transaction weight
+/// - **ChargeTransactionPayment**: Handles transaction fees
+///
+/// # Example
+///
+/// ```no_run
+/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsTransactionExtensions};
+/// # use subxt::OnlineClient;
+/// # use subxt_signer::sr25519::dev;
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
+/// let alice = dev::alice();
+/// let tx = api::transactions().system().remark(vec![1, 2, 3]);
+///
+/// // Use default params
+/// let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
+
 /// Default configuration type for Robonomics blockchain nodes.
 ///
 /// This configuration defines all the type aliases and parameters needed to
@@ -180,37 +192,6 @@ impl subxt::Config for RobonomicsConfig {
     type Address = MultiAddress<Self::AccountId, ()>;
     type TransactionExtensions = RobonomicsTransactionExtensions<Self>;
 }
-
-/// A struct representing the signed extra and additional parameters required
-/// to construct a transaction for a Robonomics node.
-///
-/// This type alias uses the default Substrate extrinsic parameters, which include:
-/// - **CheckNonZeroSender**: Ensures the sender is not the zero address
-/// - **CheckSpecVersion**: Validates the runtime spec version
-/// - **CheckTxVersion**: Validates the transaction version
-/// - **CheckGenesis**: Validates the genesis hash
-/// - **CheckMortality**: Handles transaction mortality (era)
-/// - **CheckNonce**: Manages account nonce
-/// - **CheckWeight**: Validates transaction weight
-/// - **ChargeTransactionPayment**: Handles transaction fees
-///
-/// # Example
-///
-/// ```no_run
-/// # use robonomics_runtime_subxt_api::{api, RobonomicsConfig, RobonomicsTransactionExtensions};
-/// # use subxt::OnlineClient;
-/// # use subxt_signer::sr25519::dev;
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = OnlineClient::<RobonomicsConfig>::from_url("ws://127.0.0.1:9988").await?;
-/// let alice = dev::alice();
-/// let tx = api::transactions().system().remark(vec![1, 2, 3]);
-///
-/// // Use default params
-/// let hash = client.tx().await?.sign_and_submit_default(&tx, &alice).await?;
-/// # Ok(())
-/// # }
-/// ```
-pub type RobonomicsTransactionExtensions<T> = DefaultTransactionExtensions<T>;
 
 /// Generated runtime metadata from subxt.
 #[allow(

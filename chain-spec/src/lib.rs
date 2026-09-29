@@ -15,19 +15,18 @@
 //  limitations under the License.
 //
 ///////////////////////////////////////////////////////////////////////////////
-//! Robonomics parachain chain specs, embedded as static text.
+//! Robonomics chain specs, embedded as static text.
 //!
-//! This crate has no runtime dependencies: it simply bundles the raw
-//! (already `--raw`-chain-spec-encoded) JSON chain spec files committed to
-//! this repository as `&'static str` constants.
+//! This crate has no runtime dependencies: it simply bundles the raw JSON chain spec
+//! files committed to this repository as `&'static str` constants.
 //!
 //! Downstream tools (e.g. [`robins`](https://github.com/airalab/robins)) can
 //! depend on this crate to get an always-in-sync copy of the Robonomics
 //! chain specs without having to vendor JSON files, fetch them from GitHub,
 //! or keep a local checkout of this repository around.
 
-/// Raw chain spec for the Robonomics parachain on the Kusama relay chain.
-pub const KUSAMA_PARACHAIN_RAW: &str = include_str!("../kusama-parachain.raw.json");
+/// Raw chain spec for the Polkadot relay chain.
+pub const POLKADOT_RELAY_RAW: &str = include_str!("../polkadot-relay.raw.json");
 
 /// Raw chain spec for the Robonomics parachain on the Polkadot relay chain.
 pub const POLKADOT_PARACHAIN_RAW: &str = include_str!("../polkadot-parachain.raw.json");
@@ -38,7 +37,7 @@ mod tests {
 
     #[test]
     fn chain_specs_are_valid_json() {
-        for spec in [KUSAMA_PARACHAIN_RAW, POLKADOT_PARACHAIN_RAW] {
+        for spec in [POLKADOT_RELAY_RAW, POLKADOT_PARACHAIN_RAW] {
             let value: serde_json::Value =
                 serde_json::from_str(spec).expect("chain spec must be valid JSON");
             assert!(value.is_object(), "chain spec root must be a JSON object");
