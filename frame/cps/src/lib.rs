@@ -95,7 +95,11 @@
 //!   (`Nodes[node_id].scope == Some(old_scope_id)`), it replaces that
 //!   Scope's generation in place: a fresh `ScopeId` is allocated, the caller
 //!   becomes the new owner, and the boundary stays on the same node. This is
-//!   the sole ownership-transfer mechanism.
+//!   the sole ownership-transfer mechanism. Besides the old Scope's owner
+//!   and its `CreateScope` delegates, the owner of the *immediately
+//!   enclosing* Scope (the Scope resolved for the root's parent) may also
+//!   replace it, so an upper Scope owner can always take back control of a
+//!   Scope nested directly below it.
 //!
 //! Either way, a brand-new `ScopeId` is always allocated. On replacement,
 //! the previous Scope's `Access` entries become immediately inactive
@@ -245,7 +249,9 @@
 //!    via [`Pallet::resolve_scope`] - the nearest active Scope ancestor wins.
 //! 3. **Scope Boundaries**: Nested Scopes are a hard authority and resource
 //!    boundary; ancestor Scope owners have no implicit administrative rights
-//!    inside a nested Scope.
+//!    inside a nested Scope. The sole exception is that the owner of the
+//!    immediately enclosing Scope may replace a Scope root nested directly
+//!    below it via [`Pallet::create_scope`].
 //! 4. **Index Consistency**: `Children` stays synchronized with `Nodes`'
 //!    `parent` links.
 //! 5. **Deletion Safety**: Cannot delete nodes with children.
@@ -1055,11 +1061,16 @@ pub mod pallet {
         /// - **Existing Scope root** (`Nodes[node_id].scope ==
         ///   Some(old_scope_id)`): replaces that Scope's generation in
         ///   place - the sole ownership-transfer mechanism. Authorized by
-        ///   the old Scope's owner, or by a `CreateScope` grant reaching
-        ///   `node_id` *within that old Scope*. The boundary stays on the
-        ///   same node; only the Scope generation changes. The previous
-        ///   generation's `Access` entries are synchronously invalidated
-        ///   (see `Pallet::clear_scope_access`).
+        ///   the old Scope's owner, by a `CreateScope` grant reaching
+        ///   `node_id` *within that old Scope*, or by the owner of the
+        ///   immediately enclosing Scope (the one resolved for the root's
+        ///   parent) - an upper Scope owner may always take over a Scope
+        ///   nested directly below it. Owners of Scopes further up, and
+        ///   delegates holding `CreateScope` only in the enclosing Scope,
+        ///   do not qualify. The boundary stays on the same node; only the
+        ///   Scope generation changes. The previous generation's `Access`
+        ///   entries are synchronously invalidated (see
+        ///   `Pallet::clear_scope_access`).
         #[pallet::call_index(4)]
         #[pallet::weight(T::WeightInfo::create_scope(MAX_ACCESS_ENTRIES_PER_SCOPE))]
         pub fn create_scope(origin: OriginFor<T>, node_id: NodeId) -> DispatchResultWithPostInfo {
@@ -1073,7 +1084,12 @@ pub mod pallet {
                 })
                 .unwrap_or(0);
 
-            Self::authorize(node_id, &sender, Capability::CreateScope)?;
+            // The owner of the immediately enclosing Scope may replace a
+            // Scope root nested directly below it, even without any Access
+            // inside the nested Scope.
+            if let Err(err) = Self::authorize(node_id, &sender, Capability::CreateScope) {
+                ensure!(Self::is_enclosing_scope_owner(&info, &sender), err);
+            }
 
             let scope_id =
                 Self::allocate_scope(node_id, info.scope, sender.clone(), old_scope_access_items)?;
@@ -1289,6 +1305,23 @@ pub mod pallet {
             }
 
             Err(Error::<T>::AccessDenied)
+        }
+
+        /// Whether `sender` owns the Scope immediately enclosing the Scope
+        /// rooted at the node described by `info`.
+        ///
+        /// Returns `false` unless `info` is an active Scope root with a
+        /// parent. The enclosing Scope is the one resolved for the parent
+        /// node, so the cost is a single [`Self::resolve_scope`] walk,
+        /// bounded by `MAX_SCOPE_DEPTH` regardless of how many Scopes are
+        /// nested above it.
+        fn is_enclosing_scope_owner(info: &NodeInfo, sender: &T::AccountId) -> bool {
+            match (info.scope, info.parent) {
+                (Some(_), Some(parent)) => {
+                    Self::resolve_scope(parent).is_ok_and(|resolved| resolved.owner == *sender)
+                }
+                _ => false,
+            }
         }
 
         /// Allocate a fresh `ScopeId` rooted at `root` and owned by `owner`,

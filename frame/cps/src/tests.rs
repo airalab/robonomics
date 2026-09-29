@@ -806,6 +806,177 @@ fn create_scope_without_access_fails() {
     });
 }
 
+/// Build `Scope#0(owner 1) / node 0 -> node 1 -> node 2`, with a nested
+/// Scope rooted at node 1 owned by account 2 (established through a
+/// delegated `CreateScope` grant from the root Scope owner), and node 2
+/// inheriting it.
+fn setup_nested_scope_owned_by_2() -> (ScopeId, ScopeId) {
+    assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+    assert_ok!(Cps::create_node(
+        RuntimeOrigin::signed(1),
+        Some(NodeId(0)),
+        None,
+        None
+    ));
+    assert_ok!(Cps::grant_access(
+        RuntimeOrigin::signed(1),
+        NodeId(1),
+        2,
+        Capability::CreateScope,
+        GrantMode::Node,
+    ));
+    assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), NodeId(1)));
+    assert_ok!(Cps::create_node(
+        RuntimeOrigin::signed(2),
+        Some(NodeId(1)),
+        None,
+        None
+    ));
+    (
+        active_scope_id(NodeId(0)).unwrap(),
+        active_scope_id(NodeId(1)).unwrap(),
+    )
+}
+
+#[test]
+fn upper_scope_owner_can_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        let (upper_scope, old_nested) = setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(1),
+            3,
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+        assert_eq!(access_count(old_nested), 1);
+
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+
+        let new_nested = active_scope_id(NodeId(1)).unwrap();
+        assert_ne!(new_nested, old_nested);
+        assert_ne!(new_nested, upper_scope);
+        assert_scope(NodeId(1), new_nested, NodeId(1), 1);
+        // Descendants resolve to the replacement, the upper Scope is intact.
+        assert_scope(NodeId(2), new_nested, NodeId(1), 1);
+        assert_eq!(active_scope_id(NodeId(0)), Some(upper_scope));
+        // The previous generation is synchronously cleaned up.
+        assert_eq!(access_count(old_nested), 0);
+        assert!(Cps::scope_info(old_nested).is_none());
+        assert!(!Cps::has_capability(NodeId(2), &3, Capability::Write));
+
+        // The previous nested owner has lost control.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_noop!(
+            Cps::grant_access(
+                RuntimeOrigin::signed(2),
+                NodeId(1),
+                3,
+                Capability::Write,
+                GrantMode::Node
+            ),
+            Error::<Runtime>::NotScopeOwner
+        );
+
+        let events: Vec<_> = System::events().into_iter().map(|r| r.event).collect();
+        assert!(events.contains(&RuntimeEvent::Cps(Event::ScopeCreated(
+            new_nested,
+            NodeId(1),
+            1
+        ))));
+    });
+}
+
+#[test]
+fn upper_scope_owner_can_replace_root_scope_nested_below_it_repeatedly() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+        let first = active_scope_id(NodeId(1)).unwrap();
+        // Now owning both, replacing again is still authorized.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
+        assert_ne!(active_scope_id(NodeId(1)).unwrap(), first);
+    });
+}
+
+#[test]
+fn non_owner_of_upper_scope_cannot_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        let nested = active_scope_id(NodeId(1)).unwrap();
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(3), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(1)), Some(nested));
+    });
+}
+
+#[test]
+fn upper_scope_delegate_cannot_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        let nested = active_scope_id(NodeId(1)).unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            3,
+            Capability::CreateScope,
+            GrantMode::Subtree,
+        ));
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(3), NodeId(1)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(1)), Some(nested));
+    });
+}
+
+#[test]
+fn only_immediately_enclosing_scope_owner_can_replace_nested_scope_root() {
+    new_test_ext().execute_with(|| {
+        // Scope A (owner 1) at node 0, Scope B (owner 2) at node 1,
+        // Scope C (owner 3) at node 2.
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(2),
+            NodeId(2),
+            3,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(3), NodeId(2)));
+        let scope_c = active_scope_id(NodeId(2)).unwrap();
+
+        // Owner of Scope A is two Scopes above C: denied.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(1), NodeId(2)),
+            Error::<Runtime>::AccessDenied
+        );
+        assert_eq!(active_scope_id(NodeId(2)), Some(scope_c));
+
+        // Owner of Scope B encloses C directly: allowed.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), NodeId(2)));
+        assert_scope(NodeId(2), active_scope_id(NodeId(2)).unwrap(), NodeId(2), 2);
+    });
+}
+
+#[test]
+fn root_scope_can_only_be_replaced_by_its_own_authority() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        // Node 0 has no parent, hence no enclosing Scope: the nested owner
+        // gets no rights over the Scope above it.
+        assert_noop!(
+            Cps::create_scope(RuntimeOrigin::signed(2), NodeId(0)),
+            Error::<Runtime>::AccessDenied
+        );
+    });
+}
+
 #[test]
 fn create_scope_capability_rejected_on_descendants() {
     new_test_ext().execute_with(|| {

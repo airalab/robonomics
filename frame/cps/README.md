@@ -285,6 +285,13 @@ the exact node (replacing its Scope if it is already a root, or establishing
 a brand-new nested one otherwise), or a `GrantMode::Subtree` grant at
 `node_id` or a strict ancestor within the same Scope.
 
+In addition, the owner of the **immediately enclosing** Scope (the Scope that
+the root's parent resolves to) may replace a Scope root nested directly below
+it, without holding any Access inside the nested Scope. The caller becomes the
+new owner and the previous owner's `Access` entries are cleared. Owners of
+Scopes further up the chain, and delegates holding `CreateScope` only in the
+enclosing Scope, do not get this right.
+
 **Example**: A property manager carves out an independent boundary for a new tenant:
 ```
 create_scope(floor_3_id)   // signed by the current Scope owner
