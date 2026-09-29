@@ -23,17 +23,13 @@ use frame_support::weights::Weight;
 ///
 /// Provides benchmark-derived weights for each extrinsic in the pallet.
 pub trait WeightInfo {
-    fn create_node() -> Weight;
-    fn set_meta() -> Weight;
-    fn set_payload() -> Weight;
-    fn delete_node() -> Weight;
-    fn create_scope() -> Weight;
-    fn delete_scope() -> Weight;
+    fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight;
+    fn set_meta(bytes: u32) -> Weight;
+    fn set_payload(bytes: u32) -> Weight;
+    fn delete_node(access_items: u32) -> Weight;
+    fn create_scope(access_items: u32) -> Weight;
     fn grant_access() -> Weight;
     fn revoke_access() -> Weight;
-    /// Cost of removing `items` `Access` entries via a single bounded
-    /// `clear_prefix` call during background GC.
-    fn gc_access(items: u32) -> Weight;
 }
 
 /// Test weight implementation that returns zero weight for all operations.
@@ -41,22 +37,19 @@ pub trait WeightInfo {
 /// Used in testing environments where actual weight calculations are not needed.
 pub struct TestWeightInfo;
 impl WeightInfo for TestWeightInfo {
-    fn create_node() -> Weight {
+    fn create_node(_meta_bytes: u32, _payload_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn set_meta() -> Weight {
+    fn set_meta(_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn set_payload() -> Weight {
+    fn set_payload(_bytes: u32) -> Weight {
         Weight::zero()
     }
-    fn delete_node() -> Weight {
+    fn delete_node(_access_items: u32) -> Weight {
         Weight::zero()
     }
-    fn create_scope() -> Weight {
-        Weight::zero()
-    }
-    fn delete_scope() -> Weight {
+    fn create_scope(_access_items: u32) -> Weight {
         Weight::zero()
     }
     fn grant_access() -> Weight {
@@ -64,11 +57,5 @@ impl WeightInfo for TestWeightInfo {
     }
     fn revoke_access() -> Weight {
         Weight::zero()
-    }
-    fn gc_access(_items: u32) -> Weight {
-        // Nonzero so `on_idle` weight-budget tests (insufficient weight,
-        // exact bounded batch math) are meaningful; other extrinsics'
-        // weights are irrelevant to dispatch success/failure in tests.
-        Weight::from_parts(1_000, 0)
     }
 }

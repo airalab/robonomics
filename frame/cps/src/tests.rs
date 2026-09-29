@@ -18,9 +18,7 @@
 //! Tests for pallet-robonomics-cps
 
 use crate::{self as pallet_cps, *};
-use frame_support::{
-    assert_noop, assert_ok, derive_impl, pallet_prelude::Weight, traits::Hooks, BoundedVec,
-};
+use frame_support::{assert_noop, assert_ok, derive_impl, BoundedVec};
 use parity_scale_codec::Encode;
 use sp_runtime::BuildStorage;
 
@@ -55,12 +53,36 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     ext
 }
 
-fn data(bytes: &[u8]) -> NodeData {
+/// Build a bounded byte vector of any bound `S` - used for both `NodeMeta`
+/// (bound = [`MaxMetaSize`]) and `NodePayload` (bound = [`MaxPayloadSize`])
+/// values in these tests; the bound to use is inferred from the calling
+/// context.
+fn data<S: frame_support::traits::Get<u32>>(bytes: &[u8]) -> BoundedVec<u8, S> {
     BoundedVec::try_from(bytes.to_vec()).unwrap()
 }
 
 fn active_scope_id(node_id: NodeId) -> Option<ScopeId> {
-    Cps::active_scope(node_id).map(|(scope_id, _)| scope_id)
+    Cps::node_info(node_id).and_then(|info| info.scope)
+}
+
+/// `Some(Some(parent))` / `Some(None)` mirror the pre-refactor `Parents`
+/// accessor shape: outer `Option` is node existence, inner is "has a
+/// parent". `None` means the node does not exist.
+fn parent_of(node_id: NodeId) -> Option<Option<NodeId>> {
+    Cps::node_info(node_id).map(|info| info.parent)
+}
+
+/// Mirrors the pre-refactor `ActiveScope` accessor: `Some((scope_id,
+/// owner))` only if `node_id` is itself the root of an active Scope.
+fn active_scope(node_id: NodeId) -> Option<(ScopeId, u64)> {
+    let scope_id = Cps::node_info(node_id).and_then(|info| info.scope)?;
+    let owner = Cps::scope_info(scope_id)?.owner;
+    Some((scope_id, owner))
+}
+
+/// Mirrors the pre-refactor `NodesByParent` accessor.
+fn children_of(node_id: NodeId) -> BoundedVec<NodeId, MaxChildrenPerNode> {
+    Cps::children_of(node_id)
 }
 
 fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, expected_owner: u64) {
@@ -73,21 +95,9 @@ fn assert_scope(node_id: NodeId, expected_id: ScopeId, expected_root: NodeId, ex
         })
     );
     assert_eq!(
-        Cps::active_scope(expected_root),
-        Some((expected_id, expected_owner))
+        Cps::scope_info(expected_id).map(|info| info.owner),
+        Some(expected_owner)
     );
-}
-
-fn assert_cleanup_state(head: u64, tail: u64) {
-    assert_eq!(Cps::cleanup_state(), CleanupQueueState { head, tail });
-}
-
-fn run_gc(weight: Weight) -> Weight {
-    <Cps as Hooks<u64>>::on_idle(System::block_number(), weight)
-}
-
-fn run_gc_step(weight: Weight) -> Weight {
-    Cps::do_gc_step(weight).0
 }
 
 fn grant_many(owner: u64, node_id: NodeId, first_principal: u64, count: u64) {
@@ -102,8 +112,20 @@ fn grant_many(owner: u64, node_id: NodeId, first_principal: u64, count: u64) {
     }
 }
 
+/// Number of physical `Access` entries actually stored under `scope_id`.
 fn access_count(scope_id: ScopeId) -> usize {
     Access::<Runtime>::iter_prefix(scope_id).count()
+}
+
+/// Asserts that [`ScopeInfo::access_count`] exactly matches the number of
+/// physical `Access` entries actually stored under `scope_id` - the
+/// invariant that makes single-call synchronous Scope cleanup sound.
+fn assert_access_count_consistent(scope_id: ScopeId) {
+    assert_eq!(
+        Cps::scope_info(scope_id).map(|info| info.access_count as usize),
+        Some(access_count(scope_id)),
+        "ScopeInfo.access_count out of sync with actual Access entries for {scope_id:?}"
+    );
 }
 
 #[test]
@@ -119,8 +141,8 @@ fn create_root_node_works() {
         ));
 
         assert_eq!(Cps::next_node_id(), NodeId(1));
-        assert_eq!(Cps::parent_of(NodeId(0)), Some(None));
-        assert_eq!(Cps::active_scope(NodeId(0)), Some((ScopeId(0), account)));
+        assert_eq!(parent_of(NodeId(0)), Some(None));
+        assert_eq!(active_scope(NodeId(0)), Some((ScopeId(0), account)));
         assert_eq!(Cps::next_scope_id(), ScopeId(1));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), account);
     });
@@ -144,11 +166,11 @@ fn create_child_node_works() {
             None
         ));
 
-        assert_eq!(Cps::parent_of(NodeId(1)), Some(Some(NodeId(0))));
-        assert_eq!(Cps::active_scope(NodeId(1)), None);
+        assert_eq!(parent_of(NodeId(1)), Some(Some(NodeId(0))));
+        assert_eq!(active_scope(NodeId(1)), None);
         assert_scope(NodeId(1), ScopeId(0), NodeId(0), account);
-        assert_eq!(Cps::nodes_by_parent(NodeId(0)).len(), 1);
-        assert_eq!(Cps::nodes_by_parent(NodeId(0))[0], NodeId(1));
+        assert_eq!(children_of(NodeId(0)).len(), 1);
+        assert_eq!(children_of(NodeId(0))[0], NodeId(1));
     });
 }
 
@@ -167,6 +189,40 @@ fn create_node_with_data_works() {
         ));
 
         assert_eq!(Cps::meta_of(NodeId(0)), meta);
+        assert_eq!(Cps::payload_of(NodeId(0)), payload);
+    });
+}
+
+#[test]
+fn create_node_with_meta_only_works() {
+    new_test_ext().execute_with(|| {
+        let meta = Some(data(b"meta"));
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            meta.clone(),
+            None
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), meta);
+        assert_eq!(Cps::payload_of(NodeId(0)), None);
+    });
+}
+
+#[test]
+fn create_node_with_payload_only_works() {
+    new_test_ext().execute_with(|| {
+        let payload = Some(data(b"payload"));
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            payload.clone()
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), None);
         assert_eq!(Cps::payload_of(NodeId(0)), payload);
     });
 }
@@ -202,7 +258,7 @@ fn create_child_without_owner_fails() {
 }
 
 #[test]
-fn max_tree_depth_enforced() {
+fn max_scope_depth_enforced() {
     new_test_ext().execute_with(|| {
         let account = 1u64;
         assert_ok!(Cps::create_node(
@@ -212,7 +268,7 @@ fn max_tree_depth_enforced() {
             None
         ));
 
-        for i in 0..MAX_TREE_DEPTH {
+        for i in 0..MAX_SCOPE_DEPTH - 1 {
             assert_ok!(Cps::create_node(
                 RuntimeOrigin::signed(account),
                 Some(NodeId(i as u64)),
@@ -221,10 +277,14 @@ fn max_tree_depth_enforced() {
             ));
         }
 
-        let deepest = NodeId(MAX_TREE_DEPTH as u64);
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
+        assert_eq!(
+            Cps::resolve_scope_path(deepest).unwrap().path.len(),
+            MAX_SCOPE_DEPTH as usize
+        );
         assert_noop!(
             Cps::create_node(RuntimeOrigin::signed(account), Some(deepest), None, None),
-            Error::<Runtime>::MaxDepthExceeded
+            Error::<Runtime>::MaxScopeDepthExceeded
         );
         assert_scope(deepest, ScopeId(0), NodeId(0), account);
         assert_ok!(Cps::set_meta(
@@ -233,6 +293,41 @@ fn max_tree_depth_enforced() {
             Some(data(b"at limit"))
         ));
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(account), deepest));
+    });
+}
+
+#[test]
+fn create_scope_resets_local_depth_to_zero() {
+    new_test_ext().execute_with(|| {
+        let account = 1u64;
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            None,
+            None,
+            None
+        ));
+
+        // Walk all the way to the scope-depth limit under the root Scope.
+        for i in 0..MAX_SCOPE_DEPTH - 1 {
+            assert_ok!(Cps::create_node(
+                RuntimeOrigin::signed(account),
+                Some(NodeId(i as u64)),
+                None,
+                None
+            ));
+        }
+        let deepest = NodeId(MAX_SCOPE_DEPTH as u64 - 1);
+
+        // Carving out a fresh Scope at `deepest` resets its local depth to
+        // zero, so a child can immediately be created under it even though
+        // the *global* tree depth already exceeds `MAX_SCOPE_DEPTH`.
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(account), deepest));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(account),
+            Some(deepest),
+            None,
+            None
+        ));
     });
 }
 
@@ -269,7 +364,7 @@ fn max_children_per_node_enforced() {
             None
         ));
 
-        let children = Cps::nodes_by_parent(NodeId(0));
+        let children = children_of(NodeId(0));
         assert_eq!(children.len(), MAX_CHILDREN_PER_NODE as usize);
         assert!(!children.contains(&NodeId(1)));
         assert_eq!(children.last(), Some(&next));
@@ -326,6 +421,72 @@ fn set_payload_works() {
 }
 
 #[test]
+fn replace_meta_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(data(b"original")),
+            None
+        ));
+        let replacement = Some(data(b"replacement"));
+        assert_ok!(Cps::set_meta(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            replacement.clone()
+        ));
+        assert_eq!(Cps::meta_of(NodeId(0)), replacement);
+    });
+}
+
+#[test]
+fn replace_payload_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(data(b"original"))
+        ));
+        let replacement = Some(data(b"replacement"));
+        assert_ok!(Cps::set_payload(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            replacement.clone()
+        ));
+        assert_eq!(Cps::payload_of(NodeId(0)), replacement);
+    });
+}
+
+#[test]
+fn remove_meta_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(data(b"meta")),
+            None
+        ));
+        assert_ok!(Cps::set_meta(RuntimeOrigin::signed(1), NodeId(0), None));
+        assert_eq!(Cps::meta_of(NodeId(0)), None);
+    });
+}
+
+#[test]
+fn remove_payload_works() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(data(b"payload"))
+        ));
+        assert_ok!(Cps::set_payload(RuntimeOrigin::signed(1), NodeId(0), None));
+        assert_eq!(Cps::payload_of(NodeId(0)), None);
+    });
+}
+
+#[test]
 fn clear_meta_and_payload_works() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(
@@ -353,21 +514,24 @@ fn delete_leaf_node_works() {
         ));
 
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(1)));
-        assert_eq!(Cps::parent_of(NodeId(1)), None);
-        assert!(Cps::nodes_by_parent(NodeId(0)).is_empty());
+        assert_eq!(parent_of(NodeId(1)), None);
+        assert!(children_of(NodeId(0)).is_empty());
     });
 }
 
 #[test]
-fn delete_root_node_removes_active_scope_and_enqueues_cleanup() {
+fn delete_root_node_synchronously_clears_scope_access() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        grant_many(1, NodeId(0), 100, 3);
+        assert_eq!(access_count(ScopeId(0)), 3);
+
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(0)));
 
-        assert_eq!(Cps::parent_of(NodeId(0)), None);
-        assert_eq!(Cps::active_scope(NodeId(0)), None);
-        assert_cleanup_state(0, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(ScopeId(0)));
+        assert_eq!(Cps::node_info(NodeId(0)).and_then(|i| i.parent), None);
+        assert_eq!(active_scope(NodeId(0)), None);
+        assert_eq!(access_count(ScopeId(0)), 0);
+        assert_eq!(access_count(ScopeId(0)), 0);
     });
 }
 
@@ -508,7 +672,7 @@ fn resolve_scope_missing_node_fails() {
 fn root_scope_created_on_root_creation() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_eq!(Cps::active_scope(NodeId(0)), Some((ScopeId(0), 1)));
+        assert_eq!(active_scope(NodeId(0)), Some((ScopeId(0), 1)));
         assert_scope(NodeId(0), ScopeId(0), NodeId(0), 1);
     });
 }
@@ -525,7 +689,7 @@ fn owner_can_create_nested_scope_on_child() {
         ));
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(1)));
-        let new_scope = Cps::active_scope(NodeId(1)).unwrap();
+        let new_scope = active_scope(NodeId(1)).unwrap();
         assert_ne!(new_scope.0, ScopeId(0));
         assert_eq!(new_scope, (ScopeId(1), 1));
         assert_scope(NodeId(1), ScopeId(1), NodeId(1), 1);
@@ -548,16 +712,18 @@ fn delegated_create_scope_can_replace_existing_scope_root() {
         ));
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), root));
 
-        let new_scope = Cps::active_scope(root).unwrap();
+        let new_scope = active_scope(root).unwrap();
         assert_ne!(new_scope.0, old_scope);
         assert_eq!(new_scope.1, 2);
-        assert_cleanup_state(0, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(old_scope));
+        // The old Scope's Access entries (including the delegation just
+        // exercised) are synchronously cleared as part of replacement.
+        assert_eq!(access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
     });
 }
 
 #[test]
-fn scope_replacement_allocates_fresh_id_and_invalidates_old_access() {
+fn scope_replacement_allocates_fresh_id_and_clears_old_access_synchronously() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_ok!(Cps::create_node(
@@ -584,13 +750,18 @@ fn scope_replacement_allocates_fresh_id_and_invalidates_old_access() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
+        assert_eq!(access_count(old_scope), 1);
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), japan));
 
-        let new_scope = Cps::active_scope(japan).unwrap();
+        let new_scope = active_scope(japan).unwrap();
         assert_ne!(new_scope.0, old_scope);
         assert_eq!(new_scope.1, 2);
-        assert!(Access::<Runtime>::get(old_scope, (japan, 2)).contains(Capability::Write));
+        // The old Scope's `Access` entry is synchronously cleared as part
+        // of replacement - it no longer physically exists at all.
+        assert!(!Access::<Runtime>::contains_key(old_scope, (japan, 2)));
+        assert_eq!(access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
         assert_noop!(
             Cps::set_meta(RuntimeOrigin::signed(1), japan, Some(data(b"x"))),
             Error::<Runtime>::AccessDenied
@@ -736,13 +907,18 @@ fn create_scope_subtree_capability_authorizes_descendants() {
         // A `Subtree` grant on an ancestor authorizes carving out a
         // brand-new nested Scope on any descendant within the same Scope.
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(2), child));
-        let new_scope = Cps::active_scope(child).unwrap();
+        let new_scope = active_scope(child).unwrap();
         assert_eq!(new_scope.1, 2);
     });
 }
 
+// A Scope boundary can no longer be removed independently of its node
+// (there is no `delete_scope` extrinsic anymore): it only disappears when
+// its root node is deleted, and `delete_node` stays leaf-only. The tests
+// below replace the old `delete_scope`-based coverage.
+
 #[test]
-fn delete_scope_falls_back_to_parent_scope() {
+fn delete_node_on_scope_root_leaf_clears_scope_and_access() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_ok!(Cps::create_node(
@@ -751,44 +927,11 @@ fn delete_scope_falls_back_to_parent_scope() {
             None,
             None
         ));
-        let root = NodeId(0);
         let japan = NodeId(1);
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
         let japan_scope = active_scope_id(japan).unwrap();
         assert_scope(japan, japan_scope, japan, 1);
-
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
-        assert_eq!(Cps::active_scope(japan), None);
-        assert_scope(japan, ScopeId(0), root, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(japan_scope));
-    });
-}
-
-#[test]
-fn root_scope_deletion_is_rejected() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::signed(1), NodeId(0)),
-            Error::<Runtime>::CannotDeleteRootScope
-        );
-    });
-}
-
-#[test]
-fn delete_scope_requires_owner_not_inherited_access() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_ok!(Cps::create_node(
-            RuntimeOrigin::signed(1),
-            Some(NodeId(0)),
-            None,
-            None
-        ));
-        let japan = NodeId(1);
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
-
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             japan,
@@ -796,15 +939,51 @@ fn delete_scope_requires_owner_not_inherited_access() {
             Capability::Write,
             GrantMode::Subtree,
         ));
+        assert_eq!(access_count(japan_scope), 1);
+
+        // `japan` is a leaf (no children), so it can be deleted directly;
+        // deleting a Scope-root leaf synchronously clears both its
+        // `ScopeInfo` and its `Access` entries.
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), japan));
+
+        assert_eq!(parent_of(japan), None);
+        assert_eq!(Cps::scope_info(japan_scope), None);
+        assert_eq!(access_count(japan_scope), 0);
+        assert!(children_of(NodeId(0)).is_empty());
+    });
+}
+
+#[test]
+fn delete_node_on_scope_root_with_children_is_rejected() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let japan = NodeId(1);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(japan),
+            None,
+            None
+        ));
+
+        // `delete_node` stays leaf-only, so a Scope root with children
+        // cannot be deleted (and its Scope therefore cannot disappear)
+        // until every descendant is removed first.
         assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::signed(2), japan),
-            Error::<Runtime>::NotScopeOwner
+            Cps::delete_node(RuntimeOrigin::signed(1), japan),
+            Error::<Runtime>::NodeHasChildren
         );
     });
 }
 
 #[test]
-fn nested_scope_preserved_after_parent_scope_deletion() {
+fn nested_scope_unaffected_by_sibling_operations() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let global = NodeId(0);
@@ -826,10 +1005,22 @@ fn nested_scope_preserved_after_parent_scope_deletion() {
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), university));
         let uni_scope = active_scope_id(university).unwrap();
 
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
-        assert_eq!(Cps::active_scope(university), Some((uni_scope, 1)));
+        // A sibling Scope root of `japan` is created and deleted; `japan`'s
+        // nested Scope (and its descendant `university`'s Scope) are
+        // unaffected since Scope boundaries are now purely per-node.
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(global),
+            None,
+            None
+        ));
+        let korea = NodeId(3);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), korea));
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), korea));
+
+        assert_eq!(active_scope(university), Some((uni_scope, 1)));
         assert_scope(university, uni_scope, university, 1);
-        assert_scope(japan, ScopeId(0), global, 1);
+        assert_scope(japan, active_scope_id(japan).unwrap(), japan, 1);
     });
 }
 
@@ -999,6 +1190,7 @@ fn access_flags_bit_packing_and_storage_cleanup() {
             Capability::CreateScope,
             GrantMode::Node,
         ));
+        assert_eq!(access_count(scope_id), 1);
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             root,
@@ -1006,6 +1198,9 @@ fn access_flags_bit_packing_and_storage_cleanup() {
             Capability::Write,
             GrantMode::Subtree,
         ));
+        // Adding a second capability to the same (node, principal) entry
+        // does not consume another slot.
+        assert_eq!(access_count(scope_id), 1);
 
         let stored = Cps::access(scope_id, key);
         assert!(stored.contains(Capability::CreateScope));
@@ -1021,6 +1216,9 @@ fn access_flags_bit_packing_and_storage_cleanup() {
             Capability::Write,
         ));
         assert!(Access::<Runtime>::contains_key(scope_id, key));
+        // A capability remains, so the entry - and the count - are
+        // untouched by this revoke.
+        assert_eq!(access_count(scope_id), 1);
         let stored = Cps::access(scope_id, key);
         assert!(stored.contains(Capability::CreateScope));
         assert!(!stored.contains(Capability::Write));
@@ -1033,6 +1231,9 @@ fn access_flags_bit_packing_and_storage_cleanup() {
         ));
         assert!(!Access::<Runtime>::contains_key(scope_id, key));
         assert!(Cps::access(scope_id, key).is_empty());
+        // The last capability was revoked, so the entry is fully removed
+        // and the slot is freed.
+        assert_eq!(access_count(scope_id), 0);
     });
 }
 
@@ -1153,10 +1354,6 @@ fn all_extrinsics_require_signed_origin() {
             sp_runtime::DispatchError::BadOrigin
         );
         assert_noop!(
-            Cps::delete_scope(RuntimeOrigin::none(), NodeId(0)),
-            sp_runtime::DispatchError::BadOrigin
-        );
-        assert_noop!(
             Cps::grant_access(
                 RuntimeOrigin::none(),
                 NodeId(0),
@@ -1174,20 +1371,74 @@ fn all_extrinsics_require_signed_origin() {
 }
 
 #[test]
-fn data_limits_and_empty_values_are_preserved() {
+fn meta_exactly_at_max_size_succeeds() {
     new_test_ext().execute_with(|| {
-        let max = data(&vec![7u8; MAX_DATA_SIZE as usize]);
-        let empty = data(b"");
+        let meta: NodeMeta = BoundedVec::try_from(vec![7u8; MAX_META_SIZE as usize]).unwrap();
 
         assert_ok!(Cps::create_node(
             RuntimeOrigin::signed(1),
             None,
-            Some(max.clone()),
-            Some(empty.clone())
+            Some(meta.clone()),
+            None
         ));
 
-        assert_eq!(Cps::meta_of(NodeId(0)), Some(max));
-        assert_eq!(Cps::payload_of(NodeId(0)), Some(empty));
+        assert_eq!(Cps::meta_of(NodeId(0)), Some(meta));
+    });
+}
+
+/// The hard size limit is enforced by `NodeMeta`'s `BoundedVec` bound
+/// itself: a value over `MAX_META_SIZE` cannot even be constructed, which
+/// is what makes it impossible to submit a call with an over-limit `meta`
+/// byte vector in the first place (the SCALE decoder rejects such an
+/// extrinsic before the dispatchable ever runs).
+#[test]
+fn meta_above_max_size_is_rejected() {
+    assert!(
+        BoundedVec::<u8, MaxMetaSize>::try_from(vec![7u8; (MAX_META_SIZE + 1) as usize]).is_err()
+    );
+}
+
+#[test]
+fn payload_exactly_at_max_size_succeeds() {
+    new_test_ext().execute_with(|| {
+        let payload: NodePayload =
+            BoundedVec::try_from(vec![7u8; MAX_PAYLOAD_SIZE as usize]).unwrap();
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            None,
+            Some(payload.clone())
+        ));
+
+        assert_eq!(Cps::payload_of(NodeId(0)), Some(payload));
+    });
+}
+
+/// See [`meta_above_max_size_is_rejected`] - same reasoning, for `Payload`.
+#[test]
+fn payload_above_max_size_is_rejected() {
+    assert!(
+        BoundedVec::<u8, MaxPayloadSize>::try_from(vec![7u8; (MAX_PAYLOAD_SIZE + 1) as usize])
+            .is_err()
+    );
+}
+
+#[test]
+fn empty_data_values_are_preserved() {
+    new_test_ext().execute_with(|| {
+        let empty_meta: NodeMeta = data(b"");
+        let empty_payload: NodePayload = data(b"");
+
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            None,
+            Some(empty_meta.clone()),
+            Some(empty_payload.clone())
+        ));
+
+        assert_eq!(Cps::meta_of(NodeId(0)), Some(empty_meta));
+        assert_eq!(Cps::payload_of(NodeId(0)), Some(empty_payload));
     });
 }
 
@@ -1235,7 +1486,7 @@ fn successful_operations_emit_exact_events() {
                     2,
                     Capability::Write,
                 )),
-                RuntimeEvent::Cps(Event::CleanupEnqueued(ScopeId(0))),
+                RuntimeEvent::Cps(Event::ScopeDeleted(ScopeId(0), NodeId(0))),
                 RuntimeEvent::Cps(Event::NodeDeleted(NodeId(0), 1)),
             ]
         );
@@ -1253,10 +1504,10 @@ fn deleting_node_cleans_attributes_without_reusing_id() {
         ));
         assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), NodeId(0)));
 
-        assert_eq!(Cps::parent_of(NodeId(0)), None);
+        assert_eq!(Cps::node_info(NodeId(0)).and_then(|i| i.parent), None);
         assert_eq!(Cps::meta_of(NodeId(0)), None);
         assert_eq!(Cps::payload_of(NodeId(0)), None);
-        assert_eq!(Cps::active_scope(NodeId(0)), None);
+        assert_eq!(active_scope(NodeId(0)), None);
 
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         assert_eq!(Cps::next_node_id(), NodeId(2));
@@ -1320,52 +1571,24 @@ fn has_capability_returns_false_for_missing_node() {
 }
 
 #[test]
-fn replacing_a_scope_enqueues_the_stale_scope() {
+fn create_scope_replacement_has_nothing_to_clear_when_old_scope_had_no_access() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
+        assert_eq!(access_count(old_scope), 0);
 
-        assert_cleanup_state(0, 0);
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
-        assert_cleanup_state(0, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(old_scope));
-        assert_eq!(Cps::current_cleanup(), None);
+        // The old `ScopeInfo` entry is removed entirely on replacement (it
+        // never held any Access entries to clear).
+        assert_eq!(Cps::scope_info(old_scope), None);
+        assert_eq!(access_count(old_scope), 0);
     });
 }
 
 #[test]
-fn delete_scope_enqueues_the_stale_scope() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_ok!(Cps::create_node(
-            RuntimeOrigin::signed(1),
-            Some(NodeId(0)),
-            None,
-            None
-        ));
-        let japan = NodeId(1);
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
-        let scope_id = active_scope_id(japan).unwrap();
-
-        assert_ok!(Cps::delete_scope(RuntimeOrigin::signed(1), japan));
-        assert_cleanup_state(0, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(scope_id));
-    });
-}
-
-#[test]
-fn creating_a_fresh_root_scope_never_enqueues_anything() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_cleanup_state(0, 0);
-        assert_eq!(Cps::current_cleanup(), None);
-    });
-}
-
-#[test]
-fn access_survives_physically_but_is_logically_invalid_before_gc_runs() {
+fn create_scope_replacement_synchronously_clears_a_single_access_entry() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
@@ -1377,189 +1600,266 @@ fn access_survives_physically_but_is_logically_invalid_before_gc_runs() {
             Capability::Write,
             GrantMode::Node,
         ));
+        assert_eq!(access_count(old_scope), 1);
 
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
-        assert!(Access::<Runtime>::get(old_scope, (root, 2u64)).contains(Capability::Write));
+
+        assert_eq!(access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
+        assert!(!Access::<Runtime>::contains_key(old_scope, (root, 2u64)));
+    });
+}
+
+#[test]
+fn create_scope_replacement_synchronously_clears_access_at_the_bound() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let old_scope = active_scope_id(root).unwrap();
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        assert_eq!(
+            access_count(old_scope),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+
+        assert_eq!(access_count(old_scope), 0);
+        assert_eq!(access_count(old_scope), 0);
+    });
+}
+
+#[test]
+fn delete_node_on_scope_root_leaf_synchronously_clears_access_at_the_bound() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        assert_ok!(Cps::create_node(
+            RuntimeOrigin::signed(1),
+            Some(NodeId(0)),
+            None,
+            None
+        ));
+        let japan = NodeId(1);
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), japan));
+        let scope_id = active_scope_id(japan).unwrap();
+        grant_many(1, japan, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        assert_eq!(
+            access_count(scope_id),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+
+        assert_ok!(Cps::delete_node(RuntimeOrigin::signed(1), japan));
+
+        assert_eq!(Cps::scope_info(scope_id), None);
+        assert_eq!(access_count(scope_id), 0);
+    });
+}
+
+#[test]
+fn clear_scope_access_removes_all_entries_in_a_single_bounded_pass() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        let scope_id = active_scope_id(root).unwrap();
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        let tracked = Cps::scope_info(scope_id).unwrap().access_count;
+        assert_eq!(tracked, MAX_ACCESS_ENTRIES_PER_SCOPE);
+        assert_eq!(access_count(scope_id), tracked as usize);
+
+        Cps::clear_scope_access(scope_id, tracked);
+
+        assert_eq!(access_count(scope_id), 0);
+    });
+}
+
+#[test]
+fn grant_access_up_to_the_limit_succeeds_and_beyond_it_fails() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+
+        // One more distinct (node, principal) pair past the bound is
+        // rejected outright.
         assert_noop!(
-            Cps::set_meta(RuntimeOrigin::signed(2), root, Some(data(b"x"))),
-            Error::<Runtime>::AccessDenied
+            Cps::grant_access(
+                RuntimeOrigin::signed(1),
+                root,
+                100 + MAX_ACCESS_ENTRIES_PER_SCOPE as u64,
+                Capability::Write,
+                GrantMode::Node,
+            ),
+            Error::<Runtime>::TooManyAccessEntries
+        );
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
         );
     });
 }
 
 #[test]
-fn gc_processes_multiple_stale_scopes_in_single_on_idle_call() {
-    let mut ext = new_test_ext();
-    let (scope_a, scope_b, root) = ext.execute_with(|| {
+fn grant_access_mode_change_on_existing_entry_never_consumes_a_slot() {
+    new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
-        let scope_a = active_scope_id(root).unwrap();
+
+        // Fill every slot but one, then grant the last principal a
+        // `Node` capability, using up the final slot.
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64 - 1);
+        let last_principal = 100 + MAX_ACCESS_ENTRIES_PER_SCOPE as u64 - 1;
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             root,
-            10,
+            last_principal,
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
 
-        let scope_b = active_scope_id(root).unwrap();
+        // Changing that same principal's `GrantMode`, or adding another
+        // `Capability` bit, never needs a fresh slot even though the Scope
+        // is already at its bound.
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
             root,
-            11,
+            last_principal,
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            last_principal,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+        assert_access_count_consistent(ScopeId(0));
+    });
+}
+
+#[test]
+fn revoke_access_leaving_capabilities_does_not_free_a_slot() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
-        (scope_a, scope_b, root)
-    });
-    ext.commit_all().unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::CreateScope,
+            GrantMode::Node,
+        ));
+        assert_eq!(access_count(ScopeId(0)), 1);
 
-    ext.execute_with(|| {
-        assert_eq!(access_count(scope_a), 1);
-        assert_eq!(access_count(scope_b), 1);
-        assert_cleanup_state(0, 2);
-    });
-
-    let consumed = ext.execute_with(|| run_gc(Weight::MAX));
-    ext.commit_all().unwrap();
-
-    ext.execute_with(|| {
-        assert!(consumed.any_gt(Weight::zero()));
-        assert_eq!(access_count(scope_a), 0);
-        assert_eq!(access_count(scope_b), 0);
-        assert_cleanup_state(2, 2);
-        assert_eq!(Cps::current_cleanup(), None);
-        assert_eq!(Cps::active_scope(root), Some((ScopeId(2), 1)));
-
-        let completed: Vec<_> = System::events()
-            .into_iter()
-            .filter_map(|record| match record.event {
-                RuntimeEvent::Cps(Event::CleanupCompleted(scope_id)) => Some(scope_id),
-                _ => None,
-            })
-            .collect();
-        assert!(completed.contains(&scope_a));
-        assert!(completed.contains(&scope_b));
+        assert_ok!(Cps::revoke_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+        ));
+        assert_eq!(access_count(ScopeId(0)), 1);
+        assert_access_count_consistent(ScopeId(0));
     });
 }
 
 #[test]
-fn gc_weight_accounting_empty_queue_and_insufficient_weight() {
+fn revoke_access_last_capability_frees_a_slot() {
     new_test_ext().execute_with(|| {
-        let empty_budget = Weight::from_parts(123, 0);
-        let empty_used = run_gc(empty_budget);
-        assert_eq!(empty_used, Weight::zero());
-        assert!(!empty_used.any_gt(empty_budget));
-        assert_cleanup_state(0, 0);
-        assert_eq!(Cps::current_cleanup(), None);
-
-        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), NodeId(0)));
-        assert_cleanup_state(0, 1);
-
-        let insufficient_budget = Weight::zero();
-        let used = run_gc_step(insufficient_budget);
-        assert_eq!(used, Weight::zero());
-        assert!(!used.any_gt(insufficient_budget));
-        assert_cleanup_state(0, 1);
-        assert_eq!(Cps::cleanup_queue(0), Some(ScopeId(0)));
-        assert_eq!(Cps::current_cleanup(), None);
-    });
-}
-
-#[test]
-fn gc_step_charges_reads_that_actually_happened_even_without_progress() {
-    // Regression test: a `do_gc_step` call that only performs a couple of
-    // cheap `StorageValue` reads before concluding it cannot (yet) do
-    // more must still report the weight of those reads - it must not
-    // report `Weight::zero()` just because no cleanup progress was made,
-    // otherwise those reads would go unaccounted for in the block's
-    // weight usage.
-    new_test_ext().execute_with(|| {
-        let read = <Runtime as frame_system::Config>::DbWeight::get().reads(1);
-        let two_reads = <Runtime as frame_system::Config>::DbWeight::get().reads(2);
-
-        // Empty `CleanupQueue`, no `CurrentCleanup` in progress.
-        assert_cleanup_state(0, 0);
-        assert_eq!(Cps::current_cleanup(), None);
-
-        // Too little budget for even the first (`CurrentCleanup`) read:
-        // nothing was read, so nothing should be charged.
-        let used_none = run_gc_step(read.saturating_sub(Weight::from_parts(1, 0)));
-        assert_eq!(used_none, Weight::zero());
-
-        // Enough for the first read only: exactly that read must be
-        // charged, not zero.
-        let used_one_read = run_gc_step(two_reads.saturating_sub(Weight::from_parts(1, 0)));
-        assert_eq!(used_one_read, read);
-        assert!(used_one_read.any_gt(Weight::zero()));
-
-        // Enough for both mandatory reads (`CurrentCleanup` +
-        // `CleanupState`), queue still empty: both reads must be
-        // charged.
-        let used_two_reads = run_gc_step(two_reads);
-        assert_eq!(used_two_reads, two_reads);
-
-        // No storage was mutated by any of the above.
-        assert_cleanup_state(0, 0);
-        assert_eq!(Cps::current_cleanup(), None);
-    });
-}
-
-#[test]
-fn current_cleanup_persists_and_resumes_across_multiple_gc_steps() {
-    let mut ext = new_test_ext();
-    let old_scope = ext.execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
-        let old_scope = active_scope_id(root).unwrap();
-        grant_many(1, root, 100, (MAX_GC_BATCH as u64) * 2 + 1);
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
-        old_scope
-    });
-    ext.commit_all().unwrap();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+            GrantMode::Node,
+        ));
+        assert_eq!(access_count(ScopeId(0)), 1);
 
-    ext.execute_with(|| {
-        assert_eq!(access_count(old_scope), (MAX_GC_BATCH as usize) * 2 + 1);
-        assert_eq!(Cps::current_cleanup(), None);
-    });
+        assert_ok!(Cps::revoke_access(
+            RuntimeOrigin::signed(1),
+            root,
+            2,
+            Capability::Write,
+        ));
+        assert_eq!(access_count(ScopeId(0)), 0);
+        assert_access_count_consistent(ScopeId(0));
 
-    let used1 = ext.execute_with(|| run_gc_step(Weight::MAX));
-    ext.commit_all().unwrap();
-    ext.execute_with(|| {
-        assert!(used1.any_gt(Weight::zero()));
-        assert_eq!(access_count(old_scope), MAX_GC_BATCH as usize + 1);
-        let (scope_id, cursor) = Cps::current_cleanup().expect("cleanup should be parked");
-        assert_eq!(scope_id, old_scope);
-        assert!(cursor.is_some());
-    });
-
-    let used2 = ext.execute_with(|| run_gc_step(Weight::MAX));
-    ext.commit_all().unwrap();
-    ext.execute_with(|| {
-        assert!(used2.any_gt(Weight::zero()));
-        assert_eq!(access_count(old_scope), 1);
-        let (scope_id, cursor) = Cps::current_cleanup().expect("cleanup should continue");
-        assert_eq!(scope_id, old_scope);
-        assert!(cursor.is_some());
-    });
-
-    let used3 = ext.execute_with(|| run_gc_step(Weight::MAX));
-    ext.commit_all().unwrap();
-    ext.execute_with(|| {
-        assert!(used3.any_gt(Weight::zero()));
-        assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::current_cleanup(), None);
-        assert_cleanup_state(1, 1);
+        // The freed slot can immediately be used again.
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            root,
+            3,
+            Capability::Write,
+            GrantMode::Node,
+        ));
+        assert_eq!(access_count(ScopeId(0)), 1);
     });
 }
 
 #[test]
-fn gc_never_touches_nested_scope_state() {
-    let mut ext = new_test_ext();
-    let nested_scope = ext.execute_with(|| {
+fn revoking_nonexistent_access_entry_does_not_free_slots() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
+        let root = NodeId(0);
+
+        grant_many(1, root, 100, MAX_ACCESS_ENTRIES_PER_SCOPE as u64);
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+
+        // Revoking an entry that does not exist is a no-op for accounting.
+        for _ in 0..3 {
+            assert_ok!(Cps::revoke_access(
+                RuntimeOrigin::signed(1),
+                root,
+                999,
+                Capability::Write,
+            ));
+        }
+        assert_eq!(
+            access_count(ScopeId(0)),
+            MAX_ACCESS_ENTRIES_PER_SCOPE as usize
+        );
+        assert_access_count_consistent(ScopeId(0));
+
+        assert_noop!(
+            Cps::grant_access(
+                RuntimeOrigin::signed(1),
+                root,
+                100 + MAX_ACCESS_ENTRIES_PER_SCOPE as u64,
+                Capability::Write,
+                GrantMode::Node,
+            ),
+            Error::<Runtime>::TooManyAccessEntries
+        );
+    });
+}
+
+#[test]
+fn clearing_scope_access_never_touches_nested_scope_state() {
+    new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
         assert_ok!(Cps::create_node(
@@ -1578,39 +1878,30 @@ fn gc_never_touches_nested_scope_state() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
-        nested_scope
-    });
-    ext.commit_all().unwrap();
-
-    ext.execute_with(|| {
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
-            NodeId(1),
+            root,
             3,
             Capability::Write,
             GrantMode::Node,
         ));
-    });
-    ext.commit_all().unwrap();
 
-    ext.execute_with(|| {
-        assert_eq!(Cps::cleanup_queue(0), Some(ScopeId(0)));
-    });
-    ext.execute_with(|| {
-        run_gc(Weight::MAX);
-    });
-    ext.commit_all().unwrap();
+        // Replacing the outer Scope synchronously clears only the outer
+        // Scope's Access entries; the nested Scope's own Access entries
+        // are untouched (it's a hard boundary, and a different `ScopeId`
+        // altogether).
+        assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
 
-    ext.execute_with(|| {
-        assert_eq!(Cps::active_scope(NodeId(1)), Some((nested_scope, 1)));
-        assert!(Access::<Runtime>::get(nested_scope, (NodeId(1), 2u64)).contains(Capability::Write));
-        assert!(Access::<Runtime>::get(nested_scope, (NodeId(1), 3u64)).contains(Capability::Write));
+        assert_eq!(active_scope(nested_root), Some((nested_scope, 1)));
+        assert!(
+            Access::<Runtime>::get(nested_scope, (nested_root, 2u64)).contains(Capability::Write)
+        );
+        assert_access_count_consistent(nested_scope);
     });
 }
 
 #[test]
-fn queue_invariant_enqueued_scope_id_never_becomes_active_again() {
+fn stale_scope_id_never_becomes_active_again() {
     new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root_a = NodeId(0);
@@ -1623,18 +1914,18 @@ fn queue_invariant_enqueued_scope_id_never_becomes_active_again() {
         let current_a = active_scope_id(root_a).unwrap();
         let current_b = active_scope_id(root_b).unwrap();
 
-        assert_cleanup_state(0, 2);
-        assert_eq!(Cps::cleanup_queue(0), Some(stale_a));
-        assert_eq!(Cps::cleanup_queue(1), Some(stale_b));
         assert_ne!(stale_a, stale_b);
         assert_ne!(stale_a, current_a);
         assert_ne!(stale_a, current_b);
         assert_ne!(stale_b, current_a);
         assert_ne!(stale_b, current_b);
 
-        let active_ids: Vec<_> = ActiveScope::<Runtime>::iter()
-            .map(|(_, (id, _))| id)
-            .collect();
+        // Both stale Scopes were cleared synchronously the moment they
+        // were replaced, and never became reachable again.
+        assert_eq!(access_count(stale_a), 0);
+        assert_eq!(access_count(stale_b), 0);
+
+        let active_ids: Vec<_> = Scopes::<Runtime>::iter().map(|(id, _)| id).collect();
         assert!(active_ids.contains(&current_a));
         assert!(active_ids.contains(&current_b));
         assert!(!active_ids.contains(&stale_a));
@@ -1653,9 +1944,8 @@ fn queue_invariant_enqueued_scope_id_never_becomes_active_again() {
 }
 
 #[test]
-fn scope_id_is_never_reused_after_gc_completes() {
-    let mut ext = new_test_ext();
-    let (root, old_scope, new_scope) = ext.execute_with(|| {
+fn scope_id_is_never_reused_after_synchronous_cleanup() {
+    new_test_ext().execute_with(|| {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
         let old_scope = active_scope_id(root).unwrap();
@@ -1668,18 +1958,9 @@ fn scope_id_is_never_reused_after_gc_completes() {
         ));
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
         let new_scope = active_scope_id(root).unwrap();
-        (root, old_scope, new_scope)
-    });
-    ext.commit_all().unwrap();
 
-    ext.execute_with(|| {
-        run_gc(Weight::MAX);
-    });
-    ext.commit_all().unwrap();
-
-    ext.execute_with(|| {
         assert_eq!(access_count(old_scope), 0);
-        assert_eq!(Cps::current_cleanup(), None);
+
         assert_ok!(Cps::create_scope(RuntimeOrigin::signed(1), root));
         let newer_scope = active_scope_id(root).unwrap();
         assert_ne!(newer_scope, old_scope);
@@ -1697,4 +1978,160 @@ fn scope_id_is_never_reused_after_gc_completes() {
 fn grant_mode_scale_indices_are_explicit_and_stable() {
     assert_eq!(GrantMode::Node.encode(), sp_std::vec![0u8]);
     assert_eq!(GrantMode::Subtree.encode(), sp_std::vec![1u8]);
+}
+
+/// Verifies that the `#[pallet::weight(...)]` attributes on `create_node`,
+/// `set_meta`, and `set_payload` actually pass the caller-supplied data's
+/// *logical* byte length (not a fixed worst-case constant) into
+/// `WeightInfo`, for `None`, empty, small, and maximum-size values (issue
+/// #671, "Weight inputs" test category).
+///
+/// This needs its own mock runtime: the main `Runtime` above uses
+/// `weights::TestWeightInfo`, which returns a constant zero `Weight`
+/// regardless of its arguments, so it cannot distinguish "byte length
+/// wasn't propagated" from "byte length was propagated, but is irrelevant
+/// to a constant-zero weight". `RecordingWeightInfo` instead records
+/// whatever byte length(s) it was last called with, so a dispatch info
+/// query for a given call can be checked against the length actually
+/// supplied by the test.
+mod weight_component_tests {
+    use super::*;
+    use frame_support::dispatch::GetDispatchInfo;
+    use frame_support::weights::Weight;
+    use std::cell::Cell;
+
+    thread_local! {
+        static LAST_CREATE_NODE: Cell<(u32, u32)> = const { Cell::new((0, 0)) };
+        static LAST_SET_META: Cell<u32> = const { Cell::new(0) };
+        static LAST_SET_PAYLOAD: Cell<u32> = const { Cell::new(0) };
+    }
+
+    pub struct RecordingWeightInfo;
+    impl WeightInfo for RecordingWeightInfo {
+        fn create_node(meta_bytes: u32, payload_bytes: u32) -> Weight {
+            LAST_CREATE_NODE.with(|c| c.set((meta_bytes, payload_bytes)));
+            Weight::zero()
+        }
+        fn set_meta(bytes: u32) -> Weight {
+            LAST_SET_META.with(|c| c.set(bytes));
+            Weight::zero()
+        }
+        fn set_payload(bytes: u32) -> Weight {
+            LAST_SET_PAYLOAD.with(|c| c.set(bytes));
+            Weight::zero()
+        }
+        fn delete_node(_access_items: u32) -> Weight {
+            Weight::zero()
+        }
+        fn create_scope(_access_items: u32) -> Weight {
+            Weight::zero()
+        }
+        fn grant_access() -> Weight {
+            Weight::zero()
+        }
+        fn revoke_access() -> Weight {
+            Weight::zero()
+        }
+    }
+
+    type WeightTestBlock = frame_system::mocking::MockBlock<WeightTestRuntime>;
+
+    frame_support::construct_runtime!(
+        pub enum WeightTestRuntime {
+            System: frame_system,
+            Cps: pallet_cps,
+        }
+    );
+
+    #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
+    impl frame_system::Config for WeightTestRuntime {
+        type Block = WeightTestBlock;
+        type AccountData = ();
+        type DbWeight = frame_support::weights::constants::RocksDbWeight;
+    }
+
+    impl pallet_cps::Config for WeightTestRuntime {
+        type RuntimeEvent = RuntimeEvent;
+        type WeightInfo = RecordingWeightInfo;
+    }
+
+    fn meta_of_len(len: usize) -> Option<NodeMeta> {
+        if len == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(sp_std::vec![7u8; len]).unwrap())
+        }
+    }
+
+    fn payload_of_len(len: usize) -> Option<NodePayload> {
+        if len == 0 {
+            None
+        } else {
+            Some(BoundedVec::try_from(sp_std::vec![7u8; len]).unwrap())
+        }
+    }
+
+    #[test]
+    fn set_meta_weight_uses_actual_byte_length() {
+        // (input, expected logical length passed to `WeightInfo::set_meta`)
+        let cases: [(Option<NodeMeta>, u32); 4] = [
+            (None, 0),
+            (Some(BoundedVec::try_from(sp_std::vec![]).unwrap()), 0),
+            (meta_of_len(10), 10),
+            (meta_of_len(MAX_META_SIZE as usize), MAX_META_SIZE),
+        ];
+
+        for (meta, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::set_meta {
+                node_id: NodeId(0),
+                meta,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_SET_META.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
+
+    #[test]
+    fn set_payload_weight_uses_actual_byte_length() {
+        let cases: [(Option<NodePayload>, u32); 4] = [
+            (None, 0),
+            (Some(BoundedVec::try_from(sp_std::vec![]).unwrap()), 0),
+            (payload_of_len(10), 10),
+            (payload_of_len(MAX_PAYLOAD_SIZE as usize), MAX_PAYLOAD_SIZE),
+        ];
+
+        for (payload, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::set_payload {
+                node_id: NodeId(0),
+                payload,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_SET_PAYLOAD.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
+
+    #[test]
+    fn create_node_weight_uses_actual_byte_lengths() {
+        type Case = (Option<NodeMeta>, Option<NodePayload>, (u32, u32));
+        let cases: [Case; 4] = [
+            (None, None, (0, 0)),
+            (meta_of_len(10), None, (10, 0)),
+            (None, payload_of_len(10), (0, 10)),
+            (
+                meta_of_len(MAX_META_SIZE as usize),
+                payload_of_len(MAX_PAYLOAD_SIZE as usize),
+                (MAX_META_SIZE, MAX_PAYLOAD_SIZE),
+            ),
+        ];
+
+        for (meta, payload, expected) in cases {
+            let call = pallet_cps::Call::<WeightTestRuntime>::create_node {
+                parent_id: None,
+                meta,
+                payload,
+            };
+            let _ = call.get_dispatch_info();
+            LAST_CREATE_NODE.with(|c| assert_eq!(c.get(), expected));
+        }
+    }
 }
