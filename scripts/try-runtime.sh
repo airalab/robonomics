@@ -21,6 +21,17 @@ POLKADOT_PUBLIC_ENDPOINT="wss://polkadot.rpc.robonomics.network"
 # Change to project root
 cd "${PROJECT_ROOT}"
 
+# Exit with install suggestions if a required binary is missing
+require_bin() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo -e "${RED}Error: '$1' not found in PATH${NC}" >&2
+        echo -e "${YELLOW}Install it with: $2${NC}" >&2
+        echo -e "${YELLOW}Or use Nix flakes: nix develop -c ./scripts/try-runtime.sh${NC}" >&2
+        exit 1
+    fi
+}
+require_bin try-runtime "cargo install --git https://github.com/paritytech/try-runtime-cli --locked"
+
 # Check if we're in a nix shell or need to use the built runtime
 if [ -z "$RUNTIME_WASM" ]; then
     # Default runtime path for cargo build
@@ -30,6 +41,7 @@ if [ -z "$RUNTIME_WASM" ]; then
     if [ ! -f "$RUNTIME" ]; then
         echo -e "${YELLOW}Runtime WASM not found at $RUNTIME${NC}"
         echo -e "${YELLOW}Building runtime with try-runtime features...${NC}"
+        require_bin cargo "https://rustup.rs"
         cargo build --release --features try-runtime -p robonomics-runtime
         
         # Verify the build succeeded

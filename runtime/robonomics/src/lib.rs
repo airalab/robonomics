@@ -84,7 +84,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: alloc::borrow::Cow::Borrowed("robonomics"),
     impl_name: alloc::borrow::Cow::Borrowed("robonomics-airalab"),
     authoring_version: 1,
-    spec_version: 51,
+    spec_version: 52,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 4,

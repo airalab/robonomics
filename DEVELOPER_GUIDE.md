@@ -127,47 +127,105 @@ The `nix develop` shell ships with [`chain-spec-builder`](https://crates.io/crat
 from your locally compiled runtime and run it as a single-node development chain with block production,
 pre-funded dev accounts, and RPC — all without a relay chain or other collators.
 
-### 1. Build the Runtime and Generate a Chain Spec
+The [`scripts/development-chain.sh`](./scripts/development-chain.sh) helper wires these tools together.
+On every invocation it:
 
-Use the [`scripts/build-development-spec.sh`](./scripts/build-development-spec.sh) helper script. 
-It builds the runtime WASM if it isn't already present, then calls `chain-spec-builder` to produce
-a `development` chain spec (`chain_spec.json` in the current directory) using the runtime's `development`
-genesis preset:
+1. Checks that the required binaries are installed. If not, it prints how to install them
+   (or how to use Nix flakes instead) and exits.
+2. Uses the runtime WASM from `RUNTIME_WASM` if set; otherwise uses
+   `target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm`,
+   running `cargo build --release -p robonomics-runtime` first if it is missing.
+3. Calls `chain-spec-builder` to generate a temporary `dev.json` chain spec (chain id `robonomics-dev`,
+   para id `2000`, relay chain `westend-local`, token `XRT` with 9 decimals) from the runtime's
+   `development` genesis preset.
+4. Runs the action passed as the first argument (`run` or `docker`, see below).
+
+The spec lives in a temporary directory that is removed when the script exits, so nothing is written
+to your working tree.
+
+> Running the script without an argument only generates the spec; it does not start a node
+> or build an image. Pass `run` or `docker` to do something useful with it.
+
+### Run the Chain in One Line
 
 ```bash
-nix develop
-
-# Builds runtime if needed, then writes ./chain_spec.json
-./scripts/build-development-spec.sh
+nix develop -c ./scripts/development-chain.sh run
 ```
 
-If you already have a runtime WASM built elsewhere (e.g. from a different profile or a `srtool` build),
-point the script at it instead of rebuilding:
+This builds the runtime if needed, generates the spec, and starts
+`polkadot-omni-node --chain <spec> --dev`, which gives you:
+- Block production out of the box (no need to insert session keys manually)
+- JSON-RPC / WebSocket endpoints on `ws://127.0.0.1:9944`
+- Pre-funded dev accounts (Alice, Bob, Charlie, …)
+- An ephemeral database that is wiped when the process exits
+
+Use this as your fast local feedback loop while iterating on pallets and runtime logic.
+Stop the node with `Ctrl+C`.
+
+### Build a Local Docker Image in One Line
+
+```bash
+nix develop -c ./scripts/development-chain.sh docker
+```
+
+This generates the same spec and builds an image from [`docker/Dockerfile`](./docker/Dockerfile), which is based on
+`parity/polkadot-omni-node` and bakes in the generated `dev.json` (plus `chain-spec/polkadot-parachain.raw.json`
+as `parachain.json`). The image's default command is `--chain=/dev.json --dev`.
+Docker must be installed and its daemon running (Nix does not provide it).
+
+The script runs a plain `docker build`, so the resulting image is untagged. Tag the most recently
+created image and run it:
+
+```bash
+docker tag "$(docker images -q | head -n 1)" robonomics-dev
+
+# Default command: --chain=/dev.json --dev
+docker run --rm -p 9944:9944 robonomics-dev
+```
+
+Arguments after the image name replace the default command entirely, so repeat the defaults when adding
+flags, e.g. to accept RPC connections from outside the container:
+
+```bash
+docker run --rm -p 9944:9944 robonomics-dev --chain=/dev.json --dev --rpc-external
+```
+
+### Without Nix
+
+Every script checks for the binaries it needs and tells you what is missing. Without Nix, install them
+with Cargo (`cargo install staging-chain-spec-builder polkadot-omni-node`) and run the script directly:
+
+```bash
+./scripts/development-chain.sh run
+```
+
+### Using a Pre-built Runtime
+
+If you already have a runtime WASM built elsewhere (e.g. a different profile or a `srtool` build),
+point the script at it instead of rebuilding. This works for both actions:
 
 ```bash
 RUNTIME_WASM=/path/to/robonomics_runtime.compact.compressed.wasm \
-  ./scripts/build-development-spec.sh
+  nix develop -c ./scripts/development-chain.sh run
 ```
 
-### 2. Start the Node with `polkadot-omni-node --dev`
+### Running the Node Manually
 
-`polkadot-omni-node` is runtime-agnostic — it starts a node purely from a chain spec,
-so no Robonomics-specific binary is required. Point it at the generated spec and pass `--dev`
-to run it as an ephemeral, single-node dev chain (in-memory keystore, block authoring on every
-transaction/timer tick, and a fresh database on each run):
+To keep the chain spec around or customize node flags, call the tools directly:
 
 ```bash
+chain-spec-builder -c ./chain_spec.json create \
+  -n "Robonomics Dev" -i robonomics-dev -t development \
+  -r ./target/release/wbuild/robonomics-runtime/robonomics_runtime.compact.compressed.wasm \
+  --para-id 2000 --relay-chain westend-local \
+  --properties tokenSymbol=XRT,tokenDecimals=9 \
+  named-preset development
+
 polkadot-omni-node --chain ./chain_spec.json --dev
 ```
 
-This starts:
-- Block production out of the box (no need to insert session keys manually)
-- JSON-RPC / WebSocket endpoints on `127.0.0.1:9944`
-- A temporary database that is wiped when the process exits (pass `--base-path`
-  instead of relying on `--dev`'s implicit temp dir if you want state to persist
-  across restarts)
-
-Use this as your fast local feedback loop while iterating on pallets and runtime logic.
+`polkadot-omni-node` is runtime-agnostic — it starts a node purely from a chain spec, so no
+Robonomics-specific binary is required. Pass `--base-path <dir>` if you want state to persist across restarts.
 
 ## Runtime Benchmarking
 

@@ -18,6 +18,17 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Change to project root
 cd "${PROJECT_ROOT}"
 
+# Exit with install suggestions if a required binary is missing
+require_bin() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo -e "${RED}Error: '$1' not found in PATH${NC}" >&2
+        echo -e "${YELLOW}Install it with: $2${NC}" >&2
+        echo -e "${YELLOW}Or use Nix flakes: nix develop -c ./scripts/runtime-benchmarks.sh${NC}" >&2
+        exit 1
+    fi
+}
+require_bin frame-omni-bencher "cargo install frame-omni-bencher"
+
 # Template path
 TEMPLATE="./scripts/weights/frame-weight-template.hbs"
 
@@ -30,6 +41,7 @@ if [ -z "$RUNTIME_WASM" ]; then
     if [ ! -f "$RUNTIME" ]; then
         echo -e "${YELLOW}Runtime WASM not found at $RUNTIME${NC}"
         echo -e "${YELLOW}Building runtime with benchmarking features...${NC}"
+        require_bin cargo "https://rustup.rs"
         cargo build --release --features runtime-benchmarks -p robonomics-runtime
         
         # Verify the build succeeded
