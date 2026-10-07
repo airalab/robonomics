@@ -240,7 +240,7 @@ resolve_scope(node)
 nearest ancestor with ActiveScope
 ```
 
-`resolve_scope` is exposed as a runtime API returning `ScopeId`, from which clients read the root, owner and limits.
+`resolve_scope` is exposed as a pallet view function returning the resolved Scope (`ScopeId`, root, owner and path), from which clients read the limits.
 
 Scope resolution runs during transaction validation, before any fee is charged. In the worst case it reads one storage item per level, up to `MaxScopeDepth` nodes on the path to the nearest Scope root - never the unbounded global tree depth. Checking authority must never cost a comparable amount to the useful action itself, so the worst case must be benchmarked on both `ref_time` and `proof_size`, and caching of the resolved Scope considered if it is too expensive.
 

@@ -861,7 +861,7 @@ fn upper_scope_owner_can_replace_nested_scope_root() {
         // The previous generation is synchronously cleaned up.
         assert_eq!(access_count(old_nested), 0);
         assert!(Cps::scope_info(old_nested).is_none());
-        assert!(!Cps::has_capability(NodeId(2), &3, Capability::Write));
+        assert!(!Cps::has_capability(NodeId(2), 3, Capability::Write));
 
         // The previous nested owner has lost control.
         assert_noop!(
@@ -1690,9 +1690,9 @@ fn has_capability_reflects_owner_and_access_write() {
         let root = NodeId(0);
         let child = NodeId(1);
 
-        assert!(Cps::has_capability(root, &1, Capability::Write));
-        assert!(Cps::has_capability(child, &1, Capability::Write));
-        assert!(!Cps::has_capability(root, &2, Capability::Write));
+        assert!(Cps::has_capability(root, 1, Capability::Write));
+        assert!(Cps::has_capability(child, 1, Capability::Write));
+        assert!(!Cps::has_capability(root, 2, Capability::Write));
 
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -1701,8 +1701,8 @@ fn has_capability_reflects_owner_and_access_write() {
             Capability::Write,
             GrantMode::Node,
         ));
-        assert!(Cps::has_capability(root, &2, Capability::Write));
-        assert!(!Cps::has_capability(child, &2, Capability::Write));
+        assert!(Cps::has_capability(root, 2, Capability::Write));
+        assert!(!Cps::has_capability(child, 2, Capability::Write));
     });
 }
 
@@ -1712,8 +1712,8 @@ fn has_capability_reflects_create_scope_semantics() {
         assert_ok!(Cps::create_node(RuntimeOrigin::signed(1), None, None, None));
         let root = NodeId(0);
 
-        assert!(Cps::has_capability(root, &1, Capability::CreateScope));
-        assert!(!Cps::has_capability(root, &2, Capability::CreateScope));
+        assert!(Cps::has_capability(root, 1, Capability::CreateScope));
+        assert!(!Cps::has_capability(root, 2, Capability::CreateScope));
 
         assert_ok!(Cps::grant_access(
             RuntimeOrigin::signed(1),
@@ -1722,15 +1722,15 @@ fn has_capability_reflects_create_scope_semantics() {
             Capability::Write,
             GrantMode::Subtree,
         ));
-        assert!(!Cps::has_capability(root, &2, Capability::CreateScope));
+        assert!(!Cps::has_capability(root, 2, Capability::CreateScope));
     });
 }
 
 #[test]
 fn has_capability_returns_false_for_missing_node() {
     new_test_ext().execute_with(|| {
-        assert!(!Cps::has_capability(NodeId(0), &1, Capability::Write));
-        assert!(!Cps::has_capability(NodeId(0), &1, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(0), 1, Capability::Write));
+        assert!(!Cps::has_capability(NodeId(0), 1, Capability::CreateScope));
     });
 }
 
@@ -1768,21 +1768,21 @@ fn has_capability_create_scope_includes_enclosing_scope_owner() {
         ));
 
         // Owner of the immediately enclosing Scope.
-        assert!(Cps::has_capability(NodeId(1), &1, Capability::CreateScope));
-        assert!(Cps::has_capability(NodeId(2), &2, Capability::CreateScope));
+        assert!(Cps::has_capability(NodeId(1), 1, Capability::CreateScope));
+        assert!(Cps::has_capability(NodeId(2), 2, Capability::CreateScope));
         // Owner of a Scope two levels up, a delegate of the enclosing Scope,
         // and an account at a root without an enclosing Scope.
-        assert!(!Cps::has_capability(NodeId(2), &1, Capability::CreateScope));
-        assert!(!Cps::has_capability(NodeId(1), &4, Capability::CreateScope));
-        assert!(!Cps::has_capability(NodeId(0), &2, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(2), 1, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(1), 4, Capability::CreateScope));
+        assert!(!Cps::has_capability(NodeId(0), 2, Capability::CreateScope));
         // The enclosing owner rule applies to `CreateScope` only.
-        assert!(!Cps::has_capability(NodeId(1), &1, Capability::Write));
+        assert!(!Cps::has_capability(NodeId(1), 1, Capability::Write));
 
         // `has_capability` agrees with `create_scope` for every pair.
         for who in 1..=5u64 {
             for node in 0..=2u64 {
                 assert_eq!(
-                    Cps::has_capability(NodeId(node), &who, Capability::CreateScope),
+                    Cps::has_capability(NodeId(node), who, Capability::CreateScope),
                     create_scope_succeeds(who, NodeId(node)),
                     "account {who}, node {node}"
                 );
@@ -2351,4 +2351,120 @@ mod weight_component_tests {
             LAST_CREATE_NODE.with(|c| assert_eq!(c.get(), expected));
         }
     }
+}
+
+/// Execute a view function through the same dispatcher the runtime uses and
+/// decode its output.
+fn dispatch_view_function<V, R>(view_function: V) -> R
+where
+    V: frame_support::view_functions::ViewFunction + Encode,
+    R: parity_scale_codec::Decode,
+{
+    use frame_support::view_functions::DispatchViewFunction;
+    use parity_scale_codec::DecodeAll;
+
+    let mut output = Vec::new();
+    <Cps as DispatchViewFunction>::dispatch_view_function(
+        &V::id(),
+        &mut &view_function.encode()[..],
+        &mut output,
+    )
+    .expect("view function is dispatched");
+    R::decode_all(&mut &output[..]).expect("view function output decodes")
+}
+
+#[test]
+fn resolve_scope_view_function_matches_pallet_logic() {
+    new_test_ext().execute_with(|| {
+        // Scope A (owner 1) at node 0, Scope B (owner 2) at node 1.
+        setup_nested_scope_owned_by_2();
+
+        for node in 0..=3u64 {
+            let id = NodeId(node);
+            let via_view: Result<ResolvedScope<u64>, Error<Runtime>> =
+                dispatch_view_function(pallet::ResolveScopeViewFunction::<Runtime>::new(id));
+            assert_eq!(via_view, Cps::resolve_scope(id), "node {node}");
+        }
+
+        let nested: Result<ResolvedScope<u64>, Error<Runtime>> =
+            dispatch_view_function(pallet::ResolveScopeViewFunction::<Runtime>::new(NodeId(1)));
+        assert_eq!(nested.unwrap().owner, 2);
+    });
+}
+
+#[test]
+fn resolve_scope_view_function_reports_missing_node() {
+    new_test_ext().execute_with(|| {
+        let result: Result<ResolvedScope<u64>, Error<Runtime>> =
+            dispatch_view_function(pallet::ResolveScopeViewFunction::<Runtime>::new(NodeId(0)));
+        assert_eq!(result, Err(Error::<Runtime>::NodeNotFound));
+    });
+}
+
+#[test]
+fn has_capability_view_function_matches_pallet_logic() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            3,
+            Capability::Write,
+            GrantMode::Node,
+        ));
+        assert_ok!(Cps::revoke_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            3,
+            Capability::Write,
+        ));
+        assert_ok!(Cps::grant_access(
+            RuntimeOrigin::signed(1),
+            NodeId(0),
+            4,
+            Capability::Write,
+            GrantMode::Subtree,
+        ));
+
+        // Includes missing nodes (id 9), scope owners (1, 2), an explicit
+        // grant (4) and a revoked one (3).
+        for node in [0u64, 1, 2, 9] {
+            for who in 1..=5u64 {
+                for capability in [Capability::Write, Capability::CreateScope] {
+                    let via_view: bool =
+                        dispatch_view_function(pallet::HasCapabilityViewFunction::<Runtime>::new(
+                            NodeId(node),
+                            who,
+                            capability,
+                        ));
+                    assert_eq!(
+                        via_view,
+                        Cps::has_capability(NodeId(node), who, capability),
+                        "node {node}, account {who}, {capability:?}"
+                    );
+                }
+            }
+        }
+    });
+}
+
+#[test]
+fn view_functions_do_not_mutate_storage() {
+    new_test_ext().execute_with(|| {
+        setup_nested_scope_owned_by_2();
+        let root_before = sp_io::storage::root(sp_runtime::StateVersion::V1);
+
+        let _: Result<ResolvedScope<u64>, Error<Runtime>> =
+            dispatch_view_function(pallet::ResolveScopeViewFunction::<Runtime>::new(NodeId(1)));
+        let _: bool = dispatch_view_function(pallet::HasCapabilityViewFunction::<Runtime>::new(
+            NodeId(1),
+            2,
+            Capability::CreateScope,
+        ));
+
+        assert_eq!(
+            root_before,
+            sp_io::storage::root(sp_runtime::StateVersion::V1)
+        );
+    });
 }

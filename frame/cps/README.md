@@ -198,21 +198,25 @@ The limits are crate constants; changing them requires a runtime upgrade.
 | `MAX_CHILDREN_PER_NODE`        | 100   | maximum direct children of a node                                  |
 | `MAX_ACCESS_ENTRIES_PER_SCOPE` | 32    | maximum Access entries (distinct `(node, account)` pairs) per Scope |
 
-## Runtime API
+## View functions
 
-`pallet-robonomics-cps-runtime-api` defines `CpsApi` with two read-only
-queries, implemented with the pallet's own functions:
+The pallet exposes two read-only queries of derived CPS semantics as
+[pallet view functions](https://docs.rs/frame-support/latest/frame_support/pallet_macros/attr.view_functions.html),
+implemented by the same logic as the calls:
 
-- `resolve_scope(node) -> Option<ResolvedScope<AccountId>>` - the Scope's
-  `id`, `root` node, `owner`, and the `path` from `node` to the Scope root;
-  `None` if the node does not exist or no Scope can be resolved.
-- `has_capability(node_id, account_id, capability) -> bool` - whether the
+- `resolve_scope(node_id) -> Result<ResolvedScope<AccountId>, Error>` - the
+  Scope's `id`, `root` node, `owner`, and the `path` from the node to the
+  Scope root; `NodeNotFound` or `ScopeNotFound` if no Scope can be resolved.
+- `has_capability(node_id, account, capability) -> bool` - whether the
   account may use `capability` at the node, with the same checks as the calls
   that require it: Scope ownership or Access entries, and for `CreateScope`
   also ownership of the immediately enclosing Scope at a nested Scope root;
   `false` if the node does not exist.
 
-Clients call them through the `state_call` RPC at any block.
+They are described in runtime metadata V16 and executed through the generic
+`RuntimeViewFunction` runtime API, so no CPS-specific runtime API is needed.
+Simple stored-state reads (node info, metadata, payload, children) stay plain
+storage queries.
 
 ## Data privacy
 
@@ -232,9 +236,8 @@ XChaCha20-Poly1305, AES-256-GCM, or ChaCha20-Poly1305.
    repository):
    ```toml
    pallet-robonomics-cps = { workspace = true }
-   pallet-robonomics-cps-runtime-api = { workspace = true }
    ```
-   and enable their `std` features in the runtime's `std` feature.
+   and enable its `std` feature in the runtime's `std` feature.
 
 2. Configure the pallet:
    ```rust
@@ -250,21 +253,15 @@ XChaCha20-Poly1305, AES-256-GCM, or ChaCha20-Poly1305.
    pub type CPS = pallet_robonomics_cps;
    ```
 
-4. Implement the runtime API:
+4. Derive `RuntimeViewFunction` in the `#[frame_support::runtime]` and expose
+   the generic view-function runtime API:
    ```rust
-   impl pallet_robonomics_cps_runtime_api::CpsApi<Block, AccountId> for Runtime {
-       fn resolve_scope(
-           node: pallet_robonomics_cps::NodeId,
-       ) -> Option<pallet_robonomics_cps::ResolvedScope<AccountId>> {
-           CPS::resolve_scope(node).ok()
-       }
-
-       fn has_capability(
-           node_id: pallet_robonomics_cps::NodeId,
-           account_id: AccountId,
-           capability: pallet_robonomics_cps::Capability,
-       ) -> bool {
-           CPS::has_capability(node_id, &account_id, capability)
+   impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
+       fn execute_view_function(
+           id: frame_support::view_functions::ViewFunctionId,
+           input: Vec<u8>,
+       ) -> Result<Vec<u8>, frame_support::view_functions::ViewFunctionDispatchError> {
+           Runtime::execute_view_function(id, input)
        }
    }
    ```
@@ -284,9 +281,9 @@ const meta = await api.query.cps.meta(nodeId);
 const payload = await api.query.cps.payload(nodeId);
 const children = await api.query.cps.children(nodeId);
 
-// Resolve the Scope and check a capability through the runtime API.
-const scope = await api.call.cpsApi.resolveScope(nodeId);
-const canWrite = await api.call.cpsApi.hasCapability(nodeId, accountId, 'Write');
+// Resolve the Scope and check a capability through the pallet view functions.
+const scope = await api.view.cps.resolveScope(nodeId);
+const canWrite = await api.view.cps.hasCapability(nodeId, accountId, 'Write');
 
 // Create a root node and a child.
 await api.tx.cps.createNode(null, meta, payload).signAndSend(owner);

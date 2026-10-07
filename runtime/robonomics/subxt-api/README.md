@@ -208,6 +208,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+Derived CPS reads are pallet view functions, generated from the V16 metadata
+and executed through the `RuntimeViewFunction` runtime API:
+
+```rust,ignore
+use robonomics_runtime_subxt_api::api::runtime_types::pallet_robonomics_cps::NodeId;
+
+let scope = at_block
+    .view_functions()
+    .call(api::view_functions().cps().resolve_scope(NodeId(0)))
+    .await?;
+```
+
 ### Monitoring Events
 
 ```rust
@@ -271,6 +283,10 @@ api::transactions().balances().transfer_allow_death(dest, value);
 // Constants - read via `at_block.constants().entry(address)`
 api::constants().system().block_length();
 api::constants().timestamp().minimum_period();
+
+// View functions - called via `at_block.view_functions().call(payload)`
+api::view_functions().cps().resolve_scope(node_id);
+api::view_functions().cps().has_capability(node_id, account, capability);
 
 // Events
 api::balances::events::Transfer { from, to, amount };

@@ -54,9 +54,10 @@ When the `build-metadata` feature is enabled, metadata is extracted directly fro
 │     ↓                                                       │
 │  2. Creates RuntimeBlob and WasmExecutor                    │
 │     ↓                                                       │
-│  3. Executes Metadata_metadata host function                │
+│  3. Checks Metadata_metadata_versions contains V16, then    │
+│     executes Metadata_metadata_at_version(16)               │
 │     ↓                                                       │
-│  4. Decodes and validates SCALE-encoded metadata            │
+│  4. Decodes and validates SCALE-encoded metadata (V16)      │
 │     ↓                                                       │
 │  5. Saves metadata.scale to $OUT_DIR/                       │
 │     ↓                                                       │
@@ -91,6 +92,19 @@ The `check-metadata` feature verifies that the prebuilt metadata matches the run
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## Metadata Version
+
+The metadata is always **V16**, requested explicitly (`METADATA_VERSION` in
+`build.rs`) rather than picking the highest version the runtime reports. The
+build fails with a clear message if the runtime does not support V16, and the
+crate tests assert that the committed `metadata.scale` is V16.
+
+V16 is required because it is the first version that describes pallet view
+functions: subxt leaves the view functions of V14/V15 metadata empty, so typed
+view-function access (e.g. `api::view_functions().cps().resolve_scope(..)`) is
+generated only from V16. subxt 0.51 and the Polkadot SDK both support V14-V16,
+so V16 is also the highest version available to consumers.
 
 ## Public API
 

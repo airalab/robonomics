@@ -184,8 +184,9 @@
 //!   a node, with the same checks as the calls that require it, including
 //!   the enclosing Scope owner's right to use [`Pallet::create_scope`].
 //!
-//! `resolve_scope` and `has_capability` are exposed to off-chain clients by
-//! the `CpsApi` runtime API (`pallet-robonomics-cps-runtime-api`).
+//! `resolve_scope` and `has_capability` are also exposed to off-chain
+//! clients as pallet view functions, described in the runtime metadata (V16)
+//! and executed through the generic `RuntimeViewFunction` runtime API.
 //!
 //! ## Invariants
 //!
@@ -1160,8 +1161,14 @@ pub mod pallet {
         }
     }
 
+    /// Read-only queries of derived CPS semantics. They are described in the
+    /// runtime metadata and executed through the generic `RuntimeViewFunction`
+    /// runtime API.
+    #[pallet::view_functions]
     impl<T: Config> Pallet<T> {
         /// Resolve the Scope that `node_id` belongs to.
+        ///
+        /// Exposed to off-chain clients as a pallet view function.
         ///
         /// Starting at `node_id`, walks towards the tree root until it
         /// reaches a node whose `NodeInfo.scope` is set, and returns that
@@ -1215,20 +1222,22 @@ pub mod pallet {
         /// Returns `false` if `node_id` does not exist or no Scope can be
         /// resolved for it.
         ///
-        /// Exposed to off-chain clients by the `CpsApi` runtime API.
+        /// Exposed to off-chain clients as a pallet view function.
         pub fn has_capability(
             node_id: NodeId,
-            account_id: &T::AccountId,
+            account_id: T::AccountId,
             capability: Capability,
         ) -> bool {
             match capability {
                 Capability::CreateScope => <Nodes<T>>::get(node_id).is_some_and(|info| {
-                    Self::authorize_create_scope(node_id, &info, account_id).is_ok()
+                    Self::authorize_create_scope(node_id, &info, &account_id).is_ok()
                 }),
-                Capability::Write => Self::authorize(node_id, account_id, capability).is_ok(),
+                Capability::Write => Self::authorize(node_id, &account_id, capability).is_ok(),
             }
         }
+    }
 
+    impl<T: Config> Pallet<T> {
         /// Check that `sender` may use `capability` at `node_id`.
         ///
         /// Resolves the Scope of `node_id` once and returns `Ok(true)` if

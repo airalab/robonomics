@@ -105,6 +105,10 @@ cargo build -p robonomics-runtime
 cargo build -p robonomics-runtime-metadata --features build-metadata
 ```
 
+The committed metadata is **V16** (requested explicitly; the build fails if the
+runtime does not support it), because pallet view functions are only described
+in V16.
+
 See [runtime/robonomics/metadata/README.md](./runtime/robonomics/metadata/README.md) for details.
 
 **Testing Changes:**

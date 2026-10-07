@@ -68,6 +68,7 @@ pallet-balances = { version = "50.0.0", default-features = false }
 frame-support = { version = "48.1.0", default-features = false }
 frame-system = { version = "48.0.0", default-features = false }
 frame-executive = { version = "48.0.0", default-features = false }
+frame-metadata = { version = "23.0.1", default-features = false }
 frame-metadata-hash-extension = { version = "0.16.0", default-features = false }
 frame-system-rpc-runtime-api = { version = "43.0.0", default-features = false }
 pallet-aura = { version = "48.0.0", default-features = false }
@@ -127,7 +128,6 @@ substrate-wasm-builder = "34.0.1"
 
 # Robonomics pallets
 pallet-robonomics-cps = { version = "1.0.0", path = "./frame/cps", default-features = false }
-pallet-robonomics-cps-runtime-api = { version = "1.0.0", path = "./frame/cps/runtime-api", default-features = false }
 pallet-robonomics-liability = { version = "0.11.0", path = "./frame/liability", default-features = false }
 robonomics-collator-rewards = { version = "0.1.0", path = "./frame/collator-rewards", default-features = false }
 pallet-robonomics-parachain-info = { version = "1.0.0", path = "./frame/parachain-info", default-features = false }

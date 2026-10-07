@@ -4771,16 +4771,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-robonomics-cps-runtime-api"
-version = "1.0.0"
-dependencies = [
- "pallet-robonomics-cps",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
-]
-
-[[package]]
 name = "pallet-robonomics-datalog"
 version = "1.3.0"
 dependencies = [
@@ -6128,7 +6118,6 @@ dependencies = [
  "pallet-proxy",
  "pallet-referenda",
  "pallet-robonomics-cps",
- "pallet-robonomics-cps-runtime-api",
  "pallet-robonomics-datalog",
  "pallet-robonomics-digital-twin",
  "pallet-robonomics-launch",
@@ -6159,6 +6148,7 @@ dependencies = [
  "sp-core",
  "sp-genesis-builder",
  "sp-inherents",
+ "sp-io",
  "sp-keyring",
  "sp-offchain",
  "sp-runtime",
@@ -6177,6 +6167,7 @@ dependencies = [
 name = "robonomics-runtime-metadata"
 version = "51.0.0"
 dependencies = [
+ "frame-metadata",
  "parity-scale-codec",
  "robonomics-runtime",
  "sc-executor",
